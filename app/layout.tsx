@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { AppearanceProvider } from "./components/appearance-provider";
-import { ImpactSiteVerification } from "./components/impact-site-verification";
 import { ThemeBootstrap } from "./components/theme-bootstrap";
 import "./globals.css";
 
@@ -23,7 +22,10 @@ export default function RootLayout({
       data-theme="dark"
     >
       <head>
-        <ImpactSiteVerification />
+        <meta
+          name="impact-site-verification"
+          value="716da39a-4e9c-4773-8cc0-b695f0f13ccb"
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeBootstrap />

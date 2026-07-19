@@ -261,13 +261,10 @@ test("root layout bootstraps the theme without rendering a raw script tag", () =
 test("root layout renders the Impact verification tag with a value attribute", () => {
   const layout = read("app/layout.tsx");
   const page = read("app/page.tsx");
-  const verification = read("app/components/impact-site-verification.tsx");
   assert.match(layout, /<head>/);
-  assert.match(layout, /<ImpactSiteVerification \/>/);
-  assert.match(verification, /name: "impact-site-verification"/);
-  assert.match(verification, /value: "716da39a-4e9c-4773-8cc0-b695f0f13ccb"/);
+  assert.match(layout, /<meta\s+name="impact-site-verification"\s+value="716da39a-4e9c-4773-8cc0-b695f0f13ccb"\s+\/>/);
+  assert.doesNotMatch(layout, /ImpactSiteVerification|metadata\.other|content=/);
   assert.doesNotMatch(page, /ImpactSiteVerification/);
-  assert.doesNotMatch(verification, /content:/);
 });
 
 test("account menu items use stable explicit link and button markup", () => {
