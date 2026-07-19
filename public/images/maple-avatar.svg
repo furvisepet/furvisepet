@@ -1,0 +1,28 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Maple dog avatar</title>
+  <desc id="desc">A warm circular portrait placeholder for Maple, a calm dog.</desc>
+  <defs>
+    <linearGradient id="bg" x1="32" y1="26" x2="224" y2="228" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E9D0AF"/>
+      <stop offset="1" stop-color="#C69361"/>
+    </linearGradient>
+    <linearGradient id="fur" x1="78" y1="62" x2="182" y2="194" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EAD1B3"/>
+      <stop offset="1" stop-color="#B97E4D"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="128" fill="url(#bg)"/>
+  <circle cx="128" cy="128" r="110" fill="#F6F0E7" fill-opacity="0.22"/>
+  <path d="M67 92 43 67C37 61 38 51 45 47L71 32C78 28 87 31 89 39L95 80Z" fill="#C28A5B"/>
+  <path d="M189 92 213 67C219 61 218 51 211 47L185 32C178 28 169 31 167 39L161 80Z" fill="#C28A5B"/>
+  <path d="M71 146C71 104.579 104.579 71 146 71H154C192.66 71 224 102.34 224 141V175C224 197.091 206.091 215 184 215H78C68.0599 215 60 206.94 60 197V158C60 151.925 61.419 146.107 64 141.021C66.5602 136.01 69.9987 132.572 71 146Z" fill="url(#fur)"/>
+  <ellipse cx="128" cy="181" rx="58" ry="24" fill="#7A5437" fill-opacity="0.16"/>
+  <circle cx="102" cy="142" r="11" fill="#2F2017"/>
+  <circle cx="154" cy="142" r="11" fill="#2F2017"/>
+  <path d="M123 159C127 164 131 166 136 166C141 166 145 164 149 159" stroke="#6B452C" stroke-width="8" stroke-linecap="round"/>
+  <path d="M130 154C130.7 152.167 132.3 150.5 134 150.5C135.7 150.5 137.3 152.167 138 154" stroke="#6B452C" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="128" cy="126" r="15" fill="#F2DFCB"/>
+  <path d="M97 171C103 184 113 191 128 191C143 191 153 184 159 171" stroke="#8E5E3B" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="184" cy="52" r="10" fill="#FFFFFF" fill-opacity="0.3"/>
+  <circle cx="197" cy="72" r="5" fill="#FFFFFF" fill-opacity="0.3"/>
+</svg>

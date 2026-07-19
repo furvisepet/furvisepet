@@ -1,0 +1,227 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f3ea;
+  --foreground: #102019;
+  --pw-background: #f7f3ea;
+  --pw-app-background: #efe8da;
+  --pw-surface: #fffdf7;
+  --pw-surface-elevated: #ffffff;
+  --pw-surface-strong: #fffef8;
+  --pw-header-surface: rgba(255, 253, 247, 0.88);
+  --pw-card-muted: #eef4ea;
+  --pw-primary: #1f6b43;
+  --pw-primary-hover: #175734;
+  --pw-primary-soft: #dcebd8;
+  --pw-secondary: #6a8371;
+  --pw-heading: #102019;
+  --pw-text: #1a2620;
+  --pw-muted: #4f5f55;
+  --pw-subtle: #63736a;
+  --pw-border: rgba(31, 74, 52, 0.18);
+  --pw-border-strong: rgba(31, 74, 52, 0.32);
+  --pw-input: #fffdfa;
+  --pw-placeholder: #88958d;
+  --pw-shadow: rgb(28 45 33 / 0.1);
+  --pw-pattern-opacity: 0.14;
+  --pw-page-base: linear-gradient(180deg, #f7f3ea 0%, #f3ecdf 56%, #efe5d6 100%);
+  --pw-page-pattern: radial-gradient(circle at 1px 1px, rgb(31 107 67 / 0.03) 1px, transparent 1px);
+  --pw-hero-card-surface: #171d1b;
+  --pw-hero-card-surface-strong: #111715;
+  --pw-hero-card-panel: #1d2623;
+  --pw-hero-card-panel-strong: #24312d;
+  --pw-hero-card-accent: #bce5c2;
+  --pw-hero-card-accent-soft: rgba(188, 229, 194, 0.12);
+  --pw-hero-card-muted: #c9d5ce;
+  --pw-hero-card-heading: #f6fbf7;
+  --pw-hero-card-subtle: #afbeb5;
+  --pw-hero-card-dot: rgba(255, 255, 255, 0.2);
+  --pw-hero-card-border: rgba(188, 229, 194, 0.26);
+  --pw-warning-surface: #fff4df;
+  --pw-warning-text: #7a5712;
+  --pw-warning-border: rgba(161, 98, 7, 0.35);
+  --pw-danger-surface: #fdf1ec;
+  --pw-danger-text: #8f3d2b;
+  --pw-danger-border: #e3b9ad;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --pw-background: #f7f3ea;
+  --pw-app-background: #efe8da;
+  --pw-surface: #fffdf7;
+  --pw-surface-elevated: #ffffff;
+  --pw-surface-strong: #fffef8;
+  --pw-header-surface: rgba(255, 253, 247, 0.88);
+  --pw-card-muted: #eef4ea;
+  --pw-primary: #1f6b43;
+  --pw-primary-hover: #175734;
+  --pw-primary-soft: #dcebd8;
+  --pw-secondary: #6a8371;
+  --pw-heading: #102019;
+  --pw-text: #1a2620;
+  --pw-muted: #4f5f55;
+  --pw-subtle: #63736a;
+  --pw-border: rgba(31, 74, 52, 0.18);
+  --pw-border-strong: rgba(31, 74, 52, 0.32);
+  --pw-input: #fffdfa;
+  --pw-placeholder: #88958d;
+  --pw-shadow: rgb(28 45 33 / 0.1);
+  --pw-pattern-opacity: 0.14;
+  --pw-page-base: linear-gradient(180deg, #f7f3ea 0%, #f3ecdf 56%, #efe5d6 100%);
+  --pw-page-pattern: radial-gradient(circle at 1px 1px, rgb(31 107 67 / 0.03) 1px, transparent 1px);
+  --pw-hero-card-surface: #171d1b;
+  --pw-hero-card-surface-strong: #111715;
+  --pw-hero-card-panel: #1d2623;
+  --pw-hero-card-panel-strong: #24312d;
+  --pw-hero-card-accent: #bce5c2;
+  --pw-hero-card-accent-soft: rgba(188, 229, 194, 0.12);
+  --pw-hero-card-muted: #c9d5ce;
+  --pw-hero-card-heading: #f6fbf7;
+  --pw-hero-card-subtle: #afbeb5;
+  --pw-hero-card-dot: rgba(255, 255, 255, 0.2);
+  --pw-hero-card-border: rgba(188, 229, 194, 0.26);
+  --pw-warning-surface: #fff4df;
+  --pw-warning-text: #7a5712;
+  --pw-warning-border: rgba(161, 98, 7, 0.35);
+  --pw-danger-surface: #fdf1ec;
+  --pw-danger-text: #8f3d2b;
+  --pw-danger-border: #e3b9ad;
+  --background: var(--pw-background);
+  --foreground: var(--pw-text);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --pw-background: #08090b;
+  --pw-app-background: #0b0d10;
+  --pw-surface: #0f1113;
+  --pw-surface-elevated: #121416;
+  --pw-surface-strong: #181c1f;
+  --pw-header-surface: rgba(10, 12, 13, 0.84);
+  --pw-card-muted: #141719;
+  --pw-primary: #8fd39a;
+  --pw-primary-hover: #a8deaf;
+  --pw-primary-soft: rgba(143, 211, 154, 0.12);
+  --pw-secondary: #a8cba9;
+  --pw-heading: #f4f6f2;
+  --pw-text: #e7ede8;
+  --pw-muted: #aeb8b0;
+  --pw-subtle: #90a095;
+  --pw-border: rgba(180, 196, 185, 0.12);
+  --pw-border-strong: rgba(180, 196, 185, 0.2);
+  --pw-input: #14171a;
+  --pw-placeholder: #8b978f;
+  --pw-shadow: rgb(0 0 0 / 0.34);
+  --pw-pattern-opacity: 0.12;
+  --pw-page-base: linear-gradient(180deg, #08090b 0%, #090b0d 100%);
+  --pw-page-pattern: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  --pw-hero-card-surface: #0f1113;
+  --pw-hero-card-surface-strong: #121416;
+  --pw-hero-card-panel: #141719;
+  --pw-hero-card-panel-strong: #181c1f;
+  --pw-hero-card-accent: #8fd39a;
+  --pw-hero-card-accent-soft: rgba(143, 211, 154, 0.12);
+  --pw-hero-card-muted: #aeb8b0;
+  --pw-hero-card-heading: #f4f6f2;
+  --pw-hero-card-subtle: #aeb8b0;
+  --pw-hero-card-dot: rgba(255, 255, 255, 0.18);
+  --pw-hero-card-border: rgba(180, 196, 185, 0.16);
+  --pw-warning-surface: #241f19;
+  --pw-warning-text: #f3dfbd;
+  --pw-warning-border: #6f614f;
+  --pw-danger-surface: #261d21;
+  --pw-danger-text: #f4c8ce;
+  --pw-danger-border: #7e5057;
+  --background: var(--pw-background);
+  --foreground: var(--pw-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "Courier New", Courier, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--pw-background);
+  background-image: var(--pw-page-base), var(--pw-page-pattern);
+  background-size: cover, 24px 24px;
+  background-position: center, 0 0;
+  background-repeat: no-repeat, repeat;
+  color: var(--pw-text);
+  font-family: Arial, Helvetica, sans-serif;
+  position: relative;
+  isolation: isolate;
+  max-width: 100vw;
+}
+
+a {
+  text-decoration: none;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 6.5rem;
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+main,
+header,
+section,
+article,
+aside,
+nav,
+form,
+fieldset,
+div {
+  min-width: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+@media print {
+  header.sticky,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body,
+  main {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+
+  .ask-print-root {
+    margin: 0;
+    padding: 0;
+  }
+
+  .ask-print-root section,
+  .ask-print-root p {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}
