@@ -1,0 +1,32 @@
+# Local browser/Codex profiles
+.chrome*/
+.chrome-codex/
+.codex/
+
+# Local env/secrets
+.env.local
+.env*.local
+
+# Build/cache/dependencies
+.next/
+node_modules/
+tsconfig.tsbuildinfo
+
+# Supabase local temp
+supabase/.temp/
+
+# Logs
+*.log
+*.err
+*.out
+*.stderr.log
+*.stdout.log
+
+# Local QA screenshots/folders only
+audit-mobile-qa/
+audit-*.png
+appearance-*.png
+dashboard-*-manual.png
+guidance-verify.png
+homepage-*.png
+login-*-manual.png
