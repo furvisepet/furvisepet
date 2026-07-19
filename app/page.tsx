@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HomepageClient } from "./components/homepage-client";
+import { ImpactSiteVerification } from "./components/impact-site-verification";
 
 export const metadata: Metadata = {
   title: "Furvise - Connected pet care history",
@@ -8,5 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  return <HomepageClient />;
+  return (
+    <>
+      <ImpactSiteVerification />
+      <HomepageClient />
+    </>
+  );
 }

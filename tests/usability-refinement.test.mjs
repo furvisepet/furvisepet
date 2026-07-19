@@ -258,6 +258,17 @@ test("root layout bootstraps the theme without rendering a raw script tag", () =
   assert.doesNotMatch(layout + bootstrap, /data-pet-background|APPEARANCE_BACKGROUND_COOKIE|background picker|furvise-background/);
 });
 
+test("homepage renders the Impact verification tag with a value attribute", () => {
+  const layout = read("app/layout.tsx");
+  const page = read("app/page.tsx");
+  const verification = read("app/components/impact-site-verification.tsx");
+  assert.doesNotMatch(layout, /impact-site-verification/);
+  assert.match(page, /<ImpactSiteVerification \/>/);
+  assert.match(verification, /name: "impact-site-verification"/);
+  assert.match(verification, /value: "716da39a-4e9c-4773-8cc0-b695f0f13ccb"/);
+  assert.doesNotMatch(verification, /content:/);
+});
+
 test("account menu items use stable explicit link and button markup", () => {
   const header = read("app/components/app-header.tsx");
   const homepage = read("app/components/homepage-client.tsx");
