@@ -162,8 +162,9 @@ test("Care history keeps Log update out of top nav and exposes page-level create
 test("authenticated header switches to compact navigation before tablet labels wrap", () => {
   const header = read("app/components/app-header.tsx");
   const signedIn = read("app/components/signed-in-header.tsx");
-  assert.match(header, /lg:flex/);
-  assert.match(header, /lg:hidden/);
+  assert.match(header, /hidden min-w-0 flex-1 justify-center xl:flex/);
+  assert.match(header, /hidden shrink-0 items-center gap-2\.5 xl:flex/);
+  assert.match(header, /flex shrink-0 items-center gap-1\.5 sm:gap-2 xl:hidden/);
   assert.match(header, /whitespace-nowrap py-1/);
   assert.match(header, /aria-label="Primary navigation"/);
   assert.match(signedIn, /label: "Care history"/);
@@ -727,7 +728,7 @@ test("shared mobile header keeps menu and account controls available without des
 
   assert.match(header, /aria-label=\{mobileMenuOpen \? "Close navigation menu" : "Open navigation menu"\}/);
   assert.match(header, /aria-label=\{mobileAccountMenuOpen \? "Close account menu" : "Open account menu"\}/);
-  assert.match(header, /flex shrink-0 items-center gap-1\.5 sm:gap-2 lg:hidden/);
+  assert.match(header, /flex shrink-0 items-center gap-1\.5 sm:gap-2 xl:hidden/);
   assert.match(header, /w-full max-w-full min-w-0/);
   assert.match(header, /min-w-0 shrink truncate text-xl/);
   assert.match(signedInHeader, /navItems=\{\[\.\.\.appNavItems\]\}/);
@@ -747,6 +748,8 @@ test("mobile layout shells and Ask chips avoid horizontal clipping", () => {
   assert.match(globals, /max-width: 100vw;/);
   assert.match(globals, /button,\s*input,\s*select,\s*textarea\s*\{\s*max-width: 100%;/);
   assert.match(header, /overflow-x-clip/);
+  assert.match(header, /flex max-w-full min-w-0 flex-1 basis-\[13rem\]/);
+  assert.match(header, /flex max-w-full shrink-0 basis-full flex-wrap items-center justify-start/);
   assert.match(appPage, /w-full max-w-full overflow-x-hidden/);
   assert.match(homepage, /overflow-x-clip px-4/);
   assert.match(ask, /max-w-full overflow-hidden rounded-3xl/);
@@ -776,8 +779,16 @@ test("edit profile mobile form avoids horizontal overflow and keeps bottom actio
   const source = read("app/dogs/[id]/edit/page.tsx");
 
   assert.match(source, /min-h-screen overflow-x-hidden/);
-  assert.match(source, /mb-24 min-w-0 rounded-\[2rem\]/);
-  assert.match(source, /inline-flex min-h-11 max-w-full items-center justify-center rounded-full/);
+  assert.match(source, /max-w-7xl min-w-0/);
+  assert.match(source, /max-w-3xl min-w-0/);
+  assert.match(source, /mb-20 w-full max-w-full min-w-0 rounded-\[1\.5rem\]/);
+  assert.match(source, /grid gap-4 lg:grid-cols-2/);
+  assert.match(source, /sm:grid-cols-\[minmax\(0,1fr\)_minmax\(7\.5rem,auto\)\]/);
+  assert.match(source, /grid w-full min-w-0 grid-cols-2 overflow-hidden rounded-full/);
+  assert.match(source, /disabled:bg-\[var\(--pw-card-muted\)\]/);
+  assert.match(source, /flex min-w-0 items-start gap-2\.5/);
+  assert.match(source, /inline-flex min-h-10 max-w-full items-center justify-center break-words rounded-full/);
   assert.match(source, /inline-flex min-h-12 items-center justify-center rounded-full/);
-  assert.match(source, /className="min-h-12 rounded-full bg-\[var\(--pw-primary\)\]/);
+  assert.match(source, /className="inline-flex min-h-12 items-center justify-center rounded-full bg-\[var\(--pw-primary\)\]/);
+  assert.doesNotMatch(source, /sm:grid-cols-\[1fr_auto\]/);
 });

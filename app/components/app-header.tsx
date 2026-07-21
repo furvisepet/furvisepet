@@ -418,7 +418,7 @@ export function AppHeader({
     return (
       <header className={shellClasses}>
         <div className={cardClasses}>
-            <div className="flex min-w-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
               {showBackButton ? <BackButton fallbackHref={backFallbackHref} label={backLabel} /> : null}
               {resolvedBrandMark ? <div className="shrink-0">{resolvedBrandMark}</div> : null}
@@ -432,15 +432,15 @@ export function AppHeader({
               {title ? <div className="hidden text-sm text-[var(--pw-muted)] sm:block">{title}</div> : null}
             </div>
 
-            <div className="hidden flex-1 justify-center lg:flex">
+            <div className="hidden min-w-0 flex-1 justify-center xl:flex">
               {navItems.length > 0 ? (
-                <nav aria-label="Site sections" className="flex items-center gap-6">
+                <nav aria-label="Site sections" className="flex min-w-0 items-center gap-5 2xl:gap-6">
                   {navItems.map((item) => renderNavItem(item))}
                 </nav>
               ) : null}
             </div>
 
-            <div className="hidden items-center gap-2.5 lg:flex">
+            <div className="hidden shrink-0 items-center gap-2.5 xl:flex">
               {actions.map((action) => renderAction(action))}
               <div className="relative">
                 <button
@@ -468,7 +468,7 @@ export function AppHeader({
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:hidden">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 xl:hidden">
               {actions.map((action) => renderAction(action, false, true))}
               {navItems.length > 0 ? (
                 <button
@@ -511,7 +511,7 @@ export function AppHeader({
 
           {navItems.length > 0 ? (
             <div
-              className={`lg:hidden ${
+              className={`xl:hidden ${
                 mobileMenuOpen
                   ? "pointer-events-auto mt-4 opacity-100"
                   : "pointer-events-none max-h-0 overflow-hidden opacity-0"
@@ -527,7 +527,7 @@ export function AppHeader({
           ) : null}
 
           <div
-            className={`lg:hidden ${
+            className={`xl:hidden ${
               mobileAccountMenuOpen
                 ? "pointer-events-auto mt-4 opacity-100"
                 : "pointer-events-none max-h-0 overflow-hidden opacity-0"
@@ -794,7 +794,7 @@ export function AppHeader({
   if (!sticky && navItems.length === 0) {
     return (
       <header className={shellClasses}>
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+        <div className="flex max-w-full min-w-0 flex-1 basis-[13rem] items-center gap-2 sm:gap-4">
           {showBackButton ? <BackButton fallbackHref={backFallbackHref} label={backLabel} /> : null}
           {resolvedBrandMark ? <div className="shrink-0">{resolvedBrandMark}</div> : null}
           <Link
@@ -807,7 +807,7 @@ export function AppHeader({
           {title ? <div className="hidden text-sm text-[var(--pw-muted)] sm:block">{title}</div> : null}
         </div>
 
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-2 sm:gap-2.5">
+        <div className="flex max-w-full shrink-0 basis-full flex-wrap items-center justify-start gap-2 sm:basis-auto sm:justify-end sm:gap-2.5">
           <button
             className="min-h-11 rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface-strong)] px-4 py-2 text-sm font-medium text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)] hover:text-[var(--pw-primary)]"
             onClick={openAppearance}

@@ -162,257 +162,259 @@ export default function EditDogProfilePage() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-transparent text-[var(--pw-text)]">
-      <div className="mx-auto w-full max-w-4xl min-w-0 px-5 py-5 sm:px-8">
+      <div className="mx-auto w-full max-w-7xl min-w-0 px-4 py-4 sm:px-6 lg:px-8">
         <SignedInHeader />
 
-        <section className="py-9 sm:py-14">
-          <p className="mb-4 inline-flex rounded-full border border-[var(--pw-border)] bg-[var(--pw-surface)] px-3 py-1 text-sm font-medium text-[var(--pw-primary)]">
-            Edit profile
-          </p>
-          <h1 className="break-words text-4xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-5xl">
-            Update {formatPetDisplayName(profile.name)}&apos;s details
-          </h1>
-        </section>
+        <div className="mx-auto w-full max-w-3xl min-w-0">
+          <section className="py-6 sm:py-8 lg:py-10">
+            <p className="mb-3 inline-flex max-w-full rounded-full border border-[var(--pw-border)] bg-[var(--pw-surface)] px-3 py-1 text-sm font-medium text-[var(--pw-primary)]">
+              Edit profile
+            </p>
+            <h1 className="break-words text-3xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-4xl lg:text-[2.75rem]">
+              Update {formatPetDisplayName(profile.name)}&apos;s details
+            </h1>
+          </section>
 
-        {configError ? (
-          <StatusPanel tone="warn" text={configError} />
-        ) : loading ? (
-          <StatusPanel text="Loading pet profile..." />
-        ) : error && !profile.name ? (
-          <StatusPanel tone="warn" text={error} />
-        ) : (
-          <form
-            className="mb-24 min-w-0 rounded-[2rem] border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 shadow-2xl shadow-[var(--pw-shadow)] sm:mb-16 sm:p-8"
-            onSubmit={saveProfile}
-          >
-            <div className="grid gap-5">
-              <Field id="name" label="Name">
-                <input
-                  className={inputClass}
-                  onChange={(event) => updateProfile({ name: event.target.value })}
-                  required
-                  value={profile.name}
-                />
-              </Field>
-
-              <Field id="species" label="Species">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {(["dog", "cat"] as const).map((species) => (
-                    <button
-                      className={`rounded-2xl border px-4 py-3 text-left text-base font-semibold transition ${
-                        profile.species === species
-                          ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)] text-[var(--pw-text)]"
-                          : "border-[var(--pw-border)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-secondary)]"
-                      }`}
-                      key={species}
-                      onClick={() => updateProfile({ species })}
-                      type="button"
-                    >
-                      {species === "dog" ? "Dog" : "Cat"}
-                    </button>
-                  ))}
-                </div>
-              </Field>
-
-              <Field id="breed" label="Breed">
-                <input
-                  className={inputClass}
-                  onChange={(event) => updateProfile({ breed: event.target.value })}
-                  placeholder="Mixed / unknown"
-                  value={profile.breed}
-                />
-              </Field>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field id="age" label="Age">
-                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                    <input
-                      className={inputClass}
-                      disabled={profile.ageUnknown}
-                      inputMode="decimal"
-                      onChange={(event) =>
-                        updateProfile({ age: event.target.value, ageUnknown: false })
-                      }
-                      placeholder="4"
-                      value={profile.age}
-                    />
-                    <Segmented
-                      options={["months", "years"]}
-                      selected={profile.ageUnit}
-                      setSelected={(unit) => updateProfile({ ageUnit: unit })}
-                    />
-                  </div>
-                  <CheckRow
-                    checked={profile.ageUnknown}
-                    label="I'm not sure"
-                    onChange={(checked) => updateProfile({ ageUnknown: checked, age: checked ? "" : profile.age })}
+          {configError ? (
+            <StatusPanel tone="warn" text={configError} />
+          ) : loading ? (
+            <StatusPanel text="Loading pet profile..." />
+          ) : error && !profile.name ? (
+            <StatusPanel tone="warn" text={error} />
+          ) : (
+            <form
+              className="mb-20 w-full max-w-full min-w-0 rounded-[1.5rem] border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4 shadow-[0_18px_45px_var(--pw-shadow)] sm:mb-16 sm:p-6 lg:p-7"
+              onSubmit={saveProfile}
+            >
+              <div className="grid gap-4 sm:gap-5">
+                <Field id="name" label="Name">
+                  <input
+                    className={inputClass}
+                    onChange={(event) => updateProfile({ name: event.target.value })}
+                    required
+                    value={profile.name}
                   />
                 </Field>
 
-                <Field id="weight" label="Weight">
-                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                    <input
-                      className={inputClass}
-                      disabled={profile.weightUnknown}
-                      inputMode="decimal"
-                      onChange={(event) =>
-                        updateProfile({ weight: event.target.value, weightUnknown: false })
-                      }
-                      placeholder="42"
-                      value={profile.weight}
-                    />
-                    <Segmented
-                      options={["lb", "kg"]}
-                      selected={profile.weightUnit}
-                      setSelected={(unit) => updateProfile({ weightUnit: unit })}
-                    />
-                  </div>
-                  <CheckRow
-                    checked={profile.weightUnknown}
-                    label="I'm not sure"
-                    onChange={(checked) =>
-                      updateProfile({ weightUnknown: checked, weight: checked ? "" : profile.weight })
-                    }
-                  />
-                </Field>
-              </div>
-
-              <Field id="current-food" label="Current food">
-                <input
-                  className={inputClass}
-                  disabled={profile.currentFoodUnknown}
-                  onChange={(event) =>
-                    updateProfile({ currentFood: event.target.value, currentFoodUnknown: false })
-                  }
-                  placeholder="Chicken and rice kibble"
-                  value={profile.currentFood}
-                />
-                <CheckRow
-                  checked={profile.currentFoodUnknown}
-                  label="I'm not sure"
-                  onChange={(checked) =>
-                    updateProfile({
-                      currentFoodUnknown: checked,
-                      currentFood: checked ? "" : profile.currentFood,
-                    })
-                  }
-                />
-              </Field>
-
-              <Field id="main-concern" label="Main concern">
-                <div className="grid gap-2">
-                  {MAIN_CONCERN_OPTIONS.map((option) => (
-                    <button
-                      className={`rounded-2xl border px-4 py-3 text-left text-base font-semibold transition ${
-                        profile.mainConcern === option
-                          ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)] text-[var(--pw-text)]"
-                          : "border-[var(--pw-border)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-secondary)]"
-                      }`}
-                      key={option}
-                      onClick={() => updateProfile({ mainConcern: option })}
-                      type="button"
-                    >
-                      {option}
-                    </button>
-                  ))}
-                  {profile.mainConcern === "Other" ? (
-                    <input
-                      className={inputClass}
-                      onChange={(event) => updateProfile({ otherConcern: event.target.value })}
-                      placeholder="Describe the concern"
-                      value={profile.otherConcern}
-                    />
-                  ) : null}
-                </div>
-                {mainConcernError && error === mainConcernError ? (
-                  <p className="mt-3 text-sm font-semibold text-[var(--pw-danger-text)]">
-                    {mainConcernError}
-                  </p>
-                ) : null}
-              </Field>
-
-              <Field id="avoid-ingredients" label="Avoid ingredients">
-                <div className="flex flex-wrap gap-2">
-                  {avoidIngredientChips.map((ingredient) => {
-                    const selected =
-                      ingredient === "None known"
-                        ? profile.avoidIngredients.length === 0
-                        : profile.avoidIngredients.includes(ingredient);
-                    return (
+                <Field id="species" label="Species">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(["dog", "cat"] as const).map((species) => (
                       <button
-                        className={`inline-flex min-h-11 max-w-full items-center justify-center rounded-full border px-4 py-2 text-center text-base font-semibold leading-5 transition ${
-                          selected
+                        className={`min-w-0 rounded-2xl border px-3.5 py-2.5 text-left text-sm font-semibold transition sm:text-base ${
+                          profile.species === species
                             ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)] text-[var(--pw-text)]"
                             : "border-[var(--pw-border)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-secondary)]"
                         }`}
-                        key={ingredient}
-                        onClick={() => toggleAvoidIngredient(ingredient)}
+                        key={species}
+                        onClick={() => updateProfile({ species })}
                         type="button"
                       >
-                        {ingredient}
+                        {species === "dog" ? "Dog" : "Cat"}
                       </button>
-                    );
-                  })}
-                </div>
-                <input
-                  className={`${inputClass} mt-3`}
-                  onChange={(event) => updateCustomAvoidIngredient(event.target.value)}
-                  placeholder="Add another ingredient, or type none"
-                  value={profile.customAvoidIngredient || customAvoidIngredient}
-                />
-              </Field>
+                    ))}
+                  </div>
+                </Field>
 
-              <Field id="budget" label="Monthly care budget">
-                <div className="flex overflow-hidden rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] focus-within:border-[var(--pw-primary)] focus-within:bg-[var(--pw-surface)]">
-                  <span className="flex items-center px-4 text-base font-semibold text-[var(--pw-muted)]">
-                    $
-                  </span>
+                <Field id="breed" label="Breed">
                   <input
-                    className="w-full bg-transparent py-3 pr-4 text-base font-semibold text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)]"
-                    inputMode="decimal"
-                    onChange={(event) => updateProfile({ monthlyBudget: event.target.value })}
-                    placeholder="80"
-                    value={profile.monthlyBudget}
+                    className={inputClass}
+                    onChange={(event) => updateProfile({ breed: event.target.value })}
+                    placeholder="Mixed / unknown"
+                    value={profile.breed}
                   />
+                </Field>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Field id="age" label="Age">
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(7.5rem,auto)]">
+                      <input
+                        className={inputClass}
+                        disabled={profile.ageUnknown}
+                        inputMode="decimal"
+                        onChange={(event) =>
+                          updateProfile({ age: event.target.value, ageUnknown: false })
+                        }
+                        placeholder="4"
+                        value={profile.age}
+                      />
+                      <Segmented
+                        options={["months", "years"]}
+                        selected={profile.ageUnit}
+                        setSelected={(unit) => updateProfile({ ageUnit: unit })}
+                      />
+                    </div>
+                    <CheckRow
+                      checked={profile.ageUnknown}
+                      label="I'm not sure"
+                      onChange={(checked) => updateProfile({ ageUnknown: checked, age: checked ? "" : profile.age })}
+                    />
+                  </Field>
+
+                  <Field id="weight" label="Weight">
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(7.5rem,auto)]">
+                      <input
+                        className={inputClass}
+                        disabled={profile.weightUnknown}
+                        inputMode="decimal"
+                        onChange={(event) =>
+                          updateProfile({ weight: event.target.value, weightUnknown: false })
+                        }
+                        placeholder="42"
+                        value={profile.weight}
+                      />
+                      <Segmented
+                        options={["lb", "kg"]}
+                        selected={profile.weightUnit}
+                        setSelected={(unit) => updateProfile({ weightUnit: unit })}
+                      />
+                    </div>
+                    <CheckRow
+                      checked={profile.weightUnknown}
+                      label="I'm not sure"
+                      onChange={(checked) =>
+                        updateProfile({ weightUnknown: checked, weight: checked ? "" : profile.weight })
+                      }
+                    />
+                  </Field>
                 </div>
-              </Field>
-            </div>
 
-            {error && error !== mainConcernError ? (
-              <div className="mt-5 rounded-2xl border border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] p-4 text-sm font-semibold text-[var(--pw-danger-text)]">
-                {error}
-              </div>
-            ) : null}
-            {status ? (
-              <div className="mt-5 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4 text-sm font-semibold text-[var(--pw-primary)]">
-                {status}
-              </div>
-            ) : null}
+                <Field id="current-food" label="Current food">
+                  <input
+                    className={inputClass}
+                    disabled={profile.currentFoodUnknown}
+                    onChange={(event) =>
+                      updateProfile({ currentFood: event.target.value, currentFoodUnknown: false })
+                    }
+                    placeholder="Chicken and rice kibble"
+                    value={profile.currentFood}
+                  />
+                  <CheckRow
+                    checked={profile.currentFoodUnknown}
+                    label="I'm not sure"
+                    onChange={(checked) =>
+                      updateProfile({
+                        currentFoodUnknown: checked,
+                        currentFood: checked ? "" : profile.currentFood,
+                      })
+                    }
+                  />
+                </Field>
 
-            <div className="mt-7 grid gap-3 border-t border-[var(--pw-border)] pt-5 sm:grid-cols-[1fr_auto]">
-              <Link
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-5 py-3 text-center text-base font-semibold text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)]"
-                href="/dashboard"
-              >
-                Cancel
-              </Link>
-              <button
-                className="min-h-12 rounded-full bg-[var(--pw-primary)] px-5 py-3 text-base font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-wait disabled:bg-[var(--pw-secondary)]"
-                disabled={saving}
-                type="submit"
-              >
-                {saving ? "Saving..." : "Save profile"}
-              </button>
-            </div>
-          </form>
-        )}
+                <Field id="main-concern" label="Main concern">
+                  <div className="grid gap-2">
+                    {MAIN_CONCERN_OPTIONS.map((option) => (
+                      <button
+                        className={`min-w-0 rounded-2xl border px-3.5 py-2.5 text-left text-sm font-semibold transition sm:text-base ${
+                          profile.mainConcern === option
+                            ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)] text-[var(--pw-text)]"
+                            : "border-[var(--pw-border)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-secondary)]"
+                        }`}
+                        key={option}
+                        onClick={() => updateProfile({ mainConcern: option })}
+                        type="button"
+                      >
+                        {option}
+                      </button>
+                    ))}
+                    {profile.mainConcern === "Other" ? (
+                      <input
+                        className={inputClass}
+                        onChange={(event) => updateProfile({ otherConcern: event.target.value })}
+                        placeholder="Describe the concern"
+                        value={profile.otherConcern}
+                      />
+                    ) : null}
+                  </div>
+                  {mainConcernError && error === mainConcernError ? (
+                    <p className="mt-3 text-sm font-semibold text-[var(--pw-danger-text)]">
+                      {mainConcernError}
+                    </p>
+                  ) : null}
+                </Field>
+
+                <Field id="avoid-ingredients" label="Avoid ingredients">
+                  <div className="flex flex-wrap gap-2">
+                    {avoidIngredientChips.map((ingredient) => {
+                      const selected =
+                        ingredient === "None known"
+                          ? profile.avoidIngredients.length === 0
+                          : profile.avoidIngredients.includes(ingredient);
+                      return (
+                        <button
+                          className={`inline-flex min-h-10 max-w-full items-center justify-center break-words rounded-full border px-3.5 py-2 text-center text-sm font-semibold leading-5 transition sm:min-h-11 sm:text-base ${
+                            selected
+                              ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)] text-[var(--pw-text)]"
+                              : "border-[var(--pw-border)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-secondary)]"
+                          }`}
+                          key={ingredient}
+                          onClick={() => toggleAvoidIngredient(ingredient)}
+                          type="button"
+                        >
+                          {ingredient}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    className={`${inputClass} mt-3`}
+                    onChange={(event) => updateCustomAvoidIngredient(event.target.value)}
+                    placeholder="Add another ingredient, or type none"
+                    value={profile.customAvoidIngredient || customAvoidIngredient}
+                  />
+                </Field>
+
+                <Field id="budget" label="Monthly care budget">
+                  <div className="flex min-w-0 overflow-hidden rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] focus-within:border-[var(--pw-primary)] focus-within:bg-[var(--pw-surface)]">
+                    <span className="flex shrink-0 items-center px-3.5 text-base font-semibold text-[var(--pw-muted)]">
+                      $
+                    </span>
+                    <input
+                      className="min-h-11 w-full min-w-0 bg-transparent py-2.5 pr-3.5 text-base font-semibold text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)]"
+                      inputMode="decimal"
+                      onChange={(event) => updateProfile({ monthlyBudget: event.target.value })}
+                      placeholder="80"
+                      value={profile.monthlyBudget}
+                    />
+                  </div>
+                </Field>
+              </div>
+
+              {error && error !== mainConcernError ? (
+                <div className="mt-5 rounded-2xl border border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] p-4 text-sm font-semibold text-[var(--pw-danger-text)]">
+                  {error}
+                </div>
+              ) : null}
+              {status ? (
+                <div className="mt-5 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4 text-sm font-semibold text-[var(--pw-primary)]">
+                  {status}
+                </div>
+              ) : null}
+
+              <div className="mt-6 grid gap-3 border-t border-[var(--pw-border)] pt-5 sm:grid-cols-2">
+                <Link
+                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-5 py-3 text-center text-base font-semibold text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)]"
+                  href="/dashboard"
+                >
+                  Cancel
+                </Link>
+                <button
+                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 py-3 text-base font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-wait disabled:bg-[var(--pw-secondary)]"
+                  disabled={saving}
+                  type="submit"
+                >
+                  {saving ? "Saving..." : "Save profile"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </main>
   );
 }
 
 const inputClass =
-  "w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 py-3 text-base font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)] disabled:opacity-50";
+  "min-h-11 w-full min-w-0 rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3.5 py-2.5 text-base font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)] disabled:border-[var(--pw-border)] disabled:bg-[var(--pw-card-muted)] disabled:text-[var(--pw-subtle)] disabled:opacity-100";
 
 function Field({
   children,
@@ -425,7 +427,7 @@ function Field({
 }) {
   return (
     <div className="block scroll-mt-24" id={id}>
-      <span className="mb-2 block text-base font-semibold text-[var(--pw-muted)]">{label}</span>
+      <span className="mb-2 block text-sm font-semibold text-[var(--pw-muted)]">{label}</span>
       {children}
     </div>
   );
@@ -441,15 +443,15 @@ function CheckRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="mt-3 flex items-start gap-3 text-sm text-[var(--pw-muted)]">
+    <label className="mt-2 flex min-w-0 items-start gap-2.5 rounded-2xl bg-[var(--pw-card-muted)] px-3 py-2.5 text-sm text-[var(--pw-muted)]">
       <input
         checked={checked}
-        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--pw-primary)]"
+        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]"
         onChange={(event) => onChange(event.target.checked)}
         type="checkbox"
       />
-      <span>
-        <span className="block text-base font-semibold text-[var(--pw-muted)]">{label}</span>
+      <span className="min-w-0">
+        <span className="block break-words text-sm font-semibold text-[var(--pw-muted)]">{label}</span>
         <span className="mt-1 block leading-5 text-[var(--pw-subtle)]">
           Use this if you do not know the exact value yet.
         </span>
@@ -468,10 +470,10 @@ function Segmented<T extends string>({
   setSelected: (value: T) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-surface)]">
+    <div className="grid w-full min-w-0 grid-cols-2 overflow-hidden rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] sm:w-auto sm:min-w-[7.5rem]">
       {options.map((option) => (
         <button
-          className={`px-4 py-3 text-base font-semibold ${
+          className={`min-h-11 px-3 py-2 text-sm font-semibold transition ${
             selected === option ? "bg-[var(--pw-primary)] text-white" : "text-[var(--pw-muted)]"
           }`}
           key={option}
