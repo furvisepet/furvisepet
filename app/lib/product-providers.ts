@@ -7,7 +7,7 @@ import type {
   ProductCountry,
   RecommendationKind,
 } from "./petwise";
-import { mockProducts, normalizeSpecies } from "./petwise";
+import { mockProducts, normalizeSpecies, PRODUCT_SOURCES } from "./petwise";
 import {
   normalizeAccountProductCountry,
   resolveActiveAccountProductCountry,
@@ -95,6 +95,8 @@ export const mockProvider: ProductProvider = {
       species: species || "all",
       tags: normalizeTags(product.tags, product),
       currency: product.currency || "USD",
+      source: normalizeProductSource(product.source),
+      ingredientsVerified: product.ingredientsVerified === true,
       evidenceType: product.evidenceType || "demo",
       ingredientHighlights: Array.isArray(product.ingredientHighlights)
         ? product.ingredientHighlights
@@ -239,6 +241,10 @@ export function normalizeProductCountry(value?: string | null): ProductCountry |
 export function normalizeAvailableCountries(value: unknown): ProductCountry[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map((item) => normalizeProductCountry(String(item))).filter((item): item is ProductCountry => Boolean(item)))];
+}
+
+export function normalizeProductSource(value: unknown) {
+  return PRODUCT_SOURCES.find((source) => source === value) || "curated";
 }
 
 export function isProductEligibleForCountry(

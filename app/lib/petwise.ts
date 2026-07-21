@@ -52,6 +52,10 @@ export type RecommendationKind =
   | "reminder"
   | "vet_preparation"
   | "education";
+
+export const PRODUCT_SOURCES = ["curated", "chewy_feed", "ca_retailer_feed"] as const;
+export type ProductSource = (typeof PRODUCT_SOURCES)[number];
+
 export type ProductCountry = "US" | "CA";
 
 export type DogProfile = {
@@ -88,7 +92,9 @@ export type MockProduct = {
   price?: number;
   currency?: string;
   active?: boolean;
-  availableCountries?: ProductCountry[];
+  source: ProductSource;
+  ingredientsVerified: boolean;
+  availableCountries: ProductCountry[];
   protein: string;
   tags?: string[];
   concernTags: InternalConcernTag[];
@@ -207,7 +213,16 @@ export const initialProfile: DogProfile = {
   monthlyBudget: "",
 };
 
-export const mockProducts: MockProduct[] = [
+const curatedProductMetadataDefaults: Pick<
+  MockProduct,
+  "availableCountries" | "ingredientsVerified" | "source"
+> = {
+  availableCountries: ["US"],
+  ingredientsVerified: true,
+  source: "curated",
+};
+
+export const mockProducts: MockProduct[] = ([
   {
     id: "cedar-salmon-skin",
     name: "Cedar & Tide Salmon Comfort",
@@ -478,7 +493,12 @@ export const mockProducts: MockProduct[] = [
     whyCategoryFits: "Health essentials can provide non-medication lick prevention while the owner monitors the concern.",
     cautions: "Not a treatment. Seek veterinary care for wounds, swelling, pain, discharge, or persistent licking.",
   },
-];
+] as Omit<MockProduct, "availableCountries" | "ingredientsVerified" | "source">[]).map(
+  (product) => ({
+    ...curatedProductMetadataDefaults,
+    ...product,
+  }),
+);
 
 export function normalizeProfile(value: unknown): DogProfile {
   if (!value || typeof value !== "object") return initialProfile;
@@ -561,6 +581,10 @@ export function productPassesAvoidIngredientFilter(product: MockProduct, avoids:
 
   const metadata = collectProductIngredientMetadata(product);
   if (metadata.some((value) => normalizedAvoids.some((avoid) => ingredientMatchesAvoid(value, avoid)))) {
+    return false;
+  }
+
+  if (isIngestibleProduct(product) && !product.ingredientsVerified) {
     return false;
   }
 

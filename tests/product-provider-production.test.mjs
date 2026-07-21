@@ -4,6 +4,7 @@ import {
   buildRecommendations,
   initialProfile,
   mockProducts,
+  PRODUCT_SOURCES,
   productPassesAvoidIngredientFilter,
 } from "../app/lib/petwise.ts";
 import {
@@ -14,6 +15,7 @@ import {
   mockProvider,
   normalizeAvailableCountries,
   normalizeProductCountry,
+  normalizeProductSource,
   resolveProductProviderMode,
   staticRealProvider,
 } from "../app/lib/product-providers.ts";
@@ -109,11 +111,56 @@ test("static_real catalog filters species and avoids ingredients before recommen
 
 test("static_real products declare valid country eligibility metadata", () => {
   for (const product of staticRealProducts) {
+    assert.equal(product.source, "curated", `${product.id} has unexpected product source`);
+    assert.ok(PRODUCT_SOURCES.includes(product.source), `${product.id} has invalid product source`);
+    assert.equal(typeof product.ingredientsVerified, "boolean", `${product.id} missing ingredientsVerified`);
     assert.ok(Array.isArray(product.availableCountries), `${product.id} missing availableCountries`);
     assert.ok(product.availableCountries.length > 0, `${product.id} has empty availableCountries`);
     assert.deepEqual(normalizeAvailableCountries(product.availableCountries), product.availableCountries);
     assert.ok(product.availableCountries.every((country) => country === "US" || country === "CA"));
   }
+});
+
+test("static_real ingredient verification only marks structured ingredient metadata as verified", () => {
+  const verifiedProductIds = new Set([
+    "hills-science-diet-adult-dog-chicken-barley",
+    "purina-cat-chow-complete-chicken",
+    "hills-science-diet-adult-cat-chicken",
+    "greenies-original-regular-dog-dental-treats",
+  ]);
+
+  for (const product of staticRealProducts) {
+    assert.equal(
+      product.ingredientsVerified,
+      verifiedProductIds.has(product.id),
+      `${product.id} has unexpected ingredientsVerified default`,
+    );
+  }
+});
+
+test("product provider defaults future feed ingredient verification conservatively", () => {
+  assert.equal(normalizeProductSource("chewy_feed"), "chewy_feed");
+  assert.equal(normalizeProductSource("ca_retailer_feed"), "ca_retailer_feed");
+  assert.equal(normalizeProductSource("unknown"), "curated");
+
+  const normalized = mockProvider.normalizeProduct({
+    id: "future-feed-food",
+    name: "Future Feed Food",
+    category: "food",
+    species: "dog",
+    source: "chewy_feed",
+    protein: "Salmon",
+    concernTags: ["general_wellness"],
+    excludedIngredients: [],
+    ingredientHighlights: ["Salmon"],
+    availableCountries: ["US", "GB", "CA"],
+    lifeStage: "adult",
+  });
+
+  assert.ok(normalized);
+  assert.equal(normalized.source, "chewy_feed");
+  assert.equal(normalized.ingredientsVerified, false);
+  assert.deepEqual(normalized.availableCountries, ["US", "CA"]);
 });
 
 test("active product country resolves configured US and CA with conservative fallback", () => {
@@ -188,6 +235,23 @@ test("country filtering combines with species and avoid ingredient filtering", (
     usDogCatalog,
   );
   assert.ok(result.recommendations.every((item) => !/chicken|poultry/i.test(`${item.product?.name} ${item.product?.protein} ${item.product?.cautions}`)));
+});
+
+test("avoid ingredient filtering excludes unverified ingestible products", () => {
+  const unverifiedFeedFood = {
+    ...staticRealProducts[0],
+    id: "unverified-feed-food",
+    name: "Unverified Feed Food",
+    source: "chewy_feed",
+    ingredientsVerified: false,
+    protein: "Salmon",
+    excludedIngredients: [],
+    avoidIngredientKeywords: [],
+    ingredientHighlights: ["Salmon"],
+    cautions: "Feed-derived ingredients are not verified.",
+  };
+
+  assert.equal(productPassesAvoidIngredientFilter(unverifiedFeedFood, ["dairy"]), false);
 });
 
 test("production price labels never render demo or estimated prices", () => {
