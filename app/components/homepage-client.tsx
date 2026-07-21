@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -251,7 +252,6 @@ export function HomepageClient() {
         authState={authState}
         homepagePolish
         variant="homepage"
-        brandMark={<BrandMark />}
         brandHref="/"
         navItems={[
           { active: activeSection === "home", href: "#home", label: "Home" },
@@ -632,13 +632,15 @@ export function HomepageClient() {
 
 function BrandMark() {
   return (
-    <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface-strong)] shadow-sm">
-      <div className="relative h-4 w-4 rounded-full bg-[var(--pw-primary)]">
-        <span className="absolute -left-1 -top-1 h-1.5 w-1.5 rounded-full bg-[var(--pw-primary)]" />
-        <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-[var(--pw-primary)]" />
-        <span className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--pw-surface-strong)]" />
-      </div>
-    </div>
+    <Image
+      alt=""
+      aria-hidden="true"
+      className="h-9 w-9 rounded-2xl object-contain"
+      height={36}
+      sizes="36px"
+      src="/brand/furvise-logo.png"
+      width={36}
+    />
   );
 }
 

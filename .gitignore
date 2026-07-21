@@ -68,6 +68,12 @@ node_modules/
 
 # QA screenshots
 *.png
+!public/favicon-16x16.png
+!public/favicon-32x32.png
+!public/apple-touch-icon.png
+!public/android-chrome-192x192.png
+!public/android-chrome-512x512.png
+!public/brand/furvise-logo.png
 audit-mobile-qa/
 
 # Local browser/Codex state

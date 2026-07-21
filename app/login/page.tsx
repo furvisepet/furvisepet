@@ -109,7 +109,6 @@ function LoginPageContent() {
         <AppHeader
           actions={[]}
           backFallbackHref="/"
-          brandMark={<BrandMark />}
           brandHref="/"
           homepagePolish
           showBackButton
@@ -399,18 +398,6 @@ function StatusBanner({
         : "border-[var(--pw-border)] bg-[var(--pw-card-muted)] text-[var(--pw-muted)]";
 
   return <div className={`rounded-[1.25rem] border p-4 text-sm font-medium leading-6 ${toneClasses}`}>{text}</div>;
-}
-
-function BrandMark() {
-  return (
-    <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] shadow-sm">
-      <div className="relative h-4 w-4 rounded-full bg-[var(--pw-primary)]">
-        <span className="absolute -left-1 -top-1 h-1.5 w-1.5 rounded-full bg-[var(--pw-primary)]" />
-        <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-[var(--pw-primary)]" />
-        <span className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--pw-surface)]" />
-      </div>
-    </div>
-  );
 }
 
 function CheckIcon() {
