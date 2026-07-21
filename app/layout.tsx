@@ -4,8 +4,10 @@ import { ThemeBootstrap } from "./components/theme-bootstrap";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Furvise",
-  description: "Your pet family care companion.",
+  metadataBase: new URL("https://furvise.com"),
+  title: "Furvise — Pet Care History, Notes, and Guidance",
+  description:
+    "Furvise keeps your pet’s care history connected — profiles, care updates, saved details, vet-prep notes, and focused guidance in one private place.",
   icons: {
     icon: [
       { url: "/favicon.ico" },
