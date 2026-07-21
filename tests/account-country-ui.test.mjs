@@ -25,24 +25,25 @@ test("signed-out account redirects before rendering editable settings controls",
   assert.match(accountPage, /disabled=\{loading \|\| saving\}/);
 });
 
-test("Results reads account country and points region empty state to Account settings", () => {
+test("Results ignores product country and does not render a region product empty state", () => {
   const resultsPage = readFileSync("app/results/page.tsx", "utf8");
 
-  assert.match(resultsPage, /loadUserProfileForUser\(user\)/);
-  assert.match(resultsPage, /getActiveProductCountry\(\{ accountCountry: accountProductCountry \}\)/);
-  assert.match(resultsPage, /!accountCountryLoaded/);
-  assert.match(resultsPage, /No region-verified product suggestion yet/);
-  assert.match(resultsPage, /Furvise does not have a safe catalog match available for your region right now\./);
-  assert.match(resultsPage, /You can change your product country in/);
-  assert.match(resultsPage, /href="\/account"/);
+  assert.doesNotMatch(resultsPage, /loadUserProfileForUser\(user\)/);
+  assert.doesNotMatch(resultsPage, /getActiveProductCountry/);
+  assert.doesNotMatch(resultsPage, /accountCountryLoaded|accountProductCountry/);
+  assert.doesNotMatch(resultsPage, /No region-verified product suggestion yet/);
+  assert.doesNotMatch(resultsPage, /Furvise does not have a safe catalog match available for your region right now\./);
+  assert.doesNotMatch(resultsPage, /You can change your product country in/);
 });
 
-test("urgent safety continues to suppress product recommendations in Results UI", () => {
+test("urgent safety continues to render care-first Results UI without product copy", () => {
   const resultsPage = readFileSync("app/results/page.tsx", "utf8");
 
   assert.match(resultsPage, /const urgentVetAttention =/);
-  assert.match(resultsPage, /const showProductRecommendations =[\s\S]*!urgentVetAttention/);
-  assert.match(resultsPage, /Products paused/);
+  assert.match(resultsPage, /UrgentCarePanel/);
+  assert.match(resultsPage, /Safety first/);
+  assert.doesNotMatch(resultsPage, /showProductRecommendations/);
+  assert.doesNotMatch(resultsPage, /Products paused/);
 });
 
 test("privacy page includes approximate country copy", () => {

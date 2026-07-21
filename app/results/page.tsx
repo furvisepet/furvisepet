@@ -11,7 +11,6 @@ import {
   PetWiseAnalysis,
   SafetyFollowupResult,
   StoredAnalysisResult,
-  buildAnalysisMatcherProfile,
   parseAnalysis,
   parseAnalysisMemoryContext,
   parseSafetyFollowupResult,
@@ -20,32 +19,19 @@ import {
 import {
   DogProfile,
   ONBOARDING_MODE_STORAGE_KEY,
-  ProductCategory,
-  Recommendation,
   STORAGE_KEY,
   WellnessGoal,
-  NutritionGoal,
-  buildRecommendations,
   formatAge,
   formatAvoidIngredients,
   formatBudget,
   formatSpecies,
   formatWeight,
-  getBudget,
-  hasSpeciesCompatibleFoodProducts,
   initialProfile,
   normalizeProfile,
   formatPetDisplayName,
   selectedConcern,
 } from "../lib/petwise";
 import { NEW_PET_LOGIN_PATH, buildLoginHref } from "../lib/auth-routing";
-import {
-  getActiveProductCountry,
-  getConfiguredProductProvider,
-  getDisplayProductPriceLabel,
-  getProductLinkInfo,
-  hasStaticRealProductsExcludedByCountry,
-} from "../lib/product-providers";
 import { getFinishProfileItemsFromDraft } from "../lib/finish-profile";
 import {
   buildPetMemoryContext,
@@ -60,16 +46,13 @@ import {
   MemoryInput,
   PROFILE_ID_STORAGE_KEY,
   PROFILE_MEMORIES_STORAGE_KEY,
-  ProductFeedbackType,
   DogProfileRow,
   dogProfileRowToDraft,
   getCurrentUser,
   listCareEntriesForPet,
   loadDogProductFeedbackForUser,
   loadDogProfileWithMemoriesForUser,
-  loadUserProfileForUser,
   saveDogMemories,
-  toggleProductFeedbackForUser,
 } from "../lib/supabase";
 import { writeStoredGuidanceResult } from "../lib/stored-guidance";
 
@@ -97,22 +80,10 @@ function ResultsPageContent() {
   const [memoryRows, setMemoryRows] = useState<DogMemoryRow[]>([]);
   const [savedMemories, setSavedMemories] = useState<AnalysisMemoryContext[]>([]);
   const [productFeedback, setProductFeedback] = useState<DogProductFeedbackRow[]>([]);
-  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
-  const [feedbackLoadedForDogProfileId, setFeedbackLoadedForDogProfileId] = useState("");
-  const [accountProductCountry, setAccountProductCountry] = useState<string | null>(null);
-  const [accountCountryLoaded, setAccountCountryLoaded] = useState(false);
-  const [selectedWellnessGoal, setSelectedWellnessGoal] = useState<WellnessGoal | "">("");
-  const [customWellnessText, setCustomWellnessText] = useState("");
-  const [appliedCustomWellnessText, setAppliedCustomWellnessText] = useState("");
-  const [selectedNutritionGoal, setSelectedNutritionGoal] = useState<NutritionGoal | "">("");
-  const [showMoreProductOptions, setShowMoreProductOptions] = useState(false);
   const [safetyFollowupState, setSafetyFollowupState] = useState<{
     key: string;
     result: SafetyFollowupResult;
   } | null>(null);
-  const [stableResult, setStableResult] = useState<ReturnType<typeof buildRecommendations> | null>(
-    null,
-  );
 
   useEffect(() => {
     const restoreTimer = window.setTimeout(() => {
@@ -121,10 +92,6 @@ function ResultsPageContent() {
         setLoaded(false);
         setLoadError("");
         setAnalysisResult(null);
-        setStableResult(null);
-        setShowMoreProductOptions(false);
-        setFeedbackLoaded(false);
-        setFeedbackLoadedForDogProfileId("");
         setProductFeedback([]);
         setProfileRow(null);
         setCareEntries([]);
@@ -150,7 +117,6 @@ function ResultsPageContent() {
             setCareEntries(careRows);
             setMemoryRows(row.dog_memories);
             setProfile(savedProfile);
-            setSelectedWellnessGoal(savedProfile.wellnessGoal || "");
             setSavedMemories(
               parseAnalysisMemoryContext(
                 row.dog_memories.map((memory) => ({
@@ -215,7 +181,6 @@ function ResultsPageContent() {
           }
         }
         setProfile(restoredProfile);
-        setSelectedWellnessGoal(restoredProfile.wellnessGoal || "");
 
         const storedAnalysis = window.localStorage.getItem(ANALYSIS_STORAGE_KEY);
         if (restoredProfile.name.trim() && (!restoredProfile.species || !selectedConcern(restoredProfile))) {
@@ -262,34 +227,10 @@ function ResultsPageContent() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    getCurrentUser()
-      .then((user) => {
-        if (!user) return null;
-        return loadUserProfileForUser(user);
-      })
-      .then((row) => {
-        if (active) setAccountProductCountry(row?.country || null);
-      })
-      .catch(() => {
-        if (active) setAccountProductCountry(null);
-      })
-      .finally(() => {
-        if (active) setAccountCountryLoaded(true);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
     if (!userLoaded) return;
     if (!userId || !dogProfileId) {
       const emptyFeedbackTimer = window.setTimeout(() => {
         setProductFeedback([]);
-        setFeedbackLoadedForDogProfileId(dogProfileId);
-        setFeedbackLoaded(true);
       }, 0);
 
       return () => {
@@ -306,15 +247,11 @@ function ResultsPageContent() {
       .then((rows) => {
         if (active) {
           setProductFeedback(rows);
-          setFeedbackLoadedForDogProfileId(dogProfileId);
-          setFeedbackLoaded(true);
         }
       })
       .catch(() => {
         if (active) {
           setProductFeedback([]);
-          setFeedbackLoadedForDogProfileId(dogProfileId);
-          setFeedbackLoaded(true);
         }
       });
 
@@ -406,163 +343,12 @@ function ResultsPageContent() {
     () => (petMemory ? buildResultsUnderstanding(petMemory) : null),
     [petMemory],
   );
-  const memoryHasUrgentSafety = Boolean(resultsUnderstanding?.safetyFlags.length);
-  const matcherProfile = useMemo(
-    () => {
-      const analysisProfile = buildAnalysisMatcherProfile(profile, analysis);
-      const memoryAvoids = petMemory?.derived.knownAvoids || [];
-      return {
-        ...analysisProfile,
-        avoidIngredients: mergeUniqueStrings([
-          ...analysisProfile.avoidIngredients,
-          ...memoryAvoids,
-        ]),
-      };
-    },
-    [analysis, petMemory?.derived.knownAvoids, profile],
-  );
-  const productProvider = useMemo(() => getConfiguredProductProvider(), []);
-  const activeProductCountry = useMemo(
-    () => getActiveProductCountry({ accountCountry: accountProductCountry }),
-    [accountProductCountry],
-  );
-  const appliedWellnessGoal =
-    selectedWellnessGoal === "something_else" && !appliedCustomWellnessText.trim()
-      ? ""
-      : selectedWellnessGoal;
-  const memorySummary = petMemory?.derived.summaryBullets.join(" ");
   const careSummary = useMemo(
     () => buildResultsCareSummary({ analysis, memory: petMemory, profile }),
     [analysis, petMemory, profile],
   );
-  const recommendationAnalysis = useMemo(
-    () => ({
-      recommendedConcernTags: analysis?.recommendedConcernTags,
-      summary: analysis?.summary || memorySummary,
-      wellnessGoal: appliedWellnessGoal || undefined,
-      wellnessGoalText: appliedWellnessGoal === "something_else" ? appliedCustomWellnessText : undefined,
-      nutritionGoal: selectedNutritionGoal || undefined,
-    }),
-    [
-      analysis?.recommendedConcernTags,
-      analysis?.summary,
-      appliedCustomWellnessText,
-      appliedWellnessGoal,
-      memorySummary,
-      selectedNutritionGoal,
-    ],
-  );
-  const productProviderContext = useMemo(
-    () => ({
-      analysis: recommendationAnalysis,
-      feedback: productFeedback,
-      productCountry: activeProductCountry,
-      profile: matcherProfile,
-    }),
-    [activeProductCountry, matcherProfile, productFeedback, recommendationAnalysis],
-  );
-  const productProviderResult = useMemo(() => {
-    try {
-      const products = productProvider.searchProducts(productProviderContext);
-      return {
-        error: "",
-        products: productProvider.rankProducts(products, productProviderContext),
-      };
-    } catch (error) {
-      console.warn("[Furvise results] product provider failed", {
-        message: error instanceof Error ? error.message : "Unknown product provider error",
-        provider: productProvider.id,
-      });
-      return {
-        error: "Furvise could not load product options.",
-        products: [],
-      };
-    }
-  }, [productProvider, productProviderContext]);
-  const providerProducts = productProviderResult.products;
-  const productProviderError = productProviderResult.error;
   const finishProfileItems = useMemo(() => getFinishProfileItemsFromDraft(profile), [profile]);
-  const usingStaticRealProducts = productProvider.id === "static_real";
-  const regionRemovedAllSpeciesProducts =
-    usingStaticRealProducts &&
-    Boolean(profile.species) &&
-    hasStaticRealProductsExcludedByCountry(profile.species, activeProductCountry);
-  const productCopy = usingStaticRealProducts
-    ? {
-        closestOptions: "Closest available product options",
-        lowerCostNoMatches: "No lower-cost product matches yet",
-        noMatches: "No suitable product suggestion yet",
-        productNoun: "products",
-        providerUnavailable: "Furvise could not load product options.",
-        regionUnavailableBody: "Furvise does not have a safe catalog match available for your region right now.",
-        regionUnavailableTitle: "No region-verified product suggestion yet",
-        speciesFoodUnavailable: `No ${profile.species === "cat" ? "cat food" : "food"} products are available yet.`,
-        trustNote:
-          "Static product references are filtered by saved pet context and configured country. Price is not provided unless the curated catalog includes it.",
-      }
-    : {
-        closestOptions: "Closest available product options",
-        lowerCostNoMatches: "No lower-cost product matches yet",
-        noMatches: "No suitable product suggestion yet",
-        productNoun: "products",
-        providerUnavailable: "Furvise could not load product options.",
-        regionUnavailableBody: "Furvise does not have a safe catalog match available for your region right now.",
-        regionUnavailableTitle: "No region-verified product suggestion yet",
-        speciesFoodUnavailable: `No ${profile.species === "cat" ? "cat food" : "food"} products are available yet.`,
-        trustNote:
-          "Product references use local development data. Real products and live prices will be added later.",
-      };
-  const wellnessGoalLabel = formatWellnessGoalLabel(appliedWellnessGoal);
-  const budget = getBudget(matcherProfile);
-  const hasSpecies = Boolean(profile.species);
-  const hasBasicProfileData = Boolean(profile.name.trim() && profile.species && selectedConcern(profile));
-  useEffect(() => {
-    if (
-      !loaded ||
-      !accountCountryLoaded ||
-      !feedbackLoaded ||
-      feedbackLoadedForDogProfileId !== dogProfileId ||
-      !hasBasicProfileData ||
-      memoryHasUrgentSafety ||
-      stableResult
-    ) {
-      return;
-    }
-    const recommendationTimer = window.setTimeout(() => {
-      // Recommendation pipeline stage 2: deterministic product matching uses the selected provider catalog.
-      // Keep this result stable so feedback toggles do not reorder or remove visible products.
-      setStableResult(
-        buildRecommendations(matcherProfile, productFeedback, recommendationAnalysis, providerProducts),
-      );
-    }, 0);
-
-    return () => {
-      window.clearTimeout(recommendationTimer);
-    };
-  }, [
-    accountCountryLoaded,
-    dogProfileId,
-    feedbackLoaded,
-    feedbackLoadedForDogProfileId,
-    hasBasicProfileData,
-    loaded,
-    memoryHasUrgentSafety,
-    matcherProfile,
-    providerProducts,
-    productFeedback,
-    recommendationAnalysis,
-    stableResult,
-  ]);
-
-  const result = stableResult;
-  const allRecommendations = result?.recommendations || [];
-  const productRecommendations = allRecommendations.filter((item) => item.kind === "product");
-  const nonProductRecommendations = allRecommendations.filter((item) => item.kind !== "product");
-  const topProductRecommendations = productRecommendations.slice(0, 3);
-  const moreProductRecommendations = productRecommendations.slice(3, 9);
-  const visibleProductRecommendations = showMoreProductOptions
-    ? [...topProductRecommendations, ...moreProductRecommendations]
-    : topProductRecommendations;
+  const wellnessGoalLabel = formatWellnessGoalLabel(profile.wellnessGoal || "");
   const urgentVetAttention =
     analysis?.vetAttention.needed === true && analysis.vetAttention.urgency === "urgent";
   const soonVetAttention =
@@ -577,78 +363,6 @@ function ResultsPageContent() {
     : "";
   const safetyFollowupResult =
     safetyFollowupState?.key === safetyFollowupKey ? safetyFollowupState.result : null;
-  const showProductRecommendations =
-    hasSpecies &&
-    !memoryHasUrgentSafety &&
-    !urgentVetAttention &&
-    (!soonVetAttention ||
-      (safetyFollowupResult?.decision === "show_products" &&
-        safetyFollowupResult.safeToShowProducts));
-  const showWellnessFollowUp =
-    hasBasicProfileData &&
-    showProductRecommendations &&
-    !urgentVetAttention &&
-    !soonVetAttention &&
-    Boolean(result?.generalWellnessNeedsFocus);
-  const showNutritionFollowUp =
-    hasBasicProfileData &&
-    showProductRecommendations &&
-    !urgentVetAttention &&
-    !soonVetAttention &&
-    Boolean(result?.nutritionFollowUpNeeded);
-  const showProductCardSection =
-    hasBasicProfileData &&
-    showProductRecommendations &&
-    !showWellnessFollowUp &&
-    !showNutritionFollowUp &&
-    topProductRecommendations.length > 0;
-  const showMoreOptionsButton =
-    showProductCardSection && !showMoreProductOptions && moreProductRecommendations.length > 0;
-  const showCareActionSection =
-    hasBasicProfileData &&
-    showProductRecommendations &&
-    !showWellnessFollowUp &&
-    !showNutritionFollowUp &&
-    nonProductRecommendations.length > 0;
-  const allVisibleProductsOverBudget =
-    budget !== null &&
-    visibleProductRecommendations.length > 0 &&
-    visibleProductRecommendations.every((item) => {
-      const recommendationCost = getRecommendationCost(item);
-      return recommendationCost !== null && recommendationCost > budget;
-    });
-  const lowerCostNutritionSelected =
-    selectedWellnessGoal === "nutrition" && selectedNutritionGoal === "lower_cost";
-  const visibleProductRecommendationsWithinBudget = visibleProductRecommendations.filter(
-    (item) => {
-      const recommendationCost = getRecommendationCost(item);
-      return budget !== null && recommendationCost !== null && recommendationCost <= budget;
-    },
-  );
-  const lowerCostHasWithinBudgetProducts =
-    lowerCostNutritionSelected && visibleProductRecommendationsWithinBudget.length > 0;
-  const lowerCostNoCatalogMatches =
-    lowerCostNutritionSelected &&
-    budget !== null &&
-    visibleProductRecommendations.length > 0 &&
-    !lowerCostHasWithinBudgetProducts &&
-    allVisibleProductsOverBudget;
-  const comparisonNote =
-    profile.currentFood.trim() && !profile.currentFoodUnknown &&
-    (selectedNutritionGoal === "lower_cost" || selectedNutritionGoal === "compare_current_food")
-      ? `These are catalog comparison options, not a recommendation to switch ${formatPetDisplayName(profile.name)}'s food.`
-      : "";
-  const showNoCatFoodProductMessage =
-    hasBasicProfileData &&
-    showProductRecommendations &&
-    !showWellnessFollowUp &&
-    !showNutritionFollowUp &&
-    profile.species === "cat" &&
-    appliedWellnessGoal === "nutrition" &&
-    Boolean(selectedNutritionGoal) &&
-    topProductRecommendations.length === 0 &&
-    !regionRemovedAllSpeciesProducts &&
-    !hasSpeciesCompatibleFoodProducts(profile.species, providerProducts);
   const memorySuggestions = [
     ...(analysis?.memorySuggestions || []),
     ...(safetyFollowupResult?.memorySuggestions || []),
@@ -664,7 +378,6 @@ function ResultsPageContent() {
     ["Current food", profile.currentFoodUnknown ? "I'm not sure" : profile.currentFood.trim() || "Not provided"],
     ["Main concern", selectedConcern(profile) || "Not provided"],
     ...(wellnessGoalLabel ? [["Wellness goal", wellnessGoalLabel]] : []),
-    ...(selectedNutritionGoal ? [["Nutrition focus", formatNutritionGoalLabel(selectedNutritionGoal)]] : []),
     ["Avoiding", formatAvoidIngredients(profile)],
     ["Budget", formatBudget(profile)],
   ];
@@ -693,7 +406,7 @@ function ResultsPageContent() {
             {urgentVetAttention
               ? "Urgent care context for " + formatPetDisplayName(profile.name)
               : soonVetAttention
-                ? "Pause before products"
+                ? "Safety check for " + formatPetDisplayName(profile.name)
                 : "First care summary for " + formatPetDisplayName(profile.name)}
           </h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--pw-muted)]">
@@ -726,7 +439,7 @@ function ResultsPageContent() {
           {!urgentVetAttention ? (
             <div className="mt-6 grid gap-3 md:grid-cols-2">
               <p className="rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4 text-sm leading-6 text-[var(--pw-muted)]">
-                {productCopy.trustNote}
+                Furvise summarizes saved context and turns it into care notes you can log or discuss with your vet.
               </p>
               <p className="rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4 text-sm leading-6 text-[var(--pw-muted)]">
                 Furvise only used saved details and care logs. It does not infer medical facts.
@@ -738,7 +451,7 @@ function ResultsPageContent() {
             <div className="mt-6 rounded-3xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-5 text-[var(--pw-warning-text)]">
               <p className="font-semibold">
                 {incompleteProfileResult.missingFields.includes("species")
-                  ? "Furvise needs species before care or product suitability guidance."
+                  ? "Furvise needs species before it can summarize this profile."
                   : "Furvise needs a main concern before it can summarize this profile."}
               </p>
               <Link
@@ -762,11 +475,6 @@ function ResultsPageContent() {
           {loadError ? (
             <div className="mt-6 rounded-3xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-5 font-semibold text-[var(--pw-warning-text)]">
               {loadError}
-            </div>
-          ) : null}
-          {productProviderError ? (
-            <div className="mt-6 rounded-3xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-5 font-semibold text-[var(--pw-warning-text)]">
-              {productCopy.providerUnavailable}
             </div>
           ) : null}
 
@@ -810,217 +518,7 @@ function ResultsPageContent() {
               suggestions={memorySuggestions}
             />
           ) : null}
-
-          {showWellnessFollowUp ? (
-            <WellnessGoalFollowUp
-              customText={customWellnessText}
-              onApplyCustomText={() => {
-                setAppliedCustomWellnessText(customWellnessText.trim());
-                setStableResult(null);
-                setShowMoreProductOptions(false);
-              }}
-              onCustomTextChange={(value) => {
-                setCustomWellnessText(value);
-                setAppliedCustomWellnessText("");
-                setStableResult(null);
-                setShowMoreProductOptions(false);
-              }}
-              onSelectGoal={(goal) => {
-                setSelectedWellnessGoal(goal);
-                setSelectedNutritionGoal("");
-                setStableResult(null);
-                setShowMoreProductOptions(false);
-                if (goal !== "something_else") {
-                  setAppliedCustomWellnessText("");
-                }
-              }}
-              selectedGoal={selectedWellnessGoal}
-            />
-          ) : null}
-
-          {showNutritionFollowUp ? (
-            <NutritionGoalFollowUp
-              profileName={formatPetDisplayName(profile.name)}
-              onSelectGoal={(goal) => {
-                setSelectedNutritionGoal(goal);
-                setStableResult(null);
-                setShowMoreProductOptions(false);
-              }}
-              selectedGoal={selectedNutritionGoal}
-            />
-          ) : null}
-
-          {showNoCatFoodProductMessage ? (
-            <div className="mt-6 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6 shadow-sm">
-              <h2 className="text-2xl font-semibold text-[var(--pw-text)]">
-                {productCopy.speciesFoodUnavailable}
-              </h2>
-              <p className="mt-3 leading-7 text-[var(--pw-muted)]">
-                Furvise can still help compare {formatPetDisplayName(profile.name)}&apos;s current food once more details are
-                available.
-              </p>
-            </div>
-          ) : loaded && result && hasBasicProfileData && showProductRecommendations && !showWellnessFollowUp && !showNutritionFollowUp && allRecommendations.length === 0 ? (
-            <div className="mt-6 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6 shadow-sm">
-              <h2 className="text-2xl font-semibold text-[var(--pw-text)]">
-                {regionRemovedAllSpeciesProducts ? productCopy.regionUnavailableTitle : productCopy.noMatches}
-              </h2>
-              <p className="mt-3 leading-7 text-[var(--pw-muted)]">
-                {regionRemovedAllSpeciesProducts
-                  ? productCopy.regionUnavailableBody
-                  : "Furvise does not have a safe catalog match for this pet's saved context right now."}
-              </p>
-              {!regionRemovedAllSpeciesProducts ? (
-                <p className="mt-3 leading-7 text-[var(--pw-muted)]">
-                  Try adding more details about species, current food, avoid ingredients, or the main concern.
-                </p>
-              ) : (
-                <p className="mt-3 leading-7 text-[var(--pw-muted)]">
-                  You can change your product country in{" "}
-                  <Link className="font-semibold text-[var(--pw-primary)] hover:text-[var(--pw-primary-hover)]" href="/account">
-                    Account settings
-                  </Link>
-                  .
-                </p>
-              )}
-            </div>
-          ) : null}
-
-          {hasBasicProfileData && showProductRecommendations && !showNutritionFollowUp && result?.establishedFoodWithoutNutritionConcern ? (
-            <div className="mt-6 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 text-[var(--pw-muted)]">
-              An established food is already recorded, and no feeding concern was reported, so
-              Furvise is not suggesting a food change.
-            </div>
-          ) : null}
-
-          {hasBasicProfileData && showProductRecommendations && lowerCostNoCatalogMatches ? (
-            <div className="mt-6 rounded-3xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-5 text-[var(--pw-warning-text)]">
-              <h2 className="text-2xl font-semibold text-[var(--pw-warning-text)]">
-                {productCopy.lowerCostNoMatches}
-              </h2>
-              <p className="mt-3 leading-7">
-                {`All available ${profile.species === "cat" ? "cat-food" : "food"} options with verified prices are above ${formatPetDisplayName(profile.name)}'s $${budget}/month care budget.`}
-              </p>
-              {comparisonNote ? <p className="mt-3 leading-7">{comparisonNote}</p> : null}
-            </div>
-          ) : null}
-
-          {hasBasicProfileData && showProductRecommendations && allVisibleProductsOverBudget && !lowerCostNoCatalogMatches ? (
-            <div className="mt-6 rounded-3xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-5 text-[var(--pw-warning-text)]">
-              All visible {productCopy.productNoun} exceed your ${budget}/month care budget, so Furvise is showing
-              the closest matches.
-            </div>
-          ) : null}
-
-          {hasBasicProfileData && showProductRecommendations && result?.hardExclusionLimitedResults ? (
-            <div className="mt-6 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] px-4 py-3 text-sm font-semibold text-[var(--pw-muted)] shadow-sm">
-              Some products were hidden because you marked them as avoided or did not work.
-            </div>
-          ) : null}
-
-          {hasBasicProfileData && showProductRecommendations && result?.closestSkinSupportOnly ? (
-            <div className="mt-6 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] px-4 py-3 text-sm font-semibold text-[var(--pw-muted)] shadow-sm">
-              Furvise could not find an exact catalog match, so these are closest grooming or skin-care category options.
-            </div>
-          ) : null}
         </section>
-
-        {showProductCardSection || showCareActionSection ? (
-          <section className="mx-auto max-w-5xl pb-16 pt-1">
-            {soonVetAttention ? (
-              <div className="mb-4 rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] px-4 py-3 text-sm font-semibold text-[var(--pw-warning-text)]">
-                General {productCopy.productNoun} - not care instructions.
-              </div>
-            ) : null}
-            {showProductCardSection ? (
-              <div className="space-y-7">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-2xl font-semibold text-[var(--pw-heading)]">
-                    {lowerCostNoCatalogMatches ? productCopy.closestOptions : "Top matches"}
-                  </h2>
-                  {showMoreOptionsButton ? (
-                    <button
-                      className="inline-flex min-h-11 items-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-4 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)] hover:text-[var(--pw-primary)]"
-                      onClick={() => setShowMoreProductOptions(true)}
-                      type="button"
-                    >
-                      Show more options
-                    </button>
-                  ) : null}
-                </div>
-                <div className="grid gap-5 lg:grid-cols-3">
-                  {topProductRecommendations.map((item, index) => (
-                    <RecommendationCard
-                      dogProfileId={dogProfileId}
-                      item={item}
-                      key={`${item.label}-${item.product?.id ?? index}`}
-                      onFeedbackToggled={(result) =>
-                        setProductFeedback((current) => {
-                          if (result.action === "removed") {
-                            return current.filter((entry) => entry.id !== result.feedback.id);
-                          }
-
-                          return current.some((entry) => entry.id === result.feedback.id)
-                            ? current
-                            : [result.feedback, ...current];
-                        })
-                      }
-                      productFeedback={productFeedback}
-                      profile={matcherProfile}
-                      userId={userId}
-                    />
-                  ))}
-                </div>
-                {showMoreProductOptions && moreProductRecommendations.length > 0 ? (
-                  <div className="space-y-5">
-                    <h2 className="text-2xl font-semibold text-[var(--pw-heading)]">More options</h2>
-                    <div className="grid gap-5 lg:grid-cols-3">
-                      {moreProductRecommendations.map((item, index) => (
-                        <RecommendationCard
-                          dogProfileId={dogProfileId}
-                          item={item}
-                          key={`more-${item.label}-${item.product?.id ?? index}`}
-                          onFeedbackToggled={(result) =>
-                            setProductFeedback((current) => {
-                              if (result.action === "removed") {
-                                return current.filter((entry) => entry.id !== result.feedback.id);
-                              }
-
-                              return current.some((entry) => entry.id === result.feedback.id)
-                                ? current
-                                : [result.feedback, ...current];
-                            })
-                          }
-                          productFeedback={productFeedback}
-                          profile={matcherProfile}
-                          userId={userId}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            {showCareActionSection ? (
-              <div className="mt-9 space-y-5">
-                <h2 className="text-2xl font-semibold text-[var(--pw-heading)]">Care actions</h2>
-                <div className="grid gap-5 lg:grid-cols-3">
-                  {nonProductRecommendations.map((item, index) => (
-                    <RecommendationCard
-                      dogProfileId={dogProfileId}
-                      item={item}
-                      key={`care-${item.kind}-${item.title ?? index}`}
-                      onFeedbackToggled={() => undefined}
-                      productFeedback={productFeedback}
-                      profile={matcherProfile}
-                      userId={userId}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
     </AppPage>
   );
 }
@@ -1045,7 +543,7 @@ function FinishProfilePrompt({
           </h2>
           <p className="mt-2 leading-7 text-[var(--pw-muted)]">
             Furvise has enough to give a first care summary. Add food, avoid ingredients,
-            weight, and budget later to improve product guidance.
+            weight, and budget later to improve saved care context.
           </p>
           <ul className="mt-3 grid gap-2 text-sm font-semibold text-[var(--pw-text)] sm:grid-cols-2">
             {items.map((item) => (
@@ -1146,9 +644,8 @@ function MissingSpeciesPanel({ dogProfileId, name }: { dogProfileId: string; nam
     <section className="mt-6 rounded-3xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-6 text-[var(--pw-warning-text)]">
       <h2 className="text-2xl font-semibold">Is {name} a cat or dog?</h2>
       <p className="mt-3 leading-7">
-        Care and product suitability differ by species, so Furvise needs this profile detail
-        before showing food, dental, grooming, flea/tick, supplement, or other health-essential
-        product recommendations.
+        Care guidance differs by species, so Furvise needs this profile detail before it can
+        summarize the profile reliably.
       </p>
       <Link
         className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)]"
@@ -1156,139 +653,6 @@ function MissingSpeciesPanel({ dogProfileId, name }: { dogProfileId: string; nam
       >
         Add species
       </Link>
-    </section>
-  );
-}
-
-function WellnessGoalFollowUp({
-  customText,
-  onApplyCustomText,
-  onCustomTextChange,
-  onSelectGoal,
-  selectedGoal,
-}: {
-  customText: string;
-  onApplyCustomText: () => void;
-  onCustomTextChange: (value: string) => void;
-  onSelectGoal: (goal: WellnessGoal) => void;
-  selectedGoal: WellnessGoal | "";
-}) {
-  const customSelected = selectedGoal === "something_else";
-  const customReady = customText.trim().length > 0;
-
-  return (
-    <section className="mt-8 rounded-[2rem] border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6 shadow-2xl shadow-[var(--pw-shadow)]">
-      <div className="flex flex-wrap gap-2">
-        <span className="inline-flex rounded-full bg-[var(--pw-primary-soft)] px-3 py-1 text-sm font-semibold text-[var(--pw-primary)]">
-          Follow-up needed
-        </span>
-        <span className="inline-flex rounded-full border border-[var(--pw-border)] px-3 py-1 text-sm font-semibold text-[var(--pw-muted)]">
-          Limited context
-        </span>
-      </div>
-      <h2 className="mt-5 text-3xl font-semibold tracking-tight text-[var(--pw-heading)]">
-        What would you like help with first?
-      </h2>
-      <p className="mt-3 max-w-3xl leading-7 text-[var(--pw-muted)]">
-        General wellness is broad, so Furvise needs a focused goal before suggesting products.
-      </p>
-
-      <div className="mt-6 flex flex-wrap gap-2.5" role="group" aria-label="Choose wellness goal">
-        {wellnessGoalOptions.map((option) => (
-          <button
-            aria-pressed={selectedGoal === option.value}
-            className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] ${
-              selectedGoal === option.value
-                ? "border-[var(--pw-primary)] bg-[var(--pw-primary)] text-white"
-                : "border-[var(--pw-border-strong)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-primary)]"
-            }`}
-            key={option.value}
-            onClick={() => onSelectGoal(option.value)}
-            type="button"
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-
-      {customSelected ? (
-        <div className="mt-5">
-          <label className="block">
-            <span className="text-sm font-semibold text-[var(--pw-muted)]">
-              Tell Furvise what you want help with.
-            </span>
-            <textarea
-              className="mt-2 min-h-28 w-full resize-y rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 py-3 text-base leading-7 text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)]"
-              onChange={(event) => onCustomTextChange(event.target.value)}
-              value={customText}
-            />
-          </label>
-          <button
-            className="mt-3 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-not-allowed disabled:bg-[var(--pw-secondary)]"
-            disabled={!customReady}
-            onClick={onApplyCustomText}
-            type="button"
-          >
-            Apply focus
-          </button>
-        </div>
-      ) : selectedGoal ? (
-        <p className="mt-5 rounded-2xl bg-[var(--pw-card-muted)] p-4 text-sm font-semibold text-[var(--pw-primary)]">
-          Using: {formatWellnessGoalLabel(selectedGoal)}
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-function NutritionGoalFollowUp({
-  profileName,
-  onSelectGoal,
-  selectedGoal,
-}: {
-  profileName: string;
-  onSelectGoal: (goal: NutritionGoal) => void;
-  selectedGoal: NutritionGoal | "";
-}) {
-  return (
-    <section className="mt-8 rounded-[2rem] border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6 shadow-2xl shadow-[var(--pw-shadow)]">
-      <div className="flex flex-wrap gap-2">
-        <span className="inline-flex rounded-full bg-[var(--pw-primary-soft)] px-3 py-1 text-sm font-semibold text-[var(--pw-primary)]">
-          Follow-up needed
-        </span>
-        <span className="inline-flex rounded-full border border-[var(--pw-border)] px-3 py-1 text-sm font-semibold text-[var(--pw-muted)]">
-          Limited context
-        </span>
-      </div>
-      <h2 className="mt-5 text-3xl font-semibold tracking-tight text-[var(--pw-heading)]">
-        What would you like to improve about {profileName}&apos;s food?
-      </h2>
-      <p className="mt-3 max-w-3xl leading-7 text-[var(--pw-muted)]">
-        An established food is already recorded, and no feeding concern was reported, so Furvise is
-        not suggesting a food change yet.
-      </p>
-      <div className="mt-6 flex flex-wrap gap-2.5" role="group" aria-label="Choose nutrition focus">
-        {nutritionGoalOptions.map((option) => (
-          <button
-            aria-pressed={selectedGoal === option.value}
-            className={`min-h-11 rounded-full border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] ${
-              selectedGoal === option.value
-                ? "border-[var(--pw-primary)] bg-[var(--pw-primary)] text-white"
-                : "border-[var(--pw-border-strong)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-primary)]"
-            }`}
-            key={option.value}
-            onClick={() => onSelectGoal(option.value)}
-            type="button"
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-      {selectedGoal ? (
-        <p className="mt-5 rounded-2xl bg-[var(--pw-card-muted)] p-4 text-sm font-semibold text-[var(--pw-primary)]">
-          Using: {formatNutritionGoalLabel(selectedGoal)}
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -1448,7 +812,7 @@ function MemoryUnderstandingPanel({
       </div>
       {understanding.safetyFlags.length > 0 ? (
         <div className="mt-5 rounded-2xl border border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] p-4 text-[var(--pw-danger-text)]">
-          <p className="font-semibold">Products are paused because saved memory contains urgent warning signs.</p>
+          <p className="font-semibold">Urgent safety guidance comes first because saved memory contains warning signs.</p>
           <p className="mt-2 leading-7">
             Furvise found: {understanding.safetyFlags.join(", ")}. {FURVISE_URGENT_SAFETY_MESSAGE}
           </p>
@@ -1466,7 +830,7 @@ function MemoryUnderstandingPanel({
           title="Care history context"
         />
         <AnalysisList
-          emptyText="No saved avoid ingredients or avoid-product notes."
+          emptyText="No saved avoid ingredients or avoid notes."
           items={understanding.savedAvoids}
           title="Saved avoids"
         />
@@ -1611,10 +975,9 @@ function SoonSafetyPanel({
 
   const urgentCare = result?.decision === "urgent_vet";
   const paused = result?.decision === "pause_products";
-  const showingProducts = result?.decision === "show_products" && result.safeToShowProducts;
+  const safetyCleared = result?.decision === "show_products" && result.safeToShowProducts;
   const hasRedFlagAnswer = false;
   const hasUnsureAnswer = false;
-  const showProducts = false;
 
   return (
     <section className="mt-8 rounded-[2rem] border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-6 text-[var(--pw-warning-text)] shadow-2xl shadow-amber-950/10 sm:p-8">
@@ -1627,7 +990,7 @@ function SoonSafetyPanel({
             Answer a few safety questions first
           </h2>
           <p className="mt-4 text-lg leading-8">
-            Product recommendations are paused until Furvise reviews these details.
+            Furvise needs these details before continuing with care guidance.
           </p>
           <p className="mt-3 leading-7">{analysis.vetAttention.reason}</p>
         </div>
@@ -1700,8 +1063,7 @@ function SoonSafetyPanel({
         </div>
       ) : (
         <p className="mt-5 rounded-2xl border border-[var(--pw-warning-border)] bg-[color-mix(in_srgb,var(--pw-warning-surface)_70%,transparent)] p-4 font-semibold leading-7">
-          Furvise did not receive enough follow-up questions to continue. Product recommendations
-          remain paused.
+          Furvise did not receive enough follow-up questions to continue. Care guidance remains paused.
         </p>
       )}
 
@@ -1720,13 +1082,13 @@ function SoonSafetyPanel({
       ) : result && paused ? (
         <SafetyFollowupResultPanel
           result={result}
-          title="Products remain paused"
+          title="Care guidance remains paused"
           tone="paused"
         />
-      ) : result && showingProducts ? (
+      ) : result && safetyCleared ? (
         <SafetyFollowupResultPanel
           result={result}
-          title="General product guidance can be shown"
+          title="Care guidance can continue"
           tone="clear"
         />
       ) : null}
@@ -1737,17 +1099,11 @@ function SoonSafetyPanel({
         </p>
       ) : hasRedFlagAnswer ? (
         <p className="mt-5 rounded-2xl border border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] p-4 font-semibold leading-7 text-[var(--pw-danger-text)]">
-          Product recommendations remain paused. Please contact a veterinarian before shopping for
-          food, supplements, or products.
+          Care guidance remains paused. Please contact a veterinarian before making care changes.
         </p>
       ) : hasUnsureAnswer ? (
         <p className="mt-5 rounded-2xl border border-[var(--pw-warning-border)] bg-[color-mix(in_srgb,var(--pw-warning-surface)_70%,transparent)] p-4 font-semibold leading-7">
-          Product recommendations remain paused. Contact a veterinarian or answer with more details
-          before shopping for food, supplements, or products.
-        </p>
-      ) : showProducts ? (
-        <p className="mt-5 rounded-2xl border border-[var(--pw-border)] bg-white/80 p-4 font-semibold leading-7 text-[var(--pw-primary)]">
-          General product guidance, not care instructions.
+          Care guidance remains paused. Contact a veterinarian or answer with more details before making care changes.
         </p>
       ) : (
         <button
@@ -1789,9 +1145,6 @@ function SafetyFollowupResultPanel({
             <li key={reason}>{reason}</li>
           ))}
         </ul>
-      ) : null}
-      {result.productCautionLabel ? (
-        <p className="mt-3 text-sm">{result.productCautionLabel}</p>
       ) : null}
     </div>
   );
@@ -1893,7 +1246,7 @@ function UrgentCarePanel({
         </div>
         <div className="max-w-xs">
           <span className="inline-flex rounded-full bg-[var(--pw-danger-border)] px-3 py-1 text-sm font-semibold text-[var(--pw-danger-text)]">
-            Products paused
+            Safety first
           </span>
           <p className="mt-2 text-xs leading-5 text-[var(--pw-danger-text)]">
             {FURVISE_SAFETY_LINE}
@@ -1996,356 +1349,13 @@ function isCanonicalProfileMemory(normalized: string) {
   );
 }
 
-function RecommendationCard({
-  dogProfileId,
-  item,
-  onFeedbackToggled,
-  productFeedback,
-  profile,
-  userId,
-}: {
-  dogProfileId: string;
-  item: Recommendation;
-  onFeedbackToggled: (result: {
-    action: "added" | "removed";
-    feedback: DogProductFeedbackRow;
-  }) => void;
-  productFeedback: DogProductFeedbackRow[];
-  profile: DogProfile;
-  userId: string;
-}) {
-  const budget = getBudget(profile);
-  const productLinkInfo = item.product ? getProductLinkInfo(item.product) : null;
-  const verifiedPrice = item.product ? getVerifiedProductPrice(item.product) : null;
-  const priceLabel = item.product ? getDisplayProductPriceLabel(item.product) : "Not provided";
-  const overBudget = item.product !== null && budget !== null && verifiedPrice !== null && verifiedPrice > budget;
-  const safeProductMatchNote =
-    profile.avoidIngredients.length > 0
-      ? "Region-verified catalog match. Matches species and care category. Avoid ingredients were checked where product metadata is available."
-      : "Region-verified catalog match. Matches species and care category. Add avoid ingredients to make product filtering safer.";
-  const [savingType, setSavingType] = useState<ProductFeedbackType | "">("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  if (item.product === null) {
-    return (
-      <article className="min-w-0 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 shadow-sm sm:p-6">
-        <div className="flex flex-wrap gap-2">
-          <span className="inline-flex rounded-full bg-[var(--pw-primary-soft)] px-3 py-1 text-sm font-semibold text-[var(--pw-primary)]">
-            {formatRecommendationKind(item.kind)}
-          </span>
-          {item.confidenceLabel ? (
-            <span className="inline-flex rounded-full border border-[var(--pw-border)] px-3 py-1 text-sm font-semibold text-[var(--pw-muted)]">
-              {item.confidenceLabel}
-            </span>
-          ) : null}
-        </div>
-        <h2 className="mt-5 break-words text-xl font-semibold leading-tight text-[var(--pw-text)] sm:text-2xl">
-          {item.title || "More details needed"}
-        </h2>
-        {item.matchedBecause ? (
-          <p className="mt-4 rounded-2xl bg-[var(--pw-card-muted)] p-3 text-sm font-semibold leading-6 text-[var(--pw-primary)]">
-            {item.matchedBecause}
-          </p>
-        ) : null}
-        {item.note ? <p className="mt-4 leading-7 text-[var(--pw-muted)]">{item.note}</p> : null}
-      </article>
-    );
-  }
-
-  const existingFeedbackTypes = new Set(
-    productFeedback
-      .filter((feedback) => feedback.product_id === item.product?.id)
-      .map((feedback) => feedback.feedback_type),
-  );
-  const canSaveFeedback = Boolean(userId && dogProfileId);
-
-  async function saveFeedback(feedbackType: ProductFeedbackType) {
-    if (!item.product) return;
-
-    setSavingType(feedbackType);
-    setMessage("");
-    setError("");
-
-    try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error("Please sign in again before saving feedback.");
-
-      const result = await toggleProductFeedbackForUser(
-        {
-          dogProfileId,
-          productId: item.product.id,
-          productName: item.product.name,
-          feedbackType,
-        },
-        user,
-      );
-      // Recommendation pipeline stage 4: product feedback is stored for future ranking.
-      onFeedbackToggled(result);
-      setMessage(result.action === "removed" ? "Removed feedback" : "Saved feedback");
-    } catch (saveError) {
-      logProductFeedbackSaveFailure(saveError, feedbackType);
-      setError("Furvise could not save this feedback. Please try again.");
-    } finally {
-      setSavingType("");
-    }
-  }
-
-  return (
-    <article className="min-w-0 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 shadow-sm sm:p-6">
-      <div className="flex flex-wrap gap-2">
-        <span className="inline-flex rounded-full bg-[var(--pw-primary-soft)] px-3 py-1 text-sm font-semibold text-[var(--pw-primary)]">
-          {item.label}
-        </span>
-        <span className="inline-flex rounded-full border border-[var(--pw-border)] px-3 py-1 text-sm font-semibold text-[var(--pw-muted)]">
-          {item.product.evidenceType === "curated_static" ? "Curated product" : "Unverified product"}
-        </span>
-        <span className="inline-flex rounded-full border border-[var(--pw-border)] bg-[var(--pw-card-muted)] px-3 py-1 text-sm font-semibold text-[var(--pw-primary)]">
-          {formatProductSpeciesBadge(item.product)}
-        </span>
-        <span className="inline-flex rounded-full border border-[var(--pw-border)] bg-[var(--pw-card-muted)] px-3 py-1 text-sm font-semibold text-[var(--pw-primary)]">
-          {formatProductCategory(item.product.category)}
-        </span>
-        {item.confidenceLabel ? (
-          <span className="inline-flex rounded-full border border-[var(--pw-border)] px-3 py-1 text-sm font-semibold text-[var(--pw-muted)]">
-            {item.confidenceLabel}
-          </span>
-        ) : null}
-        {item.label === "Review carefully" ? (
-          <span className="inline-flex rounded-full bg-[var(--pw-warning-surface)] px-3 py-1 text-sm font-semibold text-[var(--pw-warning-text)]">
-            Relaxed filters
-          </span>
-        ) : null}
-        {overBudget ? (
-          <span className="inline-flex rounded-full bg-[var(--pw-warning-surface)] px-3 py-1 text-sm font-semibold text-[var(--pw-warning-text)]">
-            Over care budget
-          </span>
-        ) : null}
-      </div>
-      {item.product.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          alt={item.product.name}
-          className="mt-5 aspect-[16/10] w-full rounded-2xl border border-[var(--pw-border)] object-cover"
-          loading="lazy"
-          src={item.product.imageUrl}
-        />
-      ) : null}
-      <h2 className="mt-5 break-words text-xl font-semibold leading-tight text-[var(--pw-text)] sm:text-2xl">{item.product.name}</h2>
-      <p className="mt-2 break-words text-sm font-semibold leading-6 text-[var(--pw-muted)]">
-        {item.product.brand ? `${item.product.brand} - ` : ""}
-        {item.product.retailer ? `${item.product.retailer} - ` : ""}
-        {formatProductSummary(item.product)}
-      </p>
-      {item.product.sourceNote ? (
-        <p className="mt-2 text-xs font-semibold text-[var(--pw-subtle)]">{item.product.sourceNote}</p>
-      ) : null}
-      <p className="mt-4 rounded-2xl bg-[var(--pw-card-muted)] p-3 text-sm font-semibold leading-6 text-[var(--pw-primary)]">
-        {safeProductMatchNote}
-      </p>
-      {item.note ? (
-        <p className="mt-4 rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-3 text-sm font-semibold leading-6 text-[var(--pw-warning-text)]">
-          {item.note}
-        </p>
-      ) : null}
-      <div className="mt-6 space-y-5">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--pw-subtle)]">
-            Catalog match
-          </p>
-          <p className="mt-2 leading-7 text-[var(--pw-muted)]">{safeProductMatchNote}</p>
-        </div>
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--pw-subtle)]">
-            Source note
-          </p>
-          <p className="mt-2 leading-7 text-[var(--pw-muted)]">
-            Static product reference. Region-verified catalog match. Price not provided unless included by the curated catalog.
-          </p>
-        </div>
-        <div className="rounded-2xl bg-[var(--pw-card-muted)] px-4 py-3">
-          <p className="text-sm text-[var(--pw-muted)]">
-            Product price
-          </p>
-          <p className="mt-1 break-words text-lg font-semibold text-[var(--pw-primary)] sm:text-xl">
-            {priceLabel}
-          </p>
-          <p className="mt-1 text-sm text-[var(--pw-muted)]">
-            {verifiedPrice === null
-              ? "Price not provided."
-              : `Verified ${item.product.priceVerifiedAt || "by static catalog"}.`}
-          </p>
-        </div>
-        {productLinkInfo ? (
-          <div className="flex flex-wrap gap-2">
-          {productLinkInfo?.variant === "link" ? (
-            <a
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--pw-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] sm:w-auto"
-              href={productLinkInfo.href}
-              rel={productLinkInfo.rel}
-              target={productLinkInfo.target}
-            >
-              {productLinkInfo.label}
-            </a>
-          ) : (
-            <span className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-[var(--pw-border)] px-4 text-sm font-semibold text-[var(--pw-muted)] sm:w-auto">
-              {productLinkInfo?.label ?? "Product reference"}
-            </span>
-          )}
-          </div>
-        ) : null}
-      </div>
-      {canSaveFeedback ? (
-        <div className="mt-5 border-t border-[var(--pw-border)] pt-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--pw-subtle)]">
-            Feedback
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
-            {productFeedbackOptions.map((option) => {
-              const alreadySaved = existingFeedbackTypes.has(option.type);
-              return (
-                <button
-                  aria-pressed={alreadySaved}
-                  className={`min-h-11 rounded-full border px-3 py-2 text-center text-sm font-semibold leading-5 transition disabled:cursor-wait sm:px-4 ${
-                    alreadySaved
-                      ? "border-[var(--pw-primary)] bg-[var(--pw-primary)] text-white shadow-sm shadow-[var(--pw-shadow)] hover:bg-[var(--pw-primary-hover)]"
-                      : "border-[var(--pw-border-strong)] bg-[var(--pw-surface)] text-[var(--pw-muted)] hover:border-[var(--pw-secondary)] hover:text-[var(--pw-primary)]"
-                  }`}
-                  disabled={Boolean(savingType)}
-                  key={option.type}
-                  onClick={() => saveFeedback(option.type)}
-                  type="button"
-                >
-                  {savingType === option.type
-                    ? alreadySaved
-                      ? "Removing..."
-                      : "Saving..."
-                    : option.label}
-                </button>
-              );
-            })}
-          </div>
-          {message ? <p className="mt-3 text-sm font-semibold text-[var(--pw-primary)]">{message}</p> : null}
-          {error ? <p className="mt-3 text-sm font-semibold text-[var(--pw-danger-text)]">{error}</p> : null}
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function formatProductCategory(category: ProductCategory) {
-  if (category === "food") return "Food";
-  if (category === "grooming") return "Grooming";
-  return "Health essentials";
-}
-
-function formatProductSpeciesBadge(product: Recommendation["product"]) {
-  if (!product) return "Unknown species";
-  if (product.species === "all") return "Species-neutral care item";
-  if (product.category === "food") return `${capitalizeSpecies(product.species)} food`;
-  if (product.category === "grooming") return `${capitalizeSpecies(product.species)} grooming`;
-  return `${capitalizeSpecies(product.species)} care item`;
-}
-
-function formatRecommendationKind(kind: Recommendation["kind"]) {
-  if (kind === "care_action") return "Care action";
-  if (kind === "reminder") return "Reminder";
-  if (kind === "vet_preparation") return "Vet preparation";
-  if (kind === "education") return "Follow-up needed";
-  return "Product";
-}
-
-function getRecommendationCost(item: Recommendation) {
-  if (!item.product) return null;
-  return getVerifiedProductPrice(item.product);
-}
-
-function getVerifiedProductPrice(product: Recommendation["product"]) {
-  if (!product?.priceVerifiedAt) return null;
-  return product.price ?? product.bagPrice ?? null;
-}
-
-function mergeUniqueStrings(values: string[]) {
-  const seen = new Set<string>();
-  return values.filter((value) => {
-    const normalized = value.trim().toLowerCase();
-    if (!normalized || seen.has(normalized)) return false;
-    seen.add(normalized);
-    return true;
-  });
-}
-
-function logProductFeedbackSaveFailure(error: unknown, feedbackType: ProductFeedbackType) {
-  if (process.env.NODE_ENV === "production") return;
-
-  const databaseError = error as {
-    code?: string;
-    details?: string;
-    hint?: string;
-    message?: string;
-  };
-
-  console.warn("[Furvise results] product feedback save failed", {
-    action: "toggle",
-    errorCode: databaseError?.code || "",
-    errorDetails: databaseError?.details || "",
-    errorHint: databaseError?.hint || "",
-    errorMessage: databaseError?.message || "",
-    feedbackType,
-    table: "dog_product_feedback",
-  });
-}
-
-const wellnessGoalOptions: { value: WellnessGoal; label: string }[] = [
-  { value: "nutrition", label: "Nutrition" },
-  { value: "dental_care", label: "Dental care" },
-  { value: "grooming", label: "Grooming" },
-  { value: "activity", label: "Activity" },
-  { value: "preventive_care", label: "Preventive care" },
-  { value: "reminders", label: "Reminders" },
-  { value: "something_else", label: "Something else" },
-];
-
-const nutritionGoalOptions: { value: NutritionGoal; label: string }[] = [
-  { value: "lower_cost", label: "Lower cost" },
-  { value: "compare_current_food", label: "Compare current food" },
-  { value: "life_stage_fit", label: "Life-stage fit" },
-  { value: "ingredient_concerns", label: "Ingredient fit" },
-  { value: "picky_eating", label: "Picky eating" },
-  { value: "sensitive_stomach", label: "Sensitive stomach" },
-  { value: "just_exploring", label: "Just exploring" },
-];
-
 function formatWellnessGoalLabel(goal: WellnessGoal | "") {
-  return wellnessGoalOptions.find((option) => option.value === goal)?.label || "";
+  if (goal === "nutrition") return "Nutrition";
+  if (goal === "dental_care") return "Dental care";
+  if (goal === "grooming") return "Grooming";
+  if (goal === "activity") return "Activity";
+  if (goal === "preventive_care") return "Preventive care";
+  if (goal === "reminders") return "Reminders";
+  if (goal === "something_else") return "Something else";
+  return "";
 }
-
-function formatNutritionGoalLabel(goal: NutritionGoal | "") {
-  return nutritionGoalOptions.find((option) => option.value === goal)?.label || "";
-}
-
-function formatProductSummary(product: Recommendation["product"]) {
-  if (!product) return "";
-  const lifeStage = `${product.lifeStage} life stage`;
-  const speciesLabel = formatProductSpeciesBadge(product);
-  if (product.category === "food") {
-    return `${speciesLabel} - ${product.protein} protein - ${lifeStage}`;
-  }
-  if (product.protein === "Not applicable") {
-    return `${speciesLabel} - ${lifeStage}`;
-  }
-  return `${speciesLabel} - ${product.protein} - ${lifeStage}`;
-}
-
-function capitalizeSpecies(species: "dog" | "cat") {
-  return species === "dog" ? "Dog" : "Cat";
-}
-
-const productFeedbackOptions: { type: ProductFeedbackType; label: string }[] = [
-  { type: "saved", label: "Save" },
-  { type: "tried", label: "Tried" },
-  { type: "worked", label: "Worked" },
-  { type: "did_not_work", label: "Didn't work" },
-  { type: "too_expensive", label: "Too expensive" },
-  { type: "avoid_product", label: "Avoid" },
-];

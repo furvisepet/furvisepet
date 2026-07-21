@@ -511,69 +511,40 @@ test("Saved details empty state explains reusable facts and includes useful next
   assert.doesNotMatch(source, /AI suggestion/);
 });
 
-test("Results broad wellness follow-up is actionable and suppresses irrelevant budget warnings", () => {
+test("Results stays care-guidance only and removes product recommendation UI", () => {
   const source = read("app/results/page.tsx");
   const shell = read("app/components/app-page.tsx");
-  const providerSource = read("app/lib/product-providers.ts");
-  for (const label of [
-    "Lower cost",
-    "Compare current food",
-    "Nutrition",
-    "Dental care",
-    "Grooming",
-    "Activity",
-    "Preventive care",
-    "Reminders",
-    "Something else",
-    "Ingredient fit",
-    "Picky eating",
-    "Sensitive stomach",
-    "Just exploring",
-  ]) {
-    assert.match(source, new RegExp(`label: "${label}"`));
-  }
-  assert.match(source, /What would you like help with first\?/);
-  assert.match(source, /Tell Furvise what you want help with\./);
-  assert.match(source, /disabled=\{!customReady\}/);
-  assert.match(source, /allVisibleProductsOverBudget/);
-  assert.match(source, /visibleProductRecommendations\.length > 0/);
+
   assert.match(source, /Using local care matching right now\./);
-  assert.match(source, /Follow-up needed/);
-  assert.match(source, /What would you like to improve about .*&apos;s food\?/);
-  assert.match(source, /speciesFoodUnavailable/);
-  assert.match(source, /safe catalog match/);
-  assert.match(source, /No region-verified product suggestion yet/);
-  assert.match(source, /Furvise does not have a safe catalog match available for your region right now\./);
-  assert.match(source, /Region-verified catalog match/);
-  assert.match(source, /getDisplayProductPriceLabel/);
-  assert.match(source, /Product price/);
   assert.match(source, /<AppPage>/);
   assert.doesNotMatch(source, /SignedInHeader/);
-  assert.match(source, /No lower-cost product matches yet/);
-  assert.match(source, /Closest available product options/);
-  assert.match(source, /These are catalog comparison options, not a recommendation to switch/);
-  assert.match(source, /All visible \{productCopy\.productNoun\} exceed your \$\{budget\}\/month care budget,/);
-  assert.match(source, /Over care budget/);
-  assert.match(source, /formatProductSpeciesBadge/);
-  assert.match(source, /capitalizeSpecies/);
-  assert.doesNotMatch(source, /All-pet care item/);
   assert.match(shell, /pt-8/);
-  assert.match(source, /Top matches/);
-  assert.match(source, /More options/);
-  assert.match(source, /Care actions/);
+  assert.match(source, /First care summary for/);
+  assert.match(source, /Care summary/);
+  assert.match(source, /What Furvise knows/);
+  assert.match(source, /Saved care context/);
+  assert.match(source, /What to log next/);
+  assert.match(source, /What to ask the vet/);
+  assert.match(source, /FURVISE_SAFETY_LINE/);
+  assert.match(source, /Missing context/);
+  assert.match(source, /Suggested memories/);
   assert.match(source, /Current food", profile\.currentFoodUnknown \? "I'm not sure"/);
   assert.match(source, /currentFoodUnknown \? "I'm not sure" : profile\.currentFood\.trim\(\) \|\| "Not provided"/);
-  assert.match(source, /Curated product/);
-  assert.match(source, /Unverified product/);
-  assert.match(source, /Static product references are filtered by saved pet context and configured country/);
-  assert.match(source, /target=\{productLinkInfo\.target\}/);
-  assert.match(source, /rel=\{productLinkInfo\.rel\}/);
-  assert.match(source, /item\.product === null/);
-  assert.match(providerSource, /View product/);
-  assert.match(providerSource, /Product reference/);
-  assert.match(providerSource, /staticRealProvider/);
-  assert.match(providerSource, /resolveProductProviderMode/);
-  assert.match(providerSource, /PRODUCT_PROVIDER/);
+
+  assert.doesNotMatch(source, /Top matches/);
+  assert.doesNotMatch(source, /No region-verified product suggestion yet/);
+  assert.doesNotMatch(source, /Furvise does not have a safe catalog match available for your region right now\./);
+  assert.doesNotMatch(source, /catalog match/);
+  assert.doesNotMatch(source, /product suggestion/);
+  assert.doesNotMatch(source, /product recommendations/);
+  assert.doesNotMatch(source, /Product price/);
+  assert.doesNotMatch(source, /Curated product/);
+  assert.doesNotMatch(source, /Unverified product/);
+  assert.doesNotMatch(source, /static_real/);
+  assert.doesNotMatch(source, /getConfiguredProductProvider/);
+  assert.doesNotMatch(source, /getDisplayProductPriceLabel/);
+  assert.doesNotMatch(source, /RecommendationCard/);
+  assert.doesNotMatch(source, /regionRemovedAllSpeciesProducts/);
   assert.doesNotMatch(source, />\s*Education\s*</);
 });
 
@@ -647,19 +618,16 @@ test("Onboarding saves the profile before navigating to results", () => {
   assert.match(results, /window\.localStorage\.setItem\(PROFILE_ID_STORAGE_KEY, profileIdFromRoute\)/);
 });
 
-test("Results keeps safety panels ahead of broad wellness follow-up", () => {
+test("Results keeps safety panels ahead of care summary and removes product flow gating", () => {
   const source = read("app/results/page.tsx");
-  const followUpDefinition = source.slice(source.indexOf("const showWellnessFollowUp"), source.indexOf("const showNutritionFollowUp"));
-  const productDefinition = source.slice(source.indexOf("const showProductRecommendations"), source.indexOf("const showWellnessFollowUp"));
-  const stableResultDefinition = source.slice(source.indexOf("if ("), source.indexOf("const recommendationTimer"));
 
-  assert.match(productDefinition, /!memoryHasUrgentSafety/);
-  assert.match(productDefinition, /!urgentVetAttention/);
-  assert.match(followUpDefinition, /!urgentVetAttention/);
-  assert.match(followUpDefinition, /!soonVetAttention/);
-  assert.match(stableResultDefinition, /memoryHasUrgentSafety/);
-  assert.ok(source.indexOf("SoonSafetyPanel") < source.indexOf("WellnessGoalFollowUp"));
-  assert.ok(source.indexOf("UrgentCarePanel") < source.indexOf("Top matches"));
+  assert.match(source, /const urgentVetAttention =/);
+  assert.match(source, /const soonVetAttention =/);
+  assert.match(source, /understanding\.safetyFlags/);
+  assert.ok(source.indexOf("UrgentCarePanel") < source.indexOf("CareSummaryPanel"));
+  assert.ok(source.indexOf("SoonSafetyPanel") < source.indexOf("CareSummaryPanel"));
+  assert.doesNotMatch(source, /showProductRecommendations/);
+  assert.doesNotMatch(source, /setStableResult/);
 });
 
 test("Results stays care-summary focused and avoids diagnostic framing", () => {
@@ -672,8 +640,7 @@ test("Results stays care-summary focused and avoids diagnostic framing", () => {
   assert.match(source, /What to log next/);
   assert.match(source, /What to ask the vet/);
   assert.match(source, /buildResultsCareSummary/);
-  assert.match(source, /Matches species and care category/);
-  assert.match(source, /Add avoid ingredients to make product filtering safer/);
+  assert.match(source, /Care guidance differs by species/);
   assert.doesNotMatch(source, /Possible factors/);
   assert.doesNotMatch(source, /Possible causes/);
   assert.doesNotMatch(source, /Furvise analysis/);
@@ -765,14 +732,15 @@ test("onboarding fallback copy does not expose demo or mock language", () => {
   assert.doesNotMatch(source, /local demo matching|mock matching|fake|sample matching/);
 });
 
-test("results product cards keep mobile scan and tap affordances", () => {
+test("Results no longer renders product cards or product empty states", () => {
   const source = read("app/results/page.tsx");
 
-  assert.match(source, /grid gap-5 lg:grid-cols-3/);
-  assert.match(source, /break-words text-xl font-semibold leading-tight/);
-  assert.match(source, /break-words text-lg font-semibold text-\[var\(--pw-primary\)\] sm:text-xl/);
-  assert.match(source, /min-h-11 w-full items-center justify-center rounded-full bg-\[var\(--pw-primary\)\]/);
-  assert.match(source, /mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap/);
+  assert.doesNotMatch(source, /RecommendationCard/);
+  assert.doesNotMatch(source, /Top matches/);
+  assert.doesNotMatch(source, /More options/);
+  assert.doesNotMatch(source, /No region-verified product suggestion yet/);
+  assert.doesNotMatch(source, /Product price/);
+  assert.doesNotMatch(source, /regionRemovedAllSpeciesProducts/);
 });
 
 test("edit profile mobile form avoids horizontal overflow and keeps bottom actions tappable", () => {
