@@ -520,7 +520,7 @@ export function normalizeProfile(value: unknown): DogProfile {
     currentFood: currentFoodUnknown ? "" : draft.currentFood ?? "",
     currentFoodUnknown,
     avoidIngredients: Array.isArray(draft.avoidIngredients)
-      ? draft.avoidIngredients.filter((item): item is string => typeof item === "string")
+      ? normalizeAvoidIngredientValues(draft.avoidIngredients.filter((item): item is string => typeof item === "string"))
       : [],
   };
 }
@@ -572,11 +572,35 @@ export function parsePositiveNumber(value: string) {
 }
 
 export function normalizeIngredient(value: string) {
-  return value.trim().toLowerCase();
+  return value.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+}
+
+export function normalizeAvoidIngredientValues(values: string[]) {
+  const seen = new Set<string>();
+  return values
+    .flatMap((value) => normalizeAvoidIngredientInput(value))
+    .filter((value) => {
+      const key = normalizeIngredient(value);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+export function normalizeAvoidIngredientInput(value: string) {
+  const trimmed = value.trim();
+  const normalized = normalizeIngredient(trimmed);
+  if (!normalized || isNoneKnown(normalized)) return [];
+
+  const noIngredientMatch = normalized.match(/^(?:no|without|avoid)\s+(.+)$/);
+  const ingredient = noIngredientMatch?.[1]?.trim();
+  if (ingredient && !isNoneKnown(ingredient)) return [ingredient];
+
+  return [trimmed];
 }
 
 export function productPassesAvoidIngredientFilter(product: MockProduct, avoids: string[]) {
-  const normalizedAvoids = avoids.map(normalizeIngredient).filter(Boolean);
+  const normalizedAvoids = normalizeAvoidIngredientValues(avoids).map(normalizeIngredient).filter(Boolean);
   if (normalizedAvoids.length === 0) return true;
 
   const metadata = collectProductIngredientMetadata(product);
@@ -596,7 +620,18 @@ export function productPassesAvoidIngredientFilter(product: MockProduct, avoids:
 }
 
 export function isNoneKnown(value: string) {
-  return ["no", "none", "nothing", "none known"].includes(normalizeIngredient(value));
+  return [
+    "n/a",
+    "na",
+    "no",
+    "no allergies",
+    "no known",
+    "no known allergies",
+    "none",
+    "none known",
+    "not sure",
+    "nothing",
+  ].includes(normalizeIngredient(value));
 }
 
 export function selectedConcern(profile: DogProfile) {

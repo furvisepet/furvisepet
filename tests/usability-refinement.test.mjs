@@ -125,6 +125,7 @@ test("authenticated header uses the shared app navigation contract", () => {
   assert.match(source, /label: "Home"/);
   assert.match(source, /label: "Dashboard"/);
   assert.match(source, /label: "Pets"/);
+  assert.match(source, /label: "Shop"/);
   assert.match(source, /label: "Care history"/);
   assert.match(source, /label: "Ask Furvise"/);
   assert.doesNotMatch(source, /label: "Today"/);
@@ -224,6 +225,7 @@ test("shared header active state covers dashboard, pets, care history, and ask",
   assert.match(source, /item\.href === "\/dashboard"[\s\S]*pathname === "\/dashboard"/);
   assert.match(source, /item\.href === "\/pets"[\s\S]*pathname\.startsWith\("\/pets\/"\)/);
   assert.match(source, /pathname\.startsWith\("\/dogs\/"\)/);
+  assert.match(source, /item\.href === "\/shop"[\s\S]*pathname === "\/shop"/);
   assert.match(source, /item\.href === "\/care-log"[\s\S]*pathname === "\/care-log"/);
   assert.match(source, /item\.href === "\/ask"[\s\S]*pathname === "\/ask"/);
 });

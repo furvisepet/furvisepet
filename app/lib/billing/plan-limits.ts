@@ -8,6 +8,7 @@ export type PlanLimits = {
   liveProductResearch: boolean;
   longHistoryPatternDetection: boolean;
   maxPets: number;
+  shopSearchMonthlyLimit: number;
   vetPrepExports: boolean;
 };
 
@@ -30,6 +31,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     liveProductResearch: false,
     longHistoryPatternDetection: false,
     maxPets: 1,
+    shopSearchMonthlyLimit: 20,
     vetPrepExports: false,
   },
   plus: {
@@ -42,6 +44,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     liveProductResearch: true,
     longHistoryPatternDetection: true,
     maxPets: 10,
+    shopSearchMonthlyLimit: 200,
     vetPrepExports: true,
   },
 };
@@ -137,6 +140,36 @@ export function evaluateAskUsageLimit({
   }
 
   return { allowed: false, hardBlocked: true, limit: plan.askFurviseMonthlyLimit, message, remaining: 0, softNotice: null };
+}
+
+export function evaluateShopSearchUsageLimit({
+  earlyAccessUnlocked = isEarlyAccessFreeUnlockEnabled(),
+  monthlyCount,
+  planId,
+}: {
+  earlyAccessUnlocked?: boolean;
+  monthlyCount: number;
+  planId: PlanId;
+}): GateDecision & { limit: number; remaining: number } {
+  const plan = getPlanCapabilities(planId);
+  const remaining = Math.max(0, plan.shopSearchMonthlyLimit - monthlyCount);
+  if (monthlyCount < plan.shopSearchMonthlyLimit) {
+    return { allowed: true, hardBlocked: false, limit: plan.shopSearchMonthlyLimit, message: null, remaining, softNotice: null };
+  }
+
+  const message = "You've used your included Shop searches for this month.";
+  if (earlyAccessUnlocked) {
+    return {
+      allowed: true,
+      hardBlocked: false,
+      limit: plan.shopSearchMonthlyLimit,
+      message: null,
+      remaining: 0,
+      softNotice: "Early access: extra Shop searches are currently unlocked.",
+    };
+  }
+
+  return { allowed: false, hardBlocked: true, limit: plan.shopSearchMonthlyLimit, message, remaining: 0, softNotice: null };
 }
 
 export function getPaidGateMessage(capability: "liveProductResearch" | "longHistoryPatternDetection" | "vetPrepExports") {

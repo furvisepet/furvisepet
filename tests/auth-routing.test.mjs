@@ -119,6 +119,7 @@ test("protected pages redirect signed-out users to login with current path next"
     "app/components/care-log-workspace.tsx",
     "app/pets/page.tsx",
     "app/pets/[id]/page.tsx",
+    "app/shop/page.tsx",
     "app/account/page.tsx",
     "app/dogs/[id]/memories/page.tsx",
   ]) {
@@ -135,6 +136,7 @@ test("protected page loading paths no longer render signed-out error copy", () =
     "app/components/care-log-workspace.tsx",
     "app/pets/page.tsx",
     "app/pets/[id]/page.tsx",
+    "app/shop/page.tsx",
   ]) {
     const source = read(path);
     assert.doesNotMatch(source, /Please sign in to (open|ask|view)/, path);
@@ -169,4 +171,17 @@ test("Results does not show unsigned local draft results", () => {
   assert.match(noProfileBranch, /if \(!user\) \{/);
   assert.match(noProfileBranch, /router\.replace\(NEW_PET_LOGIN_PATH\);/);
   assert.match(noProfileBranch, /return;/);
+});
+
+test("signed-out Shop redirects preserve current path and safe query string", () => {
+  const shop = read("app/shop/page.tsx");
+  const authSession = read("app/lib/auth-session.ts");
+
+  assert.match(shop, /useRequireConfirmedSupabaseAuth\(\)/);
+  assert.match(shop, /authStatus !== "signedIn"/);
+  assert.match(authSession, /const nextPath = `\$\{window\.location\.pathname\}\$\{window\.location\.search\}`;/);
+  assert.equal(buildLoginHref("/shop"), "/login?next=%2Fshop");
+  assert.equal(buildLoginHref("/shop?petId=abc"), "/login?next=%2Fshop%3FpetId%3Dabc");
+  assert.equal(getSafeNextPath("/shop?petId=abc", "/dashboard"), "/shop?petId=abc");
+  assert.equal(getSafeNextPath("https://evil.example/shop?petId=abc", "/dashboard"), "/dashboard");
 });

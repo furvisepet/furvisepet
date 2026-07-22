@@ -141,7 +141,8 @@ test("static_real ingredient verification only marks structured ingredient metad
 test("product provider defaults future feed ingredient verification conservatively", () => {
   assert.equal(normalizeProductSource("chewy_feed"), "chewy_feed");
   assert.equal(normalizeProductSource("ca_retailer_feed"), "ca_retailer_feed");
-  assert.equal(normalizeProductSource("unknown"), "curated");
+  assert.equal(normalizeProductSource("unknown"), null);
+  assert.equal(normalizeProductSource(undefined), "curated");
 
   const normalized = mockProvider.normalizeProduct({
     id: "future-feed-food",

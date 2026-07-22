@@ -6,6 +6,7 @@ import {
   MAIN_CONCERN_OPTIONS,
   initialProfile,
   normalizeProfile,
+  normalizeAvoidIngredientValues,
   normalizeSpecies,
   normalizeWellnessGoal,
   parsePositiveNumber,
@@ -852,7 +853,7 @@ export function buildDogProfilePayload(profile: DogProfile, userId: string) {
     main_concern:
       profile.mainConcern === "Other" ? profile.otherConcern.trim() : profile.mainConcern || null,
     wellness_goal: wellnessGoal || null,
-    avoid_ingredients: profile.avoidIngredients,
+    avoid_ingredients: normalizeAvoidIngredientValues(profile.avoidIngredients),
     monthly_budget: Number.isFinite(budget) ? budget : null,
     updated_at: new Date().toISOString(),
   };

@@ -10,6 +10,22 @@ import {
   safetyFollowupJsonSchema,
 } from "../../ai-analysis";
 import { DogProfile, formatAge, formatAvoidIngredients, formatBudget, formatSpecies, formatWeight, selectedConcern } from "../../petwise";
+import {
+  buildShopInterpretationPromptInput,
+  parseShopQueryInterpretation,
+  shopQueryInterpretationJsonSchema,
+  shopQueryInterpretationSystemPrompt,
+  type ShopQueryInterpretation,
+  type ShopQueryInterpretationInput,
+} from "../../shop-query";
+import {
+  buildShopProductFitPromptInput,
+  parseShopProductFitExplanation,
+  shopProductFitExplanationJsonSchema,
+  shopProductFitExplanationSystemPrompt,
+  type ShopProductFitExplanation,
+  type ShopProductFitExplanationInput,
+} from "../../shop/product-fit-explanation";
 import { OPENAI_ANALYSIS_MODEL } from "../config";
 import { AiAnalysisProvider, AnalyzeDogProfileInput, AnalyzeSafetyFollowupInput } from "../provider";
 
@@ -120,6 +136,55 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
     const parsed = parseSafetyFollowupResult(JSON.parse(response.output_text));
     if (!parsed) {
       throw new Error("OpenAI returned invalid Furvise safety follow-up data.");
+    }
+
+    return parsed;
+  }
+
+  async interpretShopQuery(input: ShopQueryInterpretationInput): Promise<ShopQueryInterpretation> {
+    const response = await this.client.responses.create({
+      model: OPENAI_ANALYSIS_MODEL,
+      instructions: shopQueryInterpretationSystemPrompt,
+      input: JSON.stringify(buildShopInterpretationPromptInput(input)),
+      text: {
+        format: {
+          type: "json_schema",
+          name: "furvise_shop_query_interpretation",
+          strict: true,
+          schema: shopQueryInterpretationJsonSchema,
+        },
+      },
+    });
+
+    const parsed = parseShopQueryInterpretation(JSON.parse(response.output_text));
+    if (!parsed) {
+      throw new Error("OpenAI returned invalid Furvise shop query interpretation data.");
+    }
+
+    return parsed;
+  }
+
+  async explainShopProductFit(input: ShopProductFitExplanationInput): Promise<ShopProductFitExplanation> {
+    const response = await this.client.responses.create({
+      model: OPENAI_ANALYSIS_MODEL,
+      instructions: shopProductFitExplanationSystemPrompt,
+      input: JSON.stringify(buildShopProductFitPromptInput(input)),
+      text: {
+        format: {
+          type: "json_schema",
+          name: "furvise_shop_product_fit_explanation",
+          strict: true,
+          schema: shopProductFitExplanationJsonSchema,
+        },
+      },
+    });
+
+    const parsed = parseShopProductFitExplanation(
+      JSON.parse(response.output_text),
+      input.memory.pet.name || "this pet",
+    );
+    if (!parsed) {
+      throw new Error("OpenAI returned invalid Furvise shop product fit explanation data.");
     }
 
     return parsed;

@@ -176,11 +176,23 @@ export default function DashboardPage() {
                   </div>
                 ) : null}
               </div>
-              {dashboardAction.href ? (
-                <Link className={primaryButtonInline} href={dashboardAction.href}>
-                  {dashboardAction.label}
-                </Link>
-              ) : null}
+              <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+                {dashboardAction.href ? (
+                  <Link className={primaryButtonInline} href={dashboardAction.href}>
+                    {dashboardAction.label}
+                  </Link>
+                ) : null}
+                {selectedProfile ? (
+                  <div className="text-left sm:text-right">
+                    <Link className={secondaryButtonInline} href={`/shop?petId=${encodeURIComponent(selectedProfile.id)}`}>
+                      Shop for {selectedPetName}
+                    </Link>
+                    <p className="mt-2 max-w-56 text-sm leading-5 text-[var(--pw-muted)]">
+                      Search carefully using {selectedPetName}&apos;s saved context.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             {nextSteps.length > 1 ? (
@@ -432,3 +444,4 @@ function normalizeActionLabel(step: DashboardNextStepItem) {
 
 const primaryButton = "mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white";
 const primaryButtonInline = "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white";
+const secondaryButtonInline = "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-4 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)]";

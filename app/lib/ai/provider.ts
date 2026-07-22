@@ -7,6 +7,14 @@ import {
   SafetyFollowupResult,
 } from "../ai-analysis";
 import { DogProfile } from "../petwise";
+import type {
+  ShopQueryInterpretation,
+  ShopQueryInterpretationInput,
+} from "../shop-query";
+import type {
+  ShopProductFitExplanation,
+  ShopProductFitExplanationInput,
+} from "../shop/product-fit-explanation";
 import { getAiProviderName } from "./config";
 import { OpenAiAnalysisProvider } from "./providers/openai";
 
@@ -25,6 +33,8 @@ export type AnalyzeSafetyFollowupInput = {
 export interface AiAnalysisProvider {
   analyzeDogProfile(input: AnalyzeDogProfileInput): Promise<PetWiseAnalysis>;
   analyzeSafetyFollowup(input: AnalyzeSafetyFollowupInput): Promise<SafetyFollowupResult>;
+  explainShopProductFit(input: ShopProductFitExplanationInput): Promise<ShopProductFitExplanation>;
+  interpretShopQuery(input: ShopQueryInterpretationInput): Promise<ShopQueryInterpretation>;
 }
 
 export function createAiAnalysisProvider(): AiAnalysisProvider {

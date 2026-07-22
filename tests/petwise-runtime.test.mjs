@@ -4,6 +4,7 @@ import {
   MAIN_CONCERN_OPTIONS,
   buildRecommendations,
   initialProfile,
+  normalizeAvoidIngredientValues,
   normalizeOnboardingMode,
   hasSpeciesCompatibleFoodProducts,
   isSpeciesCompatibleProduct,
@@ -57,6 +58,21 @@ test("custom main concerns remain supported", () => {
   };
 
   assert.equal(selectedConcern(profile), "vomiting");
+});
+
+test("avoid ingredient normalization treats typed none values like None known", () => {
+  assert.deepEqual(normalizeAvoidIngredientValues(["none"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["None"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["none known"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["None known"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["no known"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["no known allergies"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["no allergies"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["n/a"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["na"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["not sure"]), []);
+  assert.deepEqual(normalizeAvoidIngredientValues(["chicken", "none"]), ["chicken"]);
+  assert.deepEqual(normalizeAvoidIngredientValues(["no chicken"]), ["chicken"]);
 });
 
 function filledProfile(overrides = {}) {
@@ -379,6 +395,22 @@ test("payload builder only includes database columns and persists wellness goal 
   ]);
   assert.equal(payload.wellness_goal, "preventive_care");
   assert.equal(payload.species, "dog");
+});
+
+test("profile payload drops typed none avoid values before saving", () => {
+  const payload = buildDogProfilePayload(
+    {
+      ...initialProfile,
+      name: "Rocky",
+      species: "dog",
+      age: "4",
+      mainConcern: "General wellness",
+      avoidIngredients: ["Chicken", "none", "no known allergies"],
+    },
+    "user-1",
+  );
+
+  assert.deepEqual(payload.avoid_ingredients, ["Chicken"]);
 });
 
 test("thin first-result profiles save optional fields as database-safe empty values", () => {

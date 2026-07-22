@@ -69,6 +69,9 @@ export const mockProvider: ProductProvider = {
 
     const species = normalizeSpecies(product.species);
     const concernTags = Array.isArray(product.concernTags) ? product.concernTags : [];
+    const source = normalizeProductSource(product.source);
+    if (!source) return null;
+
     const excludedIngredients = Array.isArray(product.excludedIngredients)
       ? product.excludedIngredients
       : [];
@@ -95,7 +98,7 @@ export const mockProvider: ProductProvider = {
       species: species || "all",
       tags: normalizeTags(product.tags, product),
       currency: product.currency || "USD",
-      source: normalizeProductSource(product.source),
+      source,
       ingredientsVerified: product.ingredientsVerified === true,
       evidenceType: product.evidenceType || "demo",
       ingredientHighlights: Array.isArray(product.ingredientHighlights)
@@ -244,7 +247,8 @@ export function normalizeAvailableCountries(value: unknown): ProductCountry[] {
 }
 
 export function normalizeProductSource(value: unknown) {
-  return PRODUCT_SOURCES.find((source) => source === value) || "curated";
+  if (value === undefined || value === null || value === "") return "curated";
+  return PRODUCT_SOURCES.find((source) => source === value) || null;
 }
 
 export function isProductEligibleForCountry(

@@ -18,6 +18,7 @@ import {
   avoidIngredientChips,
   initialProfile,
   isNoneKnown,
+  normalizeAvoidIngredientValues,
   normalizeProfile,
   parsePositiveNumber,
 } from "../lib/petwise";
@@ -151,10 +152,7 @@ function getStepError(profile: DogProfile, key: StepKey) {
 }
 
 function normalizeCustomIngredients(value: string) {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return normalizeAvoidIngredientValues(value.split(","));
 }
 
 const saveProfileErrorMessage = "Furvise could not save this pet profile. Please try again.";

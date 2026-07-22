@@ -11,6 +11,7 @@ import {
   initialProfile,
   isNoneKnown,
   MAIN_CONCERN_OPTIONS,
+  normalizeAvoidIngredientValues,
   parsePositiveNumber,
   formatPetDisplayName,
 } from "../../../lib/petwise";
@@ -115,10 +116,7 @@ export default function EditDogProfilePage() {
       return;
     }
 
-    const customIngredients = value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const customIngredients = normalizeAvoidIngredientValues(value.split(","));
     setProfile((current) => ({
       ...current,
       customAvoidIngredient: value,

@@ -210,6 +210,10 @@ export function AppHeader({
       return pathname === "/care-log";
     }
 
+    if (item.href === "/shop") {
+      return pathname === "/shop";
+    }
+
     if (item.href === "/ask") {
       return pathname === "/ask";
     }

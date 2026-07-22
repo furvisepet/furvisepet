@@ -191,7 +191,7 @@ function ProfileOverview({
   const name = formatPetDisplayName(profile.name);
   const askHref = `/ask?pet=${profile.id}`;
   const editHref = `/dogs/${profile.id}/edit`;
-  const productsHref = `/results?profileId=${encodeURIComponent(profile.id)}`;
+  const shopHref = `/shop?petId=${encodeURIComponent(profile.id)}`;
   const finishProfileItems = getFinishProfileItemsFromRow(profile);
 
   return (
@@ -231,11 +231,11 @@ function ProfileOverview({
               <Link className={menuItemClass} href={`/dogs/${profile.id}/memories`}>
                 Saved details
               </Link>
-          {model.showProductLink ? (
-            <Link className={menuItemClass} href={productsHref} onClick={onPrepareRecommendations}>
-              {model.productLinkLabel}
-            </Link>
-          ) : null}
+              {model.showProductLink ? (
+                <Link className={menuItemClass} href={shopHref}>
+                  Shop for {name}
+                </Link>
+              ) : null}
               <button
                 className={`${menuItemClass} text-[var(--pw-danger-text)]`}
                 disabled={deleting}
@@ -290,7 +290,6 @@ function ProfileOverview({
           <PetDetails
             feedbackCount={feedback.length}
             model={model}
-            onPrepareRecommendations={onPrepareRecommendations}
             profile={profile}
           />
         </div>
@@ -473,12 +472,10 @@ function FurviseSays({
 function PetDetails({
   feedbackCount,
   model,
-  onPrepareRecommendations,
   profile,
 }: {
   feedbackCount: number;
   model: PetProfileOverviewModel;
-  onPrepareRecommendations: () => void;
   profile: DogProfileWithMemories;
 }) {
   const details = [
@@ -540,8 +537,8 @@ function PetDetails({
           ) : (
             <span aria-hidden="true" />
           )}
-          <Link className={textLinkClass} href={`/results?profileId=${encodeURIComponent(profile.id)}`} onClick={onPrepareRecommendations}>
-            {model.productLinkLabel}
+          <Link className={textLinkClass} href={`/shop?petId=${encodeURIComponent(profile.id)}`}>
+            Shop for {name}
           </Link>
         </div>
       ) : null}
