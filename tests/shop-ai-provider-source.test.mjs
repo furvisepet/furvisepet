@@ -16,7 +16,8 @@ test("Shop interpretation reuses the existing AI provider abstraction", () => {
   assert.match(openai, /shopQueryInterpretationJsonSchema/);
   assert.match(openai, /shopProductFitExplanationSystemPrompt/);
   assert.match(openai, /shopProductFitExplanationJsonSchema/);
-  assert.match(openai, /parseShopQueryInterpretation/);
+  assert.match(openai, /validateShopQueryInterpretation/);
+  assert.match(openai, /ShopQueryInterpretationValidationError/);
   assert.match(openai, /parseShopProductFitExplanation/);
   assert.match(openai, /this\.client\.responses\.create/);
 });
@@ -30,6 +31,9 @@ test("Shop interpretation API route authenticates and loads pet memory server-si
   assert.match(route, /loadPetMemoryContext\(\{/);
   assert.match(route, /petId,\s+supabase: context\.supabase,\s+userId: context\.userId/s);
   assert.match(route, /createAiAnalysisProvider\(\)/);
+  assert.match(route, /getAiRuntimeDiagnostics/);
+  assert.match(route, /logShopInterpretationDiagnostic/);
+  assert.match(route, /classifyShopInterpretationFailure/);
   assert.match(route, /buildFallbackShopQueryInterpretation/);
   assert.match(route, /parseShopQueryInterpretation/);
   assert.match(route, /readCachedShopQueryInterpretation/);
@@ -37,23 +41,33 @@ test("Shop interpretation API route authenticates and loads pet memory server-si
   assert.match(route, /getShopSearchUsageStatus/);
   assert.match(route, /incrementShopSearchUsage/);
   assert.match(route, /limitReached: true/);
+  assert.match(route, /interpretationSource: "ai"/);
+  assert.match(route, /interpretationSource: "cache"/);
+  assert.match(route, /interpretationSource: "fallback"/);
+  assert.match(route, /applyDeterministicInterpretationFloor/);
+  assert.match(route, /category: fallback\.category !== "Other" \? fallback\.category : interpretation\.category/);
+  assert.match(route, /avoidIngredients = uniqueStrings/);
   assert.match(petMemory, /\.eq\("id", petId\)/);
   assert.match(petMemory, /\.eq\("user_id", userId\)/);
 });
 
 test("Shop interpretation usage cap checks cache before spending a fresh AI search", () => {
   const route = read("app/api/shop/interpret-query/route.ts");
-  const cacheHitBranch = route.slice(route.indexOf("const cached = await readCachedShopQueryInterpretation"), route.indexOf("if (!context.usage.allowed)"));
-  const aiBranch = route.slice(route.indexOf("const provider = createAiAnalysisProvider"), route.indexOf("} catch (error)"));
-  const fallbackBranch = route.slice(route.indexOf("} catch (error)"), route.indexOf("async function loadShopInterpretationRequestContext"));
+  const cacheHitBranch = route.slice(route.indexOf("if (cached?.source === \"ai\")"), route.indexOf("if (cached?.source === \"fallback\")"));
+  const aiStart = route.indexOf("logShopInterpretationDiagnostic(\"calling AI provider\"");
+  const aiBranch = route.slice(aiStart, route.indexOf("} catch (error)", aiStart));
+  const fallbackBranch = route.slice(route.indexOf("} catch (error)", aiStart), route.indexOf("async function loadShopInterpretationRequestContext"));
 
   assert.match(cacheHitBranch, /cached: true/);
+  assert.match(cacheHitBranch, /interpretationSource: "cache"/);
   assert.match(cacheHitBranch, /usage: context\.usage/);
   assert.doesNotMatch(cacheHitBranch, /createAiAnalysisProvider|incrementShopSearchUsage/);
   assert.match(aiBranch, /provider\.interpretShopQuery/);
   assert.match(aiBranch, /incrementShopSearchUsage/);
   assert.match(aiBranch, /cached: false/);
   assert.match(fallbackBranch, /source: "fallback"/);
+  assert.match(fallbackBranch, /fallbackReason: failure\.reason/);
+  assert.match(fallbackBranch, /interpretationSource: "fallback"/);
   assert.match(fallbackBranch, /usage: context\.usage/);
   assert.doesNotMatch(fallbackBranch, /incrementShopSearchUsage/);
 });

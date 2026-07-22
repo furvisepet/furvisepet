@@ -83,11 +83,11 @@ test("unsupported country header does not store the unsupported value", () => {
   });
 
   assert.equal(detectedCountry, null);
-  assert.equal(decision.country, "CA");
+  assert.equal(decision.country, "US");
   assert.equal(decision.countrySource, "env_default");
 });
 
-test("missing country header uses safe env fallback", () => {
+test("missing country header uses configured env fallback", () => {
   const decision = decideAccountCountryDetection({
     currentProfile: null,
     detectedCountry: detectCountryFromRequestHeaders(new Headers()),
@@ -185,7 +185,8 @@ test("first-time manual save does not require an existing profile row", async ()
 test("active product country source order prefers account profile before env", () => {
   assert.equal(resolveActiveAccountProductCountry({ accountCountry: "US", productCountry: "CA" }), "US");
   assert.equal(resolveActiveAccountProductCountry({ accountCountry: null, productCountry: "US" }), "US");
-  assert.equal(resolveActiveAccountProductCountry({ accountCountry: "GB", productCountry: "GB" }), "CA");
+  assert.equal(resolveActiveAccountProductCountry({ accountCountry: "GB", productCountry: "GB" }), "US");
+  assert.equal(resolveActiveAccountProductCountry({ accountCountry: null, nextPublicProductCountry: "", productCountry: "" }), "US");
 });
 
 test("user_profiles migrations store only account country with owner RLS", () => {

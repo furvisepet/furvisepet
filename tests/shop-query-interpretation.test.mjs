@@ -4,6 +4,7 @@ import {
   buildFallbackShopQueryInterpretation,
   parseShopQueryInterpretation,
   shopQueryInterpretationJsonSchema,
+  validateShopQueryInterpretation,
   shopQueryInterpretationSystemPrompt,
 } from "../app/lib/shop-query.ts";
 
@@ -88,6 +89,18 @@ test("Shop query interpretation schema uses strict bounded enums", () => {
   const missingFields = validInterpretation();
   delete missingFields.safetyFlags;
   assert.equal(parseShopQueryInterpretation(missingFields), null);
+
+  const validation = validateShopQueryInterpretation({
+    ...validInterpretation(),
+    category: "Skin care",
+    explicitConstraints: {
+      ...validInterpretation().explicitConstraints,
+      productForm: undefined,
+    },
+  });
+  assert.equal(validation.ok, false);
+  assert.match(validation.errors.join("\n"), /category must be one of/);
+  assert.match(validation.errors.join("\n"), /explicitConstraints\.productForm must be null or a string/);
 });
 
 test("Shop query prompt is interpretation-only and forbids product claims", () => {

@@ -164,14 +164,14 @@ test("product provider defaults future feed ingredient verification conservative
   assert.deepEqual(normalized.availableCountries, ["US", "CA"]);
 });
 
-test("active product country resolves configured US and CA with conservative fallback", () => {
+test("active product country resolves configured US and CA with temporary US fallback", () => {
   assert.equal(normalizeProductCountry("CA"), "CA");
   assert.equal(normalizeProductCountry("us"), "US");
   assert.equal(normalizeProductCountry("GB"), null);
   assert.equal(getActiveProductCountry({ productCountry: "CA" }), "CA");
   assert.equal(getActiveProductCountry({ productCountry: "US" }), "US");
   assert.equal(getActiveProductCountry({ accountCountry: "US", productCountry: "CA" }), "US");
-  assert.equal(getActiveProductCountry({ productCountry: "GB", nextPublicProductCountry: "" }), "CA");
+  assert.equal(getActiveProductCountry({ productCountry: "GB", nextPublicProductCountry: "" }), "US");
 });
 
 test("static_real country filtering excludes non-eligible products", () => {
@@ -201,7 +201,8 @@ test("static_real country filtering excludes non-eligible products", () => {
     }),
     profile: profile({ species: "dog" }),
   });
-  assert.equal(invalidAccountCountryCatalog.length, 0);
+  assert.ok(invalidAccountCountryCatalog.length > 0);
+  assert.ok(invalidAccountCountryCatalog.every((product) => product.availableCountries?.includes("US")));
 });
 
 test("product filtering reads account country before configured product country", () => {

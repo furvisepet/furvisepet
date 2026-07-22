@@ -95,7 +95,7 @@ function ShopPageContent() {
   const [shopUsageError, setShopUsageError] = useState("");
   const [limitReachedQuery, setLimitReachedQuery] = useState("");
   const [fitExplanationCache, setFitExplanationCache] = useState<Record<string, FitExplanationState>>({});
-  const [productCountry, setProductCountry] = useState<ProductCountry>("CA");
+  const [productCountry, setProductCountry] = useState<ProductCountry>("US");
   const [careEntryState, setCareEntryState] = useState<{ entries: CareEntryRow[]; petId: string }>({
     entries: [],
     petId: "",

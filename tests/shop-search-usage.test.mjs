@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getPlanCapabilities } from "../app/lib/billing/plan-limits.ts";
@@ -208,11 +208,12 @@ test("Shop route never increments usage for invalid bodies, cached hits, fallbac
     interpretationRoute.indexOf("let memory"),
   );
   const cacheHitBranch = interpretationRoute.slice(
-    interpretationRoute.indexOf("if (cached)"),
-    interpretationRoute.indexOf("if (!context.usage.allowed)"),
+    interpretationRoute.indexOf("if (cached?.source === \"ai\")"),
+    interpretationRoute.indexOf("if (cached?.source === \"fallback\")"),
   );
+  const aiStart = interpretationRoute.indexOf("logShopInterpretationDiagnostic(\"calling AI provider\"");
   const fallbackBranch = interpretationRoute.slice(
-    interpretationRoute.indexOf("} catch (error)"),
+    interpretationRoute.indexOf("} catch (error)", aiStart),
     interpretationRoute.indexOf("async function loadShopInterpretationRequestContext"),
   );
 

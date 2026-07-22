@@ -47,6 +47,21 @@ export type ShopQueryInterpretationInput = {
   productCountry?: ProductCountry | null;
   query: string;
 };
+export type ShopQueryInterpretationValidationResult =
+  | { errors: []; interpretation: ShopQueryInterpretation; ok: true }
+  | { errors: string[]; interpretation: null; ok: false };
+
+export class ShopQueryInterpretationValidationError extends Error {
+  errors: string[];
+  rawValue: unknown;
+
+  constructor(errors: string[], rawValue: unknown) {
+    super(`OpenAI returned invalid Furvise shop query interpretation data: ${errors.join("; ")}`);
+    this.name = "ShopQueryInterpretationValidationError";
+    this.errors = errors;
+    this.rawValue = rawValue;
+  }
+}
 
 export const shopQueryInterpretationSystemPrompt = [
   "You interpret only a pet owner's shopping query for Furvise.",
@@ -132,55 +147,97 @@ export const shopQueryInterpretationJsonSchema = {
 } as const;
 
 export function parseShopQueryInterpretation(value: unknown): ShopQueryInterpretation | null {
-  if (!value || typeof value !== "object") return null;
-  const draft = value as Partial<ShopQueryInterpretation>;
-  const constraints = draft.explicitConstraints;
-  const safetyFlags = draft.safetyFlags;
+  const result = validateShopQueryInterpretation(value);
+  return result.ok ? result.interpretation : null;
+}
 
-  if (
-    !isShopQueryCategory(draft.category) ||
-    !isShopQuerySpecies(draft.species) ||
-    typeof draft.queryText !== "string" ||
-    !isStringArray(draft.normalizedSearchTerms) ||
-    !constraints ||
-    typeof constraints !== "object" ||
-    !isStringArray(constraints.avoidIngredients) ||
-    !isStringArray(constraints.requiredIngredients) ||
-    !isNullableLifeStage(constraints.lifeStage) ||
-    !isNullableString(constraints.productForm) ||
-    !isNullableString(constraints.brand) ||
-    !isNullableString(constraints.budget) ||
-    !isNullableCountry(constraints.country) ||
-    !safetyFlags ||
-    typeof safetyFlags !== "object" ||
-    typeof safetyFlags.urgentCare !== "boolean" ||
-    typeof safetyFlags.medicalTreatmentIntent !== "boolean" ||
-    !isShopQueryConfidence(draft.confidence)
-  ) {
-    return null;
+export function validateShopQueryInterpretation(value: unknown): ShopQueryInterpretationValidationResult {
+  const errors: string[] = [];
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { errors: ["root must be an object"], interpretation: null, ok: false };
+  }
+
+  const draft = value as Partial<ShopQueryInterpretation>;
+  const constraints = draft.explicitConstraints as Partial<ShopQueryInterpretation["explicitConstraints"]> | undefined;
+  const safetyFlags = draft.safetyFlags as Partial<ShopQueryInterpretation["safetyFlags"]> | undefined;
+
+  if (!isShopQueryCategory(draft.category)) {
+    errors.push(`category must be one of: ${SHOP_QUERY_CATEGORIES.join(", ")}`);
+  }
+  if (!isShopQuerySpecies(draft.species)) {
+    errors.push(`species must be one of: ${SHOP_QUERY_SPECIES.join(", ")}`);
+  }
+  if (typeof draft.queryText !== "string") {
+    errors.push("queryText must be a string");
+  }
+  collectStringArrayErrors(errors, "normalizedSearchTerms", draft.normalizedSearchTerms);
+
+  if (!constraints || typeof constraints !== "object" || Array.isArray(constraints)) {
+    errors.push("explicitConstraints must be an object");
+  } else {
+    collectStringArrayErrors(errors, "explicitConstraints.avoidIngredients", constraints.avoidIngredients);
+    collectStringArrayErrors(errors, "explicitConstraints.requiredIngredients", constraints.requiredIngredients);
+    if (!isNullableLifeStage(constraints.lifeStage)) {
+      errors.push(`explicitConstraints.lifeStage must be null or one of: ${SHOP_QUERY_LIFE_STAGES.join(", ")}`);
+    }
+    if (!isNullableString(constraints.productForm)) {
+      errors.push("explicitConstraints.productForm must be null or a string");
+    }
+    if (!isNullableString(constraints.brand)) {
+      errors.push("explicitConstraints.brand must be null or a string");
+    }
+    if (!isNullableString(constraints.budget)) {
+      errors.push("explicitConstraints.budget must be null or a string");
+    }
+    if (!isNullableCountry(constraints.country)) {
+      errors.push("explicitConstraints.country must be null, US, or CA");
+    }
+  }
+
+  if (!safetyFlags || typeof safetyFlags !== "object" || Array.isArray(safetyFlags)) {
+    errors.push("safetyFlags must be an object");
+  } else {
+    if (typeof safetyFlags.urgentCare !== "boolean") {
+      errors.push("safetyFlags.urgentCare must be a boolean");
+    }
+    if (typeof safetyFlags.medicalTreatmentIntent !== "boolean") {
+      errors.push("safetyFlags.medicalTreatmentIntent must be a boolean");
+    }
+  }
+
+  if (!isShopQueryConfidence(draft.confidence)) {
+    errors.push(`confidence must be one of: ${SHOP_QUERY_CONFIDENCE.join(", ")}`);
+  }
+
+  if (errors.length > 0 || !constraints || !safetyFlags) {
+    return { errors, interpretation: null, ok: false };
   }
 
   return {
-    category: draft.category,
-    species: draft.species,
-    queryText: normalizeDisplayText(draft.queryText).slice(0, 240),
-    normalizedSearchTerms: uniqueNormalizedStrings(draft.normalizedSearchTerms).slice(0, 12),
-    explicitConstraints: {
-      avoidIngredients: normalizeAvoidIngredientValues(constraints.avoidIngredients)
-        .map((value) => value.toLowerCase())
-        .slice(0, 12),
-      requiredIngredients: uniqueNormalizedStrings(constraints.requiredIngredients).slice(0, 8),
-      lifeStage: constraints.lifeStage,
-      productForm: normalizeNullableString(constraints.productForm),
-      brand: normalizeNullableString(constraints.brand),
-      budget: normalizeNullableString(constraints.budget),
-      country: constraints.country,
+    errors: [],
+    interpretation: {
+      category: draft.category as ShopQueryCategory,
+      species: draft.species as ShopQuerySpecies,
+      queryText: normalizeDisplayText(draft.queryText as string).slice(0, 240),
+      normalizedSearchTerms: uniqueNormalizedStrings(draft.normalizedSearchTerms as string[]).slice(0, 12),
+      explicitConstraints: {
+        avoidIngredients: normalizeAvoidIngredientValues(constraints.avoidIngredients as string[])
+          .map((item) => item.toLowerCase())
+          .slice(0, 12),
+        requiredIngredients: uniqueNormalizedStrings(constraints.requiredIngredients as string[]).slice(0, 8),
+        lifeStage: constraints.lifeStage as ShopQueryLifeStage | null,
+        productForm: normalizeNullableString(constraints.productForm as string | null),
+        brand: normalizeNullableString(constraints.brand as string | null),
+        budget: normalizeNullableString(constraints.budget as string | null),
+        country: constraints.country as ProductCountry | null,
+      },
+      safetyFlags: {
+        urgentCare: safetyFlags.urgentCare as boolean,
+        medicalTreatmentIntent: safetyFlags.medicalTreatmentIntent as boolean,
+      },
+      confidence: draft.confidence as ShopQueryConfidence,
     },
-    safetyFlags: {
-      urgentCare: safetyFlags.urgentCare,
-      medicalTreatmentIntent: safetyFlags.medicalTreatmentIntent,
-    },
-    confidence: draft.confidence,
+    ok: true,
   };
 }
 
@@ -312,8 +369,14 @@ function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === "string";
 }
 
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+function collectStringArrayErrors(errors: string[], path: string, value: unknown) {
+  if (!Array.isArray(value)) {
+    errors.push(`${path} must be an array`);
+    return;
+  }
+  if (!value.every((item) => typeof item === "string")) {
+    errors.push(`${path} must contain only strings`);
+  }
 }
 
 function normalizeNullableString(value: string | null) {

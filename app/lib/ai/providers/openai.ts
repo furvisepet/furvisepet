@@ -12,8 +12,9 @@ import {
 import { DogProfile, formatAge, formatAvoidIngredients, formatBudget, formatSpecies, formatWeight, selectedConcern } from "../../petwise";
 import {
   buildShopInterpretationPromptInput,
-  parseShopQueryInterpretation,
+  ShopQueryInterpretationValidationError,
   shopQueryInterpretationJsonSchema,
+  validateShopQueryInterpretation,
   shopQueryInterpretationSystemPrompt,
   type ShopQueryInterpretation,
   type ShopQueryInterpretationInput,
@@ -26,7 +27,7 @@ import {
   type ShopProductFitExplanation,
   type ShopProductFitExplanationInput,
 } from "../../shop/product-fit-explanation";
-import { OPENAI_ANALYSIS_MODEL } from "../config";
+import { OPENAI_ANALYSIS_MODEL, getAiRuntimeDiagnostics } from "../config";
 import { AiAnalysisProvider, AnalyzeDogProfileInput, AnalyzeSafetyFollowupInput } from "../provider";
 
 const systemPrompt = [
@@ -142,6 +143,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
   }
 
   async interpretShopQuery(input: ShopQueryInterpretationInput): Promise<ShopQueryInterpretation> {
+    logShopProviderDiagnostic("request reached provider", getAiRuntimeDiagnostics());
     const response = await this.client.responses.create({
       model: OPENAI_ANALYSIS_MODEL,
       instructions: shopQueryInterpretationSystemPrompt,
@@ -156,12 +158,23 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
       },
     });
 
-    const parsed = parseShopQueryInterpretation(JSON.parse(response.output_text));
-    if (!parsed) {
-      throw new Error("OpenAI returned invalid Furvise shop query interpretation data.");
+    let raw: unknown;
+    try {
+      raw = JSON.parse(response.output_text);
+    } catch (error) {
+      throw new ShopQueryInterpretationValidationError(
+        [error instanceof Error ? `response JSON parse failed: ${error.message}` : "response JSON parse failed"],
+        response.output_text,
+      );
     }
 
-    return parsed;
+    logShopProviderDiagnostic("raw structured response", { rawStructuredResponse: raw });
+    const validation = validateShopQueryInterpretation(raw);
+    if (!validation.ok) {
+      throw new ShopQueryInterpretationValidationError(validation.errors, raw);
+    }
+
+    return validation.interpretation;
   }
 
   async explainShopProductFit(input: ShopProductFitExplanationInput): Promise<ShopProductFitExplanation> {
@@ -189,6 +202,11 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
 
     return parsed;
   }
+}
+
+function logShopProviderDiagnostic(message: string, details: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "production" && process.env.SHOP_AI_DIAGNOSTICS !== "true") return;
+  console.info("[Furvise shop AI provider]", { message, ...details });
 }
 
 function buildPromptProfile(profile: DogProfile) {

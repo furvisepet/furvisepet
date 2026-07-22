@@ -39,7 +39,8 @@ export function resolveActiveAccountProductCountry({
     normalizeAccountProductCountry(accountCountry) ||
     normalizeAccountProductCountry(productCountry) ||
     normalizeAccountProductCountry(nextPublicProductCountry) ||
-    "CA"
+    // Temporary fallback is US because the current curated catalog is US-only. Revisit when verified CA catalog entries are added.
+    "US"
   );
 }
 
