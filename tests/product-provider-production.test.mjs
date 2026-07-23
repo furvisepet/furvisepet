@@ -122,18 +122,12 @@ test("static_real products declare valid country eligibility metadata", () => {
 });
 
 test("static_real ingredient verification only marks structured ingredient metadata as verified", () => {
-  const verifiedProductIds = new Set([
-    "hills-science-diet-adult-dog-chicken-barley",
-    "purina-cat-chow-complete-chicken",
-    "hills-science-diet-adult-cat-chicken",
-    "earthbath-oatmeal-aloe-shampoo",
-    "greenies-original-regular-dog-dental-treats",
-  ]);
-
   for (const product of staticRealProducts) {
+    const hasVerifiedIngredientData =
+      product.enrichmentStatus === "verified" && Boolean(product.verifiedIngredients?.length);
     assert.equal(
       product.ingredientsVerified,
-      verifiedProductIds.has(product.id),
+      hasVerifiedIngredientData,
       `${product.id} has unexpected ingredientsVerified default`,
     );
     if (product.ingredientsVerified) {

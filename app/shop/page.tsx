@@ -12,7 +12,11 @@ import {
   formatSpecies,
 } from "../lib/petwise";
 import type { MockProduct, ProductCountry } from "../lib/petwise";
-import { getActiveProductCountry } from "../lib/product-providers";
+import {
+  getActiveProductCountry,
+  getProductLabelLinkInfo,
+  getProductLinkInfo,
+} from "../lib/product-providers";
 import {
   MIN_SHOP_QUERY_LENGTH,
   searchStaticRealShopProducts,
@@ -31,6 +35,11 @@ import {
   parseShopProductQuestionAnswer,
   type ShopProductQuestionAnswer,
 } from "../lib/shop/product-question";
+import {
+  buildProductComparisons,
+  formatProductResultCount,
+  getProductDifferentiator,
+} from "../lib/shop/product-comparison";
 import {
   dogProfileRowToDraft,
   detectAccountProductCountry,
@@ -752,6 +761,8 @@ function ShopResults({
   selectedPetId: string;
   selectedPetName: string;
 }) {
+  const [compareOpen, setCompareOpen] = useState(false);
+
   if (!query.trim() || emptyState === "no_query") {
     return (
       <EmptyState
@@ -864,6 +875,26 @@ function ShopResults({
 
   return (
     <div className="grid min-w-0 gap-4">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-[var(--pw-subtle)]">
+          {formatProductResultCount(products.length)}
+        </p>
+        {products.length >= 2 ? (
+          <button
+            aria-expanded={compareOpen}
+            className="inline-flex min-h-9 max-w-full items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-3 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)]"
+            onClick={() => setCompareOpen((current) => !current)}
+            type="button"
+          >
+            Compare these
+          </button>
+        ) : null}
+      </div>
+
+      {compareOpen && products.length >= 2 ? (
+        <ProductComparisonPanel products={products} selectedPetName={selectedPetName} />
+      ) : null}
+
       {products.map((product) => (
         <ProductCard
           cacheKey={buildFitExplanationCacheKey({
@@ -885,6 +916,7 @@ function ShopResults({
           onProductQuestion={onProductQuestion}
           onProductQuestionInputChange={onProductQuestionInputChange}
           product={product}
+          showDifferentiator={products.length >= 2}
           questionInput={
             productQuestionInputs[
               buildFitExplanationCacheKey({
@@ -924,6 +956,7 @@ function ProductCard({
   productsAiUsage,
   productsAiUsageError,
   selectedPetName,
+  showDifferentiator,
 }: {
   cacheKey: string;
   explanationState?: FitExplanationState;
@@ -936,12 +969,16 @@ function ProductCard({
   productsAiUsage: ProductAiUsageStatus | null;
   productsAiUsageError: string;
   selectedPetName: string;
+  showDifferentiator: boolean;
 }) {
   const [openPanel, setOpenPanel] = useState<"why" | "ask" | null>(null);
   const description = getProductCardDescription(product);
   const productTypeLine = getProductTypeLine(product);
   const labelCheckNote = !product.ingredientsVerified ? "Check the label before buying or using." : "";
   const caution = getProductCardCaution(product);
+  const differentiator = showDifferentiator ? getProductDifferentiator(product) : "";
+  const productLink = getProductLinkInfo(product);
+  const labelLink = getProductLabelLinkInfo(product);
   const whyPanelOpen = openPanel === "why";
   const askPanelOpen = openPanel === "ask";
 
@@ -955,21 +992,26 @@ function ProductCard({
   }
 
   return (
-    <article className="min-w-0 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 shadow-sm">
-      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <article className="min-w-0 rounded-lg border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4 shadow-sm">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-[var(--pw-primary)]">
             {product.brand || product.retailer || "Product"}
           </p>
-          <h3 className="mt-1 break-words text-xl font-semibold text-[var(--pw-heading)]">
+          <h3 className="mt-1 break-words text-lg font-semibold text-[var(--pw-heading)]">
             {product.name}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--pw-muted)]">
+          <p className="mt-1.5 text-sm leading-5 text-[var(--pw-muted)]">
             {description}
           </p>
           {productTypeLine ? (
-            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--pw-subtle)]">
+            <p className="mt-1.5 text-xs font-semibold uppercase text-[var(--pw-subtle)]">
               {productTypeLine}
+            </p>
+          ) : null}
+          {differentiator ? (
+            <p className="mt-2 text-sm font-medium leading-5 text-[var(--pw-text)]">
+              {differentiator}
             </p>
           ) : null}
           {labelCheckNote ? (
@@ -978,21 +1020,39 @@ function ProductCard({
             </p>
           ) : null}
         </div>
-        <Link
-          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-4 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)] sm:w-fit"
-          href={product.productUrl || "#"}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          View product
-        </Link>
+        <div className="flex w-full shrink-0 flex-col items-center gap-2 sm:w-fit">
+          {productLink?.variant === "link" ? (
+            <Link
+              aria-label={`View ${product.name}`}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-4 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)] sm:w-fit"
+              href={productLink.href}
+              rel={productLink.rel}
+              target={productLink.target}
+            >
+              View product
+            </Link>
+          ) : (
+            <span className="text-sm text-[var(--pw-subtle)]">Product page unavailable</span>
+          )}
+          {labelLink?.variant === "link" ? (
+            <Link
+              aria-label={`View label for ${product.name}`}
+              className="text-sm font-semibold text-[var(--pw-primary)] underline-offset-4 hover:underline"
+              href={labelLink.href}
+              rel={labelLink.rel}
+              target={labelLink.target}
+            >
+              View label
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {caution ? (
         <p className="mt-4 text-sm leading-6 text-[var(--pw-muted)]">{caution}</p>
       ) : null}
 
-      <div className="mt-5 border-t border-[var(--pw-border)] pt-4">
+      <div className="mt-4 border-t border-[var(--pw-border)] pt-3">
         <div className="flex min-w-0 flex-wrap gap-2">
           <button
             aria-expanded={whyPanelOpen}
@@ -1038,6 +1098,56 @@ function ProductCard({
         ) : null}
       </div>
     </article>
+  );
+}
+
+function ProductComparisonPanel({
+  products,
+  selectedPetName,
+}: {
+  products: MockProduct[];
+  selectedPetName: string;
+}) {
+  const comparisonItems = buildProductComparisons(products);
+
+  return (
+    <section
+      aria-label="Product comparison"
+      className="min-w-0 overflow-x-hidden rounded-lg border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4"
+    >
+      <h3 className="text-base font-semibold text-[var(--pw-heading)]">Compare these products</h3>
+      <div className="mt-3 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {comparisonItems.map((item) => {
+          return (
+            <article className="min-w-0 border-t border-[var(--pw-border)] pt-3 sm:border-t-0 sm:pt-0" key={item.id}>
+              <h4 className="break-words text-sm font-semibold leading-5 text-[var(--pw-heading)]">
+                {item.name}
+              </h4>
+              <p className="mt-1 text-xs font-semibold uppercase text-[var(--pw-subtle)]">
+                {item.typeLabel}
+              </p>
+              <dl className="mt-3 grid min-w-0 gap-2 text-sm leading-5">
+                <div className="min-w-0">
+                  <dt className="font-semibold text-[var(--pw-heading)]">Key difference</dt>
+                  <dd className="break-words text-[var(--pw-muted)]">{item.keyDifference}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-semibold text-[var(--pw-heading)]">Good when</dt>
+                  <dd className="break-words text-[var(--pw-muted)]">{item.goodWhen}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="font-semibold text-[var(--pw-heading)]">Check first</dt>
+                  <dd className="break-words text-[var(--pw-muted)]">{item.checkFirst}</dd>
+                </div>
+              </dl>
+            </article>
+          );
+        })}
+      </div>
+      <p className="mt-4 text-sm font-semibold leading-5 text-[var(--pw-muted)]">
+        Choose based on {selectedPetName}&apos;s current food, texture preference, and any ingredients they need to avoid.
+      </p>
+    </section>
   );
 }
 
@@ -1294,6 +1404,7 @@ function formatCategory(value: MockProduct["category"]) {
 }
 
 function getProductCardDescription(product: MockProduct) {
+  if (product.shortDescription) return product.shortDescription;
   if (product.category === "grooming" && product.subcategory === "shampoo") {
     const speciesLabel = product.species === "all" ? "pet" : product.species;
     return `A fragrance-free ${speciesLabel} shampoo for routine baths, with a gentle formula aimed at sensitive or itchy skin.`;
@@ -1322,6 +1433,7 @@ function getProductCardCaution(product: MockProduct) {
 }
 
 function getProductTypeLine(product: MockProduct) {
+  if (product.productTypeLabel) return product.productTypeLabel;
   const speciesLabel = product.species === "all" ? "Pet" : formatSpecies(product.species);
   return `${speciesLabel} ${formatProductType(product)}`;
 }

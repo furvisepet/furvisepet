@@ -793,7 +793,7 @@ test("product question usage spends the shared Products AI pool", async () => {
 
 test("product question UI opens from a compact product card action and only submits on question action", () => {
   const page = read("app/shop/page.tsx");
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
+  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductComparisonPanel"));
   const questionPanel = page.slice(page.indexOf("function ProductQuestionPanel"), page.indexOf("function EmptyState"));
   const askHandler = page.slice(page.indexOf("async function askProductQuestion"), page.indexOf("async function interpretSubmittedQuery"));
   const submitSearch = page.slice(page.indexOf("function submitSearch"), page.indexOf("function resetInterpretation"));

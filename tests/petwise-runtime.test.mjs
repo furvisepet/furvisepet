@@ -283,8 +283,11 @@ test("static real provider returns curated species-compatible products", () => {
 });
 
 test("product link info distinguishes live links from demo products", () => {
-  assert.deepEqual(getProductLinkInfo({ evidenceType: "curated_static", productUrl: "https://example.com/demo" }), {
-    href: "https://example.com/demo",
+  assert.deepEqual(getProductLinkInfo({
+    evidenceType: "curated_static",
+    productUrl: "https://earthbath.com/products/hypoallergenic-shampoo",
+  }), {
+    href: "https://earthbath.com/products/hypoallergenic-shampoo",
     label: "View product",
     rel: "noopener noreferrer",
     target: "_blank",
@@ -296,6 +299,10 @@ test("product link info distinguishes live links from demo products", () => {
     variant: "demo",
   });
   assert.equal(getProductLinkInfo({ evidenceType: "curated_static", productUrl: undefined }), null);
+  assert.equal(
+    getProductLinkInfo({ evidenceType: "curated_static", productUrl: "https://example.com/demo" }),
+    null,
+  );
 });
 
 test("profile fields are not suggested as saved details", () => {

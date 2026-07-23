@@ -375,7 +375,8 @@ function buildShopSearchSignals({
   interpretedSearchText: string;
   query: string;
 }): ShopSearchSignals {
-  const rawTerms = tokenizeForSearch(query);
+  const avoidSearchTerms = new Set(getQueryAvoidIngredients(query).flatMap(tokenizeForSearch));
+  const rawTerms = tokenizeForSearch(query).filter((term) => !avoidSearchTerms.has(term));
   const interpretedTerms = tokenizeForSearch(interpretedSearchText);
   const categoryTerms = interpretation ? searchTermsForCategory(interpretation.category) : inferSearchTermsForQuery(query);
   const expandedTerms = uniqueSearchTokens([

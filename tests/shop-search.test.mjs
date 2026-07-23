@@ -109,7 +109,7 @@ test("shop query matching covers product names, categories, tags, concerns, bran
   assert.equal(productMatchesShopQuery(shampoo, "official shampoo"), true);
 });
 
-test("shop search returns dog grooming products for shampoo queries", () => {
+test("shop search returns multiple dog grooming products for shampoo queries", () => {
   const result = searchStaticRealShopProducts({
     productCountry: "US",
     profile: profile({ species: "dog" }),
@@ -118,6 +118,8 @@ test("shop search returns dog grooming products for shampoo queries", () => {
 
   assert.equal(result.emptyState, null);
   assert.ok(result.products.some((product) => product.id === "earthbath-oatmeal-aloe-shampoo"));
+  assert.ok(result.products.some((product) => product.id === "earthbath-hypoallergenic-shampoo"));
+  assert.ok(result.products.length >= 2);
   assert.ok(result.products.every((product) => product.species === "dog"));
   assert.ok(result.products.every((product) => product.availableCountries.includes("US")));
   assert.equal(result.ingredientVerificationRemovedMatches, false);
@@ -139,11 +141,11 @@ test("Shop static curated catalog is loaded and reports careful shampoo diagnost
   assert.equal(result.diagnostics.selectedCountry, "US");
   assert.equal(result.diagnostics.productsAfterCountryFilter, staticRealProducts.length);
   assert.equal(result.diagnostics.selectedSpecies, "dog");
-  assert.equal(result.diagnostics.productsAfterSpeciesFilter, 3);
-  assert.equal(result.diagnostics.productsAfterQueryMatch, 1);
-  assert.equal(result.diagnostics.productsAfterAvoidIngredientFilter, 1);
-  assert.equal(result.diagnostics.productsAfterIngredientsVerifiedFilter, 1);
-  assert.equal(result.diagnostics.finalResultCount, 1);
+  assert.equal(result.diagnostics.productsAfterSpeciesFilter, 17);
+  assert.equal(result.diagnostics.productsAfterQueryMatch, 2);
+  assert.equal(result.diagnostics.productsAfterAvoidIngredientFilter, 2);
+  assert.equal(result.diagnostics.productsAfterIngredientsVerifiedFilter, 2);
+  assert.equal(result.diagnostics.finalResultCount, 2);
   assert.equal(result.diagnostics.emptyStateReason, "matched");
 });
 
@@ -177,8 +179,17 @@ test("Shop obvious US curated searches match existing catalog products when pres
   assert.ok(conversationalItch.products.some((product) => product.id === "earthbath-oatmeal-aloe-shampoo"));
 });
 
-test("Shop search reports no query match for missing curated grooming product types", () => {
-  for (const query of ["grooming wipes", "flea comb"]) {
+test("Shop search returns grooming wipes and reports no match for a missing flea comb", () => {
+  const wipes = searchStaticRealShopProducts({
+    productCountry: "US",
+    profile: profile({ species: "dog" }),
+    query: "grooming wipes",
+  });
+  assert.equal(wipes.emptyState, null);
+  assert.ok(wipes.products.length >= 3);
+  assert.ok(wipes.products.every((product) => product.subcategory === "wipes"));
+
+  for (const query of ["flea comb"]) {
     const result = searchStaticRealShopProducts({
       includeDiagnostics: true,
       productCountry: "US",
@@ -225,6 +236,7 @@ test("shop search returns dental products for dental treats and keeps species fi
 
   assert.equal(dogResult.emptyState, null);
   assert.ok(dogResult.products.some((product) => /dental/i.test(product.name)));
+  assert.ok(dogResult.products.length >= 3);
   assert.ok(dogResult.products.every((product) => product.species === "dog"));
   assert.equal(catResult.products.length, 0);
   assert.equal(catResult.emptyState, "no_match");
@@ -274,8 +286,8 @@ test("shop search applies saved avoid ingredients before showing product matches
     query: "dental treats",
   });
 
-  assert.equal(result.products.length, 0);
-  assert.equal(result.emptyState, "no_match");
+  assert.deepEqual(result.products.map((product) => product.id), ["greenies-fresh-regular-dog-dental-treats"]);
+  assert.equal(result.emptyState, null);
   assert.equal(result.avoidIngredientsRemovedMatches, true);
 });
 
@@ -286,8 +298,24 @@ test("shop search treats chicken-free food as a careful ingredient intent", () =
     query: "chicken-free food",
   });
 
-  assert.equal(result.products.length, 0);
+  assert.deepEqual(result.products.map((product) => product.id), [
+    "purina-pro-plan-sensitive-skin-stomach-salmon-rice-wet",
+    "purina-pro-plan-sensitive-skin-stomach-salmon-rice-dry",
+  ]);
   assert.equal(result.avoidIngredientsRemovedMatches, true);
+});
+
+test("shop food search returns verified food products including sensitive stomach options", () => {
+  const result = searchStaticRealShopProducts({
+    productCountry: "US",
+    profile: profile({ species: "dog" }),
+    query: "food",
+  });
+
+  assert.equal(result.emptyState, null);
+  assert.ok(result.products.length >= 3);
+  assert.ok(result.products.every((product) => product.category === "food"));
+  assert.ok(result.products.some((product) => product.concernTags.includes("sensitive_stomach")));
 });
 
 test("shop interpretation cannot bypass deterministic species, region, or avoid filters", () => {
@@ -328,7 +356,7 @@ test("shop interpretation cannot bypass deterministic species, region, or avoid 
     profile: profile({ species: "dog" }),
     query: "chicken-free food",
   });
-  assert.equal(avoidResult.products.length, 0);
+  assert.equal(avoidResult.products.length, 2);
   assert.equal(avoidResult.avoidIngredientsRemovedMatches, true);
 });
 

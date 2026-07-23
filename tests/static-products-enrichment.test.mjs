@@ -9,6 +9,20 @@ const curatedProductIds = [
   "earthbath-oatmeal-aloe-shampoo",
   "greenies-original-regular-dog-dental-treats",
   "furminator-cat-deshedding-tool",
+  "earthbath-hypoallergenic-shampoo",
+  "earthbath-hypoallergenic-grooming-wipes",
+  "earthbath-green-tea-awapuhi-grooming-wipes",
+  "earthbath-oatmeal-aloe-grooming-wipes",
+  "purina-pro-plan-sensitive-skin-stomach-salmon-rice-dry",
+  "purina-pro-plan-sensitive-skin-stomach-salmon-rice-wet",
+  "greenies-original-teenie-dog-dental-treats",
+  "greenies-fresh-regular-dog-dental-treats",
+  "furminator-medium-dog-short-hair-deshedding-tool",
+  "furminator-grooming-rake",
+  "furminator-nail-grinder",
+  "furminator-nail-clippers",
+  "furminator-large-soft-slicker-brush",
+  "furminator-large-firm-slicker-brush",
 ];
 
 test("static curated products are audited and enriched with verified source metadata", () => {
@@ -24,6 +38,9 @@ test("static curated products are audited and enriched with verified source meta
     assert.ok(product.verifiedWarnings?.length, product.id);
     assert.ok(product.verificationSource, product.id);
     assert.ok(product.enrichmentStatus, product.id);
+    assert.ok(product.shortDescription, product.id);
+    assert.ok(product.productTypeLabel, product.id);
+    assert.ok(product.availableCountries.length, product.id);
   }
 });
 
@@ -35,6 +52,14 @@ test("ingredientsVerified true requires verifiedIngredients", () => {
     "hills-science-diet-adult-cat-chicken",
     "earthbath-oatmeal-aloe-shampoo",
     "greenies-original-regular-dog-dental-treats",
+    "earthbath-hypoallergenic-shampoo",
+    "earthbath-hypoallergenic-grooming-wipes",
+    "earthbath-green-tea-awapuhi-grooming-wipes",
+    "earthbath-oatmeal-aloe-grooming-wipes",
+    "purina-pro-plan-sensitive-skin-stomach-salmon-rice-dry",
+    "purina-pro-plan-sensitive-skin-stomach-salmon-rice-wet",
+    "greenies-original-teenie-dog-dental-treats",
+    "greenies-fresh-regular-dog-dental-treats",
   ]);
 
   for (const product of verified) {
@@ -45,13 +70,33 @@ test("ingredientsVerified true requires verifiedIngredients", () => {
 
 test("partial enrichment keeps ingredientsVerified false when ingredient details are not applicable or incomplete", () => {
   const partial = staticRealProducts.filter((product) => product.enrichmentStatus === "partial");
-  assert.deepEqual(partial.map((product) => product.id), ["furminator-cat-deshedding-tool"]);
+  assert.deepEqual(partial.map((product) => product.id), [
+    "furminator-cat-deshedding-tool",
+    "furminator-medium-dog-short-hair-deshedding-tool",
+    "furminator-grooming-rake",
+    "furminator-nail-grinder",
+    "furminator-nail-clippers",
+    "furminator-large-soft-slicker-brush",
+    "furminator-large-firm-slicker-brush",
+  ]);
 
-  const furminator = partial[0];
-  assert.equal(furminator.ingredientsVerified, false);
-  assert.equal(furminator.verifiedIngredients, undefined);
-  assert.ok(furminator.verifiedDirections);
-  assert.ok(furminator.verifiedWarnings?.length);
+  for (const product of partial) {
+    assert.equal(product.ingredientsVerified, false);
+    assert.equal(product.verifiedIngredients, undefined);
+    assert.ok(product.verifiedDirections);
+    assert.ok(product.verifiedWarnings?.length);
+  }
+});
+
+test("curated catalog IDs are unique and products do not carry prices", () => {
+  assert.equal(new Set(curatedProductIds).size, curatedProductIds.length);
+  assert.equal(staticRealProducts.length, 20);
+
+  for (const product of staticRealProducts) {
+    assert.equal(product.price, undefined, product.id);
+    assert.equal(product.bagPrice, undefined, product.id);
+    assert.equal(product.estimatedMonthlyCost, undefined, product.id);
+  }
 });
 
 test("Earthbath enrichment uses verified label fields and not name-derived ingredients", () => {

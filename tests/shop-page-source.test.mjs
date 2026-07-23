@@ -70,7 +70,7 @@ test("Shop search uses static curated catalog filters and no OpenAI or live impo
 test("Shop safety and empty states use modest non-commercial copy", () => {
   const source = read("app/shop/page.tsx");
   const results = read("app/results/page.tsx");
-  const productCard = source.slice(source.indexOf("function ProductCard"), source.indexOf("function ProductFitExplanationPanel"));
+  const productCard = source.slice(source.indexOf("function ProductCard"), source.indexOf("function ProductComparisonPanel"));
 
   assert.match(source, /Product shopping is hidden for now/);
   assert.match(source, /This pet has urgent care signs\. Contact a veterinarian or emergency clinic before shopping for products\./);

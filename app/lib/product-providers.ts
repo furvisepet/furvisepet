@@ -36,7 +36,7 @@ export type ProductProvider = {
 export type ProductLinkInfo =
   | {
       href: string;
-      label: "View product";
+      label: "View product" | "View label";
       rel: "noopener noreferrer";
       target: "_blank";
       variant: "link";
@@ -109,6 +109,10 @@ export const mockProvider: ProductProvider = {
         ? product.avoidIngredientKeywords
         : [],
       safetyNotes: product.safetyNotes,
+      affiliateUrl: product.affiliateUrl,
+      productPageUrl: product.productPageUrl,
+      labelUrl: product.labelUrl,
+      retailerUrl: product.retailerUrl,
       sourceUrl: product.sourceUrl,
       verifiedProductPageUrl: product.verifiedProductPageUrl,
       verifiedDescription: product.verifiedDescription,
@@ -219,17 +223,21 @@ export function getConfiguredProductProvider(
 }
 
 export function isProductAllowedForRuntime(
-  product: Pick<MockProduct, "evidenceType" | "id" | "productUrl">,
+  product: Pick<
+    MockProduct,
+    "affiliateUrl" | "evidenceType" | "id" | "productPageUrl" | "productUrl" | "retailerUrl" | "verifiedProductPageUrl"
+  >,
   providerMode: ProductProviderMode,
   nodeEnv = process.env.NODE_ENV,
 ) {
   if (nodeEnv !== "production") return true;
   if (providerMode !== "static_real") return false;
+  const productPageUrl = getCanonicalProductUrl(product);
   return Boolean(
     product.id &&
-      product.productUrl &&
+      productPageUrl &&
       product.evidenceType === "curated_static" &&
-      !/demo|mock|fictional/i.test(`${product.id} ${product.productUrl}`),
+      !/demo|mock|fictional/i.test(`${product.id} ${productPageUrl}`),
   );
 }
 
@@ -299,10 +307,92 @@ export function hasSpeciesCompatibleFoodProducts(
   return products.some((product) => product.category === "food" && isSpeciesCompatibleProduct(product, species));
 }
 
-export function getProductLinkInfo(product: Pick<MockProduct, "evidenceType" | "productUrl">): ProductLinkInfo {
-  if (product.productUrl) {
+type ProductUrlFields = Pick<
+  MockProduct,
+  | "affiliateUrl"
+  | "labelUrl"
+  | "productPageUrl"
+  | "productUrl"
+  | "retailerUrl"
+  | "sourceUrl"
+  | "verifiedProductPageUrl"
+>;
+
+export function isValidProductUrl(value: string | null | undefined) {
+  const candidate = value?.trim();
+  if (!candidate || candidate === "#") return false;
+  if (/(^|[./_-])(todo|tbd|product[-_]?url)(?=$|[/?#._-])/i.test(candidate)) return false;
+
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    const hostname = url.hostname.toLowerCase();
+    if (
+      hostname === "localhost" ||
+      hostname.endsWith(".localhost") ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname === "example.com" ||
+      hostname.endsWith(".example.com")
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function isProductDocumentUrl(value: string | null | undefined) {
+  if (!isValidProductUrl(value)) return false;
+
+  try {
+    const url = new URL(value!.trim());
+    const documentPath = decodeURIComponent(`${url.pathname}${url.search}`).toLowerCase();
+    return (
+      /\.pdf(?:$|[?#])/.test(documentPath) ||
+      /(?:^|[\/_-])(document|documents|label|labels|label-deck|guaranteed-analysis)(?:$|[\/_?&=.-])/.test(documentPath)
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function isValidProductPageUrl(value: string | null | undefined) {
+  return isValidProductUrl(value) && !isProductDocumentUrl(value);
+}
+
+export function getCanonicalProductUrl(product: ProductUrlFields) {
+  const candidates = [
+    product.affiliateUrl,
+    product.productPageUrl,
+    product.verifiedProductPageUrl,
+    product.retailerUrl,
+    product.productUrl,
+  ];
+  return candidates.find(isValidProductPageUrl)?.trim() || null;
+}
+
+export function getProductLabelLinkInfo(product: ProductUrlFields): ProductLinkInfo {
+  const href = isValidProductUrl(product.labelUrl) ? product.labelUrl!.trim() : null;
+  if (!href) return null;
+
+  return {
+    href,
+    label: "View label",
+    rel: "noopener noreferrer",
+    target: "_blank",
+    variant: "link",
+  };
+}
+
+export function getProductLinkInfo(
+  product: ProductUrlFields & Pick<MockProduct, "evidenceType">,
+): ProductLinkInfo {
+  const href = getCanonicalProductUrl(product);
+  if (href) {
     return {
-      href: product.productUrl,
+      href,
       label: "View product",
       rel: "noopener noreferrer",
       target: "_blank",

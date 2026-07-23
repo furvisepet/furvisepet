@@ -84,12 +84,18 @@ export type MockProduct = {
   id: string;
   name: string;
   brand?: string;
+  shortDescription?: string;
+  productTypeLabel?: string;
   category: ProductCategory;
   subcategory?: string;
   species: PetSpecies | "all";
   recommendationKind?: RecommendationKind;
   imageUrl?: string;
+  affiliateUrl?: string;
+  productPageUrl?: string;
+  labelUrl?: string;
   productUrl?: string;
+  retailerUrl?: string;
   sourceUrl?: string;
   verifiedProductPageUrl?: string;
   verifiedDescription?: string;
