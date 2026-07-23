@@ -3,13 +3,13 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getAiRuntimeDiagnostics } from "../../../lib/ai/config";
 import { createAiAnalysisProvider } from "../../../lib/ai/provider";
 import {
-  formatShopSearchUsageStatus,
-  getShopSearchUsageStatus,
-  incrementShopSearchUsage,
-  logShopSearchUsageError,
-  ShopSearchUsageReadError,
-  type ShopSearchUsageStatus,
-  type SupabaseLike as ShopSearchUsageSupabaseLike,
+  ProductAiUsageReadError,
+  formatProductAiUsageStatus,
+  getProductAiUsageStatus,
+  incrementProductAiUsage,
+  logProductAiUsageError,
+  type ProductAiUsageStatus,
+  type SupabaseLike as ProductAiUsageSupabaseLike,
 } from "../../../lib/billing/shop-usage";
 import {
   getPlanCapabilities,
@@ -23,6 +23,8 @@ import { MIN_SHOP_QUERY_LENGTH } from "../../../lib/shop";
 import {
   ShopQueryInterpretationValidationError,
   buildFallbackShopQueryInterpretation,
+  hasShopGroomingSynonymIntent,
+  isVagueShopQueryWithoutSignal,
   parseShopQueryInterpretation,
   type ShopQueryInterpretation,
 } from "../../../lib/shop-query";
@@ -85,6 +87,23 @@ export async function POST(request: Request) {
       petIdPresent: Boolean(petId),
     });
     return Response.json({ error: "Choose a pet and enter a shorter shopping query.", usage: context.usage }, { status: 400 });
+  }
+
+  if (isVagueShopQueryWithoutSignal(query)) {
+    logShopInterpretationDiagnostic("AI not called", {
+      category: "code path never calling AI",
+      reason: "vague_query_without_signal",
+      queryLength: query.length,
+      petIdPresent: Boolean(petId),
+    });
+    return Response.json(
+      {
+        error: "Try a specific product type like shampoo, dental treats, grooming wipes, flea comb, or chicken-free food.",
+        vagueQuery: true,
+        usage: context.usage,
+      },
+      { status: 400 },
+    );
   }
 
   let memory: PetMemoryContext;
@@ -174,7 +193,7 @@ export async function POST(request: Request) {
     }
     return Response.json(
       {
-        error: "You've used your included Shop searches for this month. You can still view saved pets and care history.",
+        error: "You've used your included Product AI for this month.",
         limitReached: true,
         usage: context.usage,
       },
@@ -219,18 +238,18 @@ export async function POST(request: Request) {
     });
     let nextUsage = context.usage;
     try {
-      const updatedUsage = await incrementShopSearchUsage({
+      const updatedUsage = await incrementProductAiUsage({
         monthKey: context.usage.monthKey,
         previousCount: context.usage.count,
-        supabase: context.supabase as unknown as ShopSearchUsageSupabaseLike,
+        supabase: context.supabase as unknown as ProductAiUsageSupabaseLike,
         userId: context.userId,
       });
-      nextUsage = formatShopSearchUsageStatus({
+      nextUsage = formatProductAiUsageStatus({
         ...context.usage,
         count: updatedUsage.count,
       });
     } catch (usageError) {
-      logShopSearchUsageError("incrementShopSearchUsage", usageError);
+      logProductAiUsageError("incrementProductAiUsage", usageError);
     }
     return Response.json({
       cached: false,
@@ -270,7 +289,7 @@ async function loadShopInterpretationRequestContext(request: Request): Promise<
   | {
       planId: PlanId;
       supabase: SupabaseClient;
-      usage: ShopSearchUsageStatus;
+      usage: ProductAiUsageStatus;
       userId: string;
     }
 > {
@@ -316,27 +335,39 @@ async function loadShopInterpretationRequestContext(request: Request): Promise<
   const planId = await getUserPlan(userData.user.id);
   const plan = getPlanCapabilities(planId);
   const earlyAccessUnlocked = isEarlyAccessFreeUnlockEnabled();
-  let usage: ShopSearchUsageStatus;
+  let usage: ProductAiUsageStatus;
   try {
-    usage = await getShopSearchUsageStatus({
+    usage = await getProductAiUsageStatus({
       earlyAccessUnlocked,
-      monthlyLimit: plan.shopSearchMonthlyLimit,
+      monthlyLimit: plan.productsAiMonthlyLimit,
       planId,
-      supabase: supabase as unknown as ShopSearchUsageSupabaseLike,
+      supabase: supabase as unknown as ProductAiUsageSupabaseLike,
       userId: userData.user.id,
     });
+    logShopInterpretationDiagnostic("Product AI usage loaded", {
+      helper: "getProductAiUsageStatus",
+      table: "product_ai_usage",
+      usageLoadSucceeded: true,
+      userIdPresent: Boolean(userData.user.id),
+    });
   } catch (error) {
-    if (error instanceof ShopSearchUsageReadError) {
+    if (error instanceof ProductAiUsageReadError) {
       logShopInterpretationDiagnostic("AI not called", {
         category: "code path never calling AI",
         error: normalizeDiagnosticError(error.cause),
         reason: "shop_usage_persistence_unavailable",
-        table: "shop_search_usage",
+        aiSkippedBecauseUsageFailed: true,
+        fallbackRanBecauseUsageFailed: false,
+        helper: "getProductAiUsageStatus",
+        table: "product_ai_usage",
+        usageLoadSucceeded: false,
+        userIdPresent: Boolean(userData.user.id),
       }, "error");
       return {
         response: Response.json(
           {
-            error: "Furvise could not load Shop search usage. Shop usage setup may be incomplete.",
+            error: "Product AI is temporarily unavailable, so Furvise searched the catalog using your typed query.",
+            productAiUnavailable: true,
           },
           { status: 503 },
         ),
@@ -361,9 +392,28 @@ function applyDeterministicInterpretationFloor(
     ...fallback.explicitConstraints.requiredIngredients,
   ]);
 
+  const safetyFlags = {
+    urgentCare: interpretation.safetyFlags.urgentCare || fallback.safetyFlags.urgentCare,
+    medicalTreatmentIntent:
+      interpretation.safetyFlags.medicalTreatmentIntent || fallback.safetyFlags.medicalTreatmentIntent,
+  };
+  const shouldApplyGroomingFloor =
+    hasShopGroomingSynonymIntent(fallback.queryText) &&
+    !safetyFlags.urgentCare &&
+    !safetyFlags.medicalTreatmentIntent;
+  const normalizedSearchTerms = shouldApplyGroomingFloor
+    ? uniqueStrings([...interpretation.normalizedSearchTerms, ...fallback.normalizedSearchTerms]).slice(0, 12)
+    : interpretation.normalizedSearchTerms.length
+      ? interpretation.normalizedSearchTerms
+      : fallback.normalizedSearchTerms;
+
   return {
     ...interpretation,
-    category: fallback.category !== "Other" ? fallback.category : interpretation.category,
+    category: shouldApplyGroomingFloor
+      ? "Grooming"
+      : fallback.category !== "Other"
+        ? fallback.category
+        : interpretation.category,
     explicitConstraints: {
       ...interpretation.explicitConstraints,
       avoidIngredients,
@@ -374,14 +424,8 @@ function applyDeterministicInterpretationFloor(
       lifeStage: interpretation.explicitConstraints.lifeStage || fallback.explicitConstraints.lifeStage,
       productForm: interpretation.explicitConstraints.productForm || fallback.explicitConstraints.productForm,
     },
-    normalizedSearchTerms: interpretation.normalizedSearchTerms.length
-      ? interpretation.normalizedSearchTerms
-      : fallback.normalizedSearchTerms,
-    safetyFlags: {
-      urgentCare: interpretation.safetyFlags.urgentCare || fallback.safetyFlags.urgentCare,
-      medicalTreatmentIntent:
-        interpretation.safetyFlags.medicalTreatmentIntent || fallback.safetyFlags.medicalTreatmentIntent,
-    },
+    normalizedSearchTerms,
+    safetyFlags,
     species: interpretation.species === "unknown" && fallback.species !== "unknown" ? fallback.species : interpretation.species,
   };
 }

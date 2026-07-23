@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { initialProfile } from "../app/lib/petwise.ts";
@@ -96,30 +96,35 @@ function product(overrides = {}) {
 test("Shop empty state shows no careful match when no catalog item matches deterministically", () => {
   const result = filterAndRankShopProducts({
     accountCountry: "US",
+    includeDiagnostics: true,
     products: [product()],
     query: "spacesuit",
     selectedPet: profile(),
   });
 
   assert.equal(result.emptyState, "no_match");
+  assert.equal(result.diagnostics?.emptyStateReason, "no_query_match");
   assert.deepEqual(result.products, []);
 });
 
 test("Shop empty state shows region message when country filtering removes every match", () => {
   const result = filterAndRankShopProducts({
     accountCountry: "CA",
+    includeDiagnostics: true,
     products: [product({ availableCountries: ["US"] })],
     query: "dental treats",
     selectedPet: profile(),
   });
 
   assert.equal(result.emptyState, "region_empty");
+  assert.equal(result.diagnostics?.emptyStateReason, "no_product_for_selected_country");
   assert.deepEqual(result.products, []);
 });
 
 test("Shop empty state shows ingredient-verification message when every candidate is unverified", () => {
   const result = filterAndRankShopProducts({
     accountCountry: "US",
+    includeDiagnostics: true,
     products: [
       product({
         id: "unverified-food",
@@ -135,6 +140,7 @@ test("Shop empty state shows ingredient-verification message when every candidat
   });
 
   assert.equal(result.emptyState, "ingredient_verification_empty");
+  assert.equal(result.diagnostics?.emptyStateReason, "no_ingredient_verified_match");
   assert.equal(result.ingredientVerificationRemovedMatches, true);
   assert.deepEqual(result.products, []);
 });
@@ -212,8 +218,17 @@ test("Shop empty-state copy stays honest and avoids cross-country fallback langu
   const page = read("app/shop/page.tsx");
 
   assert.match(page, /No careful match yet/);
-  assert.match(page, /Furvise does not have a safe catalog match for that search, pet context, and region right now\./);
-  assert.match(page, /No region-verified match yet/);
-  assert.match(page, /No ingredient-verified match yet/);
+  assert.match(page, /Furvise does not have a careful product option for that search, pet context, and country right now\./);
+  assert.match(page, /No product for this country yet/);
+  assert.match(page, /No verified ingredient match yet/);
+  assert.doesNotMatch(page, /careful catalog match|region-verified|ingredient-verified catalog match/);
   assert.doesNotMatch(page, /showing similar products from another country|try these anyway|best available alternative/i);
+});
+
+test("Shop vague query state asks for a specific product type", () => {
+  const page = read("app/shop/page.tsx");
+
+  assert.match(page, /emptyState === "vague_query"/);
+  assert.match(page, /What are you shopping for\?/);
+  assert.match(page, /Try a specific product type like shampoo, dental treats, grooming wipes, flea comb, or chicken-free food\./);
 });

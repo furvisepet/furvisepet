@@ -15,6 +15,10 @@ import type {
   ShopProductFitExplanation,
   ShopProductFitExplanationInput,
 } from "../shop/product-fit-explanation";
+import type {
+  ShopProductQuestionAnswer,
+  ShopProductQuestionInput,
+} from "../shop/product-question";
 import { getAiProviderName } from "./config";
 import { OpenAiAnalysisProvider } from "./providers/openai";
 
@@ -33,6 +37,7 @@ export type AnalyzeSafetyFollowupInput = {
 export interface AiAnalysisProvider {
   analyzeDogProfile(input: AnalyzeDogProfileInput): Promise<PetWiseAnalysis>;
   analyzeSafetyFollowup(input: AnalyzeSafetyFollowupInput): Promise<SafetyFollowupResult>;
+  answerShopProductQuestion(input: ShopProductQuestionInput): Promise<ShopProductQuestionAnswer>;
   explainShopProductFit(input: ShopProductFitExplanationInput): Promise<ShopProductFitExplanation>;
   interpretShopQuery(input: ShopQueryInterpretationInput): Promise<ShopQueryInterpretation>;
 }

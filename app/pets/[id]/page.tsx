@@ -233,7 +233,7 @@ function ProfileOverview({
               </Link>
               {model.showProductLink ? (
                 <Link className={menuItemClass} href={shopHref}>
-                  Shop for {name}
+                  Products for {name}
                 </Link>
               ) : null}
               <button
@@ -538,7 +538,7 @@ function PetDetails({
             <span aria-hidden="true" />
           )}
           <Link className={textLinkClass} href={`/shop?petId=${encodeURIComponent(profile.id)}`}>
-            Shop for {name}
+            Products for {name}
           </Link>
         </div>
       ) : null}

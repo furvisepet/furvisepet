@@ -359,7 +359,7 @@ test("profile overview source removes duplicate log actions and keeps quiet empt
   assert.match(source, /View full care history/);
   assert.doesNotMatch(source, /href=\{`\/care-log\?pet=\$\{petId\}&new=1`\}/);
   assert.match(source, /Nothing saved for \{name\} yet\./);
-  assert.match(source, /Shop for \{name\}/);
+  assert.match(source, /Products for \{name\}/);
   assert.match(source, /\/shop\?petId=/);
   assert.match(source, /Ask Furvise about this pet/);
   assert.match(source, /Furvise has only a few saved details for \{petName\}/);

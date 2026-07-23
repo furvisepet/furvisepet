@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildFallbackShopQueryInterpretation,
+  getShopGroomingSynonymSearchTerms,
+  getShopSkinGroomingSearchTerms,
+  isVagueShopQueryWithoutSignal,
   parseShopQueryInterpretation,
   shopQueryInterpretationJsonSchema,
   validateShopQueryInterpretation,
@@ -161,4 +164,111 @@ test("fallback handles explicit species conflict and urgent shopping intent safe
   });
   assert.equal(urgent.safetyFlags.urgentCare, true);
   assert.equal(urgent.confidence, "medium");
+});
+
+test("fallback maps vague grooming and fur language to Grooming search terms", () => {
+  const hairs = buildFallbackShopQueryInterpretation({
+    memory: memory(),
+    productCountry: "US",
+    query: "something for hairs",
+  });
+  assert.equal(hairs.category, "Grooming");
+  assert.ok(hairs.normalizedSearchTerms.includes("grooming"));
+  assert.ok(hairs.normalizedSearchTerms.includes("brush"));
+  assert.ok(hairs.normalizedSearchTerms.includes("comb"));
+
+  const fur = buildFallbackShopQueryInterpretation({
+    memory: memory(),
+    productCountry: "US",
+    query: "fur",
+  });
+  assert.equal(fur.category, "Grooming");
+  assert.ok(fur.normalizedSearchTerms.includes("grooming"));
+
+  const bathTerms = getShopGroomingSynonymSearchTerms("bath");
+  assert.ok(bathTerms.includes("shampoo"));
+  assert.ok(bathTerms.includes("wash"));
+
+  const smells = buildFallbackShopQueryInterpretation({
+    memory: memory(),
+    productCountry: "US",
+    query: "dog smells",
+  });
+  assert.equal(smells.category, "Grooming");
+  assert.ok(smells.normalizedSearchTerms.includes("shampoo"));
+  assert.ok(smells.normalizedSearchTerms.includes("wipes"));
+});
+
+test("urgent or medical safety intent overrides grooming synonym category floor", () => {
+  const urgent = buildFallbackShopQueryInterpretation({
+    memory: memory(),
+    productCountry: "US",
+    query: "fur emergency",
+  });
+  assert.equal(urgent.safetyFlags.urgentCare, true);
+  assert.notEqual(urgent.category, "Grooming");
+
+  const medical = buildFallbackShopQueryInterpretation({
+    memory: memory(),
+    productCountry: "US",
+    query: "wash to cure infection",
+  });
+  assert.equal(medical.safetyFlags.medicalTreatmentIntent, true);
+  assert.notEqual(medical.category, "Grooming");
+});
+
+test("vague Shop query pre-validation blocks only queries without shopping signals", () => {
+  for (const query of [
+    "anything",
+    "something",
+    "stuff",
+    "things",
+    "product",
+    "products",
+    "help",
+    "item",
+    "items",
+    "idk",
+    "i don't know",
+    "not sure",
+  ]) {
+    assert.equal(isVagueShopQueryWithoutSignal(query), true, `${query} should be blocked as vague`);
+  }
+
+  for (const query of [
+    "shampoo",
+    "sensitive skin shampoo",
+    "dental treats",
+    "chicken-free food",
+    "grooming wipes",
+    "flea comb",
+    "something for hair",
+    "something for fur",
+    "dog smells",
+    "itchy paws shampoo",
+  ]) {
+    assert.equal(isVagueShopQueryWithoutSignal(query), false, `${query} should be allowed`);
+  }
+});
+
+test("fallback maps something for itching paws to skin and grooming search signals", () => {
+  assert.equal(isVagueShopQueryWithoutSignal("something for itching paws"), false);
+
+  const interpretation = buildFallbackShopQueryInterpretation({
+    memory: memory(),
+    productCountry: "US",
+    query: "something for itching paws",
+  });
+  assert.equal(interpretation.category, "Itchy skin");
+  for (const term of ["itchy", "skin", "grooming", "shampoo", "sensitive skin shampoo", "paw"]) {
+    assert.ok(interpretation.normalizedSearchTerms.includes(term), term);
+  }
+  assert.deepEqual(getShopSkinGroomingSearchTerms("something for itching paws"), [
+    "itchy",
+    "skin",
+    "grooming",
+    "shampoo",
+    "sensitive skin shampoo",
+    "paw",
+  ]);
 });

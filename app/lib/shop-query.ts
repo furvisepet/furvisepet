@@ -84,6 +84,65 @@ export const shopQueryInterpretationSystemPrompt = [
   "Country may reflect explicit query country or account product country metadata only. Do not interpret country as product existence.",
 ].join("\n");
 
+const shopGroomingSynonymSignalsByTerm: Record<string, string[]> = {
+  hair: ["grooming", "shampoo", "wipes", "brush", "comb"],
+  fur: ["grooming", "shampoo", "wipes", "brush", "comb"],
+  coat: ["grooming", "shampoo", "wipes", "brush", "comb"],
+  shedding: ["brush", "comb"],
+  smell: ["shampoo", "wipes"],
+  dirty: ["shampoo", "wipes"],
+  bath: ["shampoo", "wash", "wipes"],
+  wash: ["shampoo", "wash", "wipes"],
+};
+
+export const SHOP_GROOMING_SYNONYM_SOURCE_TERMS = Object.keys(shopGroomingSynonymSignalsByTerm);
+
+export function getShopGroomingSynonymSearchTerms(value: string) {
+  return uniqueNormalizedStrings(
+    tokenizeShopQuery(value)
+      .map(normalizeGroomingSynonymSourceTerm)
+      .flatMap((term) => shopGroomingSynonymSignalsByTerm[term] || []),
+  );
+}
+
+export function hasShopGroomingSynonymIntent(value: string) {
+  return getShopGroomingSynonymSearchTerms(value).length > 0;
+}
+
+export function getShopSkinGroomingSearchTerms(value: string) {
+  const normalized = normalizeVagueShopQuery(value);
+  if (!/\b(itch|itchy|itches|itching|skin|paw|paws|licking|rash|redness)\b/.test(normalized)) return [];
+  return uniqueNormalizedStrings(["itchy", "skin", "grooming", "shampoo", "sensitive skin shampoo", "paw"]);
+}
+
+const vagueShopQueryWords = new Set([
+  "anything",
+  "something",
+  "stuff",
+  "thing",
+  "things",
+  "product",
+  "products",
+  "help",
+  "item",
+  "items",
+  "idk",
+]);
+const vagueShopQueryStopWords = new Set(["a", "an", "for", "i", "im", "my", "need", "please", "the", "to", "want", "with"]);
+
+export function isVagueShopQueryWithoutSignal(value: string) {
+  const normalized = normalizeVagueShopQuery(value);
+  if (!normalized) return false;
+  if (hasSpecificShopQuerySignal(normalized)) return false;
+  if (/^(?:i\s+(?:am\s+|m\s+)?)?not\s+sure$/.test(normalized)) return true;
+  if (/^i\s+(?:do\s+not|don'?t)\s+know$/.test(normalized)) return true;
+
+  const tokens = normalized.replace(/'/g, "").split(/\s+/).filter(Boolean);
+  return tokens.length > 0 && tokens.some((token) => vagueShopQueryWords.has(token)) && tokens.every((token) =>
+    vagueShopQueryWords.has(token) || vagueShopQueryStopWords.has(token),
+  );
+}
+
 export const shopQueryInterpretationJsonSchema = {
   type: "object",
   additionalProperties: false,
@@ -249,7 +308,6 @@ export function buildFallbackShopQueryInterpretation({
   const normalizedQuery = normalizeDisplayText(query);
   const terms = tokenizeShopQuery(normalizedQuery);
   const queryCategory = inferCategoryFromText(normalizedQuery);
-  const category = queryCategory || inferCategoryFromMemory(memory) || "Other";
   const explicitSpecies = inferSpeciesFromText(normalizedQuery);
   const productForm = inferProductForm(normalizedQuery);
   const avoidIngredients = normalizeAvoidIngredientValues([
@@ -260,12 +318,26 @@ export function buildFallbackShopQueryInterpretation({
   const requiredIngredients = uniqueNormalizedStrings(extractRequiredIngredients(normalizedQuery));
   const urgentCare = hasUrgentCareIntent(normalizedQuery) || memory.derived.safetyFlags.length > 0;
   const medicalTreatmentIntent = hasMedicalTreatmentIntent(normalizedQuery);
+  const groomingSynonymTerms = getShopGroomingSynonymSearchTerms(normalizedQuery);
+  const skinGroomingTerms = getShopSkinGroomingSearchTerms(normalizedQuery);
+  const memoryCategory = inferCategoryFromMemory(memory);
+  const category =
+    !urgentCare && !medicalTreatmentIntent && groomingSynonymTerms.length > 0
+      ? "Grooming"
+      : (urgentCare || medicalTreatmentIntent) && groomingSynonymTerms.length > 0 && queryCategory === "Grooming"
+        ? memoryCategory || "Other"
+        : queryCategory || memoryCategory || "Other";
+  const normalizedSearchTerms = uniqueNormalizedStrings([
+    ...(terms.length ? terms : tokenizeShopQuery(productForm || normalizedQuery)),
+    ...groomingSynonymTerms,
+    ...skinGroomingTerms,
+  ]);
 
   return {
     category,
     species: explicitSpecies || memory.pet.species || "unknown",
     queryText: normalizedQuery,
-    normalizedSearchTerms: terms.length ? terms : tokenizeShopQuery(productForm || normalizedQuery),
+    normalizedSearchTerms,
     explicitConstraints: {
       avoidIngredients,
       requiredIngredients,
@@ -431,6 +503,37 @@ function tokenizeShopQuery(value: string) {
   );
 }
 
+function normalizeVagueShopQuery(value: string) {
+  return normalizeDisplayText(value)
+    .toLowerCase()
+    .replace(/[�`]/g, "'")
+    .replace(/[^a-z0-9'\s-]/g, " ")
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasSpecificShopQuerySignal(value: string) {
+  return Boolean(
+    inferCategoryFromText(value) ||
+      inferProductForm(value) ||
+      getShopGroomingSynonymSearchTerms(value).length > 0 ||
+      extractAvoidIngredients(value).length > 0 ||
+      extractRequiredIngredients(value).length > 0 ||
+      hasUrgentCareIntent(value) ||
+      hasMedicalTreatmentIntent(value),
+  );
+}
+
+function normalizeGroomingSynonymSourceTerm(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized === "hairs") return "hair";
+  if (normalized === "smells") return "smell";
+  if (normalized === "washes" || normalized === "washed" || normalized === "washing") return "wash";
+  if (normalized === "baths" || normalized === "bathe" || normalized === "bathed" || normalized === "bathing") return "bath";
+  return normalized;
+}
+
 function inferCategoryFromMemory(memory: PetMemoryContext): ShopQueryCategory | null {
   const mainConcern = memory.pet.mainConcern;
   return SHOP_QUERY_CATEGORIES.includes(mainConcern as ShopQueryCategory)
@@ -440,11 +543,11 @@ function inferCategoryFromMemory(memory: PetMemoryContext): ShopQueryCategory | 
 
 function inferCategoryFromText(value: string): ShopQueryCategory | null {
   const text = value.toLowerCase();
-  if (/\b(itch|itchy|skin|rash|redness|paw|paws|licking|coat)\b/.test(text)) return "Itchy skin";
+  if (/\b(itch|itchy|itches|itching|skin|rash|redness|paw|paws|licking)\b/.test(text)) return "Itchy skin";
   if (/\b(sensitive stomach|stomach|digest|digestion|vomit|diarrhea|loose stool|gas)\b/.test(text)) return "Sensitive stomach";
   if (/\b(picky|appetite|won't eat|wont eat|refuses food)\b/.test(text)) return "Picky eating";
   if (/\b(weight|overweight|calorie|calories|diet food)\b/.test(text)) return "Weight management";
-  if (/\b(groom|grooming|shampoo|wipe|wipes|brush|comb|bath|deshed|shedding)\b/.test(text)) return "Grooming";
+  if (/\b(groom|grooming|shampoo|wipe|wipes|brush|comb|bath|wash|deshed|shedding|hair|hairs|fur|coat|smell|smells|dirty)\b/.test(text)) return "Grooming";
   if (/\b(dental|teeth|tooth|breath|wellness|supplement|vitamin)\b/.test(text)) return "General wellness";
   return null;
 }

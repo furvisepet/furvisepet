@@ -36,13 +36,13 @@ test("results shows a friendly error for a missing or unauthorized route profile
   assert.match(source, /\{loadError\}/);
 });
 
-test("pet profile guidance links carry profileId and Shop links carry petId", () => {
+test("pet profile guidance links carry profileId and Products links carry petId", () => {
   const source = read("app/pets/[id]/page.tsx");
 
   assert.match(source, /const shopHref = `\/shop\?petId=\$\{encodeURIComponent\(profile\.id\)\}`;/);
   assert.match(source, /href=\{`\/results\?profileId=\$\{encodeURIComponent\(petId\)\}`\}/);
   assert.match(source, /href=\{`\/shop\?petId=\$\{encodeURIComponent\(profile\.id\)\}`\}/);
-  assert.match(source, /Shop for \{name\}/);
+  assert.match(source, /Products for \{name\}/);
 });
 
 test("core Supabase migration enforces ownership RLS for profiles, care, memories, and feedback", () => {

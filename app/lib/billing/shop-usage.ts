@@ -1,15 +1,20 @@
 import type { GateDecision, PlanId } from "./plan-limits";
 
-export type ShopSearchUsageRow = {
-  count: number;
+export type ProductAiUsageRow = {
+  count?: number;
   created_at?: string;
   id?: string;
   month_key: string;
   updated_at?: string;
+  used_count: number;
   user_id: string;
 };
 
-export type ShopSearchUsageStatus = {
+export type ProductAiUsageIncrementRow = ProductAiUsageRow & {
+  count: number;
+};
+
+export type ProductAiUsageStatus = {
   allowed: boolean;
   count: number;
   earlyAccessUnlocked: boolean;
@@ -20,7 +25,10 @@ export type ShopSearchUsageStatus = {
   remaining: number;
 };
 
-const SHOP_SEARCH_USAGE_TABLE = "shop_search_usage";
+export type ShopSearchUsageRow = ProductAiUsageRow;
+export type ShopSearchUsageStatus = ProductAiUsageStatus;
+
+export const PRODUCT_AI_USAGE_TABLE = "product_ai_usage";
 
 type SupabaseErrorLike = {
   code?: string;
@@ -29,13 +37,20 @@ type SupabaseErrorLike = {
   message?: string;
 };
 
-export class ShopSearchUsageReadError extends Error {
+export class ProductAiUsageReadError extends Error {
   cause: unknown;
 
   constructor(cause: unknown) {
-    super("Furvise could not load Shop search usage.");
-    this.name = "ShopSearchUsageReadError";
+    super("Furvise could not load Product AI usage.");
+    this.name = "ProductAiUsageReadError";
     this.cause = cause;
+  }
+}
+
+export class ShopSearchUsageReadError extends ProductAiUsageReadError {
+  constructor(cause: unknown) {
+    super(cause);
+    this.name = "ShopSearchUsageReadError";
   }
 }
 
@@ -53,16 +68,46 @@ type QueryLike = {
   single?: <T>() => PromiseLike<{ data: T | null; error: unknown | null }> | { data: unknown | null; error: unknown | null };
 };
 
-export function getShopSearchUsageMonthKey(date = new Date()) {
+export function getProductAiUsageMonthKey(date = new Date()) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
 }
 
-export async function getShopSearchUsageStatus({
+export const getShopSearchUsageMonthKey = getProductAiUsageMonthKey;
+
+export function buildProductAiUsageUnavailableStatus({
   earlyAccessUnlocked = false,
   monthlyLimit,
-  monthKey = getShopSearchUsageMonthKey(),
+  monthKey = getProductAiUsageMonthKey(),
+  planId = "free",
+}: {
+  earlyAccessUnlocked?: boolean;
+  monthlyLimit: number;
+  monthKey?: string;
+  planId?: PlanId;
+}): ProductAiUsageStatus {
+  const gate = evaluateUsageCount({ count: 0, earlyAccessUnlocked, monthlyLimit });
+  return {
+    allowed: true,
+    count: 0,
+    earlyAccessUnlocked,
+    gate: {
+      ...gate,
+      allowed: true,
+      hardBlocked: false,
+    },
+    limit: monthlyLimit,
+    monthKey,
+    planId,
+    remaining: monthlyLimit,
+  };
+}
+
+export async function getProductAiUsageStatus({
+  earlyAccessUnlocked = false,
+  monthlyLimit,
+  monthKey = getProductAiUsageMonthKey(),
   planId = "free",
   supabase,
   userId,
@@ -73,12 +118,12 @@ export async function getShopSearchUsageStatus({
   planId?: PlanId;
   supabase: SupabaseLike;
   userId: string;
-}): Promise<ShopSearchUsageStatus> {
+}): Promise<ProductAiUsageStatus> {
   let count = 0;
   try {
-    count = await readShopSearchUsageCount({ monthKey, supabase, userId });
+    count = await readProductAiUsageCount({ monthKey, supabase, userId });
   } catch (error) {
-    if (!earlyAccessUnlocked || !(error instanceof ShopSearchUsageReadError)) throw error;
+    if (!earlyAccessUnlocked || !(error instanceof ProductAiUsageReadError)) throw error;
   }
   const gate = evaluateUsageCount({ count, earlyAccessUnlocked, monthlyLimit });
   return {
@@ -92,6 +137,8 @@ export async function getShopSearchUsageStatus({
     remaining: gate.remaining,
   };
 }
+
+export const getShopSearchUsageStatus = getProductAiUsageStatus;
 
 function evaluateUsageCount({
   count,
@@ -113,20 +160,20 @@ function evaluateUsageCount({
       limit: monthlyLimit,
       message: null,
       remaining: 0,
-      softNotice: "Early access: extra Shop searches are currently unlocked.",
+      softNotice: "Early access: extra Product AI uses are currently unlocked.",
     };
   }
   return {
     allowed: false,
     hardBlocked: true,
     limit: monthlyLimit,
-    message: "You've used your included Shop searches for this month.",
+    message: "You've used your included Product AI for this month.",
     remaining: 0,
     softNotice: null,
   };
 }
 
-export async function readShopSearchUsageCount({
+export async function readProductAiUsageCount({
   monthKey,
   supabase,
   userId,
@@ -136,22 +183,24 @@ export async function readShopSearchUsageCount({
   userId: string;
 }) {
   const query = supabase
-    .from(SHOP_SEARCH_USAGE_TABLE)
-    .select("count")
+    .from(PRODUCT_AI_USAGE_TABLE)
+    .select("used_count")
     .eq("user_id", userId)
     .eq("month_key", monthKey);
-  const result = await query.maybeSingle?.<Pick<ShopSearchUsageRow, "count">>() as
-    | { data: Pick<ShopSearchUsageRow, "count"> | null; error: unknown | null }
+  const result = await query.maybeSingle?.<Pick<ProductAiUsageRow, "used_count">>() as
+    | { data: Pick<ProductAiUsageRow, "used_count"> | null; error: unknown | null }
     | undefined;
   if (!result) return 0;
   if (result.error) {
-    logShopSearchUsageError("readShopSearchUsageCount", result.error);
-    throw new ShopSearchUsageReadError(result.error);
+    logProductAiUsageError("readProductAiUsageCount", result.error);
+    throw new ProductAiUsageReadError(result.error);
   }
-  return typeof result.data?.count === "number" ? result.data.count : 0;
+  return typeof result.data?.used_count === "number" ? result.data.used_count : 0;
 }
 
-export async function incrementShopSearchUsage({
+export const readShopSearchUsageCount = readProductAiUsageCount;
+
+export async function incrementProductAiUsage({
   monthKey,
   previousCount,
   supabase,
@@ -161,35 +210,38 @@ export async function incrementShopSearchUsage({
   previousCount: number;
   supabase: SupabaseLike;
   userId: string;
-}): Promise<ShopSearchUsageRow> {
+}): Promise<ProductAiUsageIncrementRow> {
   const nextCount = previousCount + 1;
   const query = supabase
-    .from(SHOP_SEARCH_USAGE_TABLE)
+    .from(PRODUCT_AI_USAGE_TABLE)
     .upsert?.(
       {
-        count: nextCount,
         month_key: monthKey,
         updated_at: new Date().toISOString(),
+        used_count: nextCount,
         user_id: userId,
       },
       { onConflict: "user_id,month_key" },
     )
     .select?.()
-    .single?.<ShopSearchUsageRow>();
+    .single?.<ProductAiUsageRow>();
   const result = await query;
-  if (!result) throw new Error("Furvise could not update Shop search usage.");
+  if (!result) throw new Error("Furvise could not update Product AI usage.");
   if (result.error) {
-    logShopSearchUsageError("incrementShopSearchUsage", result.error);
-    throw new Error("Furvise could not update Shop search usage.");
+    logProductAiUsageError("incrementProductAiUsage", result.error);
+    throw new Error("Furvise could not update Product AI usage.");
   }
   return {
     count: nextCount,
     month_key: monthKey,
+    used_count: nextCount,
     user_id: userId,
   };
 }
 
-export function formatShopSearchUsageStatus(usage: ShopSearchUsageStatus): ShopSearchUsageStatus {
+export const incrementShopSearchUsage = incrementProductAiUsage;
+
+export function formatProductAiUsageStatus(usage: ProductAiUsageStatus): ProductAiUsageStatus {
   const remaining = Math.max(0, usage.limit - usage.count);
   return {
     ...usage,
@@ -204,17 +256,26 @@ export function formatShopSearchUsageStatus(usage: ShopSearchUsageStatus): ShopS
   };
 }
 
-export function logShopSearchUsageError(action: "readShopSearchUsageCount" | "incrementShopSearchUsage", error: unknown) {
+export const formatShopSearchUsageStatus = formatProductAiUsageStatus;
+
+export function logProductAiUsageError(action: "readProductAiUsageCount" | "incrementProductAiUsage", error: unknown) {
   if (process.env.NODE_ENV !== "development") return;
   const supabaseError = normalizeSupabaseError(error);
-  console.error("[Shop search usage]", {
+  console.error("[Product AI usage]", {
     action,
     code: supabaseError.code,
     details: supabaseError.details,
     hint: supabaseError.hint,
     message: supabaseError.message,
-    table: SHOP_SEARCH_USAGE_TABLE,
+    table: PRODUCT_AI_USAGE_TABLE,
   });
+}
+
+export function logShopSearchUsageError(action: "readShopSearchUsageCount" | "incrementShopSearchUsage", error: unknown) {
+  logProductAiUsageError(
+    action === "readShopSearchUsageCount" ? "readProductAiUsageCount" : "incrementProductAiUsage",
+    error,
+  );
 }
 
 function normalizeSupabaseError(error: unknown): SupabaseErrorLike {

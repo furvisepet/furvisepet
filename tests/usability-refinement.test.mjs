@@ -125,7 +125,8 @@ test("authenticated header uses the shared app navigation contract", () => {
   assert.match(source, /label: "Home"/);
   assert.match(source, /label: "Dashboard"/);
   assert.match(source, /label: "Pets"/);
-  assert.match(source, /label: "Shop"/);
+  assert.match(source, /label: "Products"/);
+  assert.doesNotMatch(source, /label: "Shop"/);
   assert.match(source, /label: "Care history"/);
   assert.match(source, /label: "Ask Furvise"/);
   assert.doesNotMatch(source, /label: "Today"/);

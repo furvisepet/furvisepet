@@ -5,15 +5,17 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://furvise.com"),
-  title: "Furvise — Pet Care History, Notes, and Guidance",
+  title: "Furvise, Pet Care History, Notes, and Guidance",
   description:
-    "Furvise keeps your pet’s care history connected — profiles, care updates, saved details, vet-prep notes, and focused guidance in one private place.",
+    "Furvise keeps your pet's care history connected, profiles, care updates, saved details, vet-prep notes, and focused guidance in one private place.",
   icons: {
     icon: [
-      { url: "/favicon.ico" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
+    shortcut: [{ url: "/favicon.ico" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/site.webmanifest",

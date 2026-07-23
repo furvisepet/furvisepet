@@ -57,6 +57,8 @@ export const PRODUCT_SOURCES = ["curated", "chewy_feed", "ca_retailer_feed"] as 
 export type ProductSource = (typeof PRODUCT_SOURCES)[number];
 
 export type ProductCountry = "US" | "CA";
+export type ProductVerificationSource = "brand_page" | "retailer_page" | "manual_review" | "feed";
+export type ProductEnrichmentStatus = "none" | "partial" | "verified";
 
 export type DogProfile = {
   name: string;
@@ -88,6 +90,14 @@ export type MockProduct = {
   recommendationKind?: RecommendationKind;
   imageUrl?: string;
   productUrl?: string;
+  sourceUrl?: string;
+  verifiedProductPageUrl?: string;
+  verifiedDescription?: string;
+  verifiedIngredients?: string[];
+  verifiedDirections?: string;
+  verifiedWarnings?: string[];
+  verificationSource?: ProductVerificationSource;
+  enrichmentStatus?: ProductEnrichmentStatus;
   retailer?: string;
   price?: number;
   currency?: string;

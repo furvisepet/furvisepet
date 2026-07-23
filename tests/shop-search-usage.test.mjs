@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getPlanCapabilities } from "../app/lib/billing/plan-limits.ts";
 import {
+  getProductAiUsageStatus,
   getShopSearchUsageStatus,
   incrementShopSearchUsage,
   readShopSearchUsageCount,
@@ -11,6 +12,7 @@ import {
   hashShopInterpretationCacheKey,
   normalizeShopQueryForCache,
 } from "../app/lib/shop/query-interpretation-cache.ts";
+import { isVagueShopQueryWithoutSignal } from "../app/lib/shop-query.ts";
 import { filterAndRankShopProducts } from "../app/lib/shop/product-search.ts";
 import { initialProfile } from "../app/lib/petwise.ts";
 
@@ -21,7 +23,7 @@ function createShopUsageSupabase(rows = []) {
   return {
     store,
     from(table) {
-      assert.equal(table, "shop_search_usage");
+      assert.equal(table, "product_ai_usage");
       return new Query(store);
     },
   };
@@ -111,11 +113,11 @@ function product(overrides = {}) {
   };
 }
 
-test("Shop search usage increments fresh AI interpretations only", async () => {
-  const supabase = createShopUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 4 }]);
+test("Products AI usage increments fresh AI interpretations only", async () => {
+  const supabase = createShopUsageSupabase([{ user_id: "user-1", month_key: "2026-07", used_count: 4 }]);
   const status = await getShopSearchUsageStatus({
     earlyAccessUnlocked: false,
-    monthlyLimit: getPlanCapabilities("free").shopSearchMonthlyLimit,
+    monthlyLimit: getPlanCapabilities("free").productsAiMonthlyLimit,
     monthKey: "2026-07",
     planId: "free",
     supabase,
@@ -126,6 +128,8 @@ test("Shop search usage increments fresh AI interpretations only", async () => {
   assert.equal(status.allowed, true);
   await incrementShopSearchUsage({ monthKey: "2026-07", previousCount: status.count, supabase, userId: "user-1" });
   assert.equal(await readShopSearchUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 5);
+  assert.equal(supabase.store[0].used_count, 5);
+  assert.equal(supabase.store[0].count, undefined);
 });
 
 test("Shop interpretation cache normalization prevents duplicate spend for casing and whitespace variants", () => {
@@ -145,7 +149,7 @@ test("Shop interpretation cache normalization prevents duplicate spend for casin
 });
 
 test("Shop deterministic filtering and invalid query states do not touch usage", async () => {
-  const supabase = createShopUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 7 }]);
+  const supabase = createShopUsageSupabase([{ user_id: "user-1", month_key: "2026-07", used_count: 7 }]);
 
   filterAndRankShopProducts({
     accountCountry: "US",
@@ -169,11 +173,11 @@ test("Shop deterministic filtering and invalid query states do not touch usage",
   assert.equal(await readShopSearchUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 7);
 });
 
-test("Shop search cap blocks fresh uncached queries while allowing cached interpretations", async () => {
-  const supabase = createShopUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 20 }]);
-  const status = await getShopSearchUsageStatus({
+test("Products AI cap blocks fresh uncached queries while allowing cached interpretations", async () => {
+  const supabase = createShopUsageSupabase([{ user_id: "user-1", month_key: "2026-07", used_count: 80 }]);
+  const status = await getProductAiUsageStatus({
     earlyAccessUnlocked: false,
-    monthlyLimit: getPlanCapabilities("free").shopSearchMonthlyLimit,
+    monthlyLimit: getPlanCapabilities("free").productsAiMonthlyLimit,
     monthKey: "2026-07",
     planId: "free",
     supabase,
@@ -181,7 +185,7 @@ test("Shop search cap blocks fresh uncached queries while allowing cached interp
   });
   assert.equal(status.allowed, false);
   assert.equal(status.remaining, 0);
-  assert.match(status.gate.message || "", /included Shop searches/);
+  assert.match(status.gate.message || "", /included Product AI/);
 
   const route = read("app/api/shop/interpret-query/route.ts");
   const cacheRead = route.indexOf("const cached = await readCachedShopQueryInterpretation");
@@ -196,8 +200,8 @@ test("Shop search cap blocks fresh uncached queries while allowing cached interp
   assert.ok(providerCreation > capCheck);
   assert.match(capBranch, /limitReached: true/);
   assert.match(capBranch, /status: 402/);
-  assert.match(capBranch, /You've used your included Shop searches for this month\. You can still view saved pets and care history\./);
-  assert.doesNotMatch(capBranch, /createAiAnalysisProvider|interpretShopQuery|incrementShopSearchUsage/);
+  assert.match(capBranch, /You've used your included Product AI for this month\./);
+  assert.doesNotMatch(capBranch, /createAiAnalysisProvider|interpretShopQuery|incrementProductAiUsage/);
 });
 
 test("Shop route never increments usage for invalid bodies, cached hits, fallback, or product explanation", () => {
@@ -217,16 +221,40 @@ test("Shop route never increments usage for invalid bodies, cached hits, fallbac
     interpretationRoute.indexOf("async function loadShopInterpretationRequestContext"),
   );
 
-  assert.doesNotMatch(invalidBranch, /incrementShopSearchUsage|createAiAnalysisProvider|interpretShopQuery/);
-  assert.doesNotMatch(cacheHitBranch, /incrementShopSearchUsage|createAiAnalysisProvider|interpretShopQuery/);
-  assert.doesNotMatch(fallbackBranch, /incrementShopSearchUsage/);
-  assert.doesNotMatch(explanationRoute, /getShopSearchUsageStatus|incrementShopSearchUsage|shop_search_usage/);
+  assert.doesNotMatch(invalidBranch, /incrementProductAiUsage|createAiAnalysisProvider|interpretShopQuery/);
+  assert.doesNotMatch(cacheHitBranch, /incrementProductAiUsage|createAiAnalysisProvider|interpretShopQuery/);
+  assert.doesNotMatch(fallbackBranch, /incrementProductAiUsage/);
+  assert.doesNotMatch(explanationRoute, /getProductAiUsageStatus|incrementProductAiUsage|product_ai_usage/);
 });
 
-test("Shop cap reached UI copy is visible and calm", () => {
+test("Products AI cap reached UI copy is visible and calm", () => {
   const page = read("app/shop/page.tsx");
 
-  assert.match(page, /Monthly Shop search limit reached/);
-  assert.match(page, /You've used your included Shop searches for this month\. You can still view saved pets and care history\./);
+  assert.match(page, /Monthly Product AI limit reached/);
+  assert.match(page, /You've used your included Product AI for this month\./);
   assert.doesNotMatch(page, /paywall|upgrade now|locked forever|subscribe to continue/i);
+});
+
+test("vague Shop queries do not call AI or increment usage before specificity state", () => {
+  assert.equal(isVagueShopQueryWithoutSignal("anything"), true);
+  assert.equal(isVagueShopQueryWithoutSignal("something"), true);
+  assert.equal(isVagueShopQueryWithoutSignal("something for hair"), false);
+  assert.equal(isVagueShopQueryWithoutSignal("something for fur"), false);
+  assert.equal(isVagueShopQueryWithoutSignal("shampoo"), false);
+  assert.equal(isVagueShopQueryWithoutSignal("dental treats"), false);
+
+  const route = read("app/api/shop/interpret-query/route.ts");
+  const vagueCheck = route.indexOf("if (isVagueShopQueryWithoutSignal(query))");
+  const memoryLoad = route.indexOf("let memory", vagueCheck);
+  const vagueBranch = route.slice(vagueCheck, memoryLoad);
+  assert.ok(vagueCheck > -1);
+  assert.ok(memoryLoad > vagueCheck);
+  assert.match(vagueBranch, /vagueQuery: true/);
+  assert.match(vagueBranch, /vague_query_without_signal/);
+  assert.doesNotMatch(vagueBranch, /loadPetMemoryContext|readCachedShopQueryInterpretation|createAiAnalysisProvider|interpretShopQuery|incrementProductAiUsage|saveShopQueryInterpretationCache/);
+
+  const page = read("app/shop/page.tsx");
+  const submitSearch = page.slice(page.indexOf("function submitSearch"), page.indexOf("function resetInterpretation"));
+  assert.match(submitSearch, /isVagueShopQueryWithoutSignal\(nextQuery\)/);
+  assert.ok(submitSearch.indexOf("isVagueShopQueryWithoutSignal(nextQuery)") < submitSearch.indexOf("interpretSubmittedQuery"));
 });

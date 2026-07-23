@@ -27,6 +27,14 @@ import {
   type ShopProductFitExplanation,
   type ShopProductFitExplanationInput,
 } from "../../shop/product-fit-explanation";
+import {
+  buildShopProductQuestionPromptInput,
+  parseShopProductQuestionAnswer,
+  shopProductQuestionJsonSchema,
+  shopProductQuestionSystemPrompt,
+  type ShopProductQuestionAnswer,
+  type ShopProductQuestionInput,
+} from "../../shop/product-question";
 import { OPENAI_ANALYSIS_MODEL, getAiRuntimeDiagnostics } from "../config";
 import { AiAnalysisProvider, AnalyzeDogProfileInput, AnalyzeSafetyFollowupInput } from "../provider";
 
@@ -198,6 +206,32 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
     );
     if (!parsed) {
       throw new Error("OpenAI returned invalid Furvise shop product fit explanation data.");
+    }
+
+    return parsed;
+  }
+
+  async answerShopProductQuestion(input: ShopProductQuestionInput): Promise<ShopProductQuestionAnswer> {
+    const response = await this.client.responses.create({
+      model: OPENAI_ANALYSIS_MODEL,
+      instructions: shopProductQuestionSystemPrompt,
+      input: JSON.stringify(buildShopProductQuestionPromptInput(input)),
+      text: {
+        format: {
+          type: "json_schema",
+          name: "furvise_shop_product_question",
+          strict: true,
+          schema: shopProductQuestionJsonSchema,
+        },
+      },
+    });
+
+    const parsed = parseShopProductQuestionAnswer(
+      JSON.parse(response.output_text),
+      input.memory.pet.name || "this pet",
+    );
+    if (!parsed) {
+      throw new Error("OpenAI returned invalid Furvise shop product question data.");
     }
 
     return parsed;

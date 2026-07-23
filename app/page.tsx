@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { HomepageClient } from "./components/homepage-client";
 
-const title = "Furvise — Pet Care History, Notes, and Guidance";
+const title = "Furvise, Pet Care History, Notes, and Guidance";
 const description =
-  "Furvise keeps your pet’s care history connected — profiles, care updates, saved details, vet-prep notes, and focused guidance in one private place.";
+  "Furvise keeps your pet's care history connected, profiles, care updates, saved details, vet-prep notes, and focused guidance in one private place.";
 const canonicalUrl = "https://furvise.com";
 
 export const metadata: Metadata = {

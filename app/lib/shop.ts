@@ -20,11 +20,13 @@ export { MIN_SHOP_QUERY_LENGTH, productMatchesShopQuery };
 export type { ShopSearchEmptyState, ShopSearchResult };
 
 export function searchStaticRealShopProducts({
+  includeDiagnostics = false,
   productCountry,
   profile,
   query,
   interpretation = null,
 }: {
+  includeDiagnostics?: boolean;
   interpretation?: ShopQueryInterpretation | null;
   productCountry: ProductCountry;
   profile: DogProfile | null;
@@ -32,6 +34,7 @@ export function searchStaticRealShopProducts({
 }): ShopSearchResult {
   return filterAndRankShopProducts({
     accountCountry: productCountry,
+    includeDiagnostics,
     interpretation,
     products: getStaticRealShopCatalog(),
     query,

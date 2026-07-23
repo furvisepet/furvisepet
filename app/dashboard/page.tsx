@@ -185,7 +185,7 @@ export default function DashboardPage() {
                 {selectedProfile ? (
                   <div className="text-left sm:text-right">
                     <Link className={secondaryButtonInline} href={`/shop?petId=${encodeURIComponent(selectedProfile.id)}`}>
-                      Shop for {selectedPetName}
+                      Products for {selectedPetName}
                     </Link>
                     <p className="mt-2 max-w-56 text-sm leading-5 text-[var(--pw-muted)]">
                       Search carefully using {selectedPetName}&apos;s saved context.

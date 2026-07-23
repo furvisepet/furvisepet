@@ -116,9 +116,99 @@ test("shop search returns dog grooming products for shampoo queries", () => {
     query: "shampoo",
   });
 
-  assert.equal(result.emptyState, "ingredient_verification_empty");
-  assert.equal(result.products.length, 0);
-  assert.equal(result.ingredientVerificationRemovedMatches, true);
+  assert.equal(result.emptyState, null);
+  assert.ok(result.products.some((product) => product.id === "earthbath-oatmeal-aloe-shampoo"));
+  assert.ok(result.products.every((product) => product.species === "dog"));
+  assert.ok(result.products.every((product) => product.availableCountries.includes("US")));
+  assert.equal(result.ingredientVerificationRemovedMatches, false);
+});
+
+test("Shop static curated catalog is loaded and reports careful shampoo diagnostics", () => {
+  const result = searchStaticRealShopProducts({
+    includeDiagnostics: true,
+    productCountry: "US",
+    profile: profile({ species: "dog" }),
+    query: "shampoo",
+  });
+
+  assert.ok(staticRealProducts.length > 0);
+  assert.equal(result.emptyState, null);
+  assert.ok(result.diagnostics);
+  assert.equal(result.diagnostics.totalProductsLoaded, staticRealProducts.length);
+  assert.equal(result.diagnostics.runtimeSafeProductsCount, staticRealProducts.length);
+  assert.equal(result.diagnostics.selectedCountry, "US");
+  assert.equal(result.diagnostics.productsAfterCountryFilter, staticRealProducts.length);
+  assert.equal(result.diagnostics.selectedSpecies, "dog");
+  assert.equal(result.diagnostics.productsAfterSpeciesFilter, 3);
+  assert.equal(result.diagnostics.productsAfterQueryMatch, 1);
+  assert.equal(result.diagnostics.productsAfterAvoidIngredientFilter, 1);
+  assert.equal(result.diagnostics.productsAfterIngredientsVerifiedFilter, 1);
+  assert.equal(result.diagnostics.finalResultCount, 1);
+  assert.equal(result.diagnostics.emptyStateReason, "matched");
+});
+
+test("Shop obvious US curated searches match existing catalog products when present", () => {
+  for (const query of ["shampoo", "sensitive skin shampoo", "itchy paws shampoo"]) {
+    const result = searchStaticRealShopProducts({
+      productCountry: "US",
+      profile: profile({ species: "dog" }),
+      query,
+    });
+    assert.equal(result.emptyState, null, query);
+    assert.ok(result.products.some((product) => product.id === "earthbath-oatmeal-aloe-shampoo"), query);
+  }
+
+  for (const query of ["dental treats", "teeth", "breath", "dental", "oral"]) {
+    const result = searchStaticRealShopProducts({
+      productCountry: "US",
+      profile: profile({ species: "dog" }),
+      query,
+    });
+    assert.equal(result.emptyState, null, query);
+    assert.ok(result.products.some((product) => product.id === "greenies-original-regular-dog-dental-treats"), query);
+  }
+
+  const conversationalItch = searchStaticRealShopProducts({
+    productCountry: "US",
+    profile: profile({ species: "dog" }),
+    query: "so my dog is itching a bit on paws nothing serious but need something for that",
+  });
+  assert.equal(conversationalItch.emptyState, null);
+  assert.ok(conversationalItch.products.some((product) => product.id === "earthbath-oatmeal-aloe-shampoo"));
+});
+
+test("Shop search reports no query match for missing curated grooming product types", () => {
+  for (const query of ["grooming wipes", "flea comb"]) {
+    const result = searchStaticRealShopProducts({
+      includeDiagnostics: true,
+      productCountry: "US",
+      profile: profile({ species: "dog" }),
+      query,
+    });
+    assert.equal(result.emptyState, "no_match", query);
+    assert.equal(result.diagnostics?.emptyStateReason, "no_query_match", query);
+    assert.deepEqual(result.products, [], query);
+  }
+});
+
+test("Shop matching keeps raw query terms when AI interpretation terms are too broad", () => {
+  const interpretation = {
+    ...buildFallbackShopQueryInterpretation({
+      memory: memory(),
+      productCountry: "US",
+      query: "dental treats",
+    }),
+    normalizedSearchTerms: ["oral hygiene"],
+  };
+  const result = searchStaticRealShopProducts({
+    interpretation,
+    productCountry: "US",
+    profile: profile({ species: "dog" }),
+    query: "dental treats",
+  });
+
+  assert.equal(result.emptyState, null);
+  assert.ok(result.products.some((product) => product.id === "greenies-original-regular-dog-dental-treats"));
 });
 
 test("shop search returns dental products for dental treats and keeps species filtering", () => {
@@ -138,6 +228,24 @@ test("shop search returns dental products for dental treats and keeps species fi
   assert.ok(dogResult.products.every((product) => product.species === "dog"));
   assert.equal(catResult.products.length, 0);
   assert.equal(catResult.emptyState, "no_match");
+});
+
+test("shop search never crosses selected species for obvious dog and cat queries", () => {
+  const catForDogQuery = searchStaticRealShopProducts({
+    productCountry: "US",
+    profile: profile({ species: "cat" }),
+    query: "dog shampoo",
+  });
+  assert.equal(catForDogQuery.products.length, 0);
+  assert.equal(catForDogQuery.emptyState, "species_conflict");
+
+  const dogForCatOnlyProduct = searchStaticRealShopProducts({
+    productCountry: "US",
+    profile: profile({ species: "dog" }),
+    query: "cat brush",
+  });
+  assert.equal(dogForCatOnlyProduct.products.length, 0);
+  assert.equal(dogForCatOnlyProduct.emptyState, "species_conflict");
 });
 
 test("shop search applies account country filtering and reports region-empty matches", () => {
@@ -405,4 +513,150 @@ test("urgent care signs suppress normal shop product results", () => {
     }),
     true,
   );
+});
+
+function groomingFixture(overrides = {}) {
+  return {
+    ...staticRealProducts[0],
+    id: "verified-dog-grooming-fixture",
+    name: "Verified Dog Grooming Fixture",
+    brand: "Care Brand",
+    retailer: "Care Retailer",
+    productUrl: "https://example.com/grooming",
+    species: "dog",
+    category: "grooming",
+    subcategory: "brush",
+    recommendationKind: "product",
+    protein: "Not applicable",
+    concernTags: ["grooming"],
+    excludedIngredients: [],
+    avoidIngredientKeywords: [],
+    ingredientHighlights: [],
+    lifeStage: "all",
+    tags: ["grooming", "brush", "dog"],
+    currency: "USD",
+    active: true,
+    source: "curated",
+    ingredientsVerified: true,
+    availableCountries: ["US"],
+    evidenceType: "curated_static",
+    sourceNote: "Curated grooming fixture.",
+    whyItFits: "Routine grooming fixture.",
+    whyCategoryFits: "Grooming fixture.",
+    cautions: "Use gently.",
+    ...overrides,
+  };
+}
+
+test("shop search maps vague hair, fur, bath, smell, and shedding queries to grooming signals", () => {
+  const brush = groomingFixture({
+    id: "verified-dog-coat-brush",
+    name: "Verified Dog Coat Brush",
+    tags: ["grooming", "brush", "comb", "dog", "coat"],
+  });
+  const shampoo = groomingFixture({
+    id: "verified-dog-shampoo",
+    name: "Verified Dog Shampoo",
+    subcategory: "shampoo",
+    tags: ["grooming", "shampoo", "wash", "dog"],
+  });
+  const wipes = groomingFixture({
+    id: "verified-dog-wipes",
+    name: "Verified Dog Wipes",
+    subcategory: "wipes",
+    tags: ["grooming", "wipes", "dog"],
+  });
+
+  const hairs = filterAndRankShopProducts({
+    accountCountry: "US",
+    products: [brush],
+    query: "something for hairs",
+    selectedPet: profile({ species: "dog" }),
+  });
+  assert.deepEqual(hairs.products.map((product) => product.id), ["verified-dog-coat-brush"]);
+
+  const fur = filterAndRankShopProducts({
+    accountCountry: "US",
+    products: [brush],
+    query: "for fur",
+    selectedPet: profile({ species: "dog" }),
+  });
+  assert.deepEqual(fur.products.map((product) => product.id), ["verified-dog-coat-brush"]);
+
+  const bath = filterAndRankShopProducts({
+    accountCountry: "US",
+    products: [shampoo],
+    query: "bath",
+    selectedPet: profile({ species: "dog" }),
+  });
+  assert.deepEqual(bath.products.map((product) => product.id), ["verified-dog-shampoo"]);
+
+  const smells = filterAndRankShopProducts({
+    accountCountry: "US",
+    products: [brush, wipes],
+    query: "dog smells",
+    selectedPet: profile({ species: "dog" }),
+  });
+  assert.deepEqual(smells.products.map((product) => product.id), ["verified-dog-wipes"]);
+
+  const shedding = filterAndRankShopProducts({
+    accountCountry: "US",
+    products: [brush, shampoo],
+    query: "shedding",
+    selectedPet: profile({ species: "dog" }),
+  });
+  assert.deepEqual(shedding.products.map((product) => product.id), ["verified-dog-coat-brush"]);
+});
+
+test("shop grooming synonyms keep country, species, and ingredient verification filters strict", () => {
+  const usOnlyBrush = groomingFixture({ id: "us-only-dog-brush", availableCountries: ["US"] });
+  const catBrush = groomingFixture({ id: "cat-brush", name: "Verified Cat Brush", species: "cat", tags: ["grooming", "brush", "cat"] });
+  const unverifiedSensitiveShampoo = groomingFixture({
+    id: "unverified-sensitive-shampoo",
+    name: "Unverified Sensitive Shampoo",
+    subcategory: "shampoo",
+    tags: ["grooming", "shampoo", "dog", "sensitive"],
+    ingredientsVerified: false,
+    ingredientHighlights: ["Fragrance"],
+  });
+
+  const country = filterAndRankShopProducts({
+    accountCountry: "CA",
+    products: [usOnlyBrush],
+    query: "fur",
+    selectedPet: profile({ species: "dog" }),
+  });
+  assert.equal(country.emptyState, "region_empty");
+  assert.equal(country.products.length, 0);
+
+  const species = filterAndRankShopProducts({
+    accountCountry: "US",
+    products: [catBrush],
+    query: "fur",
+    selectedPet: profile({ species: "dog" }),
+  });
+  assert.equal(species.emptyState, "no_match");
+  assert.equal(species.products.length, 0);
+
+  const ingredientVerification = filterAndRankShopProducts({
+    accountCountry: "US",
+    products: [unverifiedSensitiveShampoo],
+    query: "dirty fragrance",
+    selectedPet: profile({ species: "dog" }),
+  });
+  assert.equal(ingredientVerification.emptyState, "ingredient_verification_empty");
+  assert.equal(ingredientVerification.ingredientVerificationRemovedMatches, true);
+  assert.equal(ingredientVerification.products.length, 0);
+});
+
+test("shop search returns specificity state for vague queries without showing products", () => {
+  const result = filterAndRankShopProducts({
+    accountCountry: "US",
+    products: [groomingFixture()],
+    query: "anything",
+    selectedPet: profile({ species: "dog" }),
+  });
+
+  assert.equal(result.emptyState, "vague_query");
+  assert.deepEqual(result.products, []);
 });

@@ -126,6 +126,7 @@ test("static_real ingredient verification only marks structured ingredient metad
     "hills-science-diet-adult-dog-chicken-barley",
     "purina-cat-chow-complete-chicken",
     "hills-science-diet-adult-cat-chicken",
+    "earthbath-oatmeal-aloe-shampoo",
     "greenies-original-regular-dog-dental-treats",
   ]);
 
@@ -135,6 +136,9 @@ test("static_real ingredient verification only marks structured ingredient metad
       verifiedProductIds.has(product.id),
       `${product.id} has unexpected ingredientsVerified default`,
     );
+    if (product.ingredientsVerified) {
+      assert.ok(product.verifiedIngredients?.length, `${product.id} missing verifiedIngredients`);
+    }
   }
 });
 

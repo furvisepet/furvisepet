@@ -109,6 +109,18 @@ export const mockProvider: ProductProvider = {
         ? product.avoidIngredientKeywords
         : [],
       safetyNotes: product.safetyNotes,
+      sourceUrl: product.sourceUrl,
+      verifiedProductPageUrl: product.verifiedProductPageUrl,
+      verifiedDescription: product.verifiedDescription,
+      verifiedIngredients: Array.isArray(product.verifiedIngredients)
+        ? product.verifiedIngredients
+        : undefined,
+      verifiedDirections: product.verifiedDirections,
+      verifiedWarnings: Array.isArray(product.verifiedWarnings)
+        ? product.verifiedWarnings
+        : undefined,
+      verificationSource: product.verificationSource,
+      enrichmentStatus: product.enrichmentStatus || "none",
       lastVerifiedAt: product.lastVerifiedAt,
       priceVerifiedAt: product.priceVerifiedAt,
       sourceNote: product.sourceNote,

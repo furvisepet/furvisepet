@@ -11,7 +11,7 @@ const appNavItems = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/pets", label: "Pets" },
-  { href: "/shop", label: "Shop" },
+  { href: "/shop", label: "Products" },
   { href: "/care-log", label: "Care history" },
   { href: "/ask", label: "Ask Furvise" },
 ] as const;

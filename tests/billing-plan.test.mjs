@@ -17,6 +17,9 @@ import {
   readAskUsageCount,
 } from "../app/lib/billing/ask-usage.ts";
 import {
+  getProductAiUsageStatus,
+  incrementProductAiUsage,
+  readProductAiUsageCount,
   getShopSearchUsageMonthKey,
   getShopSearchUsageStatus,
   incrementShopSearchUsage,
@@ -48,7 +51,7 @@ function createShopUsageSupabase(rows = []) {
   return {
     store,
     from(table) {
-      assert.equal(table, "shop_search_usage");
+      assert.equal(table, "product_ai_usage");
       return new Query(store);
     },
   };
@@ -120,12 +123,14 @@ test("plan capabilities define generous free and future plus limits", () => {
   assert.equal(free.dashboard, true);
   assert.equal(free.curatedProducts, true);
   assert.equal(free.askFurviseMonthlyLimit, 20);
-  assert.equal(free.shopSearchMonthlyLimit, 20);
+  assert.equal(free.productsAiMonthlyLimit, 80);
+  assert.equal(free.shopSearchMonthlyLimit, 80);
+  assert.equal(free.productQuestionMonthlyLimit, 80);
   assert.equal(free.longHistoryPatternDetection, false);
   assert.equal(free.vetPrepExports, false);
   assert.equal(free.liveProductResearch, false);
   assert.equal(plus.askFurviseMonthlyLimit, 200);
-  assert.equal(plus.shopSearchMonthlyLimit, 200);
+  assert.equal(plus.productsAiMonthlyLimit, 80);
   assert.equal(plus.longHistoryPatternDetection, true);
   assert.equal(plus.vetPrepExports, true);
   assert.equal(plus.liveProductResearch, true);
@@ -167,15 +172,15 @@ test("Ask Furvise usage gate allows 20 free messages and early access bypass", (
   assert.match(early.softNotice || "", /extra Ask Furvise messages/);
 });
 
-test("Shop search usage gate allows 20 free AI interpretations and early access bypass", () => {
-  assert.equal(evaluateShopSearchUsageLimit({ monthlyCount: 19, planId: "free", earlyAccessUnlocked: false }).allowed, true);
-  const blocked = evaluateShopSearchUsageLimit({ monthlyCount: 20, planId: "free", earlyAccessUnlocked: false });
+test("Products AI usage gate allows 80 free AI uses and early access bypass", () => {
+  assert.equal(evaluateShopSearchUsageLimit({ monthlyCount: 79, planId: "free", earlyAccessUnlocked: false }).allowed, true);
+  const blocked = evaluateShopSearchUsageLimit({ monthlyCount: 80, planId: "free", earlyAccessUnlocked: false });
   assert.equal(blocked.hardBlocked, true);
   assert.equal(blocked.remaining, 0);
-  assert.match(blocked.message || "", /included Shop searches/);
-  const early = evaluateShopSearchUsageLimit({ monthlyCount: 30, planId: "free", earlyAccessUnlocked: true });
+  assert.match(blocked.message || "", /included Product AI/);
+  const early = evaluateShopSearchUsageLimit({ monthlyCount: 81, planId: "free", earlyAccessUnlocked: true });
   assert.equal(early.allowed, true);
-  assert.match(early.softNotice || "", /extra Shop searches/);
+  assert.match(early.softNotice || "", /extra Product AI uses/);
 });
 
 test("Ask usage reads current month, increments successful answers, and resets by month key", async () => {
@@ -239,37 +244,39 @@ test("Ask usage treats a missing monthly row as zero for new users", async () =>
   assert.equal(supabase.store.length, 0);
 });
 
-test("Shop search usage increments only fresh AI interpretations and resets by month key", async () => {
+test("Products AI usage increments fresh AI work and resets by month key", async () => {
   const supabase = createShopUsageSupabase([
-    { user_id: "user-1", month_key: "2026-06", count: 20 },
-    { user_id: "user-1", month_key: "2026-07", count: 2 },
+    { user_id: "user-1", month_key: "2026-06", used_count: 20 },
+    { user_id: "user-1", month_key: "2026-07", used_count: 2 },
   ]);
 
   assert.equal(getShopSearchUsageMonthKey(new Date("2026-07-22T12:00:00Z")), "2026-07");
-  const status = await getShopSearchUsageStatus({
+  const status = await getProductAiUsageStatus({
     earlyAccessUnlocked: false,
-    monthlyLimit: getPlanCapabilities("free").shopSearchMonthlyLimit,
+    monthlyLimit: getPlanCapabilities("free").productsAiMonthlyLimit,
     monthKey: "2026-07",
     planId: "free",
     supabase,
     userId: "user-1",
   });
   assert.equal(status.count, 2);
-  assert.equal(status.remaining, 18);
+  assert.equal(status.remaining, 78);
 
-  await incrementShopSearchUsage({ monthKey: "2026-07", previousCount: status.count, supabase, userId: "user-1" });
-  assert.equal(await readShopSearchUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 3);
+  await incrementProductAiUsage({ monthKey: "2026-07", previousCount: status.count, supabase, userId: "user-1" });
+  assert.equal(await readProductAiUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 3);
+  await incrementShopSearchUsage({ monthKey: "2026-07", previousCount: 3, supabase, userId: "user-1" });
+  assert.equal(await readShopSearchUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 4);
 
   const reset = await getShopSearchUsageStatus({
     earlyAccessUnlocked: false,
-    monthlyLimit: getPlanCapabilities("free").shopSearchMonthlyLimit,
+    monthlyLimit: getPlanCapabilities("free").productsAiMonthlyLimit,
     monthKey: "2026-08",
     planId: "free",
     supabase,
     userId: "user-1",
   });
   assert.equal(reset.count, 0);
-  assert.equal(reset.remaining, 20);
+  assert.equal(reset.remaining, 80);
 });
 
 test("Ask usage read errors log Supabase details and early access falls back safely", async () => {

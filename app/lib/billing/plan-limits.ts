@@ -8,6 +8,8 @@ export type PlanLimits = {
   liveProductResearch: boolean;
   longHistoryPatternDetection: boolean;
   maxPets: number;
+  productQuestionMonthlyLimit: number;
+  productsAiMonthlyLimit: number;
   shopSearchMonthlyLimit: number;
   vetPrepExports: boolean;
 };
@@ -31,7 +33,9 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     liveProductResearch: false,
     longHistoryPatternDetection: false,
     maxPets: 1,
-    shopSearchMonthlyLimit: 20,
+    productQuestionMonthlyLimit: 80,
+    productsAiMonthlyLimit: 80,
+    shopSearchMonthlyLimit: 80,
     vetPrepExports: false,
   },
   plus: {
@@ -44,7 +48,9 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     liveProductResearch: true,
     longHistoryPatternDetection: true,
     maxPets: 10,
-    shopSearchMonthlyLimit: 200,
+    productQuestionMonthlyLimit: 80,
+    productsAiMonthlyLimit: 80,
+    shopSearchMonthlyLimit: 80,
     vetPrepExports: true,
   },
 };
@@ -152,25 +158,27 @@ export function evaluateShopSearchUsageLimit({
   planId: PlanId;
 }): GateDecision & { limit: number; remaining: number } {
   const plan = getPlanCapabilities(planId);
-  const remaining = Math.max(0, plan.shopSearchMonthlyLimit - monthlyCount);
-  if (monthlyCount < plan.shopSearchMonthlyLimit) {
-    return { allowed: true, hardBlocked: false, limit: plan.shopSearchMonthlyLimit, message: null, remaining, softNotice: null };
+  const remaining = Math.max(0, plan.productsAiMonthlyLimit - monthlyCount);
+  if (monthlyCount < plan.productsAiMonthlyLimit) {
+    return { allowed: true, hardBlocked: false, limit: plan.productsAiMonthlyLimit, message: null, remaining, softNotice: null };
   }
 
-  const message = "You've used your included Shop searches for this month.";
+  const message = "You've used your included Product AI for this month.";
   if (earlyAccessUnlocked) {
     return {
       allowed: true,
       hardBlocked: false,
-      limit: plan.shopSearchMonthlyLimit,
+      limit: plan.productsAiMonthlyLimit,
       message: null,
       remaining: 0,
-      softNotice: "Early access: extra Shop searches are currently unlocked.",
+      softNotice: "Early access: extra Product AI uses are currently unlocked.",
     };
   }
 
-  return { allowed: false, hardBlocked: true, limit: plan.shopSearchMonthlyLimit, message, remaining: 0, softNotice: null };
+  return { allowed: false, hardBlocked: true, limit: plan.productsAiMonthlyLimit, message, remaining: 0, softNotice: null };
 }
+
+export const evaluateProductsAiUsageLimit = evaluateShopSearchUsageLimit;
 
 export function getPaidGateMessage(capability: "liveProductResearch" | "longHistoryPatternDetection" | "vetPrepExports") {
   if (capability === "longHistoryPatternDetection") {
