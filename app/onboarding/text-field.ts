@@ -1,4 +1,4 @@
-import type { DogProfile } from "../lib/petwise";
+import type { PetProfile } from "../lib/petwise";
 
 type TextFieldKey = "currentFood";
 
@@ -14,28 +14,28 @@ const TEXT_FIELD_CONFIG: Record<TextFieldKey, TextFieldConfig> = {
   },
 };
 
-export function beginTextFieldEntry(field: TextFieldKey): Partial<DogProfile> {
+export function beginTextFieldEntry(field: TextFieldKey): Partial<PetProfile> {
   const config = TEXT_FIELD_CONFIG[field];
   return {
     [config.unknownKey]: false,
-  } as Partial<DogProfile>;
+  } as Partial<PetProfile>;
 }
 
-export function markTextFieldUnknown(field: TextFieldKey): Partial<DogProfile> {
+export function markTextFieldUnknown(field: TextFieldKey): Partial<PetProfile> {
   const config = TEXT_FIELD_CONFIG[field];
   return {
     [config.unknownKey]: true,
     [config.valueKey]: "",
-  } as Partial<DogProfile>;
+  } as Partial<PetProfile>;
 }
 
 export function updateTextFieldValue(
   field: TextFieldKey,
   value: string,
-): Partial<DogProfile> {
+): Partial<PetProfile> {
   const config = TEXT_FIELD_CONFIG[field];
   return {
     [config.unknownKey]: false,
     [config.valueKey]: value,
-  } as Partial<DogProfile>;
+  } as Partial<PetProfile>;
 }

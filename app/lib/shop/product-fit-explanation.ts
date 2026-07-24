@@ -1,5 +1,5 @@
 import type { PetMemoryContext } from "../pet-memory";
-import type { MockProduct } from "../petwise";
+import { getProductSpeciesLabel, type MockProduct } from "../petwise";
 import type { ShopQueryInterpretation } from "../shop-query";
 
 export const shopProductFitExplanationSystemPrompt = [
@@ -165,7 +165,7 @@ function buildSalesBodyParagraphs({
   const reactionProductLabel = product.category === "grooming" ? "grooming products" : "similar products";
   const isShampoo = product.category === "grooming" && product.subcategory === "shampoo";
   if (isShampoo) {
-    const speciesLabel = product.species === "all" ? "pet" : product.species;
+    const speciesLabel = getProductSpeciesLabel(product);
     return normalizeBodyParagraphs([
       `${displayName} may make sense for ${petName} because it is a ${speciesLabel} shampoo for routine bathing and gentle coat cleaning. It is a better fit for grooming questions than dental, food, or flea concerns.`,
       `Review the label before using it, especially if ${petName} has sensitive skin or has reacted to shampoos before. Stop using it if irritation appears or worsens.`,

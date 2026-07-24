@@ -105,12 +105,12 @@ test("new pet onboarding uses a four-step first result flow while edit keeps ful
   assert.match(source, /mode === "new" \? steps\.filter\(\(step\) => newPetStepKeys\.has\(step\.key\)\) : steps/);
   assert.match(source, /const activeSteps = useMemo\(\(\) => getActiveOnboardingSteps\(onboardingMode\), \[onboardingMode\]\);/);
   assert.match(source, /const invalidStep = activeSteps\.find\(\(step\) => getStepError\(profile, step\.key\)\);/);
-  assert.match(source, /saveDogProfileForUser\(profile, user, profileIdForUpdate\)/);
+  assert.match(source, /savePetProfileForUser\(profile, user, profileIdForUpdate\)/);
   assert.match(source, /router\.push\(`\/results\?profileId=\$\{encodeURIComponent\(savedProfileId\)\}`\);/);
   assert.match(source, /isSummary \? "Profile ready" : `Step \$\{activeStepIndex \+ 1\} of \$\{activeSteps\.length\}`/);
   assert.doesNotMatch(source, /setOnboardingMode\("recommend_existing"\)/);
   assert.ok(source.indexOf('"mainConcern"') < source.indexOf('Review {profile.name.trim() || "your pet"}&apos;s profile'));
-  assert.ok(source.indexOf('router.push(`/results?profileId=${encodeURIComponent(savedProfileId)}`);') > source.indexOf("const savedProfile = await saveDogProfileForUser"));
+  assert.ok(source.indexOf('router.push(`/results?profileId=${encodeURIComponent(savedProfileId)}`);') > source.indexOf("const savedProfile = await savePetProfileForUser"));
   assert.ok(source.indexOf('router.push(`/results?profileId=${encodeURIComponent(savedProfileId)}`);') > source.indexOf("if (!savedProfileId)"));
 });
 

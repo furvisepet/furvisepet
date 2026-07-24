@@ -34,6 +34,21 @@ test("Shop route renders protected query-first product discovery", () => {
   assert.match(source, /setInvalidPetParam\(Boolean\(requestedPetId && !requestedProfile\)\)/);
 });
 
+test("Products renders a compact result count and cards without compare UI", () => {
+  const source = read("app/shop/page.tsx");
+  const shopResults = source.slice(
+    source.indexOf("function ShopResults"),
+    source.indexOf("function ProductCard"),
+  );
+
+  assert.match(shopResults, /<div className="grid min-w-0 gap-4">/);
+  assert.match(shopResults, /formatProductResultCount\(products\.length\)/);
+  assert.match(shopResults, /products\.map\(\(product\) => \(/);
+  assert.match(shopResults, /<ProductCard/);
+  assert.doesNotMatch(shopResults, /compare|comparison/i);
+  assert.doesNotMatch(source, /ProductComparisonPanel|Compare these products|product-comparison/);
+});
+
 test("Shop entry points link to pet-scoped Shop without inline product displays", () => {
   const dashboard = read("app/dashboard/page.tsx");
   const petProfile = read("app/pets/[id]/page.tsx");
@@ -70,7 +85,7 @@ test("Shop search uses static curated catalog filters and no OpenAI or live impo
 test("Shop safety and empty states use modest non-commercial copy", () => {
   const source = read("app/shop/page.tsx");
   const results = read("app/results/page.tsx");
-  const productCard = source.slice(source.indexOf("function ProductCard"), source.indexOf("function ProductComparisonPanel"));
+  const productCard = source.slice(source.indexOf("function ProductCard"), source.indexOf("function ProductFitExplanationPanel"));
 
   assert.match(source, /Product shopping is hidden for now/);
   assert.match(source, /This pet has urgent care signs\. Contact a veterinarian or emergency clinic before shopping for products\./);

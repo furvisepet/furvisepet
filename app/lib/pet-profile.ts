@@ -153,7 +153,7 @@ export function buildPetProfileNextStep({
   const speciesMissing = completeness.missingFields.includes("species");
   if (speciesMissing) {
     return {
-      actionHref: `/dogs/${profile.id}/edit#species`,
+      actionHref: `/pets/${profile.id}/edit#species`,
       actionLabel: "Add species",
       description: "Species helps Furvise separate dog and cat care and product suitability.",
       kind: "missing_profile_information",
@@ -164,7 +164,7 @@ export function buildPetProfileNextStep({
   const missingMainConcern = completeness.missingFields.includes("main concern");
   if (missingMainConcern) {
     return {
-      actionHref: `/dogs/${profile.id}/edit#main-concern`,
+      actionHref: `/pets/${profile.id}/edit#main-concern`,
       actionLabel: "Add concern",
       description: "A specific concern helps Furvise make more useful care suggestions.",
       kind: "missing_profile_information",
@@ -303,7 +303,7 @@ function getPrioritizedActionField(fields: string[]) {
 function buildProfileActionNextStep(profile: DogProfileWithMemories, name: string, field: string): PetProfileNextStep {
   if (field === "weight") {
     return {
-      actionHref: `/dogs/${profile.id}/edit#weight`,
+      actionHref: `/pets/${profile.id}/edit#weight`,
       actionLabel: "Add weight",
       description:
         "Weight helps Furvise estimate food cost, portion context, and care guidance more accurately.",
@@ -314,7 +314,7 @@ function buildProfileActionNextStep(profile: DogProfileWithMemories, name: strin
 
   if (field === "current food") {
     return {
-      actionHref: `/dogs/${profile.id}/edit#current-food`,
+      actionHref: `/pets/${profile.id}/edit#current-food`,
       actionLabel: "Add current food",
       description: "Current food helps Furvise compare options and explain product guidance.",
       kind: "missing_profile_information",
@@ -324,7 +324,7 @@ function buildProfileActionNextStep(profile: DogProfileWithMemories, name: strin
 
   if (field === "age") {
     return {
-      actionHref: `/dogs/${profile.id}/edit#age`,
+      actionHref: `/pets/${profile.id}/edit#age`,
       actionLabel: "Add age",
       description: "Age gives Furvise more context for care and product guidance.",
       kind: "missing_profile_information",
@@ -334,7 +334,7 @@ function buildProfileActionNextStep(profile: DogProfileWithMemories, name: strin
 
   if (field === "breed or mixed/unknown") {
     return {
-      actionHref: `/dogs/${profile.id}/edit#breed`,
+      actionHref: `/pets/${profile.id}/edit#breed`,
       actionLabel: "Add breed",
       description: "Breed helps Furvise tailor breed-sensitive care guidance.",
       kind: "missing_profile_information",
@@ -344,7 +344,7 @@ function buildProfileActionNextStep(profile: DogProfileWithMemories, name: strin
 
   if (field === "monthly care budget") {
     return {
-      actionHref: `/dogs/${profile.id}/edit#budget`,
+      actionHref: `/pets/${profile.id}/edit#budget`,
       actionLabel: "Add budget",
       description: "Care budget helps Furvise compare options and estimate monthly cost more accurately.",
       kind: "missing_profile_information",
@@ -353,7 +353,7 @@ function buildProfileActionNextStep(profile: DogProfileWithMemories, name: strin
   }
 
   return {
-    actionHref: `/dogs/${profile.id}/edit`,
+    actionHref: `/pets/${profile.id}/edit`,
     actionLabel: "Complete profile",
     description: `Add ${formatList([field])} so Furvise can provide more useful guidance.`,
     kind: "missing_profile_information",

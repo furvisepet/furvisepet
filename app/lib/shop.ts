@@ -2,7 +2,7 @@ import type { PetWiseAnalysis } from "./ai-analysis";
 import type { ShopQueryInterpretation } from "./shop-query";
 import type { CareEntryRow } from "./supabase";
 import {
-  type DogProfile,
+  type PetProfile,
   type MockProduct,
   type ProductCountry,
 } from "./petwise";
@@ -29,7 +29,7 @@ export function searchStaticRealShopProducts({
   includeDiagnostics?: boolean;
   interpretation?: ShopQueryInterpretation | null;
   productCountry: ProductCountry;
-  profile: DogProfile | null;
+  profile: PetProfile | null;
   query: string;
 }): ShopSearchResult {
   return filterAndRankShopProducts({

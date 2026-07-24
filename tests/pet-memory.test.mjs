@@ -5,6 +5,7 @@ import {
   buildDashboardNextStep,
   buildPetMemoryContext,
   buildResultsUnderstanding,
+  buildVetPrepSummary,
   getEntriesInDateRange,
   shouldUseGroundedAskFallback,
   summarizeFoodNotes,
@@ -145,6 +146,26 @@ test("pet memory builder creates one structured context from saved profile rows"
   assert.ok(memory.derived.missingContext.length === 0);
   assert.ok(memory.derived.recentChanges.some((item) => /Ate normally/.test(item)));
   assert.ok(memory.derived.recurringConcerns.some((item) => /Food or appetite/i.test(item)));
+});
+
+test("pet memory and Ask vet prep preserve a selected cat species", () => {
+  const memory = buildPetMemoryContext({
+    careEntries: [],
+    now,
+    productFeedback: [],
+    profile: rockyProfile({
+      id: "pet-luna",
+      name: "Luna",
+      species: "cat",
+      breed: "Domestic shorthair",
+    }),
+    savedMemories: [],
+  });
+  const vetPrep = buildVetPrepSummary(memory);
+
+  assert.equal(memory.pet.species, "cat");
+  assert.ok(vetPrep.sections[0].items.includes("Species: cat."));
+  assert.doesNotMatch(JSON.stringify(vetPrep), /your dog|dog owner/i);
 });
 
 test("pet memory builder derives missing context and urgent safety flags", () => {

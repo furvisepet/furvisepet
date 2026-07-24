@@ -1,42 +1,49 @@
 import type { Metadata } from "next";
 import { HomepageClient } from "./components/homepage-client";
-
-const title = "Furvise, Pet Care History, Notes, and Guidance";
-const description =
-  "Furvise keeps your pet's care history connected, profiles, care updates, saved details, vet-prep notes, and focused guidance in one private place.";
-const canonicalUrl = "https://furvise.com";
+import {
+  CANONICAL_ORIGIN,
+  HOME_TITLE,
+  SOCIAL_DESCRIPTION,
+  canonicalUrl,
+  createPublicPageMetadata,
+} from "./lib/seo";
 
 export const metadata: Metadata = {
-  title,
-  description,
-  alternates: {
-    canonical: canonicalUrl,
-  },
-  openGraph: {
-    title,
-    description,
-    url: canonicalUrl,
-    siteName: "Furvise",
-    type: "website",
-  },
-  twitter: {
-    card: "summary",
-    title,
-    description,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-snippet": -1,
-      "max-image-preview": "large",
-      "max-video-preview": -1,
-    },
-  },
+  ...createPublicPageMetadata({
+    title: HOME_TITLE,
+    description: SOCIAL_DESCRIPTION,
+    path: "/",
+  }),
+  title: { absolute: HOME_TITLE },
 };
 
+const structuredData = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Furvise",
+    url: canonicalUrl(),
+    description: SOCIAL_DESCRIPTION,
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Furvise",
+    url: canonicalUrl(),
+    logo: `${CANONICAL_ORIGIN}/brand/furvise-logo.png`,
+  },
+];
+
 export default function HomePage() {
-  return <HomepageClient />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
+      <HomepageClient />
+    </>
+  );
 }

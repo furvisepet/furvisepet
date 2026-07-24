@@ -142,7 +142,7 @@ export function buildNextSteps(
 
     if (profileActionFields.length > 0) {
       steps.push({
-        actionHref: `/dogs/${profile.id}/edit`,
+        actionHref: `/pets/${profile.id}/edit`,
         actionLabel: "Finish profile",
         description: `Add ${formatList(profileActionFields)} when you are ready so Furvise has richer context.`,
         petName: displayName,
@@ -168,7 +168,7 @@ export function buildNextSteps(
 
     if (hasNoRecentCareUpdate(profile, careEntriesByPetId)) {
       steps.push({
-        actionHref: `/dogs/${profile.id}/memories`,
+        actionHref: `/pets/${profile.id}/memories`,
         actionLabel: "View memories",
         description: "No recent care update is recorded for this profile yet.",
         petName: displayName,

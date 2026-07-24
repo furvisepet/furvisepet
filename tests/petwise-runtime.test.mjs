@@ -107,8 +107,8 @@ test("dog and cat contexts remain explicit and distinct", () => {
   });
   assert.equal(dog.speciesGate, false);
   assert.equal(cat.speciesGate, false);
-  assert.ok(dog.recommendations.every((item) => item.product?.species === "dog"));
-  assert.ok(cat.recommendations.every((item) => item.product?.species === "cat"));
+  assert.ok(dog.recommendations.every((item) => item.product?.species.includes("dog")));
+  assert.ok(cat.recommendations.every((item) => item.product?.species.includes("cat")));
 });
 
 test("dog never receives cat products and cat never receives dog products", () => {
@@ -127,8 +127,8 @@ test("dog never receives cat products and cat never receives dog products", () =
 
   assert.ok(dog.recommendations.length > 0);
   assert.ok(cat.recommendations.length > 0);
-  assert.ok(dog.recommendations.every((item) => item.product?.species === "dog"));
-  assert.ok(cat.recommendations.every((item) => item.product?.species === "cat"));
+  assert.ok(dog.recommendations.every((item) => item.product?.species.includes("dog")));
+  assert.ok(cat.recommendations.every((item) => item.product?.species.includes("cat")));
 });
 
 test("general wellness asks for a focused goal instead of broad products", () => {
@@ -185,7 +185,7 @@ test("nutrition goal asks for a nutrition focus before switching established foo
     nutritionGoal: "lower_cost",
   });
   assert.ok(lowerCost.recommendations.every((item) => item.product?.category === "food"));
-  assert.ok(lowerCost.recommendations.every((item) => item.product?.species === "dog"));
+  assert.ok(lowerCost.recommendations.every((item) => item.product?.species.includes("dog")));
 
   const catLowerCost = buildRecommendations(
     filledProfile({ species: "cat", mainConcern: "General wellness" }),
@@ -195,7 +195,7 @@ test("nutrition goal asks for a nutrition focus before switching established foo
       nutritionGoal: "lower_cost",
     },
   );
-  assert.ok(catLowerCost.recommendations.every((item) => item.product?.species === "cat"));
+  assert.ok(catLowerCost.recommendations.every((item) => item.product?.species.includes("cat")));
 });
 
 test("unknown product species is excluded from food matching", () => {
@@ -209,7 +209,7 @@ test("unknown product species is excluded from food matching", () => {
 });
 
 test("no cat products falls back to no products instead of dog food", () => {
-  const catFoodCatalog = mockProducts.filter((product) => product.species !== "cat");
+  const catFoodCatalog = mockProducts.filter((product) => !product.species.includes("cat"));
   assert.equal(hasSpeciesCompatibleFoodProducts("cat", catFoodCatalog), false);
 });
 
@@ -232,17 +232,17 @@ test("mock provider normalizes and filters species-compatible demo products", ()
   assert.equal(normalized.recommendationKind, "product");
   assert.equal(normalized.price, 27);
   assert.equal(normalized.estimatedMonthlyCost, 27);
-  assert.equal(normalized.species, "cat");
+  assert.deepEqual(normalized.species, ["cat"]);
 
   const catalog = mockProvider.searchProducts({ profile: filledProfile({ species: "cat" }) });
   assert.ok(catalog.length > 0);
   assert.ok(catalog.every((product) => isSpeciesCompatibleProduct(product, "cat")));
-  assert.ok(catalog.every((product) => product.category !== "food" || product.species === "cat"));
+  assert.ok(catalog.every((product) => product.category !== "food" || product.species.includes("cat")));
 
   const dogCatalog = mockProvider.searchProducts({ profile: filledProfile({ species: "dog" }) });
   assert.ok(dogCatalog.length > 0);
   assert.ok(dogCatalog.every((product) => isSpeciesCompatibleProduct(product, "dog")));
-  assert.ok(dogCatalog.every((product) => product.category !== "food" || product.species === "dog"));
+  assert.ok(dogCatalog.every((product) => product.category !== "food" || product.species.includes("dog")));
 });
 
 test("disabled live provider is safe to call and returns no results", () => {
@@ -268,8 +268,8 @@ test("static real provider returns curated species-compatible products", () => {
   assert.ok(dogCatalog.length > 0);
   assert.ok(catCatalog.every((product) => isSpeciesCompatibleProduct(product, "cat")));
   assert.ok(dogCatalog.every((product) => isSpeciesCompatibleProduct(product, "dog")));
-  assert.ok(catCatalog.every((product) => product.category !== "food" || product.species === "cat"));
-  assert.ok(dogCatalog.every((product) => product.category !== "food" || product.species === "dog"));
+  assert.ok(catCatalog.every((product) => product.category !== "food" || product.species.includes("cat")));
+  assert.ok(dogCatalog.every((product) => product.category !== "food" || product.species.includes("dog")));
   assert.ok(catCatalog.some((product) => product.productUrl && product.evidenceType === "curated_static"));
 
   const catNutrition = buildRecommendations(
@@ -279,7 +279,7 @@ test("static real provider returns curated species-compatible products", () => {
     catCatalog,
   );
   assert.ok(catNutrition.recommendations.length > 0);
-  assert.ok(catNutrition.recommendations.every((item) => item.product?.species === "cat"));
+  assert.ok(catNutrition.recommendations.every((item) => item.product?.species.includes("cat")));
 });
 
 test("product link info distinguishes live links from demo products", () => {

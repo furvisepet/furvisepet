@@ -186,7 +186,7 @@ test("product question fallback gives rich itchy paws buyer guidance", () => {
 
   assert.match(answer.sections.directAnswer, /worth considering as a gentle bath-time option/i);
   assert.match(answer.sections.directAnswer, /itchy paws/i);
-  assert.match(answer.sections.directAnswer, /Some dogs can still react to shampoos/i);
+  assert.match(answer.sections.directAnswer, /Some pets can still react to shampoos/i);
   assert.match(answer.sections.directAnswer, /more red, itchy, or uncomfortable/i);
   assert.doesNotMatch(answer.sections.directAnswer, /Probably yes|should be fine|should be okay|helps itchy paws|safe for itchy paws|product data|verified fields/i);
   assert.match(answer.sections.whyItMayFit, /dirt, dryness, or general coat and skin irritation/i);
@@ -307,7 +307,7 @@ test("product question fallback answers food without-water questions safely", ()
     question: "can i give it without water",
   });
 
-  assert.match(answer.sections.directAnswer, /serve dry dog food dry/i);
+  assert.match(answer.sections.directAnswer, /serve dry pet food dry/i);
   assert.match(answer.sections.directAnswer, /should not replace water/i);
   assert.match(answer.sections.directAnswer, /Keep fresh water available for Rocky whenever eating/i);
   assert.match(answer.sections.directAnswer, /package directions/i);
@@ -793,7 +793,7 @@ test("product question usage spends the shared Products AI pool", async () => {
 
 test("product question UI opens from a compact product card action and only submits on question action", () => {
   const page = read("app/shop/page.tsx");
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductComparisonPanel"));
+  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
   const questionPanel = page.slice(page.indexOf("function ProductQuestionPanel"), page.indexOf("function EmptyState"));
   const askHandler = page.slice(page.indexOf("async function askProductQuestion"), page.indexOf("async function interpretSubmittedQuery"));
   const submitSearch = page.slice(page.indexOf("function submitSearch"), page.indexOf("function resetInterpretation"));

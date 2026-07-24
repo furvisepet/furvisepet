@@ -71,7 +71,7 @@ const safetyFollowupSystemPrompt = [
   "When decision is pause_products or urgent_vet, safeToShowProducts must be false.",
   "Do not recommend medication, dosage, supplements, treatments, brands, prices, links, or product data.",
   "memorySuggestions should include only durable owner-reported observations or preferences from the follow-up answers. Do not include missing, unknown, vague, or temporary safety-only details.",
-  "Keep summary and reasons concise and suitable for display to a dog owner.",
+  "Keep summary and reasons concise and suitable for display to a pet owner.",
 ].join("\n");
 
 export class OpenAiAnalysisProvider implements AiAnalysisProvider {

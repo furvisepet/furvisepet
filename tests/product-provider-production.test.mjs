@@ -80,8 +80,8 @@ test("static_real catalog filters species and avoids ingredients before recommen
   const catCatalog = staticRealProvider.searchProducts({ productCountry: "US", profile: profile({ species: "cat" }) });
   const unknownCatalog = staticRealProvider.searchProducts({ productCountry: "US", profile: profile({ species: "" }) });
 
-  assert.ok(dogCatalog.every((product) => product.species === "dog"));
-  assert.ok(catCatalog.every((product) => product.species === "cat"));
+  assert.ok(dogCatalog.every((product) => product.species.includes("dog")));
+  assert.ok(catCatalog.every((product) => product.species.includes("cat")));
   assert.equal(unknownCatalog.length, 0);
 
   const chickenAvoid = ["CHICKEN"].map((item) => item.toLowerCase());
@@ -224,8 +224,8 @@ test("country filtering combines with species and avoid ingredient filtering", (
 
   assert.ok(usDogCatalog.length > 0);
   assert.ok(usCatCatalog.length > 0);
-  assert.ok(usDogCatalog.every((product) => product.species === "dog" && product.availableCountries?.includes("US")));
-  assert.ok(usCatCatalog.every((product) => product.species === "cat" && product.availableCountries?.includes("US")));
+  assert.ok(usDogCatalog.every((product) => product.species.includes("dog") && product.availableCountries?.includes("US")));
+  assert.ok(usCatCatalog.every((product) => product.species.includes("cat") && product.availableCountries?.includes("US")));
   assert.equal(caDogCatalog.length, 0);
 
   const result = buildRecommendations(

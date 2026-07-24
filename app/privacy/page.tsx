@@ -1,4 +1,15 @@
+import type { Metadata } from "next";
 import { AppPage } from "../components/app-page";
+import { createPublicPageMetadata } from "../lib/seo";
+
+const description =
+  "Read how Furvise handles the account and pet care details you choose to save.";
+
+export const metadata: Metadata = createPublicPageMetadata({
+  title: "Privacy",
+  description,
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

@@ -47,6 +47,8 @@ export type DogProfileRow = {
   updated_at: string;
 };
 
+export type PetProfileRow = DogProfileRow;
+
 export type DogMemoryRow = {
   id: string;
   user_id: string;
@@ -57,6 +59,8 @@ export type DogMemoryRow = {
   source: string | null;
   created_at: string;
 };
+
+export type PetMemoryRow = DogMemoryRow;
 
 export type ProductFeedbackType =
   | "saved"
@@ -76,6 +80,8 @@ export type DogProductFeedbackRow = {
   note: string | null;
   created_at: string;
 };
+
+export type PetProductFeedbackRow = DogProductFeedbackRow;
 
 export type UserProfileRow = {
   user_id: string;
@@ -133,6 +139,8 @@ export type DogProfileWithMemories = DogProfileRow & {
   dog_memories: DogMemoryRow[];
   dog_product_feedback?: DogProductFeedbackRow[];
 };
+
+export type PetProfileWithMemories = DogProfileWithMemories;
 
 export type MemoryInput = {
   type: string;
@@ -827,6 +835,17 @@ export function dogProfileRowToDraft(row: DogProfileRow): DogProfile {
     monthlyBudget: row.monthly_budget === null ? "" : String(row.monthly_budget),
   });
 }
+
+// Generic application aliases keep the current tables compatible while callers migrate away from dog-only names.
+export const countPetProfilesForUser = countDogProfilesForUser;
+export const deletePetProfileForUser = deleteDogProfileForUser;
+export const loadPetProductFeedbackForUser = loadDogProductFeedbackForUser;
+export const loadPetProfileForUser = loadDogProfileForUser;
+export const loadPetProfilesWithMemories = loadDogProfilesWithMemories;
+export const loadPetProfileWithMemoriesForUser = loadDogProfileWithMemoriesForUser;
+export const petProfileRowToDraft = dogProfileRowToDraft;
+export const savePetMemories = saveDogMemories;
+export const savePetProfileForUser = saveDogProfileForUser;
 
 function toDogProfilePayload(profile: DogProfile, userId: string) {
   return buildDogProfilePayload(profile, userId);

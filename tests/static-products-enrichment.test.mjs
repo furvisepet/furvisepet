@@ -99,6 +99,28 @@ test("curated catalog IDs are unique and products do not carry prices", () => {
   }
 });
 
+test("curated products use explicit species arrays and retain a small sourced cat set", () => {
+  for (const product of staticRealProducts) {
+    assert.ok(Array.isArray(product.species), product.id);
+    assert.ok(product.species.length > 0, product.id);
+    assert.ok(product.species.every((species) => species === "dog" || species === "cat"), product.id);
+  }
+
+  const catOnly = staticRealProducts.filter(
+    (product) => product.species.length === 1 && product.species[0] === "cat",
+  );
+  assert.deepEqual(catOnly.map((product) => product.id), [
+    "purina-cat-chow-complete-chicken",
+    "hills-science-diet-adult-cat-chicken",
+    "furminator-cat-deshedding-tool",
+  ]);
+  assert.ok(catOnly.every((product) => product.availableCountries.length && product.sourceUrl));
+
+  const shared = staticRealProducts.filter((product) => product.species.length === 2);
+  assert.ok(shared.length > 0);
+  assert.ok(shared.every((product) => product.species.includes("dog") && product.species.includes("cat")));
+});
+
 test("Earthbath enrichment uses verified label fields and not name-derived ingredients", () => {
   const earthbath = staticRealProducts.find((product) => product.id === "earthbath-oatmeal-aloe-shampoo");
   assert.ok(earthbath);

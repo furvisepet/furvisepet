@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const siteUrl = "https://furvise.com";
+import { CANONICAL_ORIGIN, canonicalUrl } from "./lib/seo";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -10,6 +9,8 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/account",
         "/ask",
+        "/api",
+        "/care-history",
         "/care-log",
         "/dashboard",
         "/dogs",
@@ -18,10 +19,11 @@ export default function robots(): MetadataRoute.Robots {
         "/onboarding",
         "/pets",
         "/results",
+        "/shop",
         "/update-password",
       ],
     },
-    sitemap: `${siteUrl}/sitemap.xml`,
-    host: siteUrl,
+    sitemap: canonicalUrl("/sitemap.xml"),
+    host: CANONICAL_ORIGIN,
   };
 }

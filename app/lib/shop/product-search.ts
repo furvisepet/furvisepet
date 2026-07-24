@@ -5,11 +5,12 @@ import {
   normalizeProductCountry,
 } from "../product-providers";
 import {
-  type DogProfile,
+  type PetProfile,
   type InternalConcernTag,
   type MockProduct,
   type ProductCategory,
   PRODUCT_SOURCES,
+  isSharedSpeciesProduct,
   normalizeAvoidIngredientValues,
   normalizeIngredient,
   productPassesAvoidIngredientFilter,
@@ -91,7 +92,7 @@ export type FilterAndRankShopProductsInput = {
   products: MockProduct[];
   providerMode?: ProductProviderMode;
   query: string;
-  selectedPet: DogProfile | null;
+  selectedPet: PetProfile | null;
 };
 
 type RankedProduct = {
@@ -336,7 +337,7 @@ export function productMatchesShopQuery(product: MockProduct, query: string) {
 }
 
 export function getNormalizedShopAvoidIngredients(
-  selectedPet: Pick<DogProfile, "avoidIngredients">,
+  selectedPet: Pick<PetProfile, "avoidIngredients">,
   query: string,
   interpretation: ShopQueryInterpretation | null,
 ) {
@@ -360,10 +361,10 @@ export function passesShopIngredientVerification(
 
 export function isShopSpeciesCompatibleProduct(
   product: Pick<MockProduct, "species">,
-  species: DogProfile["species"] | null | undefined,
+  species: PetProfile["species"] | null | undefined,
 ) {
   if (!species) return false;
-  return product.species === species || product.species === "all";
+  return product.species.includes(species);
 }
 
 function buildShopSearchSignals({
@@ -418,8 +419,8 @@ function getShopSearchTokenAlternatives(term: string) {
 }
 
 function matchesSpeciesSearchTerm(product: Pick<MockProduct, "species">, term: string) {
-  if (term === "dog" || term === "canine") return product.species === "dog" || product.species === "all";
-  if (term === "cat" || term === "feline") return product.species === "cat" || product.species === "all";
+  if (term === "dog" || term === "canine") return product.species.includes("dog");
+  if (term === "cat" || term === "feline") return product.species.includes("cat");
   return false;
 }
 
@@ -448,7 +449,7 @@ function isShopRuntimeSafeProduct(
 }
 
 function hasQuerySpeciesConflict(
-  selectedSpecies: DogProfile["species"] | null | undefined,
+  selectedSpecies: PetProfile["species"] | null | undefined,
   query: string,
   interpretation: ShopQueryInterpretation | null,
 ) {
@@ -476,7 +477,7 @@ function rankShopProducts({
   interpretation: ShopQueryInterpretation | null;
   products: MockProduct[];
   query: string;
-  selectedPet: DogProfile;
+  selectedPet: PetProfile;
 }) {
   return products
     .map((product) => ({
@@ -490,13 +491,17 @@ function rankShopProducts({
 function buildProductRanking(
   product: MockProduct,
   query: string,
-  selectedPet: DogProfile,
+  selectedPet: PetProfile,
   interpretation: ShopQueryInterpretation | null,
 ) {
   return [
     scoreCategoryMatch(product, query, interpretation),
     scoreQueryMatch(product, query),
-    product.species === selectedPet.species ? 2 : product.species === "all" ? 1 : 0,
+    selectedPet.species && product.species.length === 1 && product.species.includes(selectedPet.species)
+      ? 2
+      : isSharedSpeciesProduct(product)
+        ? 1
+        : 0,
     product.ingredientsVerified ? 1 : 0,
     sourcePriority[product.source] || 0,
     scoreSecondarySignals(product),
@@ -522,6 +527,7 @@ function scoreCategoryMatch(
   const queryTerms = new Set(tokenizeForSearch(query));
   const productTags = new Set([
     product.category,
+    ...product.species,
     product.subcategory || "",
     ...product.concernTags,
     ...(product.tags || []),

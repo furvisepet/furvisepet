@@ -1,17 +1,60 @@
 import type { Metadata } from "next";
 import { AppearanceProvider } from "./components/appearance-provider";
 import { ThemeBootstrap } from "./components/theme-bootstrap";
+import {
+  CANONICAL_ORIGIN,
+  FURVISE_OG_IMAGE_URL,
+  HOME_DESCRIPTION,
+  HOME_TITLE,
+  SOCIAL_DESCRIPTION,
+} from "./lib/seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://furvise.com"),
-  title: "Furvise, Pet Care History, Notes, and Guidance",
-  description:
-    "Furvise keeps your pet's care history connected, profiles, care updates, saved details, vet-prep notes, and focused guidance in one private place.",
+  metadataBase: new URL(CANONICAL_ORIGIN),
+  applicationName: "Furvise",
+  title: {
+    default: HOME_TITLE,
+    template: "%s | Furvise",
+  },
+  description: HOME_DESCRIPTION,
+  keywords: [
+    "pet care app",
+    "pet care history",
+    "dog care notes",
+    "cat care notes",
+    "pet product guidance",
+    "pet health notes",
+    "vet prep notes",
+  ],
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    title: HOME_TITLE,
+    description: SOCIAL_DESCRIPTION,
+    siteName: "Furvise",
+    type: "website",
+    url: CANONICAL_ORIGIN,
+    images: [
+      {
+        url: FURVISE_OG_IMAGE_URL,
+        width: 1200,
+        height: 630,
+        alt: "Furvise pet care history, notes, products, and guidance",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: HOME_TITLE,
+    description: SOCIAL_DESCRIPTION,
+    images: [FURVISE_OG_IMAGE_URL],
+  },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],

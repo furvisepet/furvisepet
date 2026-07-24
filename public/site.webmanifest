@@ -1,20 +1,20 @@
 {
   "name": "Furvise",
   "short_name": "Furvise",
-  "description": "Furvise keeps your pet care history, notes, and guidance in one private place.",
+  "description": "Pet care history, notes, products, and guidance.",
   "start_url": "/",
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ],
   "theme_color": "#0f1115",

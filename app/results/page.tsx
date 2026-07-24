@@ -456,7 +456,7 @@ function ResultsPageContent() {
               </p>
               <Link
                 className="mt-4 inline-flex rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)]"
-                href={dogProfileId ? `/dogs/${dogProfileId}/edit` : "/onboarding"}
+                href={dogProfileId ? `/pets/${dogProfileId}/edit` : "/onboarding"}
                 onClick={prepareEditProfile}
               >
                 Complete profile
@@ -491,7 +491,7 @@ function ResultsPageContent() {
 
           {dogProfileId && finishProfileItems.length > 0 ? (
             <FinishProfilePrompt
-              editHref={`/dogs/${dogProfileId}/edit`}
+              editHref={`/pets/${dogProfileId}/edit`}
               items={finishProfileItems.map((item) => item.label)}
               name={formatPetDisplayName(profile.name)}
               onPrepareEditProfile={prepareEditProfile}
@@ -649,7 +649,7 @@ function MissingSpeciesPanel({ dogProfileId, name }: { dogProfileId: string; nam
       </p>
       <Link
         className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)]"
-        href={dogProfileId ? `/dogs/${dogProfileId}/edit` : "/onboarding?step=2"}
+        href={dogProfileId ? `/pets/${dogProfileId}/edit` : "/onboarding?step=2"}
       >
         Add species
       </Link>

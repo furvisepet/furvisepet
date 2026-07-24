@@ -60,7 +60,7 @@ export type ProductCountry = "US" | "CA";
 export type ProductVerificationSource = "brand_page" | "retailer_page" | "manual_review" | "feed";
 export type ProductEnrichmentStatus = "none" | "partial" | "verified";
 
-export type DogProfile = {
+export type PetProfile = {
   name: string;
   species: PetSpecies | "";
   breed: string;
@@ -80,6 +80,9 @@ export type DogProfile = {
   wellnessGoal?: WellnessGoal | "";
 };
 
+/** @deprecated Use PetProfile. Kept while the dog_profiles table remains the compatibility store. */
+export type DogProfile = PetProfile;
+
 export type MockProduct = {
   id: string;
   name: string;
@@ -88,7 +91,7 @@ export type MockProduct = {
   productTypeLabel?: string;
   category: ProductCategory;
   subcategory?: string;
-  species: PetSpecies | "all";
+  species: PetSpecies[];
   recommendationKind?: RecommendationKind;
   imageUrl?: string;
   affiliateUrl?: string;
@@ -115,7 +118,7 @@ export type MockProduct = {
   tags?: string[];
   concernTags: InternalConcernTag[];
   excludedIngredients: string[];
-  lifeStage: "puppy" | "adult" | "senior" | "all";
+  lifeStage: "puppy" | "kitten" | "adult" | "senior" | "all";
   bagPrice?: number;
   estimatedMonthlyCost?: number;
   evidenceType?: "demo" | "curated_static";
@@ -243,7 +246,7 @@ export const mockProducts: MockProduct[] = ([
     id: "cedar-salmon-skin",
     name: "Cedar & Tide Salmon Comfort",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Salmon",
     concernTags: ["itchy_skin", "sensitive_skin", "general_wellness"],
     excludedIngredients: ["fish", "grains"],
@@ -258,7 +261,7 @@ export const mockProducts: MockProduct[] = ([
     id: "meadow-lamb-rice",
     name: "Meadow Path Lamb & Rice",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Lamb",
     concernTags: ["general_wellness", "picky_eating"],
     excludedIngredients: ["grains", "egg"],
@@ -273,7 +276,7 @@ export const mockProducts: MockProduct[] = ([
     id: "gentle-turkey-oat",
     name: "Gentle Porch Turkey Oat",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Turkey",
     concernTags: ["sensitive_stomach", "general_wellness"],
     excludedIngredients: ["grains"],
@@ -288,7 +291,7 @@ export const mockProducts: MockProduct[] = ([
     id: "peak-duck-pea",
     name: "Peak Bowl Duck & Pea",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Duck",
     concernTags: ["picky_eating", "sensitive_stomach", "limited_ingredient"],
     excludedIngredients: [],
@@ -303,7 +306,7 @@ export const mockProducts: MockProduct[] = ([
     id: "lean-rabbit-millet",
     name: "Lean Trail Rabbit Millet",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Rabbit",
     concernTags: ["weight_management", "general_wellness"],
     excludedIngredients: ["grains"],
@@ -318,7 +321,7 @@ export const mockProducts: MockProduct[] = ([
     id: "harbor-whitefish",
     name: "Harbor Light Whitefish",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Whitefish",
     concernTags: ["itchy_skin", "sensitive_skin", "picky_eating"],
     excludedIngredients: ["fish", "egg"],
@@ -333,7 +336,7 @@ export const mockProducts: MockProduct[] = ([
     id: "prairie-pork-pumpkin",
     name: "Prairie Spoon Pork Pumpkin",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Pork",
     concernTags: ["sensitive_stomach", "weight_management"],
     excludedIngredients: [],
@@ -348,7 +351,7 @@ export const mockProducts: MockProduct[] = ([
     id: "sunny-chicken-barley",
     name: "Sunny Yard Chicken Barley",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Chicken",
     concernTags: ["general_wellness", "grooming"],
     excludedIngredients: ["chicken", "grains"],
@@ -363,7 +366,7 @@ export const mockProducts: MockProduct[] = ([
     id: "north-venison-lentil",
     name: "North Field Venison Lentil",
     category: "food",
-    species: "dog",
+    species: ["dog"],
     protein: "Venison",
     concernTags: ["itchy_skin", "sensitive_skin", "sensitive_stomach", "limited_ingredient"],
     excludedIngredients: [],
@@ -378,7 +381,7 @@ export const mockProducts: MockProduct[] = ([
     id: "moonlit-salmon-pate",
     name: "Moonlit Salmon Paté",
     category: "food",
-    species: "cat",
+    species: ["cat"],
     protein: "Salmon",
     concernTags: ["general_wellness", "picky_eating"],
     excludedIngredients: ["grains"],
@@ -393,7 +396,7 @@ export const mockProducts: MockProduct[] = ([
     id: "hearth-turkey-mousse",
     name: "Hearth Turkey Mousse",
     category: "food",
-    species: "cat",
+    species: ["cat"],
     protein: "Turkey",
     concernTags: ["sensitive_stomach", "general_wellness"],
     excludedIngredients: ["grains"],
@@ -408,7 +411,7 @@ export const mockProducts: MockProduct[] = ([
     id: "soft-step-paw-wipes",
     name: "Soft Step Paw Wipes",
     category: "grooming",
-    species: "dog",
+    species: ["dog"],
     protein: "Not applicable",
     concernTags: ["paw_care", "grooming", "itchy_skin", "sensitive_skin"],
     excludedIngredients: [],
@@ -423,7 +426,7 @@ export const mockProducts: MockProduct[] = ([
     id: "calm-coat-soothing-shampoo",
     name: "Calm Coat Soothing Shampoo",
     category: "grooming",
-    species: "dog",
+    species: ["dog"],
     protein: "Not applicable",
     concernTags: ["grooming", "itchy_skin", "sensitive_skin"],
     excludedIngredients: [],
@@ -438,7 +441,7 @@ export const mockProducts: MockProduct[] = ([
     id: "mellow-paw-balm",
     name: "Mellow Paw Balm",
     category: "grooming",
-    species: "dog",
+    species: ["dog"],
     protein: "Not applicable",
     concernTags: ["paw_care", "grooming", "sensitive_skin"],
     excludedIngredients: [],
@@ -453,7 +456,7 @@ export const mockProducts: MockProduct[] = ([
     id: "clear-ear-cleaner",
     name: "Clear Ear Cleaner",
     category: "grooming",
-    species: "dog",
+    species: ["dog"],
     protein: "Not applicable",
     concernTags: ["grooming", "ear_care", "sensitive_skin"],
     excludedIngredients: [],
@@ -468,7 +471,7 @@ export const mockProducts: MockProduct[] = ([
     id: "bright-bite-dental-chews",
     name: "Bright Bite Dental Chews",
     category: "health_essentials",
-    species: "dog",
+    species: ["dog"],
     protein: "Plant-based",
     concernTags: ["general_wellness", "dental_care"],
     excludedIngredients: [],
@@ -483,7 +486,7 @@ export const mockProducts: MockProduct[] = ([
     id: "gut-check-probiotic-note",
     name: "Gut Check Probiotic Caution Note",
     category: "health_essentials",
-    species: "dog",
+    species: ["dog"],
     protein: "Not applicable",
     concernTags: ["sensitive_stomach", "probiotic_caution"],
     excludedIngredients: [],
@@ -498,7 +501,7 @@ export const mockProducts: MockProduct[] = ([
     id: "comfy-guard-recovery-collar",
     name: "Comfy Guard Recovery Collar",
     category: "health_essentials",
-    species: "dog",
+    species: ["dog"],
     protein: "Not applicable",
     concernTags: ["paw_care", "lick_prevention", "sensitive_skin"],
     excludedIngredients: [],
@@ -543,6 +546,23 @@ export function normalizeProfile(value: unknown): DogProfile {
 
 export function normalizeSpecies(value: unknown): PetSpecies | "" {
   return value === "dog" || value === "cat" ? value : "";
+}
+
+export function normalizeProductSpecies(value: unknown): PetSpecies[] {
+  const values = Array.isArray(value) ? value : value === "all" ? ["dog", "cat"] : [value];
+  return [...new Set(values.map(normalizeSpecies).filter((species): species is PetSpecies => Boolean(species)))];
+}
+
+export function getProductSpeciesLabel(
+  product: Pick<MockProduct, "species">,
+  plural = false,
+) {
+  if (product.species.length !== 1) return plural ? "pets" : "pet";
+  return plural ? `${product.species[0]}s` : product.species[0];
+}
+
+export function isSharedSpeciesProduct(product: Pick<MockProduct, "species">) {
+  return product.species.includes("dog") && product.species.includes("cat");
 }
 
 export function formatSpecies(value: PetSpecies | "" | null | undefined) {
@@ -682,12 +702,14 @@ export function getBudget(profile: DogProfile) {
   return Number.isFinite(budget) && budget > 0 ? budget : null;
 }
 
-export function getLifeStage(profile: DogProfile): "puppy" | "adult" | "senior" | "unknown" {
+export function getLifeStage(
+  profile: PetProfile,
+): "puppy" | "kitten" | "adult" | "senior" | "unknown" {
   if (profile.ageUnknown) return "unknown";
   const age = parsePositiveNumber(profile.age);
   if (!Number.isFinite(age)) return "unknown";
   const years = profile.ageUnit === "months" ? age / 12 : age;
-  if (years < 1) return "puppy";
+  if (years < 1) return profile.species === "cat" ? "kitten" : "puppy";
   if (years >= 8) return "senior";
   return "adult";
 }
@@ -1336,7 +1358,7 @@ export function isSpeciesCompatibleProduct(
   species: PetSpecies | "" | null | undefined,
 ) {
   if (!species) return false;
-  return product.species === species;
+  return Array.isArray(product.species) && product.species.includes(species);
 }
 
 export function hasSpeciesCompatibleFoodProducts(

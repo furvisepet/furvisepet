@@ -227,7 +227,7 @@ export default function DashboardPage() {
                     ))}
                   </ul>
                 </div>
-                <Link className={primaryButtonInline} href={`/dogs/${selectedProfile.id}/edit`}>
+                <Link className={primaryButtonInline} href={`/pets/${selectedProfile.id}/edit`}>
                   Finish profile
                 </Link>
               </div>

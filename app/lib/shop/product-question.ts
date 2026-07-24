@@ -1,5 +1,5 @@
 import type { PetMemoryContext } from "../pet-memory";
-import type { MockProduct } from "../petwise";
+import { getProductSpeciesLabel, type MockProduct } from "../petwise";
 import type { ShopQueryInterpretation } from "../shop-query";
 import { buildVerifiedProductFields } from "./product-fit-explanation";
 
@@ -279,7 +279,7 @@ function buildFallbackSections({
   const shoppingNeed = getShoppingNeedText(query, interpretation);
   const missing = getMissingProductFacts(product, question);
   const warnings = product.verifiedWarnings?.length ? formatList(product.verifiedWarnings.slice(0, 2)) : "";
-  const speciesLabel = product.species === "all" ? "pets" : `${product.species}s`;
+  const speciesLabel = getProductSpeciesLabel(product, true);
   const dentalItchyQuestion = isDental && itchyQuestion && /\b(dental|paw|paws|itch|itchy|worse|worsen)\b/.test(normalizedQuestion);
   const shampooDentalQuestion = isShampoo && dentalQuestion;
   const waterQuestion = /\b(water|without water|dry)\b/.test(normalizedQuestion);
@@ -295,7 +295,7 @@ function buildFallbackSections({
       : shampooDentalQuestion
         ? noTeethQuestion
           ? `Yes, as a shampoo. Teeth do not really matter here because this is used on the coat and skin, not chewed or eaten. Keep it away from the eyes and mouth, rinse well, and stop using it if irritation appears.`
-          : `Yes, as a shampoo. It can be used for washing a dog, but it will not help sensitive teeth because it is not a dental product. For ${petName}, I'd treat it as a grooming product only. Follow the label directions, keep it away from the mouth and eyes, and stop using it if irritation appears.`
+          : `Yes, as a shampoo. It can be used for washing a pet, but it will not help sensitive teeth because it is not a dental product. For ${petName}, I'd treat it as a grooming product only. Follow the label directions, keep it away from the mouth and eyes, and stop using it if irritation appears.`
       : ingredientQuestion
         ? product.ingredientsVerified && product.verifiedIngredients?.length
           ? `Yes, Furvise has verified ingredients for ${displayName}: ${formatList(product.verifiedIngredients.slice(0, 6))}. Still check the label before using it for ${petName}.`
@@ -303,7 +303,7 @@ function buildFallbackSections({
       : isShampoo && noTeethQuestion
         ? `Yes, as a shampoo. Teeth do not really matter here because this is used on the coat and skin, not chewed or eaten. Keep it away from the eyes and mouth, rinse well, and stop using it if irritation appears.`
       : isFood && waterQuestion
-        ? `You can usually serve dry dog food dry if the package directions allow it, but it should not replace water. Keep fresh water available for ${petName} whenever eating. Follow the package directions for portions and transition gradually if this is new food. If ${petName} has trouble chewing, swallowing, vomiting, or a medical diet plan, ask a veterinarian.`
+        ? `You can usually serve dry pet food dry if the package directions allow it, but it should not replace water. Keep fresh water available for ${petName} whenever eating. Follow the package directions for portions and transition gradually if this is new food. If ${petName} has trouble chewing, swallowing, vomiting, or a medical diet plan, ask a veterinarian.`
       : dentalItchyQuestion
         ? `No, not for itchy paws. This is a dental treat, so it is meant for chewing and dental care, not skin or paw irritation. If ${petName} has itchy paws, look at grooming, allergy, flea, or vet-care options instead. Check the treat label before giving it, especially if ${petName} has food sensitivities.`
       : preferenceQuestion
@@ -311,7 +311,7 @@ function buildFallbackSections({
       : tasteQuestion
         ? getTasteQuestionDirectAnswer({ isDental, isFood, isFoodOrTreat, isShampoo, petName, productType })
       : isShampoo && itchyQuestion
-        ? `It may be worth considering as a gentle bath-time option, but it is not medical care for itchy paws. Some dogs can still react to shampoos, so check the label first and stop using it if ${petName} gets more red, itchy, or uncomfortable.`
+        ? `It may be worth considering as a gentle bath-time option, but it is not medical care for itchy paws. Some pets can still react to shampoos, so check the label first and stop using it if ${petName} gets more red, itchy, or uncomfortable.`
       : reactionQuestion
         ? getReactionQuestionDirectAnswer({ isDental, isFood, isShampoo, petName, product })
       : ageSizeQuestion
@@ -326,7 +326,7 @@ function buildFallbackSections({
           : `I do not have label warnings for ${displayName} yet, so review the label before using it for ${petName}.`
       : compareQuestion || foodComparisonQuestion
         ? getCompareQuestionDirectAnswer({ displayName, isDental, isFood, isGrooming, petName, productType })
-        : `${displayName} can be considered for ${petName} as a ${product.species === "all" ? "pet" : product.species} ${productType} if the label fits your needs and ${petName} tolerates it.`,
+        : `${displayName} can be considered for ${petName} as a ${getProductSpeciesLabel(product)} ${productType} if the label fits your needs and ${petName} tolerates it.`,
   );
 
   const whyItMayFit = normalizeAnswer(
@@ -503,7 +503,7 @@ function getReactionQuestionDirectAnswer({
   product: MockProduct;
 }) {
   if (isShampoo) {
-    return `Furvise cannot know that for sure. Some dogs can react to shampoos, so check the label and watch ${petName} after bathing. Stop if redness, licking, scratching, or discomfort gets worse.`;
+    return `Furvise cannot know that for sure. Some pets can react to shampoos, so check the label and watch ${petName} after bathing. Stop if redness, licking, scratching, or discomfort gets worse.`;
   }
   if (isFood) {
     return `Furvise cannot know that for sure. Check the ingredients, follow the package directions, and introduce it slowly. Watch for appetite changes, vomiting, diarrhea, stool changes, itching, scratching, or licking.`;
@@ -645,7 +645,7 @@ function getShoppingNeedText(query: string, interpretation?: ShopQueryInterpreta
 function getKnownProductFacts(product: MockProduct) {
   return normalizeList([
     `${getProductDisplayName(product)} is listed as a ${getProductTypeLabel(product)}.`,
-    product.species === "all" ? "Made for pets." : `Made for ${product.species}s.`,
+    `Made for ${getProductSpeciesLabel(product, true)}.`,
     product.verifiedDescription ? "Verified description is available." : "",
     product.ingredientsVerified && product.verifiedIngredients?.length
       ? "Verified ingredients are available."

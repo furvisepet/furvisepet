@@ -1,13 +1,13 @@
 import type {
   ConcernNormalizationInput,
-  DogProfile,
+  PetProfile,
   MockProduct,
   ProductFeedbackSignal,
   ProductCategory,
   ProductCountry,
   RecommendationKind,
 } from "./petwise";
-import { mockProducts, normalizeSpecies, PRODUCT_SOURCES } from "./petwise";
+import { mockProducts, normalizeProductSpecies, PRODUCT_SOURCES } from "./petwise";
 import {
   normalizeAccountProductCountry,
   resolveActiveAccountProductCountry,
@@ -18,7 +18,7 @@ export type ProductSearchContext = {
   analysis?: ConcernNormalizationInput | null;
   feedback?: ProductFeedbackSignal[];
   productCountry?: ProductCountry;
-  profile: DogProfile;
+  profile: PetProfile;
 };
 
 export type ProductProviderId = "mock" | "static_real" | "disabled_live";
@@ -67,7 +67,7 @@ export const mockProvider: ProductProvider = {
     const product = rawProduct as Partial<MockProduct>;
     if (!product.id || !product.name || !product.category) return null;
 
-    const species = normalizeSpecies(product.species);
+    const species = normalizeProductSpecies(product.species);
     const concernTags = Array.isArray(product.concernTags) ? product.concernTags : [];
     const source = normalizeProductSource(product.source);
     if (!source) return null;
@@ -95,7 +95,7 @@ export const mockProvider: ProductProvider = {
       excludedIngredients,
       lifeStage: product.lifeStage || "all",
       recommendationKind: normalizeRecommendationKind(product.recommendationKind),
-      species: species || "all",
+      species,
       tags: normalizeTags(product.tags, product),
       currency: product.currency || "USD",
       source,
@@ -279,7 +279,7 @@ export function isProductEligibleForCountry(
 }
 
 export function hasStaticRealProductsExcludedByCountry(
-  species: DogProfile["species"] | null | undefined,
+  species: PetProfile["species"] | null | undefined,
   country: ProductCountry = getActiveProductCountry(),
 ) {
   const preCountryProducts = staticRealProducts
@@ -294,14 +294,14 @@ export function hasStaticRealProductsExcludedByCountry(
 
 export function isSpeciesCompatibleProduct(
   product: Pick<MockProduct, "category" | "recommendationKind" | "species" | "tags">,
-  species: DogProfile["species"] | null | undefined,
+  species: PetProfile["species"] | null | undefined,
 ) {
   if (!species) return false;
-  return product.species === species;
+  return product.species.includes(species);
 }
 
 export function hasSpeciesCompatibleFoodProducts(
-  species: DogProfile["species"] | null | undefined,
+  species: PetProfile["species"] | null | undefined,
   products: Pick<MockProduct, "category" | "recommendationKind" | "species" | "tags">[] = staticRealProducts,
 ) {
   return products.some((product) => product.category === "food" && isSpeciesCompatibleProduct(product, species));
@@ -413,7 +413,7 @@ function normalizeTags(tags: string[] | undefined, product: Partial<MockProduct>
   const sourceTags = tags ?? [];
   const fallbackTags = [
     product.category,
-    product.species,
+    ...(product.species || []),
     product.brand,
     product.recommendationKind,
   ].filter((value): value is string => Boolean(value));

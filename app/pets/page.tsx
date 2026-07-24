@@ -123,8 +123,8 @@ function PetCard({ entries, onDelete, profile }: { entries: CareEntryWithPetName
             </svg>
           </summary>
           <div className="absolute right-0 z-10 mt-2 w-44 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-2 shadow-xl">
-            <Link className={menuClass} href={`/dogs/${profile.id}/edit`}>Edit profile</Link>
-            <Link className={menuClass} href={`/dogs/${profile.id}/memories`}>Saved details</Link>
+            <Link className={menuClass} href={`/pets/${profile.id}/edit`}>Edit profile</Link>
+            <Link className={menuClass} href={`/pets/${profile.id}/memories`}>Saved details</Link>
             <button className={`${menuClass} text-[var(--pw-danger-text)]`} onClick={onDelete} type="button">Delete profile</button>
           </div>
         </details>

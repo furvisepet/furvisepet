@@ -10,6 +10,7 @@ import { readStoredGuidanceSnapshot } from "../lib/stored-guidance";
 import {
   formatPetDisplayName,
   formatSpecies,
+  getProductSpeciesLabel,
 } from "../lib/petwise";
 import type { MockProduct, ProductCountry } from "../lib/petwise";
 import {
@@ -36,10 +37,9 @@ import {
   type ShopProductQuestionAnswer,
 } from "../lib/shop/product-question";
 import {
-  buildProductComparisons,
   formatProductResultCount,
   getProductDifferentiator,
-} from "../lib/shop/product-comparison";
+} from "../lib/shop/product-display";
 import {
   dogProfileRowToDraft,
   detectAccountProductCountry,
@@ -761,8 +761,6 @@ function ShopResults({
   selectedPetId: string;
   selectedPetName: string;
 }) {
-  const [compareOpen, setCompareOpen] = useState(false);
-
   if (!query.trim() || emptyState === "no_query") {
     return (
       <EmptyState
@@ -875,25 +873,9 @@ function ShopResults({
 
   return (
     <div className="grid min-w-0 gap-4">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-[var(--pw-subtle)]">
-          {formatProductResultCount(products.length)}
-        </p>
-        {products.length >= 2 ? (
-          <button
-            aria-expanded={compareOpen}
-            className="inline-flex min-h-9 max-w-full items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-3 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)]"
-            onClick={() => setCompareOpen((current) => !current)}
-            type="button"
-          >
-            Compare these
-          </button>
-        ) : null}
-      </div>
-
-      {compareOpen && products.length >= 2 ? (
-        <ProductComparisonPanel products={products} selectedPetName={selectedPetName} />
-      ) : null}
+      <p className="text-sm text-[var(--pw-subtle)]">
+        {formatProductResultCount(products.length)}
+      </p>
 
       {products.map((product) => (
         <ProductCard
@@ -940,6 +922,7 @@ function ShopResults({
           selectedPetName={selectedPetName}
         />
       ))}
+
     </div>
   );
 }
@@ -1098,56 +1081,6 @@ function ProductCard({
         ) : null}
       </div>
     </article>
-  );
-}
-
-function ProductComparisonPanel({
-  products,
-  selectedPetName,
-}: {
-  products: MockProduct[];
-  selectedPetName: string;
-}) {
-  const comparisonItems = buildProductComparisons(products);
-
-  return (
-    <section
-      aria-label="Product comparison"
-      className="min-w-0 overflow-x-hidden rounded-lg border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4"
-    >
-      <h3 className="text-base font-semibold text-[var(--pw-heading)]">Compare these products</h3>
-      <div className="mt-3 grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {comparisonItems.map((item) => {
-          return (
-            <article className="min-w-0 border-t border-[var(--pw-border)] pt-3 sm:border-t-0 sm:pt-0" key={item.id}>
-              <h4 className="break-words text-sm font-semibold leading-5 text-[var(--pw-heading)]">
-                {item.name}
-              </h4>
-              <p className="mt-1 text-xs font-semibold uppercase text-[var(--pw-subtle)]">
-                {item.typeLabel}
-              </p>
-              <dl className="mt-3 grid min-w-0 gap-2 text-sm leading-5">
-                <div className="min-w-0">
-                  <dt className="font-semibold text-[var(--pw-heading)]">Key difference</dt>
-                  <dd className="break-words text-[var(--pw-muted)]">{item.keyDifference}</dd>
-                </div>
-                <div className="min-w-0">
-                  <dt className="font-semibold text-[var(--pw-heading)]">Good when</dt>
-                  <dd className="break-words text-[var(--pw-muted)]">{item.goodWhen}</dd>
-                </div>
-                <div className="min-w-0">
-                  <dt className="font-semibold text-[var(--pw-heading)]">Check first</dt>
-                  <dd className="break-words text-[var(--pw-muted)]">{item.checkFirst}</dd>
-                </div>
-              </dl>
-            </article>
-          );
-        })}
-      </div>
-      <p className="mt-4 text-sm font-semibold leading-5 text-[var(--pw-muted)]">
-        Choose based on {selectedPetName}&apos;s current food, texture preference, and any ingredients they need to avoid.
-      </p>
-    </section>
   );
 }
 
@@ -1406,11 +1339,11 @@ function formatCategory(value: MockProduct["category"]) {
 function getProductCardDescription(product: MockProduct) {
   if (product.shortDescription) return product.shortDescription;
   if (product.category === "grooming" && product.subcategory === "shampoo") {
-    const speciesLabel = product.species === "all" ? "pet" : product.species;
+    const speciesLabel = getProductSpeciesLabel(product);
     return `A fragrance-free ${speciesLabel} shampoo for routine baths, with a gentle formula aimed at sensitive or itchy skin.`;
   }
   if (product.verifiedDescription) return formatProductCardDescription(product.verifiedDescription);
-  const speciesLabel = product.species === "all" ? "pet" : product.species;
+  const speciesLabel = getProductSpeciesLabel(product);
   return `A ${speciesLabel} ${formatProductType(product)} for routine ${formatCategory(product.category).toLowerCase()} needs.`;
 }
 
@@ -1434,7 +1367,9 @@ function getProductCardCaution(product: MockProduct) {
 
 function getProductTypeLine(product: MockProduct) {
   if (product.productTypeLabel) return product.productTypeLabel;
-  const speciesLabel = product.species === "all" ? "Pet" : formatSpecies(product.species);
+  const speciesLabel = getProductSpeciesLabel(product) === "pet"
+    ? "Pet"
+    : formatSpecies(product.species[0]);
   return `${speciesLabel} ${formatProductType(product)}`;
 }
 

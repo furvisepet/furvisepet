@@ -158,7 +158,7 @@ test("label documents cannot become View product and remain available as View la
 
 test("View product renders a validated accessible new-tab anchor", () => {
   const page = read("app/shop/page.tsx");
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductComparisonPanel"));
+  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
 
   assert.match(productCard, /const productLink = getProductLinkInfo\(product\)/);
   assert.match(productCard, /const labelLink = getProductLabelLinkInfo\(product\)/);
@@ -181,7 +181,7 @@ test("View product renders a validated accessible new-tab anchor", () => {
 test("product links add no price or availability UI and Results stays product-free", () => {
   const page = read("app/shop/page.tsx");
   const results = read("app/results/page.tsx");
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductComparisonPanel"));
+  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
 
   assert.doesNotMatch(productCard, /product\.price|live availability|in stock|best price/i);
   assert.doesNotMatch(results, /ProductCard|View product|Compare these|Price not provided/i);

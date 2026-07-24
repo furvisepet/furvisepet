@@ -10,7 +10,7 @@ import {
   parseAnalysisMemoryContext,
 } from "../lib/ai-analysis";
 import {
-  DogProfile,
+  PetProfile,
   ONBOARDING_MODE_STORAGE_KEY,
   MAIN_CONCERN_OPTIONS,
   OnboardingMode,
@@ -25,11 +25,11 @@ import {
 import {
   PROFILE_ID_STORAGE_KEY,
   PROFILE_MEMORIES_STORAGE_KEY,
-  countDogProfilesForUser,
+  countPetProfilesForUser,
   getCurrentUser,
-  dogProfileRowToDraft,
-  loadDogProfileForUser,
-  saveDogProfileForUser,
+  petProfileRowToDraft,
+  loadPetProfileForUser,
+  savePetProfileForUser,
 } from "../lib/supabase";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { NEW_PET_ONBOARDING_PATH, buildLoginHref } from "../lib/auth-routing";
@@ -119,7 +119,7 @@ function getActiveOnboardingSteps(mode: OnboardingMode) {
   return mode === "new" ? steps.filter((step) => newPetStepKeys.has(step.key)) : steps;
 }
 
-function getStepError(profile: DogProfile, key: StepKey) {
+function getStepError(profile: PetProfile, key: StepKey) {
   if (key === "name" && !profile.name.trim()) return "Please add your pet's name.";
   if (key === "species" && !profile.species) return "Choose dog or cat before continuing.";
   if (key === "age") {
@@ -171,7 +171,7 @@ function OnboardingPageContent() {
   const requestedModeParam = searchParams.get("mode") || "";
   const requestedStepParam = searchParams.get("step") || "";
   const resumeSaveRequested = searchParams.get("resumeSave") === "1";
-  const [profile, setProfile] = useState<DogProfile>(initialProfile);
+  const [profile, setProfile] = useState<PetProfile>(initialProfile);
   const [stepIndex, setStepIndex] = useState(0);
   const [isRestored, setIsRestored] = useState(false);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -259,10 +259,10 @@ function OnboardingPageContent() {
               throw new Error("Please sign in to edit this pet profile.");
             }
 
-            const row = await loadDogProfileForUser(decision.loadExistingProfileId, user);
+            const row = await loadPetProfileForUser(decision.loadExistingProfileId, user);
             if (!active) return;
 
-            const draft = dogProfileRowToDraft(row);
+            const draft = petProfileRowToDraft(row);
             setProfile(draft);
             setEditingProfileId(row.id);
             window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
@@ -325,7 +325,7 @@ function OnboardingPageContent() {
   const summaryItems = useMemo(() => buildSummaryItems(profile, activeSteps), [activeSteps, profile]);
   const summaryStatus = useMemo(() => buildSummaryProfileStatus(profile), [profile]);
 
-  function updateProfile(update: Partial<DogProfile>) {
+  function updateProfile(update: Partial<PetProfile>) {
     setProfile((current) => ({ ...current, ...update }));
   }
 
@@ -433,7 +433,7 @@ function OnboardingPageContent() {
       const profileIdForUpdate = getOnboardingSaveProfileId(onboardingMode, editingProfileId);
       if (!profileIdForUpdate) {
         const planId = await getUserPlan(user.id);
-        const petCount = await countDogProfilesForUser(user);
+        const petCount = await countPetProfilesForUser(user);
         const petGate = evaluatePetLimit({
           isEditingExistingPet: false,
           petCount,
@@ -446,8 +446,8 @@ function OnboardingPageContent() {
         }
         setPetLimitNotice(petGate.softNotice || "");
       }
-      const savedProfile = await saveDogProfileForUser(profile, user, profileIdForUpdate);
-      savedDraft = dogProfileRowToDraft(savedProfile);
+      const savedProfile = await savePetProfileForUser(profile, user, profileIdForUpdate);
+      savedDraft = petProfileRowToDraft(savedProfile);
       savedProfileId = savedProfile.id;
       window.localStorage.setItem(PROFILE_ID_STORAGE_KEY, savedProfile.id);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedDraft));
@@ -766,11 +766,11 @@ function StepInput({
   updateProfile,
 }: {
   handleEnter: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-  profile: DogProfile;
+  profile: PetProfile;
   stepKey: StepKey;
   toggleAvoidIngredient: (ingredient: string) => void;
   updateCustomAvoidIngredient: (value: string) => void;
-  updateProfile: (update: Partial<DogProfile>) => void;
+  updateProfile: (update: Partial<PetProfile>) => void;
 }) {
   const inputClass =
     "mt-8 w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-5 py-4 text-xl font-semibold text-[var(--pw-text)] outline-none transition placeholder:font-normal placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)]";
@@ -784,7 +784,7 @@ function StepInput({
         className={inputClass}
         onChange={(event) => updateProfile({ name: event.target.value })}
         onKeyDown={handleEnter}
-        placeholder="e.g. Rocky"
+        placeholder="e.g. Luna"
         value={profile.name}
       />
     );

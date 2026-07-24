@@ -190,7 +190,7 @@ function ProfileOverview({
 }) {
   const name = formatPetDisplayName(profile.name);
   const askHref = `/ask?pet=${profile.id}`;
-  const editHref = `/dogs/${profile.id}/edit`;
+  const editHref = `/pets/${profile.id}/edit`;
   const shopHref = `/shop?petId=${encodeURIComponent(profile.id)}`;
   const finishProfileItems = getFinishProfileItemsFromRow(profile);
 
@@ -228,7 +228,7 @@ function ProfileOverview({
               <span>More actions</span>
             </summary>
             <div className="absolute right-0 z-20 mt-2 w-52 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-2 shadow-xl shadow-[var(--pw-shadow)]">
-              <Link className={menuItemClass} href={`/dogs/${profile.id}/memories`}>
+              <Link className={menuItemClass} href={`/pets/${profile.id}/memories`}>
                 Saved details
               </Link>
               {model.showProductLink ? (
@@ -494,7 +494,7 @@ function PetDetails({
   return (
     <Section
       actions={
-        <Link className={textLinkClass} href={`/dogs/${profile.id}/edit`}>
+        <Link className={textLinkClass} href={`/pets/${profile.id}/edit`}>
           Edit profile
         </Link>
       }
@@ -509,7 +509,7 @@ function PetDetails({
       <div className="mt-6 border-t border-[var(--pw-border)] pt-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-lg font-semibold text-[var(--pw-heading)]">Saved details</h3>
-          <Link className={textLinkClass} href={`/dogs/${profile.id}/memories`}>
+          <Link className={textLinkClass} href={`/pets/${profile.id}/memories`}>
             View saved details
           </Link>
         </div>

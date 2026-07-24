@@ -1,4 +1,4 @@
-import type { DogProfile } from "../lib/petwise";
+import type { PetProfile } from "../lib/petwise";
 import { formatAge, formatBudget, formatSpecies, formatWeight, selectedConcern } from "../lib/petwise";
 import { buildDraftProfileCompleteness } from "../lib/profile-completeness";
 
@@ -13,7 +13,7 @@ export type StepKey =
   | "avoidIngredients"
   | "monthlyBudget";
 
-export type PetProfileDraft = DogProfile;
+export type PetProfileDraft = PetProfile;
 
 export type SummaryRow = {
   key: StepKey;

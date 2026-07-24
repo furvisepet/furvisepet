@@ -120,7 +120,7 @@ test("shop search returns multiple dog grooming products for shampoo queries", (
   assert.ok(result.products.some((product) => product.id === "earthbath-oatmeal-aloe-shampoo"));
   assert.ok(result.products.some((product) => product.id === "earthbath-hypoallergenic-shampoo"));
   assert.ok(result.products.length >= 2);
-  assert.ok(result.products.every((product) => product.species === "dog"));
+  assert.ok(result.products.every((product) => product.species.includes("dog")));
   assert.ok(result.products.every((product) => product.availableCountries.includes("US")));
   assert.equal(result.ingredientVerificationRemovedMatches, false);
 });
@@ -237,7 +237,7 @@ test("shop search returns dental products for dental treats and keeps species fi
   assert.equal(dogResult.emptyState, null);
   assert.ok(dogResult.products.some((product) => /dental/i.test(product.name)));
   assert.ok(dogResult.products.length >= 3);
-  assert.ok(dogResult.products.every((product) => product.species === "dog"));
+  assert.ok(dogResult.products.every((product) => product.species.includes("dog")));
   assert.equal(catResult.products.length, 0);
   assert.equal(catResult.emptyState, "no_match");
 });
@@ -258,6 +258,37 @@ test("shop search never crosses selected species for obvious dog and cat queries
   });
   assert.equal(dogForCatOnlyProduct.products.length, 0);
   assert.equal(dogForCatOnlyProduct.emptyState, "species_conflict");
+
+  const catFoodForDog = searchStaticRealShopProducts({
+    productCountry: "US",
+    profile: profile({ species: "dog" }),
+    query: "cat food",
+  });
+  assert.equal(catFoodForDog.products.length, 0);
+  assert.equal(catFoodForDog.emptyState, "species_conflict");
+
+  const dogShampooForCat = searchStaticRealShopProducts({
+    productCountry: "US",
+    profile: profile({ species: "cat" }),
+    query: "dog shampoo",
+  });
+  assert.equal(dogShampooForCat.products.length, 0);
+  assert.equal(dogShampooForCat.emptyState, "species_conflict");
+});
+
+test("explicitly shared products can appear for both dogs and cats", () => {
+  const sharedProduct = staticRealProducts.find((product) => product.id === "furminator-grooming-rake");
+  assert.ok(sharedProduct);
+  assert.deepEqual(sharedProduct.species, ["dog", "cat"]);
+
+  for (const species of ["dog", "cat"]) {
+    const result = searchStaticRealShopProducts({
+      productCountry: "US",
+      profile: profile({ species }),
+      query: "grooming rake",
+    });
+    assert.ok(result.products.some((product) => product.id === sharedProduct.id));
+  }
 });
 
 test("shop search applies account country filtering and reports region-empty matches", () => {
@@ -391,7 +422,7 @@ test("shop ingredient verification excludes sensitive unverified products but al
     ...staticRealProducts.find((product) => product.id === "furminator-cat-deshedding-tool"),
     id: "unverified-dog-brush",
     name: "Unverified Dog Brush",
-    species: "dog",
+    species: ["dog"],
     tags: ["grooming", "brush", "dog"],
     ingredientsVerified: false,
   };
@@ -430,7 +461,7 @@ test("shop ranking is deterministic by category, species specificity, ingredient
   const products = [
     { ...base, id: "z-feed", name: "Z Feed Brush", source: "chewy_feed", curatedScore: 9 },
     { ...base, id: "a-curated", name: "A Curated Brush", source: "curated" },
-    { ...base, id: "b-all", name: "B Broad Brush", source: "curated", species: "all" },
+    { ...base, id: "b-all", name: "B Broad Brush", source: "curated", species: ["dog", "cat"] },
     { ...base, id: "c-unverified", name: "C Unverified Brush", ingredientsVerified: false, source: "curated" },
     { ...base, id: "d-loose", name: "D Loose Brush", concernTags: ["general_wellness"], category: "health_essentials", source: "curated" },
     { ...base, id: "e-ca-feed", name: "E CA Feed Brush", source: "ca_retailer_feed" },

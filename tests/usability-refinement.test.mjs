@@ -594,7 +594,7 @@ test("Onboarding saves the profile before navigating to results", () => {
   assert.match(onboarding, /authStatus, requestedModeParam, requestedStepParam, router\]/);
   assert.match(onboarding, /resolveOnboardingModeDecision\(\{/);
   assert.match(onboarding, /shouldClearDraftStorage/);
-  assert.match(onboarding, /loadDogProfileForUser\(decision\.loadExistingProfileId, user\)/);
+  assert.match(onboarding, /loadPetProfileForUser\(decision\.loadExistingProfileId, user\)/);
   assert.match(onboarding, /setLoadExistingProfileError\(""/);
   assert.match(onboarding, /setSaveProfileError\(""/);
   assert.match(onboarding, /setAnalysisRecommendationError\(""/);
@@ -604,8 +604,8 @@ test("Onboarding saves the profile before navigating to results", () => {
   assert.match(onboarding, /table: "dog_profiles"/);
   assert.match(onboarding, /const user = await getCurrentUser\(\);/);
   assert.match(onboarding, /if \(!user\) \{/);
-  assert.match(onboarding, /saveDogProfileForUser\(profile, user, profileIdForUpdate\)/);
-  assert.match(onboarding, /dogProfileRowToDraft\(savedProfile\)/);
+  assert.match(onboarding, /savePetProfileForUser\(profile, user, profileIdForUpdate\)/);
+  assert.match(onboarding, /petProfileRowToDraft\(savedProfile\)/);
   assert.match(onboarding, /savedProfileId/);
   assert.match(onboarding, /if \(!savedProfileId\) \{/);
   assert.match(onboarding, /\/results\?profileId=/);
@@ -672,7 +672,7 @@ test("free plan gates only pets and Ask while core loop stays available", () => 
   assert.match(plans, /Exportable vet-prep reports are planned for Furvise Plus/);
   assert.match(plans, /Live product research is planned for Furvise Plus once it is built/);
   assert.match(onboarding, /evaluatePetLimit/);
-  assert.match(onboarding, /countDogProfilesForUser/);
+  assert.match(onboarding, /countPetProfilesForUser/);
   assert.match(onboarding, /Upgrade coming soon/);
   assert.doesNotMatch(dashboard, /evaluateAskUsageLimit|evaluatePetLimit|hardBlocked/);
   assert.doesNotMatch(careLog, /evaluateAskUsageLimit|evaluatePetLimit|hardBlocked/);
