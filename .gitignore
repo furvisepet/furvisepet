@@ -32,6 +32,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+
+# Authorized provider exports and private onboarding metadata
+/private/catalog-imports/
+/private/backups/
+/private/verification/
 !.env.local.example
 
 # vercel
@@ -68,12 +73,16 @@ node_modules/
 
 # QA screenshots
 *.png
-!public/favicon-16x16.png
-!public/favicon-32x32.png
+!public/App icon.png
+!public/android-192.png
+!public/android-512.png
 !public/apple-touch-icon.png
-!public/android-chrome-192x192.png
-!public/android-chrome-512x512.png
-!public/brand/furvise-logo.png
+!public/favicon-16.png
+!public/favicon-32.png
+!public/maskable-icon-512.png
+!public/brand/logo.png
+!public/images/dog.png
+!public/images/cat.png
 audit-mobile-qa/
 
 # Local browser/Codex state

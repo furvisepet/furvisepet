@@ -34,17 +34,31 @@ export function resolveOnboardingModeDecision({
   const hasStoredProfileId = Boolean(storedProfileId);
 
   if (hasExplicitRequestedMode && normalizedRequestedMode === "new") {
-    const shouldClearDraftStorage = normalizedStoredMode !== "new" || hasStoredProfileId;
-
     return {
       finalMode: "new",
       editingProfileId: "",
       savedProfileId: "",
-      shouldClearDraftStorage,
-      shouldClearProfileIdStorage: shouldClearDraftStorage,
-      shouldClearMemoriesStorage: shouldClearDraftStorage,
-      shouldClearAnalysisStorage: shouldClearDraftStorage,
-      shouldKeepStoredDraft: !shouldClearDraftStorage && normalizedStoredMode === "new",
+      shouldClearDraftStorage: true,
+      shouldClearProfileIdStorage: true,
+      shouldClearMemoriesStorage: true,
+      shouldClearAnalysisStorage: true,
+      shouldKeepStoredDraft: false,
+      shouldLoadExistingProfile: false,
+      loadExistingProfileId: "",
+      shouldRedirectToNewMode: false,
+    };
+  }
+
+  if (normalizedRequestedMode === "resume") {
+    return {
+      finalMode: "resume",
+      editingProfileId: "",
+      savedProfileId: "",
+      shouldClearDraftStorage: false,
+      shouldClearProfileIdStorage: false,
+      shouldClearMemoriesStorage: false,
+      shouldClearAnalysisStorage: false,
+      shouldKeepStoredDraft: true,
       shouldLoadExistingProfile: false,
       loadExistingProfileId: "",
       shouldRedirectToNewMode: false,

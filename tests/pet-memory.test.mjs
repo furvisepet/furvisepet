@@ -323,14 +323,14 @@ test("Ask Furvise last-week recall does not depend on the recentEntries cap", ()
   assert.ok(items.some((item) => /Scratching seemed worse after chicken-based food/.test(item)));
 
   const recent = summarizeRecentChanges(memory);
-  assert.match(recent.summary, /10 recent saved updates/);
+  assert.match(recent.summary, /latest care updates.*newest change first/i);
   assert.ok(recent.sections.flatMap((section) => section.items).some((item) => /Newer update/.test(item)));
 });
 
 test("Ask Furvise summaries use saved entries and do not hallucinate symptoms", () => {
   const memory = buildPetMemoryContext({ careEntries: rockyCareEntries(), now, profile: rockyProfile() });
   const recent = summarizeRecentChanges(memory);
-  assert.match(recent.summary, /3 recent saved updates/);
+  assert.match(recent.summary, /latest care updates.*newest change first/i);
   assert.ok(recent.sections.flatMap((section) => section.items).some((item) => /paw/.test(item)));
 
   const food = summarizeFoodNotes(memory);
@@ -338,7 +338,7 @@ test("Ask Furvise summaries use saved entries and do not hallucinate symptoms", 
   assert.ok(food.sections.flatMap((section) => section.items).some((item) => /Switched from chicken food/.test(item)));
 
   const vomit = answerPetMemoryQuestion(memory, "Did Rocky vomit?", now);
-  assert.match(vomit.response.summary, /do not see saved vomiting logs/);
+  assert.match(vomit.response.summary, /aren't any vomiting notes/i);
   assert.doesNotMatch(vomit.response.summary, /Rocky vomited/);
 });
 
@@ -408,11 +408,11 @@ test("Ask Furvise handles thin first-result profiles honestly", () => {
   const food = answerPetMemoryQuestion(memory, "What food notes do we have for Rocky?", now);
   const summary = answerPetMemoryQuestion(memory, "Summarize recent changes.", now);
 
-  assert.match(food.response.summary, /do not see saved food notes/i);
+  assert.match(food.response.summary, /aren't any food notes/i);
   const foodItems = food.response.sections.flatMap((section) => section.items);
   assert.ok(foodItems.includes("current food"));
   assert.ok(!food.response.sections.some((section) => section.heading === "Profile food context"));
-  assert.match(summary.response.summary, /no recent care updates yet/i);
+  assert.match(summary.response.summary, /aren't any recent care updates/i);
   assert.doesNotMatch(food.response.summary, /Chicken kibble/);
   assert.ok(foodItems.every((item) => !/Current food in profile/.test(item)));
 });
@@ -424,7 +424,8 @@ test("Ask Furvise cause-style questions return tracking and vet framing", () => 
   const items = answer.response.sections.flatMap((section) => section.items);
 
   assert.equal(answer.urgent, false);
-  assert.match(answer.response.summary, /does not diagnose/);
+  assert.match(answer.response.summary, /^I can't tell what caused this/);
+  assert.equal(answer.response.safetyNote, null);
   assert.deepEqual(headings, ["What to track", "What to ask the vet"]);
   assert.ok(items.some((item) => /latest logged issue|Food eaten/i.test(item)));
   assert.ok(items.some((item) => /What symptoms would make this urgent/i.test(item)));
@@ -449,17 +450,14 @@ test("Ask Furvise vet prep uses polished grounded sections", () => {
   const answer = answerPetMemoryQuestion(memory, "Prepare for a vet visit", now);
   const headings = answer.response.sections.map((section) => section.heading);
   const items = answer.response.sections.flatMap((section) => section.items);
-  const profileFacts = answer.response.sections.find((section) => section.heading === "Saved profile facts");
-  const updates = answer.response.sections.find((section) => section.heading === "Recent saved updates");
+  const profileFacts = answer.response.sections.find((section) => section.heading === "Key details");
+  const updates = answer.response.sections.find((section) => section.heading === "Recent care updates");
   const questions = answer.response.sections.find((section) => section.heading === "What to ask the vet");
 
   assert.equal(answer.intent, "vet_prep");
   assert.equal(answer.response.title, "Vet prep for Rocky");
-  assert.equal(
-    answer.response.summary,
-    "Use these saved facts and recent logs to prepare a clear vet summary for Rocky.",
-  );
-  assert.deepEqual(headings, ["Saved profile facts", "Recent saved updates", "What to ask the vet"]);
+  assert.equal(answer.response.summary, "Start with what changed for Rocky, when it began, and how it differs from normal. Then bring the most relevant notes below.");
+  assert.deepEqual(headings, ["Key details", "Recent care updates", "What to ask the vet"]);
   assert.ok(profileFacts.items.includes("Species: dog."));
   assert.ok(profileFacts.items.includes("Age: 5 years."));
   assert.ok(profileFacts.items.includes("Main concern: scratching after chicken-based food."));
@@ -475,7 +473,7 @@ test("Ask Furvise vet prep uses polished grounded sections", () => {
   assert.ok(questions.items.some((item) => /track food changes, skin redness, paw licking, ears, stool, or appetite/.test(item)));
   assert.ok(questions.items.some((item) => /tracking reactions after chicken-based food or diet changes/.test(item)));
   assert.ok(questions.items.some((item) => /details are most useful to log next/.test(item)));
-  assert.match(answer.response.safetyNote, /Furvise organizes care context\. It does not diagnose or replace a veterinarian\./);
+  assert.match(answer.response.safetyNote, /Based on what you've saved about your pet\. Not a substitute for veterinary or professional advice\./);
   assert.ok(!answer.response.sections.some((section) => section.heading === "Questions or gaps to mention"));
   assert.ok(!answer.response.sections.some((section) => section.heading === "Helpful context still missing"));
   assert.ok(items.every((item) => !/Owner question|Prepare for a vet visit|monthly care budget|current_food|avoid_ingredients/.test(item)));
@@ -507,7 +505,7 @@ test("Ask Furvise vet prep uses behavior questions for behavior-only context", (
   assert.match(questionText, /track over the next 24-48 hours/i);
   assert.doesNotMatch(questionText, /scratching|paw licking|skin redness|ears/i);
   assert.doesNotMatch(questionText, /diagnos/i);
-  assert.match(answer.response.safetyNote, /does not diagnose or replace a veterinarian/);
+  assert.match(answer.response.safetyNote, /veterinary or professional advice/);
 });
 
 test("Ask Furvise vet prep uses skin and paw questions only for skin or paw context", () => {
@@ -556,7 +554,7 @@ test("Ask Furvise vet prep uses food and appetite questions for food context", (
   assert.doesNotMatch(questionText, /paw licking|skin redness|ears/i);
 });
 
-test("Ask Furvise vet prep lists only useful missing context with friendly labels", () => {
+test("Ask Furvise vet prep keeps missing profile details out of the answer body", () => {
   const memory = buildPetMemoryContext({
     careEntries: rockyCareEntries(),
     now,
@@ -570,11 +568,10 @@ test("Ask Furvise vet prep lists only useful missing context with friendly label
     }),
   });
   const answer = answerPetMemoryQuestion(memory, "What should I tell the vet?", now);
-  const profileFacts = answer.response.sections.find((section) => section.heading === "Saved profile facts");
-  const missing = answer.response.sections.find((section) => section.heading === "Helpful context still missing");
+  const profileFacts = answer.response.sections.find((section) => section.heading === "Key details");
   const items = answer.response.sections.flatMap((section) => section.items);
 
-  assert.deepEqual(missing.items, ["Breed", "Weight", "Current food", "Avoid ingredients"]);
+  assert.equal(answer.response.sections.some((section) => /missing/i.test(section.heading)), false);
   assert.ok(profileFacts.items.includes("Species: dog."));
   assert.ok(profileFacts.items.includes("Age: 5 years."));
   assert.ok(profileFacts.items.includes("Main concern: scratching after chicken-based food."));
@@ -588,7 +585,7 @@ test("urgent Ask question triggers safety response before normal guidance", () =
   const answer = answerPetMemoryQuestion(memory, "Rocky ate chocolate and collapsed", now);
   assert.equal(answer.urgent, true);
   assert.match(answer.response.title, /veterinarian now/i);
-  assert.match(answer.response.safetyNote, /does not diagnose/i);
+  assert.match(answer.response.safetyNote, /veterinary or professional advice/i);
 });
 
 test("persistence-style rebuild uses the same saved care row after reload", () => {

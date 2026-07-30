@@ -1,62 +1,78 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppPage } from "../components/app-page";
+import { PetOverflowMenu } from "../components/pet-overflow-menu";
+import {
+  EmptyState,
+  LoadingState,
+  Notice,
+  PageHeader,
+  PetIdentity,
+  PrimaryButton,
+  SecondaryButton,
+  SoftButton,
+  TextAction,
+  TextButton,
+} from "../components/product-primitives";
 import { NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
+import { clearEditPetOnboardingDraft } from "../lib/onboarding-drafts";
+import { clearActivePetId } from "../lib/active-pet";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
+import { formatCareEntryTimestamp, formatCareNotePreview } from "../lib/care-log.mjs";
+import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
+import type { AskConversationSummary } from "../lib/ask-conversations";
 import {
   deleteDogProfileForUser,
   getCurrentUser,
+  getCurrentAccessToken,
   listRecentCareEntries,
   loadDogProfilesWithMemories,
   type CareEntryWithPetName,
   type DogProfileWithMemories,
 } from "../lib/supabase";
-import { buildProfileStatus } from "../lib/dashboard";
-import { formatCareEntryCategory, formatCareEntryTimestamp, formatCareNotePreview } from "../lib/care-log.mjs";
-import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
 
 export default function PetsPage() {
-  const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
+  const { status: authStatus, user } = useRequireConfirmedSupabaseAuth();
   const [profiles, setProfiles] = useState<DogProfileWithMemories[]>([]);
   const [entries, setEntries] = useState<CareEntryWithPetName[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [conversations, setConversations] = useState<AskConversationSummary[]>([]);
 
   useEffect(() => {
-    if (authStatus !== "signedIn" || !authUser) return;
+    if (authStatus !== "signedIn" || !user) return;
     let active = true;
-    async function load() {
-      try {
-        const user = authUser;
-        if (!user) return;
-        const [profileRows, entryRows] = await Promise.all([
-          loadDogProfilesWithMemories(user),
-          listRecentCareEntries(200),
-        ]);
-        if (active) {
-          setProfiles(profileRows);
-          setEntries(entryRows);
-        }
-      } catch (loadError) {
+    Promise.all([loadDogProfilesWithMemories(user), listRecentCareEntries(200)])
+      .then(([profileRows, entryRows]) => {
+        if (!active) return;
+        setProfiles(profileRows);
+        setEntries(entryRows);
+        getCurrentAccessToken().then(async (token) => {
+          if (!token || !active) return;
+          const response = await fetch("/api/ask/conversations", { headers: { Authorization: `Bearer ${token}` } });
+          if (!response.ok) return;
+          const payload = await response.json() as { conversations?: AskConversationSummary[] };
+          if (active) setConversations(payload.conversations || []);
+        }).catch(() => undefined);
+      })
+      .catch((loadError) => {
         if (active) setError(loadError instanceof Error ? loadError.message : "Furvise could not load your pets.");
-      } finally {
+      })
+      .finally(() => {
         if (active) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      active = false;
-    };
-  }, [authStatus, authUser]);
+      });
+    return () => { active = false; };
+  }, [authStatus, user]);
 
   async function deleteProfile(profile: DogProfileWithMemories) {
     if (!window.confirm(`Delete ${formatPetDisplayName(profile.name)}'s profile? This cannot be undone.`)) return;
     try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error("Please sign in again.");
-      await deleteDogProfileForUser(profile.id, user);
+      const currentUser = await getCurrentUser();
+      if (!currentUser) throw new Error("Please sign in again.");
+      await deleteDogProfileForUser(profile.id, currentUser);
+      clearEditPetOnboardingDraft(window.localStorage, profile.id);
+      clearActivePetId(window.localStorage, profile.id);
       setProfiles((current) => current.filter((item) => item.id !== profile.id));
       setEntries((current) => current.filter((entry) => entry.pet_profile_id !== profile.id));
     } catch (deleteError) {
@@ -65,87 +81,77 @@ export default function PetsPage() {
   }
 
   return (
-    <AppPage>
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-4xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-5xl">Your pets</h1>
-          <p className="mt-3 max-w-2xl leading-7 text-[var(--pw-muted)]">Profiles, current concerns, and the latest care context in one place.</p>
-        </div>
-        <Link className="inline-flex min-h-11 w-fit items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white" href={NEW_PET_ONBOARDING_PATH}>Add pet</Link>
-      </header>
+    <AppPage layout="workspace" shell="standard">
+      <PageHeader
+        actions={profiles.length ? <PrimaryButton href={NEW_PET_ONBOARDING_PATH}>Add pet</PrimaryButton> : undefined}
+        supportingText="A simple home for each pet in your care."
+        title="Pets"
+      />
 
-      {error ? <Status text={error} /> : loading ? <Status text="Loading your pets…" /> : profiles.length === 0 ? (
-        <section className="mt-8 max-w-2xl rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6">
-          <h2 className="text-2xl font-semibold text-[var(--pw-heading)]">Add your first pet</h2>
-          <p className="mt-3 text-[var(--pw-muted)]">Furvise will use only the profiles you create for this account.</p>
-          <Link className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white" href={NEW_PET_ONBOARDING_PATH}>Add your first pet</Link>
-        </section>
-      ) : (
-        <section className={`mt-8 grid gap-5 ${profiles.length === 1 ? "max-w-[36rem]" : "md:grid-cols-2 2xl:grid-cols-3"}`}>
-          {profiles.map((profile) => (
-            <PetCard
-              entries={entries}
-              key={profile.id}
-              onDelete={() => deleteProfile(profile)}
-              profile={profile}
-            />
-          ))}
-        </section>
-      )}
+      {error ? <div className="mt-8"><Notice tone="warning">{error}</Notice></div> : null}
+      {loading ? <LoadingState label="Loading pets" /> : null}
+
+      {!loading && !error && profiles.length === 0 ? (
+        <div className="mt-10">
+          <EmptyState action={<PrimaryButton href={NEW_PET_ONBOARDING_PATH}>Add your first pet</PrimaryButton>} description="Keep everyday updates, questions, and vet notes together from the start." title="No pets yet" />
+        </div>
+      ) : null}
+
+      {!loading && profiles.length ? (
+        <>
+          <section className="mt-10 divide-y divide-[var(--line)] rounded-2xl border border-[var(--line)] bg-[var(--surface-supportive)] px-5 sm:px-7">
+            {profiles.map((profile) => <PetSummary entries={entries} key={profile.id} onDelete={() => deleteProfile(profile)} profile={profile} />)}
+          </section>
+          {profiles.length === 1 ? (
+            <section className="mt-6 max-w-[760px] rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] p-6 sm:p-7" aria-labelledby="connected-pet-story">
+              {entries.some((entry) => entry.pet_profile_id === profiles[0].id) ? <PetHistoryDepth conversations={conversations} entries={entries} profile={profiles[0]} /> : <PetStartHistory profile={profiles[0]} />}
+            </section>
+          ) : null}
+        </>
+      ) : null}
     </AppPage>
   );
 }
 
-function PetCard({ entries, onDelete, profile }: { entries: CareEntryWithPetName[]; onDelete: () => void; profile: DogProfileWithMemories }) {
-  const latest = useMemo(
-    () => entries.find((entry) => entry.pet_profile_id === profile.id),
-    [entries, profile.id],
-  );
+function PetStartHistory({ profile }: { profile: DogProfileWithMemories }) {
   const name = formatPetDisplayName(profile.name);
+  return <><h2 className="text-xl font-semibold text-[var(--text-primary)]" id="connected-pet-story">Start {name}&apos;s care history</h2><p className="mt-2 leading-7 text-[var(--text-secondary)]">Add a note about food, appetite, routines, symptoms, or anything you may want to remember later.</p><div className="mt-5 flex flex-wrap items-center gap-2"><SoftButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SoftButton><SecondaryButton href={`/ask?pet=${profile.id}`}>Ask about {name}</SecondaryButton></div></>;
+}
+
+function PetHistoryDepth({ conversations, entries, profile }: { conversations: AskConversationSummary[]; entries: CareEntryWithPetName[]; profile: DogProfileWithMemories }) {
+  const name = formatPetDisplayName(profile.name);
+  const latest = entries.find((entry) => entry.pet_profile_id === profile.id);
+  const conversation = conversations.find((item) => item.petId === profile.id);
+  return <><h2 className="text-xl font-semibold text-[var(--text-primary)]" id="connected-pet-story">Latest for {name}</h2><dl className="mt-5 grid gap-5 sm:grid-cols-2"><div><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Latest update</dt><dd className="mt-2 leading-7 text-[var(--text-primary)]">{latest ? formatCareNotePreview(latest.note, 120) : "No update yet"}</dd></div><div><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Latest conversation</dt><dd className="mt-2 leading-7 text-[var(--text-primary)]">{conversation?.title || "No conversation yet"}</dd></div></dl><div className="mt-5"><TextButton href={`/ask?pet=${profile.id}`}>Ask about {name}</TextButton></div></>;
+}
+
+function PetSummary({ entries, onDelete, profile }: { entries: CareEntryWithPetName[]; onDelete: () => void; profile: DogProfileWithMemories }) {
+  const latest = useMemo(() => entries.find((entry) => entry.pet_profile_id === profile.id), [entries, profile.id]);
+  const name = formatPetDisplayName(profile.name);
+  const age = formatAge(profile);
+
   return (
-    <article className="flex min-h-72 flex-col rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5">
-      <div className="flex items-start justify-between gap-4">
-        <Link className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]" href={`/pets/${profile.id}`}>
-          <span aria-hidden="true" className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--pw-card-muted)] text-lg font-semibold">{name.slice(0, 1)}</span>
-          <div>
-            <h2 className="text-xl font-semibold text-[var(--pw-heading)]">{name}</h2>
-            <p className="text-sm text-[var(--pw-muted)]">
-              {[formatSpecies(profile.species), profile.breed || ""].filter(Boolean).join(" · ")}
-            </p>
-          </div>
-        </Link>
-        <details className="relative">
-          <summary aria-label={`More actions for ${name}`} className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-[var(--pw-border)] text-[var(--pw-text)]">
-            <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
-              <circle cx="6" cy="12" fill="currentColor" r="1.5" />
-              <circle cx="12" cy="12" fill="currentColor" r="1.5" />
-              <circle cx="18" cy="12" fill="currentColor" r="1.5" />
-            </svg>
-          </summary>
-          <div className="absolute right-0 z-10 mt-2 w-44 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-2 shadow-xl">
-            <Link className={menuClass} href={`/pets/${profile.id}/edit`}>Edit profile</Link>
-            <Link className={menuClass} href={`/pets/${profile.id}/memories`}>Saved details</Link>
-            <button className={`${menuClass} text-[var(--pw-danger-text)]`} onClick={onDelete} type="button">Delete profile</button>
-          </div>
-        </details>
+    <article className="grid gap-6 py-7 md:grid-cols-[minmax(220px,0.8fr)_minmax(280px,1fr)_auto] md:items-center">
+      <PetIdentity detail={[formatSpecies(profile.species), age].filter(Boolean).join(" · ")} name={name} size="large" />
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Care goal</p>
+        <p className="mt-1 max-w-lg leading-6 text-[var(--text-primary)]">{profile.main_concern?.trim() || "No current care goal recorded"}</p>
+        <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+          <span className="font-medium text-[var(--text-primary)]">Most recent update:</span>{" "}{latest ? `${formatCareEntryTimestamp(latest.occurred_at)} · ${formatCareNotePreview(latest.note, 70)}` : "Nothing recorded yet"}
+        </p>
       </div>
-
-      <dl className="mt-5 grid gap-3 text-sm">
-        <div><dt className="font-semibold text-[var(--pw-subtle)]">Main concern</dt><dd className="mt-1 text-[var(--pw-text)]">{profile.main_concern || "Not provided"}</dd></div>
-        <div><dt className="font-semibold text-[var(--pw-subtle)]">Species</dt><dd className="mt-1 text-[var(--pw-text)]">{formatSpecies(profile.species)}</dd></div>
-        <div><dt className="font-semibold text-[var(--pw-subtle)]">Profile status</dt><dd className="mt-1 text-[var(--pw-text)]">{buildProfileStatus(profile, entries)}</dd></div>
-        <div><dt className="font-semibold text-[var(--pw-subtle)]">Latest update</dt><dd className="mt-1 text-[var(--pw-text)]">{latest ? `${formatCareEntryCategory(latest.category)} · ${formatCareNotePreview(latest.note, 70)}` : "No updates yet"}</dd>{latest ? <time className="mt-1 block text-[var(--pw-subtle)]" dateTime={latest.occurred_at}>{formatCareEntryTimestamp(latest.occurred_at)}</time> : null}</div>
-      </dl>
-
-      <div className="mt-auto flex items-center justify-end pt-6">
-        <Link className="inline-flex min-h-11 items-center justify-center rounded-full border border-[var(--pw-border-strong)] px-4 text-sm font-semibold text-[var(--pw-text)]" href={`/care-log?pet=${profile.id}&new=1`}>Log update</Link>
+      <div className="flex flex-wrap items-center gap-2 md:justify-end">
+        <TextAction arrow href={`/pets/${profile.id}`}>Open profile</TextAction>
+        <SoftButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SoftButton>
+        <SecondaryButton href={`/ask?pet=${profile.id}`}>Ask about {name}</SecondaryButton>
+        <PetOverflowMenu editHref={`/pets/${profile.id}/edit`} name={name} notesHref={`/pets/${profile.id}#saved-details`} onDelete={onDelete} />
       </div>
     </article>
   );
 }
 
-function Status({ text }: { text: string }) {
-  return <div className="mt-8 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 text-[var(--pw-muted)]" role="status">{text}</div>;
+function formatAge(profile: DogProfileWithMemories) {
+  if (profile.age_value === null || profile.age_value === undefined) return "";
+  const unit = profile.age_unit === "months" ? "months" : "years";
+  return `${profile.age_value} ${unit}`;
 }
-
-const menuClass = "inline-flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold text-[var(--pw-text)] hover:bg-[var(--pw-card-muted)]";

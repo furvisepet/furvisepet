@@ -1,6 +1,5 @@
-import type { Metadata } from "next";
-import { AppearanceProvider } from "./components/appearance-provider";
-import { ThemeBootstrap } from "./components/theme-bootstrap";
+import type { Metadata, Viewport } from "next";
+import { ActionVisualAudit } from "./components/action-visual-audit";
 import {
   CANONICAL_ORIGIN,
   FURVISE_OG_IMAGE_URL,
@@ -40,8 +39,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: FURVISE_OG_IMAGE_URL,
-        width: 1200,
-        height: 630,
+        width: 1536,
+        height: 1024,
         alt: "Furvise pet care history, notes, products, and guidance",
       },
     ],
@@ -53,15 +52,18 @@ export const metadata: Metadata = {
     images: [FURVISE_OG_IMAGE_URL],
   },
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-    ],
     shortcut: [{ url: "/favicon.ico" }],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
-  manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Furvise",
+  },
+  manifest: "/manifest.webmanifest",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#123F27",
 };
 
 export default function RootLayout({
@@ -73,19 +75,19 @@ export default function RootLayout({
     <html
       lang="en"
       className="h-full antialiased"
-      suppressHydrationWarning
+      data-color-scheme="light"
       data-scroll-behavior="smooth"
-      data-theme="dark"
     >
       <head>
+        <meta name="color-scheme" content="light" />
         <meta
           name="impact-site-verification"
           value="716da39a-4e9c-4773-8cc0-b695f0f13ccb"
         />
       </head>
       <body className="min-h-full flex flex-col">
-        <ThemeBootstrap />
-        <AppearanceProvider>{children}</AppearanceProvider>
+        {children}
+        {process.env.NODE_ENV === "development" ? <ActionVisualAudit /> : null}
       </body>
     </html>
   );

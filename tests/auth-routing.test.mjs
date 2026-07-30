@@ -17,9 +17,10 @@ test("signed-out Add pet links target login with next onboarding", () => {
   assert.equal(buildLoginHref(NEW_PET_ONBOARDING_PATH), NEW_PET_LOGIN_PATH);
 
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /const addPetHref = authState === "authenticated" \? NEW_PET_ONBOARDING_PATH : NEW_PET_LOGIN_PATH;/);
-  assert.match(homepage, /href=\{addPetHref\}/);
-  assert.match(homepage, /if \(authState !== "authenticated"\) \{\s*return;\s*\}/);
+  const header = read("app/components/app-header.tsx");
+  assert.match(homepage, /href=\{NEW_PET_LOGIN_PATH\}/);
+  assert.match(header, /NEW_PET_LOGIN_PATH, label: "Add your pet"/);
+  assert.match(header, /NEW_PET_ONBOARDING_PATH, label: "Add pet"/);
 });
 
 test("signed-in Add pet actions go directly to new-pet onboarding", () => {
@@ -37,13 +38,12 @@ test("signed-in Add pet actions go directly to new-pet onboarding", () => {
 test("signed-out direct onboarding redirects to login with next before restoring draft storage", () => {
   const source = read("app/onboarding/page.tsx");
   const authGuardStart = source.indexOf("useConfirmedSupabaseAuth()");
-  const draftRestoreStart = source.indexOf("window.localStorage.getItem(ONBOARDING_MODE_STORAGE_KEY)");
+  const draftRestoreStart = source.indexOf("getActiveAddPetDraftId(window.localStorage, user.id)");
 
   assert.ok(authGuardStart >= 0);
   assert.ok(draftRestoreStart > authGuardStart);
-  assert.match(source, /if \(authStatus !== "signedOut"\) return;/);
-  assert.match(source, /router\.replace\(buildLoginHref\(nextPath\)\);/);
-  assert.match(source, /const nextPath = currentPath === "\/onboarding" \? NEW_PET_ONBOARDING_PATH : currentPath;/);
+  assert.match(source, /if \(status !== "signedOut" \|\| redirectRef\.current\) return;/);
+  assert.match(source, /router\.replace\(buildLoginHref\(currentPath === "\/onboarding" \? NEW_PET_ONBOARDING_PATH : currentPath\)\);/);
 });
 
 test("login next handling rejects external URLs and allows internal onboarding", () => {
@@ -58,11 +58,10 @@ test("login next handling rejects external URLs and allows internal onboarding",
 test("login redirects to next after successful auth", () => {
   const source = read("app/login/page.tsx");
 
-  assert.match(source, /const nextPath = getSafeNextPath\(searchParams\.get\("next"\) \|\| searchParams\.get\("returnTo"\), "\/dashboard"\);/);
-  assert.match(source, /if \(authStatus !== "signedIn"\) return;/);
+  assert.match(source, /const nextPath = getSafeNextPath\(searchParams\.get\("next"\) \|\| searchParams\.get\("returnTo"\), "\/today"\);/);
+  assert.match(source, /authStatus !== "signedIn"/);
   assert.match(source, /router\.replace\(nextPath\);/);
-  assert.match(source, /pointsToNewPetOnboarding\(nextPath\)/);
-  assert.match(source, /Sign in to save your pet's care history\./);
+  assert.match(source, /Sign in to continue caring for your pets\./);
 });
 
 test("signed-out login with onboarding next keeps the form tree stable", () => {
@@ -70,7 +69,7 @@ test("signed-out login with onboarding next keeps the form tree stable", () => {
 
   assert.match(source, /const authChecked = authStatus !== "loading";/);
   assert.match(source, /<form className="grid gap-4" onSubmit=\{submitAuth\}>/);
-  assert.match(source, /<StatusBanner text="Checking your session\.\.\." \/>/);
+  assert.match(source, /<AccountStatus text="Checking your session\.\.\." \/>/);
   assert.match(source, /disabled=\{!authChecked \|\| loading \|\| Boolean\(configError\)\}/);
   assert.doesNotMatch(source, /!authChecked \? \(\s*<div className="space-y-5">/);
   assert.doesNotMatch(source, /Checking your account\.\.\./);
@@ -100,8 +99,8 @@ test("auth loading state does not redirect between login and onboarding", () => 
   const login = read("app/login/page.tsx");
   const onboarding = read("app/onboarding/page.tsx");
 
-  assert.match(login, /if \(authStatus !== "signedIn"\) return;[\s\S]*router\.replace\(nextPath\);/);
-  assert.match(onboarding, /if \(authStatus !== "signedOut"\) return;[\s\S]*router\.replace\(buildLoginHref\(nextPath\)\);/);
+  assert.match(login, /authStatus !== "signedIn"[\s\S]*router\.replace\(nextPath\);/);
+  assert.match(onboarding, /if \(status !== "signedOut" \|\| redirectRef\.current\) return;[\s\S]*router\.replace\(buildLoginHref/);
   assert.doesNotMatch(login, /authStatus === "loading"[\s\S]*router\.replace/);
   assert.doesNotMatch(onboarding, /authStatus === "loading"[\s\S]*router\.replace/);
 });
@@ -121,7 +120,6 @@ test("protected pages redirect signed-out users to login with current path next"
     "app/pets/[id]/page.tsx",
     "app/shop/page.tsx",
     "app/account/page.tsx",
-    "app/dogs/[id]/memories/page.tsx",
   ]) {
     const source = read(path);
     assert.match(source, /useRequireConfirmedSupabaseAuth\(\)/, path);
@@ -146,9 +144,9 @@ test("protected page loading paths no longer render signed-out error copy", () =
 test("signed-in onboarding restores and renders instead of redirecting to login", () => {
   const source = read("app/onboarding/page.tsx");
 
-  assert.match(source, /if \(authStatus !== "signedIn"\) \{\s*return;\s*\}/);
-  assert.match(source, /setIsRestored\(true\);/);
-  assert.match(source, /<StepInput/);
+  assert.match(source, /if \(status !== "signedIn" \|\| !user\) return;/);
+  assert.match(source, /setDraftState\(\{ draft: savedDraft, id: draftId \}\)/);
+  assert.match(source, /data-ui="quick-start-onboarding-shell"/);
 });
 
 test("redirect guards fire once to prevent login onboarding ping-pong", () => {
@@ -156,9 +154,9 @@ test("redirect guards fire once to prevent login onboarding ping-pong", () => {
   const onboarding = read("app/onboarding/page.tsx");
 
   assert.match(login, /const didRedirectRef = useRef\(false\);/);
-  assert.match(login, /if \(didRedirectRef\.current\) return;[\s\S]*didRedirectRef\.current = true;[\s\S]*router\.replace\(nextPath\);/);
-  assert.match(onboarding, /const didRedirectRef = useRef\(false\);/);
-  assert.match(onboarding, /if \(didRedirectRef\.current\) return;[\s\S]*didRedirectRef\.current = true;[\s\S]*router\.replace\(buildLoginHref\(nextPath\)\);/);
+  assert.match(login, /didRedirectRef\.current[\s\S]*didRedirectRef\.current = true;[\s\S]*router\.replace\(nextPath\);/);
+  assert.match(onboarding, /const redirectRef = useRef\(false\);/);
+  assert.match(onboarding, /redirectRef\.current[\s\S]*redirectRef\.current = true;[\s\S]*router\.replace\(buildLoginHref/);
 });
 
 test("Results does not show unsigned local draft results", () => {

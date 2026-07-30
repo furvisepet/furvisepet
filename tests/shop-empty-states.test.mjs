@@ -158,7 +158,7 @@ test("Shop empty state does not fill with unsafe products when avoid ingredients
   assert.deepEqual(result.products, []);
 
   const page = read("app/shop/page.tsx");
-  assert.match(page, /Some matches may be hidden because of saved avoid ingredients\./);
+  assert.match(page, /We left out products with ingredients you have said to avoid\./);
 });
 
 test("Shop empty state suppresses products for urgent query and urgent saved pet context", () => {
@@ -195,7 +195,7 @@ test("Shop empty state suppresses products for urgent query and urgent saved pet
 
   const page = read("app/shop/page.tsx");
   assert.match(page, /Product shopping is hidden for now/);
-  assert.match(page, /Contact a veterinarian or emergency clinic before shopping for products\./);
+  assert.match(page, /FURVISE_URGENT_SAFETY_MESSAGE/);
 });
 
 test("Shop empty state blocks explicit species conflicts without showing other-species products", () => {
@@ -217,8 +217,8 @@ test("Shop empty state blocks explicit species conflicts without showing other-s
 test("Shop empty-state copy stays honest and avoids cross-country fallback language", () => {
   const page = read("app/shop/page.tsx");
 
-  assert.match(page, /No careful match yet/);
-  assert.match(page, /Furvise does not have a careful product option for that search, pet context, and country right now\./);
+  assert.match(page, /No matches in the current collection/);
+  assert.match(page, /Try a broader term or another category\./);
   assert.match(page, /No product for this country yet/);
   assert.match(page, /No verified ingredient match yet/);
   assert.doesNotMatch(page, /careful catalog match|region-verified|ingredient-verified catalog match/);
@@ -229,6 +229,6 @@ test("Shop vague query state asks for a specific product type", () => {
   const page = read("app/shop/page.tsx");
 
   assert.match(page, /emptyState === "vague_query"/);
-  assert.match(page, /What are you shopping for\?/);
-  assert.match(page, /Try a specific product type like shampoo, dental treats, grooming wipes, flea comb, or chicken-free food\./);
+  assert.match(page, /No matches in the current collection/);
+  assert.match(page, /Try a broader term or another category\./);
 });

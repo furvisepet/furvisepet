@@ -69,7 +69,7 @@ test("review shows known and unknown current food values", () => {
   assert.equal(row?.getValue(knownProfile), "Chicken and rice kibble");
 });
 
-test("normalized profile clears stale current food when unknown is set", () => {
+test("normalized profile preserves the hidden current-food draft when unknown is set", () => {
   const profileState = normalizeProfile({
     ...profile(),
     currentFood: "Old kibble",
@@ -77,5 +77,5 @@ test("normalized profile clears stale current food when unknown is set", () => {
   });
 
   assert.equal(profileState.currentFoodUnknown, true);
-  assert.equal(profileState.currentFood, "");
+  assert.equal(profileState.currentFood, "Old kibble");
 });

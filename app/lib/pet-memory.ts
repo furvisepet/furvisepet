@@ -5,11 +5,7 @@ import type {
   DogProductFeedbackRow,
   DogProfileRow,
 } from "./supabase";
-
-const FURVISE_SAFETY_LINE =
-  "Furvise organizes care context. It does not diagnose or replace a veterinarian.";
-const FURVISE_URGENT_SAFETY_MESSAGE =
-  "Some signs may need urgent veterinary care. If your pet is struggling to breathe, collapsing, repeatedly vomiting, showing severe pain, or may have eaten something toxic, contact a veterinarian or emergency clinic now.";
+import { FURVISE_SAFETY_LINE, FURVISE_URGENT_SAFETY_MESSAGE } from "./safety-copy.ts";
 
 export type PetMemorySource = "owner" | "furvise" | "system";
 
@@ -248,6 +244,7 @@ export async function loadPetMemoryContext({
       .select("*")
       .eq("dog_profile_id", petId)
       .eq("user_id", userId)
+      .eq("status", "active")
       .order("created_at", { ascending: false })
       .limit(60)
       .returns<DogMemoryRow[]>(),
@@ -353,7 +350,7 @@ export function answerPetMemoryQuestion(
         : intent === "symptom_notes"
           ? summarizeSymptomNotes(memory, question)
           : intent === "vet_prep"
-            ? buildVetPrepSummary(memory)
+            ? buildVetPrepSummary(memory, question)
             : intent === "product_feedback_summary"
               ? summarizeProductFeedback(memory)
               : intent === "recent_summary"
@@ -377,9 +374,8 @@ function isCauseStyleQuestion(question: string) {
 
 function buildCauseBoundaryAnswer(memory: PetMemoryContext) {
   return {
-    title: `${memory.pet.name}'s care context`,
-    summary:
-      `${FURVISE_SAFETY_LINE} Based on saved notes, these are details worth tracking and asking your vet about.`,
+    title: `${memory.pet.name}'s care details`,
+    summary: `I can't tell what caused this, but I can help you narrow down what changed and what to watch next for ${memory.pet.name}.`,
     sections: [
       {
         heading: "What to track",
@@ -408,14 +404,14 @@ export function summarizeRecentChanges(memory: PetMemoryContext) {
   if (memory.timeline.recentEntries.length === 0) {
     return {
       title: `${memory.pet.name}'s recent changes`,
-      summary: `Furvise has ${memory.pet.name}'s profile, but no recent care updates yet.`,
+      summary: `There aren't any recent care updates for ${memory.pet.name} yet. Start with the change that matters most today.`,
       sections: [
         {
-          heading: "What is saved",
+          heading: "What I know about the routine",
           items: memory.derived.summaryBullets.slice(0, 4),
         },
         {
-          heading: "Missing context",
+          heading: "One useful next detail",
           items: memory.derived.missingContext.slice(0, 4),
         },
       ].filter((section) => section.items.length > 0),
@@ -425,18 +421,18 @@ export function summarizeRecentChanges(memory: PetMemoryContext) {
 
   return {
     title: `${memory.pet.name}'s recent changes`,
-    summary: `I found ${memory.timeline.recentEntries.length} recent saved update${memory.timeline.recentEntries.length === 1 ? "" : "s"} for ${memory.pet.name}.`,
+    summary: `${memory.pet.name}'s latest care updates are organized below, with the newest change first.`,
     sections: [
       {
         heading: "Latest updates",
         items: memory.timeline.recentEntries.slice(0, 5).map(formatEntryForRecall),
       },
       {
-        heading: "Patterns Furvise can use",
+        heading: "Changes worth paying attention to",
         items: [...memory.derived.recentChanges, ...memory.derived.recurringConcerns].slice(0, 5),
       },
       {
-        heading: "Missing context",
+        heading: "One useful next detail",
         items: memory.derived.missingContext.slice(0, 4),
       },
     ].filter((section) => section.items.length > 0),
@@ -488,7 +484,7 @@ export function summarizeSymptomNotes(memory: PetMemoryContext, question = "") {
   if (askedAboutVomiting && vomitingEntries.length === 0) {
     return {
       title: `${memory.pet.name}'s symptom notes`,
-      summary: `I do not see saved vomiting logs for ${memory.pet.name}.`,
+      summary: `There aren't any vomiting notes for ${memory.pet.name} yet. If this is happening now, note the timing, frequency, and whether water stays down.`,
       sections: symptomEntries.length
         ? [{ heading: "Other symptom-related updates", items: symptomEntries.slice(0, 5).map(formatEntryForRecall) }]
         : [],
@@ -500,24 +496,54 @@ export function summarizeSymptomNotes(memory: PetMemoryContext, question = "") {
     title: `${memory.pet.name}'s symptom notes`,
     summary:
       symptomEntries.length > 0
-        ? `I found ${symptomEntries.length} saved symptom-related update${symptomEntries.length === 1 ? "" : "s"} for ${memory.pet.name}.`
-        : `I do not see saved symptom notes for ${memory.pet.name} yet.`,
+        ? `Here are the changes you've recorded for ${memory.pet.name}, with the most recent first.`
+        : `There aren't any notes about this change for ${memory.pet.name} yet. Start with when it began and how it differs from normal.`,
     sections: [
-      { heading: "Saved symptom-related updates", items: symptomEntries.slice(0, 6).map(formatEntryForRecall) },
-      { heading: "Profile concern", items: memory.pet.mainConcern ? [memory.pet.mainConcern] : [] },
-      { heading: "Missing context", items: memory.derived.missingContext.slice(0, 4) },
+      { heading: "Changes you've recorded", items: symptomEntries.slice(0, 6).map(formatEntryForRecall) },
+      { heading: "Main concern", items: memory.pet.mainConcern ? [`You reported: ${memory.pet.mainConcern}`] : [] },
     ].filter((section) => section.items.length > 0),
     safetyNote: buildSafetyNote(memory),
   };
 }
 
-export function buildVetPrepSummary(memory: PetMemoryContext) {
+export function buildVetPrepSummary(memory: PetMemoryContext, question = "") {
+  if (/\b(track|monitor|watch|note|record)\b/i.test(question)) {
+    return {
+      title: `Before ${memory.pet.name}'s vet visit`,
+      summary: `For the next few days, track ${memory.pet.name}'s appetite, energy, stool, sleep, scratching, and anything that seems different from normal.`,
+      sections: [
+        {
+          heading: "Track each day",
+          items: [
+            "Appetite and water intake, including skipped meals or unusual thirst.",
+            "Energy, sleep, stool, scratching, and any behavior that differs from normal.",
+            "When each change happens, how long it lasts, and what happened just before it.",
+          ],
+        },
+        {
+          heading: "Bring to the visit",
+          items: [
+            "Your notes with dates and times, plus clear photos or short videos when useful.",
+            "Food, treat, medication, and supplement names or package photos.",
+            "A short list of the changes you most want the veterinarian to review.",
+          ],
+        },
+        {
+          heading: "Contact a veterinarian sooner if",
+          items: [
+            "The change worsens quickly, becomes painful, or affects eating, drinking, breathing, walking, or using the bathroom.",
+          ],
+        },
+      ],
+      safetyNote: buildVetPrepSafetyNote(memory),
+    };
+  }
   return {
     title: `Vet prep for ${memory.pet.name}`,
-    summary: `Use these saved facts and recent logs to prepare a clear vet summary for ${memory.pet.name}.`,
+    summary: `Start with what changed for ${memory.pet.name}, when it began, and how it differs from normal. Then bring the most relevant notes below.`,
     sections: [
       {
-        heading: "Saved profile facts",
+        heading: "Key details",
         items: [
           memory.pet.species ? `Species: ${memory.pet.species}.` : "",
           memory.pet.breed ? `Breed: ${memory.pet.breed}.` : "",
@@ -531,19 +557,15 @@ export function buildVetPrepSummary(memory: PetMemoryContext) {
         ].filter(Boolean),
       },
       {
-        heading: "Recent saved updates",
+        heading: "Recent care updates",
         items:
           memory.timeline.recentEntries.length > 0
             ? memory.timeline.recentEntries.slice(0, 6).map(formatEntryForRecall)
-            : [`Furvise does not have care updates for ${memory.pet.name} yet.`],
+            : [`No care updates have been recorded for ${memory.pet.name} yet.`],
       },
       {
         heading: "What to ask the vet",
         items: buildVetPrepQuestions(memory),
-      },
-      {
-        heading: "Helpful context still missing",
-        items: buildVetPrepMissingContext(memory),
       },
     ].filter((section) => section.items.length > 0),
     safetyNote: buildVetPrepSafetyNote(memory),
@@ -642,12 +664,11 @@ function buildGeneralMemoryAnswer(memory: PetMemoryContext, question: string) {
   }
 
   return {
-    title: `${memory.pet.name}'s saved context`,
-    summary: `I can answer best from saved memory. Furvise has ${memory.pet.name}'s profile${memory.timeline.recentEntries.length ? ` and ${memory.timeline.recentEntries.length} recent update${memory.timeline.recentEntries.length === 1 ? "" : "s"}` : ", but no recent care updates yet"}.`,
+    title: `Caring for ${memory.pet.name}`,
+    summary: `I'd start with one practical step: keep ${memory.pet.name}'s routine steady and note the specific change you want to improve.`,
     sections: [
-      { heading: "What is saved", items: memory.derived.summaryBullets.slice(0, 5) },
+      { heading: "Relevant details", items: memory.derived.summaryBullets.slice(0, 3) },
       { heading: "Recent updates", items: memory.timeline.recentEntries.slice(0, 4).map(formatEntryForRecall) },
-      { heading: "Missing context", items: memory.derived.missingContext.slice(0, 4) },
     ].filter((section) => section.items.length > 0),
     safetyNote: buildSafetyNote(memory),
   };
@@ -660,19 +681,18 @@ function buildFoodNotesSummary(
   relatedMealEntryCount: number,
 ) {
   if (profileItemCount || foodEntryCount) {
-    return `Here is the saved food context I found for ${memory.pet.name}.`;
+    return `Start with the food change closest to when the concern began, and avoid adding anything else new while you watch what happens.`;
   }
   if (relatedMealEntryCount) {
-    return `I do not see saved food updates for ${memory.pet.name} yet, but I found related appetite or meal-time updates.`;
+    return `There isn't a recorded food change for ${memory.pet.name}, but the meal and appetite notes below may help establish a baseline.`;
   }
-  return `I do not see saved food notes for ${memory.pet.name} yet.`;
+  return `There aren't any food notes for ${memory.pet.name} yet. Start with the current food and the date of the most recent change.`;
 }
 
 function buildUrgentMemoryResponse(flags: string[]) {
   return {
     title: "Contact a veterinarian now",
-    summary:
-      "The saved context or question includes urgent warning signs. Contact an emergency veterinarian now.",
+    summary: "This sounds urgent. Contact a veterinarian or emergency clinic now.",
     sections: [
       {
         heading: "Urgent signs detected",
@@ -860,15 +880,6 @@ function uniqueNonEmptyStrings(values: string[]) {
     seen.add(normalized);
     return true;
   });
-}
-
-function buildVetPrepMissingContext(memory: PetMemoryContext) {
-  return [
-    memory.pet.breed ? "" : "Breed",
-    memory.pet.weightLabel ? "" : "Weight",
-    memory.pet.currentFood ? "" : "Current food",
-    memory.pet.avoidIngredients.length ? "" : "Avoid ingredients",
-  ].filter(Boolean);
 }
 
 function buildVetPrepSafetyNote(memory: PetMemoryContext) {

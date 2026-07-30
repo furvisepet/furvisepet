@@ -1,6 +1,9 @@
+import { FURVISE_PRODUCT_USAGE_CAP_MESSAGE } from "../furvise-voice.ts";
+
 export type PlanId = "free" | "plus";
 
 export type PlanLimits = {
+  aiCreditsMonthlyLimit: number;
   askFurviseMonthlyLimit: number;
   careLog: "unlimited";
   curatedProducts: boolean;
@@ -26,31 +29,33 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
   free: {
     id: "free",
     label: "Free plan",
-    askFurviseMonthlyLimit: 20,
+    aiCreditsMonthlyLimit: 50,
+    askFurviseMonthlyLimit: 50,
     careLog: "unlimited",
     curatedProducts: true,
     dashboard: true,
     liveProductResearch: false,
     longHistoryPatternDetection: false,
     maxPets: 1,
-    productQuestionMonthlyLimit: 80,
-    productsAiMonthlyLimit: 80,
-    shopSearchMonthlyLimit: 80,
+    productQuestionMonthlyLimit: 50,
+    productsAiMonthlyLimit: 50,
+    shopSearchMonthlyLimit: 50,
     vetPrepExports: false,
   },
   plus: {
     id: "plus",
     label: "Furvise Plus",
-    askFurviseMonthlyLimit: 200,
+    aiCreditsMonthlyLimit: 500,
+    askFurviseMonthlyLimit: 500,
     careLog: "unlimited",
     curatedProducts: true,
     dashboard: true,
     liveProductResearch: true,
     longHistoryPatternDetection: true,
     maxPets: 10,
-    productQuestionMonthlyLimit: 80,
-    productsAiMonthlyLimit: 80,
-    shopSearchMonthlyLimit: 80,
+    productQuestionMonthlyLimit: 500,
+    productsAiMonthlyLimit: 500,
+    shopSearchMonthlyLimit: 500,
     vetPrepExports: true,
   },
 };
@@ -163,7 +168,7 @@ export function evaluateShopSearchUsageLimit({
     return { allowed: true, hardBlocked: false, limit: plan.productsAiMonthlyLimit, message: null, remaining, softNotice: null };
   }
 
-  const message = "You've used your included Product AI for this month.";
+  const message = FURVISE_PRODUCT_USAGE_CAP_MESSAGE;
   if (earlyAccessUnlocked) {
     return {
       allowed: true,
@@ -171,7 +176,7 @@ export function evaluateShopSearchUsageLimit({
       limit: plan.productsAiMonthlyLimit,
       message: null,
       remaining: 0,
-      softNotice: "Early access: extra Product AI uses are currently unlocked.",
+      softNotice: "Early access: extra product searches are currently unlocked.",
     };
   }
 

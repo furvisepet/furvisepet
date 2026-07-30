@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
-import type { MouseEvent, ReactNode } from "react";
-import { useAppearance } from "./appearance-provider";
-import { BackButton } from "./back-button";
+import { useEffect, useId, useRef, useState } from "react";
+import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
+import { getBrowserSupabase } from "../lib/supabase";
+import { BrandMark } from "./brand-mark";
+import { appPageContainer, PrimaryButton, TextAction } from "./product-primitives";
 
 type HeaderAction = {
   href?: string;
@@ -14,12 +14,6 @@ type HeaderAction = {
   disabled?: boolean;
   onClick?: () => void;
   variant?: "primary" | "secondary";
-};
-
-type HeaderNavItem = {
-  href: string;
-  label: string;
-  active?: boolean;
 };
 
 type HeaderMenuLinkItem = {
@@ -37,921 +31,217 @@ type HeaderMenuButtonItem = {
   tone?: "default" | "danger";
 };
 
-type HeaderMenuItem = HeaderMenuLinkItem | HeaderMenuButtonItem;
+type HeaderMenuLabelItem = {
+  type: "label";
+  label: string;
+};
 
+type HeaderMenuItem = HeaderMenuLinkItem | HeaderMenuButtonItem | HeaderMenuLabelItem;
 type HeaderAuthState = "loading" | "anonymous" | "authenticated";
-type HeaderVariant = "homepage" | "site";
-type CurrentPage = "home" | "dashboard";
 
 type AppHeaderProps = {
   actions?: HeaderAction[];
   backFallbackHref?: string;
   backLabel?: string;
   brandHref?: string;
-  brandMark?: ReactNode;
+  brandMark?: React.ReactNode;
   compact?: boolean;
   accountMenuItems?: HeaderMenuItem[];
+  accountError?: string;
   authState?: HeaderAuthState;
   homepageMenuItems?: HeaderMenuItem[];
   homepagePolish?: boolean;
-  currentPage?: CurrentPage;
-  navItems?: HeaderNavItem[];
-  variant?: HeaderVariant;
+  currentPage?: "home" | "dashboard";
+  navItems?: { href: string; label: string }[];
+  variant?: "homepage" | "site";
+  homepageActions?: HeaderAction[];
   sticky?: boolean;
   showBackButton?: boolean;
-  title?: ReactNode;
+  title?: React.ReactNode;
 };
 
+export const APP_NAV_ITEMS = [
+  { href: "/dashboard", label: "Today" },
+  { href: "/pets", label: "Pets" },
+  { href: "/care-log", label: "History" },
+  { href: "/ask", label: "Ask" },
+  { href: "/shop", label: "Products" },
+] as const;
+
+const MOBILE_NAV_ITEMS = [
+  { href: "/dashboard", icon: "today", label: "Today" },
+  { href: "/care-log", icon: "history", label: "History" },
+  { href: "/ask", icon: "ask", label: "Ask" },
+  { href: "/pets", icon: "pets", label: "Pets" },
+] as const;
+
 export function AppHeader({
-  actions = [],
-  backFallbackHref = "/",
-  backLabel = "Back",
+  accountError = "",
+  accountMenuItems = [],
+  authState,
   brandHref = "/",
   brandMark,
-  compact = false,
-  accountMenuItems = [],
-  authState: _authState = "anonymous",
-  homepageMenuItems = [],
-  homepagePolish = false,
-  currentPage,
-  navItems = [],
-  variant = "homepage",
+  navItems,
   sticky = false,
-  showBackButton = false,
-  title,
+  variant = "homepage",
+  homepageActions,
 }: AppHeaderProps) {
-  const { openAppearance } = useAppearance();
   const pathname = usePathname();
-  const [desktopMenuOpen, setDesktopMenuOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileAccountMenuOpen, setMobileAccountMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const hasMounted = useSyncExternalStore(
-    () => () => undefined,
-    () => true,
-    () => false,
+  const [localAuthState, setLocalAuthState] = useState<HeaderAuthState>(authState ?? "anonymous");
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const mobileMoreRef = useRef<HTMLDetailsElement>(null);
+  const mobileMoreSummaryRef = useRef<HTMLElement | null>(null);
+  const menuId = useId();
+  const isHomepage = variant === "homepage" && pathname === "/";
+  const resolvedAuthState = authState ?? localAuthState;
+  const items = variant === "site" || resolvedAuthState === "authenticated" ? APP_NAV_ITEMS : navItems ?? [];
+  const resolvedHomepageActions = homepageActions ?? (
+    resolvedAuthState === "authenticated"
+      ? [{ href: "/dashboard", label: "Today", variant: "secondary" as const }, { href: NEW_PET_ONBOARDING_PATH, label: "Add pet", variant: "primary" as const }]
+      : resolvedAuthState === "anonymous"
+        ? [{ href: "/login", label: "Sign in", variant: "secondary" as const }, { href: NEW_PET_LOGIN_PATH, label: "Add your pet", variant: "secondary" as const }]
+        : []
   );
-  const desktopMenuId = useId();
-  const mobileMenuId = useId();
-  const mobileAccountMenuId = useId();
-  const isHomepageVariant = variant === "homepage";
-  const isSiteVariant = variant === "site";
-  const authResolved = hasMounted && _authState !== "loading";
-  const safeAccountMenuItems = authResolved ? accountMenuItems : [];
-  const safeHomepageAccountMenuItems = authResolved
-    ? homepageMenuItems.length > 0
-      ? homepageMenuItems
-      : accountMenuItems
-    : [];
-  const hasAccountMenuItems =
-    isSiteVariant ||
-    (isHomepageVariant && navItems.length > 0) ||
-    accountMenuItems.length > 0 ||
-    homepageMenuItems.length > 0 ||
-    safeAccountMenuItems.length > 0 ||
-    safeHomepageAccountMenuItems.length > 0;
-  const homepageAccountMenuItems = safeHomepageAccountMenuItems;
-  const resolvedBrandMark = brandMark === undefined ? <DefaultBrandMark /> : brandMark;
 
   useEffect(() => {
-    if (!sticky) {
-      return;
+    if (authState) return;
+    const client = getBrowserSupabase();
+    if (!client) return;
+    let active = true;
+    client.auth.getUser().then(({ data }) => {
+      if (active) setLocalAuthState(data.user ? "authenticated" : "anonymous");
+    }).catch(() => {
+      if (active) setLocalAuthState("anonymous");
+    });
+    return () => { active = false; };
+  }, [authState]);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function closeMenu() {
+    if (menuRef.current) menuRef.current.open = false;
+  }
+
+  function closeMobileMore(restoreFocus = false) {
+    if (mobileMoreRef.current) mobileMoreRef.current.open = false;
+    if (restoreFocus) requestAnimationFrame(() => mobileMoreSummaryRef.current?.focus());
+  }
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!mobileMoreRef.current?.open || mobileMoreRef.current.contains(event.target as Node)) return;
+      mobileMoreRef.current.open = false;
     }
 
-    const updateScrollState = () => {
-      setIsScrolled(window.scrollY > 8);
-    };
-
-    updateScrollState();
-    window.addEventListener("scroll", updateScrollState, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", updateScrollState);
-    };
-  }, [sticky]);
-
-  function closeDesktopMenu() {
-    setDesktopMenuOpen(false);
-  }
-
-  function closeMobileMenu() {
-    setMobileMenuOpen(false);
-    setMobileAccountMenuOpen(false);
-  }
-
-  function closeAllMenus() {
-    closeDesktopMenu();
-    closeMobileMenu();
-  }
-
-  function handleBrandClick(event: MouseEvent<HTMLAnchorElement>) {
-    if (pathname === "/" && brandHref === "/") {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape" || !mobileMoreRef.current?.open) return;
       event.preventDefault();
-      window.scrollTo({ behavior: "smooth", top: 0 });
-      closeAllMenus();
-    }
-  }
-
-  function handleSectionClick(event: MouseEvent<HTMLAnchorElement>, href: string) {
-    if (!href.startsWith("#")) {
-      closeAllMenus();
-      return;
+      mobileMoreRef.current.open = false;
+      requestAnimationFrame(() => mobileMoreSummaryRef.current?.focus());
     }
 
-    event.preventDefault();
-    const id = href.slice(1);
-    const target = document.getElementById(id);
-
-    if (target) {
-      target.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-
-    closeAllMenus();
-  }
-
-  function handleAppearanceClick() {
-    closeAllMenus();
-    openAppearance();
-  }
-
-  function isNavItemActive(item: HeaderNavItem) {
-    if (pathname === item.href) {
-      return true;
-    }
-
-    if (typeof item.active === "boolean") {
-      return item.active;
-    }
-
-    if (currentPage === "dashboard") {
-      return item.href === "/dashboard";
-    }
-
-    if (currentPage === "home") {
-      return item.href === "/";
-    }
-
-    if (item.href === "/") {
-      return pathname === "/";
-    }
-
-    if (item.href === "/dashboard") {
-      return pathname === "/dashboard";
-    }
-
-    if (item.href === "/pets") {
-      return pathname === "/pets" || pathname.startsWith("/pets/") || pathname.startsWith("/dogs/");
-    }
-
-    if (item.href === "/care-log") {
-      return pathname === "/care-log";
-    }
-
-    if (item.href === "/shop") {
-      return pathname === "/shop";
-    }
-
-    if (item.href === "/ask") {
-      return pathname === "/ask";
-    }
-
-    return false;
-  }
-
-  const shellClasses = sticky
-    ? `sticky top-0 z-50 w-full max-w-full min-w-0 overflow-x-clip px-2 pt-2 sm:px-4 sm:pt-4 ${compact ? "pb-0" : "pb-0"}`
-    : `flex w-full max-w-full min-w-0 flex-wrap items-center justify-between gap-3 overflow-x-clip ${compact ? "" : "pb-1"}`;
-
-  const cardClasses = sticky
-    ? `box-border w-full max-w-full min-w-0 rounded-[1.75rem] border px-3 py-3 shadow-sm transition-all duration-200 sm:px-5 sm:py-4 ${
-        isScrolled
-          ? "border-[var(--pw-border)] bg-[var(--pw-header-surface)] backdrop-blur-xl shadow-[0_18px_40px_var(--pw-shadow)]"
-          : "border-[color-mix(in_srgb,var(--pw-border)_72%,transparent)] bg-[var(--pw-header-surface)] backdrop-blur-xl shadow-[0_12px_28px_var(--pw-shadow)]"
-      }`
-    : "";
-
-  function renderAction(action: HeaderAction, mobile = false, compactTop = false) {
-    const actionClasses =
-      homepagePolish && action.variant === "secondary"
-        ? `inline-flex items-center justify-center text-sm font-medium text-[var(--pw-muted)] transition hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] ${
-            compactTop
-              ? "min-h-10 max-w-[5.5rem] shrink rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface-strong)] px-3 sm:min-h-11 sm:max-w-none sm:px-4"
-              : `min-h-11 px-1 ${mobile ? "w-full justify-start py-2.5" : ""}`
-          }`
-        : `inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium transition disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] ${
-            homepagePolish && action.variant === "primary"
-              ? "bg-[var(--pw-primary)] px-5 text-white shadow-sm hover:bg-[var(--pw-primary-hover)]"
-              : action.variant === "primary"
-                ? "border border-transparent bg-[var(--pw-primary)] px-4 py-2 text-white shadow-sm hover:bg-[var(--pw-primary-hover)]"
-                : "border border-[var(--pw-border-strong)] bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm hover:border-[var(--pw-secondary)] hover:text-[var(--pw-primary)]"
-          } ${homepagePolish && action.variant === "primary" ? "text-[0.98rem] font-semibold" : ""} ${
-            mobile && action.variant === "primary" ? "w-full" : ""
-          } ${compactTop ? "min-h-10 max-w-[5.75rem] shrink px-3 sm:min-h-11 sm:max-w-none sm:px-4" : ""}`;
-
-    if (action.href) {
-      return (
-        <Link
-          className={actionClasses}
-          href={action.href}
-          key={action.label}
-          onClick={(event) => {
-            if (mobile) {
-              closeAllMenus();
-            } else {
-              closeDesktopMenu();
-            }
-            action.onClick?.();
-            if (action.href?.startsWith("#")) {
-              event.preventDefault();
-            }
-          }}
-        >
-          <span className={compactTop ? "truncate" : ""}>{action.label}</span>
-        </Link>
-      );
-    }
-
-    return (
-      <button
-        className={actionClasses}
-        disabled={action.disabled}
-        key={action.label}
-        onClick={() => {
-          if (mobile) {
-            closeAllMenus();
-          } else {
-            closeDesktopMenu();
-          }
-          action.onClick?.();
-        }}
-        type="button"
-      >
-        <span className={compactTop ? "truncate" : ""}>{action.label}</span>
-      </button>
-    );
-  }
-
-  function renderMenuItem(item: HeaderMenuItem, mobile = false) {
-    const baseClasses =
-      item.tone === "danger"
-        ? "text-[color-mix(in_srgb,var(--pw-text)_80%,#b42318)] hover:bg-[color-mix(in_srgb,var(--pw-primary-soft)_45%,transparent)]"
-        : "text-[var(--pw-text)] hover:bg-[var(--pw-card-muted)]";
-
-    const className = `inline-flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] ${baseClasses} ${
-      mobile ? "" : "min-h-11"
-    }`;
-
-    if (item.type === "link") {
-      return (
-        <Link
-          className={className}
-          href={item.href}
-          key={item.label}
-          onClick={(event) => {
-            const href = item.href;
-            if (href.startsWith("#")) {
-              event.preventDefault();
-              handleSectionClick(event, href);
-              return;
-            }
-            closeAllMenus();
-          }}
-          role="menuitem"
-          tabIndex={0}
-        >
-          {item.label}
-        </Link>
-      );
-    }
-
-    return (
-      <button
-        aria-disabled={item.disabled || undefined}
-        className={className}
-        disabled={item.disabled}
-        key={item.label}
-        onClick={() => {
-          closeAllMenus();
-          item.onClick();
-        }}
-        role="menuitem"
-        tabIndex={0}
-        type="button"
-      >
-        {item.label}
-      </button>
-    );
-  }
-
-  function renderNavItem(item: HeaderNavItem, mobile = false) {
-    const active = isNavItemActive(item);
-    const activeClasses = active
-      ? "text-[var(--pw-heading)]"
-      : "text-[var(--pw-muted)] hover:text-[var(--pw-heading)]";
-
-    return (
-      <Link
-        aria-current={active ? "page" : undefined}
-        className={`inline-flex items-center text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] ${
-          homepagePolish ? "lg:text-[0.98rem]" : ""
-        } ${activeClasses} ${mobile ? "w-full py-2.5 text-left" : "whitespace-nowrap py-1"}`}
-        href={item.href}
-        key={item.label}
-        onClick={(event) => {
-          if (mobile) {
-            closeAllMenus();
-          }
-          handleSectionClick(event, item.href);
-        }}
-      >
-        {item.label}
-      </Link>
-    );
-  }
-
-  function renderAppearanceMenuItem() {
-    return (
-      <button
-        className="inline-flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-[var(--pw-text)] transition hover:bg-[var(--pw-card-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)]"
-        onClick={handleAppearanceClick}
-        role="menuitem"
-        tabIndex={0}
-        type="button"
-      >
-        Appearance
-      </button>
-    );
-  }
-
-  function renderAccountMenuContents(menuItems: HeaderMenuItem[], mobile = false) {
-    const [firstItem, ...remainingItems] = menuItems;
-
-    return (
-      <>
-        {firstItem ? renderMenuItem(firstItem, mobile) : null}
-        {renderAppearanceMenuItem()}
-        {remainingItems.map((item) => renderMenuItem(item, mobile))}
-      </>
-    );
-  }
-
-  function renderAccountMenuPanel(
-    menuId: string,
-    isDesktop = true,
-    menuItems = safeAccountMenuItems,
-  ) {
-    return (
-      <div
-        aria-label="Account menu"
-        className={`absolute right-0 top-[calc(100%+0.75rem)] z-30 w-64 rounded-[1.4rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] p-2 shadow-xl shadow-[var(--pw-shadow)] backdrop-blur-xl ${
-          isDesktop ? "" : "left-0 right-0 top-[calc(100%+0.5rem)] w-auto"
-        }`}
-        id={menuId}
-        role="menu"
-      >
-        <div className="grid gap-1">
-          {renderAccountMenuContents(menuItems)}
-        </div>
-      </div>
-    );
-  }
-
-  function renderSiteShell() {
-    return (
-      <header className={shellClasses}>
-        <div className={cardClasses}>
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
-              {showBackButton ? <BackButton fallbackHref={backFallbackHref} label={backLabel} /> : null}
-              {resolvedBrandMark ? <div className="shrink-0">{resolvedBrandMark}</div> : null}
-              <Link
-                className="min-w-0 shrink truncate text-xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-2xl"
-                href={brandHref}
-                onClick={handleBrandClick}
-              >
-                Furvise
-              </Link>
-              {title ? <div className="hidden text-sm text-[var(--pw-muted)] sm:block">{title}</div> : null}
-            </div>
-
-            <div className="hidden min-w-0 flex-1 justify-center xl:flex">
-              {navItems.length > 0 ? (
-                <nav aria-label="Site sections" className="flex min-w-0 items-center gap-5 2xl:gap-6">
-                  {navItems.map((item) => renderNavItem(item))}
-                </nav>
-              ) : null}
-            </div>
-
-            <div className="hidden shrink-0 items-center gap-2.5 xl:flex">
-              {actions.map((action) => renderAction(action))}
-              <div className="relative">
-                <button
-                  aria-controls={desktopMenuId}
-                  aria-expanded={desktopMenuOpen}
-                  aria-haspopup="menu"
-                  aria-label={desktopMenuOpen ? "Close account menu" : "Open account menu"}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:bg-[var(--pw-card-muted)] hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] sm:h-11 sm:w-11"
-                  onClick={() => {
-                    if (!hasAccountMenuItems) {
-                      return;
-                    }
-                    setMobileMenuOpen(false);
-                    setDesktopMenuOpen((value) => !value);
-                  }}
-                  type="button"
-                >
-                  <span className="sr-only">
-                    {desktopMenuOpen ? "Close account menu" : "Open account menu"}
-                  </span>
-                  <AccountMenuIcon />
-                </button>
-
-                {desktopMenuOpen && hasAccountMenuItems ? renderAccountMenuPanel(desktopMenuId) : null}
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 xl:hidden">
-              {actions.map((action) => renderAction(action, false, true))}
-              {navItems.length > 0 ? (
-                <button
-                  aria-controls={mobileMenuId}
-                  aria-expanded={mobileMenuOpen}
-                  aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:bg-[var(--pw-card-muted)] hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] sm:h-11 sm:w-11"
-                  onClick={() => {
-                    setDesktopMenuOpen(false);
-                    setMobileAccountMenuOpen(false);
-                    setMobileMenuOpen((value) => !value);
-                  }}
-                  type="button"
-                >
-                  <span className="sr-only">{mobileMenuOpen ? "Close menu" : "Open menu"}</span>
-                  <MenuIcon />
-                </button>
-              ) : null}
-              <button
-                aria-controls={mobileAccountMenuId}
-                aria-expanded={mobileAccountMenuOpen}
-                aria-haspopup="menu"
-                aria-label={mobileAccountMenuOpen ? "Close account menu" : "Open account menu"}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:bg-[var(--pw-card-muted)] hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] sm:h-11 sm:w-11"
-                onClick={() => {
-                  if (!hasAccountMenuItems) {
-                    return;
-                  }
-                  setDesktopMenuOpen(false);
-                  setMobileMenuOpen(false);
-                  setMobileAccountMenuOpen((value) => !value);
-                }}
-                type="button"
-              >
-                <span className="sr-only">{mobileAccountMenuOpen ? "Close menu" : "Open menu"}</span>
-                <AccountMenuIcon />
-              </button>
-            </div>
-          </div>
-
-          {navItems.length > 0 ? (
-            <div
-              className={`xl:hidden ${
-                mobileMenuOpen
-                  ? "pointer-events-auto mt-4 opacity-100"
-                  : "pointer-events-none max-h-0 overflow-hidden opacity-0"
-              } transition duration-200`}
-              id={mobileMenuId}
-            >
-              <div className="rounded-[1.5rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] p-3 shadow-lg shadow-[var(--pw-shadow)] backdrop-blur-xl">
-                <nav aria-label="Primary navigation" className="grid gap-1">
-                  {navItems.map((item) => renderNavItem(item, true))}
-                </nav>
-              </div>
-            </div>
-          ) : null}
-
-          <div
-            className={`xl:hidden ${
-              mobileAccountMenuOpen
-                ? "pointer-events-auto mt-4 opacity-100"
-                : "pointer-events-none max-h-0 overflow-hidden opacity-0"
-            } transition duration-200`}
-            id={mobileAccountMenuId}
-          >
-            <div
-              className="rounded-[1.5rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] p-3 shadow-lg shadow-[var(--pw-shadow)] backdrop-blur-xl"
-              role="menu"
-              aria-label="Account menu"
-            >
-              <div className="grid gap-1">
-                {hasAccountMenuItems ? renderAccountMenuContents(safeAccountMenuItems, true) : null}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-    );
-  }
-
-  function renderCalmDashboardShell() {
-    const dashboardCardClasses =
-      "w-full max-w-full min-w-0 rounded-[1.75rem] border border-[var(--pw-border)] bg-[var(--pw-header-surface)] px-4 py-3.5 shadow-sm backdrop-blur-xl sm:px-5 sm:py-4";
-
-    return (
-      <header className={shellClasses}>
-        <div className={dashboardCardClasses}>
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
-              {showBackButton ? <BackButton fallbackHref={backFallbackHref} label={backLabel} /> : null}
-              {resolvedBrandMark ? <div className="shrink-0">{resolvedBrandMark}</div> : null}
-              <Link
-                className="min-w-0 shrink truncate text-xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-2xl"
-                href={brandHref}
-                onClick={handleBrandClick}
-              >
-                Furvise
-              </Link>
-              {title ? <div className="hidden text-sm text-[var(--pw-muted)] sm:block">{title}</div> : null}
-            </div>
-
-            <div className="hidden items-center gap-2.5 lg:flex">
-              {actions.map((action) => renderAction(action))}
-              {hasAccountMenuItems ? (
-                <div className="relative">
-                  <button
-                    aria-controls={desktopMenuId}
-                    aria-expanded={desktopMenuOpen}
-                    aria-haspopup="menu"
-                    aria-label={desktopMenuOpen ? "Close account menu" : "Open account menu"}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:bg-[var(--pw-card-muted)] hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] sm:h-11 sm:w-11"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setDesktopMenuOpen((value) => !value);
-                    }}
-                    type="button"
-                  >
-                    <span className="sr-only">
-                      {desktopMenuOpen ? "Close account menu" : "Open account menu"}
-                    </span>
-                    <AccountMenuIcon />
-                  </button>
-
-                  {desktopMenuOpen ? renderAccountMenuPanel(desktopMenuId) : null}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2 lg:hidden">
-              {actions.map((action) => renderAction(action, false, true))}
-              {hasAccountMenuItems ? (
-                <button
-                  aria-controls={mobileMenuId}
-                  aria-expanded={mobileMenuOpen}
-                  aria-label={mobileMenuOpen ? "Close account menu" : "Open account menu"}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:bg-[var(--pw-card-muted)] hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] sm:h-11 sm:w-11"
-                  onClick={() => {
-                    setDesktopMenuOpen(false);
-                    setMobileMenuOpen((value) => !value);
-                  }}
-                  type="button"
-                >
-                  <span className="sr-only">{mobileMenuOpen ? "Close menu" : "Open menu"}</span>
-                  <AccountMenuIcon />
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          {hasAccountMenuItems ? (
-            <div
-              className={`lg:hidden ${
-                mobileMenuOpen
-                  ? "pointer-events-auto mt-4 opacity-100"
-                  : "pointer-events-none max-h-0 overflow-hidden opacity-0"
-              } transition duration-200`}
-              id={mobileMenuId}
-            >
-              <div
-                className="rounded-[1.5rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] p-3 shadow-lg shadow-[var(--pw-shadow)] backdrop-blur-xl"
-                role="menu"
-                aria-label="Account menu"
-              >
-                <div className="grid gap-1">
-                  {renderAccountMenuContents(safeAccountMenuItems, true)}
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </header>
-    );
-  }
-
-  function renderHomepageShell() {
-    const secondaryAction = actions[0];
-    const primaryAction = actions[1];
-
-    return (
-      <header className={shellClasses}>
-        <div className={cardClasses}>
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
-              {showBackButton ? <BackButton fallbackHref={backFallbackHref} label={backLabel} /> : null}
-              {resolvedBrandMark ? <div className="shrink-0">{resolvedBrandMark}</div> : null}
-              <Link
-                className="min-w-0 shrink truncate text-xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-2xl"
-                href={brandHref}
-                onClick={handleBrandClick}
-              >
-                Furvise
-              </Link>
-              {title ? <div className="hidden text-sm text-[var(--pw-muted)] sm:block">{title}</div> : null}
-            </div>
-
-            <div className="hidden flex-1 justify-center lg:flex">
-              {navItems.length > 0 ? (
-                <nav aria-label="Homepage sections" className="flex items-center gap-8">
-                  {navItems.map((item) => renderNavItem(item))}
-                </nav>
-              ) : null}
-            </div>
-
-            <div className="hidden items-center gap-2.5 lg:flex">
-              {secondaryAction ? renderAction(secondaryAction) : null}
-              {primaryAction ? renderAction(primaryAction) : null}
-              <div className="relative">
-                <button
-                  aria-controls={desktopMenuId}
-                  aria-expanded={desktopMenuOpen}
-                  aria-haspopup="menu"
-                  aria-label={desktopMenuOpen ? "Close account menu" : "Open account menu"}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:bg-[var(--pw-card-muted)] hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] sm:h-11 sm:w-11"
-                  onClick={() => {
-                    if (!hasAccountMenuItems) {
-                      return;
-                    }
-                    setMobileMenuOpen(false);
-                    setDesktopMenuOpen((value) => !value);
-                  }}
-                  type="button"
-                >
-                  <span className="sr-only">{desktopMenuOpen ? "Close account menu" : "Open account menu"}</span>
-                  <AccountMenuIcon />
-                </button>
-
-                {desktopMenuOpen && hasAccountMenuItems ? renderAccountMenuPanel(desktopMenuId, true, homepageAccountMenuItems) : null}
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 lg:hidden">
-              <button
-                aria-controls={mobileMenuId}
-                aria-expanded={mobileMenuOpen}
-                aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:bg-[var(--pw-card-muted)] hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] sm:h-11 sm:w-11"
-                onClick={() => {
-                  setDesktopMenuOpen(false);
-                  setMobileAccountMenuOpen(false);
-                  setMobileMenuOpen((value) => !value);
-                }}
-                type="button"
-              >
-                <span className="sr-only">{mobileMenuOpen ? "Close menu" : "Open menu"}</span>
-                <MenuIcon />
-              </button>
-              <button
-                aria-controls={mobileAccountMenuId}
-                aria-expanded={mobileAccountMenuOpen}
-                aria-haspopup="menu"
-                aria-label={mobileAccountMenuOpen ? "Close account menu" : "Open account menu"}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:bg-[var(--pw-card-muted)] hover:text-[var(--pw-heading)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] sm:h-11 sm:w-11"
-                onClick={() => {
-                  if (!hasAccountMenuItems) {
-                    return;
-                  }
-                  setDesktopMenuOpen(false);
-                  setMobileMenuOpen(false);
-                  setMobileAccountMenuOpen((value) => !value);
-                }}
-                type="button"
-              >
-                <span className="sr-only">{mobileAccountMenuOpen ? "Close menu" : "Open menu"}</span>
-                <AccountMenuIcon />
-              </button>
-            </div>
-          </div>
-
-          <div
-            className={`lg:hidden ${
-              mobileMenuOpen
-                ? "pointer-events-auto mt-4 opacity-100"
-                : "pointer-events-none max-h-0 overflow-hidden opacity-0"
-            } transition duration-200`}
-            id={mobileMenuId}
-          >
-            <div
-              className="rounded-[1.5rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] p-3 shadow-lg shadow-[var(--pw-shadow)] backdrop-blur-xl"
-              role="menu"
-              aria-label="Navigation menu"
-            >
-              <div className="grid gap-1">
-                {navItems.map((item) => renderNavItem(item, true))}
-              </div>
-
-            </div>
-          </div>
-          <div
-            className={`lg:hidden ${
-              mobileAccountMenuOpen
-                ? "pointer-events-auto mt-4 opacity-100"
-                : "pointer-events-none max-h-0 overflow-hidden opacity-0"
-            } transition duration-200`}
-            id={mobileAccountMenuId}
-          >
-            <div
-              className="rounded-[1.5rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] p-3 shadow-lg shadow-[var(--pw-shadow)] backdrop-blur-xl"
-              role="menu"
-              aria-label="Account menu"
-            >
-              <div className="grid gap-1">
-                {hasAccountMenuItems ? renderAccountMenuContents(homepageAccountMenuItems, true) : null}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-    );
-  }
-
-  if (isHomepageVariant && navItems.length > 0) {
-    return renderHomepageShell();
-  }
-
-  if (isSiteVariant) {
-    return renderSiteShell();
-  }
-
-  if (hasAccountMenuItems) {
-    return renderCalmDashboardShell();
-  }
-
-  if (!sticky && navItems.length === 0) {
-    return (
-      <header className={shellClasses}>
-        <div className="flex max-w-full min-w-0 flex-1 basis-[13rem] items-center gap-2 sm:gap-4">
-          {showBackButton ? <BackButton fallbackHref={backFallbackHref} label={backLabel} /> : null}
-          {resolvedBrandMark ? <div className="shrink-0">{resolvedBrandMark}</div> : null}
-          <Link
-            className="min-w-0 shrink truncate text-xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-2xl"
-            href={brandHref}
-            onClick={handleBrandClick}
-          >
-            Furvise
-          </Link>
-          {title ? <div className="hidden text-sm text-[var(--pw-muted)] sm:block">{title}</div> : null}
-        </div>
-
-        <div className="flex max-w-full shrink-0 basis-full flex-wrap items-center justify-start gap-2 sm:basis-auto sm:justify-end sm:gap-2.5">
-          <button
-            className="min-h-11 rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface-strong)] px-4 py-2 text-sm font-medium text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)] hover:text-[var(--pw-primary)]"
-            onClick={openAppearance}
-            type="button"
-          >
-            Appearance
-          </button>
-          {actions.map((action) => renderAction(action))}
-        </div>
-      </header>
-    );
-  }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
 
   return (
-    <header className={shellClasses}>
-        <div className={cardClasses}>
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
-            {showBackButton ? <BackButton fallbackHref={backFallbackHref} label={backLabel} /> : null}
-            {resolvedBrandMark ? <div className="shrink-0">{resolvedBrandMark}</div> : null}
-            <Link
-              className="min-w-0 shrink truncate text-xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-2xl"
-              href={brandHref}
-              onClick={handleBrandClick}
-            >
-              Furvise
+    <>
+      <header className={`${sticky ? "sticky top-0 z-[var(--z-sticky-controls)]" : ""} border-b border-[var(--border-subtle)] bg-[var(--pw-header-surface)] shadow-[var(--shadow-header)]`} data-ui="app-header">
+        <div className={`${appPageContainer} flex min-h-[calc(4.25rem+env(safe-area-inset-top,0px))] items-center justify-between gap-4 pt-[env(safe-area-inset-top,0px)] lg:grid lg:min-h-[4.25rem] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4 lg:pt-0`} data-ui="header-optical-row">
+          <div className="flex min-w-0 items-center lg:justify-self-start" data-ui="desktop-brand-zone">
+            <Link aria-label="Furvise home" className="flex min-h-11 shrink-0 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2" href={brandHref}>
+              {brandMark ?? <span className="inline-flex items-center [--brand-mark-size:2rem] lg:[--brand-mark-size:2.55rem]"><BrandMark priority size={32} /></span>}
             </Link>
-            {title ? <div className="hidden text-sm text-[var(--pw-muted)] sm:block">{title}</div> : null}
           </div>
 
-          <div className="hidden items-center gap-6 lg:flex">
-            {navItems.length > 0 ? (
-              <nav aria-label="Homepage sections" className="flex items-center gap-6">
-                {navItems.map((item) => renderNavItem(item))}
+          <div className="hidden items-center justify-self-center lg:flex" data-ui="desktop-navigation-zone">
+            {!isHomepage || resolvedAuthState === "authenticated" ? (
+              <nav aria-label="Primary navigation" className="flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1" data-ui="desktop-navigation-container">
+                {items.map((item) => (
+                  <Link
+                    aria-current={isActive(item.href) ? "page" : undefined}
+                    className={`flex min-h-11 items-center rounded-[var(--radius-sm)] px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive(item.href) ? "bg-[color-mix(in_srgb,var(--soft-sage)_88%,var(--sage)_12%)] font-semibold text-[var(--deep-forest)] shadow-[inset_0_0_0_1px_var(--sage)]" : "bg-transparent font-medium text-[var(--deep-forest)] hover:bg-[var(--surface-hover)]"}`}
+                    data-active-indicator={isActive(item.href) ? "background" : undefined}
+                    href={item.href}
+                    key={item.href}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
               </nav>
             ) : null}
-
-            <div className="flex items-center gap-2.5">
-              <button
-                className={`min-h-11 rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface-strong)] px-4 py-2 text-sm font-medium text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)] hover:text-[var(--pw-primary)] ${
-                  homepagePolish ? "lg:px-5 lg:py-2.5 lg:text-[0.95rem]" : ""
-                }`}
-                onClick={() => {
-                  closeAllMenus();
-                  openAppearance();
-                }}
-                type="button"
-              >
-                Appearance
-              </button>
-              {actions.map((action) => renderAction(action))}
-            </div>
           </div>
 
-          <button
-            aria-controls={mobileMenuId}
-            aria-expanded={mobileMenuOpen}
-            aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface-strong)] text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)] hover:text-[var(--pw-primary)] sm:h-11 sm:w-11 lg:hidden"
-            onClick={() => setMobileMenuOpen((value) => !value)}
-            type="button"
-          >
-            <span className="sr-only">{mobileMenuOpen ? "Close menu" : "Open menu"}</span>
-            <MenuIcon />
-          </button>
-        </div>
-
-        {navItems.length > 0 ? (
-          <div
-            className={`lg:hidden ${
-              mobileMenuOpen ? "pointer-events-auto mt-4 opacity-100" : "pointer-events-none max-h-0 overflow-hidden opacity-0"
-            } transition duration-200`}
-            id={mobileMenuId}
-          >
-            <div className="rounded-[1.5rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] p-3 shadow-lg shadow-[var(--pw-shadow)] backdrop-blur-xl">
-              <nav aria-label="Homepage sections" className="grid gap-2">
-                {navItems.map((item) => renderNavItem(item, true))}
-              </nav>
-
-              <div className="mt-3 grid gap-2 border-t border-[var(--pw-border)] pt-3">
-                <button
-                  className="min-h-11 rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface-strong)] px-4 py-2 text-sm font-medium text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)] hover:text-[var(--pw-primary)]"
-                  onClick={handleAppearanceClick}
-                  type="button"
-                >
-                  Appearance
-                </button>
-                {actions.map((action) => renderAction(action, true))}
+          <div className="flex shrink-0 items-center gap-2 lg:justify-self-end" data-ui="desktop-account-zone">
+            {isHomepage && resolvedAuthState !== "authenticated" ? (
+              <div className="hidden items-center gap-2 lg:flex">
+                {resolvedHomepageActions.map((action, index) => action.href ? action.variant === "primary" ? (
+                  <PrimaryButton className="min-h-11 px-4" href={action.href} key={`${action.label}-${index}`}>{action.label}</PrimaryButton>
+                ) : (
+                  <TextAction href={action.href} key={`${action.label}-${index}`}>{action.label}</TextAction>
+                ) : null)}
               </div>
-            </div>
+            ) : (
+                <details className="relative hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1 lg:block" data-ui="desktop-account-container" ref={menuRef}>
+                  <summary aria-controls={menuId} aria-haspopup="menu" aria-label="Open account menu" className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[var(--radius-sm)] bg-transparent px-3 text-sm font-semibold text-[var(--deep-forest)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                    <span>Account</span>
+                    <span aria-hidden="true" className="text-xs text-[var(--text-muted)]">⌄</span>
+                  </summary>
+                  <div className="absolute right-0 top-[3.5rem] z-[var(--z-popover)] w-44 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" id={menuId} role="menu">
+                    {accountMenuItems.map((item) => item.type === "link" ? (
+                      <Link className="flex min-h-10 items-center rounded-lg px-3 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href={item.href} key={item.label} onClick={closeMenu} role="menuitem">{item.label}</Link>
+                    ) : item.type === "label" ? (
+                      <div className="truncate border-b border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]" key={item.label} role="none">{item.label}</div>
+                    ) : (
+                      <button className={`flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)] ${item.tone === "danger" ? "mt-1 border-t border-[var(--border-subtle)] text-[var(--danger-text)]" : "text-[var(--text-primary)]"}`} disabled={item.disabled} key={item.label} onClick={item.onClick} role="menuitem" type="button">{item.label}</button>
+                    ))}
+                    {accountError ? <p className="px-3 py-2 text-xs leading-5 text-[var(--danger-text)]" role="alert">{accountError}</p> : null}
+                    {!accountMenuItems.length && resolvedAuthState === "anonymous" ? <Link className="flex min-h-10 items-center rounded-lg px-3 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href="/login" role="menuitem">Sign in</Link> : null}
+                  </div>
+                </details>
+            )}
           </div>
-        ) : null}
-      </div>
-    </header>
+        </div>
+      </header>
+
+      {resolvedAuthState === "authenticated" ? (
+        <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-ui="mobile-bottom-navigation">
+          <div className="mx-4 grid h-[var(--mobile-nav-height)] grid-cols-5 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--navigation-background)] p-1 shadow-[var(--shadow-bottom-nav)]" data-ui="mobile-navigation-dock">
+            {MOBILE_NAV_ITEMS.map((item) => (
+              <Link aria-current={isActive(item.href) ? "page" : undefined} className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1 text-[0.6875rem] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isActive(item.href) ? "bg-[var(--selected-navigation-background)] font-semibold text-[var(--deep-forest)]" : "bg-transparent font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--deep-forest)]"}`} data-active-indicator={isActive(item.href) ? "background" : undefined} href={item.href} key={item.href}><MobileNavigationIcon name={item.icon} /><span>{item.label}</span></Link>
+            ))}
+            <details className="relative" ref={mobileMoreRef}>
+              <summary aria-current={pathname === "/shop" || pathname.startsWith("/shop/") || pathname === "/account" || pathname.startsWith("/account/") ? "page" : undefined} className={`flex min-h-12 cursor-pointer list-none flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1 text-[0.6875rem] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${pathname === "/shop" || pathname.startsWith("/shop/") || pathname === "/account" || pathname.startsWith("/account/") ? "bg-[var(--selected-navigation-background)] font-semibold text-[var(--deep-forest)]" : "bg-transparent font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--deep-forest)]"}`} ref={(node) => { mobileMoreSummaryRef.current = node; }}><MobileNavigationIcon name="more" /><span>More</span></summary>
+              <div className="absolute right-0 bottom-[calc(100%+0.5rem)] z-[var(--z-popover)] w-64 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" data-ui="mobile-more-menu" role="menu">
+                <Link className="flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href="/shop" onClick={() => closeMobileMore()} role="menuitem">Products</Link>
+                {accountMenuItems.map((item) => item.type === "link" ? (
+                  <Link className="flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href={item.href} key={item.label} onClick={() => closeMobileMore()} role="menuitem">{item.label}</Link>
+                ) : item.type === "label" ? (
+                  <div className="truncate border-y border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]" key={item.label} role="none">{item.label}</div>
+                ) : (
+                  <button className={`flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-medium disabled:cursor-not-allowed disabled:text-[var(--disabled-text)] ${item.tone === "danger" ? "mt-1 border-t border-[var(--border-subtle)] text-[var(--danger-text)]" : "text-[var(--text-primary)]"}`} disabled={item.disabled} key={item.label} onClick={item.onClick} role="menuitem" type="button">{item.label}</button>
+                ))}
+                {accountError ? <p className="px-3 py-2 text-xs leading-5 text-[var(--danger-text)]" role="alert">{accountError}</p> : null}
+              </div>
+            </details>
+          </div>
+        </nav>
+      ) : null}
+    </>
   );
 }
 
-function MenuIcon() {
-  return (
-    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
-      <path d="M5 7h14" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-      <path d="M5 12h14" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-      <path d="M5 17h14" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function AccountMenuIcon() {
-  return (
-    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
-      <path
-        d="M12 13.5a4.5 4.5 0 1 0-0.001-9.001A4.5 4.5 0 0 0 12 13.5Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      />
-      <path
-        d="M4.75 19.25c1.6-3 4.1-4.5 7.25-4.5s5.65 1.5 7.25 4.5"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      />
-    </svg>
-  );
-}
-
-function DefaultBrandMark() {
-  return (
-    <Image
-      alt=""
-      aria-hidden="true"
-      className="h-9 w-9 rounded-2xl object-contain"
-      height={36}
-      priority
-      sizes="36px"
-      src="/brand/furvise-logo.png"
-      width={36}
-    />
-  );
+function MobileNavigationIcon({ name }: { name: "ask" | "history" | "more" | "pets" | "today" }) {
+  const commonProps = { "aria-hidden": true, className: "h-5 w-5 shrink-0", fill: "none", stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.8, viewBox: "0 0 24 24" };
+  if (name === "today") return <svg {...commonProps}><path d="M3.5 10.5 12 3.75l8.5 6.75" /><path d="M5.5 9.5v10.25h13V9.5" /><path d="M9.5 19.75v-6h5v6" /></svg>;
+  if (name === "history") return <svg {...commonProps}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>;
+  if (name === "ask") return <svg {...commonProps}><path d="M4 5.5h16v11H9l-5 3v-14Z" /></svg>;
+  if (name === "pets") return <svg {...commonProps} data-icon="pets-paw"><path data-paw-pad="main" d="M8.25 11.25c-2.75.5-4.1 3.15-3.2 5.2.75 1.7 2.65 2.05 4.25 1.2 1.75-.9 3.65-.9 5.4 0 1.6.85 3.5.5 4.25-1.2.9-2.05-.45-4.7-3.2-5.2-2.5-.45-5-.45-7.5 0Z" /><circle cx="7.5" cy="7" data-paw-pad="toe" r="1.75" /><circle cx="12" cy="5.25" data-paw-pad="toe" r="1.75" /><circle cx="16.5" cy="7" data-paw-pad="toe" r="1.75" /></svg>;
+  return <svg {...commonProps}><circle cx="6" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="18" cy="12" r="1" fill="currentColor" stroke="none" /></svg>;
 }

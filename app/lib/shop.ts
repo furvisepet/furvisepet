@@ -19,6 +19,31 @@ import { staticRealProducts } from "./products/static-products";
 export { MIN_SHOP_QUERY_LENGTH, productMatchesShopQuery };
 export type { ShopSearchEmptyState, ShopSearchResult };
 
+export function searchShopProducts({
+  includeDiagnostics = false,
+  interpretation = null,
+  productCountry,
+  products,
+  profile,
+  query,
+}: {
+  includeDiagnostics?: boolean;
+  interpretation?: ShopQueryInterpretation | null;
+  productCountry: ProductCountry;
+  products: MockProduct[];
+  profile: PetProfile | null;
+  query: string;
+}): ShopSearchResult {
+  return filterAndRankShopProducts({
+    accountCountry: productCountry,
+    includeDiagnostics,
+    interpretation,
+    products,
+    query,
+    selectedPet: profile,
+  });
+}
+
 export function searchStaticRealShopProducts({
   includeDiagnostics = false,
   productCountry,
@@ -32,13 +57,13 @@ export function searchStaticRealShopProducts({
   profile: PetProfile | null;
   query: string;
 }): ShopSearchResult {
-  return filterAndRankShopProducts({
-    accountCountry: productCountry,
+  return searchShopProducts({
     includeDiagnostics,
     interpretation,
+    productCountry,
     products: getStaticRealShopCatalog(),
+    profile,
     query,
-    selectedPet: profile,
   });
 }
 

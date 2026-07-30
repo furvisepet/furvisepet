@@ -202,18 +202,18 @@ export function buildPetProfileNextStep({
 
   if (guidance) {
     return {
-      actionHref: "/results",
-      actionLabel: "View guidance",
+      actionHref: `/ask?pet=${profile.id}`,
+      actionLabel: "Ask Furvise",
       description: guidance.summary,
       kind: "review_latest_guidance",
-      title: "Review latest Furvise guidance",
+      title: "Use the latest guidance to ask a focused follow-up",
     };
   }
 
   return {
     actionHref: `/care-log?pet=${profile.id}`,
     actionLabel: "Open care history",
-    description: "No urgent care context or missing required profile details are recorded.",
+    description: "No urgent care concerns or missing required profile details are recorded.",
     kind: "no_action_needed",
     title: "No action needed today",
   };
@@ -258,8 +258,26 @@ export function formatBudget(profile: DogProfileWithMemories) {
 }
 
 export function formatAvoidances(profile: DogProfileWithMemories) {
-  const avoidances = profile.avoid_ingredients?.filter((item) => item.trim()) || [];
+  if (profile.avoid_ingredients === null) return "Not provided";
+  const avoidances = profile.avoid_ingredients.filter((item) => item.trim());
   return avoidances.length ? avoidances.join(", ") : "None known";
+}
+
+export function formatPetProfileSubtitle(
+  profile: Pick<DogProfileWithMemories, "age_unit" | "age_value" | "breed" | "species" | "weight_unit" | "weight_value">,
+) {
+  const parts = [
+    profile.species ? formatSpecies(profile.species) : "",
+    isKnownProfileText(profile.breed) ? profile.breed?.trim() || "" : "",
+    profile.age_value === null ? "" : `${formatNumericValue(profile.age_value)} ${profile.age_unit || "years"}`,
+    profile.weight_value === null ? "" : `${formatNumericValue(profile.weight_value)} ${profile.weight_unit || "lb"}`,
+  ];
+  return parts.filter(Boolean).join(" · ");
+}
+
+export function isKnownProfileText(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase() || "";
+  return Boolean(normalized && !["unknown", "not sure", "i'm not sure", "mixed / unknown", "mixed/unknown", "not provided"].includes(normalized));
 }
 
 function getRecentEntries(entries: CareEntryRow[]) {
@@ -269,16 +287,11 @@ function getRecentEntries(entries: CareEntryRow[]) {
 }
 
 function getSavedDetails(memories: DogMemoryRow[]) {
-  return memories.filter((memory) => memory.text.trim()).slice(0, 3);
+  return memories.filter((memory) => memory.text.trim());
 }
 
 function buildProfileHeaderSummary(profile: DogProfileWithMemories) {
-  return [
-    formatSpecies(profile.species),
-    profile.breed?.trim() || "Breed unknown",
-    formatAge(profile),
-    formatWeight(profile),
-  ].join(" · ");
+  return formatPetProfileSubtitle(profile);
 }
 
 function getLatestUpdateAt(profile: DogProfileWithMemories, entries: CareEntryRow[]) {
@@ -336,7 +349,7 @@ function buildProfileActionNextStep(profile: DogProfileWithMemories, name: strin
     return {
       actionHref: `/pets/${profile.id}/edit#breed`,
       actionLabel: "Add breed",
-      description: "Breed helps Furvise tailor breed-sensitive care guidance.",
+      description: `It can help tailor breed-specific guidance.`,
       kind: "missing_profile_information",
       title: `Add ${name}'s breed when you can`,
     };

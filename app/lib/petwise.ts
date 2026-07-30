@@ -75,8 +75,11 @@ export type PetProfile = {
   mainConcern: MainConcern | "";
   otherConcern: string;
   avoidIngredients: string[];
+  avoidIngredientsNoneKnown?: boolean;
   customAvoidIngredient: string;
   monthlyBudget: string;
+  sex?: "female" | "male" | "not_sure" | "";
+  routineNote?: string;
   wellnessGoal?: WellnessGoal | "";
 };
 
@@ -168,10 +171,10 @@ export type ConcernNormalizationInput = {
 export const STORAGE_KEY = "petwise:onboarding-draft";
 export const ONBOARDING_MODE_STORAGE_KEY = "petwise:onboarding-mode";
 
-export type OnboardingMode = "new" | "edit" | "recommend_existing";
+export type OnboardingMode = "new" | "edit" | "recommend_existing" | "resume";
 
 export function normalizeOnboardingMode(value: string | null | undefined): OnboardingMode {
-  if (value === "edit" || value === "recommend_existing") return value;
+  if (value === "edit" || value === "recommend_existing" || value === "resume") return value;
   return "new";
 }
 
@@ -228,8 +231,11 @@ export const initialProfile: DogProfile = {
   mainConcern: "",
   otherConcern: "",
   avoidIngredients: [],
+  avoidIngredientsNoneKnown: false,
   customAvoidIngredient: "",
   monthlyBudget: "",
+  sex: "",
+  routineNote: "",
 };
 
 const curatedProductMetadataDefaults: Pick<
@@ -525,6 +531,7 @@ export function normalizeProfile(value: unknown): DogProfile {
   const ageUnknown = Boolean(draft.ageUnknown);
   const weightUnknown = Boolean(draft.weightUnknown);
   const currentFoodUnknown = Boolean(draft.currentFoodUnknown);
+  const avoidIngredientsNoneKnown = Boolean(draft.avoidIngredientsNoneKnown);
 
   return {
     ...initialProfile,
@@ -532,12 +539,13 @@ export function normalizeProfile(value: unknown): DogProfile {
     species: normalizeSpecies(draft.species),
     ageUnit: draft.ageUnit === "months" ? "months" : "years",
     weightUnit: draft.weightUnit === "kg" ? "kg" : "lb",
-    age: ageUnknown ? "" : draft.age ?? "",
+    age: draft.age ?? "",
     ageUnknown,
-    weight: weightUnknown ? "" : draft.weight ?? "",
+    weight: draft.weight ?? "",
     weightUnknown,
-    currentFood: currentFoodUnknown ? "" : draft.currentFood ?? "",
+    currentFood: draft.currentFood ?? "",
     currentFoodUnknown,
+    avoidIngredientsNoneKnown,
     avoidIngredients: Array.isArray(draft.avoidIngredients)
       ? normalizeAvoidIngredientValues(draft.avoidIngredients.filter((item): item is string => typeof item === "string"))
       : [],

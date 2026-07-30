@@ -1,0 +1,31 @@
+{
+  "providerIdentifier": "purina_ca_official_manual",
+  "sourceType": "manual",
+  "country": "CA",
+  "species": "dog",
+  "targetCategories": ["food", "dental"],
+  "expectedRecordCount": 49,
+  "excludedCategories": [
+    "grooming",
+    "skin-and-coat",
+    "paw-care",
+    "ear-care",
+    "veterinary-diet",
+    "prescription",
+    "medicated"
+  ],
+  "importDate": "2026-07-23",
+  "dataUsageAssumptions": [
+    "Internal staging and validation of factual product identity and official links is permitted for source evaluation.",
+    "Commercial republication permission is unresolved under the public website terms.",
+    "No product descriptions, images, prices, stock claims, or copied label text are included.",
+    "Written permission or an authorized feed agreement is required before publication."
+  ],
+  "pricesAuthoritative": false,
+  "availabilityAuthoritative": false,
+  "imagesMayBeDisplayed": false,
+  "sourceReviewUrl": "https://www.purina.ca/terms-of-use",
+  "refreshMode": "reviewed_full_file",
+  "staleDataPolicy": "A failed or incomplete refresh never removes live catalog records.",
+  "discontinuedProductPolicy": "A missing row is held for review; it is never automatically unpublished."
+}

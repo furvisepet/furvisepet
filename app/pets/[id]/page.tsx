@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppPage } from "../../components/app-page";
+import { LocalPetAvatar } from "../../components/local-photo";
+import { CareEntryMetadata } from "../../components/care-entry-metadata";
+import { PrimaryButton, SecondaryButton, TextButton } from "../../components/product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
-import type { PetWiseAnalysis } from "../../lib/ai-analysis";
+import { clearEditPetOnboardingDraft } from "../../lib/onboarding-drafts";
+import { clearActivePetId } from "../../lib/active-pet";
 import {
-  formatCareEntryCategory,
   formatCareEntrySeverity,
-  formatCareEntryTimestamp,
+  formatCareEntryTitle,
   formatCareNotePreview,
 } from "../../lib/care-log.mjs";
 import {
@@ -19,41 +22,42 @@ import {
   formatBudget,
   formatCurrentFood,
   formatWeight,
+  isKnownProfileText,
   type PetProfileOverviewModel,
 } from "../../lib/pet-profile";
-import { getFinishProfileItemsFromRow, type FinishProfileItem } from "../../lib/finish-profile";
+import { formatSpecies, formatPetDisplayName } from "../../lib/petwise";
 import {
-  ONBOARDING_MODE_STORAGE_KEY,
-  STORAGE_KEY,
-  formatSpecies,
-  formatPetDisplayName,
-} from "../../lib/petwise";
-import {
-  PROFILE_ID_STORAGE_KEY,
   deleteDogProfileForUser,
-  dogProfileRowToDraft,
   getCurrentUser,
   getSupabaseConfigError,
   listCareEntriesForPet,
+  listActiveConcernsForPet,
+  loadCanonicalRememberedDetailsForUser,
   loadDogProductFeedbackForUser,
   loadDogProfileWithMemoriesForUser,
   type CareEntryRow,
+  type CanonicalRememberedDetailsRows,
   type DogProductFeedbackRow,
   type DogProfileWithMemories,
 } from "../../lib/supabase";
+import type { PetConcern } from "../../lib/ai/concern-engine";
 import { readStoredGuidanceSnapshot } from "../../lib/stored-guidance";
 import { FURVISE_SAFETY_LINE } from "../../lib/safety-copy";
+import { buildRememberedDetails, type RememberedDetails } from "../../lib/remembered-details";
 
 type LoadState = "loading" | "ready" | "error";
 
 export default function PetProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const configError = getSupabaseConfigError();
   const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
   const [profile, setProfile] = useState<DogProfileWithMemories | null>(null);
   const [entries, setEntries] = useState<CareEntryRow[]>([]);
   const [feedback, setFeedback] = useState<DogProductFeedbackRow[]>([]);
+  const [concerns, setConcerns] = useState<PetConcern[]>([]);
+  const [rememberedRows, setRememberedRows] = useState<CanonicalRememberedDetailsRows>({ canonical: [], legacy: [] });
   const [state, setState] = useState<LoadState>(configError ? "error" : "loading");
   const [error, setError] = useState(configError);
   const [deleting, setDeleting] = useState(false);
@@ -71,16 +75,20 @@ export default function PetProfilePage() {
         const user = authUser;
         if (!user) return;
 
-        const [profileRow, entryRows, feedbackRows] = await Promise.all([
+        const [profileRow, entryRows, feedbackRows, concernRows, memoryRows] = await Promise.all([
           loadDogProfileWithMemoriesForUser(params.id, user),
           listCareEntriesForPet(params.id),
           loadDogProductFeedbackForUser(params.id, user),
+          listActiveConcernsForPet(params.id),
+          loadCanonicalRememberedDetailsForUser(params.id, user),
         ]);
 
         if (active) {
           setProfile(profileRow);
           setEntries(entryRows);
           setFeedback(feedbackRows);
+          setConcerns(concernRows);
+          setRememberedRows(memoryRows);
           setState("ready");
         }
       } catch (loadError) {
@@ -119,13 +127,11 @@ export default function PetProfilePage() {
         : null,
     [entries, guidance, guidanceResult?.updatedAt, profile],
   );
-
-  function prepareRecommendations() {
-    if (!profile || typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(dogProfileRowToDraft(profile)));
-    window.localStorage.setItem(PROFILE_ID_STORAGE_KEY, profile.id);
-    window.localStorage.setItem(ONBOARDING_MODE_STORAGE_KEY, "recommend_existing");
-  }
+  const rememberedDetails = useMemo(() => buildRememberedDetails({
+    canonical: rememberedRows.canonical,
+    legacy: rememberedRows.legacy,
+    petName: profile ? formatPetDisplayName(profile.name) : "Your pet",
+  }), [profile, rememberedRows]);
 
   async function deleteProfile() {
     if (!profile || deleting) return;
@@ -139,6 +145,8 @@ export default function PetProfilePage() {
       const user = await getCurrentUser();
       if (!user) throw new Error("Please sign in again before deleting this profile.");
       await deleteDogProfileForUser(profile.id, user);
+      clearEditPetOnboardingDraft(window.localStorage, profile.id);
+      clearActivePetId(window.localStorage, profile.id);
       router.replace("/pets");
     } catch (deleteError) {
       setError(
@@ -158,12 +166,14 @@ export default function PetProfilePage() {
         {state === "ready" && profile && model ? (
           <ProfileOverview
             deleting={deleting}
+            concerns={concerns}
             feedback={feedback}
-            guidance={guidance}
             model={model}
             onDelete={deleteProfile}
-            onPrepareRecommendations={prepareRecommendations}
             profile={profile}
+            rememberedDetails={rememberedDetails}
+            successMessage={searchParams.get("added") === "1" ? `${formatPetDisplayName(profile.name)} was added.` : ""}
+            onDismissSuccess={() => router.replace(`/pets/${encodeURIComponent(profile.id)}`, { scroll: false })}
           />
         ) : null}
       </div>
@@ -172,54 +182,58 @@ export default function PetProfilePage() {
 }
 
 function ProfileOverview({
+  concerns,
   deleting,
   feedback,
-  guidance,
   model,
   onDelete,
-  onPrepareRecommendations,
+  onDismissSuccess,
   profile,
+  rememberedDetails,
+  successMessage,
 }: {
+  concerns: PetConcern[];
   deleting: boolean;
   feedback: DogProductFeedbackRow[];
-  guidance: PetWiseAnalysis | null;
   model: PetProfileOverviewModel;
   onDelete: () => void;
-  onPrepareRecommendations: () => void;
+  onDismissSuccess: () => void;
   profile: DogProfileWithMemories;
+  rememberedDetails: RememberedDetails;
+  successMessage: string;
 }) {
   const name = formatPetDisplayName(profile.name);
   const askHref = `/ask?pet=${profile.id}`;
   const editHref = `/pets/${profile.id}/edit`;
   const shopHref = `/shop?petId=${encodeURIComponent(profile.id)}`;
-  const finishProfileItems = getFinishProfileItemsFromRow(profile);
 
   return (
     <>
+      {successMessage ? (
+        <div className="mb-5 flex min-h-11 items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--selection-strong)] bg-[var(--success-surface)] px-4 py-2 text-sm font-semibold text-[var(--success-text)]" role="status">
+          <span>{successMessage}</span>
+          <TextButton aria-label="Dismiss confirmation" onClick={onDismissSuccess} type="button">Dismiss</TextButton>
+        </div>
+      ) : null}
       <header className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="min-w-0">
-          <Link className="text-sm font-semibold text-[var(--pw-primary)]" href="/pets">
-            Back to pets
+          <Link className="inline-flex min-h-11 items-center rounded-[var(--radius-sm)] px-1 text-sm font-semibold text-[var(--ghost-action-text)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href="/pets">
+            ← All pets
           </Link>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <StatusPill label={model.completeness.status} />
             <StatusPill label={`Updated ${formatShortDate(model.latestUpdateAt)}`} muted />
           </div>
           <h1 className="mt-3 break-words text-4xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-5xl">
             {name}
           </h1>
-          <p className="mt-3 text-base leading-7 text-[var(--pw-muted)]">
-            {model.headerSummary}
-          </p>
+          <LocalPetAvatar className="mt-4" id={profile.id} name={name} size="large" />
+          {model.headerSummary ? <p className="mt-3 text-base leading-7 text-[var(--pw-muted)]">{model.headerSummary}</p> : null}
         </div>
 
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row lg:justify-end">
-          <Link className={primaryButtonClass} href={askHref}>
-            Ask Furvise
-          </Link>
-          <Link className={secondaryButtonClass} href={editHref}>
-            Edit profile
-          </Link>
+          <PrimaryButton href={askHref}>Ask Furvise</PrimaryButton>
+          <SecondaryButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SecondaryButton>
+          <SecondaryButton href={editHref}>Edit profile</SecondaryButton>
           <details className="relative">
             <summary
               aria-label={`More actions for ${name}`}
@@ -227,10 +241,7 @@ function ProfileOverview({
             >
               <span>More actions</span>
             </summary>
-            <div className="absolute right-0 z-20 mt-2 w-52 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-2 shadow-xl shadow-[var(--pw-shadow)]">
-              <Link className={menuItemClass} href={`/pets/${profile.id}/memories`}>
-                Saved details
-              </Link>
+            <div className="absolute right-0 z-[var(--z-popover)] mt-2 w-52 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-2 shadow-xl shadow-[var(--pw-shadow)]">
               {model.showProductLink ? (
                 <Link className={menuItemClass} href={shopHref}>
                   Products for {name}
@@ -266,24 +277,16 @@ function ProfileOverview({
         </section>
       ) : null}
 
+      {concerns.length ? <ActiveConcerns concerns={concerns} /> : null}
+
       <div className="mt-7 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
         <div className="grid min-w-0 gap-5">
           <CurrentFocus model={model} />
-          {finishProfileItems.length > 0 ? (
-            <FinishProfileCard
-              editHref={editHref}
-              items={finishProfileItems}
-              name={name}
-            />
-          ) : null}
-          <NextStep model={model} onPrepareRecommendations={onPrepareRecommendations} />
-          <RecentUpdates entries={model.recentEntries} petId={profile.id} />
+          <RecentUpdates entries={model.recentEntries} petId={profile.id} petName={name} />
         </div>
         <div className="grid min-w-0 content-start gap-5">
-          <FurviseSays
-            guidance={guidance}
+          <FurviseGuidance
             model={model}
-            onPrepareRecommendations={onPrepareRecommendations}
             petName={name}
             petId={profile.id}
           />
@@ -292,84 +295,46 @@ function ProfileOverview({
             model={model}
             profile={profile}
           />
+          <SavedDetails details={rememberedDetails} profile={profile} />
         </div>
       </div>
     </>
   );
 }
 
-function FinishProfileCard({
-  editHref,
-  items,
-  name,
-}: {
-  editHref: string;
-  items: FinishProfileItem[];
-  name: string;
-}) {
-  return (
-    <Section title={`Finish ${name}'s profile for better guidance`}>
-      <p className="leading-7 text-[var(--pw-muted)]">
-        {name}&apos;s profile is started. Add food, weight, avoid ingredients, and budget when you&apos;re ready.
-      </p>
-      <ul className="mt-4 grid gap-2 text-sm font-semibold text-[var(--pw-text)] sm:grid-cols-2">
-        {items.map((item) => (
-          <li className="rounded-2xl bg-[var(--pw-card-muted)] px-3 py-2" key={item.key}>
-            {item.label}
-          </li>
-        ))}
-      </ul>
-      <Link className={`${primaryButtonClass} mt-4`} href={editHref}>
-        Finish profile
-      </Link>
-    </Section>
-  );
+function ActiveConcerns({ concerns }: { concerns: PetConcern[] }) {
+  return <section aria-labelledby="active-concerns-heading" className="mt-6 rounded-3xl border border-[var(--line)] bg-[var(--surface-primary)] p-5 sm:p-6">
+    <h2 className="text-xl font-semibold text-[var(--text-primary)]" id="active-concerns-heading">Active concerns</h2>
+    <ul className="mt-4 divide-y divide-[var(--line)]">{concerns.map((concern) => <li className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0" key={concern.id}>
+      <div><p className="font-semibold text-[var(--text-primary)]">{concern.title}</p><p className="mt-1 text-sm text-[var(--text-secondary)]">{concern.status === "monitoring" ? "Monitoring" : concern.status === "reopened" ? "Returned" : "Active"}</p></div>
+      <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--ghost-action-text)] underline-offset-4 hover:underline" href={`/ask?pet=${encodeURIComponent(concern.pet_profile_id)}`}>Ask Furvise</Link>
+    </li>)}</ul>
+  </section>;
 }
 
 function CurrentFocus({ model }: { model: PetProfileOverviewModel }) {
+  const latest = model.currentFocus.latestRelevantChange.startsWith("No ") ? "Nothing relevant recorded yet" : model.currentFocus.latestRelevantChange;
+  const caution = model.currentFocus.activeCaution === "None" ? "None recorded" : model.currentFocus.activeCaution;
+  const important = model.currentFocus.importantNote === "No important active notes" ? "No important active notes" : model.currentFocus.importantNote;
   return (
-    <Section title="Current focus">
+    <Section title="Today’s snapshot">
       <dl className="grid gap-4 sm:grid-cols-2">
-        <Detail label="Main concern" value={model.currentFocus.mainConcern} />
-        <Detail label="Latest relevant change" value={model.currentFocus.latestRelevantChange} />
-        <Detail label="Active caution" value={model.currentFocus.activeCaution} />
-        <Detail label="Important note" value={model.currentFocus.importantNote} />
+        <Detail label="Main focus" value={model.currentFocus.mainConcern} />
+        <Detail label="Latest relevant update" value={latest} />
+        <Detail label="Active care note" value={caution} />
+        <Detail label="Important note" value={important} />
       </dl>
     </Section>
   );
 }
 
-function NextStep({
-  model,
-  onPrepareRecommendations,
-}: {
-  model: PetProfileOverviewModel;
-  onPrepareRecommendations: () => void;
-}) {
-  return (
-    <Section title="Next step">
-      <div className="rounded-2xl bg-[var(--pw-card-muted)] p-4">
-        <h3 className="text-xl font-semibold text-[var(--pw-heading)]">{model.nextStep.title}</h3>
-        <p className="mt-2 leading-7 text-[var(--pw-muted)]">{model.nextStep.description}</p>
-        <Link
-          className={`${primaryButtonClass} mt-4`}
-          href={model.nextStep.actionHref}
-          onClick={model.nextStep.actionHref === "/results" ? onPrepareRecommendations : undefined}
-        >
-          {model.nextStep.actionLabel}
-        </Link>
-      </div>
-    </Section>
-  );
-}
-
-function RecentUpdates({ entries, petId }: { entries: CareEntryRow[]; petId: string }) {
+function RecentUpdates({ entries, petId, petName }: { entries: CareEntryRow[]; petId: string; petName: string }) {
   return (
     <Section
       actions={
-        <Link className={textLinkClass} href={`/care-log?pet=${petId}`}>
-          View full care history
-        </Link>
+        <TextButton href={`/care-log?pet=${petId}`}>
+          View full history
+        </TextButton>
       }
       title="Recent updates"
     >
@@ -383,20 +348,15 @@ function RecentUpdates({ entries, petId }: { entries: CareEntryRow[]; petId: str
             >
               <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--pw-primary)]">
-                    {formatCareEntryCategory(entry.category)}
-                  </p>
+                  <CareEntryMetadata category={entry.category} occurredAt={entry.occurred_at} petName={petName} />
                   <h3 className="mt-1 break-words font-semibold text-[var(--pw-heading)]">
-                    {entry.title || "Update"}
+                    {formatCareEntryTitle(entry)}
                   </h3>
                   <p className="mt-1 text-sm leading-6 text-[var(--pw-muted)]">
                     {formatCareNotePreview(entry.note, 132)}
                   </p>
                 </div>
                 <div className="shrink-0 text-left sm:text-right">
-                  <time className="block text-sm text-[var(--pw-subtle)]" dateTime={entry.occurred_at}>
-                    {formatCareEntryTimestamp(entry.occurred_at)}
-                  </time>
                   {entry.severity ? (
                     <span className="mt-2 inline-flex rounded-full border border-[var(--pw-border)] px-2.5 py-1 text-xs font-semibold text-[var(--pw-muted)]">
                       {formatCareEntrySeverity(entry.severity)}
@@ -416,53 +376,31 @@ function RecentUpdates({ entries, petId }: { entries: CareEntryRow[]; petId: str
   );
 }
 
-function FurviseSays({
-  guidance,
+function FurviseGuidance({
   model,
-  onPrepareRecommendations,
   petName,
   petId,
 }: {
-  guidance: PetWiseAnalysis | null;
   model: PetProfileOverviewModel;
-  onPrepareRecommendations: () => void;
   petName: string;
   petId: string;
 }) {
-  if (!guidance || !model.furviseSays) {
-    return (
-      <Section compact title="Furvise says">
-        <Link className={secondaryButtonClass} href={`/ask?pet=${petId}`}>
-          Ask Furvise about this pet
-        </Link>
-      </Section>
-    );
-  }
-
   return (
-    <Section title="Furvise says">
-      <p className="leading-7 text-[var(--pw-text)]">{model.furviseSays.summary}</p>
+    <Section title="Furvise guidance">
+      <p className="leading-7 text-[var(--pw-text)]">
+        The more Furvise knows about {petName}, the more specific its guidance can be.
+      </p>
+      <div className="mt-4 rounded-2xl bg-[var(--pw-card-muted)] p-4">
+        <h3 className="font-semibold text-[var(--pw-heading)]">Most useful next step</h3>
+        <p className="mt-1 text-sm leading-6 text-[var(--pw-muted)]">{model.nextStep.kind === "no_action_needed" ? "Nothing needs your attention right now." : `${model.nextStep.title}. ${model.nextStep.description}`}</p>
+      </div>
       <p className="mt-3 rounded-2xl bg-[var(--pw-card-muted)] p-3 text-sm leading-6 text-[var(--pw-muted)]">
         {FURVISE_SAFETY_LINE}
       </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <StatusPill label={model.furviseSays.confidenceLabel} />
-        <StatusPill label={model.furviseSays.safetyStatus} muted />
-      </div>
-      {model.furviseSays.confidenceLabel === "Limited context" ? (
-        <p className="mt-3 text-sm leading-6 text-[var(--pw-muted)]">
-          Furvise has only a few saved details for {petName}. Logging food, symptoms, behavior, or weight helps make guidance more specific.
-        </p>
-      ) : null}
       <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-        <Link className={secondaryButtonClass} href={`/results?profileId=${encodeURIComponent(petId)}`} onClick={onPrepareRecommendations}>
-          View full guidance
-        </Link>
-        <Link className={secondaryButtonClass} href={`/ask?pet=${petId}`}>
-          Ask Furvise
-        </Link>
+        <SecondaryButton href={`/ask?pet=${petId}`}>Ask Furvise</SecondaryButton>
       </div>
-      {model.furviseSays.updatedAtLabel ? (
+      {model.furviseSays?.updatedAtLabel ? (
         <p className="mt-3 text-sm text-[var(--pw-subtle)]">{model.furviseSays.updatedAtLabel}</p>
       ) : null}
     </Section>
@@ -478,25 +416,24 @@ function PetDetails({
   model: PetProfileOverviewModel;
   profile: DogProfileWithMemories;
 }) {
+  const name = formatPetDisplayName(profile.name);
   const details = [
     ["Name", formatPetDisplayName(profile.name)],
-    ["Species", formatSpecies(profile.species)],
-    ["Breed", profile.breed?.trim() || "Not provided"],
-    ["Age", formatAge(profile)],
-    ["Weight", formatWeight(profile)],
-    ["Current food", formatCurrentFood(profile)],
-    ["Main concern", profile.main_concern?.trim() || "Not provided"],
-    ["Avoid ingredients", formatAvoidances(profile)],
-    ["Monthly care budget", formatBudget(profile)],
+    ...(profile.species ? [["Species", formatSpecies(profile.species)]] : []),
+    ...(isKnownProfileText(profile.breed) ? [["Breed", profile.breed!.trim()]] : []),
+    ...(profile.age_value !== null ? [["Age", formatAge(profile)]] : []),
+    ...(profile.weight_value !== null ? [["Weight", formatWeight(profile)]] : []),
+    ...(isKnownProfileText(profile.current_food) ? [["Current food", formatCurrentFood(profile)]] : []),
+    ...(isKnownProfileText(profile.main_concern) ? [["Main concern", profile.main_concern!.trim()]] : []),
+    ...(profile.avoid_ingredients !== null ? [["Avoid ingredients", formatAvoidances(profile)]] : []),
+    ...(profile.monthly_budget !== null ? [["Monthly care budget", formatBudget(profile)]] : []),
   ];
-  const name = formatPetDisplayName(profile.name);
-
   return (
     <Section
       actions={
-        <Link className={textLinkClass} href={`/pets/${profile.id}/edit`}>
+        <TextButton href={`/pets/${profile.id}/edit`}>
           Edit profile
-        </Link>
+        </TextButton>
       }
       title="Pet details"
     >
@@ -505,28 +442,6 @@ function PetDetails({
           <Detail key={label} label={label} value={value} />
         ))}
       </dl>
-
-      <div className="mt-6 border-t border-[var(--pw-border)] pt-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-lg font-semibold text-[var(--pw-heading)]">Saved details</h3>
-          <Link className={textLinkClass} href={`/pets/${profile.id}/memories`}>
-            View saved details
-          </Link>
-        </div>
-        {model.savedDetails.length ? (
-          <ul className="mt-3 grid gap-2">
-            {model.savedDetails.map((memory) => (
-              <li className="rounded-2xl bg-[var(--pw-card-muted)] px-3 py-2 text-[var(--pw-text)]" key={memory.id}>
-                {memory.text}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-[var(--pw-muted)]">
-            Nothing saved for {name} yet.
-          </p>
-        )}
-      </div>
 
       {model.showProductLink ? (
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -537,11 +452,29 @@ function PetDetails({
           ) : (
             <span aria-hidden="true" />
           )}
-          <Link className={textLinkClass} href={`/shop?petId=${encodeURIComponent(profile.id)}`}>
+          <TextButton href={`/shop?petId=${encodeURIComponent(profile.id)}`}>
             Products for {name}
-          </Link>
+          </TextButton>
         </div>
       ) : null}
+    </Section>
+  );
+}
+
+function SavedDetails({ details, profile }: { details: RememberedDetails; profile: DogProfileWithMemories }) {
+  return (
+    <Section id="saved-details" title="Remembered details">
+      {details.all.length ? (
+        <>
+        <p className="mb-3 text-sm text-[var(--pw-muted)]">{details.all.length} active remembered detail{details.all.length === 1 ? "" : "s"}</p>
+        <ul className="grid gap-2">
+          {details.all.slice(0, 2).map((memory) => (
+            <li className="rounded-2xl bg-[var(--pw-card-muted)] px-3 py-2 text-[var(--pw-text)]" key={`${memory.source}:${memory.id}`}>{memory.fact}</li>
+          ))}
+        </ul>
+        </>
+      ) : <p className="text-[var(--pw-muted)]">No remembered details yet.</p>}
+      <div className="mt-3 flex flex-wrap gap-2"><TextButton href={`/pets/${profile.id}/memories`}>{details.all.length ? "View all remembered details" : "View remembered details"}</TextButton><TextButton href={`/pets/${profile.id}/edit`}>Edit pet details</TextButton></div>
     </Section>
   );
 }
@@ -575,9 +508,7 @@ function ProfileError({ error }: { error: string }) {
       <p className="mt-3 leading-7">
         {error || "Furvise could not open this pet profile. It may not exist or may belong to another account."}
       </p>
-      <Link className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white" href="/pets">
-        Return to Pets
-      </Link>
+      <PrimaryButton className="mt-5" href="/pets">Return to Pets</PrimaryButton>
     </section>
   );
 }
@@ -586,15 +517,17 @@ function Section({
   actions,
   children,
   compact = false,
+  id,
   title,
 }: {
   actions?: React.ReactNode;
   children: React.ReactNode;
   compact?: boolean;
+  id?: string;
   title: string;
 }) {
   return (
-    <section className={`min-w-0 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 shadow-sm ${compact ? "" : "sm:p-6"}`}>
+    <section className={`min-w-0 scroll-mt-24 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 shadow-sm ${compact ? "" : "sm:p-6"}`} id={id}>
       <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold text-[var(--pw-heading)]">{title}</h2>
         {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
@@ -639,10 +572,4 @@ function formatShortDate(value: string) {
 
 const detailLabelClass = "text-xs font-semibold uppercase tracking-[0.08em] text-[var(--pw-subtle)]";
 const menuItemClass =
-  "inline-flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold text-[var(--pw-text)] hover:bg-[var(--pw-card-muted)] disabled:cursor-wait disabled:opacity-60";
-const primaryButtonClass =
-  "inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] sm:w-fit";
-const secondaryButtonClass =
-  "inline-flex min-h-11 w-full items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-4 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)] sm:w-fit";
-const textLinkClass =
-  "inline-flex min-h-11 items-center text-sm font-semibold text-[var(--pw-primary)]";
+  "inline-flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold text-[var(--pw-text)] hover:bg-[var(--pw-card-muted)] disabled:cursor-wait disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]";

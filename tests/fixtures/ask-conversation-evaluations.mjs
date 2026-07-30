@@ -1,0 +1,16 @@
+export const askConversationFixtures = [
+  { name: "itching after food change", question: "Rocky seemed itchier after switching to chicken-based food.", intent: "food_or_diet", memoryCandidate: true, tracking: true },
+  { name: "shampoo reaction", question: "Should I stop the new shampoo? He started itching after it.", intent: "grooming", clarification: false },
+  { name: "routine wellness", question: "What is a simple daily wellness routine?", intent: "routine" },
+  { name: "dental routine", question: "Help me build a dental routine.", intent: "routine" },
+  { name: "urgent vomiting", question: "Rocky keeps vomiting and cannot keep water down.", intent: "symptom_or_change", urgent: true },
+  { name: "vague unresolved follow-up", question: "Should I stop it?", intent: "conversational_follow_up", clarification: true },
+  { name: "user correction", question: "Actually, it was the salmon food, not chicken.", intent: "food_or_diet", correction: true },
+  { name: "sparse profile", question: "How should I start a brushing routine?", intent: "routine" },
+  { name: "complete profile", question: "What should I track before the vet visit?", intent: "vet_preparation", tracking: true },
+  { name: "previous tracking plan", question: "The same problem got worse yesterday.", intent: "symptom_or_change" },
+  { name: "owner suspicion", question: "I think chicken may be making Rocky itchy.", intent: "food_or_diet" },
+  { name: "veterinary instruction", question: "The vet said to give the supplement with dinner.", intent: "medication_or_supplement", memoryCandidate: true },
+  { name: "unrelated", question: "Write my JavaScript homework.", intent: "unrelated" },
+  { name: "product question", question: "Does the label for this shampoo list fragrance?", intent: "grooming" },
+];

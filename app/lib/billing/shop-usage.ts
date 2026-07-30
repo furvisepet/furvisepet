@@ -1,3 +1,4 @@
+import { FURVISE_PRODUCT_USAGE_CAP_MESSAGE } from "../furvise-voice.ts";
 import type { GateDecision, PlanId } from "./plan-limits";
 
 export type ProductAiUsageRow = {
@@ -41,7 +42,7 @@ export class ProductAiUsageReadError extends Error {
   cause: unknown;
 
   constructor(cause: unknown) {
-    super("Furvise could not load Product AI usage.");
+    super("Furvise could not load product search usage.");
     this.name = "ProductAiUsageReadError";
     this.cause = cause;
   }
@@ -160,14 +161,14 @@ function evaluateUsageCount({
       limit: monthlyLimit,
       message: null,
       remaining: 0,
-      softNotice: "Early access: extra Product AI uses are currently unlocked.",
+      softNotice: "Early access: extra product searches are currently unlocked.",
     };
   }
   return {
     allowed: false,
     hardBlocked: true,
     limit: monthlyLimit,
-    message: "You've used your included Product AI for this month.",
+    message: FURVISE_PRODUCT_USAGE_CAP_MESSAGE,
     remaining: 0,
     softNotice: null,
   };
@@ -226,10 +227,10 @@ export async function incrementProductAiUsage({
     .select?.()
     .single?.<ProductAiUsageRow>();
   const result = await query;
-  if (!result) throw new Error("Furvise could not update Product AI usage.");
+  if (!result) throw new Error("Furvise could not update product search usage.");
   if (result.error) {
     logProductAiUsageError("incrementProductAiUsage", result.error);
-    throw new Error("Furvise could not update Product AI usage.");
+    throw new Error("Furvise could not update product search usage.");
   }
   return {
     count: nextCount,

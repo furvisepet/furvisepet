@@ -4,7 +4,7 @@ import { createPrivatePageMetadata } from "../lib/seo";
 
 export const metadata: Metadata = createPrivatePageMetadata(
   "Products",
-  "Search pet product ideas using your pet’s saved context. Furvise filters by species, country, and saved avoid ingredients when available.",
+  "Find food, grooming, dental, and everyday care products for your pet.",
 );
 
 export default PrivateRouteLayout;

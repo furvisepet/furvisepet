@@ -23,6 +23,8 @@ import {
   prepareCareEntryForInsert,
   prepareCareEntryForUpdate,
 } from "./care-log.mjs";
+import type { PetConcern } from "./ai/concern-engine";
+import type { FurviseMemoryRow } from "./intelligence/types";
 
 export const PROFILE_ID_STORAGE_KEY = "petwise:dog-profile-id";
 export const PROFILE_MEMORIES_STORAGE_KEY = "petwise:dog-profile-memories";
@@ -43,6 +45,8 @@ export type DogProfileRow = {
   wellness_goal: string | null;
   avoid_ingredients: string[] | null;
   monthly_budget: number | null;
+  sex?: "female" | "male" | "not_sure" | null;
+  routine_note?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -58,6 +62,8 @@ export type DogMemoryRow = {
   confidence: string | null;
   source: string | null;
   created_at: string;
+  status?: "active" | "superseded" | "rejected";
+  superseded_by?: string | null;
 };
 
 export type PetMemoryRow = DogMemoryRow;
@@ -125,6 +131,13 @@ export type CareEntryRow = {
   occurred_at: string;
   created_at: string;
   updated_at: string;
+  concern_id?: string | null;
+  intelligence_source_message_id?: string | null;
+  intelligence_source_type?: string | null;
+  intelligence_confidence?: number | null;
+  state_action_type?: string | null;
+  care_event_metadata?: Record<string, unknown> | null;
+  episode_id?: string | null;
 };
 
 export type CareEntryWithPetName = CareEntryRow & {
@@ -141,6 +154,11 @@ export type DogProfileWithMemories = DogProfileRow & {
 };
 
 export type PetProfileWithMemories = DogProfileWithMemories;
+
+export type CanonicalRememberedDetailsRows = {
+  canonical: FurviseMemoryRow[];
+  legacy: DogMemoryRow[];
+};
 
 export type MemoryInput = {
   type: string;
@@ -271,6 +289,7 @@ function createBrowserSupabase() {
   return createClient(normalizeSupabaseUrl(url), key, {
     auth: {
       autoRefreshToken: true,
+      flowType: "pkce",
       persistSession: true,
       storage: createBrowserAuthStorage(),
     },
@@ -472,6 +491,23 @@ export async function listCareEntriesForPet(
   return data || [];
 }
 
+export async function listActiveConcernsForPet(petProfileId: string, deps: CareLogHelperDeps = {}) {
+  const supabase = deps.getClient?.() ?? getBrowserSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const user = await requireCurrentUser(deps.getCurrentUser);
+  await ensurePetOwnership(petProfileId, user, deps.getClient);
+  const { data, error } = await supabase
+    .from("pet_concerns")
+    .select("*")
+    .eq("pet_profile_id", petProfileId)
+    .eq("user_id", user.id)
+    .in("status", ["active", "monitoring", "reopened"])
+    .order("updated_at", { ascending: false })
+    .returns<PetConcern[]>();
+  if (error) throw friendlyDatabaseError(error, "active concerns");
+  return data || [];
+}
+
 export async function listRecentCareEntries(limit: number, deps: CareLogHelperDeps = {}) {
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
@@ -614,16 +650,32 @@ export async function loadDogProfileWithMemoriesForUser(profileId: string, user:
   const supabase = getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { data, error } = await supabase
-    .from("dog_profiles")
-    .select("*, dog_memories(*)")
-    .eq("id", profileId)
-    .eq("user_id", user.id)
-    .order("created_at", { referencedTable: "dog_memories", ascending: false })
-    .single<DogProfileWithMemories>();
+  const [profile, memories] = await Promise.all([
+    supabase.from("dog_profiles").select("*").eq("id", profileId).eq("user_id", user.id).single<DogProfileRow>(),
+    supabase.from("dog_memories").select("*").eq("dog_profile_id", profileId).eq("user_id", user.id)
+      .eq("status", "active").order("created_at", { ascending: false }).returns<DogMemoryRow[]>(),
+  ]);
+  if (profile.error) throw friendlyDatabaseError(profile.error, "pet profile memories");
+  if (memories.error) throw friendlyDatabaseError(memories.error, "pet profile memories");
+  return { ...profile.data, dog_memories: memories.data || [], dog_product_feedback: [] } as DogProfileWithMemories;
+}
 
-  if (error) throw friendlyDatabaseError(error, "pet profile memories");
-  return data;
+export async function loadCanonicalRememberedDetailsForUser(profileId: string, user: User): Promise<CanonicalRememberedDetailsRows> {
+  const supabase = getBrowserSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const [canonical, legacy] = await Promise.all([
+    supabase.from("furvise_memories").select("*").eq("user_id", user.id).eq("status", "active")
+      .or(`pet_id.eq.${profileId},pet_id.is.null`).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`).order("last_confirmed_at", { ascending: false }).returns<FurviseMemoryRow[]>(),
+    supabase.from("dog_memories").select("*").eq("dog_profile_id", profileId).eq("user_id", user.id)
+      .eq("status", "active").order("created_at", { ascending: false }).returns<DogMemoryRow[]>(),
+  ]);
+  if (canonical.error) throw friendlyDatabaseError(canonical.error, "remembered details");
+  if (legacy.error) throw friendlyDatabaseError(legacy.error, "remembered details");
+  return {
+    canonical: (canonical.data || []).filter((memory) => memory.subject_type === "owner" || memory.pet_id === profileId),
+    legacy: legacy.data || [],
+  };
 }
 
 export async function deleteDogProfileForUser(profileId: string, user: User) {
@@ -772,6 +824,7 @@ export async function saveDogMemories(
     .select("text")
     .eq("dog_profile_id", dogProfileId)
     .eq("user_id", user.id)
+    .eq("status", "active")
     .returns<{ text: string }[]>();
 
   if (existingError) throw friendlyDatabaseError(existingError, "saved memories");
@@ -832,7 +885,10 @@ export function dogProfileRowToDraft(row: DogProfileRow): DogProfile {
     otherConcern,
     wellnessGoal: normalizeWellnessGoal(row.wellness_goal),
     avoidIngredients: row.avoid_ingredients || [],
+    avoidIngredientsNoneKnown: Array.isArray(row.avoid_ingredients) && row.avoid_ingredients.length === 0,
     monthlyBudget: row.monthly_budget === null ? "" : String(row.monthly_budget),
+    sex: row.sex || "",
+    routineNote: row.routine_note || "",
   });
 }
 
@@ -872,8 +928,14 @@ export function buildDogProfilePayload(profile: DogProfile, userId: string) {
     main_concern:
       profile.mainConcern === "Other" ? profile.otherConcern.trim() : profile.mainConcern || null,
     wellness_goal: wellnessGoal || null,
-    avoid_ingredients: normalizeAvoidIngredientValues(profile.avoidIngredients),
+    avoid_ingredients: profile.avoidIngredientsNoneKnown
+      ? []
+      : profile.avoidIngredients.length
+        ? normalizeAvoidIngredientValues(profile.avoidIngredients)
+        : null,
     monthly_budget: Number.isFinite(budget) ? budget : null,
+    sex: profile.sex || null,
+    routine_note: profile.routineNote?.trim() || null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -936,6 +998,7 @@ async function loadOptionalDogMemories(profileIds: string[], user: User) {
     .select()
     .in("dog_profile_id", profileIds)
     .eq("user_id", user.id)
+    .eq("status", "active")
     .order("created_at", { ascending: false })
     .returns<DogMemoryRow[]>();
 
@@ -1024,6 +1087,9 @@ function friendlyDatabaseError(error: { code?: string; message?: string }, label
 }
 
 function friendlyDatabaseSaveError(error: { code?: string; message?: string }, label: string) {
+  if (error.message?.includes("PET_LIMIT_REACHED")) {
+    return Object.assign(new Error("Your plan's pet limit was reached before this pet could be added."), error, { code: "PET_LIMIT_REACHED" });
+  }
   const missingTableCodes = new Set(["42P01", "PGRST205"]);
   if (error.code && missingTableCodes.has(error.code)) {
     return Object.assign(new Error(
@@ -1032,4 +1098,8 @@ function friendlyDatabaseSaveError(error: { code?: string; message?: string }, l
   }
 
   return Object.assign(new Error(`Furvise could not save this ${label}. Please try again.`), error);
+}
+
+export function isPetLimitReachedError(error: unknown) {
+  return error instanceof Error && ("code" in error && error.code === "PET_LIMIT_REACHED" || error.message.includes("PET_LIMIT_REACHED") || error.message.includes("pet limit was reached"));
 }

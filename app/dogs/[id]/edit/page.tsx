@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { SignedInHeader } from "../../../components/signed-in-header";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { AppPage } from "../../../components/app-page";
 import { useRequireConfirmedSupabaseAuth } from "../../../lib/auth-session";
 import {
   DogProfile,
@@ -22,6 +22,7 @@ import {
   loadDogProfileForUser,
   saveDogProfileForUser,
 } from "../../../lib/supabase";
+import { petProfileDraftsEqual, reducePetProfileDraft } from "../../../lib/pet-profile-draft";
 
 const knownAvoidIngredients = avoidIngredientChips.filter((item) => item !== "None known");
 
@@ -31,15 +32,25 @@ export default function EditDogProfilePage() {
   const dogId = params.id;
   const configError = getSupabaseConfigError();
   const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
-  const [profile, setProfile] = useState<DogProfile>(initialProfile);
+  const [profile, dispatchProfile] = useReducer(reducePetProfileDraft, initialProfile);
+  const [savedProfile, setSavedProfile] = useState<DogProfile>(initialProfile);
+  const loadedIdentityRef = useRef("");
   const [loading, setLoading] = useState(!configError);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const mainConcernError = getMainConcernError(profile);
+  const dirty = !petProfileDraftsEqual(profile, savedProfile);
 
   useEffect(() => {
     let active = true;
+
+    if (configError) return;
+    if (authStatus !== "signedIn" || !authUser) return;
+
+    const identity = `${authUser.id}:${dogId}`;
+    if (loadedIdentityRef.current === identity) return;
+    loadedIdentityRef.current = identity;
 
     async function loadProfile() {
       setLoading(true);
@@ -51,7 +62,9 @@ export default function EditDogProfilePage() {
 
         const row = await loadDogProfileForUser(dogId, user);
         if (!active) return;
-        setProfile(dogProfileRowToDraft(row));
+        const nextProfile = dogProfileRowToDraft(row);
+        setSavedProfile(nextProfile);
+        dispatchProfile({ type: "load", profile: nextProfile });
       } catch (loadError) {
         if (active) {
           setError(
@@ -65,16 +78,24 @@ export default function EditDogProfilePage() {
       }
     }
 
-    if (configError) {
-      return;
-    }
-    if (authStatus !== "signedIn" || !authUser) return;
-
     loadProfile();
     return () => {
       active = false;
     };
   }, [authStatus, authUser, configError, dogId]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const guardLink = (event: MouseEvent) => {
+      const anchor = (event.target as Element | null)?.closest("a[href]");
+      if (!anchor || anchor.getAttribute("target") === "_blank") return;
+      if (!window.confirm("You have unsaved changes. Leave without saving?")) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", guardLink, true);
+    return () => { window.removeEventListener("beforeunload", beforeUnload); document.removeEventListener("click", guardLink, true); };
+  }, [dirty]);
 
   const customAvoidIngredient = useMemo(
     () =>
@@ -90,45 +111,44 @@ export default function EditDogProfilePage() {
   );
 
   function updateProfile(update: Partial<DogProfile>) {
-    setProfile((current) => ({ ...current, ...update }));
+    dispatchProfile({ type: "patch", values: update });
   }
 
   function toggleAvoidIngredient(ingredient: string) {
     if (ingredient === "None known") {
-      updateProfile({ avoidIngredients: [], customAvoidIngredient: "" });
+      if (profile.avoidIngredients.length && !window.confirm("Clear the selected ingredient exclusions?")) return;
+      updateProfile({ avoidIngredients: [], avoidIngredientsNoneKnown: true, customAvoidIngredient: "" });
       return;
     }
 
-    setProfile((current) => {
-      const exists = current.avoidIngredients.includes(ingredient);
-      return {
-        ...current,
+    const exists = profile.avoidIngredients.includes(ingredient);
+    dispatchProfile({ type: "patch", values: {
+        avoidIngredientsNoneKnown: false,
         avoidIngredients: exists
-          ? current.avoidIngredients.filter((item) => item !== ingredient)
-          : [...current.avoidIngredients, ingredient],
-      };
-    });
+          ? profile.avoidIngredients.filter((item) => item !== ingredient)
+          : [...profile.avoidIngredients, ingredient],
+      } });
   }
 
   function updateCustomAvoidIngredient(value: string) {
     if (isNoneKnown(value)) {
-      updateProfile({ avoidIngredients: [], customAvoidIngredient: value });
+      updateProfile({ avoidIngredients: [], avoidIngredientsNoneKnown: true, customAvoidIngredient: value });
       return;
     }
 
     const customIngredients = normalizeAvoidIngredientValues(value.split(","));
-    setProfile((current) => ({
-      ...current,
+    dispatchProfile({ type: "patch", values: {
+      avoidIngredientsNoneKnown: false,
       customAvoidIngredient: value,
       avoidIngredients: [
-        ...current.avoidIngredients.filter((item) =>
+        ...profile.avoidIngredients.filter((item) =>
           knownAvoidIngredients.some((known) => known.toLowerCase() === item.toLowerCase()),
         ),
         ...customIngredients.filter(
           (item) => !knownAvoidIngredients.some((known) => known.toLowerCase() === item.toLowerCase()),
         ),
       ],
-    }));
+    } });
   }
 
   async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
@@ -148,8 +168,9 @@ export default function EditDogProfilePage() {
       if (!user) throw new Error("Please sign in again before saving.");
 
       await saveDogProfileForUser(profile, user, dogId);
+      setSavedProfile(profile);
       setStatus("Profile saved.");
-      router.push("/dashboard");
+      router.push(`/pets/${encodeURIComponent(dogId)}`);
       router.refresh();
     } catch {
       setError("Furvise could not save this pet profile. Please try again.");
@@ -159,11 +180,8 @@ export default function EditDogProfilePage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-transparent text-[var(--pw-text)]">
-      <div className="mx-auto w-full max-w-7xl min-w-0 px-4 py-4 sm:px-6 lg:px-8">
-        <SignedInHeader />
-
-        <div className="mx-auto w-full max-w-3xl min-w-0">
+    <AppPage>
+        <div className="w-full max-w-3xl min-w-0">
           <section className="py-6 sm:py-8 lg:py-10">
             <p className="mb-3 inline-flex max-w-full rounded-full border border-[var(--pw-border)] bg-[var(--pw-surface)] px-3 py-1 text-sm font-medium text-[var(--pw-primary)]">
               Edit profile
@@ -244,7 +262,7 @@ export default function EditDogProfilePage() {
                     <CheckRow
                       checked={profile.ageUnknown}
                       label="I'm not sure"
-                      onChange={(checked) => updateProfile({ ageUnknown: checked, age: checked ? "" : profile.age })}
+                      onChange={(checked) => updateProfile({ ageUnknown: checked })}
                     />
                   </Field>
 
@@ -270,7 +288,7 @@ export default function EditDogProfilePage() {
                       checked={profile.weightUnknown}
                       label="I'm not sure"
                       onChange={(checked) =>
-                        updateProfile({ weightUnknown: checked, weight: checked ? "" : profile.weight })
+                        updateProfile({ weightUnknown: checked })
                       }
                     />
                   </Field>
@@ -292,7 +310,6 @@ export default function EditDogProfilePage() {
                     onChange={(checked) =>
                       updateProfile({
                         currentFoodUnknown: checked,
-                        currentFood: checked ? "" : profile.currentFood,
                       })
                     }
                   />
@@ -335,7 +352,7 @@ export default function EditDogProfilePage() {
                     {avoidIngredientChips.map((ingredient) => {
                       const selected =
                         ingredient === "None known"
-                          ? profile.avoidIngredients.length === 0
+                          ? Boolean(profile.avoidIngredientsNoneKnown)
                           : profile.avoidIngredients.includes(ingredient);
                       return (
                         <button
@@ -391,12 +408,12 @@ export default function EditDogProfilePage() {
               <div className="mt-6 grid gap-3 border-t border-[var(--pw-border)] pt-5 sm:grid-cols-2">
                 <Link
                   className="inline-flex min-h-12 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-5 py-3 text-center text-base font-semibold text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)]"
-                  href="/dashboard"
+                  href={`/pets/${encodeURIComponent(dogId)}`}
                 >
                   Cancel
                 </Link>
                 <button
-                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 py-3 text-base font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-wait disabled:bg-[var(--pw-secondary)]"
+                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 py-3 text-base font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-wait disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]"
                   disabled={saving}
                   type="submit"
                 >
@@ -406,8 +423,7 @@ export default function EditDogProfilePage() {
             </form>
           )}
         </div>
-      </div>
-    </main>
+    </AppPage>
   );
 }
 
@@ -472,7 +488,7 @@ function Segmented<T extends string>({
       {options.map((option) => (
         <button
           className={`min-h-11 px-3 py-2 text-sm font-semibold transition ${
-            selected === option ? "bg-[var(--pw-primary)] text-white" : "text-[var(--pw-muted)]"
+            selected === option ? "bg-[var(--pw-primary)] text-[var(--pw-primary-foreground)]" : "text-[var(--pw-muted)]"
           }`}
           key={option}
           onClick={() => setSelected(option)}

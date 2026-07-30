@@ -1,3 +1,8 @@
+import {
+  FURVISE_URGENT_SAFETY_MESSAGE,
+  buildFurviseSafetyLine,
+} from "./furvise-voice.ts";
+
 const URGENT_CONTEXT_PATTERN =
   /\b(trouble breathing|can't breathe|cannot breathe|difficulty breathing|collapse|collapsed|unconscious|seizure|severe bleeding|blood in vomit|bloated abdomen|bloat|suspected toxin|poison|poisoning|ate chocolate|ate grapes|ate raisins|cannot urinate|can't urinate|unable to urinate|repeated vomiting|vomiting repeatedly|rapidly worsening|unable to keep water down|extreme lethargy|severe pain)\b/i;
 
@@ -33,6 +38,152 @@ export const askResponseJsonSchema = {
     },
   },
 };
+
+export const ASK_ANSWER_TYPES = [
+  "direct_answer",
+  "care_plan",
+  "tracking_plan",
+  "vet_prep",
+  "history_summary",
+  "product_guidance",
+  "clarification",
+  "urgent_guidance",
+];
+
+const ASK_ACTIONS_BY_TYPE = {
+  direct_answer: ["save_key_detail", "copy"],
+  care_plan: ["add_to_care_history", "copy"],
+  tracking_plan: ["start_tracking", "add_to_care_history"],
+  vet_prep: ["prepare_vet_note", "copy"],
+  history_summary: ["add_to_care_history", "copy"],
+  product_guidance: ["save_key_detail", "copy"],
+  clarification: ["copy"],
+  urgent_guidance: ["copy"],
+};
+
+const ASK_MEMORY_CANDIDATE_TYPES = new Set([
+  "preference", "food_response", "product_response", "recurring_pattern", "routine", "care_goal",
+  "veterinarian_instruction", "medication_or_supplement", "unresolved_concern", "important_date",
+]);
+
+/**
+ * Adds provider-neutral presentation metadata to an already validated Ask answer.
+ * Safety and save eligibility remain deterministic outside this function.
+ */
+export function buildAskConversationResponse(response, options = {}) {
+  const parsed = parseAskResponse(response);
+  if (!parsed) return null;
+  const answerType = resolveConversationAnswerType(options.intent, Boolean(options.urgent), parsed);
+  const usedContextSummary = cleanStringList(options.usedContextSummary, 4);
+  const missingUsefulDetails = cleanStringList(options.missingUsefulDetails, 4);
+  const suggestedQuestions = cleanStringList(options.suggestedQuestions, 3);
+  const saveSuggestions = cleanSaveSuggestions(options.saveSuggestions);
+  const trackingPlan = cleanTrackingPlan(options.trackingPlan);
+  const clarificationQuestion = cleanOptionalText(options.clarificationQuestion, 240);
+  return {
+    ...parsed,
+    answerType,
+    directAnswer: parsed.summary,
+    actions: [...ASK_ACTIONS_BY_TYPE[answerType]],
+    urgency: options.urgent ? "urgent" : options.recentlyResolved ? "resolved" : options.monitoring ? "monitor" : "routine",
+    ...(suggestedQuestions.length ? { suggestedQuestions } : {}),
+    ...(usedContextSummary.length ? { usedContextSummary } : {}),
+    ...(missingUsefulDetails.length ? { missingUsefulDetails } : {}),
+    ...(clarificationQuestion ? { clarificationQuestion } : {}),
+    ...(saveSuggestions.length ? { saveSuggestions } : {}),
+    ...(trackingPlan ? { trackingPlan } : {}),
+    ...(typeof options.vetBriefRelevant === "boolean" ? { vetBriefRelevant: options.vetBriefRelevant } : {}),
+  };
+}
+
+export function parseAskConversationResponse(value) {
+  const response = parseAskResponse(value);
+  if (!response || !value || typeof value !== "object") return null;
+  const draft = value;
+  if (!ASK_ANSWER_TYPES.includes(draft.answerType)) return null;
+  if (typeof draft.directAnswer !== "string" || cleanText(draft.directAnswer) !== response.summary) return null;
+  if (draft.supportingText !== undefined && draft.supportingText !== null && typeof draft.supportingText !== "string") return null;
+  if (draft.suggestedQuestions !== undefined && !isStringArray(draft.suggestedQuestions, 3)) return null;
+  if (!isStringArray(draft.actions, 4)) return null;
+  if (draft.usedContextSummary !== undefined && !isStringArray(draft.usedContextSummary, 4)) return null;
+  if (draft.missingUsefulDetails !== undefined && !isStringArray(draft.missingUsefulDetails, 4)) return null;
+  if (draft.clarificationQuestion !== undefined && !cleanOptionalText(draft.clarificationQuestion, 240)) return null;
+  const saveSuggestions = cleanSaveSuggestions(draft.saveSuggestions);
+  if (draft.saveSuggestions !== undefined && saveSuggestions.length !== draft.saveSuggestions.length) return null;
+  const trackingPlan = cleanTrackingPlan(draft.trackingPlan);
+  if (draft.trackingPlan !== undefined && !trackingPlan) return null;
+  if (draft.vetBriefRelevant !== undefined && typeof draft.vetBriefRelevant !== "boolean") return null;
+  if (draft.urgency !== "routine" && draft.urgency !== "resolved" && draft.urgency !== "monitor" && draft.urgency !== "urgent") return null;
+  const allowedActions = new Set(ASK_ACTIONS_BY_TYPE[draft.answerType]);
+  if (draft.actions.some((action) => !allowedActions.has(action))) return null;
+  return {
+    ...response,
+    answerType: draft.answerType,
+    directAnswer: response.summary,
+    supportingText: draft.supportingText ? cleanText(draft.supportingText) : null,
+    suggestedQuestions: (draft.suggestedQuestions || []).map(cleanText).filter(Boolean),
+    actions: [...draft.actions],
+    usedContextSummary: (draft.usedContextSummary || []).map(cleanText).filter(Boolean),
+    missingUsefulDetails: (draft.missingUsefulDetails || []).map(cleanText).filter(Boolean),
+    ...(draft.clarificationQuestion ? { clarificationQuestion: cleanText(draft.clarificationQuestion) } : {}),
+    ...(saveSuggestions.length ? { saveSuggestions } : {}),
+    ...(trackingPlan ? { trackingPlan } : {}),
+    ...(typeof draft.vetBriefRelevant === "boolean" ? { vetBriefRelevant: draft.vetBriefRelevant } : {}),
+    urgency: draft.urgency,
+  };
+}
+
+function resolveConversationAnswerType(intent, urgent, response) {
+  if (urgent) return "urgent_guidance";
+  if (intent === "vet_prep") return "vet_prep";
+  if (intent === "recent_summary" || intent === "last_week_logs") return "history_summary";
+  if (intent === "symptom_notes") return "tracking_plan";
+  if (intent === "food_notes" || intent === "product_feedback_summary") return "product_guidance";
+  if (hasNoRecordLanguage(guidanceSearchText(response))) return "clarification";
+  if (/\b(plan|routine|steps?)\b/i.test(guidanceSearchText(response))) return "care_plan";
+  return "direct_answer";
+}
+
+function isStringArray(value, maxItems) {
+  return Array.isArray(value) && value.length <= maxItems && value.every((item) => typeof item === "string");
+}
+
+function cleanOptionalText(value, maxLength) {
+  if (typeof value !== "string") return "";
+  const cleaned = cleanText(value);
+  return cleaned && cleaned.length <= maxLength ? cleaned : "";
+}
+
+function cleanSaveSuggestions(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 2) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const type = typeof item.type === "string" ? item.type.trim() : "";
+    const statement = cleanOptionalText(item.statement, 240);
+    const attribution = cleanOptionalText(item.attribution, 100);
+    const suggestedLabel = cleanOptionalText(item.suggestedLabel, 80);
+    if (!ASK_MEMORY_CANDIDATE_TYPES.has(type) || !statement || !attribution || !suggestedLabel || item.requiresConfirmation !== true) return [];
+    return [{ type, statement, attribution, suggestedLabel, requiresConfirmation: true }];
+  });
+}
+
+function cleanTrackingPlan(value) {
+  if (value === undefined || value === null) return null;
+  if (!value || typeof value !== "object") return null;
+  const observations = cleanStringList(value.observations, 5);
+  const seekCareSoonerIf = cleanStringList(value.seekCareSoonerIf, 3);
+  const frequency = cleanOptionalText(value.frequency, 160);
+  const duration = cleanOptionalText(value.duration, 160);
+  const comparison = cleanOptionalText(value.comparison, 160);
+  if (!observations.length || !frequency || !duration || !comparison || !seekCareSoonerIf.length) return null;
+  return { observations, frequency, duration, comparison, seekCareSoonerIf };
+}
+
+function cleanStringList(value, maxItems) {
+  if (!isStringArray(value, maxItems)) return [];
+  return value.map(cleanText).filter(Boolean);
+}
 
 export function hasUrgentSymptomContext(value) {
   return URGENT_CONTEXT_PATTERN.test(String(value || ""));
@@ -86,11 +237,9 @@ export function parseAskResponse(value) {
 export function buildUrgentAskResponse() {
   return {
     title: "Contact a veterinarian now",
-    summary:
-      "The symptoms described may need urgent veterinary attention. Contact an emergency veterinarian now.",
+    summary: FURVISE_URGENT_SAFETY_MESSAGE,
     sections: [],
-    safetyNote:
-      "Furvise organizes care context. It does not diagnose or replace a veterinarian. Some signs may need urgent veterinary care. If your pet is struggling to breathe, collapsing, repeatedly vomiting, showing severe pain, or may have eaten something toxic, contact a veterinarian or emergency clinic now.",
+    safetyNote: `${buildFurviseSafetyLine()} ${FURVISE_URGENT_SAFETY_MESSAGE}`,
   };
 }
 
@@ -200,21 +349,21 @@ const GUIDANCE_CARE_CATEGORIES = {
 
 const GUIDANCE_CARE_NOTES = {
   behavior:
-    "Furvise-generated note, not veterinary advice. Summarized saved behavior-related updates and related tracking context.",
+    "Saved from Ask, not veterinary advice. Summarized behavior updates and related tracking details.",
   food:
-    "Furvise-generated note, not veterinary advice. Summarized saved food-related updates and related meal or appetite context.",
+    "Saved from Ask, not veterinary advice. Summarized food updates and related meal or appetite details.",
   generic:
-    "Furvise-generated note, not veterinary advice. Saved a concise guidance summary from this Ask Furvise response for future care-history context.",
+    "Saved from Ask, not veterinary advice. Kept a concise summary for future care history.",
   grooming:
-    "Furvise-generated note, not veterinary advice. Summarized saved grooming-related updates and related tracking context.",
+    "Saved from Ask, not veterinary advice. Summarized grooming updates and related tracking details.",
   logs:
-    "Furvise-generated note, not veterinary advice. Summarized saved care logs from the requested time period and noted helpful missing context.",
+    "Saved from Ask, not veterinary advice. Summarized care notes from the requested time period and details still worth adding.",
   recent:
-    "Furvise-generated note, not veterinary advice. Summarized recent saved updates, including latest logs and missing context to keep tracking.",
+    "Saved from Ask, not veterinary advice. Summarized recent updates and details still worth tracking.",
   symptom:
-    "Furvise-generated note, not veterinary advice. Summarized saved symptom-related updates and related tracking context.",
+    "Saved from Ask, not veterinary advice. Summarized symptom updates and related tracking details.",
   vetPrep:
-    "Furvise-generated note, not veterinary advice. Prepared a vet summary from saved profile details and recent updates, including questions to ask and helpful missing context.",
+    "Saved from Ask, not veterinary advice. Prepared a vet summary from profile details and recent updates, including questions to ask and details still worth adding.",
 };
 
 function classifyGuidanceResponse(response, answerType = "") {
@@ -358,7 +507,7 @@ function buildSaveDetail(response, answerType, facts) {
   const factText = facts.slice(0, 2).map(formatFactForCareNote).join("; ");
   const questions = getSectionItems(response, /what to ask the vet/i);
   const topics = summarizeQuestionTopics(questions);
-  const intro = "Furvise-generated note, not veterinary advice.";
+  const intro = "Saved from Ask, not veterinary advice.";
 
   if (answerType === "vet_prep") {
     const suffix = topics ? ` Suggested asking about ${topics}.` : "";
@@ -381,7 +530,7 @@ function buildSaveDetail(response, answerType, facts) {
     return capCareNote(`${intro} Summarized saved grooming context from ${factText}.`);
   }
 
-  return capCareNote(`${intro} Summarized saved care context from ${factText}.`);
+  return capCareNote(`${intro} Summarized saved details from ${factText}.`);
 }
 
 function formatFactForCareNote(value) {

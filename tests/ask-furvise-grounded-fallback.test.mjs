@@ -120,7 +120,7 @@ test("grounded Ask fallback uses configured OpenAI client and current model sche
       missingContext: [],
       suggestedNextLogs: ["Log whether paw licking repeats, improves, or worsens."],
       vetQuestions: ["What paw symptoms would make this urgent?"],
-      safetyNote: "Furvise organizes care context. It does not diagnose or replace a veterinarian.",
+      safetyNote: "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.",
       cannotAnswerFromSavedData: false,
     };
   });
@@ -136,8 +136,9 @@ test("grounded Ask fallback uses configured OpenAI client and current model sche
   assert.equal(calls[0].text.format.name, "furvise_grounded_ask");
   assert.equal(calls[0].text.format.strict, true);
   assert.match(answer.summary, /paw licking note/i);
-  assert.ok(answer.sections.some((section) => section.heading === "Saved facts used"));
-  assert.match(answer.safetyNote, /does not diagnose/);
+  assert.equal(answer.sections.some((section) => section.heading === "Saved facts used"), false);
+  assert.ok(answer.sections.some((section) => section.heading === "Next step"));
+  assert.match(answer.safetyNote, /veterinary or professional advice/);
 });
 
 test("grounded Ask payload includes water, paw, and eating facts from saved memory only", () => {
@@ -159,7 +160,7 @@ test("grounded Ask output rejects unsupported saved facts and unsafe product or 
     missingContext: [],
     suggestedNextLogs: ["Keep logging appetite and water intake."],
     vetQuestions: ["What appetite changes would be concerning?"],
-    safetyNote: "Furvise organizes care context. It does not diagnose or replace a veterinarian.",
+    safetyNote: "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.",
     cannotAnswerFromSavedData: false,
   };
 
@@ -185,7 +186,7 @@ test("grounded Ask fallback can answer supported water and eating questions", as
         missingContext: [],
         suggestedNextLogs: ["Keep logging appetite, water intake, and timing."],
         vetQuestions: ["What changes would make this urgent?"],
-        safetyNote: "Furvise organizes care context. It does not diagnose or replace a veterinarian.",
+        safetyNote: "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.",
         cannotAnswerFromSavedData: false,
       };
     });
@@ -202,14 +203,14 @@ test("grounded Ask fallback says when saved data does not support the question",
     missingContext: [],
     suggestedNextLogs: ["Log stool changes if they happen, including timing and severity."],
     vetQuestions: ["What stool changes should prompt a vet call?"],
-    safetyNote: "Furvise organizes care context. It does not diagnose or replace a veterinarian.",
+    safetyNote: "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.",
     cannotAnswerFromSavedData: true,
   });
 
   assert.match(response.summary, /do not see diarrhea logs/i);
   assert.ok(response.sections.some((section) =>
-    section.heading === "Missing context" &&
-    section.items.some((item) => /does not contain enough detail/i.test(item))
+    section.heading === "What is missing" &&
+    section.items.some((item) => /have not saved anything/i.test(item))
   ));
-  assert.match(response.safetyNote, /does not diagnose/);
+  assert.match(response.safetyNote, /veterinary or professional advice/);
 });

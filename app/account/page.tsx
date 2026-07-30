@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AppPage } from "../components/app-page";
+import { PageHeader, PrimaryButton } from "../components/product-primitives";
 import { getAccountCountrySourceLabel } from "../lib/account-country";
+import { GOOGLE_AUTH_ENABLED, buildOAuthCallbackUrl, getConnectedAuthProviders } from "../lib/auth-identity";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import {
   detectAccountProductCountry,
+  getBrowserSupabase,
   getCurrentUser,
   loadUserProfileForUser,
   updateUserProductCountryForUser,
@@ -21,6 +24,7 @@ export default function AccountPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [connectedProviders, setConnectedProviders] = useState<string[]>([]);
 
   useEffect(() => {
     if (authStatus !== "signedIn" || !authUser) return;
@@ -31,6 +35,7 @@ export default function AccountPage() {
         if (!user) return;
         if (!active) return;
         setEmail(user.email || "");
+        setConnectedProviders(getConnectedAuthProviders(user));
 
         const row = await loadUserProfileForUser(user);
         const detectedRow = row?.country ? row : await detectAccountProductCountry();
@@ -77,21 +82,27 @@ export default function AccountPage() {
     }
   }
 
+  async function connectGoogle() {
+    const client = getBrowserSupabase();
+    if (!client) return setError("Furvise could not open that sign-in method.");
+    setError(""); setMessage("");
+    const redirectTo = buildOAuthCallbackUrl(window.location.origin, "/account");
+    const { error: linkError } = await client.auth.linkIdentity({ provider: "google", options: { redirectTo } });
+    if (linkError) setError("Furvise could not connect Google. Sign in with your existing method and try again.");
+  }
+
   return (
-    <AppPage>
-      <header>
-        <h1 className="text-4xl font-semibold tracking-tight text-[var(--pw-heading)]">Account</h1>
-        <p className="mt-3 text-[var(--pw-muted)]">Your signed-in Furvise account.</p>
-      </header>
+    <AppPage shell="reading">
+      <PageHeader supportingText="Your signed-in Furvise account." title="Account" />
       {authStatus !== "signedIn" ? (
         <Status text={authStatus === "loading" ? "Loading account..." : "Redirecting to sign in..."} />
       ) : (
       <>
-      <section className="mt-8 max-w-2xl overflow-hidden rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6">
+      <section className="mt-8 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6 shadow-[var(--shadow-surface-1)]">
         <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Email</h2>
         <p className="mt-2 text-[var(--pw-muted)]">{email || (loading ? "Loading..." : "Not signed in")}</p>
       </section>
-      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6">
+      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-6">
         <form onSubmit={saveProductCountry}>
           <div>
             <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Product country</h2>
@@ -116,16 +127,27 @@ export default function AccountPage() {
             <option value="CA">Canada</option>
             <option value="US">United States</option>
           </select>
-          <button
-            className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+          <PrimaryButton
+            className="mt-5 w-full sm:w-auto"
             disabled={loading || saving}
+            loading={saving}
             type="submit"
           >
             {saving ? "Saving..." : "Save product country"}
-          </button>
+          </PrimaryButton>
           {message ? <p className="mt-3 text-sm font-semibold text-[var(--pw-primary)]">{message}</p> : null}
           {error ? <p className="mt-3 text-sm font-semibold text-[var(--pw-danger-text)]">{error}</p> : null}
         </form>
+      </section>
+      {GOOGLE_AUTH_ENABLED ? <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
+        <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Connected sign-in methods</h2>
+        <p className="mt-2 leading-7 text-[var(--pw-muted)]">Connect a provider only after signing in to this Furvise account. Furvise never merges accounts from an unverified email.</p>
+        <PrimaryButton className="mt-4 w-full sm:w-auto" disabled={connectedProviders.includes("google")} onClick={() => void connectGoogle()} type="button">{connectedProviders.includes("google") ? "Google connected" : "Connect Google"}</PrimaryButton>
+      </section> : null}
+      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6" id="plans">
+        <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Plan</h2>
+        <p className="mt-2 font-semibold text-[var(--pw-text)]">Free plan</p>
+        <p className="mt-2 leading-7 text-[var(--pw-muted)]">Furvise Plus is not available yet. No checkout is started from this page.</p>
       </section>
       </>
       )}

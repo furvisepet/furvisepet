@@ -1,7 +1,9 @@
+import { appPageContainer } from "../../components/product-primitives";
+
 export default function LoadingPetProfile() {
   return (
     <main className="min-h-screen bg-[var(--pw-app-background)] text-[var(--pw-text)]">
-      <div className="mx-auto w-full max-w-7xl px-5 pb-16 pt-24 sm:px-8 lg:px-10">
+      <div className={`${appPageContainer} pb-16 pt-24`}>
         <div aria-label="Loading pet profile" className="animate-pulse" role="status">
           <div className="h-5 w-28 rounded-full bg-[var(--pw-card-muted)]" />
           <div className="mt-5 h-12 max-w-sm rounded-2xl bg-[var(--pw-card-muted)]" />

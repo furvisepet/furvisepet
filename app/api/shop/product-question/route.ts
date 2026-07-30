@@ -1,37 +1,41 @@
+import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getAiRuntimeDiagnostics } from "../../../lib/ai/config";
-import { createAiAnalysisProvider } from "../../../lib/ai/provider";
+import { loadShopCatalogProductById } from "../../../lib/catalog/compatibility";
+import { AiCreditLedgerError, getRemainingAiCredits, runWithAiCredit, type AiCreditStatus } from "../../../lib/ai/usage-ledger";
 import {
-  ProductAiUsageReadError,
-  buildProductAiUsageUnavailableStatus,
-  formatProductAiUsageStatus,
-  getProductAiUsageStatus,
-  incrementProductAiUsage,
-  logProductAiUsageError,
-  type ProductAiUsageStatus,
-  type SupabaseLike as ProductAiUsageSupabaseLike,
-} from "../../../lib/billing/shop-usage";
-import {
-  getPlanCapabilities,
   getUserPlan,
-  isEarlyAccessFreeUnlockEnabled,
   type PlanId,
 } from "../../../lib/billing/plan-limits";
-import { loadPetMemoryContext, type PetMemoryContext } from "../../../lib/pet-memory";
+import { buildPetMemoryContext, type PetMemoryContext } from "../../../lib/pet-memory";
 import { initialProfile, type DogProfile, type MockProduct } from "../../../lib/petwise";
-import { staticRealProvider } from "../../../lib/product-providers";
+import { normalizeProductCountry } from "../../../lib/product-providers";
+import {
+  FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE,
+  FURVISE_PRODUCT_USAGE_CAP_MESSAGE,
+} from "../../../lib/furvise-voice";
 import {
   buildOffTopicShopProductQuestionAnswer,
   buildFallbackShopProductQuestionAnswer,
+  buildShopProductQuestionPromptInput,
   classifyShopProductQuestionIntent,
   parseShopProductQuestionAnswer,
+  type ShopProductQuestionAnswer,
 } from "../../../lib/shop/product-question";
 import { filterAndRankShopProducts } from "../../../lib/shop/product-search";
 import { parseShopQueryInterpretation } from "../../../lib/shop-query";
-import { staticRealProducts } from "../../../lib/products/static-products";
+import {
+  buildFurviseContext,
+  persistFeatureIntelligenceLearnings,
+  resolveProductSafety,
+  runFeatureIntelligence,
+  type FeatureIntelligenceResult,
+} from "../../../lib/intelligence";
+import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
 
 const maxShopQueryLength = 240;
 const maxProductQuestionLength = 320;
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 type ProductQuestionBody = {
   interpretation?: unknown;
@@ -40,6 +44,7 @@ type ProductQuestionBody = {
   productId?: unknown;
   query?: unknown;
   question?: unknown;
+  requestId?: unknown;
 };
 
 export async function GET(request: Request) {
@@ -56,13 +61,21 @@ export async function POST(request: Request) {
   if ("response" in context) return context.response;
 
   logProductQuestionDiagnostic("route called", { finalResponseSource: null });
-  const body = (await request.json().catch(() => null)) as ProductQuestionBody | null;
+  let rawBody: unknown;
+  try { rawBody = await readBoundedJson(request, API_BODY_LIMITS.productAi); }
+  catch (error) {
+    const oversized = error instanceof RequestBoundaryError && error.code === "PAYLOAD_TOO_LARGE";
+    return Response.json({ error: oversized ? "The product request is too large." : "Send a valid product request.", usage: context.usage }, { status: oversized ? 413 : 400 });
+  }
+  if (!hasOnlyKeys(rawBody, ["interpretation", "petId", "productCountry", "productId", "query", "question", "requestId"])) return Response.json({ error: "The product request contains unsupported fields.", usage: context.usage }, { status: 400 });
+  const body = rawBody as ProductQuestionBody;
   const petId = typeof body?.petId === "string" ? body.petId.trim() : "";
   const productId = typeof body?.productId === "string" ? body.productId.trim() : "";
   const query = typeof body?.query === "string" ? body.query.trim() : "";
   const question = typeof body?.question === "string" ? body.question.trim() : "";
   const productCountry = typeof body?.productCountry === "string" ? body.productCountry : null;
   const interpretation = body?.interpretation ? parseShopQueryInterpretation(body.interpretation) : null;
+  const requestId = typeof body?.requestId === "string" && isUuid(body.requestId) ? body.requestId : randomUUID();
 
   if (!petId || !productId || !query || query.length > maxShopQueryLength || !question || question.length > maxProductQuestionLength) {
     logProductQuestionDiagnostic("request rejected", {
@@ -72,6 +85,13 @@ export async function POST(request: Request) {
     });
     return Response.json({
       error: "Choose a pet, product, and shorter product question.",
+      usage: context.usage,
+      usageUnavailable: context.usageUnavailable,
+    }, { status: 400 });
+  }
+  if (!isSecurityUuid(petId) || !isSecurityUuid(productId)) {
+    return Response.json({
+      error: "Choose a valid pet and product.",
       usage: context.usage,
       usageUnavailable: context.usageUnavailable,
     }, { status: 400 });
@@ -86,28 +106,42 @@ export async function POST(request: Request) {
   }
 
   let memory: PetMemoryContext;
+  let liveContext: Awaited<ReturnType<typeof buildFurviseContext>>;
   try {
-    memory = await loadPetMemoryContext({
-      petId,
-      supabase: context.supabase,
-      userId: context.userId,
+    liveContext = await buildFurviseContext({
+      currentMessage: question, feature: "product_question", locale: request.headers.get("accept-language")?.split(",")[0] || "en",
+      petId, supabase: context.supabase, userId: context.userId,
+    });
+    memory = buildPetMemoryContext({
+      careEntries: liveContext.careEntries,
+      productFeedback: liveContext.productFeedback,
+      profile: liveContext.pet,
+      savedMemories: liveContext.legacyPetMemories,
     });
   } catch {
     logProductQuestionDiagnostic("request rejected", { failureCategory: "pet ownership/auth issue", petIdPresent: Boolean(petId) });
     return Response.json({ error: "No matching pet profile was found.", usage: context.usage, usageUnavailable: context.usageUnavailable }, { status: 404 });
   }
 
-  if (memory.derived.safetyFlags.length > 0 || interpretation?.safetyFlags.urgentCare) {
+  const sharedSafety = resolveProductSafety(liveContext);
+  if (sharedSafety.shoppingSuppressed) {
     logProductQuestionDiagnostic("request rejected", { failureCategory: "product filter rejection", petIdPresent: true, productIdPresent: Boolean(productId) });
     return Response.json({ error: "This product is no longer available for the selected pet context.", usage: context.usage, usageUnavailable: context.usageUnavailable }, { status: 409 });
   }
 
-  const products = getStaticRealShopCatalog();
   const selectedPet = buildShopSearchPet(memory);
+  const countryCode = normalizeProductCountry(productCountry);
+  if (!countryCode || (selectedPet.species !== "dog" && selectedPet.species !== "cat")) {
+    return Response.json({ error: "This product is no longer available for the selected pet context.", usage: context.usage, usageUnavailable: context.usageUnavailable }, { status: 409 });
+  }
+  const catalogResult = await loadShopCatalogProductById(context.supabase, productId, {
+    countryCode,
+    speciesCode: selectedPet.species,
+  });
   const filtered = filterAndRankShopProducts({
     accountCountry: productCountry,
     interpretation,
-    products,
+    products: catalogResult.product ? [catalogResult.product] : [],
     query,
     selectedPet,
   });
@@ -153,7 +187,7 @@ export async function POST(request: Request) {
     });
     return Response.json(
       {
-        error: "You've used your included Product AI for this month.",
+        error: FURVISE_PRODUCT_USAGE_CAP_MESSAGE,
         limitReached: true,
         usage: context.usage,
         usageUnavailable: context.usageUnavailable,
@@ -173,43 +207,39 @@ export async function POST(request: Request) {
       productQuestionIntent: questionIntent.intent,
       provider: runtimeDiagnostics.provider,
     });
-    const provider = createAiAnalysisProvider();
     logProductQuestionDiagnostic("AI request attempted", {
       aiAttempted: true,
       productQuestionCategory: questionCategory,
       productQuestionIntent: questionIntent.intent,
     });
-    const answer = await provider.answerShopProductQuestion({ interpretation, memory, product, query, question });
-    const normalized = parseShopProductQuestionAnswer(answer, memory.pet.name || "this pet");
-    if (!normalized) {
-      logProductQuestionDiagnostic("AI response rejected", {
-        aiSucceeded: true,
-        fallbackReason: "schema_validation_failed",
-        failureCategory: "schema validation rejection",
-        productQuestionCategory: questionCategory,
-        productQuestionIntent: questionIntent.intent,
-        schemaValidationErrors: ["product question answer failed local parser"],
-      });
-      throw new ProductQuestionRouteError("schema_validation_failed", "schema validation rejection");
-    }
-
-    let nextUsage = context.usage;
-    if (!context.usageUnavailable) {
-      try {
-        const updatedUsage = await incrementProductAiUsage({
-          monthKey: context.usage.monthKey,
-          previousCount: context.usage.count,
-          supabase: context.supabase as unknown as ProductAiUsageSupabaseLike,
-          userId: context.userId,
-        });
-        nextUsage = formatProductAiUsageStatus({
-          ...context.usage,
-          count: updatedUsage.count,
-        });
-      } catch (usageError) {
-        logProductAiUsageError("incrementProductAiUsage", usageError);
-      }
-    }
+    let persistenceWarning = "";
+    const generated = await runWithAiCredit<FeatureIntelligenceResult<ShopProductQuestionAnswer>>({
+      feature: "product_question",
+      planId: context.planId,
+      requestId,
+      supabase: context.supabase,
+      userId: context.userId,
+      generate: async () => runFeatureIntelligence({
+        context: liveContext,
+        feature: "product_question",
+        featureInput: buildShopProductQuestionPromptInput({ interpretation, memory, product, query, question }),
+        maxOutputTokens: 650,
+        parseValue: (value) => parseShopProductQuestionAnswer(value, memory.pet.name || "this pet"),
+      }),
+      beforeComplete: async (result) => {
+        if (!result.acceptedLearnings.length) return;
+        try {
+          await persistFeatureIntelligenceLearnings({
+            careActions: [], feature: "product_question", learnings: result.acceptedLearnings,
+            petId, requestId, supabase: context.supabase,
+          });
+        } catch (error) {
+          persistenceWarning = "Approved preferences could not be saved.";
+          logProductQuestionFallback(error);
+        }
+      },
+    });
+    const normalized = generated.value.value;
 
     logProductQuestionDiagnostic("final response", {
       aiSucceeded: true,
@@ -217,7 +247,7 @@ export async function POST(request: Request) {
       productQuestionCategory: questionCategory,
       productQuestionIntent: questionIntent.intent,
     });
-    return Response.json({ answer: normalized, fallback: false, responseSource: "ai", usage: nextUsage, usageUnavailable: context.usageUnavailable });
+    return Response.json({ answer: normalized, fallback: false, responseSource: "ai", usage: generated.usage, usageUnavailable: false, ...(persistenceWarning ? { persistenceWarning } : {}) });
   } catch (error) {
     const failure = classifyProductQuestionFailure(error);
     logProductQuestionFallback(error, failure);
@@ -246,7 +276,7 @@ async function loadProductQuestionRequestContext(request: Request): Promise<
   | {
       planId: PlanId;
       supabase: SupabaseClient;
-      usage: ProductAiUsageStatus;
+      usage: AiCreditStatus;
       usageUnavailable: boolean;
       userId: string;
     }
@@ -256,7 +286,7 @@ async function loadProductQuestionRequestContext(request: Request): Promise<
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return { response: Response.json({ error: "Supabase is not configured." }, { status: 503 }) };
+  if (!url || !key) return { response: Response.json({ error: FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE }, { status: 503 }) };
 
   const supabase = createClient(url, key, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -266,41 +296,32 @@ async function loadProductQuestionRequestContext(request: Request): Promise<
   if (!userData.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
 
   const planId = await getUserPlan(userData.user.id);
-  const plan = getPlanCapabilities(planId);
-  const earlyAccessUnlocked = isEarlyAccessFreeUnlockEnabled();
-  let usage: ProductAiUsageStatus;
+  let usage: AiCreditStatus;
   try {
-    usage = await getProductAiUsageStatus({
-      earlyAccessUnlocked,
-      monthlyLimit: plan.productsAiMonthlyLimit,
+    usage = await getRemainingAiCredits({
       planId,
-      supabase: supabase as unknown as ProductAiUsageSupabaseLike,
+      supabase,
       userId: userData.user.id,
     });
     logProductQuestionDiagnostic("Product AI usage loaded", {
-      helper: "getProductAiUsageStatus",
-      table: "product_ai_usage",
+      helper: "getRemainingAiCredits",
+      table: "ai_usage_events",
       usageLoadSucceeded: true,
       userIdPresent: Boolean(userData.user.id),
     });
   } catch (error) {
-    if (error instanceof ProductAiUsageReadError) {
+    if (error instanceof AiCreditLedgerError) {
       logProductQuestionDiagnostic("Product AI usage unavailable", {
         aiAttempted: false,
         failureCategory: "provider/network error",
         fallbackReason: "product_ai_usage_unavailable",
-        helper: "getProductAiUsageStatus",
+        helper: "getRemainingAiCredits",
         schemaValidationErrors: [normalizeProductAiUsageError(error.cause)],
-        table: "product_ai_usage",
+        table: "ai_usage_events",
         usageLoadSucceeded: false,
         userIdPresent: Boolean(userData.user.id),
       });
-      usage = buildProductAiUsageUnavailableStatus({
-        earlyAccessUnlocked,
-        monthlyLimit: plan.productsAiMonthlyLimit,
-        planId,
-      });
-      return { planId, supabase, usage, usageUnavailable: true, userId: userData.user.id };
+      return { response: Response.json({ error: FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE }, { status: 503 }) };
     }
     throw error;
   }
@@ -314,12 +335,6 @@ function normalizeProductAiUsageError(error: unknown) {
   const code = typeof value.code === "string" ? value.code : "unknown";
   const message = typeof value.message === "string" ? value.message : "Unknown Product AI usage error";
   return `${code}: ${message}`;
-}
-
-function getStaticRealShopCatalog() {
-  return staticRealProducts
-    .map((product) => staticRealProvider.normalizeProduct(product))
-    .filter((product): product is MockProduct => Boolean(product));
 }
 
 function buildShopSearchPet(memory: PetMemoryContext): DogProfile {

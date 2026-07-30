@@ -1,24 +1,25 @@
+import {
+  buildFurviseSafetyLine,
+  FURVISE_SHARED_PROMPT_RULES,
+} from "../furvise-voice.ts";
 import type { PetMemoryContext } from "../pet-memory";
 import { getProductSpeciesLabel, type MockProduct } from "../petwise";
 import type { ShopQueryInterpretation } from "../shop-query";
 
 export const shopProductFitExplanationSystemPrompt = [
-  "You write concise product advisor copy for one already-filtered pet product.",
-  "Make the explanation product-first, benefit-focused, simple, and honest.",
-  "Use only the selected pet name, selected pet species, shopping search, verified product fields, and ingredientsVerified status.",
-  "Do not introduce outside facts.",
-  "Never add outside product knowledge.",
-  "Do not claim the product is best, guaranteed safe, vet-approved, available, cheapest, a cure, or a treatment.",
+  "You are a knowledgeable store advisor explaining one pet product that is already on screen.",
+  ...FURVISE_SHARED_PROMPT_RULES,
+  "Start by saying what the product is, then explain why it relates to the shopping question.",
+  "Include one meaningful limitation only when it helps the decision.",
+  "Use only the pet, search, and product details in the input. Never add outside product knowledge.",
+  "Do not claim the product is ideal, certain to be suitable, professionally approved, available, cheapest, or able to address a medical condition.",
   "Do not diagnose.",
-  "Do not infer ingredients unless ingredientsVerified is true and verified ingredient fields are provided.",
-  "Never assume a product contains or does not contain an ingredient unless verified.",
-  "Never say safe for the pet.",
-  "Write at most two short paragraphs, 80-110 words maximum.",
-  "Do not use bullets, section labels, or internal reasoning language.",
-  "Do not include assistant-style follow-up offers like If you want, I can, I can help, ask me, or let me know.",
-  "Do not mention AI, signals, catalog tags, database fields, provided product data, saved context includes, or Furvise used.",
-  "Do not output internal values like owner_observation, itchy_skin, sensitive_skin, or ingredientsVerified.",
-  "If ingredientsVerified is false, do not repeat a full missing-ingredient warning. Use one brief label-review sentence.",
+  "Mention ingredients only when a full ingredient list is included in the input.",
+  "Never assume a product contains or excludes an ingredient that is not listed.",
+  "Never promise suitability or use medical claims.",
+  "Write at most two short paragraphs and no more than 70 words.",
+  "Do not use bullets, section labels, or reasoning language.",
+  "When the full ingredient list is unavailable, use one brief label-check sentence only if relevant.",
   "safetyLine must exactly match the provided requiredSafetyLine.",
   "Return only valid JSON matching the schema.",
 ].join("\n");
@@ -92,7 +93,7 @@ export function buildShopProductFitPromptInput({
   product,
   query,
 }: ShopProductFitExplanationInput) {
-  const verifiedProduct = buildVerifiedProductFields(product);
+  const verifiedProduct = buildProductAdvisorPromptDetails(product);
   return {
     requiredSafetyLine: buildProductFitSafetyLine(memory.pet.name || "this pet"),
     query: {
@@ -113,7 +114,12 @@ export function buildShopProductFitPromptInput({
 }
 
 export function buildProductFitSafetyLine(petName: string) {
-  return `Based on what you've saved about ${petName || "this pet"}. Not a substitute for vet or professional advice.`;
+  return buildFurviseSafetyLine(petName || "this pet");
+}
+
+function buildProductAdvisorPromptDetails(product: MockProduct) {
+  const { ingredientsVerified: fullIngredientListAvailable, ...details } = buildVerifiedProductFields(product);
+  return { ...details, fullIngredientListAvailable };
 }
 
 export function buildVerifiedProductFields(product: MockProduct) {
@@ -167,7 +173,7 @@ function buildSalesBodyParagraphs({
   if (isShampoo) {
     const speciesLabel = getProductSpeciesLabel(product);
     return normalizeBodyParagraphs([
-      `${displayName} may make sense for ${petName} because it is a ${speciesLabel} shampoo for routine bathing and gentle coat cleaning. It is a better fit for grooming questions than dental, food, or flea concerns.`,
+      `${displayName} is a ${speciesLabel} shampoo for routine bathing and gentle coat cleaning, which relates directly to a grooming search for ${petName}.`,
       `Review the label before using it, especially if ${petName} has sensitive skin or has reacted to shampoos before. Stop using it if irritation appears or worsens.`,
     ]);
   }
@@ -221,7 +227,7 @@ function normalizeList(values: string[]) {
 
 function toUserFacingText(value: string) {
   return removeAssistantOfferSentences(normalizeParagraph(value))
-    .replace(/\bBased on what you['’]ve saved about [^.]+\.?\s*Not a substitute for vet or professional advice\.?/gi, "")
+    .replace(/\bBased on what you['’]ve saved about [^.]+\.?\s*Not a substitute for (?:vet|veterinary) or professional advice\.?/gi, "")
     .replace(/\u2014/g, ", ")
     .replace(
       /\bFurvise does not have the full verified ingredient list yet,?\s*so\s*(?:check|review) the label before (?:buying or )?using it\.?/gi,

@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "brand:generate": "node scripts/generate-brand-assets.mjs",
+    "catalog:seed": "node scripts/seed-catalog.mjs",
+    "catalog:ingest": "node scripts/catalog-ingestion.mjs",
+    "catalog:provider-001": "node --env-file=.env.local scripts/catalog-ingestion.mjs provider-001",
+    "catalog:authorized": "node --env-file=.env.local scripts/catalog-ingestion.mjs authorized",
+    "vet-brief:samples": "node scripts/generate-vet-brief-samples.mjs",
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
@@ -14,6 +18,7 @@
     "@supabase/supabase-js": "^2.108.2",
     "next": "16.2.9",
     "openai": "^6.44.0",
+    "pdf-lib": "^1.17.1",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

@@ -144,7 +144,7 @@ export function CareEntryForm({
 
   return (
     <form
-      className="rounded-[2rem] border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 shadow-sm sm:p-6"
+      className="rounded-[2rem] border border-[color-mix(in_srgb,var(--pw-border)_72%,transparent)] bg-[var(--pw-surface-elevated)] p-5 shadow-sm sm:p-6"
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -167,8 +167,8 @@ export function CareEntryForm({
         <Field label="Pet" error={petError}>
           {petIsLocked ? (
             <>
-              <input name="petProfileId" type="hidden" value={draft.petProfileId} />
-              <div className="rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-card-muted)] px-4 py-3 text-base font-semibold text-[var(--pw-text)]">
+            <input name="petProfileId" type="hidden" value={draft.petProfileId} />
+              <div className="rounded-2xl border border-[color-mix(in_srgb,var(--pw-border)_72%,transparent)] bg-[var(--pw-card-muted)] px-4 py-3 text-base font-semibold text-[var(--pw-text)]">
                 {selectedPetName}
               </div>
             </>
@@ -269,7 +269,7 @@ export function CareEntryForm({
             ) : null}
           </Field>
         ) : (
-          <div className="rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-card-muted)] px-4 py-3 text-sm leading-6 text-[var(--pw-muted)]">
+          <div className="rounded-2xl border border-[color-mix(in_srgb,var(--pw-border)_72%,transparent)] bg-[var(--pw-card-muted)] px-4 py-3 text-sm leading-6 text-[var(--pw-muted)]">
             Severity is shown for symptom and behavior updates.
           </div>
         )}
@@ -289,7 +289,7 @@ export function CareEntryForm({
 
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-5 py-3 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] disabled:cursor-wait disabled:opacity-70"
+          className="inline-flex min-h-12 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--pw-border)_72%,transparent)] bg-[var(--pw-surface-elevated)] px-5 py-3 text-sm font-semibold text-[var(--pw-text)] transition hover:bg-[var(--pw-card-muted)] disabled:cursor-wait disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]"
           disabled={submitting}
           onClick={handleCancel}
           type="button"
@@ -297,7 +297,7 @@ export function CareEntryForm({
           {cancelLabel}
         </button>
         <button
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--pw-primary)_35%,transparent)] disabled:cursor-wait disabled:bg-[var(--pw-secondary)]"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)] active:bg-[var(--pw-primary-active)] disabled:cursor-wait disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]"
           disabled={submitting}
           type="submit"
         >
@@ -321,9 +321,6 @@ function logCareEntrySaveFailure(error: unknown, action: "insert" | "update") {
   console.warn("[Furvise care] care entry save failed", {
     action,
     errorCode: databaseError?.code || "",
-    errorDetails: databaseError?.details || "",
-    errorHint: databaseError?.hint || "",
-    errorMessage: databaseError?.message || "",
     table: "pet_care_entries",
   });
 }
@@ -378,4 +375,4 @@ type CareEntryRowLike = {
 };
 
 const inputClass =
-  "w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 py-3 text-base font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)] disabled:opacity-50";
+  "w-full rounded-2xl border border-[color-mix(in_srgb,var(--pw-border)_78%,transparent)] bg-[var(--pw-input)] px-4 py-3 text-base font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface-elevated)] disabled:border-[var(--pw-border)] disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]";

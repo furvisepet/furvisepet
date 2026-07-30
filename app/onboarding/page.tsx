@@ -1,1062 +1,301 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
+import { Suspense, useEffect, useRef, useState, type RefObject } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SignedInHeader } from "../components/signed-in-header";
-import {
-  ANALYSIS_STORAGE_KEY,
-  StoredAnalysisResult,
-  parseAnalysis,
-  parseAnalysisMemoryContext,
-} from "../lib/ai-analysis";
-import {
-  PetProfile,
-  ONBOARDING_MODE_STORAGE_KEY,
-  MAIN_CONCERN_OPTIONS,
-  OnboardingMode,
-  STORAGE_KEY,
-  avoidIngredientChips,
-  initialProfile,
-  isNoneKnown,
-  normalizeAvoidIngredientValues,
-  normalizeProfile,
-  parsePositiveNumber,
-} from "../lib/petwise";
-import {
-  PROFILE_ID_STORAGE_KEY,
-  PROFILE_MEMORIES_STORAGE_KEY,
-  countPetProfilesForUser,
-  getCurrentUser,
-  petProfileRowToDraft,
-  loadPetProfileForUser,
-  savePetProfileForUser,
-} from "../lib/supabase";
+import type { User } from "@supabase/supabase-js";
+import { BrandMark } from "../components/brand-mark";
+import { PetLimitScreen } from "../components/pet-limit-screen";
+import { Notice, PrimaryButton, SecondaryButton, TextButton } from "../components/product-primitives";
+import { normalizeAddPetName, isValidAddPetName, validateApproximatePetAge } from "../lib/add-pet-validation";
+import { setActivePetId } from "../lib/active-pet";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { NEW_PET_ONBOARDING_PATH, buildLoginHref } from "../lib/auth-routing";
-import { evaluatePetLimit, getUserPlan } from "../lib/billing/plan-limits";
-import { writeStoredGuidanceResult } from "../lib/stored-guidance";
-import { getOnboardingSaveProfileId, resolveOnboardingModeDecision } from "./mode-state";
-import { buildSummaryItems, buildSummaryProfileStatus, type StepKey } from "./summary";
 import {
-  beginNumericFieldEntry,
-  markNumericFieldUnknown,
-  updateNumericFieldUnit,
-  updateNumericFieldValue,
-} from "./numeric-field";
-import {
-  beginTextFieldEntry,
-  markTextFieldUnknown,
-  updateTextFieldValue,
-} from "./text-field";
+  beginAddPetDraft, clearCompletedOnboardingState, clearNewPetOnboardingState, getActiveAddPetDraftId,
+  readAddPetDraft, saveAddPetDraft, type AddPetDraftV2,
+} from "../lib/onboarding-drafts";
+import { resolvePetCreationAccessForUser, type PetCreationAccess } from "../lib/pet-limit";
+import { avoidIngredientChips, initialProfile, MAIN_CONCERN_OPTIONS, normalizeAvoidIngredientValues, type PetProfile } from "../lib/petwise";
+import { isPetLimitReachedError, PROFILE_ID_STORAGE_KEY, savePetProfileForUser } from "../lib/supabase";
 
-type Step = {
-  key: StepKey;
-  eyebrow: string;
-  question: string;
-  helper: string;
-};
+type SavedPet = { id: string; name: string; species: "dog" | "cat" };
+type StepProps = { draft: AddPetDraftV2; headingRef: RefObject<HTMLHeadingElement | null>; update: (values: Partial<AddPetDraftV2>) => void };
 
-const steps: Step[] = [
-  {
-    key: "name",
-    eyebrow: "Pet profile",
-    question: "What is your pet's name?",
-    helper: "Use the name you want Furvise to remember.",
-  },
-  {
-    key: "species",
-    eyebrow: "Species",
-    question: "Is your pet a dog or a cat?",
-    helper: "Care and product suitability differ by species.",
-  },
-  {
-    key: "breed",
-    eyebrow: "Breed",
-    question: "What breed is your pet?",
-    helper: "Optional. Mixed breeds and unknown breeds are welcome.",
-  },
-  {
-    key: "age",
-    eyebrow: "Age",
-    question: "How old is your pet?",
-    helper: "A non-negative estimate is fine, or choose I'm not sure.",
-  },
-  {
-    key: "weight",
-    eyebrow: "Weight",
-    question: "How much does your pet weigh?",
-    helper: "Use lb or kg. An estimate is fine, or choose I'm not sure.",
-  },
-  {
-    key: "currentFood",
-    eyebrow: "Current food",
-    question: "What food does your pet eat now?",
-    helper: "Optional. Brand, recipe, or protein is enough.",
-  },
-  {
-    key: "mainConcern",
-    eyebrow: "Main concern",
-    question: "What should Furvise focus on first?",
-    helper: "Choose one primary concern for now.",
-  },
-  {
-    key: "avoidIngredients",
-    eyebrow: "Ingredients",
-    question: "Any ingredients to avoid?",
-    helper: "Choose known ingredients, add your own, or select None known.",
-  },
-  {
-    key: "monthlyBudget",
-    eyebrow: "Budget",
-    question: "What is your monthly pet care budget?",
-    helper: "Include food, grooming, care products, and other regular pet essentials.",
-  },
-];
-
-const newPetStepKeys = new Set<StepKey>(["name", "species", "age", "mainConcern"]);
-
-function getActiveOnboardingSteps(mode: OnboardingMode) {
-  return mode === "new" ? steps.filter((step) => newPetStepKeys.has(step.key)) : steps;
-}
-
-function getStepError(profile: PetProfile, key: StepKey) {
-  if (key === "name" && !profile.name.trim()) return "Please add your pet's name.";
-  if (key === "species" && !profile.species) return "Choose dog or cat before continuing.";
-  if (key === "age") {
-    if (profile.ageUnknown) return "";
-    const age = parsePositiveNumber(profile.age);
-    if (!profile.age.trim() || !Number.isFinite(age) || age < 0) {
-      return "Enter a number, or choose I'm not sure.";
-    }
-  }
-  if (key === "weight") {
-    if (profile.weightUnknown) return "";
-    const weight = parsePositiveNumber(profile.weight);
-    if (!profile.weight.trim() || !Number.isFinite(weight) || weight <= 0) {
-      return "Enter a valid weight, or choose I'm not sure.";
-    }
-  }
-  if (key === "mainConcern") {
-    if (!profile.mainConcern) return "Choose the main thing you want Furvise to help with.";
-    if (profile.mainConcern === "Other" && !profile.otherConcern.trim()) {
-      return "Add the custom concern you want Furvise to help with.";
-    }
-  }
-  if (key === "monthlyBudget") {
-    const budget = parsePositiveNumber(profile.monthlyBudget);
-    if (!profile.monthlyBudget.trim() || !Number.isFinite(budget) || budget <= 0) {
-      return "Enter a positive monthly care budget.";
-    }
-  }
-  return "";
-}
-
-function normalizeCustomIngredients(value: string) {
-  return normalizeAvoidIngredientValues(value.split(","));
-}
-
-const saveProfileErrorMessage = "Furvise could not save this pet profile. Please try again.";
+const STEP_HEADING_IDS = ["species-heading", "basic-heading", "care-heading", "review-heading"] as const;
+const fieldClass = "min-h-12 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--input-border)] bg-[var(--input-background)] px-4 text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--focus-ring)] focus:ring-2 focus:ring-[var(--focus)] disabled:bg-[var(--surface-secondary)]";
 
 export default function OnboardingPage() {
-  return (
-    <Suspense fallback={null}>
-      <OnboardingPageContent />
-    </Suspense>
-  );
+  return <Suspense fallback={null}><OnboardingGate /></Suspense>;
 }
 
-function OnboardingPageContent() {
+function OnboardingGate() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const requestedModeParam = searchParams.get("mode") || "";
-  const requestedStepParam = searchParams.get("step") || "";
-  const resumeSaveRequested = searchParams.get("resumeSave") === "1";
-  const [profile, setProfile] = useState<PetProfile>(initialProfile);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [isRestored, setIsRestored] = useState(false);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [loadExistingProfileError, setLoadExistingProfileError] = useState("");
-  const [saveProfileError, setSaveProfileError] = useState("");
-  const [petLimitNotice, setPetLimitNotice] = useState("");
-  const [analysisRecommendationError, setAnalysisRecommendationError] = useState("");
-  const [onboardingMode, setOnboardingMode] = useState<OnboardingMode>("new");
-  const [editingProfileId, setEditingProfileId] = useState("");
-  const [attemptedSteps, setAttemptedSteps] = useState<Set<StepKey>>(() => new Set());
-  const [resumeSaveHandled, setResumeSaveHandled] = useState(false);
-  const { status: authStatus } = useConfirmedSupabaseAuth();
-  const didRedirectRef = useRef(false);
-  const lastModeDecisionLogRef = useRef("");
-  const activeSteps = useMemo(() => getActiveOnboardingSteps(onboardingMode), [onboardingMode]);
-  const activeStepIndex = Math.min(stepIndex, activeSteps.length);
-  const isSummary = activeStepIndex === activeSteps.length;
-  const currentStep = activeSteps[activeStepIndex];
-  const progress = isSummary ? 100 : Math.round(((activeStepIndex + 1) / activeSteps.length) * 100);
-  const stepError = currentStep ? getStepError(profile, currentStep.key) : "";
-  const visibleStepError =
-    currentStep && attemptedSteps.has(currentStep.key) ? stepError : "";
+  const { status, user } = useConfirmedSupabaseAuth();
+  const [access, setAccess] = useState<PetCreationAccess | null>(null);
+  const [draftState, setDraftState] = useState<{ draft: AddPetDraftV2; id: string } | null>(null);
+  const [resumeId, setResumeId] = useState("");
+  const [error, setError] = useState("");
+  const redirectRef = useRef(false);
+  const mode = searchParams.get("mode") || "new";
+  const draftId = searchParams.get("draft") || "";
+  const requestedPetId = searchParams.get("pet") || "";
 
   useEffect(() => {
-    if (didRedirectRef.current) return;
-    if (authStatus !== "signedOut") return;
-    didRedirectRef.current = true;
+    if (status !== "signedOut" || redirectRef.current) return;
+    redirectRef.current = true;
     const currentPath = `${window.location.pathname}${window.location.search}`;
-    const nextPath = currentPath === "/onboarding" ? NEW_PET_ONBOARDING_PATH : currentPath;
-    router.replace(buildLoginHref(nextPath));
-  }, [authStatus, router, requestedModeParam, requestedStepParam]);
+    router.replace(buildLoginHref(currentPath === "/onboarding" ? NEW_PET_ONBOARDING_PATH : currentPath));
+  }, [router, status]);
 
   useEffect(() => {
-    if (authStatus !== "signedIn") {
-      return;
-    }
-
+    if (status !== "signedIn" || !user) return;
     let active = true;
-    const restoreTimer = window.setTimeout(() => {
-      void (async () => {
+    void (async () => {
+      try {
+        setError(""); setAccess(null); setDraftState(null); setResumeId("");
+        if (mode === "edit") {
+          const petId = requestedPetId || window.localStorage.getItem(PROFILE_ID_STORAGE_KEY) || "";
+          router.replace(petId ? `/pets/${encodeURIComponent(petId)}/edit` : "/pets"); return;
+        }
+        const resolved = await resolvePetCreationAccessForUser(user);
         if (!active) return;
-        setIsRestored(false);
-        setLoadExistingProfileError("");
-        setSaveProfileError("");
-        setPetLimitNotice("");
-        setAnalysisRecommendationError("");
-        setAnalysisLoading(false);
-        setAttemptedSteps(new Set());
-        setResumeSaveHandled(false);
-
-        const params = new URLSearchParams(window.location.search);
-        const requestedMode = params.get("mode");
-        const storedMode = window.localStorage.getItem(ONBOARDING_MODE_STORAGE_KEY);
-        const storedProfileId = window.localStorage.getItem(PROFILE_ID_STORAGE_KEY);
-        const decision = resolveOnboardingModeDecision({
-          requestedMode,
-          storedMode,
-          storedProfileId,
-        });
-
-        logModeDecisionOnce(lastModeDecisionLogRef, {
-          editingProfileId: decision.editingProfileId,
-          finalMode: decision.finalMode,
-          requestedMode,
-          savedProfileId: decision.savedProfileId,
-          storedMode,
-          storedProfileId,
-        });
-
-        if (decision.shouldClearDraftStorage) {
-          window.localStorage.removeItem(STORAGE_KEY);
-          window.localStorage.removeItem(PROFILE_ID_STORAGE_KEY);
-          window.localStorage.removeItem(PROFILE_MEMORIES_STORAGE_KEY);
-          window.localStorage.removeItem(ANALYSIS_STORAGE_KEY);
+        setAccess(resolved);
+        if (!resolved.allowed) return;
+        if (mode === "resume") {
+          const activeDraftId = getActiveAddPetDraftId(window.localStorage, user.id);
+          const savedDraft = readAddPetDraft(window.localStorage, activeDraftId, user.id);
+          if (activeDraftId && savedDraft) { setResumeId(activeDraftId); return; }
         }
-
-        window.localStorage.setItem(ONBOARDING_MODE_STORAGE_KEY, decision.finalMode);
-        setOnboardingMode(decision.finalMode);
-        setEditingProfileId(decision.editingProfileId);
-
-        if (decision.shouldLoadExistingProfile) {
-          try {
-            const user = await getCurrentUser();
-            if (!user) {
-              throw new Error("Please sign in to edit this pet profile.");
-            }
-
-            const row = await loadPetProfileForUser(decision.loadExistingProfileId, user);
-            if (!active) return;
-
-            const draft = petProfileRowToDraft(row);
-            setProfile(draft);
-            setEditingProfileId(row.id);
-            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-            window.localStorage.setItem(PROFILE_ID_STORAGE_KEY, row.id);
-            window.localStorage.setItem(ONBOARDING_MODE_STORAGE_KEY, "edit");
-          } catch (loadError) {
-            if (!active) return;
-            setLoadExistingProfileError(
-              loadError instanceof Error
-                ? loadError.message
-                : "Furvise could not load that pet profile.",
-            );
-            window.localStorage.removeItem(STORAGE_KEY);
-            window.localStorage.removeItem(PROFILE_ID_STORAGE_KEY);
-            window.localStorage.removeItem(PROFILE_MEMORIES_STORAGE_KEY);
-            window.localStorage.removeItem(ANALYSIS_STORAGE_KEY);
-            window.localStorage.setItem(ONBOARDING_MODE_STORAGE_KEY, "new");
-            setOnboardingMode("new");
-            setEditingProfileId("");
-            setProfile(initialProfile);
-            if (requestedMode === "edit" || decision.shouldRedirectToNewMode) {
-              router.replace("/onboarding?mode=new");
-            }
-          }
-        } else if (decision.shouldKeepStoredDraft) {
-          const stored = window.localStorage.getItem(STORAGE_KEY);
-          try {
-            setProfile(stored ? normalizeProfile(JSON.parse(stored)) : initialProfile);
-          } catch {
-            setProfile(initialProfile);
-          }
-        } else {
-          setProfile(initialProfile);
+        if (mode === "quick-start") {
+          const savedDraft = readAddPetDraft(window.localStorage, draftId, user.id);
+          if (savedDraft) { setDraftState({ draft: savedDraft, id: draftId }); return; }
         }
+        clearNewPetOnboardingState({ localStorage: window.localStorage, sessionStorage: window.sessionStorage }, user.id);
+        const fresh = beginAddPetDraft(window.localStorage, user.id);
+        router.replace(`/onboarding?mode=quick-start&draft=${encodeURIComponent(fresh.id)}`);
+      } catch { if (active) setError("Furvise could not prepare pet setup. Please try again."); }
+    })();
+    return () => { active = false; };
+  }, [draftId, mode, requestedPetId, router, status, user]);
 
-        const requestedStep = Number(params.get("step"));
-        const decisionSteps = getActiveOnboardingSteps(decision.finalMode);
-        if (Number.isInteger(requestedStep) && requestedStep >= 1 && requestedStep <= decisionSteps.length) {
-          setStepIndex(requestedStep - 1);
-        } else {
-          setStepIndex(0);
-        }
-        if (active) {
-          setIsRestored(true);
-        }
-      })();
-    }, 0);
+  if (access && !access.allowed) return <PetLimitScreen access={access} />;
+  if (error) return <OnboardingShell><Notice tone="warning">{error}</Notice></OnboardingShell>;
+  if (resumeId && user) return <ResumeChoice
+    onCancel={() => router.replace("/pets")}
+    onResume={() => router.replace(`/onboarding?mode=quick-start&draft=${encodeURIComponent(resumeId)}`)}
+    onStartOver={() => { clearNewPetOnboardingState({ localStorage: window.localStorage, sessionStorage: window.sessionStorage }, user.id); const fresh = beginAddPetDraft(window.localStorage, user.id); router.replace(`/onboarding?mode=quick-start&draft=${encodeURIComponent(fresh.id)}`); }}
+  />;
+  if (!draftState || !user) return <OnboardingShell><p className="py-12 text-center text-[var(--text-secondary)]">Preparing pet setup...</p></OnboardingShell>;
+  return <AddPetFlow draftId={draftState.id} initialDraft={draftState.draft} onBlocked={(next) => { setAccess(next); setDraftState(null); }} user={user} />;
+}
 
-    return () => {
-      active = false;
-      window.clearTimeout(restoreTimer);
-    };
-  }, [authStatus, requestedModeParam, requestedStepParam, router]);
+function AddPetFlow({ draftId, initialDraft, onBlocked, user }: { draftId: string; initialDraft: AddPetDraftV2; onBlocked: (access: PetCreationAccess) => void; user: User }) {
+  const router = useRouter();
+  const [draft, setDraft] = useState(initialDraft);
+  const [savedPet, setSavedPet] = useState<SavedPet | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const stepContainerRef = useRef<HTMLDivElement>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previousStepRef = useRef<AddPetDraftV2["step"]>(initialDraft.step);
 
+  useEffect(() => { saveAddPetDraft(window.localStorage, draftId, draft, user.id); }, [draft, draftId, user.id]);
   useEffect(() => {
-    if (!isRestored) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  }, [isRestored, profile]);
+    if (previousStepRef.current === draft.step) return;
+    previousStepRef.current = draft.step;
+    const frame = window.requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      stepHeadingRef.current?.focus({ preventScroll: true });
+      stepContainerRef.current?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [draft.step]);
 
-  const summaryItems = useMemo(() => buildSummaryItems(profile, activeSteps), [activeSteps, profile]);
-  const summaryStatus = useMemo(() => buildSummaryProfileStatus(profile), [profile]);
-
-  function updateProfile(update: Partial<PetProfile>) {
-    setProfile((current) => ({ ...current, ...update }));
+  function update(values: Partial<AddPetDraftV2>) { setDraft((current) => ({ ...current, ...values, version: 2 })); setError(""); }
+  function goBack() { if (draft.step === 0) return cancel(); update({ step: Math.max(0, draft.step - 1) as AddPetDraftV2["step"] }); }
+  function cancel() {
+    if (hasEnteredDetails(draft) && !window.confirm("Leave pet setup and discard this draft?")) return;
+    clearNewPetOnboardingState({ localStorage: window.localStorage, sessionStorage: window.sessionStorage }, user.id); router.replace("/pets");
   }
-
-  function goBack() {
-    setStepIndex((current) => Math.max(0, Math.min(current, activeSteps.length) - 1));
-  }
-
-  function continueForward() {
-    if (currentStep && stepError) {
-      setAttemptedSteps((current) => new Set(current).add(currentStep.key));
-      return;
+  function continueFromCurrent() {
+    if (draft.step === 0) { if (draft.species) update({ step: 1 }); return; }
+    if (draft.step === 1) {
+      if (!normalizeAddPetName(draft.name)) return setError("Add your pet's name to continue.");
+      const ageError = validateApproximatePetAge(draft.ageValue, draft.ageUnit, draft.ageUnknown);
+      if (ageError) return setError(ageError);
+      update({ step: 2 }); return;
     }
-    setStepIndex((current) => Math.min(activeSteps.length, current + 1));
+    if (draft.step === 2) update({ step: 3 });
   }
-
-  function handleEnter(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") continueForward();
-  }
-
-  function toggleAvoidIngredient(ingredient: string) {
-    if (ingredient === "None known") {
-      updateProfile({ avoidIngredients: [], customAvoidIngredient: "" });
-      return;
-    }
-
-    setProfile((current) => {
-      const exists = current.avoidIngredients.includes(ingredient);
-      return {
-        ...current,
-        avoidIngredients: exists
-          ? current.avoidIngredients.filter((item) => item !== ingredient)
-          : [...current.avoidIngredients, ingredient],
+  async function createPet() {
+    if (saving || !draft.species || !isValidAddPetName(draft.name)) return;
+    setSaving(true); setError("");
+    try {
+      const access = await resolvePetCreationAccessForUser(user);
+      if (!access.allowed) return onBlocked(access);
+      const profile: PetProfile = {
+        ...initialProfile, name: normalizeAddPetName(draft.name), species: draft.species,
+        age: draft.ageValue, ageUnit: draft.ageUnit, ageUnknown: draft.ageUnknown,
+        sex: draft.sex, breed: draft.breedUnknown ? "" : draft.breed,
+        weight: draft.weightValue, weightUnit: draft.weightUnit, weightUnknown: draft.weightUnknown,
+        currentFood: draft.currentFood, currentFoodUnknown: draft.currentFoodUnknown,
+        mainConcern: draft.mainConcern as PetProfile["mainConcern"], otherConcern: draft.otherConcern,
+        avoidIngredients: normalizeAvoidIngredientValues([...draft.avoidIngredients, ...draft.customAvoidIngredient.split(",")]),
+        avoidIngredientsNoneKnown: draft.avoidIngredientsNoneKnown,
+        monthlyBudget: draft.monthlyBudget, routineNote: draft.routineNote,
       };
-    });
+      const saved = await savePetProfileForUser(profile, user, null);
+      setActivePetId(window.localStorage, saved.id);
+      clearCompletedOnboardingState({ localStorage: window.localStorage, sessionStorage: window.sessionStorage }, saved.id, user.id);
+      setSavedPet({ id: saved.id, name: normalizeAddPetName(saved.name), species: draft.species });
+    } catch (saveFailure) {
+      if (isPetLimitReachedError(saveFailure)) { const access = await resolvePetCreationAccessForUser(user).catch(() => null); if (access) return onBlocked({ ...access, allowed: false }); }
+      setError(saveFailure instanceof Error ? saveFailure.message : "Furvise could not add this pet. Please try again.");
+    } finally { setSaving(false); }
   }
 
-  function updateCustomAvoidIngredient(value: string) {
-    if (isNoneKnown(value)) {
-      updateProfile({ avoidIngredients: [], customAvoidIngredient: value });
-      return;
-    }
-
-    const chipValues = avoidIngredientChips.filter((item) => item !== "None known");
-    const customIngredients = normalizeCustomIngredients(value);
-    setProfile((current) => ({
-      ...current,
-      customAvoidIngredient: value,
-      avoidIngredients: [
-        ...current.avoidIngredients.filter((item) => chipValues.includes(item)),
-        ...customIngredients.filter(
-          (item) =>
-            !chipValues.some((chip) => chip.toLowerCase() === item.toLowerCase()),
-        ),
-      ],
-    }));
-  }
-
-  function startOver() {
-    if (!window.confirm("Clear this onboarding draft and start over?")) return;
-    window.localStorage.removeItem(STORAGE_KEY);
-    window.localStorage.removeItem(PROFILE_ID_STORAGE_KEY);
-    window.localStorage.removeItem(PROFILE_MEMORIES_STORAGE_KEY);
-    window.localStorage.removeItem(ANALYSIS_STORAGE_KEY);
-    window.localStorage.setItem(ONBOARDING_MODE_STORAGE_KEY, "new");
-    setOnboardingMode("new");
-    setEditingProfileId("");
-    setProfile(initialProfile);
-    setStepIndex(0);
-    setAttemptedSteps(new Set());
-    setResumeSaveHandled(false);
-    setLoadExistingProfileError("");
-    setSaveProfileError("");
-    setPetLimitNotice("");
-    setAnalysisRecommendationError("");
-  }
-
-  const getRecommendations = useCallback(async () => {
-    if (analysisLoading) return;
-    const invalidStep = activeSteps.find((step) => getStepError(profile, step.key));
-    if (invalidStep) {
-      setAttemptedSteps((current) => new Set(current).add(invalidStep.key));
-      setStepIndex(activeSteps.findIndex((step) => step.key === invalidStep.key));
-      return;
-    }
-
-    setLoadExistingProfileError("");
-    setSaveProfileError("");
-    setPetLimitNotice("");
-    setAnalysisRecommendationError("");
-
-    const user = await getCurrentUser();
-    if (!user) {
-      setSaveProfileError("Sign in to save this pet before getting recommendations.");
-      router.push(buildLoginHref(NEW_PET_ONBOARDING_PATH));
-      return;
-    }
-
-    setAnalysisLoading(true);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-
-    let savedProfileId = "";
-    let savedDraft = profile;
-
-    try {
-      const profileIdForUpdate = getOnboardingSaveProfileId(onboardingMode, editingProfileId);
-      if (!profileIdForUpdate) {
-        const planId = await getUserPlan(user.id);
-        const petCount = await countPetProfilesForUser(user);
-        const petGate = evaluatePetLimit({
-          isEditingExistingPet: false,
-          petCount,
-          planId,
-        });
-        if (petGate.hardBlocked) {
-          setAnalysisLoading(false);
-          setSaveProfileError(`${petGate.message} Upgrade coming soon.`);
-          return;
-        }
-        setPetLimitNotice(petGate.softNotice || "");
-      }
-      const savedProfile = await savePetProfileForUser(profile, user, profileIdForUpdate);
-      savedDraft = petProfileRowToDraft(savedProfile);
-      savedProfileId = savedProfile.id;
-      window.localStorage.setItem(PROFILE_ID_STORAGE_KEY, savedProfile.id);
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedDraft));
-      window.localStorage.setItem(ONBOARDING_MODE_STORAGE_KEY, "recommend_existing");
-    } catch (saveError) {
-      logProfileSaveFailure(onboardingMode, saveError);
-      setAnalysisLoading(false);
-      setSaveProfileError(saveProfileErrorMessage);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          profile: savedDraft,
-          memories: loadStoredMemoriesForAnalysis(),
-        }),
-      });
-      const payload: unknown = await response.json().catch(() => null);
-      const analysis =
-        payload && typeof payload === "object" && "analysis" in payload
-          ? parseAnalysis((payload as { analysis: unknown }).analysis)
-          : null;
-
-      if (!response.ok || !analysis) {
-        throw new Error("Furvise used a basic matching path from your saved answers.");
-      }
-
-      saveAnalysisResult({ status: "available", analysis });
-    } catch (error) {
-      console.warn("Furvise analysis fallback", {
-        reason: error instanceof Error ? error.message : "Unknown analysis error",
-      });
-      const message =
-        "Furvise used a basic matching path from your saved answers.";
-      saveAnalysisResult({ status: "unavailable", message });
-      setAnalysisRecommendationError(message);
-    }
-
-    setAnalysisLoading(false);
-
-    if (!savedProfileId) {
-      setSaveProfileError(saveProfileErrorMessage);
-      return;
-    }
-
-    router.push(`/results?profileId=${encodeURIComponent(savedProfileId)}`);
-  }, [activeSteps, analysisLoading, editingProfileId, onboardingMode, profile, router]);
-
-  useEffect(() => {
-    if (!isRestored || !resumeSaveRequested || resumeSaveHandled) return;
-    let active = true;
-    getCurrentUser().then((user) => {
-      if (!active || !user) return;
-      setResumeSaveHandled(true);
-      void getRecommendations();
-    });
-    return () => {
-      active = false;
-    };
-  }, [getRecommendations, isRestored, resumeSaveHandled, resumeSaveRequested]);
-
-  if (!isRestored) {
-    return (
-      <main className="min-h-screen bg-transparent text-[var(--pw-text)]">
-        <div className="mx-auto w-full max-w-7xl px-5 pt-5 sm:px-8 lg:px-10">
-          <SignedInHeader />
-        </div>
-
-        <div className="mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-3xl flex-col px-5 sm:px-8">
-          <section className="flex flex-1 flex-col justify-center py-8">
-            <div className="rounded-[2rem] border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6 shadow-2xl shadow-[var(--pw-shadow)] sm:p-8">
-              <div className="space-y-6 animate-pulse">
-                <div className="space-y-3">
-                  <div className="h-3 w-24 rounded-full bg-[var(--pw-card-muted)]" />
-                  <div className="h-12 w-3/4 rounded-2xl bg-[var(--pw-card-muted)]" />
-                  <div className="h-5 w-full rounded-full bg-[var(--pw-card-muted)]" />
-                  <div className="h-44 rounded-[1.5rem] bg-[var(--pw-card-muted)]" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="h-14 rounded-full bg-[var(--pw-card-muted)]" />
-                  <div className="h-14 rounded-full bg-[var(--pw-card-muted)]" />
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-transparent text-[var(--pw-text)]">
-      <div className="mx-auto w-full max-w-7xl px-5 pt-5 sm:px-8 lg:px-10">
-        <SignedInHeader />
-      </div>
-
-      <div className="mx-auto flex min-h-[calc(100vh-7rem)] w-full max-w-3xl flex-col px-5 sm:px-8">
-        <section className="flex flex-1 flex-col justify-center py-8">
-          <div className="mb-8">
-            <div className="mb-3 flex items-center justify-between text-sm font-semibold text-[var(--pw-muted)]">
-              <span>{isSummary ? "Profile ready" : `Step ${activeStepIndex + 1} of ${activeSteps.length}`}</span>
-              <span className="flex items-center gap-3">
-                {stepIndex > 0 || profile.name.trim() ? (
-                  <button
-                    className="min-h-11 rounded-full px-3 text-[var(--pw-primary)] hover:bg-[var(--pw-primary-soft)]"
-                    onClick={startOver}
-                    type="button"
-                  >
-                    Start over
-                  </button>
-                ) : null}
-                <span>{progress}%</span>
-              </span>
-            </div>
-            <div className="h-3 overflow-hidden rounded-full bg-[var(--pw-primary-soft)]">
-              <div
-                className="h-full rounded-full bg-[var(--pw-primary)] transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6 shadow-2xl shadow-[var(--pw-shadow)] sm:p-8">
-            {isSummary ? (
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--pw-primary)]">
-                  Pet profile
-                </p>
-                <h1 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-5xl">
-                  Review {profile.name.trim() || "your pet"}&apos;s profile
-                </h1>
-                <div className="mt-8 grid gap-3">
-                  <div className="rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] px-4 py-3">
-                    <span className="text-sm font-medium text-[var(--pw-subtle)]">
-                      Profile status
-                    </span>
-                    <p className="font-semibold text-[var(--pw-text)]">{summaryStatus}</p>
-                  </div>
-                  {summaryItems.map((item) => (
-                    <div
-                      className="flex flex-col gap-3 rounded-2xl bg-[var(--pw-card-muted)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                      key={item.label}
-                    >
-                      <div>
-                        <span className="text-sm font-medium text-[var(--pw-subtle)]">
-                          {item.label}
-                        </span>
-                        <p className="font-semibold text-[var(--pw-text)]">{item.valueText}</p>
-                      </div>
-                      <button
-                        className="self-start rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-3 py-1 text-sm font-semibold text-[var(--pw-primary)] transition hover:border-[var(--pw-secondary)] sm:self-auto"
-                        onClick={() => {
-                          if (item.stepIndex >= 0) {
-                            setStepIndex(item.stepIndex);
-                          }
-                        }}
-                        type="button"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                {analysisLoading ? (
-                  <div className="mt-6 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4 text-sm font-semibold text-[var(--pw-primary)]">
-                    Analyzing profile...
-                  </div>
-                ) : null}
-                {onboardingMode === "edit" && loadExistingProfileError ? (
-                  <div className="mt-6 rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-4 text-sm font-semibold text-[var(--pw-warning-text)]">
-                    {loadExistingProfileError}
-                  </div>
-                ) : null}
-                {saveProfileError || analysisRecommendationError ? (
-                  <div className="mt-6 rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-4 text-sm font-semibold text-[var(--pw-warning-text)]">
-                    {saveProfileError || analysisRecommendationError}
-                    {saveProfileError.includes("Upgrade") ? (
-                      <span className="mt-3 block w-fit rounded-full border border-[var(--pw-warning-border)] px-3 py-2">
-                        Upgrade coming soon
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-                {petLimitNotice ? (
-                  <div className="mt-6 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4 text-sm font-semibold text-[var(--pw-primary)]">
-                    {petLimitNotice}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--pw-primary)]">
-                  {currentStep.eyebrow}
-                </p>
-                <h1 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-5xl">
-                  {currentStep.question}
-                </h1>
-                <p className="mt-4 text-base leading-7 text-[var(--pw-muted)]">
-                  {currentStep.helper}
-                </p>
-
-                <StepInput
-                  handleEnter={handleEnter}
-                  profile={profile}
-                  stepKey={currentStep.key}
-                  toggleAvoidIngredient={toggleAvoidIngredient}
-                  updateCustomAvoidIngredient={updateCustomAvoidIngredient}
-                  updateProfile={updateProfile}
-                />
-
-                {visibleStepError ? (
-                  <p className="mt-4 text-sm font-semibold text-[var(--pw-danger-text)]">
-                    {visibleStepError}
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <footer className="grid grid-cols-2 gap-3 pb-3">
-          <button
-            className="rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-5 py-4 text-base font-semibold text-[var(--pw-text)] shadow-sm transition hover:border-[var(--pw-secondary)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={activeStepIndex === 0}
-            onClick={goBack}
-            type="button"
-          >
-            Previous
-          </button>
-          {isSummary ? (
-            <button
-              className="rounded-full bg-[var(--pw-primary)] px-5 py-4 text-center text-base font-semibold text-white shadow-lg shadow-green-900/10 transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-wait disabled:bg-[var(--pw-secondary)]"
-              disabled={analysisLoading}
-              onClick={getRecommendations}
-              type="button"
-            >
-              {analysisLoading ? "Analyzing..." : "Get recommendations"}
-            </button>
-          ) : (
-            <button
-              className="rounded-full bg-[var(--pw-primary)] px-5 py-4 text-base font-semibold text-white shadow-lg shadow-green-900/10 transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-not-allowed disabled:bg-[var(--pw-secondary)]"
-              onClick={continueForward}
-              type="button"
-            >
-              Continue
-            </button>
-          )}
-        </footer>
-      </div>
-    </main>
-  );
+  if (savedPet) return <SuccessStep pet={savedPet} />;
+  const canContinue = draft.step === 0 ? Boolean(draft.species) : draft.step === 1 ? isValidAddPetName(draft.name) && !validateApproximatePetAge(draft.ageValue, draft.ageUnit, draft.ageUnknown) : true;
+  return <OnboardingShell>
+    <OnboardingStepShell
+      canContinue={canContinue}
+      cancel={cancel}
+      continueFromCurrent={continueFromCurrent}
+      createPet={() => void createPet()}
+      goBack={goBack}
+      headingId={STEP_HEADING_IDS[draft.step]}
+      name={normalizeAddPetName(draft.name)}
+      saving={saving}
+      step={draft.step}
+      stepContainerRef={stepContainerRef}
+    >
+      {draft.step === 0 ? <SpeciesStep draft={draft} headingRef={stepHeadingRef} update={update} /> : null}
+      {draft.step === 1 ? <BasicDetailsStep draft={draft} headingRef={stepHeadingRef} update={update} /> : null}
+      {draft.step === 2 ? <CareDetailsStep draft={draft} headingRef={stepHeadingRef} update={update} /> : null}
+      {draft.step === 3 ? <ReviewStep draft={draft} edit={(step) => update({ step })} headingRef={stepHeadingRef} update={update} /> : null}
+      {error ? <div className="mt-5"><Notice tone="warning">{error}</Notice></div> : null}
+    </OnboardingStepShell>
+  </OnboardingShell>;
 }
 
-function saveAnalysisResult(result: StoredAnalysisResult) {
-  writeStoredGuidanceResult(result);
-}
-
-function logModeDecisionOnce(
-  ref: React.MutableRefObject<string>,
-  decision: {
-    requestedMode: string | null;
-    storedMode: string | null;
-    storedProfileId: string | null;
-    finalMode: OnboardingMode;
-    editingProfileId: string;
-    savedProfileId: string;
-  },
-) {
-  if (process.env.NODE_ENV === "production") return;
-
-  const signature = JSON.stringify(decision);
-  if (ref.current === signature) return;
-  ref.current = signature;
-  console.log("[Furvise onboarding] mode decision", decision);
-}
-
-function logProfileSaveFailure(mode: OnboardingMode, error: unknown) {
-  if (process.env.NODE_ENV === "production") return;
-
-  const databaseError = error as {
-    code?: string;
-    details?: string;
-    hint?: string;
-    message?: string;
-  };
-
-  console.warn("[Furvise onboarding] profile save failed", {
-    mode,
-    table: "dog_profiles",
-    errorCode: databaseError?.code || "",
-    errorMessage: databaseError?.message || "",
-    errorDetails: databaseError?.details || "",
-    errorHint: databaseError?.hint || "",
-  });
-}
-
-function loadStoredMemoriesForAnalysis() {
-  try {
-    return parseAnalysisMemoryContext(
-      JSON.parse(window.localStorage.getItem(PROFILE_MEMORIES_STORAGE_KEY) || "[]"),
-    );
-  } catch {
-    return [];
-  }
-}
-
-function StepInput({
-  handleEnter,
-  profile,
-  stepKey,
-  toggleAvoidIngredient,
-  updateCustomAvoidIngredient,
-  updateProfile,
-}: {
-  handleEnter: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-  profile: PetProfile;
-  stepKey: StepKey;
-  toggleAvoidIngredient: (ingredient: string) => void;
-  updateCustomAvoidIngredient: (value: string) => void;
-  updateProfile: (update: Partial<PetProfile>) => void;
+function OnboardingStepShell({ canContinue, cancel, children, continueFromCurrent, createPet, goBack, headingId, name, saving, step, stepContainerRef }: {
+  canContinue: boolean; cancel: () => void; children: React.ReactNode; continueFromCurrent: () => void; createPet: () => void;
+  goBack: () => void; headingId: string; name: string; saving: boolean; step: AddPetDraftV2["step"]; stepContainerRef: RefObject<HTMLDivElement | null>;
 }) {
-  const inputClass =
-    "mt-8 w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-5 py-4 text-xl font-semibold text-[var(--pw-text)] outline-none transition placeholder:font-normal placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)]";
-  const chipClass =
-    "rounded-2xl border px-4 py-3 text-left text-base font-semibold transition";
-
-  if (stepKey === "name") {
-    return (
-      <input
-        autoFocus
-        className={inputClass}
-        onChange={(event) => updateProfile({ name: event.target.value })}
-        onKeyDown={handleEnter}
-        placeholder="e.g. Luna"
-        value={profile.name}
-      />
-    );
-  }
-
-  if (stepKey === "breed") {
-    return (
-      <div className="mt-8 grid gap-3">
-        <input
-          autoFocus
-          className="w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-5 py-4 text-xl font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)]"
-          onChange={(event) => updateProfile({ breed: event.target.value })}
-          onKeyDown={handleEnter}
-          placeholder="Golden retriever mix"
-          value={profile.breed}
-        />
-        <button
-          className={`${chipClass} ${
-            profile.breed === "Mixed / unknown"
-              ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)]"
-              : "border-[var(--pw-border)] bg-[var(--pw-surface)] hover:border-[var(--pw-secondary)]"
-          }`}
-          onClick={() => updateProfile({ breed: "Mixed / unknown" })}
-          type="button"
-        >
-          Mixed / unknown
-        </button>
-      </div>
-    );
-  }
-
-  if (stepKey === "species") {
-    return (
-      <div className="mt-8 grid gap-3 sm:grid-cols-2">
-        {(["dog", "cat"] as const).map((species) => (
-          <button
-            className={`${chipClass} ${
-              profile.species === species
-                ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)]"
-                : "border-[var(--pw-border)] bg-[var(--pw-surface)] hover:border-[var(--pw-secondary)]"
-            }`}
-            key={species}
-            onClick={() => updateProfile({ species })}
-            type="button"
-          >
-            {species === "dog" ? "Dog" : "Cat"}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
-  if (stepKey === "age") {
-    return (
-      <div className="mt-8 grid gap-3">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <input
-            autoFocus
-            className={`w-full rounded-2xl border border-[var(--pw-border-strong)] px-5 py-4 text-xl font-semibold outline-none transition placeholder:font-normal placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)] ${
-              profile.ageUnknown
-                ? "bg-[var(--pw-card-muted)] text-[var(--pw-muted)] cursor-text"
-                : "bg-[var(--pw-input)] text-[var(--pw-text)]"
-            }`}
-            inputMode="decimal"
-            onChange={(event) => updateProfile(updateNumericFieldValue("age", event.target.value))}
-            onFocus={() => {
-              if (profile.ageUnknown) updateProfile(beginNumericFieldEntry("age"));
-            }}
-            onKeyDown={handleEnter}
-            placeholder="4"
-            readOnly={profile.ageUnknown}
-            value={profile.age}
-          />
-          <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-surface)]">
-            {(["months", "years"] as const).map((unit) => (
-              <button
-                className={`px-4 py-3 text-sm font-semibold ${
-                  profile.ageUnit === unit ? "bg-[var(--pw-primary)] text-white" : "text-[var(--pw-muted)]"
-                }`}
-                key={unit}
-                onClick={() => updateProfile(updateNumericFieldUnit("age", unit))}
-                type="button"
-              >
-                {unit}
-              </button>
-            ))}
-          </div>
+  return <div aria-labelledby={headingId} className="scroll-mt-24" data-onboarding-step={step + 1} ref={stepContainerRef}>
+    <Progress step={step} />
+    <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface-primary)] shadow-[var(--shadow-surface-1)]">
+      <div className="min-h-[24rem] p-6 sm:p-10">{children}</div>
+      <div className="sticky bottom-0 z-10 border-t border-[var(--line)] bg-[var(--surface-primary)] px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:px-10 sm:pb-5">
+        {step === 3
+          ? <PrimaryButton className="w-full" disabled={saving} loading={saving} onClick={createPet} type="button">Create {name}&apos;s profile</PrimaryButton>
+          : <PrimaryButton className="w-full" disabled={!canContinue} onClick={continueFromCurrent} type="button">Continue</PrimaryButton>}
+        <div className={`mt-2 flex min-h-11 items-center ${step > 0 ? "justify-between" : "justify-center"}`}>
+          {step > 0 ? <TextButton className="min-h-11 px-4" disabled={saving} onClick={goBack} type="button">Back</TextButton> : null}
+          <TextButton className="min-h-11 px-4" disabled={saving} onClick={cancel} type="button">Cancel</TextButton>
         </div>
-        <button
-          className={`${chipClass} ${
-            profile.ageUnknown
-              ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)]"
-              : "border-[var(--pw-border)] bg-[var(--pw-surface)] hover:border-[var(--pw-secondary)]"
-          }`}
-          onClick={() => updateProfile(markNumericFieldUnknown("age"))}
-          type="button"
-        >
-          I&apos;m not sure
-        </button>
       </div>
-    );
-  }
-
-  if (stepKey === "weight") {
-    return (
-      <div className="mt-8 grid gap-3">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <input
-            autoFocus
-            className={`w-full rounded-2xl border border-[var(--pw-border-strong)] px-5 py-4 text-xl font-semibold outline-none transition placeholder:font-normal placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)] ${
-              profile.weightUnknown
-                ? "bg-[var(--pw-card-muted)] text-[var(--pw-muted)] cursor-text"
-                : "bg-[var(--pw-input)] text-[var(--pw-text)]"
-            }`}
-            inputMode="decimal"
-            onChange={(event) => updateProfile(updateNumericFieldValue("weight", event.target.value))}
-            onFocus={() => {
-              if (profile.weightUnknown) updateProfile(beginNumericFieldEntry("weight"));
-            }}
-            onKeyDown={handleEnter}
-            placeholder="42"
-            readOnly={profile.weightUnknown}
-            value={profile.weight}
-          />
-          <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-surface)]">
-            {(["lb", "kg"] as const).map((unit) => (
-              <button
-                className={`px-4 py-3 text-sm font-semibold ${
-                  profile.weightUnit === unit ? "bg-[var(--pw-primary)] text-white" : "text-[var(--pw-muted)]"
-                }`}
-                key={unit}
-                onClick={() => updateProfile(updateNumericFieldUnit("weight", unit))}
-                type="button"
-              >
-                {unit}
-              </button>
-            ))}
-          </div>
-        </div>
-        <button
-          className={`${chipClass} ${
-            profile.weightUnknown
-              ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)]"
-              : "border-[var(--pw-border)] bg-[var(--pw-surface)] hover:border-[var(--pw-secondary)]"
-          }`}
-          onClick={() => updateProfile(markNumericFieldUnknown("weight"))}
-          type="button"
-        >
-          I&apos;m not sure
-        </button>
-      </div>
-    );
-  }
-
-  if (stepKey === "currentFood") {
-    return (
-      <div className="mt-8 grid gap-3">
-        <input
-          autoFocus
-          className={`w-full rounded-2xl border px-5 py-4 text-xl font-semibold outline-none transition placeholder:text-[var(--pw-placeholder)] ${
-            profile.currentFoodUnknown
-              ? "border-[var(--pw-border)] bg-[var(--pw-card-muted)] text-[var(--pw-subtle)]"
-              : "border-[var(--pw-border-strong)] bg-[var(--pw-input)] text-[var(--pw-text)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)]"
-          }`}
-          onChange={(event) => updateProfile(updateTextFieldValue("currentFood", event.target.value))}
-          onFocus={() => {
-            if (profile.currentFoodUnknown) updateProfile(beginTextFieldEntry("currentFood"));
-          }}
-          onKeyDown={handleEnter}
-          placeholder="Chicken and rice kibble"
-          readOnly={profile.currentFoodUnknown}
-          value={profile.currentFood}
-        />
-        <button
-          className={`${chipClass} ${
-            profile.currentFoodUnknown
-              ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)]"
-              : "border-[var(--pw-border)] bg-[var(--pw-surface)] hover:border-[var(--pw-secondary)]"
-          }`}
-          onClick={() => updateProfile(markTextFieldUnknown("currentFood"))}
-          type="button"
-        >
-          I&apos;m not sure
-        </button>
-      </div>
-    );
-  }
-
-  if (stepKey === "mainConcern") {
-    return (
-      <div className="mt-8 grid gap-3">
-        {MAIN_CONCERN_OPTIONS.map((option) => {
-          const selected = profile.mainConcern === option;
-          return (
-            <button
-              className={`${chipClass} ${
-                selected
-                  ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)] text-[var(--pw-text)]"
-                  : "border-[var(--pw-border)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-secondary)]"
-              }`}
-              key={option}
-              onClick={() => updateProfile({ mainConcern: option })}
-              type="button"
-            >
-              {option}
-            </button>
-          );
-        })}
-        {profile.mainConcern === "Other" ? (
-          <input
-            autoFocus
-            className="w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-5 py-4 text-xl font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)]"
-            onChange={(event) => updateProfile({ otherConcern: event.target.value })}
-            onKeyDown={handleEnter}
-            placeholder="Describe the concern"
-            value={profile.otherConcern}
-          />
-        ) : null}
-      </div>
-    );
-  }
-
-  if (stepKey === "avoidIngredients") {
-    const noneKnown = profile.avoidIngredients.length === 0;
-    return (
-      <div className="mt-8 grid gap-4">
-        <div className="flex flex-wrap gap-2">
-          {avoidIngredientChips.map((ingredient) => {
-            const selected =
-              ingredient === "None known" ? noneKnown : profile.avoidIngredients.includes(ingredient);
-            return (
-              <button
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                  selected
-                    ? "border-[var(--pw-primary)] bg-[var(--pw-primary-soft)] text-[var(--pw-text)]"
-                    : "border-[var(--pw-border)] bg-[var(--pw-surface)] text-[var(--pw-text)] hover:border-[var(--pw-secondary)]"
-                }`}
-                key={ingredient}
-                onClick={() => toggleAvoidIngredient(ingredient)}
-                type="button"
-              >
-                {ingredient}
-              </button>
-            );
-          })}
-        </div>
-        <input
-          className="w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-5 py-4 text-xl font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)]"
-          onChange={(event) => updateCustomAvoidIngredient(event.target.value)}
-          onKeyDown={handleEnter}
-          placeholder="Add another ingredient, or type none"
-          value={profile.customAvoidIngredient}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <label className="mt-8 block">
-      <span className="mb-2 block text-sm font-semibold text-[var(--pw-muted)]">Monthly care budget</span>
-      <div className="flex overflow-hidden rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] focus-within:border-[var(--pw-primary)] focus-within:bg-[var(--pw-surface)]">
-        <span className="flex items-center px-5 text-xl font-semibold text-[var(--pw-muted)]">$</span>
-        <input
-          autoFocus
-          className="w-full bg-transparent py-4 pr-5 text-xl font-semibold text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)]"
-          inputMode="decimal"
-          onChange={(event) => updateProfile({ monthlyBudget: event.target.value })}
-          onKeyDown={handleEnter}
-          placeholder="80"
-          value={profile.monthlyBudget}
-        />
-      </div>
-    </label>
-  );
+    </div>
+  </div>;
 }
+
+function SpeciesStep({ draft, headingRef, update }: StepProps) {
+  return <section aria-labelledby="species-heading">
+    <h1 aria-label="Step 1 of 4, Who are we setting up?" className="text-3xl font-bold tracking-[-0.03em] outline-none sm:text-4xl" id="species-heading" ref={headingRef} tabIndex={-1}>Who are we setting up?</h1>
+    <p className="mt-2 text-[var(--text-secondary)]">Choose your pet to get started.</p>
+    <div className="mt-6 grid gap-4 sm:grid-cols-2">{(["dog", "cat"] as const).map((species) => {
+      const selected = draft.species === species; const label = title(species);
+      return <button aria-pressed={selected} className={`relative flex min-h-48 min-w-0 flex-col items-center justify-center rounded-[var(--radius-lg)] border p-5 text-center focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${selected ? "border-[var(--border-strong)] bg-[var(--selected-background)] shadow-[inset_0_0_0_1px_var(--border-strong)]" : "border-[var(--border-subtle)] hover:bg-[var(--surface-hover)]"}`} key={species} onClick={() => update({ species })} type="button">
+        <Image alt={`${label} illustration`} className="h-28 w-28 object-contain sm:h-32 sm:w-32" height={128} src={`/images/${species}.png`} width={128} />
+        <span className="mt-2 text-xl font-semibold">{label}</span><span className="mt-1 text-sm text-[var(--text-secondary)]">Set up a home for your {species}</span>
+        {selected ? <span aria-hidden="true" className="absolute right-4 top-4 font-bold">✓</span> : null}
+      </button>;
+    })}</div>
+  </section>;
+}
+
+function BasicDetailsStep({ draft, headingRef, update }: StepProps) {
+  return <section aria-labelledby="basic-heading">
+    <StepHeading draft={draft} heading="Tell us about your pet" headingRef={headingRef} id="basic-heading" step={2} />
+    <div className="mt-6 grid gap-4">
+      <Field label="Name" required><input className={fieldClass} maxLength={80} onChange={(event) => update({ name: event.target.value })} value={draft.name} /></Field>
+      <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
+        <Field label="Age"><div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-2"><input className={fieldClass} disabled={draft.ageUnknown} inputMode="decimal" onChange={(event) => update({ ageValue: event.target.value })} value={draft.ageValue} /><select className={fieldClass} disabled={draft.ageUnknown} onChange={(event) => update({ ageUnit: event.target.value === "months" ? "months" : "years" })} value={draft.ageUnit}><option value="months">Months</option><option value="years">Years</option></select></div><CompactChoice checked={draft.ageUnknown} label="I'm not sure" onChange={(checked) => update({ ageUnknown: checked })} /></Field>
+        <Field label="Sex"><div className="grid grid-cols-3 gap-2">{(["female", "male", "not_sure"] as const).map((sex) => <OptionButton key={sex} label={sex === "not_sure" ? "Not sure" : title(sex)} onClick={() => update({ sex })} selected={draft.sex === sex} />)}</div></Field>
+      </div>
+      <Field label="Breed"><input className={fieldClass} disabled={draft.breedUnknown} onChange={(event) => update({ breed: event.target.value })} value={draft.breed} /><CompactChoice checked={draft.breedUnknown} label="I'm not sure" onChange={(checked) => update({ breedUnknown: checked })} /></Field>
+    </div>
+  </section>;
+}
+
+function CareDetailsStep({ draft, headingRef, update }: StepProps) {
+  function toggleIngredient(ingredient: string) {
+    if (ingredient === "None known") { if ((draft.avoidIngredients.length || draft.customAvoidIngredient) && !window.confirm("Clear the selected ingredient exclusions?")) return; update({ avoidIngredients: [], avoidIngredientsNoneKnown: true, customAvoidIngredient: "" }); return; }
+    update({ avoidIngredientsNoneKnown: false, avoidIngredients: draft.avoidIngredients.includes(ingredient) ? draft.avoidIngredients.filter((item) => item !== ingredient) : [...draft.avoidIngredients, ingredient] });
+  }
+  return <section aria-labelledby="care-heading">
+    <StepHeading draft={draft} heading="What should Furvise know?" headingRef={headingRef} id="care-heading" step={3} />
+    <div className="mt-6 grid gap-6">
+      <StepSection title="Physical details"><div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Weight"><div className="grid grid-cols-[minmax(0,1fr)_5.5rem] gap-2"><input className={fieldClass} disabled={draft.weightUnknown} inputMode="decimal" onChange={(event) => update({ weightValue: event.target.value })} value={draft.weightValue} /><select className={fieldClass} disabled={draft.weightUnknown} onChange={(event) => update({ weightUnit: event.target.value === "kg" ? "kg" : "lb" })} value={draft.weightUnit}><option value="lb">lb</option><option value="kg">kg</option></select></div><CompactChoice checked={draft.weightUnknown} label="I'm not sure" onChange={(checked) => update({ weightUnknown: checked })} /></Field>
+        <Field label="Current food"><input className={fieldClass} disabled={draft.currentFoodUnknown} onChange={(event) => update({ currentFood: event.target.value })} value={draft.currentFood} /><CompactChoice checked={draft.currentFoodUnknown} label="I'm not sure" onChange={(checked) => update({ currentFoodUnknown: checked })} /></Field>
+      </div></StepSection>
+      <StepSection title="Care focus"><Field label="Main concern"><div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">{MAIN_CONCERN_OPTIONS.map((concern) => <OptionButton key={concern} label={concern} onClick={() => update({ mainConcern: concern })} selected={draft.mainConcern === concern} />)}</div>{draft.mainConcern === "Other" ? <input className={`${fieldClass} mt-2`} onChange={(event) => update({ otherConcern: event.target.value })} placeholder="Describe the concern" value={draft.otherConcern} /> : null}</Field></StepSection>
+      <StepSection title="Avoid ingredients"><div className="flex flex-wrap gap-2">{avoidIngredientChips.map((ingredient) => <OptionButton key={ingredient} label={ingredient} onClick={() => toggleIngredient(ingredient)} selected={ingredient === "None known" ? draft.avoidIngredientsNoneKnown : draft.avoidIngredients.includes(ingredient)} />)}</div><input className={`${fieldClass} mt-3`} onChange={(event) => update({ avoidIngredientsNoneKnown: false, customAvoidIngredient: event.target.value })} placeholder="Add another ingredient" value={draft.customAvoidIngredient} /></StepSection>
+    </div>
+  </section>;
+}
+
+function ReviewStep({ draft, edit, headingRef, update }: StepProps & { edit: (step: AddPetDraftV2["step"]) => void }) {
+  const age = draft.ageUnknown ? "Not sure" : draft.ageValue ? `${draft.ageValue} ${draft.ageUnit}` : "";
+  const breed = draft.breedUnknown ? "Not sure" : draft.breed;
+  const weight = draft.weightUnknown ? "Not sure" : draft.weightValue ? `${draft.weightValue} ${draft.weightUnit}` : "";
+  const food = draft.currentFoodUnknown ? "Not sure" : draft.currentFood;
+  const concern = draft.mainConcern === "Other" ? draft.otherConcern || "Other" : draft.mainConcern;
+  const ingredients = draft.avoidIngredientsNoneKnown ? "None known" : [...draft.avoidIngredients, draft.customAvoidIngredient].filter(Boolean).join(", ");
+  function focusPreferences() { document.querySelector<HTMLInputElement>("#preferences-fields input")?.focus(); }
+  return <section aria-labelledby="review-heading">
+    <StepHeading draft={draft} heading={`Finish setting up ${normalizeAddPetName(draft.name)}`} headingRef={headingRef} id="review-heading" step={4} />
+    <p className="mt-2 text-sm text-[var(--text-secondary)]">Review the essentials. You can add or change optional details later.</p>
+    <div className="mt-6 grid gap-4">
+      <ReviewGroup edit={() => edit(1)} title="Basic details"><ReviewRows rows={[["Species", title(draft.species || "")], ["Name", normalizeAddPetName(draft.name)], ["Age", age], ["Sex", draft.sex ? title(draft.sex.replace("_", " ")) : ""], ["Breed", breed]]} /></ReviewGroup>
+      <ReviewGroup edit={() => edit(2)} title="Care details"><ReviewRows rows={[["Weight", weight], ["Current food", food], ["Main concern", concern], ["Avoid ingredients", ingredients]]} /></ReviewGroup>
+      <ReviewGroup edit={focusPreferences} title="Preferences"><div className="grid gap-4" id="preferences-fields"><Field label="Monthly care budget"><div className="flex"><span className="flex items-center rounded-l-[var(--radius-md)] border border-r-0 border-[var(--input-border)] px-4">$</span><input className={`${fieldClass} rounded-l-none`} inputMode="decimal" onChange={(event) => update({ monthlyBudget: event.target.value })} value={draft.monthlyBudget} /></div></Field><Field label="Optional care goal or routine note"><textarea className={`${fieldClass} min-h-20 py-3`} maxLength={500} onChange={(event) => update({ routineNote: event.target.value })} value={draft.routineNote} /></Field></div></ReviewGroup>
+    </div>
+  </section>;
+}
+
+function ReviewGroup({ children, edit, title: groupTitle }: { children: React.ReactNode; edit: () => void; title: string }) {
+  return <section className="rounded-[var(--radius-md)] border border-[var(--line)] p-4"><div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-base font-semibold">{groupTitle}</h2><button className="min-h-11 px-2 text-sm font-semibold underline-offset-4 hover:underline" onClick={edit} type="button">Edit</button></div>{children}</section>;
+}
+
+function ReviewRows({ rows }: { rows: [string, string][] }) {
+  const visible = rows.filter(([, value]) => Boolean(value));
+  return <dl className="grid gap-x-5 gap-y-2 sm:grid-cols-2">{visible.map(([label, value]) => <div className="min-w-0" key={label}><dt className="text-xs font-medium text-[var(--text-tertiary)]">{label}</dt><dd className="break-words text-sm text-[var(--text-primary)]">{value}</dd></div>)}</dl>;
+}
+
+function StepHeading({ draft, heading, headingRef, id, step }: { draft: AddPetDraftV2; heading: string; headingRef: RefObject<HTMLHeadingElement | null>; id: string; step: number }) {
+  return <div className="flex items-center justify-between gap-3"><h1 aria-label={`Step ${step} of 4, ${heading}`} className="min-w-0 text-3xl font-bold tracking-[-0.03em] outline-none sm:text-4xl" id={id} ref={headingRef} tabIndex={-1}>{heading}</h1>{draft.species ? <Image alt={`${title(draft.species)} illustration`} className="h-20 w-20 shrink-0 object-contain" height={80} src={`/images/${draft.species}.png`} width={80} /> : null}</div>;
+}
+
+function StepSection({ children, title: sectionTitle }: { children: React.ReactNode; title: string }) { return <section><h2 className="mb-3 text-sm font-semibold text-[var(--text-secondary)]">{sectionTitle}</h2>{children}</section>; }
+function Field({ children, label, required = false }: { children: React.ReactNode; label: string; required?: boolean }) { return <div className="grid min-w-0 gap-1.5"><span className="text-sm font-semibold">{label}{required ? <span className="sr-only"> required</span> : null}</span>{children}</div>; }
+function CompactChoice({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) { return <label className="flex min-h-9 cursor-pointer items-center gap-2 text-sm font-medium"><input checked={checked} className="h-5 w-5 shrink-0" onChange={(event) => onChange(event.target.checked)} type="checkbox" /><span>{label}</span></label>; }
+function OptionButton({ label, onClick, selected }: { label: string; onClick: () => void; selected: boolean }) { return <button aria-pressed={selected} className={`min-h-11 min-w-0 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-semibold ${selected ? "border-[var(--border-strong)] bg-[var(--selected-background)]" : "border-[var(--line)] bg-[var(--surface-primary)]"}`} onClick={onClick} type="button">{label}</button>; }
+function Progress({ step }: { step: AddPetDraftV2["step"] }) { return <div aria-label={`Step ${step + 1} of 4`} className="flex w-full items-center gap-3"><span className="shrink-0 text-xs font-semibold text-[var(--text-secondary)]">Step {step + 1} of 4</span><div aria-valuemax={4} aria-valuemin={1} aria-valuenow={step + 1} className="grid flex-1 grid-cols-4 gap-1" role="progressbar">{[0, 1, 2, 3].map((index) => <span aria-hidden="true" className={`h-1.5 rounded-full ${index <= step ? "bg-[var(--selection-strong)]" : "bg-[var(--line)]"}`} key={index} />)}</div></div>; }
+
+function SuccessStep({ pet }: { pet: SavedPet }) {
+  return <OnboardingShell><section className="mx-auto flex min-h-[calc(100dvh-8.5rem)] max-w-[680px] flex-col items-center justify-center px-1 py-10 text-center" data-ui="add-pet-success"><div aria-hidden="true" className="onboarding-success-mark flex h-14 w-14 items-center justify-center rounded-full bg-[var(--selected-background)] text-2xl text-[var(--deep-forest)]">✓<span className="onboarding-confetti" /></div><Image alt={`${title(pet.species)} illustration`} className="mt-6 h-36 w-36 object-contain sm:h-44 sm:w-44" height={176} src={`/images/${pet.species}.png`} width={176} /><h1 className="mt-6 max-w-xl break-words text-4xl font-bold tracking-[-0.03em] sm:text-5xl">{pet.name}&apos;s Furvise home is ready</h1><p className="mt-4 text-[var(--text-secondary)]">You can add more details whenever they become useful.</p><div className="mt-9 grid w-full max-w-[500px] gap-3"><PrimaryButton href={`/dashboard?pet=${encodeURIComponent(pet.id)}`}>Go to Today</PrimaryButton><SecondaryButton href={`/pets/${encodeURIComponent(pet.id)}`}>View {pet.name}&apos;s profile</SecondaryButton></div></section></OnboardingShell>;
+}
+
+function ResumeChoice({ onCancel, onResume, onStartOver }: { onCancel: () => void; onResume: () => void; onStartOver: () => void }) { return <OnboardingShell><section className="mx-auto max-w-[700px] rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface-primary)] p-6 sm:p-8"><h1 className="text-3xl font-bold">Resume pet setup?</h1><p className="mt-3 text-[var(--text-secondary)]">An unfinished setup is saved on this device.</p><div className="mt-7 grid gap-2"><PrimaryButton onClick={onResume} type="button">Resume setup</PrimaryButton><SecondaryButton onClick={onStartOver} type="button">Start over</SecondaryButton><TextButton onClick={onCancel} type="button">Cancel</TextButton></div></section></OnboardingShell>; }
+
+function OnboardingShell({ children }: { children: React.ReactNode }) {
+  return <div className="min-h-dvh w-full overflow-x-hidden bg-[var(--surface-page)] text-[var(--text-primary)]" data-ui="quick-start-onboarding-shell"><header className="border-b border-[var(--border-subtle)] bg-[var(--surface-page)]"><div className="mx-auto flex min-h-[4.5rem] w-full max-w-[840px] items-center px-5 sm:px-8"><Link aria-label="Furvise home" href="/"><BrandMark className="onboarding-brand" priority size={34} /></Link></div></header><main className="mx-auto w-full max-w-[840px] px-5 pb-12 pt-10 sm:px-10 sm:pb-12 sm:pt-12">{children}</main></div>;
+}
+
+function hasEnteredDetails(draft: AddPetDraftV2) { return Boolean(draft.species || draft.name.trim() || draft.ageValue || draft.breed || draft.weightValue || draft.currentFood || draft.mainConcern || draft.avoidIngredients.length || draft.avoidIngredientsNoneKnown || draft.monthlyBudget || draft.routineNote); }
+function title(value: string) { return value ? value[0].toUpperCase() + value.slice(1) : value; }

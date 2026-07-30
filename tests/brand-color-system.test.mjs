@@ -1,0 +1,221 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const read = (relativePath, encoding = "utf8") => readFileSync(path.join(root, relativePath), encoding);
+
+function walk(relativeDirectory) {
+  return readdirSync(path.join(root, relativeDirectory), { withFileTypes: true }).flatMap((entry) => {
+    const relativePath = path.join(relativeDirectory, entry.name);
+    return entry.isDirectory() ? walk(relativePath) : [relativePath];
+  });
+}
+
+const palette = {
+  "warm-canvas": "#F7F4E8",
+  "soft-canvas": "#EEF7E9",
+  "warm-cream": "#FFFDF7",
+  "pale-sage": "#E3F3DE",
+  "raised-neutral": "#F1EEE5",
+  "deep-forest": "#123F27",
+  "forest": "#205C38",
+  "sage": "#8FCF9A",
+  "soft-sage": "#CDE8C9",
+  "warm-orange": "#F47A22",
+  "warm-orange-hover": "#FA8A36",
+  "warm-orange-active": "#EF6E17",
+  "soft-orange": "#FFD8B8",
+  "primary-ink": "#173023",
+  "secondary-ink": "#405648",
+  "muted-ink": "#5F7266",
+  "disabled-neutral": "#E4E0D6",
+  "disabled-ink": "#52645A",
+  "focus-orange": "#C9560C",
+  "danger-red": "#A53B32",
+  "success-green": "#276B3D",
+  "warning-amber": "#8A4B0F",
+};
+
+function luminance(hex) {
+  const channels = hex.slice(1).match(/.{2}/g).map((value) => Number.parseInt(value, 16) / 255);
+  const [red, green, blue] = channels.map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
+}
+
+function contrast(first, second) {
+  const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+test("the global color system defines the approved warm palette primitives centrally", () => {
+  const css = read("app/globals.css");
+  for (const [token, value] of Object.entries(palette)) {
+    assert.match(css, new RegExp(`--${token}: ${value};`, "i"));
+    assert.equal((css.match(new RegExp(value, "gi")) || []).length, 1, `${value} must have one primitive definition`);
+  }
+
+  assert.doesNotMatch(css, /--page-background:\s*(?:#000000|#000)\b/i);
+});
+
+test("the permanent warm-light color system maps every required semantic role", () => {
+  const css = read("app/globals.css");
+  const scheme = css.slice(css.indexOf(":root"), css.indexOf("@theme inline"));
+  const directMappings = {
+    "page-background": "warm-canvas",
+    "section-background": "soft-canvas",
+    "card-background": "warm-cream",
+    "raised-card-background": "raised-neutral",
+    "navigation-background": "warm-cream",
+    "footer-background": "raised-neutral",
+    "input-background": "warm-cream",
+    "text-primary": "primary-ink",
+    "text-secondary": "secondary-ink",
+    "text-muted": "muted-ink",
+    "primary-action-background": "warm-orange",
+    "primary-action-foreground": "primary-ink",
+    "primary-action-hover": "warm-orange-hover",
+    "secondary-action-background": "warm-cream",
+    "secondary-action-foreground": "deep-forest",
+    "ghost-action-foreground": "forest",
+    "selected-navigation-background": "soft-sage",
+    "selected-navigation-foreground": "deep-forest",
+    "chip-background": "raised-neutral",
+    "chip-selected-background": "soft-sage",
+    "chip-selected-foreground": "deep-forest",
+    "focus-ring": "focus-orange",
+    "disabled-background": "disabled-neutral",
+    "disabled-foreground": "disabled-ink",
+    "destructive": "danger-red",
+    "success": "success-green",
+    "warning": "warning-amber",
+  };
+  for (const [role, primitive] of Object.entries(directMappings)) assert.match(scheme, new RegExp(`--${role}: var\\(--${primitive}\\);`));
+  for (const role of ["input-border", "border-subtle", "border-strong", "secondary-action-border", "surface-primary", "surface-raised", "surface-interactive", "surface-hover", "surface-selected", "surface-overlay", "secondary-action-hover", "overlay-background", "destructive-surface"]) {
+    assert.match(scheme, new RegExp(`--${role}:`), `${role} must be defined`);
+  }
+  assert.doesNotMatch(scheme, /#000000|#000\b|terracotta|navy|rust|brand-dark-surface/i);
+});
+
+test("text, button, input, navigation, focus, selection, and disabled pairs meet contrast targets", () => {
+  const checks = [
+    ["heading", palette["primary-ink"], palette["warm-canvas"], 4.5],
+    ["body", palette["secondary-ink"], palette["warm-canvas"], 4.5],
+    ["muted and placeholder", palette["muted-ink"], palette["warm-canvas"], 4.5],
+    ["input value", palette["primary-ink"], palette["warm-cream"], 4.5],
+    ["input placeholder", palette["muted-ink"], palette["warm-cream"], 4.5],
+    ["primary button", palette["primary-ink"], palette["warm-orange"], 4.5],
+    ["primary button hover", palette["primary-ink"], palette["warm-orange-hover"], 4.5],
+    ["primary button active", palette["primary-ink"], palette["warm-orange-active"], 4.5],
+    ["secondary button", palette["deep-forest"], palette["warm-cream"], 4.5],
+    ["navigation", palette["forest"], palette["warm-cream"], 4.5],
+    ["selected navigation", palette["deep-forest"], palette["soft-sage"], 4.5],
+    ["selected chip", palette["deep-forest"], palette["soft-sage"], 4.5],
+    ["focus", palette["focus-orange"], palette["warm-canvas"], 3],
+    ["disabled control", palette["disabled-ink"], palette["disabled-neutral"], 4.5],
+    ["footer", palette["secondary-ink"], palette["raised-neutral"], 4.5],
+  ];
+  for (const [label, foreground, background, minimum] of checks) assert.ok(contrast(foreground, background) >= minimum, `${label} contrast is too low`);
+  assert.match(read("app/globals.css"), /--input-border: rgba\(18, 63, 39, 0\.55\)/);
+});
+
+test("warm surfaces and restrained action colors are applied through shared roles", () => {
+  const css = read("app/globals.css");
+  const components = walk("app").filter((file) => file.endsWith(".tsx")).map((file) => read(file)).join("\n");
+  const primitives = read("app/components/product-primitives.tsx");
+  const header = read("app/components/app-header.tsx");
+  const footer = read("app/components/app-footer.tsx");
+  assert.match(css, /--surface-page: var\(--page-background\)/);
+  assert.match(primitives, /standard: "bg-\[var\(--card-background\)\]"/);
+  assert.match(primitives, /fieldControlClass[\s\S]*bg-\[var\(--input-background\)\][\s\S]*placeholder:text-\[var\(--text-muted\)\]/);
+  assert.match(primitives, /neutral: "bg-\[var\(--chip-background\)\][\s\S]*selected: "border-\[var\(--sage\)\] bg-\[var\(--chip-selected-background\)\] text-\[var\(--chip-selected-foreground\)\]/);
+  assert.match(header, /bg-\[var\(--pw-header-surface\)\][\s\S]*data-active-indicator=\{isActive\(item\.href\) \? "background"/);
+  assert.match(footer, /bg-\[var\(--footer-background\)\]/);
+  assert.doesNotMatch(components, /text-\[var\(--action-primary\)\]/, "orange primary background must not be reused as body or link text");
+  assert.doesNotMatch(css, /--primary-action-(?:background|foreground): var\(--(?:sage|forest|deep-forest)\)/);
+});
+
+test("components consume semantic tokens and do not introduce ordinary colors", () => {
+  const files = walk("app").filter((file) => /\.(?:tsx|ts|css)$/.test(file) && file !== path.join("app", "globals.css") && file !== path.join("app", "layout.tsx") && file !== path.join("app", "lib", "vet-brief", "pdf-theme.ts"));
+  const failures = files.filter((file) => /#[0-9a-f]{3,8}|(?:linear|radial)-gradient|\b(?:bg|text|border|ring)-(?:white|black|red|green|blue|orange|amber|stone|gray)-/i.test(read(file)));
+  assert.deepEqual(failures, [], `Unexpected component colors: ${failures.join(", ")}`);
+  assert.match(read("app/components/product-primitives.tsx"), /var\(--secondary-action\)[\s\S]*var\(--secondary-action-text\)/);
+  assert.match(read("app/components/account-access.tsx"), /var\(--pw-focus-ring\)/);
+});
+
+test("palette names cannot leak into user-facing application source", () => {
+  const visibleSources = walk("app").filter((file) => /\.(?:tsx|ts|mjs)$/.test(file) && file !== path.join("app", "lib", "vet-brief", "pdf-theme.ts"));
+  const leaked = visibleSources.filter((file) => /morning dew|overcast|early dusk|tan parchment|almond dust|coffee grounds/i.test(read(file)));
+  assert.deepEqual(leaked, []);
+});
+
+test("appearance switching is absent and Products stays out of Account", () => {
+  const header = read("app/components/app-header.tsx");
+  const account = read("app/components/signed-in-header.tsx");
+  const layout = read("app/layout.tsx");
+  assert.equal(existsSync(path.join(root, "app/lib/appearance.ts")), false);
+  assert.equal(existsSync(path.join(root, "app/components/appearance-provider.tsx")), false);
+  assert.equal(existsSync(path.join(root, "app/components/appearance-modal.tsx")), false);
+  assert.equal(existsSync(path.join(root, "app/components/theme-bootstrap.tsx")), false);
+  assert.doesNotMatch([header, account, layout].join("\n"), /Appearance|openAppearance|data-theme|suppressHydrationWarning|furvise-mode|appearance-mode/i);
+  assert.match(layout, /data-color-scheme="light"/);
+  assert.match(layout, /meta name="color-scheme" content="light"/);
+  assert.match(header, /href: "\/shop", label: "Products"/);
+  assert.doesNotMatch(account, /\/shop|Products/);
+});
+
+test("readability-critical controls consume the corrected semantic roles", () => {
+  const css = read("app/globals.css");
+  const header = read("app/components/app-header.tsx");
+  const primitives = read("app/components/product-primitives.tsx");
+  const ask = read("app/ask/page.tsx");
+  const products = read("app/shop/page.tsx");
+  assert.match(css, /::placeholder[\s\S]*color: var\(--text-muted\)[\s\S]*opacity: 1/);
+  assert.match(primitives, /secondary: "border border-\[var\(--secondary-action-border\)\] bg-\[var\(--secondary-action\)\] text-\[var\(--secondary-action-text\)\]/);
+  assert.match(primitives, /disabled:cursor-not-allowed[\s\S]*disabled:border-\[var\(--border-subtle\)\][\s\S]*disabled:bg-\[var\(--disabled-surface\)\][\s\S]*disabled:text-\[var\(--disabled-text\)\]/);
+  assert.match(header, /surface-overlay/);
+  assert.match(read("app/components/signed-in-header.tsx"), /label: signingOut \? "Signing out\.\.\." : "Sign out"/);
+  assert.match(ask, /hover:text-\[var\(--selected-text\)\][\s\S]*data-ui="starter-question"/);
+  assert.equal((products.match(/hover:bg-\[var\(--surface-hover\)\]/g) || []).length >= 2, true);
+});
+
+test("approved brand assets are pinned and deprecated asset references are absent", () => {
+  const approved = new Map([
+    ["app/favicon.ico", "6e33aae904fb4a5a8ebc6ce15ee8846c692f154b92fb0eeac3278b0351444557"],
+    ["public/brand/logo.png", "d24a7a73878fb4692918d140d69dc9d803281d53ff2704ac51b5720a782becb6"],
+    ["public/App icon.png", "a1a556536f781b73322e6bfaad1c9bcb94f0a8ed2d8fc42c9c404300ba746886"],
+    ["public/images/dog.png", "2365277fbeadafe581fb4cb29d68226aac1b0f092903a134e06bd39f3649bab0"],
+    ["public/images/cat.png", "9fe25f03e30cfb9ffa8aae86aa1d1bb0518b84e9c75ccabc7053e2af0c7a8e17"],
+  ]);
+  for (const [file, expectedHash] of approved) {
+    assert.ok(existsSync(path.join(root, file)), `${file} must remain present`);
+    assert.equal(createHash("sha256").update(read(file, null)).digest("hex"), expectedHash, `${file} must remain byte-for-byte unchanged`);
+  }
+  const references = [...walk("app"), ...walk("docs")]
+    .filter((file) => /\.(?:tsx|ts|mjs|md)$/.test(file))
+    .filter((file) => !file.replaceAll("\\", "/").endsWith("docs/security-resource-inventory.md"))
+    .map((file) => read(file))
+    .join("\n");
+  assert.doesNotMatch(references, /furvise-logo\.png|furvise%20logo%20website|favicon-(?:16|32)\.png|apple-touch-icon\.png|android-(?:192|512)\.png|maskable-icon|android-chrome-|site\.webmanifest/);
+});
+
+test("BrandMark references the exact source image and preserves its intrinsic aspect ratio", () => {
+  const brand = read("app/components/brand-mark.tsx");
+  assert.match(brand, /import Image from "next\/image"/);
+  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/logo\.png"/);
+  assert.match(brand, /FURVISE_MASCOT_ASSET = "\/App%20icon\.png"/);
+  assert.match(brand, /<Image[\s\S]*objectFit: "contain"/);
+  const layout = read("app/layout.tsx");
+  assert.match(layout, /url: "\/favicon\.ico"/);
+  assert.match(layout, /manifest: "\/manifest\.webmanifest"/);
+  assert.match(read("public/manifest.webmanifest"), /"src": "\/favicon\.ico"/);
+});
+
+test("visible application copy contains no encoding artifact or em dash", () => {
+  const source = walk("app").filter((file) => file.endsWith(".tsx")).map((file) => read(file)).join("\n");
+  assert.doesNotMatch(source, /—/);
+  assert.match(source, /AI credit/);
+});

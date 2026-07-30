@@ -106,16 +106,18 @@ function memory(overrides = {}) {
   };
 }
 
-test("product question prompt is grounded to verified product data", () => {
-  assert.match(shopProductQuestionSystemPrompt, /Use only the selected pet context/);
+test("product question prompt uses a direct, human store-advisor voice", () => {
+  assert.match(shopProductQuestionSystemPrompt, /knowledgeable store advisor/);
+  assert.match(shopProductQuestionSystemPrompt, /Assume the question is about this product/);
+  assert.match(shopProductQuestionSystemPrompt, /Answer the exact question in the first sentence/);
   assert.match(shopProductQuestionSystemPrompt, /Do not use general internet knowledge/);
-  assert.match(shopProductQuestionSystemPrompt, /Do not invent product facts/);
-  assert.match(shopProductQuestionSystemPrompt, /If verified ingredient details are missing/);
+  assert.match(shopProductQuestionSystemPrompt, /Never invent ingredients, directions, warnings, size, price, availability/);
+  assert.match(shopProductQuestionSystemPrompt, /detail needed for the answer is unavailable/);
   assert.match(shopProductQuestionSystemPrompt, /Return sections for schema compatibility/);
   assert.match(shopProductQuestionSystemPrompt, /make directAnswer the only shopper-facing answer/);
   assert.match(shopProductQuestionSystemPrompt, /Keep it to one or two short paragraphs/);
-  assert.match(shopProductQuestionSystemPrompt, /Do not use em dashes/);
   assert.match(shopProductQuestionSystemPrompt, /safetyNote must exactly match the requiredSafetyNote/);
+  assert.doesNotMatch(shopProductQuestionSystemPrompt, /provided data|catalog signals|verified fields|ingredientsVerified|If you want, I can/i);
 });
 
 test("product question fallback states missing ingredient certainty honestly", () => {
@@ -129,9 +131,9 @@ test("product question fallback states missing ingredient certainty honestly", (
     question: "What should I check on the label?",
   });
 
-  assert.match(answer.answer, /full verified ingredient list/i);
-  assert.match(answer.answer, /Check the label before buying or using/i);
-  assert.match(answer.sections.directAnswer, /full verified ingredient list/i);
+  assert.match(answer.answer, /full ingredient list/i);
+  assert.match(answer.answer, /check the package before buying/i);
+  assert.match(answer.sections.directAnswer, /full ingredient list/i);
   assert.deepEqual(answer.sections.checkBeforeBuying.slice(0, 3), [
     "Full ingredient list",
     "Directions for how often to use it",
@@ -140,11 +142,11 @@ test("product question fallback states missing ingredient certainty honestly", (
   assert.match(answer.sections.howToUse, /Follow the label directions/i);
   assert.match(answer.sections.whenToAskVet, /Discontinue use if redness or irritation appears/i);
   assert.match(answer.sections.bottomLine, /Bottom line:/);
-  assert.match(answer.whatIsMissing.join(" "), /Full verified ingredient list/);
-  assert.doesNotMatch(answer.whatIsMissing.join(" "), /Verified directions for use/);
-  assert.doesNotMatch(answer.whatIsMissing.join(" "), /Verified warnings from the product label/);
+  assert.match(answer.whatIsMissing.join(" "), /Full ingredient list/);
+  assert.doesNotMatch(answer.whatIsMissing.join(" "), /Directions for use/);
+  assert.doesNotMatch(answer.whatIsMissing.join(" "), /Warnings from the product label/);
   assert.equal(answer.confidence, "low");
-  assert.equal(answer.safetyNote, "Based on what you've saved about Rocky. Not a substitute for vet or professional advice.");
+  assert.equal(answer.safetyNote, "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.");
   assert.doesNotMatch(answer.answer, /fragrance|essential oils|dyes|oatmeal|aloe/i);
   assert.doesNotMatch(answer.answer, /What Furvise knows|What is missing|provided data|signals|catalog tags|ingredientsVerified|\bAI\b/i);
   assert.doesNotMatch(answer.answer, /\u2014|guaranteed|safe|best|vet-approved|cure/i);
@@ -199,7 +201,7 @@ test("product question fallback gives rich itchy paws buyer guidance", () => {
   assert.match(answer.sections.howToUse, /90 seconds/);
   assert.match(answer.sections.whenToAskVet, /open sores, swelling, bleeding, strong odor, constant licking, pain, or worsening irritation/i);
   assert.match(answer.sections.bottomLine, /mild itchy-paw grooming support/i);
-  assert.equal(answer.safetyNote, "Based on what you've saved about Rocky. Not a substitute for vet or professional advice.");
+  assert.equal(answer.safetyNote, "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.");
   assert.ok(answer.answer.split(/\s+/).length <= 70);
   const visibleAnswerCopy = [
     answer.answer,
@@ -288,7 +290,7 @@ test("product question fallback can show ingredient details when asked", () => {
     question: "What ingredients are in this?",
   });
 
-  assert.match(answer.sections.directAnswer, /verified ingredients/i);
+  assert.match(answer.sections.directAnswer, /listed ingredients/i);
   assert.match(answer.sections.directAnswer, /Purified water/i);
   assert.match(answer.sections.directAnswer, /Colloidal oatmeal/i);
   assert.match(answer.sections.directAnswer, /Aloe vera/i);
@@ -313,7 +315,7 @@ test("product question fallback answers food without-water questions safely", ()
   assert.match(answer.sections.directAnswer, /package directions/i);
   assert.match(answer.sections.directAnswer, /transition gradually/i);
   assert.match(answer.sections.directAnswer, /trouble chewing, swallowing, vomiting, or a medical diet plan/i);
-  assert.equal(answer.safetyNote, "Based on what you've saved about Rocky. Not a substitute for vet or professional advice.");
+  assert.equal(answer.safetyNote, "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.");
   assert.doesNotMatch(answer.sections.directAnswer, /\u2014|guaranteed|\bsafe\b|best|vet-approved|\bcure\b/i);
 });
 
@@ -369,7 +371,7 @@ test("product question fallback answers messy ingredient preference doubts", () 
     query: "food",
     question: "my rocky hates lamb",
   });
-  assert.match(lambAnswer.sections.directAnswer, /I do not see lamb in the verified ingredients/i);
+  assert.match(lambAnswer.sections.directAnswer, /I do not see lamb in the listed ingredients/i);
   assert.match(lambAnswer.sections.directAnswer, /check the current label before buying/i);
   assert.match(lambAnswer.sections.directAnswer, /may still dislike the taste/i);
 
@@ -380,7 +382,7 @@ test("product question fallback answers messy ingredient preference doubts", () 
     question: "he hates chicken",
   });
   assert.match(chickenAnswer.sections.directAnswer, /already avoids chicken/i);
-  assert.match(chickenAnswer.sections.directAnswer, /has chicken in the verified ingredients/i);
+  assert.match(chickenAnswer.sections.directAnswer, /listed ingredients include chicken/i);
   assert.match(chickenAnswer.sections.directAnswer, /compare a different option/i);
 
   const combined = `${lambAnswer.sections.directAnswer} ${chickenAnswer.sections.directAnswer}`;
@@ -449,7 +451,7 @@ test("product question fallback answers size age compare and symptom doubts", ()
     query: "food",
     question: "will this make itching worse",
   });
-  assert.match(symptomAnswer.sections.directAnswer, /cannot know that for sure/i);
+  assert.match(symptomAnswer.sections.directAnswer, /can't know whether Rocky will react/i);
   assert.match(symptomAnswer.sections.directAnswer, /Check the ingredients/i);
   assert.match(symptomAnswer.sections.directAnswer, /vomiting, diarrhea, stool changes, itching, scratching, or licking/i);
 
@@ -616,12 +618,13 @@ test("product question prompt input does not expose unverified ingredients as ve
   });
 
   assert.equal(promptInput.requiredSafetyNote, buildProductQuestionSafetyNote("Rocky"));
-  assert.equal(promptInput.product.ingredientsVerified, false);
-  assert.deepEqual(promptInput.product.verifiedIngredients, []);
+  assert.equal(promptInput.product.fullIngredientListAvailable, false);
+  assert.equal("ingredientsVerified" in promptInput.product, false);
+  assert.deepEqual(promptInput.product.ingredients, []);
   assert.equal(promptInput.product.enrichmentStatus, "partial");
-  assert.ok(promptInput.product.verifiedProductPageUrl);
-  assert.ok(promptInput.product.verifiedDirections);
-  assert.ok(promptInput.product.verifiedWarnings.length > 0);
+  assert.ok(promptInput.product.productPageUrl);
+  assert.ok(promptInput.product.directions);
+  assert.ok(promptInput.product.warnings.length > 0);
 });
 
 
@@ -647,7 +650,7 @@ test("product question fallback uses verified directions only when present", () 
   });
   assert.match(withoutDirections.sections.directAnswer, /Follow the package directions/i);
   assert.match(withoutDirections.sections.directAnswer, /Use this shampoo on the coat and skin/i);
-  assert.match(withoutDirections.sections.howToUse, /does not have verified label directions yet, so follow the package directions/i);
+  assert.match(withoutDirections.sections.howToUse, /label directions are not available yet, so follow the directions on the package/i);
   assert.doesNotMatch(withoutDirections.answer, /90 seconds/);
 });
 
@@ -686,8 +689,8 @@ test("product question fallback does not claim full verification when enrichment
     question: "What info is missing?",
   });
 
-  assert.match(answer.sections.directAnswer, /Furvise is missing Full verified ingredient list/i);
-  assert.match(answer.whatIsMissing.join(" "), /Full verified ingredient list/);
+  assert.match(answer.sections.directAnswer, /full product details are not available/i);
+  assert.match(answer.whatIsMissing.join(" "), /Full ingredient list/);
   assert.doesNotMatch(answer.answer, /key verified label details|Ingredient details verified|full verification/i);
 });
 
@@ -703,7 +706,7 @@ test("product question off-topic guard redirects non-product questions without p
   const answer = buildOffTopicShopProductQuestionAnswer({ memory: memory() });
   assert.equal(
     answer.sections.directAnswer,
-    "I can help with this product, like ingredients, directions, warnings, taste, size, or whether it fits Rocky.",
+    "This space is for questions about this product, including ingredients, directions, warnings, taste, size, or whether it may fit Rocky.",
   );
   assert.equal(answer.answer, answer.sections.directAnswer);
   assert.deepEqual(answer.whatFurviseKnows, []);
@@ -711,29 +714,29 @@ test("product question off-topic guard redirects non-product questions without p
   assert.doesNotMatch(answer.answer, /itchy paws|dental care|shampoo|follow the label directions|medical care/i);
 });
 
-test("product question route authenticates, rechecks filters, and uses shared Products AI usage", () => {
+test("product question route authenticates, rechecks filters, and uses unified AI credits", () => {
   const route = read("app/api/shop/product-question/route.ts");
   const page = read("app/shop/page.tsx");
   const provider = read("app/lib/ai/provider.ts");
   const openai = read("app/lib/ai/providers/openai.ts");
-  const usage = read("app/lib/billing/shop-usage.ts");
-  const migration = read("supabase/migrations/20260723000000_add_product_ai_usage.sql");
+  const usage = read("app/lib/ai/usage-ledger.ts");
+  const migration = read("supabase/migrations/20260727020000_add_unified_ai_credits_and_care_state.sql");
 
   assert.match(route, /Authentication required\./);
   assert.match(route, /export async function GET\(request: Request\)/);
   assert.match(route, /usageUnavailable: context\.usageUnavailable/);
   assert.match(route, /supabase\.auth\.getUser\(token\)/);
-  assert.match(route, /loadPetMemoryContext\(\{/);
+  assert.match(route, /buildFurviseContext\(\{/);
   assert.match(route, /filterAndRankShopProducts\(\{/);
   assert.match(route, /filtered\.products\.find\(\(item\) => item\.id === productId\)/);
   assert.match(route, /classifyShopProductQuestionIntent\(question\)/);
   assert.match(route, /questionIntent\.intent === "clearly_off_topic"/);
   assert.match(route, /productQuestionIntent/);
   assert.match(route, /buildOffTopicShopProductQuestionAnswer\(\{ memory \}\)/);
-  assert.match(route, /getProductAiUsageStatus/);
-  assert.match(route, /buildProductAiUsageUnavailableStatus/);
-  assert.match(route, /incrementProductAiUsage/);
-  assert.match(route, /answerShopProductQuestion/);
+  assert.match(route, /getRemainingAiCredits/);
+  assert.match(route, /runWithAiCredit/);
+  assert.match(route, /feature: "product_question"/);
+  assert.match(route, /runFeatureIntelligence/);
   assert.match(route, /buildFallbackShopProductQuestionAnswer/);
   assert.match(route, /getAiRuntimeDiagnostics/);
   assert.match(route, /detectProductQuestionCategory/);
@@ -753,17 +756,17 @@ test("product question route authenticates, rechecks filters, and uses shared Pr
   assert.match(route, /fallbackReason/);
   assert.match(provider, /answerShopProductQuestion\(input: ShopProductQuestionInput\): Promise<ShopProductQuestionAnswer>/);
   assert.match(openai, /async answerShopProductQuestion\(input: ShopProductQuestionInput\)/);
-  assert.match(usage, /product_ai_usage/);
-  assert.match(migration, /create table if not exists public\.product_ai_usage/);
+  assert.match(usage, /ai_usage_events/);
+  assert.match(migration, /create table if not exists public\.ai_usage_events/);
   assert.match(page, /fetch\("\/api\/shop\/product-question"/);
   assert.equal((page.match(/method: "GET"/g) || []).length, 1);
-  assert.match(page, /Furvise could not answer that right now\. Try asking about ingredients, directions, warnings, or whether it fits \$\{petName \|\| "this pet"\}\./);
+  assert.match(page, /FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE/);
   assert.doesNotMatch(page, /Furvise could not answer this product question\./);
   assert.doesNotMatch(route + page, /setup may be incomplete/);
 });
 
-test("product question usage spends the shared Products AI pool", async () => {
-  const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", used_count: 79 }]);
+test("legacy product question helper mirrors the shared 50-credit allowance", async () => {
+  const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", used_count: 49 }]);
   const status = await getProductQuestionUsageStatus({
     earlyAccessUnlocked: false,
     monthlyLimit: getPlanCapabilities("free").productsAiMonthlyLimit,
@@ -776,7 +779,7 @@ test("product question usage spends the shared Products AI pool", async () => {
   assert.equal(status.allowed, true);
   assert.equal(status.remaining, 1);
   await incrementProductQuestionUsage({ monthKey: "2026-07", previousCount: status.count, supabase, userId: "user-1" });
-  assert.equal(await readProductQuestionUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 80);
+  assert.equal(await readProductQuestionUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 50);
 
   const blocked = await getProductQuestionUsageStatus({
     earlyAccessUnlocked: false,
@@ -788,7 +791,7 @@ test("product question usage spends the shared Products AI pool", async () => {
   });
   assert.equal(blocked.allowed, false);
   assert.equal(blocked.remaining, 0);
-  assert.match(blocked.gate.message || "", /included Product AI/);
+  assert.match(blocked.gate.message || "", /AI credits/);
 });
 
 test("product question UI opens from a compact product card action and only submits on question action", () => {
@@ -818,7 +821,7 @@ test("product question UI opens from a compact product card action and only subm
   assert.match(productCard, /onAsk=\{\(questionOverride\) => onProductQuestion\(product\.id, questionOverride\)\}/);
   assert.match(productCard, /onInputChange=\{\(value\) => onProductQuestionInputChange\(cacheKey, value\)\}/);
   assert.match(questionPanel, /Ask about this product/);
-  assert.match(questionPanel, /whether it fits \{selectedPetName\}&apos;s saved context/);
+  assert.match(questionPanel, /whether it fits \{selectedPetName\}/);
   assert.match(questionPanel, /Ask about ingredients, use, size, warnings, or why it may fit\./);
   assert.match(questionPanel, /<p className="whitespace-normal break-words">\{answer\.sections\.directAnswer\}<\/p>/);
   assert.doesNotMatch(questionPanel, /ProductQuestionDefaultAnswer|ProductQuestionDetailsSections|Direct answer|Show full details|Hide full details|Why it may fit|Check before buying|How to use|When to ask a vet|Bottom line|answer\.sections\.checkBeforeBuying\.map/);
@@ -826,14 +829,14 @@ test("product question UI opens from a compact product card action and only subm
   assert.match(questionPanel, /const answer = questionState\?\.answer \|\| null/);
   assert.match(questionPanel, /isProductMissingInfoQuestion/);
   assert.match(questionPanel, /buildProductQuestionImportantMissingNote/);
-  assert.match(page, /Furvise does not have the full verified ingredient list yet, so review the label before using it\./);
+  assert.match(page, /FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE/);
   assert.doesNotMatch(questionPanel, /What Furvise knows|What is missing/);
   assert.doesNotMatch(questionPanel, /\u2014|provided data|signals|catalog tags|ingredientsVerified/);
   assert.match(questionPanel, /const questionCapReached = displayUsage\?\.allowed === false/);
   assert.match(questionPanel, /disabled=\{questionCapReached \|\| questionState\?\.loading\}/);
   assert.match(questionPanel, /disabled=\{questionCapReached \|\| questionState\?\.loading \|\| !questionInput\.trim\(\)\}/);
-  assert.match(questionPanel, /You&apos;ve used your included Product AI for this month\./);
-  assert.match(questionPanel, /You can still view saved pets, care history, and any product results already loaded\./);
+  assert.match(questionPanel, /FURVISE_PRODUCT_USAGE_CAP_MESSAGE/);
+  assert.match(questionPanel, /You can still browse products by category or keyword and open product details\./);
   assert.doesNotMatch(questionPanel, /Product questions available|A few product questions left this month|Product question usage/);
   assert.match(page, /Is this good for itchy paws\?/);
   assert.match(page, /How do I use it\?/);
@@ -844,10 +847,8 @@ test("product question UI opens from a compact product card action and only subm
   assert.match(page, /Is this okay for \$\{petName\}\?/);
   assert.match(page, /How should I introduce it\?/);
   assert.doesNotMatch(page, /What info is missing\?/);
-  assert.match(page, /const SHOP_QUERY_EXAMPLES = \[/);
-  for (const topSearchChip of ["shampoo", "dental treats", "food", "treats", "grooming", "itchy skin", "sensitive stomach", "flea comb", "chicken-free food", "grooming wipes"]) {
-    assert.match(page, new RegExp(`"${topSearchChip}"`));
-  }
+  assert.match(page, /\["Food", "Dental", "Grooming", "Skin and coat"\]/);
+  assert.doesNotMatch(page, /const SHOP_QUERY_EXAMPLES/);
   const groomingChips = page.slice(page.indexOf("const GROOMING_PRODUCT_QUESTION_CHIPS"), page.indexOf("export default function ShopPage"));
   const dentalChips = page.slice(page.indexOf("const DENTAL_PRODUCT_QUESTION_CHIPS"), page.indexOf("const GROOMING_PRODUCT_QUESTION_CHIPS"));
   const chipFunction = page.slice(page.indexOf("function getProductQuestionChips"), page.indexOf("function buildFitExplanationCacheKey"));
@@ -885,7 +886,7 @@ test("product question UI opens from a compact product card action and only subm
   assert.doesNotMatch(questionPanel, /\u2014|provided data|signals|catalog tags|ingredientsVerified/);
 });
 
-test("product question route does not increment for empty questions or explanation clicks", () => {
+test("product question route only completes a shared credit after valid AI output", () => {
   const route = read("app/api/shop/product-question/route.ts");
   const explanationRoute = read("app/api/shop/explain-product-fit/route.ts");
   const invalidBranch = route.slice(
@@ -898,21 +899,21 @@ test("product question route does not increment for empty questions or explanati
   );
   const offTopicGuard = route.indexOf('if (questionIntent.intent === "clearly_off_topic")');
   const capCheck = route.indexOf("if (!context.usage.allowed)");
-  const providerCall = route.indexOf("provider.answerShopProductQuestion");
-  const usageIncrement = route.indexOf("incrementProductAiUsage", providerCall);
+  const providerCall = route.indexOf("runFeatureIntelligence", capCheck);
+  const usageCompletion = route.indexOf("const generated = await runWithAiCredit", capCheck);
 
   assert.match(invalidBranch, /Choose a pet, product, and shorter product question/);
-  assert.doesNotMatch(invalidBranch, /incrementProductAiUsage|answerShopProductQuestion|createAiAnalysisProvider/);
+  assert.doesNotMatch(invalidBranch, /runWithAiCredit|answerShopProductQuestion|createAiAnalysisProvider/);
   assert.ok(offTopicGuard > -1);
   assert.ok(capCheck > offTopicGuard);
   assert.ok(providerCall > capCheck);
-  assert.ok(usageIncrement > providerCall);
+  assert.ok(usageCompletion > capCheck && usageCompletion < providerCall);
   assert.match(route.slice(offTopicGuard, capCheck), /buildOffTopicShopProductQuestionAnswer\(\{ memory \}\)/);
-  assert.doesNotMatch(route.slice(offTopicGuard, capCheck), /answerShopProductQuestion|incrementProductAiUsage/);
+  assert.doesNotMatch(route.slice(offTopicGuard, capCheck), /answerShopProductQuestion|runWithAiCredit/);
   assert.match(capBranch, /status: 402/);
-  assert.match(capBranch, /You've used your included Product AI for this month\./);
-  assert.doesNotMatch(capBranch, /answerShopProductQuestion|incrementProductAiUsage/);
-  assert.doesNotMatch(explanationRoute, /getProductAiUsageStatus|incrementProductAiUsage|product_ai_usage/);
+  assert.match(capBranch, /FURVISE_PRODUCT_USAGE_CAP_MESSAGE/);
+  assert.doesNotMatch(capBranch, /answerShopProductQuestion|runWithAiCredit/);
+  assert.match(explanationRoute, /feature: "product_explanation"/);
 });
 
 test("product question usage read errors fall back to honest unavailable state", () => {
@@ -925,6 +926,6 @@ test("product question usage read errors fall back to honest unavailable state",
 
   assert.equal(status.allowed, true);
   assert.equal(status.count, 0);
-  assert.equal(status.limit, 80);
-  assert.equal(status.remaining, 80);
+  assert.equal(status.limit, 50);
+  assert.equal(status.remaining, 50);
 });

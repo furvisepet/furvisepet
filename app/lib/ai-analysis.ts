@@ -192,7 +192,7 @@ export function validateDogProfileInput(value: unknown): {
   if (!value || typeof value !== "object") {
     return {
       ok: false,
-      message: "Furvise needs a main concern before AI analysis can run.",
+      message: "Add a main concern so Furvise can prepare useful guidance.",
       missingFields: ["profile"],
     };
   }
@@ -215,7 +215,7 @@ export function validateDogProfileInput(value: unknown): {
   if (missingFields.length > 0) {
     return {
       ok: false,
-      message: "Furvise needs name, species, age, and a main concern before AI analysis can run.",
+      message: "Add the pet's name, species, age, and main concern so Furvise can prepare useful guidance.",
       missingFields,
     };
   }

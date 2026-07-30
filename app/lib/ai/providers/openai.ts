@@ -35,11 +35,13 @@ import {
   type ShopProductQuestionAnswer,
   type ShopProductQuestionInput,
 } from "../../shop/product-question";
-import { OPENAI_ANALYSIS_MODEL, getAiRuntimeDiagnostics } from "../config";
+import { OPENAI_ANALYSIS_MODEL, OPENAI_OUTPUT_LIMITS, OPENAI_PROVIDER_TIMEOUT_MS, getAiRuntimeDiagnostics } from "../config";
+import { FURVISE_RESULTS_PROMPT_RULES } from "../../furvise-voice.ts";
 import { AiAnalysisProvider, AnalyzeDogProfileInput, AnalyzeSafetyFollowupInput } from "../provider";
 
 const systemPrompt = [
-  "You are Furvise's cautious pet profile analysis layer.",
+  "You are Furvise, a calm and thoughtful pet-care advisor.",
+  ...FURVISE_RESULTS_PROMPT_RULES,
   "Return strict structured JSON only.",
   "Never diagnose and never state a suspected allergy as confirmed.",
   "Clearly distinguish confirmed facts from owner-reported observations.",
@@ -59,7 +61,8 @@ const systemPrompt = [
 ].join("\n");
 
 const safetyFollowupSystemPrompt = [
-  "You are Furvise's cautious health-safety follow-up review layer.",
+  "You are Furvise, a calm and cautious pet-care advisor reviewing a safety follow-up.",
+  ...FURVISE_RESULTS_PROMPT_RULES,
   "Return strict structured JSON only.",
   "Never diagnose, name a disease, or state a suspected condition as confirmed.",
   "Use only the user-provided pet profile, original analysis, follow-up questions, and follow-up answers.",
@@ -89,6 +92,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
   async analyzeDogProfile({ memories = [], profile }: AnalyzeDogProfileInput): Promise<PetWiseAnalysis> {
     const response = await this.client.responses.create({
       model: OPENAI_ANALYSIS_MODEL,
+      max_output_tokens: OPENAI_OUTPUT_LIMITS.analysis,
       instructions: systemPrompt,
       input: JSON.stringify({
         profile: buildPromptProfile(profile),
@@ -107,7 +111,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: analysisJsonSchema,
         },
       },
-    });
+    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
 
     const parsed = parseAnalysis(JSON.parse(response.output_text));
     if (!parsed) {
@@ -125,6 +129,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
   }: AnalyzeSafetyFollowupInput): Promise<SafetyFollowupResult> {
     const response = await this.client.responses.create({
       model: OPENAI_ANALYSIS_MODEL,
+      max_output_tokens: OPENAI_OUTPUT_LIMITS.safetyFollowup,
       instructions: safetyFollowupSystemPrompt,
       input: JSON.stringify({
         profile: buildPromptProfile(profile),
@@ -140,7 +145,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: safetyFollowupJsonSchema,
         },
       },
-    });
+    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
 
     const parsed = parseSafetyFollowupResult(JSON.parse(response.output_text));
     if (!parsed) {
@@ -154,6 +159,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
     logShopProviderDiagnostic("request reached provider", getAiRuntimeDiagnostics());
     const response = await this.client.responses.create({
       model: OPENAI_ANALYSIS_MODEL,
+      max_output_tokens: OPENAI_OUTPUT_LIMITS.shopInterpretation,
       instructions: shopQueryInterpretationSystemPrompt,
       input: JSON.stringify(buildShopInterpretationPromptInput(input)),
       text: {
@@ -164,7 +170,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: shopQueryInterpretationJsonSchema,
         },
       },
-    });
+    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
 
     let raw: unknown;
     try {
@@ -176,7 +182,10 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
       );
     }
 
-    logShopProviderDiagnostic("raw structured response", { rawStructuredResponse: raw });
+    logShopProviderDiagnostic("structured response received", {
+      rawStructuredResponseLength: JSON.stringify(raw).length,
+      rawStructuredResponsePresent: raw !== null && raw !== undefined,
+    });
     const validation = validateShopQueryInterpretation(raw);
     if (!validation.ok) {
       throw new ShopQueryInterpretationValidationError(validation.errors, raw);
@@ -188,6 +197,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
   async explainShopProductFit(input: ShopProductFitExplanationInput): Promise<ShopProductFitExplanation> {
     const response = await this.client.responses.create({
       model: OPENAI_ANALYSIS_MODEL,
+      max_output_tokens: OPENAI_OUTPUT_LIMITS.productFit,
       instructions: shopProductFitExplanationSystemPrompt,
       input: JSON.stringify(buildShopProductFitPromptInput(input)),
       text: {
@@ -198,7 +208,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: shopProductFitExplanationJsonSchema,
         },
       },
-    });
+    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
 
     const parsed = parseShopProductFitExplanation(
       JSON.parse(response.output_text),
@@ -214,6 +224,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
   async answerShopProductQuestion(input: ShopProductQuestionInput): Promise<ShopProductQuestionAnswer> {
     const response = await this.client.responses.create({
       model: OPENAI_ANALYSIS_MODEL,
+      max_output_tokens: OPENAI_OUTPUT_LIMITS.productQuestion,
       instructions: shopProductQuestionSystemPrompt,
       input: JSON.stringify(buildShopProductQuestionPromptInput(input)),
       text: {
@@ -224,7 +235,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: shopProductQuestionJsonSchema,
         },
       },
-    });
+    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
 
     const parsed = parseShopProductQuestionAnswer(
       JSON.parse(response.output_text),

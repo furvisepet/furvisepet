@@ -36,11 +36,12 @@ test("results shows a friendly error for a missing or unauthorized route profile
   assert.match(source, /\{loadError\}/);
 });
 
-test("pet profile guidance links carry profileId and Products links carry petId", () => {
+test("pet profile guidance stays canonical and Products links carry petId", () => {
   const source = read("app/pets/[id]/page.tsx");
 
   assert.match(source, /const shopHref = `\/shop\?petId=\$\{encodeURIComponent\(profile\.id\)\}`;/);
-  assert.match(source, /href=\{`\/results\?profileId=\$\{encodeURIComponent\(petId\)\}`\}/);
+  assert.doesNotMatch(source, /\/results\?profileId/);
+  assert.match(source, /href=\{`\/ask\?pet=\$\{petId\}`\}/);
   assert.match(source, /href=\{`\/shop\?petId=\$\{encodeURIComponent\(profile\.id\)\}`\}/);
   assert.match(source, /Products for \{name\}/);
 });
@@ -63,10 +64,12 @@ test("core Supabase migration enforces ownership RLS for profiles, care, memorie
 test("Ask Furvise uses required friendly failure messages", () => {
   const page = read("app/ask/page.tsx");
   const route = read("app/api/ask/route.ts");
+  const voice = read("app/lib/furvise-voice.ts");
 
-  assert.match(page, /Furvise could not answer right now\. Please try again\./);
-  assert.match(page, /Furvise could not save this update\./);
-  assert.match(route, /Furvise could not answer right now\. Please try again\./);
+  assert.match(page, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
+  assert.match(voice, /Furvise couldn't answer just now\. Your question has not been lost\./);
+  assert.match(page, /I couldn't save that detail\. You can try again\./);
+  assert.match(route, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
 });
 
 test("Ask Furvise usage migration tracks monthly counts with owner RLS", () => {
@@ -85,31 +88,29 @@ test("Ask Furvise usage migration tracks monthly counts with owner RLS", () => {
 
 test("Ask Furvise route keeps usage tracking from masking successful answers", () => {
   const route = read("app/api/ask/route.ts");
-  const answerStart = route.indexOf("let response;");
-  const answerFailure = route.indexOf("friendlyAnswerFailure", answerStart);
+  const answerStart = route.indexOf("await orchestrateAskTurn");
+  const answerFailure = route.indexOf('askFailure("AI_UNAVAILABLE", friendlyAnswerFailure', answerStart);
   const usageStart = route.indexOf("let nextUsage = usage", answerStart);
-  const increment = route.indexOf("incrementAskUsage", usageStart);
+  const increment = route.indexOf("completeAiCredit", usageStart);
 
   assert.ok(answerStart > -1);
   assert.ok(answerFailure > answerStart);
   assert.ok(usageStart > answerFailure);
   assert.ok(increment > usageStart);
-  assert.match(route, /Ask usage setup may be incomplete/);
-  assert.match(route, /logAskUsageError\("incrementAskUsage", error\)/);
+  assert.match(route, /friendlyAnswerFailure/);
+  assert.doesNotMatch(route, /setup may be incomplete/);
+  assert.match(route, /logAskServerError\("credit_completion_failed"/);
 });
 
-test("Ask Furvise route keeps grounded LLM fallback behind general answer success", () => {
+test("Ask Furvise route uses context planning before response persistence", () => {
   const route = read("app/api/ask/route.ts");
-  const singlePetAnswer = route.indexOf("async function answerSinglePetMemoryQuestion");
-  const deterministicAnswer = route.indexOf("const deterministicAnswer = answerPetMemoryQuestion", singlePetAnswer);
-  const guard = route.indexOf("shouldUseGroundedAskFallback", deterministicAnswer);
-  const configured = route.indexOf("isGroundedAskFallbackConfigured", guard);
-  const fallback = route.indexOf("generateGroundedAskAnswer", configured);
+  const contextLoad = route.indexOf("await buildFurviseContext");
+  const pipeline = route.indexOf("orchestrateAskTurn", contextLoad);
+  const persistence = route.indexOf("return persistAssistantAnswer", pipeline);
 
-  assert.ok(singlePetAnswer > -1);
-  assert.ok(deterministicAnswer > singlePetAnswer);
-  assert.ok(guard > deterministicAnswer);
-  assert.ok(configured > guard);
-  assert.ok(fallback > configured);
-  assert.equal(route.match(/await incrementAskUsage/g)?.length, 1);
+  assert.ok(contextLoad > -1);
+  assert.ok(pipeline > contextLoad);
+  assert.ok(persistence > pipeline);
+  assert.doesNotMatch(route, /generateGroundedAskAnswer|answerSinglePetMemoryQuestion/);
+  assert.equal(route.match(/await completeAiCredit/g)?.length, 2);
 });

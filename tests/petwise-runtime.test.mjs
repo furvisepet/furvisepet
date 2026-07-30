@@ -86,6 +86,7 @@ function filledProfile(overrides = {}) {
     currentFood: "Known kibble",
     mainConcern: "Grooming",
     monthlyBudget: "80",
+    avoidIngredientsNoneKnown: true,
     ...overrides,
   };
 }
@@ -324,10 +325,10 @@ test("profile fields are not suggested as saved details", () => {
   assert.deepEqual(analysis?.memorySuggestions.map((item) => item.text), ["Dislikes nail trimming"]);
 });
 
-test("unknown weight produces limited guidance readiness", () => {
+test("explicitly unknown weight remains a completed owner answer", () => {
   const readiness = buildDraftProfileCompleteness(filledProfile({ weight: "", weightUnknown: true }));
   assert.equal(readiness.setupCompletion, "Ready for guidance");
-  assert.equal(readiness.guidanceReadiness, "Limited context");
+  assert.equal(readiness.guidanceReadiness, "Ready for guidance");
 });
 
 test("saved profile rows round-trip into the draft with the returned profile id preserved", () => {
@@ -393,6 +394,8 @@ test("payload builder only includes database columns and persists wellness goal 
     "main_concern",
     "monthly_budget",
     "name",
+    "routine_note",
+    "sex",
     "species",
     "updated_at",
     "user_id",
@@ -440,7 +443,7 @@ test("thin first-result profiles save optional fields as database-safe empty val
   assert.equal(payload.breed, null);
   assert.equal(payload.weight_value, null);
   assert.equal(payload.current_food, null);
-  assert.deepEqual(payload.avoid_ingredients, []);
+  assert.equal(payload.avoid_ingredients, null);
   assert.equal(payload.monthly_budget, null);
   assert.equal(validateDogProfileInput({ ...initialProfile, name: "Rocky", species: "dog", age: "4", mainConcern: "Itching" }).ok, true);
 });

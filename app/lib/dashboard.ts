@@ -121,7 +121,7 @@ export function buildNextSteps(
         actionLabel: "Open care history",
         description:
           analysisResult.analysis.vetAttention.reason ||
-          "Urgent stored guidance should come before routine care.",
+          "Urgent care needs should come before routine updates.",
         petName: displayName,
         title: `Contact a veterinarian for ${displayName}`,
       });
@@ -168,8 +168,8 @@ export function buildNextSteps(
 
     if (hasNoRecentCareUpdate(profile, careEntriesByPetId)) {
       steps.push({
-        actionHref: `/pets/${profile.id}/memories`,
-        actionLabel: "View memories",
+        actionHref: `/pets/${profile.id}#saved-details`,
+        actionLabel: "View saved details",
         description: "No recent care update is recorded for this profile yet.",
         petName: displayName,
         title: `No recent care update recorded for ${displayName}.`,
