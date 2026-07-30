@@ -2,6 +2,10 @@
   "name": "furvise",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.18.0",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
   "scripts": {
     "catalog:seed": "node scripts/seed-catalog.mjs",
     "catalog:ingest": "node scripts/catalog-ingestion.mjs",
@@ -12,26 +16,34 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:security": "node --test tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs",
     "test": "node --test"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.0",
     "@supabase/supabase-js": "^2.108.2",
     "@upstash/redis": "1.38.0",
-    "next": "16.2.9",
+    "next": "16.2.12",
     "openai": "^6.44.0",
     "pdf-lib": "^1.17.1",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.9",
-    "tailwindcss": "^4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.18",
+      "sharp": "0.35.3"
+    }
   }
 }
