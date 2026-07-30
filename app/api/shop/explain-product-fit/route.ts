@@ -21,6 +21,7 @@ import { getUserPlan, type PlanId } from "../../../lib/billing/plan-limits";
 import { buildFurviseContext, resolveProductSafety, runFeatureIntelligence, type FeatureIntelligenceResult } from "../../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
+import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
 
 const maxShopQueryLength = 240;
 
@@ -168,6 +169,8 @@ async function loadShopExplanationRequestContext(request: Request): Promise<
   });
   const { data: userData } = await supabase.auth.getUser(token);
   if (!userData.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
 
   const planId = await getUserPlan(userData.user.id);
   try {

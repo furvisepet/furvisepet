@@ -24,6 +24,7 @@ import {
 } from "../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
+import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 
 export async function POST(request: Request) {
   const auth = await loadSafetyRequestContext(request);
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
 }
 
 async function loadSafetyRequestContext(request: Request): Promise<
-  | { response: NextResponse }
+  | { response: Response }
   | { planId: PlanId; supabase: SupabaseClient; userId: string }
 > {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
@@ -145,6 +146,8 @@ async function loadSafetyRequestContext(request: Request): Promise<
   const supabase = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
   const { data } = await supabase.auth.getUser(token);
   if (!data.user) return { response: NextResponse.json({ error: "Your session has expired." }, { status: 401 }) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
   return { planId: await getUserPlan(data.user.id), supabase, userId: data.user.id };
 }
 

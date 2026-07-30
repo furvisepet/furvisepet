@@ -1,4 +1,5 @@
 import { createClient, type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
+import { validateSensitiveRequestOriginResponse } from "../../../../lib/security/headers/origin-policy";
 import { safeErrorForLog } from "../../../../lib/security/logging";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
 import { beginRateLimitedRequest } from "../../../../lib/security/rate-limit";
@@ -248,6 +249,8 @@ async function loadSuggestionContext(request: Request, requestId: string): Promi
   const supabase = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
   const { data } = await supabase.auth.getUser(token);
   if (!data.user) return { response: Response.json({ code: "SUGGESTION_FORBIDDEN", error: "Your session expired. Sign in again to continue.", ok: false, requestId }, { status: 401 }) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
   return { supabase, userId: data.user.id };
 }
 

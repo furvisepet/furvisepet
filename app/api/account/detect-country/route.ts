@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
 import {
   decideAccountCountryDetection,
   detectCountryFromRequestHeaders,
@@ -84,6 +85,8 @@ async function loadAccountRequestContext(request: Request): Promise<
   });
   const { data: userData } = await supabase.auth.getUser(token);
   if (!userData.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
 
   return { supabase, userId: userData.user.id };
 }

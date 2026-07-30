@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
 import { deduplicateLegacyRetriedMessages, type AskConversationDetail, type AskConversationSummary, type StoredAskMessage, type StoredAskSuggestion } from "./ask-conversations";
 
 export async function getAskConversationRequestContext(request: Request): Promise<
@@ -18,6 +19,8 @@ export async function getAskConversationRequestContext(request: Request): Promis
   });
   const { data } = await supabase.auth.getUser(token);
   if (!data.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
   return { supabase, userId: data.user.id };
 }
 

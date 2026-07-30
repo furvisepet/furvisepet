@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
 import { safeErrorForLog } from "../../../lib/security/logging";
 import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
+import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await authenticatedClient(request);
@@ -42,6 +43,8 @@ async function authenticatedClient(request: Request) {
   const supabase = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
   const { data } = await supabase.auth.getUser(token);
   if (!data.user) return { response: errorResponse("MEMORY_FORBIDDEN", "Sign in again to update remembered details.", 401) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
   return { supabase, userId: data.user.id };
 }
 

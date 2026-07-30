@@ -21,7 +21,7 @@ export async function updateSupabaseSession(request: NextRequest) {
   const malformedCookieNames = findMalformedAuthCookieNames(request, url);
   if (malformedCookieNames.length > 0) {
     malformedCookieNames.forEach((name) => response.cookies.set(name, "", { maxAge: 0, path: "/" }));
-    return privateRoute ? redirectToLogin(request, response) : response;
+    return privateRoute ? redirectToLogin(request, response) : protectCacheWhenNeeded(response);
   }
 
   const supabase = createServerClient(normalizeSupabaseUrl(url), key, {
@@ -52,14 +52,20 @@ export async function updateSupabaseSession(request: NextRequest) {
   try {
     claimsResult = await supabase.auth.getClaims();
   } catch {
-    return privateRoute ? redirectToLogin(request, response) : response;
+    return privateRoute ? redirectToLogin(request, response) : protectCacheWhenNeeded(response);
   }
   const { data, error } = claimsResult;
   if (privateRoute && (error || !data?.claims?.sub)) {
     return redirectToLogin(request, response);
   }
 
-  if (privateRoute) applyPrivateCacheHeaders(response.headers);
+  return protectCacheWhenNeeded(response, privateRoute);
+}
+
+function protectCacheWhenNeeded(response: NextResponse, privateRoute = false) {
+  if (privateRoute || response.cookies.getAll().length > 0) {
+    applyPrivateCacheHeaders(response.headers);
+  }
   return response;
 }
 

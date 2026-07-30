@@ -44,6 +44,7 @@ import {
 } from "../../../lib/shop/query-interpretation-cache";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
+import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
 
 const maxShopQueryLength = 240;
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -427,6 +428,8 @@ async function loadShopInterpretationRequestContext(request: Request): Promise<
     });
     return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
   }
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
 
   const planId = await getUserPlan(userData.user.id);
   return { planId, supabase, userId: userData.user.id };

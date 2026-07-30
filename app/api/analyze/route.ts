@@ -15,6 +15,7 @@ import { getUserPlan } from "../../lib/billing/plan-limits";
 import { API_BODY_LIMITS, RequestBoundaryError, readBoundedJson } from "../../lib/security/request";
 import { safeErrorForLog } from "../../lib/security/logging";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
+import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 
 export async function POST(request: Request) {
   const context = await loadAiRequestContext(request);
@@ -105,5 +106,7 @@ async function loadAiRequestContext(request: Request) {
   const supabase = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false } });
   const { data } = await supabase.auth.getUser(token);
   if (!data.user) return { response: NextResponse.json({ error: "Your session has expired." }, { status: 401 }) } as const;
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse } as const;
   return { planId: await getUserPlan(data.user.id), supabase, userId: data.user.id };
 }

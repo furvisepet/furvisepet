@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
 import { loadShopCatalogProducts } from "../../../lib/catalog/compatibility";
 import { loadPetMemoryContext } from "../../../lib/pet-memory";
 import { normalizeProductCountry } from "../../../lib/product-providers";
@@ -78,5 +79,7 @@ async function loadRequestContext(request: Request): Promise<
   });
   const { data } = await supabase.auth.getUser(token);
   if (!data.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
   return { supabase, userId: data.user.id };
 }

@@ -66,6 +66,7 @@ import {
 } from "../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
+import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
@@ -1259,6 +1260,8 @@ async function loadAskRequestContext(request: Request): Promise<
     logAskServerError("authentication", authError, {}, 401);
     return { response: askFailure("AUTH_REQUIRED", "Your session expired. Sign in again to continue.", 401, {}, "authentication") };
   }
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
 
   const planId = await getUserPlan(userData.user.id);
   let usage: AiCreditStatus;

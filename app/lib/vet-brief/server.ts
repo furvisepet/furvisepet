@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { validateSensitiveRequestOriginResponse } from "../security/headers/origin-policy";
 import { getUserPlan, type PlanId } from "../billing/plan-limits";
 import { parseVetBriefDocument } from "./schema";
 
@@ -19,6 +20,8 @@ export async function getVetBriefRequestContext(request: Request): Promise<
   });
   const { data } = await supabase.auth.getUser(token);
   if (!data.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
   return { planId: await getUserPlan(data.user.id), supabase, userId: data.user.id };
 }
 

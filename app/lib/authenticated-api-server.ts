@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
 
 export async function getAuthenticatedApiContext(request: Request): Promise<
   | { response: Response }
@@ -19,5 +20,7 @@ export async function getAuthenticatedApiContext(request: Request): Promise<
   });
   const { data } = await supabase.auth.getUser(token);
   if (!data.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
+  const originResponse = validateSensitiveRequestOriginResponse(request);
+  if (originResponse) return { response: originResponse };
   return { supabase, userId: data.user.id };
 }
