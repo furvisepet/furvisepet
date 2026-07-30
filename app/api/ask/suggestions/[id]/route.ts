@@ -1,6 +1,7 @@
 import { createClient, type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
 import { safeErrorForLog } from "../../../../lib/security/logging";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
+import { beginRateLimitedRequest } from "../../../../lib/security/rate-limit";
 
 type SuggestionStatus = "pending" | "saved" | "dismissed";
 type SuggestionRow = {
@@ -67,6 +68,16 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     logSuggestionFailure("load_suggestion", null, { id, requestId, userOwnershipResult: false });
     return suggestionError("SUGGESTION_NOT_FOUND", "This improvement is no longer available.", 404, requestId);
   }
+
+  const rate = await beginRateLimitedRequest({
+    payload: { action, details: body.details, suggestionId: id },
+    policy: action === "dismiss" ? "DESTRUCTIVE_WRITE" : suggestion.type === "memory" ? "MEMORY_WRITE" : "CARE_WRITE",
+    request,
+    requestId,
+    route: "/api/ask/suggestions/[id]",
+    userId: auth.userId,
+  });
+  if (!rate.allowed) return rate.response;
 
   const diagnostic = await loadSuggestionDiagnostic(auth.supabase, auth.userId, suggestion);
   const logContext = {

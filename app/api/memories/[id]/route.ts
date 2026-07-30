@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
 import { safeErrorForLog } from "../../../lib/security/logging";
+import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await authenticatedClient(request);
@@ -16,6 +17,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (action !== "confirm" && action !== "edit" && action !== "forget") return errorResponse("MEMORY_INVALID", "Choose a valid memory action.", 422);
   const value = typeof body?.value === "string" && body.value.length <= 500 ? body.value : null;
   if (action === "edit" && value === null) return errorResponse("MEMORY_INVALID", "Keep the remembered detail under 500 characters.", 422);
+  const { data: ownedMemory } = await auth.supabase.from("furvise_memories").select("id").eq("id", id).eq("user_id", auth.userId).maybeSingle<{ id: string }>();
+  if (!ownedMemory) return errorResponse("MEMORY_NOT_FOUND", "That remembered detail is no longer available.", 404);
+  const requestId = getRateLimitRequestId(request);
+  const rate = await beginRateLimitedRequest({ payload: { action, id, value }, policy: action === "forget" ? "DESTRUCTIVE_WRITE" : "MEMORY_WRITE", request, requestId, route: "/api/memories/[id]", userId: auth.userId });
+  if (!rate.allowed) return rate.response;
   const { data, error } = await auth.supabase.rpc("manage_furvise_memory", { p_action: action, p_fact_value: value, p_memory_id: id });
   if (error) {
     console.error("[Furvise memory] lifecycle update failed", { action, ...safeErrorForLog(error), memoryId: id, userIdPresent: Boolean(auth.userId) });

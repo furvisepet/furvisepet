@@ -11,6 +11,7 @@ import { AiCreditLimitReachedError, runWithAiCredit } from "../../lib/ai/usage-l
 import { getUserPlan } from "../../lib/billing/plan-limits";
 import { API_BODY_LIMITS, RequestBoundaryError, readBoundedJson } from "../../lib/security/request";
 import { safeErrorForLog } from "../../lib/security/logging";
+import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 
 export async function POST(request: Request) {
   const context = await loadAiRequestContext(request);
@@ -47,7 +48,17 @@ export async function POST(request: Request) {
   const rawRequestId = payload && typeof payload === "object" && "requestId" in payload ? (payload as { requestId?: unknown }).requestId : null;
   const requestId = typeof rawRequestId === "string" && /^[0-9a-f-]{36}$/i.test(rawRequestId) ? rawRequestId : randomUUID();
 
+  let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
   try {
+    rateGate = await requireRateLimitedRequest({
+      idempotencyKey: requestId,
+      payload: { memories, profile: validation.profile },
+      policy: "PRODUCT_GUIDANCE_AI",
+      request,
+      requestId,
+      route: "/api/analyze",
+      userId: context.userId,
+    });
     const generated = await runWithAiCredit({ feature: "care_plan", planId: context.planId, requestId, supabase: context.supabase, userId: context.userId, generate: async () => {
       const provider = createAiAnalysisProvider();
       const analysis = await provider.analyzeDogProfile({ profile: validation.profile, memories });
@@ -64,6 +75,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ analysis: validatedAnalysis, usage: generated.usage });
   } catch (error) {
+    if (error instanceof RateLimitRejection) return error.response;
     if (error instanceof AiCreditLimitReachedError) return NextResponse.json({ error: "You have used this month's AI credits.", limitReached: true }, { status: 402 });
     console.warn("Furvise analysis unavailable", {
       provider: process.env.PETWISE_AI_PROVIDER || "openai",
@@ -73,6 +85,8 @@ export async function POST(request: Request) {
       { error: "Furvise guidance is temporarily unavailable.", fallback: true },
       { status: 503 },
     );
+  } finally {
+    if (rateGate) await rateGate.release();
   }
 }
 

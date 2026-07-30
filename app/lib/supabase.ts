@@ -301,10 +301,17 @@ export async function loadUserProfileForUser(user: User) {
 }
 
 export async function updateUserProductCountryForUser(country: string, user: User) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  return updateUserProductCountryWithClient(supabase, country, user);
+  void user;
+  const response = await authenticatedApiFetch("/api/account/product-country", {
+    body: JSON.stringify({ country }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  });
+  const payload = await response.json().catch(() => null) as { error?: string; profile?: unknown } | null;
+  if (!response.ok) throw new Error(payload?.error || "The account profile could not be saved.");
+  const profile = normalizeUserProfileRow(payload?.profile);
+  if (!profile) throw new Error("The account profile could not be saved.");
+  return profile;
 }
 
 export async function updateUserProductCountryWithClient(
@@ -337,34 +344,17 @@ export async function detectAccountProductCountry() {
 
 export async function saveDogProfileForUser(
   profile: DogProfile,
-  user: User,
+  _user: User,
   existingProfileId?: string | null,
 ) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const payload = toDogProfilePayload(profile, user.id);
-  if (existingProfileId) {
-    const { data, error } = await supabase
-      .from("dog_profiles")
-      .update(payload)
-      .eq("id", existingProfileId)
-      .eq("user_id", user.id)
-      .select()
-      .single<DogProfileRow>();
-
-    if (error) throw friendlyDatabaseSaveError(error, "pet profile");
-    return data;
-  }
-
-  const { data, error } = await supabase
-    .from("dog_profiles")
-    .insert(payload)
-    .select()
-    .single<DogProfileRow>();
-
-  if (error) throw friendlyDatabaseSaveError(error, "pet profile");
-  return data;
+  const response = await authenticatedApiFetch(existingProfileId ? `/api/pets/${existingProfileId}` : "/api/pets", {
+    body: JSON.stringify({ profile }),
+    headers: { "content-type": "application/json" },
+    method: existingProfileId ? "PATCH" : "POST",
+  });
+  const payload = await response.json().catch(() => null) as { error?: string; profile?: DogProfileRow } | null;
+  if (!response.ok || !payload?.profile) throw new Error(payload?.error || "The pet profile could not be saved.");
+  return payload.profile;
 }
 
 export async function loadDogProfilesWithMemories(user: User) {
@@ -502,6 +492,16 @@ export async function listRecentCareEntries(limit: number, deps: CareLogHelperDe
 }
 
 export async function createCareEntry(input: CareEntryInput, deps: CareLogHelperDeps = {}) {
+  if (!deps.getClient && !deps.getCurrentUser) {
+    const response = await authenticatedApiFetch("/api/care-entries", {
+      body: JSON.stringify({ input }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    const payload = await response.json().catch(() => null) as { entry?: CareEntryRow; error?: string } | null;
+    if (!response.ok || !payload?.entry) throw new Error(payload?.error || "The care entry could not be saved.");
+    return payload.entry;
+  }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -523,6 +523,16 @@ export async function createCareEntryUnlessDuplicate(
   input: CareEntryInput,
   deps: CareLogHelperDeps = {},
 ): Promise<CreateCareEntryUnlessDuplicateResult> {
+  if (!deps.getClient && !deps.getCurrentUser) {
+    const response = await authenticatedApiFetch("/api/care-entries", {
+      body: JSON.stringify({ dedupe: true, input }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    const payload = await response.json().catch(() => null) as (CreateCareEntryUnlessDuplicateResult & { error?: string }) | null;
+    if (!response.ok || !payload?.entry) throw new Error(payload?.error || "The care entry could not be saved.");
+    return payload;
+  }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -561,6 +571,16 @@ export async function updateCareEntry(
   input: CareEntryInput,
   deps: CareLogHelperDeps = {},
 ) {
+  if (!deps.getClient && !deps.getCurrentUser) {
+    const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, {
+      body: JSON.stringify({ input }),
+      headers: { "content-type": "application/json" },
+      method: "PATCH",
+    });
+    const payload = await response.json().catch(() => null) as { entry?: CareEntryRow; error?: string } | null;
+    if (!response.ok || !payload?.entry) throw new Error(payload?.error || "The care entry could not be saved.");
+    return payload.entry;
+  }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -581,6 +601,14 @@ export async function updateCareEntry(
 }
 
 export async function deleteCareEntry(entryId: string, deps: CareLogHelperDeps = {}) {
+  if (!deps.getClient && !deps.getCurrentUser) {
+    const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, { method: "DELETE" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(payload?.error || "The care entry could not be deleted.");
+    }
+    return;
+  }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -638,50 +666,35 @@ export async function loadCanonicalRememberedDetailsForUser(profileId: string, u
   };
 }
 
-export async function deleteDogProfileForUser(profileId: string, user: User) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { error } = await supabase
-    .from("dog_profiles")
-    .delete()
-    .eq("id", profileId)
-    .eq("user_id", user.id);
-
-  if (error) throw friendlyDatabaseError(error, "pet profile");
+export async function deleteDogProfileForUser(profileId: string, _user: User) {
+  void _user;
+  const response = await authenticatedApiFetch(`/api/pets/${profileId}`, { method: "DELETE" });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || "The pet profile could not be deleted.");
+  }
 }
 
 export async function deleteDogMemoryForUser(memoryId: string, dogProfileId: string, user: User) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { error } = await supabase
-    .from("dog_memories")
-    .delete()
-    .eq("id", memoryId)
-    .eq("dog_profile_id", dogProfileId)
-    .eq("user_id", user.id);
-
-  if (error) throw friendlyDatabaseError(error, "dog memory");
+  await deleteDogMemoriesForUser([memoryId], dogProfileId, user);
 }
 
 export async function deleteDogMemoriesForUser(
   memoryIds: string[],
   dogProfileId: string,
-  user: User,
+  _user: User,
 ) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
+  void _user;
   if (memoryIds.length === 0) return;
-
-  const { error } = await supabase
-    .from("dog_memories")
-    .delete()
-    .in("id", memoryIds)
-    .eq("dog_profile_id", dogProfileId)
-    .eq("user_id", user.id);
-
-  if (error) throw friendlyDatabaseError(error, "dog memories");
+  const response = await authenticatedApiFetch("/api/legacy-memories", {
+    body: JSON.stringify({ memoryIds, petId: dogProfileId }),
+    headers: { "content-type": "application/json" },
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || "Remembered details could not be removed.");
+  }
 }
 
 export async function loadDogProductFeedbackForUser(dogProfileId: string, user: User) {
@@ -772,55 +785,18 @@ export async function deleteProductFeedbackForUser(
 
 export async function saveDogMemories(
   dogProfileId: string,
-  user: User,
+  _user: User,
   memories: MemoryInput[],
 ): Promise<SaveDogMemoriesResult> {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
   if (memories.length === 0) return { saved: [], skippedDuplicates: 0 };
-
-  const { data: existingMemories, error: existingError } = await supabase
-    .from("dog_memories")
-    .select("text")
-    .eq("dog_profile_id", dogProfileId)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .returns<{ text: string }[]>();
-
-  if (existingError) throw friendlyDatabaseError(existingError, "saved memories");
-
-  const seen = new Set((existingMemories || []).map((memory) => normalizeMemoryText(memory.text)));
-  let skippedDuplicates = 0;
-  const rows = memories.flatMap((memory) => {
-    const normalized = normalizeMemoryText(memory.text);
-    if (!normalized || seen.has(normalized)) {
-      skippedDuplicates += 1;
-      return [];
-    }
-
-    seen.add(normalized);
-    return [
-      {
-        user_id: user.id,
-        dog_profile_id: dogProfileId,
-        type: memory.type,
-        text: memory.text.trim(),
-        confidence: memory.confidence,
-        source: memory.source || "ai_suggestion",
-      },
-    ];
+  const response = await authenticatedApiFetch("/api/legacy-memories", {
+    body: JSON.stringify({ memories, petId: dogProfileId }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
   });
-
-  if (rows.length === 0) return { saved: [], skippedDuplicates };
-
-  const { data, error } = await supabase
-    .from("dog_memories")
-    .insert(rows)
-    .select()
-    .returns<DogMemoryRow[]>();
-
-  if (error) throw friendlyDatabaseError(error, "saved memories");
-  return { saved: data, skippedDuplicates };
+  const payload = await response.json().catch(() => null) as (SaveDogMemoriesResult & { error?: string }) | null;
+  if (!response.ok || !payload?.saved) throw new Error(payload?.error || "Remembered details could not be saved.");
+  return payload;
 }
 
 export function dogProfileRowToDraft(row: DogProfileRow): DogProfile {
@@ -862,10 +838,6 @@ export const loadPetProfileWithMemoriesForUser = loadDogProfileWithMemoriesForUs
 export const petProfileRowToDraft = dogProfileRowToDraft;
 export const savePetMemories = saveDogMemories;
 export const savePetProfileForUser = saveDogProfileForUser;
-
-function toDogProfilePayload(profile: DogProfile, userId: string) {
-  return buildDogProfilePayload(profile, userId);
-}
 
 export function buildDogProfilePayload(profile: DogProfile, userId: string) {
   const age = profile.ageUnknown || !profile.age.trim() ? Number.NaN : parsePositiveNumber(profile.age);
@@ -971,10 +943,6 @@ function normalizeUserProfileRow(row: unknown): UserProfileRow | null {
   };
 }
 
-function normalizeMemoryText(text: string) {
-  return text.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
 function isDuplicateFurviseCareEntry(entry: CareEntryRow, input: CareEntryInput) {
   if (!isFurviseGeneratedCareEntry(entry)) return false;
   if (normalizeCareDedupText(entry.title || "") !== normalizeCareDedupText(input.title || "")) return false;
@@ -1049,6 +1017,14 @@ async function requireCurrentUser(getter: (() => Promise<User | null>) | undefin
     throw new Error("Please sign in again before continuing.");
   }
   return user;
+}
+
+async function authenticatedApiFetch(path: string, init: RequestInit) {
+  const token = await getCurrentAccessToken();
+  if (!token) throw new Error("Please sign in again before continuing.");
+  const headers = new Headers(init.headers);
+  headers.set("authorization", `Bearer ${token}`);
+  return fetch(path, { ...init, headers });
 }
 
 async function ensurePetOwnership(

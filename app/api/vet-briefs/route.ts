@@ -1,6 +1,7 @@
 import { parseVetBriefDocument } from "../../lib/vet-brief/schema";
 import { getVetBriefRequestContext, toPublicVetBriefRecord, type VetBriefDatabaseRow } from "../../lib/vet-brief/server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../lib/security/request";
+import { beginRateLimitedRequest, getRateLimitRequestId } from "../../lib/security/rate-limit";
 
 export async function GET(request: Request) {
   const context = await getVetBriefRequestContext(request);
@@ -41,6 +42,17 @@ export async function POST(request: Request) {
 
   const { data: profile } = await context.supabase.from("dog_profiles").select("id").eq("id", petId).eq("user_id", context.userId).maybeSingle<{ id: string }>();
   if (!profile) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
+
+  const requestId = getRateLimitRequestId(request);
+  const rate = await beginRateLimitedRequest({
+    payload: { petId, previousVersionId: body?.previousVersionId, sourceEntryIds: body?.sourceEntryIds },
+    policy: "CARE_WRITE",
+    request,
+    requestId,
+    route: "/api/vet-briefs",
+    userId: context.userId,
+  });
+  if (!rate.allowed) return rate.response;
 
   const requestedSourceIds = Array.isArray(body?.sourceEntryIds)
     ? body.sourceEntryIds.filter(isUuid).slice(0, 300)

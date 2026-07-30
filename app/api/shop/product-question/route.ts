@@ -32,6 +32,7 @@ import {
   type FeatureIntelligenceResult,
 } from "../../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
+import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
 
 const maxShopQueryLength = 240;
 const maxProductQuestionLength = 320;
@@ -198,7 +199,17 @@ export async function POST(request: Request) {
 
   const fallback = () => buildFallbackShopProductQuestionAnswer({ interpretation, memory, product, query, question });
 
+  let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
   try {
+    rateGate = await requireRateLimitedRequest({
+      idempotencyKey: requestId,
+      payload: { interpretation, petId, productCountry, productId, query, question },
+      policy: "PRODUCT_GUIDANCE_AI",
+      request,
+      requestId,
+      route: "/api/shop/product-question",
+      userId: context.userId,
+    });
     const runtimeDiagnostics = getAiRuntimeDiagnostics();
     logProductQuestionDiagnostic("provider selected", {
       aiAttempted: true,
@@ -249,6 +260,7 @@ export async function POST(request: Request) {
     });
     return Response.json({ answer: normalized, fallback: false, responseSource: "ai", usage: generated.usage, usageUnavailable: false, ...(persistenceWarning ? { persistenceWarning } : {}) });
   } catch (error) {
+    if (error instanceof RateLimitRejection) return error.response;
     const failure = classifyProductQuestionFailure(error);
     logProductQuestionFallback(error, failure);
     logProductQuestionDiagnostic("final response", {
@@ -268,6 +280,8 @@ export async function POST(request: Request) {
       usage: context.usage,
       usageUnavailable: context.usageUnavailable,
     });
+  } finally {
+    if (rateGate) await rateGate.release();
   }
 }
 

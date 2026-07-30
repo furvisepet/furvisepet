@@ -14,6 +14,7 @@ import { parseVetBriefDocument } from "../../../lib/vet-brief/schema";
 import { getVetBriefRequestContext } from "../../../lib/vet-brief/server";
 import type { VetBriefConversationMessage, VetBriefDocument } from "../../../lib/vet-brief/types";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, inclusiveDateSpanDays, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
+import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
 
 const MAX_VET_BRIEF_RANGE_DAYS = 730;
 const MAX_REASON_FOR_VISIT_LENGTH = 1_200;
@@ -79,7 +80,17 @@ export async function POST(request: Request) {
   ])];
   const existingDocument = parseVetBriefDocument(body?.existingDocument);
 
+  let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
   try {
+    rateGate = await requireRateLimitedRequest({
+      idempotencyKey: requestId,
+      payload: { conversationId, existingDocument, from, petId, reasonForVisit, to },
+      policy: "VET_BRIEF_AI",
+      request,
+      requestId,
+      route: "/api/vet-briefs/draft",
+      userId: auth.userId,
+    });
     const generated = await runWithAiCredit<FeatureIntelligenceResult<IntelligenceVetBrief>>({
       feature: "vet_brief", planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
       generate: async () => runFeatureIntelligence({
@@ -108,11 +119,14 @@ export async function POST(request: Request) {
       usage: generated.usage,
     });
   } catch (error) {
+    if (error instanceof RateLimitRejection) return error.response;
     if (error instanceof AiCreditLimitReachedError) {
       return Response.json({ error: "You've used all of your AI guidance for this month.", limitReached: true }, { status: 402 });
     }
     logIntelligenceEvent("vet brief generation failed", { feature: "vet_brief", petId, requestId, safeCode: "GENERATION_UNAVAILABLE" });
     return Response.json({ error: "The Vet Visit Brief could not be prepared right now. Try again in a moment." }, { status: 503 });
+  } finally {
+    if (rateGate) await rateGate.release();
   }
 }
 

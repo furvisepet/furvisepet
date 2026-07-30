@@ -17,6 +17,7 @@ import { AiCreditLimitReachedError, getRemainingAiCredits, runWithAiCredit, type
 import { getUserPlan, type PlanId } from "../../../lib/billing/plan-limits";
 import { buildFurviseContext, resolveProductSafety, runFeatureIntelligence, type FeatureIntelligenceResult } from "../../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
+import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
 
 const maxShopQueryLength = 240;
 
@@ -99,7 +100,17 @@ export async function POST(request: Request) {
 
   const fallback = () => buildFallbackShopProductFitExplanation({ interpretation, memory, product, query });
 
+  let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
   try {
+    rateGate = await requireRateLimitedRequest({
+      idempotencyKey: requestId,
+      payload: { interpretation, petId, productCountry, productId, query },
+      policy: "PRODUCT_GUIDANCE_AI",
+      request,
+      requestId,
+      route: "/api/shop/explain-product-fit",
+      userId: context.userId,
+    });
     const generated = await runWithAiCredit<FeatureIntelligenceResult<ShopProductFitExplanation>>({
       feature: "product_explanation",
       planId: context.planId,
@@ -115,9 +126,12 @@ export async function POST(request: Request) {
     });
     return Response.json({ explanation: generated.value.value, fallback: false, usage: generated.usage });
   } catch (error) {
+    if (error instanceof RateLimitRejection) return error.response;
     if (error instanceof AiCreditLimitReachedError) return Response.json({ error: "You have used this month's AI credits.", limitReached: true, usage: context.usage }, { status: 402 });
     logShopProductFitFallback(error);
     return Response.json({ explanation: fallback(), fallback: true });
+  } finally {
+    if (rateGate) await rateGate.release();
   }
 }
 

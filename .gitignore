@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # Authorized provider exports and private onboarding metadata
 /private/catalog-imports/
@@ -103,3 +104,4 @@ node_modules/
 supabase/.temp/
 .vercel
 .env*
+!.env.example

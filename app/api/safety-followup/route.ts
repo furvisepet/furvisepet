@@ -20,6 +20,7 @@ import {
   type IntelligenceSafetyFollowup,
 } from "../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "../../lib/security/request";
+import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 
 export async function POST(request: Request) {
   const auth = await loadSafetyRequestContext(request);
@@ -65,7 +66,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "That pet or its current care context is no longer available." }, { status: 404 });
   }
 
+  let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
   try {
+    rateGate = await requireRateLimitedRequest({
+      idempotencyKey: requestId,
+      payload: { answers, petId, questions },
+      policy: "SAFETY_FOLLOWUP_AI",
+      request,
+      requestId,
+      route: "/api/safety-followup",
+      userId: auth.userId,
+    });
     let persistenceWarning = "";
     const generated = await runWithAiCredit<FeatureIntelligenceResult<IntelligenceSafetyFollowup>>({
       feature: "safety_followup", planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
@@ -106,9 +117,12 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ ...legacy, intelligence: normalized, ...(persistenceWarning ? { persistenceWarning } : {}), usage: generated.usage });
   } catch (error) {
+    if (error instanceof RateLimitRejection) return error.response;
     if (error instanceof AiCreditLimitReachedError) return NextResponse.json({ error: "You have used this month's AI credits.", limitReached: true }, { status: 402 });
     logIntelligenceEvent("safety follow-up failed", { feature: "safety_followup", petId, requestId, safeCode: "GENERATION_UNAVAILABLE" });
     return NextResponse.json({ error: "Safety guidance is temporarily unavailable.", fallback: true }, { status: 503 });
+  } finally {
+    if (rateGate) await rateGate.release();
   }
 }
 

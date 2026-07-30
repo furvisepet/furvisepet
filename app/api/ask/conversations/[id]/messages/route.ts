@@ -1,6 +1,7 @@
 import { parseAskConversationResponse } from "../../../../../lib/ask.mjs";
 import { getAskConversationRequestContext, type AskMessageRow } from "../../../../../lib/ask-conversation-server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../../lib/security/request";
+import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../../../lib/security/rate-limit";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const context = await getAskConversationRequestContext(request);
@@ -23,6 +24,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!question || question.length > 1200 || !response) return Response.json({ error: "A complete exchange is required." }, { status: 400 });
   const { data: conversation } = await context.supabase.from("ask_conversations").select("id").eq("id", id).eq("user_id", context.userId).maybeSingle<{ id: string }>();
   if (!conversation) return Response.json({ error: "That conversation is not available." }, { status: 404 });
+  const requestId = getRateLimitRequestId(request);
+  const rate = await beginRateLimitedRequest({ payload: { conversationId: id, question }, policy: "CONVERSATION_WRITE", request, requestId, route: "/api/ask/conversations/[id]/messages", userId: context.userId });
+  if (!rate.allowed) return rate.response;
   const { data: last } = await context.supabase.from("ask_conversation_messages").select("sequence_number").eq("conversation_id", id).eq("user_id", context.userId).order("sequence_number", { ascending: false }).limit(1).maybeSingle<{ sequence_number: number }>();
   const sequence = (last?.sequence_number || 0) + 1;
   const { data: messages, error } = await context.supabase

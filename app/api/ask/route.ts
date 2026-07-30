@@ -63,6 +63,7 @@ import {
   type IntelligencePersistenceSummary,
 } from "../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../lib/security/request";
+import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
@@ -283,6 +284,7 @@ export async function POST(request: Request) {
   let creditFinalState = "not_reserved";
   let providerCallCount = 0;
   let intelligenceResult: FurviseIntelligenceResult | null = null;
+  const rateGateRef: { current: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null } = { current: null };
   const confirmedExistingCarePersistence = await findExistingCareEventForSaveRequest({
     context: liveContext, currentSourceMessageId: preparedRequest.userMessageId, message: question, petId, supabase, userId,
   });
@@ -327,6 +329,15 @@ export async function POST(request: Request) {
       message: question,
       petName: profiles[0]?.name || "your pet",
       generate: async () => {
+        rateGateRef.current ||= await requireRateLimitedRequest({
+          idempotencyKey: requestId,
+          payload: { conversationId: preparedRequest.conversationId, petId, question },
+          policy: "ASK_AI",
+          request,
+          requestId,
+          route: "/api/ask",
+          userId,
+        });
         if (!usage.allowed) throw new AiCreditLimitError();
         const model = getAskModelConfiguration().primary;
         const cooldown = getAskProviderCooldown(model);
@@ -390,6 +401,8 @@ export async function POST(request: Request) {
       creditFinalState = "released";
     }
     logAskStage("Ask generation finalized", { creditFinalState, creditReservationId: requestId, providerCallCount, requestId, retryReuse });
+    if (rateGateRef.current) await rateGateRef.current.release();
+    if (error instanceof RateLimitRejection) return error.response;
     if (error instanceof AiCreditLimitError) {
       return askFailure("RATE_LIMITED", "You have used this month's AI credits. Your pet profiles, history, saved details, and non-AI tools are still available.", 429, { usage }, "credit_limit");
     }
@@ -426,6 +439,7 @@ export async function POST(request: Request) {
     });
     if (!plannedResponse) {
       if (creditReserved) await safeReleaseAiCredit({ planId, requestId, supabase, userId });
+      if (rateGateRef.current) await rateGateRef.current.release();
       return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
     }
     return persistAssistantAnswer({
@@ -443,7 +457,7 @@ export async function POST(request: Request) {
       supabase,
       usage,
       userId,
-    });
+    }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
   }
   const conversationResponse = buildAskConversationResponse(orchestration.answer, {
     intent: reasoning?.userIntent || orchestration.intent,
@@ -457,6 +471,7 @@ export async function POST(request: Request) {
   });
   if (!conversationResponse) {
     if (creditReserved) await safeReleaseAiCredit({ planId, requestId, supabase, userId });
+    if (rateGateRef.current) await rateGateRef.current.release();
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
   }
 
@@ -478,7 +493,7 @@ export async function POST(request: Request) {
     supabase,
     usage,
     userId,
-  });
+  }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
 }
 
 type CompletedAskResponse = NonNullable<ReturnType<typeof buildAskConversationResponse>>;

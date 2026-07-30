@@ -8,6 +8,7 @@ import {
 } from "../../../lib/ask-conversation-server";
 import { deriveConversationTitle } from "../../../lib/ask-conversations";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
+import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
 
 export async function GET(request: Request) {
   const context = await getAskConversationRequestContext(request);
@@ -62,6 +63,10 @@ export async function POST(request: Request) {
     .eq("user_id", context.userId)
     .maybeSingle<{ id: string; name: string | null }>();
   if (!profile) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
+
+  const requestId = getRateLimitRequestId(request);
+  const rate = await beginRateLimitedRequest({ payload: { petId, question }, policy: "CONVERSATION_WRITE", request, requestId, route: "/api/ask/conversations", userId: context.userId });
+  if (!rate.allowed) return rate.response;
 
   const messages = question && response
     ? [

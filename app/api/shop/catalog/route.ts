@@ -3,6 +3,7 @@ import { loadShopCatalogProducts } from "../../../lib/catalog/compatibility";
 import { loadPetMemoryContext } from "../../../lib/pet-memory";
 import { normalizeProductCountry } from "../../../lib/product-providers";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
+import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
 
 const MAX_QUERY_LENGTH = 240;
 
@@ -41,6 +42,16 @@ export async function POST(request: Request) {
     if (memory.pet.species !== "dog" && memory.pet.species !== "cat") {
       return Response.json({ products: [] });
     }
+    const requestId = getRateLimitRequestId(request);
+    const rate = await beginRateLimitedRequest({
+      payload: { countryCode, petId, query },
+      policy: "CATALOG_READ",
+      request,
+      requestId,
+      route: "/api/shop/catalog",
+      userId: context.userId,
+    });
+    if (!rate.allowed) return rate.response;
     const result = await loadShopCatalogProducts(context.supabase, {
       countryCode,
       limit: 60,

@@ -40,6 +40,7 @@ import {
   type SupabaseCacheLike,
 } from "../../../lib/shop/query-interpretation-cache";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
+import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
 
 const maxShopQueryLength = 240;
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -262,7 +263,17 @@ export async function POST(request: Request) {
     });
   }
 
+  let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
   try {
+    rateGate = await requireRateLimitedRequest({
+      idempotencyKey: requestId,
+      payload: { petId, productCountry, query },
+      policy: "PRODUCT_GUIDANCE_AI",
+      request,
+      requestId,
+      route: "/api/shop/interpret-query",
+      userId: context.userId,
+    });
     logShopInterpretationDiagnostic("calling AI provider", {
       ...runtimeDiagnostics,
       queryHash: queryHashForLogs,
@@ -329,6 +340,7 @@ export async function POST(request: Request) {
       mode: "ai", aiRequired: true, creditsExhausted: false,
     });
   } catch (error) {
+    if (error instanceof RateLimitRejection) return error.response;
     const failure = classifyShopInterpretationFailure(error, runtimeDiagnostics);
     logShopInterpretationFallback(error, failure);
     const fallbackInterpretation = fallback();
@@ -354,6 +366,8 @@ export async function POST(request: Request) {
       message: "AI guidance is unavailable right now, but these products match the filters we could identify.",
       usage,
     });
+  } finally {
+    if (rateGate) await rateGate.release();
   }
 }
 

@@ -5,6 +5,7 @@ import {
   type AccountCountryProfile,
 } from "../../../lib/account-country";
 import type { UserProfileRow } from "../../../lib/supabase";
+import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
 
 export async function POST(request: Request) {
   const context = await loadAccountRequestContext(request);
@@ -30,6 +31,17 @@ export async function POST(request: Request) {
   if (!decision.shouldWrite && currentProfile) {
     return Response.json({ profile: currentProfile });
   }
+
+  const requestId = getRateLimitRequestId(request);
+  const rate = await beginRateLimitedRequest({
+    payload: { country: decision.country, source: decision.countrySource },
+    policy: "PROFILE_WRITE",
+    request,
+    requestId,
+    route: "/api/account/detect-country",
+    userId,
+  });
+  if (!rate.allowed) return rate.response;
 
   const now = new Date().toISOString();
   const payload = {
