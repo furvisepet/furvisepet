@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import {
   MAIN_CONCERN_OPTIONS,
@@ -29,6 +29,7 @@ import type { FurviseMemoryRow } from "./intelligence/types";
 export const PROFILE_ID_STORAGE_KEY = "petwise:dog-profile-id";
 export const PROFILE_MEMORIES_STORAGE_KEY = "petwise:dog-profile-memories";
 const AUTH_PERSISTENCE_STORAGE_KEY = "petwise:auth-persistence";
+const SESSION_AUTH_COOKIE = "furvise-auth-session";
 
 export type DogProfileRow = {
   id: string;
@@ -186,7 +187,6 @@ export type ToggleProductFeedbackResult =
 
 let browserClient: SupabaseClient | null | undefined;
 type BrowserAuthPersistence = "persistent" | "session";
-type BrowserAuthStorage = Pick<Storage, "getItem" | "removeItem" | "setItem">;
 
 export function getSupabaseConfigError() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -223,62 +223,6 @@ function setBrowserAuthPersistence(mode: BrowserAuthPersistence | null) {
   }
 }
 
-function getBrowserStorageForMode(mode: BrowserAuthPersistence): BrowserAuthStorage | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    return mode === "session" ? window.sessionStorage : window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function readBrowserStorageItem(storage: BrowserAuthStorage | null, key: string) {
-  try {
-    return storage?.getItem(key) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function writeBrowserStorageItem(storage: BrowserAuthStorage | null, key: string, value: string) {
-  try {
-    storage?.setItem(key, value);
-  } catch {
-    // Ignore storage access issues and let Supabase keep auth state in memory.
-  }
-}
-
-function removeBrowserStorageItem(storage: BrowserAuthStorage | null, key: string) {
-  try {
-    storage?.removeItem(key);
-  } catch {
-    // Ignore storage access issues and let Supabase keep auth state in memory.
-  }
-}
-
-function createBrowserAuthStorage(): BrowserAuthStorage {
-  return {
-    getItem(key) {
-      const mode = getBrowserAuthPersistence();
-      const primary = getBrowserStorageForMode(mode);
-      const fallback = getBrowserStorageForMode(mode === "session" ? "persistent" : "session");
-      return readBrowserStorageItem(primary, key) ?? readBrowserStorageItem(fallback, key);
-    },
-    removeItem(key) {
-      removeBrowserStorageItem(getBrowserStorageForMode("persistent"), key);
-      removeBrowserStorageItem(getBrowserStorageForMode("session"), key);
-    },
-    setItem(key, value) {
-      const mode = getBrowserAuthPersistence();
-      const primary = getBrowserStorageForMode(mode);
-      const fallback = getBrowserStorageForMode(mode === "session" ? "persistent" : "session");
-      writeBrowserStorageItem(primary, key, value);
-      removeBrowserStorageItem(fallback, key);
-    },
-  };
-}
-
 function createBrowserSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -286,18 +230,34 @@ function createBrowserSupabase() {
     return null;
   }
 
-  return createClient(normalizeSupabaseUrl(url), key, {
-    auth: {
-      autoRefreshToken: true,
-      flowType: "pkce",
-      persistSession: true,
-      storage: createBrowserAuthStorage(),
+  return createBrowserClient(normalizeSupabaseUrl(url), key, {
+    cookieOptions: {
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     },
+    cookies: {
+      getAll: readDocumentCookies,
+      setAll(cookiesToSet) {
+        const sessionOnly = getBrowserAuthPersistence() === "session";
+        cookiesToSet.forEach(({ name, value, options }) => {
+          document.cookie = serializeBrowserCookie(name, value, sessionOnly && options.maxAge !== 0
+            ? { ...options, expires: undefined, maxAge: undefined }
+            : options);
+        });
+      },
+    },
+    isSingleton: false,
   });
 }
 
 export function setBrowserSupabasePersistence(mode: BrowserAuthPersistence | null) {
   setBrowserAuthPersistence(mode);
+  if (typeof document !== "undefined") {
+    document.cookie = mode === "session"
+      ? `${SESSION_AUTH_COOKIE}=1; Path=/; SameSite=Lax`
+      : `${SESSION_AUTH_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0`;
+  }
 }
 
 export function getBrowserSupabase(persistSession?: boolean) {
@@ -950,6 +910,49 @@ function mainConcernFromText(value: string | null): MainConcern | "" {
 
 function normalizeSupabaseUrl(url: string) {
   return url.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
+}
+
+function readDocumentCookies() {
+  if (typeof document === "undefined" || !document.cookie) return [];
+  return document.cookie.split(";").flatMap((part) => {
+    const separator = part.indexOf("=");
+    if (separator < 0) return [];
+    try {
+      return [{
+        name: decodeURIComponent(part.slice(0, separator).trim()),
+        value: decodeURIComponent(part.slice(separator + 1).trim()),
+      }];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function serializeBrowserCookie(
+  name: string,
+  value: string,
+  options: {
+    domain?: string;
+    expires?: Date;
+    httpOnly?: boolean;
+    maxAge?: number;
+    path?: string;
+    sameSite?: boolean | "lax" | "strict" | "none";
+    secure?: boolean;
+  },
+) {
+  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+  if (options.maxAge !== undefined) parts.push(`Max-Age=${Math.floor(options.maxAge)}`);
+  if (options.domain) parts.push(`Domain=${options.domain}`);
+  if (options.path) parts.push(`Path=${options.path}`);
+  if (options.expires) parts.push(`Expires=${options.expires.toUTCString()}`);
+  if (options.httpOnly) parts.push("HttpOnly");
+  if (options.secure) parts.push("Secure");
+  if (options.sameSite) {
+    const sameSite = options.sameSite === true ? "Strict" : `${options.sameSite[0].toUpperCase()}${options.sameSite.slice(1)}`;
+    parts.push(`SameSite=${sameSite}`);
+  }
+  return parts.join("; ");
 }
 
 function normalizeUserProfileRow(row: unknown): UserProfileRow | null {

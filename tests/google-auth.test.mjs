@@ -39,11 +39,11 @@ test("Google initiation is click-idempotent and reports friendly failure", () =>
 });
 
 test("callback exchanges one code and reuses a UUID-keyed application profile", () => {
-  const callback = read("app/auth/callback/page.tsx");
+  const callback = read("app/auth/callback/route.ts");
   const identity = read("app/lib/auth-identity.ts");
   const profileMigration = read("supabase/migrations/20260718000000_ensure_user_profiles_schema.sql");
-  assert.match(callback, /exchangeCodeForSession\(callbackCode\)/);
-  assert.match(callback, /client\.auth\.getUser\(\)/);
+  assert.match(callback, /exchangeCodeForSession\(code\)/);
+  assert.match(callback, /supabase\.auth\.getUser\(\)/);
   assert.match(callback, /ensureCanonicalApplicationUser/);
   assert.match(identity, /upsert\(\{ user_id: user\.id \}, \{ ignoreDuplicates: true, onConflict: "user_id" \}\)/);
   assert.match(identity, /from\("dog_profiles"\)[\s\S]*eq\("user_id", user\.id\)/);
@@ -59,9 +59,9 @@ test("post-auth routing sends petless users to onboarding and pet owners to safe
 });
 
 test("OAuth cancellation returns safely and email authentication remains available", () => {
-  const callback = read("app/auth/callback/page.tsx");
+  const callback = read("app/auth/callback/route.ts");
   const login = read("app/login/page.tsx");
-  assert.match(callback, /router\.replace\("\/login\?error=google_auth_failed"\)/);
+  assert.match(callback, /new URL\("\/login\?error=google_auth_failed", request\.nextUrl\.origin\)/);
   assert.match(login, /signInWithPassword/);
   assert.match(login, /authSupabase\.auth\.signUp/);
   assert.match(login, /Check your email to continue\. If you already have an account, sign in or reset your password\./);

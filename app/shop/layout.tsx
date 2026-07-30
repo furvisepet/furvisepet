@@ -6,5 +6,6 @@ export const metadata: Metadata = createPrivatePageMetadata(
   "Products",
   "Find food, grooming, dental, and everyday care products for your pet.",
 );
+export const dynamic = "force-dynamic";
 
 export default PrivateRouteLayout;

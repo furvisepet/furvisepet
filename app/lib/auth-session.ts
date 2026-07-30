@@ -65,8 +65,20 @@ export function useConfirmedSupabaseAuth(): ConfirmedAuthState {
       }
     });
 
+    const revalidateRestoredPage = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      void client.auth.getUser().then(({ data }) => {
+        if (!active) return;
+        setAuthState(data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null });
+      }).catch(() => {
+        if (active) setAuthState({ status: "signedOut", user: null });
+      });
+    };
+    window.addEventListener("pageshow", revalidateRestoredPage);
+
     return () => {
       active = false;
+      window.removeEventListener("pageshow", revalidateRestoredPage);
       subscription.unsubscribe();
     };
   }, []);
