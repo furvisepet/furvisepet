@@ -1,6 +1,8 @@
 import type { RateLimitPolicy, RateLimitPolicyName } from "./types";
 
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 const AI_LEASE_TTL_MS = 65_000;
 const VET_BRIEF_LEASE_TTL_MS = 90_000;
 
@@ -27,10 +29,24 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
     name: "CATALOG_READ",
     user: { limit: 120, windowMs: MINUTE },
   },
+  AUTH_SIGNUP: authPolicy("AUTH_SIGNUP", 5, 15 * MINUTE, 3, HOUR, 20),
+  AUTH_LOGIN: authPolicy("AUTH_LOGIN", 20, 15 * MINUTE, 10, 15 * MINUTE, 80),
+  AUTH_PASSWORD_RECOVERY: authPolicy("AUTH_PASSWORD_RECOVERY", 5, HOUR, 3, HOUR, 20),
+  AUTH_CONFIRMATION_RESEND: authPolicy("AUTH_CONFIRMATION_RESEND", 5, HOUR, 3, HOUR, 20),
+  AUTH_OAUTH_INITIATION: authPolicy("AUTH_OAUTH_INITIATION", 20, 15 * MINUTE, 20, 15 * MINUTE, 80),
 };
 
 export function getRateLimitPolicy(name: RateLimitPolicyName, env = process.env): RateLimitPolicy {
   const base = DEFAULT_POLICIES[name];
+  if (name.startsWith("AUTH_")) {
+    return {
+      ...base,
+      dailyIp: base.dailyIp ? { ...base.dailyIp, limit: boundedLimit(env[`FURVISE_RATE_LIMIT_${name}_DAILY_IP_LIMIT`], base.dailyIp.limit) } : undefined,
+      email: base.email ? { ...base.email, limit: boundedLimit(env[`FURVISE_RATE_LIMIT_${name}_EMAIL_LIMIT`], base.email.limit) } : undefined,
+      ip: { ...base.ip, limit: boundedLimit(env[`FURVISE_RATE_LIMIT_${name}_IP_LIMIT`], base.ip.limit) },
+      user: { ...base.user, limit: boundedLimit(env[`FURVISE_RATE_LIMIT_${name}_EMAIL_LIMIT`], base.user.limit) },
+    };
+  }
   return {
     ...base,
     ip: {
@@ -41,6 +57,18 @@ export function getRateLimitPolicy(name: RateLimitPolicyName, env = process.env)
       ...base.user,
       limit: boundedLimit(env[`FURVISE_RATE_LIMIT_${name}_USER_PER_MINUTE`], base.user.limit),
     },
+  };
+}
+
+function authPolicy(name: RateLimitPolicyName, ipLimit: number, ipWindowMs: number, emailLimit: number, emailWindowMs: number, dailyIpLimit: number): RateLimitPolicy {
+  return {
+    dailyIp: { limit: dailyIpLimit, windowMs: DAY },
+    email: { limit: emailLimit, windowMs: emailWindowMs },
+    failurePolicy: "fail_closed",
+    ip: { limit: ipLimit, windowMs: ipWindowMs },
+    modelBacked: false,
+    name,
+    user: { limit: emailLimit, windowMs: emailWindowMs },
   };
 }
 

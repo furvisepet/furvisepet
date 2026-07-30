@@ -10,11 +10,13 @@ import {
   accountInputClass,
   accountPrimaryClass,
 } from "../components/account-access";
+import { TurnstileChallenge } from "../components/turnstile-challenge";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { GOOGLE_AUTH_ENABLED, normalizeAuthEmail } from "../lib/auth-identity";
 import { getSafeNextPath } from "../lib/auth-routing";
 import { signInWithGoogle } from "../lib/google-auth-client";
-import { getBrowserSupabase, getSupabaseConfigError, setBrowserSupabasePersistence } from "../lib/supabase";
+import { getSupabaseConfigError, setBrowserSupabasePersistence } from "../lib/supabase";
+import { idempotentClientFetch } from "../lib/security/idempotency/client";
 
 type AuthMode = "signin" | "signup";
 
@@ -38,6 +40,10 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showConfirmationRecovery, setShowConfirmationRecovery] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const [loginCaptchaRequired, setLoginCaptchaRequired] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const didRedirectRef = useRef(false);
   const googleStartingRef = useRef(false);
   const authChecked = authStatus !== "loading";
@@ -48,11 +54,20 @@ function LoginPageContent() {
     router.replace(nextPath);
   }, [authStatus, nextPath, router]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => setResendCooldown((value) => Math.max(0, value - 1)), 1_000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     setError("");
     setStatusMessage("");
     setShowConfirmationRecovery(false);
+    setCaptchaToken(null);
+    setCaptchaReset((value) => value + 1);
+    setLoginCaptchaRequired(false);
     setShowPassword(false);
     if (nextMode === "signin") setKeepSignedIn(true);
   }
@@ -66,25 +81,31 @@ function LoginPageContent() {
     if (mode === "signin") setBrowserSupabasePersistence(keepSignedIn ? null : "session");
     else setBrowserSupabasePersistence(null);
 
-    const authSupabase = getBrowserSupabase(mode === "signin" ? keepSignedIn : true);
-    if (!authSupabase) {
-      setLoading(false);
-      setError(configError || "Supabase is not configured.");
-      return;
-    }
-
     const normalizedEmail = normalizeAuthEmail(email);
     setEmail(normalizedEmail);
-    const result = mode === "signin"
-      ? await authSupabase.auth.signInWithPassword({ email: normalizedEmail, password })
-      : await authSupabase.auth.signUp({ email: normalizedEmail, password });
-
-    if (result.error) {
+    const token = captchaToken;
+    setCaptchaToken(null);
+    setCaptchaReset((value) => value + 1);
+    const endpoint = mode === "signin" ? "/api/auth/login" : "/api/auth/signup";
+    const init = { body: JSON.stringify({ captchaToken: token || undefined, email: normalizedEmail, password }), headers: { "Content-Type": "application/json" }, method: "POST" };
+    let result: Response;
+    try {
+      result = mode === "signup"
+        ? await idempotentClientFetch(endpoint, init, `auth-signup:${normalizedEmail}`)
+        : await fetch(endpoint, init);
+    } catch {
       setLoading(false);
-      setError(friendlyAuthError(result.error.message));
+      setError("Account access is temporarily unavailable. Please try again.");
       return;
     }
-    if (result.data.session) {
+    const payload = await result.json().catch(() => null) as { code?: string; error?: string; message?: string; pendingConfirmation?: boolean } | null;
+    if (!result.ok) {
+      setLoading(false);
+      if (payload?.code === "CAPTCHA_REQUIRED" && mode === "signin") setLoginCaptchaRequired(true);
+      setError(payload?.error || (mode === "signin" ? "Email or password is incorrect." : "Furvise could not complete that request. Please try again."));
+      return;
+    }
+    if (mode === "signin") {
       didRedirectRef.current = true;
       router.replace(nextPath);
       return;
@@ -92,7 +113,8 @@ function LoginPageContent() {
     setLoading(false);
     if (mode === "signup") {
       setShowConfirmationRecovery(true);
-      setStatusMessage("Check your email to continue. If you already have an account, sign in or reset your password.");
+      setResendCooldown(60);
+      setStatusMessage(payload?.message || "Check your email to continue. If you already have an account, sign in or reset your password.");
     }
   }
 
@@ -111,14 +133,16 @@ function LoginPageContent() {
   }
 
   async function resendConfirmation() {
-    const authSupabase = getBrowserSupabase(true);
     const normalizedEmail = normalizeAuthEmail(email);
-    if (!authSupabase || !normalizedEmail) return;
+    if (!normalizedEmail || !captchaToken || resendCooldown > 0 || loading) return;
     setLoading(true); setError("");
-    const { error: resendError } = await authSupabase.auth.resend({ type: "signup", email: normalizedEmail });
+    const token = captchaToken; setCaptchaToken(null); setCaptchaReset((value) => value + 1);
+    const response = await idempotentClientFetch("/api/auth/resend", { body: JSON.stringify({ captchaToken: token, email: normalizedEmail }), headers: { "Content-Type": "application/json" }, method: "POST" }, `auth-resend:${normalizedEmail}`);
+    const payload = await response.json().catch(() => null) as { error?: string; message?: string; retryAfterSeconds?: number } | null;
     setLoading(false);
-    if (resendError) { setError(friendlyAuthError(resendError.message)); return; }
-    setStatusMessage("If confirmation is still needed, Furvise sent new instructions. You can also sign in or reset your password.");
+    if (!response.ok) { setError(payload?.error || "Furvise could not complete that request. Please try again."); if (response.status === 429) setResendCooldown(Math.max(60, payload?.retryAfterSeconds || 60)); return; }
+    setResendCooldown(60);
+    setStatusMessage(payload?.message || "If confirmation is still required, a new email will be sent.");
   }
 
   if (authStatus === "signedIn") {
@@ -154,7 +178,7 @@ function LoginPageContent() {
           </AccountField>
           <AccountField label="Password" name="password">
             <div className="relative">
-              <input autoComplete={mode === "signin" ? "current-password" : "new-password"} className={`${accountInputClass} pr-20`} id="password" minLength={6} name="password" onChange={(event) => setPassword(event.target.value)} placeholder="Your password" required type={showPassword ? "text" : "password"} value={password} />
+              <input autoComplete={mode === "signin" ? "current-password" : "new-password"} className={`${accountInputClass} pr-20`} id="password" maxLength={128} minLength={mode === "signin" ? 1 : 12} name="password" onChange={(event) => setPassword(event.target.value)} placeholder="Your password" required type={showPassword ? "text" : "password"} value={password} />
               <button aria-pressed={showPassword} className="absolute right-2 top-1/2 inline-flex min-h-10 -translate-y-1/2 items-center px-3 text-sm font-semibold text-[var(--ghost-action-foreground)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" onClick={() => setShowPassword((value) => !value)} type="button">{showPassword ? "Hide" : "Show"}</button>
             </div>
           </AccountField>
@@ -167,14 +191,16 @@ function LoginPageContent() {
               </label>
               <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" href="/forgot-password">Forgot password?</Link>
             </div>
-          ) : <p className="text-sm leading-6 text-[var(--text-secondary)]">Use at least 6 characters.</p>}
+          ) : <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>}
 
-          <button className={accountPrimaryClass} disabled={!authChecked || loading || Boolean(configError)} type="submit">
+          {mode === "signup" || loginCaptchaRequired ? <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} /> : null}
+
+          <button className={accountPrimaryClass} disabled={!authChecked || loading || Boolean(configError) || (process.env.NODE_ENV === "production" && (mode === "signup" || loginCaptchaRequired) && !captchaToken)} type="submit">
             {loading ? (mode === "signin" ? "Signing in..." : "Creating account...") : (mode === "signin" ? "Sign in" : "Create account")}
           </button>
         </form>
 
-        {showConfirmationRecovery ? <button className="inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold underline underline-offset-4" disabled={loading} onClick={() => void resendConfirmation()} type="button">Resend confirmation email</button> : null}
+        {showConfirmationRecovery ? <button className="inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold underline underline-offset-4" disabled={loading || resendCooldown > 0 || !captchaToken} onClick={() => void resendConfirmation()} type="button">{resendCooldown > 0 ? `Resend available in ${resendCooldown}s` : "Resend confirmation email"}</button> : null}
 
         <button className="inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" onClick={() => switchMode(mode === "signin" ? "signup" : "signin")} type="button">
           {mode === "signin" ? "New to Furvise? Create account" : "Already have an account? Sign in"}
@@ -183,17 +209,6 @@ function LoginPageContent() {
       </div>
     </AccountAccessLayout>
   );
-}
-
-function friendlyAuthError(message: string) {
-  const lower = message.toLowerCase();
-  if (lower.includes("invalid login") || lower.includes("invalid credentials") || lower.includes("wrong email or password") || lower.includes("invalid email or password")) return "That email and password did not match.";
-  if (lower.includes("email not confirmed")) return "Please confirm your email before signing in.";
-  if (lower.includes("already registered") || lower.includes("user already registered")) return "An account already exists for that email.";
-  if (lower.includes("password")) return "Use a password with at least 6 characters.";
-  if (lower.includes("signups not allowed") || lower.includes("signup disabled")) return "New account creation is currently unavailable.";
-  if (lower.includes("network") || lower.includes("fetch")) return "Furvise could not reach the sign-in service. Please try again.";
-  return "Furvise could not complete that request. Please try again.";
 }
 
 function GoogleIcon() {

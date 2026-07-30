@@ -18,10 +18,12 @@ export function buildContentSecurityPolicy(input: {
   const imageOrigins = configuredOrigins(env.FURVISE_ALLOWED_IMAGE_ORIGINS, ["https:"]);
   const connectOrigins = configuredOrigins(env.FURVISE_ALLOWED_CONNECT_ORIGINS, ["https:", "wss:"]);
   const reportUri = sameOriginReportPath(env.FURVISE_CSP_REPORT_URI);
+  const turnstileEnabled = Boolean(env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim());
+  const turnstileOrigin = "https://challenges.cloudflare.com";
 
   const scriptSources = nonce
-    ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(!production ? ["'unsafe-eval'"] : [])]
-    : ["'self'", "'unsafe-inline'", ...(!production ? ["'unsafe-eval'"] : [])];
+    ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...(turnstileEnabled ? [turnstileOrigin] : []), ...(!production ? ["'unsafe-eval'"] : [])]
+    : ["'self'", "'unsafe-inline'", ...(turnstileEnabled ? [turnstileOrigin] : []), ...(!production ? ["'unsafe-eval'"] : [])];
   const directives: Array<[string, string[]]> = [
     ["default-src", ["'self'"]],
     ["base-uri", ["'self'"]],
@@ -36,10 +38,11 @@ export function buildContentSecurityPolicy(input: {
     ["connect-src", unique([
       "'self'",
       ...(supabaseOrigin ? [supabaseOrigin] : []),
+      ...(turnstileEnabled ? [turnstileOrigin] : []),
       ...connectOrigins,
       ...(!production ? ["ws://localhost:*", "ws://127.0.0.1:*"] : []),
     ])],
-    ["frame-src", ["'none'"]],
+    ["frame-src", turnstileEnabled ? [turnstileOrigin] : ["'none'"]],
     ["worker-src", ["'self'"]],
     ["manifest-src", ["'self'"]],
     ["media-src", ["'self'"]],

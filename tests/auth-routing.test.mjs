@@ -70,7 +70,7 @@ test("signed-out login with onboarding next keeps the form tree stable", () => {
   assert.match(source, /const authChecked = authStatus !== "loading";/);
   assert.match(source, /<form className="grid gap-4" onSubmit=\{submitAuth\}>/);
   assert.match(source, /<AccountStatus text="Checking your session\.\.\." \/>/);
-  assert.match(source, /disabled=\{!authChecked \|\| loading \|\| Boolean\(configError\)\}/);
+  assert.match(source, /disabled=\{!authChecked \|\| loading \|\| Boolean\(configError\)[\s\S]*!captchaToken\}/);
   assert.doesNotMatch(source, /!authChecked \? \(\s*<div className="space-y-5">/);
   assert.doesNotMatch(source, /Checking your account\.\.\./);
   assert.doesNotMatch(source, /h-3 w-28 rounded-full bg-\[var\(--pw-card-muted\)\]/);

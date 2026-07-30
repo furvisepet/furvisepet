@@ -7,20 +7,23 @@ import {
 import { createServerSupabase } from "../../lib/supabase/server";
 
 export async function GET(request: NextRequest) {
+  const flow = request.nextUrl.searchParams.get("flow");
   const code = request.nextUrl.searchParams.get("code");
   const providerError = request.nextUrl.searchParams.get("error_description")
     || request.nextUrl.searchParams.get("error");
-  if (!code || providerError) return loginFailure(request);
+  if (!code || providerError) return callbackFailure(request, flow);
 
   const supabase = await createServerSupabase();
-  if (!supabase) return loginFailure(request);
+  if (!supabase) return callbackFailure(request, flow);
 
   try {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-    if (exchangeError) return loginFailure(request);
+    if (exchangeError) return callbackFailure(request, flow);
 
     const { data, error: userError } = await supabase.auth.getUser();
-    if (userError || !data.user) return loginFailure(request);
+    if (userError || !data.user) return callbackFailure(request, flow);
+
+    if (flow === "recovery") return noStoreRedirect(new URL("/update-password", request.nextUrl.origin));
 
     const { hasPet } = await ensureCanonicalApplicationUser(supabase, data.user);
     const destination = resolvePostGoogleAuthDestination(
@@ -29,11 +32,13 @@ export async function GET(request: NextRequest) {
     );
     return noStoreRedirect(new URL(destination, request.nextUrl.origin));
   } catch {
-    return loginFailure(request);
+    return callbackFailure(request, flow);
   }
 }
 
-function loginFailure(request: NextRequest) {
+function callbackFailure(request: NextRequest, flow: string | null) {
+  if (flow === "recovery") return noStoreRedirect(new URL("/forgot-password?error=recovery_link_failed", request.nextUrl.origin));
+  if (flow === "confirmation") return noStoreRedirect(new URL("/login?error=confirmation_failed", request.nextUrl.origin));
   return noStoreRedirect(new URL("/login?error=google_auth_failed", request.nextUrl.origin));
 }
 

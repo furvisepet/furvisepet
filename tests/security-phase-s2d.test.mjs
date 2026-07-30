@@ -168,13 +168,18 @@ test("every current API mutation route is inventoried behind a direct or canonic
   ]);
   const vetBriefs = new Set(["app/api/vet-briefs/draft/route.ts", "app/api/vet-briefs/route.ts"]);
   const petProfiles = new Set(["app/api/pets/route.ts"]);
-  const inventoried = [...direct, ...authenticated, ...conversations, ...vetBriefs, ...petProfiles].sort();
+  const publicAuth = new Set([
+    "app/api/auth/login/route.ts", "app/api/auth/oauth/route.ts", "app/api/auth/recovery/route.ts",
+    "app/api/auth/resend/route.ts", "app/api/auth/signup/route.ts", "app/api/auth/update-password/route.ts",
+  ]);
+  const inventoried = [...direct, ...authenticated, ...conversations, ...vetBriefs, ...petProfiles, ...publicAuth].sort();
   assert.deepEqual(mutationRoutes, inventoried);
   for (const route of direct) assert.match(read(route), /validateSensitiveRequestOriginResponse/, route);
   for (const route of authenticated) assert.match(read(route), /getAuthenticatedApiContext/, route);
   for (const route of conversations) assert.match(read(route), /getAskConversationRequestContext/, route);
   for (const route of vetBriefs) assert.match(read(route), /getVetBriefRequestContext/, route);
   for (const route of petProfiles) assert.match(read(route), /saveProfile/, route);
+  for (const route of publicAuth) assert.match(read(route), /validatePublicAuthOrigin/, route);
   assert.match(read("app/lib/pet-profile-api-server.ts"), /getAuthenticatedApiContext/);
 });
 

@@ -8,7 +8,11 @@ export function isGoogleAuthEnabled(value = process.env.NEXT_PUBLIC_GOOGLE_AUTH_
 export const GOOGLE_AUTH_ENABLED = isGoogleAuthEnabled();
 
 export function normalizeAuthEmail(value: string) {
-  return value.trim().toLowerCase();
+  return value.normalize("NFKC").trim().toLowerCase();
+}
+
+export function isConfirmedAuthUser(user: Pick<User, "email_confirmed_at" | "is_anonymous"> | null | undefined) {
+  return Boolean(user?.email_confirmed_at && !user.is_anonymous);
 }
 
 export function buildOAuthCallbackUrl(origin: string, nextPath: string) {

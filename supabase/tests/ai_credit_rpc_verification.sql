@@ -12,10 +12,10 @@ declare
   v_result record;
   v_count integer;
 begin
-  insert into auth.users (id, aud, role, email, encrypted_password, created_at, updated_at)
+  insert into auth.users (id, aud, role, email, encrypted_password, created_at, updated_at, email_confirmed_at)
   values
-    (v_user_one, 'authenticated', 'authenticated', 'ai-credit-one@example.test', '', now(), now()),
-    (v_user_two, 'authenticated', 'authenticated', 'ai-credit-two@example.test', '', now(), now())
+    (v_user_one, 'authenticated', 'authenticated', 'ai-credit-one@example.test', '', now(), now(), now()),
+    (v_user_two, 'authenticated', 'authenticated', 'ai-credit-two@example.test', '', now(), now(), now())
   on conflict (id) do nothing;
 
   delete from public.ai_usage_events as usage_event

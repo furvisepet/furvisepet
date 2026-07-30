@@ -8,13 +8,20 @@ export type RateLimitPolicyName =
   | "CARE_WRITE"
   | "CONVERSATION_WRITE"
   | "DESTRUCTIVE_WRITE"
-  | "CATALOG_READ";
+  | "CATALOG_READ"
+  | "AUTH_SIGNUP"
+  | "AUTH_LOGIN"
+  | "AUTH_PASSWORD_RECOVERY"
+  | "AUTH_CONFIRMATION_RESEND"
+  | "AUTH_OAUTH_INITIATION";
 
 export type RateLimitFailurePolicy = "fail_closed" | "fail_open";
 
 export type RateLimitPolicy = {
   concurrencyTtlMs?: number;
   failurePolicy: RateLimitFailurePolicy;
+  dailyIp?: { limit: number; windowMs: number };
+  email?: { limit: number; windowMs: number };
   ip: { limit: number; windowMs: number };
   modelBacked: boolean;
   name: RateLimitPolicyName;

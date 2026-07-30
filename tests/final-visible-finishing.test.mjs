@@ -25,13 +25,13 @@ test("Login uses the restrained account-access layout and removes the old benefi
 });
 
 test("all account flows remain wired through the shared access shell", () => {
-  assert.match(login, /signInWithPassword/);
-  assert.match(login, /auth\.signUp/);
+  assert.match(login, /fetch\(endpoint, init\)/);
+  assert.match(login, /endpoint = mode === "signin" \? "\/api\/auth\/login" : "\/api\/auth\/signup"/);
   assert.match(login, /Keep me signed in/);
   assert.match(login, /href="\/forgot-password"/);
-  assert.match(forgot, /resetPasswordForEmail\(email, \{ redirectTo \}\)/);
+  assert.match(forgot, /"\/api\/auth\/recovery"/);
   assert.match(update, /exchangeCodeForSession|setSession/);
-  assert.match(update, /updateUser\(\{ password: newPassword \}\)/);
+  assert.match(update, /fetch\("\/api\/auth\/update-password"/);
   for (const source of [login, forgot, update]) assert.match(source, /AccountAccessLayout/);
 });
 

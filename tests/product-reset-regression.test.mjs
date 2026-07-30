@@ -18,8 +18,8 @@ test("the document is permanently warm-light without preference or hydration dep
 test("forgot-password keeps the reset request and safe return flow", () => {
   const page = read("app/forgot-password/page.tsx");
 
-  assert.match(page, /resetPasswordForEmail\(email, \{ redirectTo \}\)/);
-  assert.match(page, /new URL\("\/update-password", window\.location\.origin\)/);
+  assert.match(page, /idempotentClientFetch\("\/api\/auth\/recovery"/);
+  assert.match(page, /TurnstileChallenge/);
   assert.match(page, /type="email"/);
   assert.match(page, /required/);
   assert.match(page, /Send reset link/);
@@ -33,7 +33,7 @@ test("update-password validates and prepares both supported recovery sessions", 
   assert.match(page, /setSession\(\{[\s\S]*access_token: accessToken,[\s\S]*refresh_token: refreshToken/);
   assert.match(page, /getSession\(\)/);
   assert.match(page, /Passwords do not match\./);
-  assert.match(page, /updateUser\(\{ password: newPassword \}\)/);
+  assert.match(page, /fetch\("\/api\/auth\/update-password"/);
   assert.match(page, /disabled=\{loading \|\| saving \|\| Boolean\(configError\) \|\| !sessionReady\}/);
 });
 

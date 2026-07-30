@@ -72,9 +72,10 @@ export default function UpdatePasswordPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) throw new Error("This password reset link is missing or expired. Request a new reset email.");
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      setSuccessMessage("Your password was updated.");
+      const response = await fetch("/api/auth/update-password", { body: JSON.stringify({ password: newPassword }), headers: { "Content-Type": "application/json" }, method: "POST" });
+      const payload = await response.json().catch(() => null) as { error?: string; message?: string } | null;
+      if (!response.ok) throw new Error(payload?.error || "Furvise could not update your password. Please try again.");
+      setSuccessMessage(payload?.message || "Your password was updated.");
     } catch (updateError) {
       setErrorMessage(updateError instanceof Error ? friendlyUpdatePasswordError(updateError.message) : "Furvise could not update your password. Please try again.");
     } finally {
@@ -94,8 +95,9 @@ export default function UpdatePasswordPage() {
           </div>
         ) : (
           <form className="grid gap-4" onSubmit={submitPassword}>
-            <AccountField label="New password" name="new-password"><input autoComplete="new-password" className={accountInputClass} id="new-password" minLength={6} name="new-password" onChange={(event) => setNewPassword(event.target.value)} placeholder="New password" required type="password" value={newPassword} /></AccountField>
-            <AccountField label="Confirm password" name="confirm-password"><input autoComplete="new-password" className={accountInputClass} id="confirm-password" minLength={6} name="confirm-password" onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm password" required type="password" value={confirmPassword} /></AccountField>
+            <AccountField label="New password" name="new-password"><input autoComplete="new-password" className={accountInputClass} id="new-password" maxLength={128} minLength={12} name="new-password" onChange={(event) => setNewPassword(event.target.value)} placeholder="New password" required type="password" value={newPassword} /></AccountField>
+            <AccountField label="Confirm password" name="confirm-password"><input autoComplete="new-password" className={accountInputClass} id="confirm-password" maxLength={128} minLength={12} name="confirm-password" onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm password" required type="password" value={confirmPassword} /></AccountField>
+            <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>
             <button className={accountPrimaryClass} disabled={loading || saving || Boolean(configError) || !sessionReady} type="submit">{saving ? "Updating password..." : "Update password"}</button>
           </form>
         )}

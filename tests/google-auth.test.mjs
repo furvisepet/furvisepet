@@ -19,12 +19,14 @@ test("Google rendering is controlled only by the public feature flag", () => {
   assert.doesNotMatch(login, /Apple|Social sign-in will be available/);
 });
 
-test("Google OAuth uses the browser Supabase client and validated callback", () => {
+test("Google OAuth uses the rate-limited server initiation route and validated callback", () => {
   const client = read("app/lib/google-auth-client.ts");
-  assert.match(client, /getBrowserSupabase\(true\)/);
-  assert.match(client, /provider: "google"/);
-  assert.match(client, /signInWithOAuth/);
-  assert.match(client, /buildOAuthCallbackUrl\(window\.location\.origin, nextPath\)/);
+  const route = read("app/api/auth/oauth/route.ts");
+  assert.match(client, /fetch\("\/api\/auth\/oauth"/);
+  assert.match(client, /window\.location\.assign\(payload\.redirectTo\)/);
+  assert.match(route, /provider: "google"/);
+  assert.match(route, /signInWithOAuth/);
+  assert.match(route, /buildOAuthCallbackUrl\(new URL\(request\.url\)\.origin, next\)/);
   assert.equal(buildOAuthCallbackUrl("https://furvise.test", "/shop?pet=luna"), "https://furvise.test/auth/callback?next=%2Fshop%3Fpet%3Dluna");
   assert.equal(buildOAuthCallbackUrl("https://furvise.test", "https://evil.test/path"), "https://furvise.test/auth/callback?next=%2Ftoday");
   assert.equal(buildOAuthCallbackUrl("https://furvise.test", "//evil.test/path"), "https://furvise.test/auth/callback?next=%2Ftoday");
@@ -62,8 +64,8 @@ test("OAuth cancellation returns safely and email authentication remains availab
   const callback = read("app/auth/callback/route.ts");
   const login = read("app/login/page.tsx");
   assert.match(callback, /new URL\("\/login\?error=google_auth_failed", request\.nextUrl\.origin\)/);
-  assert.match(login, /signInWithPassword/);
-  assert.match(login, /authSupabase\.auth\.signUp/);
+  assert.match(login, /"\/api\/auth\/login"/);
+  assert.match(login, /"\/api\/auth\/signup"/);
   assert.match(login, /Check your email to continue\. If you already have an account, sign in or reset your password\./);
   assert.match(login, /showConfirmationRecovery \? <button[\s\S]*Resend confirmation email/);
 });
