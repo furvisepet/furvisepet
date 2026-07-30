@@ -160,7 +160,7 @@ test("every current API mutation route is inventoried behind a direct or canonic
   ]);
   const authenticated = new Set([
     "app/api/account/product-country/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/care-entries/route.ts",
-    "app/api/legacy-memories/route.ts", "app/api/pets/[id]/route.ts",
+    "app/api/legacy-memories/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts",
   ]);
   const conversations = new Set([
     "app/api/ask/conversations/[id]/messages/route.ts", "app/api/ask/conversations/[id]/route.ts",

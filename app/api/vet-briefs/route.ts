@@ -1,7 +1,7 @@
 import { parseVetBriefDocument } from "../../lib/vet-brief/schema";
 import { getVetBriefRequestContext, toPublicVetBriefRecord, type VetBriefDatabaseRow } from "../../lib/vet-brief/server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../lib/security/request";
-import { beginRateLimitedRequest, getRateLimitRequestId } from "../../lib/security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "../../lib/security/idempotency";
 
 export async function GET(request: Request) {
   const context = await getVetBriefRequestContext(request);
@@ -43,18 +43,20 @@ export async function POST(request: Request) {
   const { data: profile } = await context.supabase.from("dog_profiles").select("id").eq("id", petId).eq("user_id", context.userId).maybeSingle<{ id: string }>();
   if (!profile) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
 
-  const requestId = getRateLimitRequestId(request);
-  const rate = await beginRateLimitedRequest({
-    payload: { petId, previousVersionId: body?.previousVersionId, sourceEntryIds: body?.sourceEntryIds },
+  const gate = await beginIdempotentRateLimitedOperation({
+    operationType: "vet_brief.save",
+    payload: { document, petId, previousVersionId: body?.previousVersionId, sourceEntryIds: body?.sourceEntryIds },
     policy: "CARE_WRITE",
     request,
-    requestId,
+    retention: "financial",
     route: "/api/vet-briefs",
+    supabase: context.supabase,
     userId: context.userId,
   });
-  if (!rate.allowed) return rate.response;
+  if ("response" in gate) return gate.response;
 
-  const requestedSourceIds = Array.isArray(body?.sourceEntryIds)
+  return gate.operation.execute(async () => {
+    const requestedSourceIds = Array.isArray(body?.sourceEntryIds)
     ? body.sourceEntryIds.filter(isUuid).slice(0, 300)
     : [];
   let verifiedSourceIds: string[] = [];
@@ -78,13 +80,14 @@ export async function POST(request: Request) {
     version = previous.version + 1;
   }
 
-  const { data, error } = await context.supabase.from("vet_visit_briefs").insert({
+    let { data, error } = await context.supabase.from("vet_visit_briefs").insert({
     confirmed_data: document,
     confirmed_title: document.title,
     date_range_end: document.dateRange.to,
     date_range_start: document.dateRange.from,
     document_version: document.documentVersion,
     generated_at: document.generatedAt,
+    idempotency_key: gate.operation.key,
     pet_profile_id: petId,
     previous_version_id: previousVersionId,
     source_entry_ids: verifiedSourceIds,
@@ -92,6 +95,11 @@ export async function POST(request: Request) {
     user_id: context.userId,
     version,
   }).select("*").single<VetBriefDatabaseRow>();
-  if (error || !data) return Response.json({ error: "The brief could not be saved." }, { status: 503 });
-  return Response.json({ brief: toPublicVetBriefRecord(data) }, { status: 201 });
+    if (error?.code === "23505") {
+      const replay = await context.supabase.from("vet_visit_briefs").select("*").eq("user_id", context.userId).eq("idempotency_key", gate.operation.key).maybeSingle<VetBriefDatabaseRow>();
+      data = replay.data; error = replay.error;
+    }
+    if (error || !data) return Response.json({ error: "The brief could not be saved." }, { status: 503 });
+    return Response.json({ brief: toPublicVetBriefRecord(data) }, { status: 201 });
+  });
 }

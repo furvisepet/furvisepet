@@ -37,6 +37,7 @@ import {
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
 import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
+import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 
 const maxShopQueryLength = 240;
 const maxProductQuestionLength = 320;
@@ -204,7 +205,9 @@ export async function POST(request: Request) {
   const fallback = () => buildFallbackShopProductQuestionAnswer({ interpretation, memory, product, query, question });
 
   let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
-  try {
+  const idempotency = await claimIdempotentOperation({ candidateKey: requestId, leaseSeconds: 180, operationType: "product.question", payload: { interpretation, petId, productCountry, productId, query, question }, request, retention: "financial", supabase: context.supabase, userId: context.userId });
+  if ("response" in idempotency) return idempotency.response;
+  return idempotency.operation.execute(async () => { try {
     rateGate = await requireRateLimitedRequest({
       idempotencyKey: requestId,
       payload: { interpretation, petId, productCountry, productId, query, question },
@@ -293,7 +296,7 @@ export async function POST(request: Request) {
     });
   } finally {
     if (rateGate) await rateGate.release();
-  }
+  } });
 }
 
 async function loadProductQuestionRequestContext(request: Request): Promise<

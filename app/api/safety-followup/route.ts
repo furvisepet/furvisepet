@@ -25,6 +25,7 @@ import {
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
+import { claimIdempotentOperation } from "../../lib/security/idempotency";
 
 export async function POST(request: Request) {
   const auth = await loadSafetyRequestContext(request);
@@ -71,7 +72,9 @@ export async function POST(request: Request) {
   }
 
   let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
-  try {
+  const idempotency = await claimIdempotentOperation({ candidateKey: requestId, leaseSeconds: 180, operationType: "safety.followup", payload: { answers, petId, questions }, request, retention: "financial", supabase: auth.supabase, userId: auth.userId });
+  if ("response" in idempotency) return idempotency.response;
+  return idempotency.operation.execute(async () => { try {
     rateGate = await requireRateLimitedRequest({
       idempotencyKey: requestId,
       payload: { answers, petId, questions },
@@ -131,7 +134,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Safety guidance is temporarily unavailable.", fallback: true }, { status: 503 });
   } finally {
     if (rateGate) await rateGate.release();
-  }
+  } });
 }
 
 async function loadSafetyRequestContext(request: Request): Promise<

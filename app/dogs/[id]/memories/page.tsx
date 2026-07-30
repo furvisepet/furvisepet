@@ -9,6 +9,7 @@ import { useRequireConfirmedSupabaseAuth } from "../../../lib/auth-session";
 import { formatPetDisplayName } from "../../../lib/petwise";
 import { buildRememberedDetails, type RememberedDetail } from "../../../lib/remembered-details";
 import { getBrowserSupabase, loadCanonicalRememberedDetailsForUser, loadDogProfileWithMemoriesForUser, type CanonicalRememberedDetailsRows, type DogProfileWithMemories } from "../../../lib/supabase";
+import { idempotentClientFetch } from "../../../lib/security/idempotency/client";
 
 export default function RememberedDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -57,11 +58,11 @@ export default function RememberedDetailsPage() {
     const { data } = client ? await client.auth.getSession() : { data: { session: null } };
     const token = data.session?.access_token;
     if (!token) throw new Error("Please sign in again.");
-    const response = await fetch(`/api/memories/${encodeURIComponent(id)}`, {
+    const response = await idempotentClientFetch(`/api/memories/${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ action, value }),
-    });
+    }, `memory:${action}:${id}`);
     const payload = await response.json().catch(() => null) as { error?: string } | null;
     if (!response.ok) throw new Error(payload?.error || "That remembered detail could not be updated.");
     await refresh();

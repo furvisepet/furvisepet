@@ -758,7 +758,7 @@ test("product question route authenticates, rechecks filters, and uses unified A
   assert.match(openai, /async answerShopProductQuestion\(input: ShopProductQuestionInput\)/);
   assert.match(usage, /ai_usage_events/);
   assert.match(migration, /create table if not exists public\.ai_usage_events/);
-  assert.match(page, /fetch\("\/api\/shop\/product-question"/);
+  assert.match(page, /idempotentClientFetch\("\/api\/shop\/product-question"/);
   assert.equal((page.match(/method: "GET"/g) || []).length, 1);
   assert.match(page, /FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE/);
   assert.doesNotMatch(page, /Furvise could not answer this product question\./);

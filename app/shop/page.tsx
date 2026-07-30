@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { AppPage } from "../components/app-page";
 import { PageHeader, PrimaryButton } from "../components/product-primitives";
 import type { ProductAiUsageStatus } from "../lib/billing/shop-usage";
+import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import {
   buildNoSafeProductMatchMessage,
@@ -377,21 +378,22 @@ function ShopPageContent() {
       const token = await getCurrentAccessToken();
       if (!token) throw new Error("Please sign in again before checking this product.");
 
-      const response = await fetch("/api/shop/explain-product-fit", {
+      const requestId = getOrCreateClientMutationKey(`product-explain:${selectedPetId}:${productId}`);
+      const response = await idempotentClientFetch("/api/shop/explain-product-fit", {
         body: JSON.stringify({
           interpretation: activeInterpretation,
           petId: selectedPetId,
           productCountry,
           productId,
           query: submittedQuery,
-          requestId: crypto.randomUUID(),
+          requestId,
         }),
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         method: "POST",
-      });
+      }, `product-explain:${selectedPetId}:${productId}`, requestId);
       const payload = (await response.json().catch(() => null)) as {
         error?: unknown;
         explanation?: unknown;
@@ -466,7 +468,8 @@ function ShopPageContent() {
       const token = await getCurrentAccessToken();
       if (!token) throw new Error("Please sign in again before asking about this product.");
 
-      const response = await fetch("/api/shop/product-question", {
+      const requestId = getOrCreateClientMutationKey(`product-question:${selectedPetId}:${productId}`);
+      const response = await idempotentClientFetch("/api/shop/product-question", {
         body: JSON.stringify({
           interpretation: activeInterpretation,
           petId: selectedPetId,
@@ -474,14 +477,14 @@ function ShopPageContent() {
           productId,
           query: submittedQuery,
           question,
-          requestId: crypto.randomUUID(),
+          requestId,
         }),
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         method: "POST",
-      });
+      }, `product-question:${selectedPetId}:${productId}`, requestId);
       const payload = (await response.json().catch(() => null)) as {
         answer?: unknown;
         error?: unknown;
@@ -555,15 +558,16 @@ function ShopPageContent() {
       const token = await getCurrentAccessToken();
       if (!token) throw new Error("Please sign in again before searching products.");
 
-      const response = await fetch("/api/shop/interpret-query", {
-        body: JSON.stringify({ petId, productCountry: country, query, requestId: crypto.randomUUID() }),
+      const requestId = getOrCreateClientMutationKey(`product-interpret:${petId}`);
+      const response = await idempotentClientFetch("/api/shop/interpret-query", {
+        body: JSON.stringify({ petId, productCountry: country, query, requestId }),
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         method: "POST",
         cache: "no-store",
-      });
+      }, `product-interpret:${petId}`, requestId);
       const payload = (await response.json().catch(() => null)) as {
         cached?: unknown;
         error?: unknown;

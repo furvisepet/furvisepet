@@ -6,7 +6,7 @@ import {
   type AccountCountryProfile,
 } from "../../../lib/account-country";
 import type { UserProfileRow } from "../../../lib/supabase";
-import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 
 export async function POST(request: Request) {
   const context = await loadAccountRequestContext(request);
@@ -33,36 +33,36 @@ export async function POST(request: Request) {
     return Response.json({ profile: currentProfile });
   }
 
-  const requestId = getRateLimitRequestId(request);
-  const rate = await beginRateLimitedRequest({
+  const gate = await beginIdempotentRateLimitedOperation({
+    operationType: "account.country.detect",
     payload: { country: decision.country, source: decision.countrySource },
     policy: "PROFILE_WRITE",
     request,
-    requestId,
     route: "/api/account/detect-country",
+    supabase,
     userId,
   });
-  if (!rate.allowed) return rate.response;
+  if ("response" in gate) return gate.response;
 
-  const now = new Date().toISOString();
-  const payload = {
-    country: decision.country,
-    country_detected_at: decision.countrySource === "detected" ? now : null,
-    country_source: decision.countrySource,
-    country_updated_at: decision.countrySource === "env_default" ? now : null,
-    user_id: userId,
-  };
-  const { data: savedProfile, error: saveError } = await supabase
-    .from("user_profiles")
-    .upsert(payload, { onConflict: "user_id" })
-    .select("user_id,country,country_source,country_detected_at,country_updated_at")
-    .single<UserProfileRow>();
+  return gate.operation.execute(async () => {
+    const now = new Date().toISOString();
+    const payload = {
+      country: decision.country,
+      country_detected_at: decision.countrySource === "detected" ? now : null,
+      country_source: decision.countrySource,
+      country_updated_at: decision.countrySource === "env_default" ? now : null,
+      user_id: userId,
+    };
+    const { data: savedProfile, error: saveError } = await supabase
+      .from("user_profiles")
+      .upsert(payload, { onConflict: "user_id" })
+      .select("user_id,country,country_source,country_detected_at,country_updated_at")
+      .single<UserProfileRow>();
 
-  if (saveError) {
-    return Response.json({ error: "Furvise could not save account profile." }, { status: 500 });
-  }
+    if (saveError) return Response.json({ error: "Furvise could not save account profile." }, { status: 500 });
 
-  return Response.json({ profile: savedProfile });
+    return Response.json({ profile: savedProfile });
+  });
 }
 
 async function loadAccountRequestContext(request: Request): Promise<

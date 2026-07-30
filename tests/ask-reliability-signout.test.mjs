@@ -25,7 +25,7 @@ test("Ask blocks empty and duplicate submissions while exposing a visible reques
 
 test("Ask sends selected pet context and one idempotent request", () => {
   const askFunction = page.slice(page.indexOf("async function ask("), page.indexOf("function saveCurrentDraft"));
-  assert.equal((askFunction.match(/fetch\("\/api\/ask"/g) || []).length, 1);
+  assert.equal((askFunction.match(/idempotentClientFetch\("\/api\/ask"/g) || []).length, 1);
   assert.match(askFunction, /petId: selectedPet/);
   assert.match(askFunction, /requestId/);
   assert.match(askFunction, /signal: AbortSignal\.timeout\(55_000\)/);
@@ -35,7 +35,7 @@ test("Ask sends selected pet context and one idempotent request", () => {
 test("failure preserves the visible user message and retry reuses its request ID", () => {
   const askFunction = page.slice(page.indexOf("async function ask("), page.indexOf("function saveCurrentDraft"));
   assert.match(askFunction, /if \(!retry\) setThread/);
-  assert.match(askFunction, /requestId = retry\?\.requestId \|\| createRequestId\(\)/);
+  assert.match(askFunction, /requestId = retry\?\.requestId \|\| getOrCreateClientMutationKey/);
   assert.match(askFunction, /setFailedRequest\(\{ code, prompt, requestId, userMessageId \}\)/);
   assert.doesNotMatch(askFunction, /current\.filter\(\(message\) => message\.id !== userMessageId\)/);
   assert.match(page, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);

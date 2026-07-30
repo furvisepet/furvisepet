@@ -179,7 +179,7 @@ test("canonical mutations remain after provider, schema, answer validation, and 
 test("retry UI reuses one request ID, blocks concurrent clicks, and preserves the user message", () => {
   const page = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
   const ask = page.slice(page.indexOf("async function ask("), page.indexOf("function editFailedMessage"));
-  assert.match(ask, /retry\?\.requestId \|\| createRequestId\(\)/);
+  assert.match(ask, /retry\?\.requestId \|\| getOrCreateClientMutationKey/);
   assert.match(ask, /askRequestActiveRef\.current/);
   assert.match(ask, /if \(!retry\) setThread/);
   assert.match(ask, /setFailedRequest\(null\)/);

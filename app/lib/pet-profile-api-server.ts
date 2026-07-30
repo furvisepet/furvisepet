@@ -4,7 +4,7 @@ import { validateDogProfileInput } from "./ai-analysis";
 import { getAuthenticatedApiContext } from "./authenticated-api-server";
 import { normalizeAvoidIngredientValues, normalizeSpecies, normalizeWellnessGoal, parsePositiveNumber, type DogProfile } from "./petwise";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "./security/request";
-import { beginRateLimitedRequest, getRateLimitRequestId } from "./security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "./security/idempotency";
 import type { DogProfileRow } from "./supabase";
 
 const PROFILE_KEYS = ["name", "species", "breed", "age", "ageUnit", "ageUnknown", "weight", "weightUnit", "weightUnknown", "currentFood", "currentFoodUnknown", "mainConcern", "otherConcern", "avoidIngredients", "avoidIngredientsNoneKnown", "customAvoidIngredient", "monthlyBudget", "sex", "routineNote", "wellnessGoal"] as const;
@@ -27,14 +27,19 @@ export async function saveProfile(request: Request, profileId: string | null) {
     const { data: owned } = await context.supabase.from("dog_profiles").select("id").eq("id", profileId).eq("user_id", context.userId).maybeSingle<{ id: string }>();
     if (!owned) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
   }
-  const requestId = getRateLimitRequestId(request);
-  const rate = await beginRateLimitedRequest({ payload: { profile: validation.profile, profileId }, policy: "PROFILE_WRITE", request, requestId, route: profileId ? "/api/pets/[id]" : "/api/pets", userId: context.userId });
-  if (!rate.allowed) return rate.response;
-  const payload = buildPayload(validation.profile, context.userId);
-  const query = profileId ? context.supabase.from("dog_profiles").update(payload).eq("id", profileId).eq("user_id", context.userId) : context.supabase.from("dog_profiles").insert(payload);
-  const { data, error } = await query.select().single<DogProfileRow>();
-  if (error || !data) return Response.json({ error: "The pet profile could not be saved." }, { status: 503 });
-  return Response.json({ profile: data }, { status: profileId ? 200 : 201 });
+  const gate = await beginIdempotentRateLimitedOperation({ operationType: profileId ? "profile.update" : "profile.create", payload: { profile: validation.profile, profileId }, policy: "PROFILE_WRITE", request, route: profileId ? "/api/pets/[id]" : "/api/pets", supabase: context.supabase, userId: context.userId });
+  if ("response" in gate) return gate.response;
+  return gate.operation.execute(async () => {
+    const payload = buildPayload(validation.profile, context.userId);
+    const query = profileId ? context.supabase.from("dog_profiles").update(payload).eq("id", profileId).eq("user_id", context.userId) : context.supabase.from("dog_profiles").insert({ ...payload, idempotency_key: gate.operation.key });
+    const { data, error } = await query.select().single<DogProfileRow>();
+    if (!profileId && error?.code === "23505") {
+      const { data: replay } = await context.supabase.from("dog_profiles").select("*").eq("user_id", context.userId).eq("idempotency_key", gate.operation.key).maybeSingle<DogProfileRow>();
+      if (replay) return Response.json({ profile: replay }, { status: 201 });
+    }
+    if (error || !data) return Response.json({ error: "The pet profile could not be saved." }, { status: 503 });
+    return Response.json({ profile: data }, { status: profileId ? 200 : 201 });
+  });
 }
 
 function profileFieldsAreBounded(value: unknown) {

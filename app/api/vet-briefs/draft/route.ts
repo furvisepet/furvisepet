@@ -18,6 +18,7 @@ import { getVetBriefRequestContext } from "../../../lib/vet-brief/server";
 import type { VetBriefConversationMessage, VetBriefDocument } from "../../../lib/vet-brief/types";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, inclusiveDateSpanDays, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
+import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 
 const MAX_VET_BRIEF_RANGE_DAYS = 730;
 const MAX_REASON_FOR_VISIT_LENGTH = 1_200;
@@ -83,8 +84,20 @@ export async function POST(request: Request) {
   ])];
   const existingDocument = parseVetBriefDocument(body?.existingDocument);
 
+  const idempotency = await claimIdempotentOperation({
+    candidateKey: requestId,
+    leaseSeconds: 180,
+    operationType: "vet_brief.generate",
+    payload: { conversationId, existingDocument, from, petId, reasonForVisit, to },
+    request,
+    retention: "financial",
+    supabase: auth.supabase,
+    userId: auth.userId,
+  });
+  if ("response" in idempotency) return idempotency.response;
+
   let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
-  try {
+  return idempotency.operation.execute(async () => { try {
     rateGate = await requireRateLimitedRequest({
       idempotencyKey: requestId,
       payload: { conversationId, existingDocument, from, petId, reasonForVisit, to },
@@ -134,7 +147,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "The Vet Visit Brief could not be prepared right now. Try again in a moment." }, { status: 503 });
   } finally {
     if (rateGate) await rateGate.release();
-  }
+  } });
 }
 
 function preserveOwnerEdits(generated: VetBriefDocument, existing: VetBriefDocument | null) {

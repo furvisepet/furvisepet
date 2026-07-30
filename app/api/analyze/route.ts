@@ -16,6 +16,7 @@ import { API_BODY_LIMITS, RequestBoundaryError, readBoundedJson } from "../../li
 import { safeErrorForLog } from "../../lib/security/logging";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
+import { claimIdempotentOperation } from "../../lib/security/idempotency";
 
 export async function POST(request: Request) {
   const context = await loadAiRequestContext(request);
@@ -53,7 +54,9 @@ export async function POST(request: Request) {
   const requestId = typeof rawRequestId === "string" && /^[0-9a-f-]{36}$/i.test(rawRequestId) ? rawRequestId : randomUUID();
 
   let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
-  try {
+  const idempotency = await claimIdempotentOperation({ candidateKey: requestId, leaseSeconds: 180, operationType: "profile.analyze", payload: { memories, profile: validation.profile }, request, retention: "financial", supabase: context.supabase, userId: context.userId });
+  if ("response" in idempotency) return idempotency.response;
+  return idempotency.operation.execute(async () => { try {
     rateGate = await requireRateLimitedRequest({
       idempotencyKey: requestId,
       payload: { memories, profile: validation.profile },
@@ -94,7 +97,7 @@ export async function POST(request: Request) {
     );
   } finally {
     if (rateGate) await rateGate.release();
-  }
+  } });
 }
 
 async function loadAiRequestContext(request: Request) {

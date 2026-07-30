@@ -129,7 +129,7 @@ test("loading saved or confirmed Vet Briefs does not spend another credit", () =
   const restoredBranch = page.slice(page.indexOf("const savedDraft = readSavedDraft"), page.indexOf("const draft = await fetchDraft"));
   assert.doesNotMatch(restoredBranch, /fetchDraft|runWithAiCredit/);
   assert.doesNotMatch(collection + item, /runWithAiCredit|runFeatureIntelligence/);
-  assert.match(page, /requestId: crypto\.randomUUID\(\)/);
+  assert.match(page, /getOrCreateClientMutationKey\(`vet-brief-draft:/);
 });
 
 test("Vet Brief refresh preserves explicit owner-authored settings", () => {

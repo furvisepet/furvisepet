@@ -2,7 +2,7 @@ import { createClient, type PostgrestError, type SupabaseClient } from "@supabas
 import { validateSensitiveRequestOriginResponse } from "../../../../lib/security/headers/origin-policy";
 import { safeErrorForLog } from "../../../../lib/security/logging";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
-import { beginRateLimitedRequest } from "../../../../lib/security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "../../../../lib/security/idempotency";
 
 type SuggestionStatus = "pending" | "saved" | "dismissed";
 type SuggestionRow = {
@@ -70,15 +70,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return suggestionError("SUGGESTION_NOT_FOUND", "This improvement is no longer available.", 404, requestId);
   }
 
-  const rate = await beginRateLimitedRequest({
+  const gate = await beginIdempotentRateLimitedOperation({
+    operationType: `suggestion.${action}`,
     payload: { action, details: body.details, suggestionId: id },
     policy: action === "dismiss" ? "DESTRUCTIVE_WRITE" : suggestion.type === "memory" ? "MEMORY_WRITE" : "CARE_WRITE",
     request,
-    requestId,
+    retention: action === "dismiss" ? "destructive" : "ordinary",
     route: "/api/ask/suggestions/[id]",
+    supabase: auth.supabase,
     userId: auth.userId,
   });
-  if (!rate.allowed) return rate.response;
+  if ("response" in gate) return gate.response;
+  return gate.operation.execute(async () => {
 
   const diagnostic = await loadSuggestionDiagnostic(auth.supabase, auth.userId, suggestion);
   const logContext = {
@@ -170,6 +173,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     appliedAt: result.applied_at,
     suggestion: { ...toCanonicalSuggestion(suggestion), status: "saved" },
     message: alreadyApplied ? "This improvement was already added to the pet’s history." : "This improvement was added to the pet’s history.",
+  });
   });
 }
 

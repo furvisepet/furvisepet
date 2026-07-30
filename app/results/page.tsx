@@ -32,6 +32,7 @@ import {
   selectedConcern,
 } from "../lib/petwise";
 import { NEW_PET_LOGIN_PATH, buildLoginHref } from "../lib/auth-routing";
+import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getFinishProfileItemsFromDraft } from "../lib/finish-profile";
 import {
   buildPetMemoryContext,
@@ -283,11 +284,12 @@ function ResultsPageContent() {
       try {
         const accessToken = await getCurrentAccessToken();
         if (!accessToken) throw new Error("Please sign in again.");
-        const response = await fetch("/api/analyze", {
+        const requestId = getOrCreateClientMutationKey(`analyze:${dogProfileId || "new"}`);
+        const response = await idempotentClientFetch("/api/analyze", {
           method: "POST",
           headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ profile, memories: savedMemories, requestId: crypto.randomUUID() }),
-        });
+          body: JSON.stringify({ profile, memories: savedMemories, requestId }),
+        }, `analyze:${dogProfileId || "new"}`, requestId);
         const payload: unknown = await response.json().catch(() => null);
         const analysis =
           payload && typeof payload === "object" && "analysis" in payload
@@ -333,7 +335,7 @@ function ResultsPageContent() {
     return () => {
       active = false;
     };
-  }, [analysisResult, loaded, profile, savedMemories]);
+  }, [analysisResult, dogProfileId, loaded, profile, savedMemories]);
 
   const analysis = analysisResult?.status === "available" ? analysisResult.analysis : null;
   const petMemory: PetMemoryContext | null = useMemo(() => {
@@ -965,7 +967,8 @@ function SoonSafetyPanel({
     try {
       const accessToken = await getCurrentAccessToken();
       if (!accessToken) throw new Error("Please sign in again.");
-      const response = await fetch("/api/safety-followup", {
+      const requestId = getOrCreateClientMutationKey(`safety-followup:${petId}`);
+      const response = await idempotentClientFetch("/api/safety-followup", {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -974,9 +977,9 @@ function SoonSafetyPanel({
           analysis,
           followUpQuestions: visibleQuestions,
           followUpAnswers: followupAnswers,
-          requestId: crypto.randomUUID(),
+          requestId,
         }),
-      });
+      }, `safety-followup:${petId}`, requestId);
       const payload: unknown = await response.json().catch(() => null);
       const parsed = parseSafetyFollowupResult(payload);
       if (!response.ok || !parsed) {

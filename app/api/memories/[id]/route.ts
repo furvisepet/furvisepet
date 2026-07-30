@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
 import { safeErrorForLog } from "../../../lib/security/logging";
-import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -20,19 +20,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (action === "edit" && value === null) return errorResponse("MEMORY_INVALID", "Keep the remembered detail under 500 characters.", 422);
   const { data: ownedMemory } = await auth.supabase.from("furvise_memories").select("id").eq("id", id).eq("user_id", auth.userId).maybeSingle<{ id: string }>();
   if (!ownedMemory) return errorResponse("MEMORY_NOT_FOUND", "That remembered detail is no longer available.", 404);
-  const requestId = getRateLimitRequestId(request);
-  const rate = await beginRateLimitedRequest({ payload: { action, id, value }, policy: action === "forget" ? "DESTRUCTIVE_WRITE" : "MEMORY_WRITE", request, requestId, route: "/api/memories/[id]", userId: auth.userId });
-  if (!rate.allowed) return rate.response;
-  const { data, error } = await auth.supabase.rpc("manage_furvise_memory", { p_action: action, p_fact_value: value, p_memory_id: id });
-  if (error) {
-    console.error("[Furvise memory] lifecycle update failed", { action, ...safeErrorForLog(error), memoryId: id, userIdPresent: Boolean(auth.userId) });
-    if (error.code === "P0002" || /MEMORY_NOT_FOUND/.test(error.message)) return errorResponse("MEMORY_NOT_FOUND", "That remembered detail is no longer available.", 404);
-    if (error.code === "22023" || /MEMORY_INVALID/.test(error.message)) return errorResponse("MEMORY_INVALID", "That remembered detail could not be updated.", 422);
-    if (error.code === "40001" || /MEMORY_CONFLICT/.test(error.message)) return errorResponse("MEMORY_CONFLICT", "That remembered detail changed. Refresh and try again.", 409);
-    return errorResponse("MEMORY_PERSISTENCE_FAILED", "That remembered detail could not be updated.", 500);
-  }
-  const result = (Array.isArray(data) ? data[0] : data) as { action_status: string; memory_id: string; previous_memory_id: string } | null;
-  return Response.json({ ok: true, status: result?.action_status || action, memoryId: result?.memory_id || id });
+  const gate = await beginIdempotentRateLimitedOperation({ operationType: `memory.${action}`, payload: { action, id, value }, policy: action === "forget" ? "DESTRUCTIVE_WRITE" : "MEMORY_WRITE", request, retention: action === "forget" ? "destructive" : "ordinary", route: "/api/memories/[id]", supabase: auth.supabase, userId: auth.userId });
+  if ("response" in gate) return gate.response;
+  return gate.operation.execute(async () => {
+    const { data, error } = await auth.supabase.rpc("manage_furvise_memory", { p_action: action, p_fact_value: value, p_memory_id: id });
+    if (error) {
+      console.error("[Furvise memory] lifecycle update failed", { action, ...safeErrorForLog(error), memoryId: id, userIdPresent: Boolean(auth.userId) });
+      if (error.code === "P0002" || /MEMORY_NOT_FOUND/.test(error.message)) return errorResponse("MEMORY_NOT_FOUND", "That remembered detail is no longer available.", 404);
+      if (error.code === "22023" || /MEMORY_INVALID/.test(error.message)) return errorResponse("MEMORY_INVALID", "That remembered detail could not be updated.", 422);
+      if (error.code === "40001" || /MEMORY_CONFLICT/.test(error.message)) return errorResponse("MEMORY_CONFLICT", "That remembered detail changed. Refresh and try again.", 409);
+      return errorResponse("MEMORY_PERSISTENCE_FAILED", "That remembered detail could not be updated.", 500);
+    }
+    const result = (Array.isArray(data) ? data[0] : data) as { action_status: string; memory_id: string; previous_memory_id: string } | null;
+    return Response.json({ ok: true, status: result?.action_status || action, memoryId: result?.memory_id || id });
+  });
 }
 
 async function authenticatedClient(request: Request) {

@@ -25,6 +25,7 @@ import {
 } from "./care-log.mjs";
 import type { PetConcern } from "./ai/concern-engine";
 import type { FurviseMemoryRow } from "./intelligence/types";
+import { idempotentClientFetch } from "./security/idempotency/client.ts";
 
 export const PROFILE_ID_STORAGE_KEY = "petwise:dog-profile-id";
 export const PROFILE_MEMORIES_STORAGE_KEY = "petwise:dog-profile-memories";
@@ -333,10 +334,10 @@ export async function detectAccountProductCountry() {
   const token = await getCurrentAccessToken();
   if (!token) return null;
 
-  const response = await fetch("/api/account/detect-country", {
+  const response = await idempotentClientFetch("/api/account/detect-country", {
     headers: { Authorization: `Bearer ${token}` },
     method: "POST",
-  });
+  }, "account-country-detect");
   const payload = await response.json().catch(() => null) as { profile?: unknown } | null;
   if (!response.ok) return null;
   return normalizeUserProfileRow(payload?.profile);
@@ -735,34 +736,12 @@ export async function toggleProductFeedbackForUser(
     return { action: "removed", feedback: existing };
   }
 
-  const { data, error } = await supabase
-    .from("dog_product_feedback")
-    .insert({
-      user_id: user.id,
-      dog_profile_id: input.dogProfileId,
-      product_id: input.productId,
-      product_name: input.productName,
-      feedback_type: input.feedbackType,
-      note: input.note?.trim() || null,
-    })
-    .select()
-    .single<DogProductFeedbackRow>();
-
-  if (error) {
-    if (error.code === "23505") {
-      const latest = await loadDogProductFeedbackForUser(input.dogProfileId, user);
-      const duplicate = latest.find(
-        (item) => item.product_id === input.productId && item.feedback_type === input.feedbackType,
-      );
-      if (duplicate) {
-        await deleteProductFeedbackForUser(duplicate.id, input.dogProfileId, user);
-        return { action: "removed", feedback: duplicate };
-      }
-    }
-    throw friendlyDatabaseError(error, "product feedback");
-  }
-
-  return { action: "added", feedback: data };
+  const response = await authenticatedApiFetch("/api/product-feedback", {
+    body: JSON.stringify(input), headers: { "content-type": "application/json" }, method: "POST",
+  });
+  const payload = await response.json().catch(() => null) as { error?: string; feedback?: DogProductFeedbackRow } | null;
+  if (!response.ok || !payload?.feedback) throw new Error(payload?.error || "Product feedback could not be saved.");
+  return { action: "added", feedback: payload.feedback };
 }
 
 export async function deleteProductFeedbackForUser(
@@ -770,17 +749,11 @@ export async function deleteProductFeedbackForUser(
   dogProfileId: string,
   user: User,
 ) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { error } = await supabase
-    .from("dog_product_feedback")
-    .delete()
-    .eq("id", feedbackId)
-    .eq("dog_profile_id", dogProfileId)
-    .eq("user_id", user.id);
-
-  if (error) throw friendlyDatabaseError(error, "product feedback");
+  void user;
+  const response = await authenticatedApiFetch("/api/product-feedback", {
+    body: JSON.stringify({ dogProfileId, feedbackId }), headers: { "content-type": "application/json" }, method: "DELETE",
+  });
+  if (!response.ok) { const payload = await response.json().catch(() => null) as { error?: string } | null; throw new Error(payload?.error || "Product feedback could not be removed."); }
 }
 
 export async function saveDogMemories(
@@ -1024,7 +997,10 @@ async function authenticatedApiFetch(path: string, init: RequestInit) {
   if (!token) throw new Error("Please sign in again before continuing.");
   const headers = new Headers(init.headers);
   headers.set("authorization", `Bearer ${token}`);
-  return fetch(path, { ...init, headers });
+  const method = (init.method || "GET").toUpperCase();
+  return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE"
+    ? idempotentClientFetch(path, { ...init, headers }, `${method}:${path}`)
+    : fetch(path, { ...init, headers });
 }
 
 async function ensurePetOwnership(

@@ -1,7 +1,7 @@
 import { parseAskConversationResponse } from "../../../../../lib/ask.mjs";
 import { getAskConversationRequestContext, type AskMessageRow } from "../../../../../lib/ask-conversation-server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../../lib/security/request";
-import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../../../lib/security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "../../../../../lib/security/idempotency";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const context = await getAskConversationRequestContext(request);
@@ -24,21 +24,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!question || question.length > 1200 || !response) return Response.json({ error: "A complete exchange is required." }, { status: 400 });
   const { data: conversation } = await context.supabase.from("ask_conversations").select("id").eq("id", id).eq("user_id", context.userId).maybeSingle<{ id: string }>();
   if (!conversation) return Response.json({ error: "That conversation is not available." }, { status: 404 });
-  const requestId = getRateLimitRequestId(request);
-  const rate = await beginRateLimitedRequest({ payload: { conversationId: id, question }, policy: "CONVERSATION_WRITE", request, requestId, route: "/api/ask/conversations/[id]/messages", userId: context.userId });
-  if (!rate.allowed) return rate.response;
-  const { data: last } = await context.supabase.from("ask_conversation_messages").select("sequence_number").eq("conversation_id", id).eq("user_id", context.userId).order("sequence_number", { ascending: false }).limit(1).maybeSingle<{ sequence_number: number }>();
-  const sequence = (last?.sequence_number || 0) + 1;
-  const { data: messages, error } = await context.supabase
+  const gate = await beginIdempotentRateLimitedOperation({ operationType: "conversation.exchange.create", payload: { contextUsed: body.contextUsed, conversationId: id, question, response, saveMetadata: body.saveMetadata }, policy: "CONVERSATION_WRITE", request, route: "/api/ask/conversations/[id]/messages", supabase: context.supabase, userId: context.userId });
+  if ("response" in gate) return gate.response;
+  return gate.operation.execute(async () => {
+    const { data: last } = await context.supabase.from("ask_conversation_messages").select("sequence_number").eq("conversation_id", id).eq("user_id", context.userId).order("sequence_number", { ascending: false }).limit(1).maybeSingle<{ sequence_number: number }>();
+    const sequence = (last?.sequence_number || 0) + 1;
+    let { data: messages, error } = await context.supabase
     .from("ask_conversation_messages")
     .insert([
-      { conversation_id: id, role: "user", sequence_number: sequence, user_id: context.userId, user_text: question },
-      { context_used: body?.contextUsed || null, conversation_id: id, response_data: response, role: "furvise", save_metadata: body?.saveMetadata || null, sequence_number: sequence + 1, user_id: context.userId },
+      { conversation_id: id, request_id: gate.operation.key, role: "user", sequence_number: sequence, user_id: context.userId, user_text: question },
+      { context_used: body?.contextUsed || null, conversation_id: id, request_id: gate.operation.key, response_data: response, role: "furvise", save_metadata: body?.saveMetadata || null, sequence_number: sequence + 1, user_id: context.userId },
     ])
     .select("id, role, user_text, response_data, save_metadata, context_used, created_at")
     .order("sequence_number", { ascending: true })
     .returns<AskMessageRow[]>();
+    if (error?.code === "23505") {
+      const replay = await context.supabase.from("ask_conversation_messages").select("id, role, user_text, response_data, save_metadata, context_used, created_at").eq("user_id", context.userId).eq("conversation_id", id).eq("request_id", gate.operation.key).order("sequence_number").returns<AskMessageRow[]>();
+      messages = replay.data; error = replay.error;
+    }
   if (error || !messages) return Response.json({ error: "The answer could not be added to history." }, { status: 503 });
   await context.supabase.from("ask_conversations").update({ last_activity_at: new Date().toISOString(), preview: response.directAnswer.slice(0, 220) }).eq("id", id).eq("user_id", context.userId);
-  return Response.json({ messages });
+    return Response.json({ messages });
+  });
 }

@@ -186,9 +186,9 @@ test("Shop product explanation remains click-only from page source", () => {
   const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
   const explainHandler = page.slice(page.indexOf("async function explainProductFit"), page.indexOf("async function interpretSubmittedQuery"));
 
-  assert.equal((page.match(/fetch\("\/api\/shop\/explain-product-fit"/g) || []).length, 1);
-  assert.doesNotMatch(shopResults, /fetch\("\/api\/shop\/explain-product-fit"/);
-  assert.doesNotMatch(productCard, /fetch\("\/api\/shop\/explain-product-fit"/);
+  assert.equal((page.match(/idempotentClientFetch\("\/api\/shop\/explain-product-fit"/g) || []).length, 1);
+  assert.doesNotMatch(shopResults, /idempotentClientFetch\("\/api\/shop\/explain-product-fit"/);
+  assert.doesNotMatch(productCard, /idempotentClientFetch\("\/api\/shop\/explain-product-fit"/);
   assert.match(productCard, /onClick=\{openWhyPanel\}/);
   assert.match(productCard, /function openWhyPanel\(\)[\s\S]*onExplain\(\);/);
   assert.match(explainHandler, /if \(cached\?\.loading \|\| cached\?\.explanation\) return/);

@@ -27,6 +27,7 @@ import { trackAskEvent } from "../lib/ask-analytics";
 import { deriveConversationTitle, formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
 import { toLocalDateTimeInputValue } from "../lib/care-log.mjs";
 import { FURVISE_ANSWER_UNAVAILABLE_MESSAGE } from "../lib/furvise-voice";
+import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import {
   createCareEntryUnlessDuplicate,
   getBrowserSupabase,
@@ -271,7 +272,7 @@ function AskPageContent() {
     if (!prompt || composerUnavailable || askRequestActiveRef.current) return;
     const conversationIdAtSubmit = activeConversationId;
     const previousResponse = latestAnswer?.response || null;
-    const requestId = retry?.requestId || createRequestId();
+    const requestId = retry?.requestId || getOrCreateClientMutationKey(`ask:${selectedPet}:${conversationIdAtSubmit || "new"}`);
     const userMessageId = retry?.userMessageId || createMessageId("user");
     askRequestActiveRef.current = true;
     setRequestPhase(retry ? "retrying" : "submitting");
@@ -284,12 +285,12 @@ function AskPageContent() {
     try {
       const token = await getAskAuthToken();
       if (!token) throw new AskRequestError("AUTH_REQUIRED");
-      const request = fetch("/api/ask", {
+      const request = idempotentClientFetch("/api/ask", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId: conversationIdAtSubmit, locale: navigator.language, message: prompt, petId: selectedPet, previousResponse, question: prompt, requestId, storedAnalysis: readRelevantStoredAnalysis(selectedPet) }),
         signal: AbortSignal.timeout(55_000),
-      });
+      }, `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`, requestId);
       setQuestion("");
       const result = await request;
       setRequestPhase("receiving");
@@ -662,7 +663,6 @@ async function importLegacyConversation(petId: string, known: AskConversationSum
 function getDraftKey(conversationId: string | null, petId: string) { return `furvise:ask-draft:${conversationId || `new:${petId}`}`; }
 function readDraft(key: string) { try { return typeof window === "undefined" ? "" : window.localStorage.getItem(key) || ""; } catch { return ""; } }
 function createMessageId(role: string) { return `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
-function createRequestId() { return globalThis.crypto?.randomUUID?.() || "00000000-0000-4000-8000-" + Math.random().toString(16).slice(2).padEnd(12, "0").slice(0, 12); }
 class AskRequestError extends Error { constructor(public code: AskFailureCode, message = "") { super(message); } }
 class SuggestionApplyError extends Error { constructor(public code: string, message = "") { super(message); this.name = "SuggestionApplyError"; } }
 function getAskFailureCode(error: unknown): AskFailureCode { if (error instanceof AskRequestError) return error.code; if (error instanceof TypeError || (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError"))) return "NETWORK_ERROR"; return "UNKNOWN_ERROR"; }
@@ -692,7 +692,7 @@ function updateMessageSuggestionIfSaving(thread: ConversationMessage[], messageI
     ? { ...item, suggestion: { ...item.suggestion, uiStatus: "idle" as const } }
     : item);
 }
-async function conversationJson(url: string, init: RequestInit = {}) { const token = await getAskAuthToken(); if (!token) throw new Error("Please sign in again."); const response = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) } }); if (response.status === 204) return {}; const payload = await response.json().catch(() => null) as { error?: string } | null; if (!response.ok) throw new Error(payload?.error || "Conversation history is temporarily unavailable."); return payload || {}; }
+async function conversationJson(url: string, init: RequestInit = {}) { const token = await getAskAuthToken(); if (!token) throw new Error("Please sign in again."); const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) }; const method = (init.method || "GET").toUpperCase(); const response = method === "GET" ? await fetch(url, { ...init, headers }) : await idempotentClientFetch(url, { ...init, headers }, `conversation:${method}:${url}`); if (response.status === 204) return {}; const payload = await response.json().catch(() => null) as { error?: string } | null; if (!response.ok) throw new Error(payload?.error || "Conversation history is temporarily unavailable."); return payload || {}; }
 async function fetchConversationList() { const payload = await conversationJson("/api/ask/conversations") as { conversations?: AskConversationSummary[] }; return payload.conversations || []; }
 async function fetchAskUsage() { try { const token = await getAskAuthToken(); if (!token) return null; const response = await fetch("/api/ask", { headers: { Authorization: `Bearer ${token}` }, method: "GET" }); const payload = await response.json().catch(() => null) as { usage?: AskUsageStatus | null } | null; return response.ok && payload?.usage ? payload.usage : null; } catch { return null; } }
 function readRelevantStoredAnalysis(selectedPet: string) { if (typeof window === "undefined" || !selectedPet || window.localStorage.getItem(PROFILE_ID_STORAGE_KEY) !== selectedPet) return null; try { const raw = window.localStorage.getItem(ANALYSIS_STORAGE_KEY); return raw ? parseStoredAnalysis(JSON.parse(raw)) : null; } catch { return null; } }

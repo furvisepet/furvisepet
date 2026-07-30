@@ -1,7 +1,7 @@
 import { buildManualAccountCountryUpdate, normalizeAccountProductCountry } from "../../../lib/account-country";
 import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "../../../lib/security/request";
-import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 import type { UserProfileRow } from "../../../lib/supabase";
 
 export async function POST(request: Request) {
@@ -17,12 +17,13 @@ export async function POST(request: Request) {
   const rawCountry = (raw as { country?: unknown }).country;
   const country = normalizeAccountProductCountry(typeof rawCountry === "string" ? rawCountry : null);
   if (!country) return Response.json({ error: "Choose a supported Product country." }, { status: 400 });
-  const requestId = getRateLimitRequestId(request);
-  const rate = await beginRateLimitedRequest({ payload: { country }, policy: "PROFILE_WRITE", request, requestId, route: "/api/account/product-country", userId: context.userId });
-  if (!rate.allowed) return rate.response;
-  const { data, error } = await context.supabase.from("user_profiles")
-    .upsert(buildManualAccountCountryUpdate({ country, userId: context.userId }), { onConflict: "user_id" })
-    .select().single<UserProfileRow>();
-  if (error || !data) return Response.json({ error: "The account profile could not be saved." }, { status: 503 });
-  return Response.json({ profile: data });
+  const gate = await beginIdempotentRateLimitedOperation({ operationType: "account.country.update", payload: { country }, policy: "PROFILE_WRITE", request, route: "/api/account/product-country", supabase: context.supabase, userId: context.userId });
+  if ("response" in gate) return gate.response;
+  return gate.operation.execute(async () => {
+    const { data, error } = await context.supabase.from("user_profiles")
+      .upsert(buildManualAccountCountryUpdate({ country, userId: context.userId }), { onConflict: "user_id" })
+      .select().single<UserProfileRow>();
+    if (error || !data) return Response.json({ error: "The account profile could not be saved." }, { status: 503 });
+    return Response.json({ profile: data });
+  });
 }

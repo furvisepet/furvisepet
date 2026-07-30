@@ -66,6 +66,7 @@ import {
 } from "../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
+import { claimIdempotentOperation } from "../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -170,6 +171,18 @@ export async function POST(request: Request) {
     return askFailure("INVALID_MESSAGE", "The follow-up context is no longer available. Ask a new question.", 400, {}, "request_validation");
   }
   logAskStage("request validation succeeded", { requestId });
+  const idempotency = await claimIdempotentOperation({
+    candidateKey: requestId,
+    leaseSeconds: 180,
+    operationType: "ask.submit",
+    payload: { conversationId, locale, petId, previousResponse, question },
+    request,
+    retention: "financial",
+    supabase,
+    userId,
+  });
+  if ("response" in idempotency) return idempotency.response;
+  return idempotency.operation.execute(async () => {
   let preparedRequest: PreparedAskRequest;
   let retryReuse = false;
   try {
@@ -503,6 +516,7 @@ export async function POST(request: Request) {
     usage,
     userId,
   }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
+  });
 }
 
 type CompletedAskResponse = NonNullable<ReturnType<typeof buildAskConversationResponse>>;

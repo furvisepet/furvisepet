@@ -1,7 +1,7 @@
 import { getAuthenticatedApiContext } from "../../lib/authenticated-api-server";
 import { parseCareRequest } from "../../lib/care-entry-api-server";
 import { prepareCareEntryForInsert } from "../../lib/care-log.mjs";
-import { beginRateLimitedRequest, getRateLimitRequestId } from "../../lib/security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "../../lib/security/idempotency";
 import type { CareEntryInput, CareEntryRow } from "../../lib/supabase";
 
 export async function POST(request: Request) {
@@ -14,25 +14,30 @@ export async function POST(request: Request) {
   const { data: pet } = await context.supabase.from("dog_profiles").select("id").eq("id", input.petProfileId).eq("user_id", context.userId).maybeSingle<{ id: string }>();
   if (!pet) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
 
-  const requestId = getRateLimitRequestId(request);
-  const rate = await beginRateLimitedRequest({ idempotencyKey: request.headers.get("idempotency-key") || undefined, payload: { dedupe, input }, policy: "CARE_WRITE", request, requestId, route: "/api/care-entries", userId: context.userId });
-  if (!rate.allowed) return rate.response;
+  const gate = await beginIdempotentRateLimitedOperation({ operationType: "care.create", payload: { dedupe, input }, policy: "CARE_WRITE", request, route: "/api/care-entries", supabase: context.supabase, userId: context.userId });
+  if ("response" in gate) return gate.response;
 
-  if (dedupe) {
+  return gate.operation.execute(async () => {
+    if (dedupe) {
     const cutoff = new Date(Date.now() - 86_400_000).toISOString();
     const { data: recent, error: recentError } = await context.supabase.from("pet_care_entries")
       .select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at")
       .eq("pet_profile_id", input.petProfileId).eq("user_id", context.userId).gte("created_at", cutoff)
       .order("created_at", { ascending: false }).limit(50).returns<CareEntryRow[]>();
-    if (recentError) return Response.json({ error: "Care entries are temporarily unavailable." }, { status: 503 });
+      if (recentError) return Response.json({ error: "Care entries are temporarily unavailable." }, { status: 503 });
     const duplicate = (recent || []).find((entry) => isDuplicateGeneratedEntry(entry, input));
-    if (duplicate) return Response.json({ action: "duplicate", entry: duplicate });
-  }
+      if (duplicate) return Response.json({ action: "duplicate", entry: duplicate });
+    }
 
-  const payload = prepareCareEntryForInsert(input, context.userId);
-  const { data, error } = await context.supabase.from("pet_care_entries").insert(payload).select().single<CareEntryRow>();
-  if (error || !data) return Response.json({ error: "The care entry could not be saved." }, { status: 503 });
-  return Response.json(dedupe ? { action: "created", entry: data } : { entry: data }, { status: 201 });
+    const payload = prepareCareEntryForInsert(input, context.userId);
+    const { data, error } = await context.supabase.from("pet_care_entries").insert({ ...payload, idempotency_key: gate.operation.key }).select().single<CareEntryRow>();
+    if (error?.code === "23505") {
+      const { data: replay } = await context.supabase.from("pet_care_entries").select("*").eq("user_id", context.userId).eq("idempotency_key", gate.operation.key).maybeSingle<CareEntryRow>();
+      if (replay) return Response.json(dedupe ? { action: "created", entry: replay } : { entry: replay }, { status: 201 });
+    }
+    if (error || !data) return Response.json({ error: "The care entry could not be saved." }, { status: 503 });
+    return Response.json(dedupe ? { action: "created", entry: data } : { entry: data }, { status: 201 });
+  });
 }
 
 function isDuplicateGeneratedEntry(entry: CareEntryRow, input: CareEntryInput) {

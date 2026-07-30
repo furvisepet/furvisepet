@@ -8,7 +8,7 @@ import {
 } from "../../../lib/ask-conversation-server";
 import { deriveConversationTitle } from "../../../lib/ask-conversations";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
-import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
+import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 
 export async function GET(request: Request) {
   const context = await getAskConversationRequestContext(request);
@@ -64,11 +64,11 @@ export async function POST(request: Request) {
     .maybeSingle<{ id: string; name: string | null }>();
   if (!profile) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
 
-  const requestId = getRateLimitRequestId(request);
-  const rate = await beginRateLimitedRequest({ payload: { petId, question }, policy: "CONVERSATION_WRITE", request, requestId, route: "/api/ask/conversations", userId: context.userId });
-  if (!rate.allowed) return rate.response;
+  const gate = await beginIdempotentRateLimitedOperation({ operationType: "conversation.create", payload: { legacyMessages, petId, question, response }, policy: "CONVERSATION_WRITE", request, route: "/api/ask/conversations", supabase: context.supabase, userId: context.userId });
+  if ("response" in gate) return gate.response;
 
-  const messages = question && response
+  return gate.operation.execute(async () => {
+    const messages = question && response
     ? [
         { role: "user" as const, text: question },
         { role: "furvise" as const, response, saveMetadata: body?.saveMetadata || null, contextUsed: body?.contextUsed || null },
@@ -80,9 +80,10 @@ export async function POST(request: Request) {
     ? latestResponse.response.directAnswer.slice(0, 220)
     : firstQuestion.slice(0, 220);
   const now = new Date().toISOString();
-  const { data: conversation, error: conversationError } = await context.supabase
+    let { data: conversation, error: conversationError } = await context.supabase
     .from("ask_conversations")
     .insert({
+      idempotency_key: gate.operation.key,
       last_activity_at: now,
       pet_profile_id: petId,
       preview,
@@ -92,29 +93,39 @@ export async function POST(request: Request) {
     })
     .select("id, user_id, pet_profile_id, title, preview, status, last_activity_at, dog_profiles(name)")
     .single<AskConversationRow>();
+    if (conversationError?.code === "23505") {
+      const replay = await context.supabase.from("ask_conversations").select("id, user_id, pet_profile_id, title, preview, status, last_activity_at, dog_profiles(name)").eq("user_id", context.userId).eq("idempotency_key", gate.operation.key).maybeSingle<AskConversationRow>();
+      conversation = replay.data; conversationError = replay.error;
+    }
   if (conversationError || !conversation) return Response.json({ error: "The conversation could not be saved." }, { status: 503 });
 
   const rows = messages.map((message, index) => ({
     context_used: message.role === "furvise" ? message.contextUsed : null,
     conversation_id: conversation.id,
     response_data: message.role === "furvise" ? message.response : null,
+    request_id: gate.operation.key,
     role: message.role,
     save_metadata: message.role === "furvise" ? message.saveMetadata : null,
     sequence_number: index + 1,
     user_id: context.userId,
     user_text: message.role === "user" ? message.text : null,
   }));
-  const { data: savedMessages, error: messagesError } = await context.supabase
+  let { data: savedMessages, error: messagesError } = await context.supabase
     .from("ask_conversation_messages")
     .insert(rows)
     .select("id, role, user_text, response_data, save_metadata, context_used, created_at")
     .order("sequence_number", { ascending: true })
     .returns<AskMessageRow[]>();
+  if (messagesError?.code === "23505") {
+    const replay = await context.supabase.from("ask_conversation_messages").select("id, role, user_text, response_data, save_metadata, context_used, created_at").eq("conversation_id", conversation.id).eq("user_id", context.userId).eq("request_id", gate.operation.key).order("sequence_number").returns<AskMessageRow[]>();
+    savedMessages = replay.data; messagesError = replay.error;
+  }
   if (messagesError) {
     await context.supabase.from("ask_conversations").delete().eq("id", conversation.id).eq("user_id", context.userId);
     return Response.json({ error: "The conversation could not be saved." }, { status: 503 });
   }
-  return Response.json({ conversation: toConversationDetail(conversation, savedMessages || []) }, { status: 201 });
+    return Response.json({ conversation: toConversationDetail(conversation, savedMessages || []) }, { status: 201 });
+  });
 }
 
 function conversationBodyError(error: unknown) {

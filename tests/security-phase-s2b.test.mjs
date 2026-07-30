@@ -203,7 +203,7 @@ test("write routes are owner-scoped and use central write policies", () => {
   for (const [path, policy] of routes) {
     const source = read(path);
     assert.match(source, new RegExp(`"${policy}"`), path);
-    assert.match(source, /beginRateLimitedRequest/, path);
+    assert.match(source, /beginIdempotentRateLimitedOperation/, path);
     assert.match(source, /userId/, path);
   }
 });
