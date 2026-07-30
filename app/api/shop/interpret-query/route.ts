@@ -1,7 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getAiRuntimeDiagnostics } from "../../../lib/ai/config";
+import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { AiCreditLedgerError, getRemainingAiCredits, runWithAiCredit, type AiCreditStatus } from "../../../lib/ai/usage-ledger";
+import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
+import { AiAdmissionError } from "../../../lib/ai/usage-guard/errors";
 import {
   getUserPlan,
   type PlanId,
@@ -279,7 +282,10 @@ export async function POST(request: Request) {
       queryHash: queryHashForLogs,
     });
     let persistenceWarning = "";
-    const generated = await runWithAiCredit<FeatureIntelligenceResult<ShopQueryInterpretation>>({
+    const generated = await runAdmittedAiOperation({
+      feature: "product_query", intendedModel: getAskModelConfiguration().primary,
+      payload: { petId, productCountry, query }, requestId, userId: context.userId,
+    }, () => runWithAiCredit<FeatureIntelligenceResult<ShopQueryInterpretation>>({
       feature: "product_query",
       planId: context.planId,
       requestId,
@@ -304,7 +310,7 @@ export async function POST(request: Request) {
           logShopInterpretationFallback(error, classifyShopInterpretationFailure(error, runtimeDiagnostics));
         }
       },
-    });
+    }));
     const normalized = generated.value.value;
     logShopInterpretationDiagnostic("AI interpretation succeeded", {
       category: normalized.category,
@@ -341,6 +347,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof RateLimitRejection) return error.response;
+    const admissionCode = error instanceof AiAdmissionError
+      ? (error.code === "AI_PROVIDER_BUDGET_EXHAUSTED" ? "AI_TEMPORARILY_UNAVAILABLE" : error.code)
+      : undefined;
     const failure = classifyShopInterpretationFailure(error, runtimeDiagnostics);
     logShopInterpretationFallback(error, failure);
     const fallbackInterpretation = fallback();
@@ -364,6 +373,7 @@ export async function POST(request: Request) {
       productSafety,
       mode: "deterministic", aiRequired: true, aiUnavailable: true, creditsExhausted: false,
       message: "AI guidance is unavailable right now, but these products match the filters we could identify.",
+      ...(admissionCode ? { code: admissionCode } : {}),
       usage,
     });
   } finally {

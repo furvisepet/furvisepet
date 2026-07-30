@@ -38,6 +38,7 @@ import {
 import { OPENAI_ANALYSIS_MODEL, OPENAI_OUTPUT_LIMITS, OPENAI_PROVIDER_TIMEOUT_MS, getAiRuntimeDiagnostics } from "../config";
 import { FURVISE_RESULTS_PROMPT_RULES } from "../../furvise-voice.ts";
 import { AiAnalysisProvider, AnalyzeDogProfileInput, AnalyzeSafetyFollowupInput } from "../provider";
+import { executeAdmittedProviderCall } from "../usage-guard/provider-call-budget.ts";
 
 const systemPrompt = [
   "You are Furvise, a calm and thoughtful pet-care advisor.",
@@ -90,7 +91,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
   }
 
   async analyzeDogProfile({ memories = [], profile }: AnalyzeDogProfileInput): Promise<PetWiseAnalysis> {
-    const response = await this.client.responses.create({
+    const request = {
       model: OPENAI_ANALYSIS_MODEL,
       max_output_tokens: OPENAI_OUTPUT_LIMITS.analysis,
       instructions: systemPrompt,
@@ -111,7 +112,8 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: analysisJsonSchema,
         },
       },
-    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
+    };
+    const response = await this.execute(request, OPENAI_OUTPUT_LIMITS.analysis);
 
     const parsed = parseAnalysis(JSON.parse(response.output_text));
     if (!parsed) {
@@ -127,7 +129,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
     profile,
     questions,
   }: AnalyzeSafetyFollowupInput): Promise<SafetyFollowupResult> {
-    const response = await this.client.responses.create({
+    const request = {
       model: OPENAI_ANALYSIS_MODEL,
       max_output_tokens: OPENAI_OUTPUT_LIMITS.safetyFollowup,
       instructions: safetyFollowupSystemPrompt,
@@ -145,7 +147,8 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: safetyFollowupJsonSchema,
         },
       },
-    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
+    };
+    const response = await this.execute(request, OPENAI_OUTPUT_LIMITS.safetyFollowup);
 
     const parsed = parseSafetyFollowupResult(JSON.parse(response.output_text));
     if (!parsed) {
@@ -157,7 +160,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
 
   async interpretShopQuery(input: ShopQueryInterpretationInput): Promise<ShopQueryInterpretation> {
     logShopProviderDiagnostic("request reached provider", getAiRuntimeDiagnostics());
-    const response = await this.client.responses.create({
+    const request = {
       model: OPENAI_ANALYSIS_MODEL,
       max_output_tokens: OPENAI_OUTPUT_LIMITS.shopInterpretation,
       instructions: shopQueryInterpretationSystemPrompt,
@@ -170,7 +173,8 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: shopQueryInterpretationJsonSchema,
         },
       },
-    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
+    };
+    const response = await this.execute(request, OPENAI_OUTPUT_LIMITS.shopInterpretation);
 
     let raw: unknown;
     try {
@@ -195,7 +199,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
   }
 
   async explainShopProductFit(input: ShopProductFitExplanationInput): Promise<ShopProductFitExplanation> {
-    const response = await this.client.responses.create({
+    const request = {
       model: OPENAI_ANALYSIS_MODEL,
       max_output_tokens: OPENAI_OUTPUT_LIMITS.productFit,
       instructions: shopProductFitExplanationSystemPrompt,
@@ -208,7 +212,8 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: shopProductFitExplanationJsonSchema,
         },
       },
-    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
+    };
+    const response = await this.execute(request, OPENAI_OUTPUT_LIMITS.productFit);
 
     const parsed = parseShopProductFitExplanation(
       JSON.parse(response.output_text),
@@ -222,7 +227,7 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
   }
 
   async answerShopProductQuestion(input: ShopProductQuestionInput): Promise<ShopProductQuestionAnswer> {
-    const response = await this.client.responses.create({
+    const request = {
       model: OPENAI_ANALYSIS_MODEL,
       max_output_tokens: OPENAI_OUTPUT_LIMITS.productQuestion,
       instructions: shopProductQuestionSystemPrompt,
@@ -235,7 +240,8 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
           schema: shopProductQuestionJsonSchema,
         },
       },
-    }, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) });
+    };
+    const response = await this.execute(request, OPENAI_OUTPUT_LIMITS.productQuestion);
 
     const parsed = parseShopProductQuestionAnswer(
       JSON.parse(response.output_text),
@@ -246,6 +252,15 @@ export class OpenAiAnalysisProvider implements AiAnalysisProvider {
     }
 
     return parsed;
+  }
+
+  private execute(request: { model: string; max_output_tokens: number; instructions: string; input: string; text: object }, maxOutputTokens: number) {
+    return executeAdmittedProviderCall({
+      invoke: () => this.client.responses.create(request, { signal: AbortSignal.timeout(OPENAI_PROVIDER_TIMEOUT_MS) }),
+      maxOutputTokens,
+      model: request.model,
+      providerInput: { input: request.input, instructions: request.instructions },
+    });
   }
 }
 

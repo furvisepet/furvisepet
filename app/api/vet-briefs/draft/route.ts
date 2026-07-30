@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { AiCreditLimitReachedError, runWithAiCredit } from "../../../lib/ai/usage-ledger";
+import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
+import { AiAdmissionError, aiAdmissionErrorResponse } from "../../../lib/ai/usage-guard/errors";
 import {
   buildFurviseContext,
   logIntelligenceEvent,
@@ -91,7 +94,10 @@ export async function POST(request: Request) {
       route: "/api/vet-briefs/draft",
       userId: auth.userId,
     });
-    const generated = await runWithAiCredit<FeatureIntelligenceResult<IntelligenceVetBrief>>({
+    const generated = await runAdmittedAiOperation({
+      feature: "vet_brief", intendedModel: getAskModelConfiguration().primary,
+      payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, requestId, userId: auth.userId,
+    }, () => runWithAiCredit<FeatureIntelligenceResult<IntelligenceVetBrief>>({
       feature: "vet_brief", planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
       generate: async () => runFeatureIntelligence({
         context, feature: "vet_brief", maxOutputTokens: 1800,
@@ -106,7 +112,7 @@ export async function POST(request: Request) {
         },
         parseValue: (value) => parseIntelligenceVetBrief(value, baseline.document, allowedSourceRecordIds),
       }),
-    });
+    }));
     const generatedDocument = preserveOwnerEdits(generated.value.value.document, existingDocument);
     logIntelligenceEvent("vet brief generated", {
       feature: "vet_brief", petId, requestId, selectedCareEventCount: context.selectedCareEntries.length,
@@ -120,6 +126,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof RateLimitRejection) return error.response;
+    if (error instanceof AiAdmissionError) return aiAdmissionErrorResponse(error, requestId);
     if (error instanceof AiCreditLimitReachedError) {
       return Response.json({ error: "You've used all of your AI guidance for this month.", limitReached: true }, { status: 402 });
     }

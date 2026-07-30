@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { recordActiveAiUserCreditState } from "./usage-guard/context.ts";
 import { getPlanCapabilities, type PlanId } from "../billing/plan-limits.ts";
 
 export const AI_USAGE_EVENTS_TABLE = "ai_usage_events";
@@ -109,7 +110,9 @@ export async function reserveAiCredit({
     p_request_id: requestId,
   });
   if (error) throw new AiCreditLedgerError("reservation_failed", error, "reserve_ai_credit", "rpc");
-  return parseLedgerResult(data, "reservation_status");
+  const result = parseLedgerResult(data, "reservation_status");
+  recordActiveAiUserCreditState(result.status === "completed" ? "reused" : result.status);
+  return result;
 }
 
 export async function completeAiCredit({
@@ -128,7 +131,9 @@ export async function completeAiCredit({
     p_request_id: requestId,
   });
   if (error) throw new AiCreditLedgerError("completion_failed", error, "complete_ai_credit", "rpc");
-  return parseLedgerResult(data, "event_status");
+  const result = parseLedgerResult(data, "event_status");
+  recordActiveAiUserCreditState(result.status === "completed" ? "completed" : result.status === "released" ? "released" : "reserved");
+  return result;
 }
 
 export async function releaseAiCredit({
@@ -147,7 +152,9 @@ export async function releaseAiCredit({
     p_request_id: requestId,
   });
   if (error) throw new AiCreditLedgerError("release_failed", error, "release_ai_credit", "rpc");
-  return parseLedgerResult(data, "event_status");
+  const result = parseLedgerResult(data, "event_status");
+  recordActiveAiUserCreditState(result.status === "released" ? "released" : result.status === "completed" ? "completed" : "reserved");
+  return result;
 }
 
 export class AiCreditLedgerError extends Error {

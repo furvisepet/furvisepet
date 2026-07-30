@@ -7,7 +7,10 @@ import {
   validateDogProfileInput,
 } from "../../lib/ai-analysis";
 import { createAiAnalysisProvider } from "../../lib/ai/provider";
+import { OPENAI_ANALYSIS_MODEL } from "../../lib/ai/config";
 import { AiCreditLimitReachedError, runWithAiCredit } from "../../lib/ai/usage-ledger";
+import { runAdmittedAiOperation } from "../../lib/ai/usage-guard/admission";
+import { AiAdmissionError, aiAdmissionErrorResponse } from "../../lib/ai/usage-guard/errors";
 import { getUserPlan } from "../../lib/billing/plan-limits";
 import { API_BODY_LIMITS, RequestBoundaryError, readBoundedJson } from "../../lib/security/request";
 import { safeErrorForLog } from "../../lib/security/logging";
@@ -59,13 +62,15 @@ export async function POST(request: Request) {
       route: "/api/analyze",
       userId: context.userId,
     });
-    const generated = await runWithAiCredit({ feature: "care_plan", planId: context.planId, requestId, supabase: context.supabase, userId: context.userId, generate: async () => {
-      const provider = createAiAnalysisProvider();
-      const analysis = await provider.analyzeDogProfile({ profile: validation.profile, memories });
-      const validatedAnalysis = parseAnalysis(analysis);
-      if (!validatedAnalysis) throw new Error("AI_SCHEMA_INVALID");
-      return validatedAnalysis;
-    } });
+    const generated = await runAdmittedAiOperation({
+      feature: "care_plan", intendedModel: OPENAI_ANALYSIS_MODEL, payload: { memories, profile: validation.profile }, requestId, userId: context.userId,
+    }, () => runWithAiCredit({ feature: "care_plan", planId: context.planId, requestId, supabase: context.supabase, userId: context.userId, generate: async () => {
+        const provider = createAiAnalysisProvider();
+        const analysis = await provider.analyzeDogProfile({ profile: validation.profile, memories });
+        const validatedAnalysis = parseAnalysis(analysis);
+        if (!validatedAnalysis) throw new Error("AI_SCHEMA_INVALID");
+        return validatedAnalysis;
+      } }));
     const validatedAnalysis = generated.value;
 
     console.info("Furvise analysis completed", {
@@ -76,6 +81,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ analysis: validatedAnalysis, usage: generated.usage });
   } catch (error) {
     if (error instanceof RateLimitRejection) return error.response;
+    if (error instanceof AiAdmissionError) return aiAdmissionErrorResponse(error, requestId);
     if (error instanceof AiCreditLimitReachedError) return NextResponse.json({ error: "You have used this month's AI credits.", limitReached: true }, { status: 402 });
     console.warn("Furvise analysis unavailable", {
       provider: process.env.PETWISE_AI_PROVIDER || "openai",

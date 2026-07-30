@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getAiRuntimeDiagnostics } from "../../../lib/ai/config";
+import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { loadShopCatalogProductById } from "../../../lib/catalog/compatibility";
 import { AiCreditLedgerError, getRemainingAiCredits, runWithAiCredit, type AiCreditStatus } from "../../../lib/ai/usage-ledger";
+import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
+import { AiAdmissionError } from "../../../lib/ai/usage-guard/errors";
 import {
   getUserPlan,
   type PlanId,
@@ -224,7 +227,10 @@ export async function POST(request: Request) {
       productQuestionIntent: questionIntent.intent,
     });
     let persistenceWarning = "";
-    const generated = await runWithAiCredit<FeatureIntelligenceResult<ShopProductQuestionAnswer>>({
+    const generated = await runAdmittedAiOperation({
+      feature: "product_question", intendedModel: getAskModelConfiguration().primary,
+      payload: { interpretation, petId, productCountry, productId, query, question }, requestId, userId: context.userId,
+    }, () => runWithAiCredit<FeatureIntelligenceResult<ShopProductQuestionAnswer>>({
       feature: "product_question",
       planId: context.planId,
       requestId,
@@ -249,7 +255,7 @@ export async function POST(request: Request) {
           logProductQuestionFallback(error);
         }
       },
-    });
+    }));
     const normalized = generated.value.value;
 
     logProductQuestionDiagnostic("final response", {
@@ -261,12 +267,16 @@ export async function POST(request: Request) {
     return Response.json({ answer: normalized, fallback: false, responseSource: "ai", usage: generated.usage, usageUnavailable: false, ...(persistenceWarning ? { persistenceWarning } : {}) });
   } catch (error) {
     if (error instanceof RateLimitRejection) return error.response;
+    const admissionCode = error instanceof AiAdmissionError
+      ? (error.code === "AI_PROVIDER_BUDGET_EXHAUSTED" ? "AI_TEMPORARILY_UNAVAILABLE" : error.code)
+      : undefined;
     const failure = classifyProductQuestionFailure(error);
     logProductQuestionFallback(error, failure);
     logProductQuestionDiagnostic("final response", {
       aiSucceeded: false,
       failureCategory: failure.category,
       fallbackReason: failure.reason,
+      ...(admissionCode ? { aiUnavailable: true, code: admissionCode } : {}),
       finalResponseSource: "fallback",
       productQuestionCategory: questionCategory,
       productQuestionIntent: questionIntent.intent,

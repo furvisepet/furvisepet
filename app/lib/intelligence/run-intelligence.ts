@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AskProviderEvent, AskReasoningResult } from "../ai/ask-reasoning";
 import { generateContextAwareAskResponse } from "../ai/ask-reasoning";
+import { isAiMemoryExtractionEnabled } from "../ai/usage-guard/config.ts";
 import { buildRecentAskUpdates } from "../ask-safety-context";
 import { classifyMessageDeterministically } from "./classify-message";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "./memory-policy";
@@ -86,7 +87,10 @@ export async function runFurviseIntelligence({
   else if (reasoning.intelligenceSafety.level === "monitor" || reasoning.intelligenceSafety.level === "recently_resolved") reasoning.safetyLevel = "monitor";
   else reasoning.safetyLevel = "normal";
 
-  const learningPolicy = evaluateLearningPolicy(reasoning.learnings, context.currentMessage, context.pet.id);
+  const memoryExtractionEnabled = isAiMemoryExtractionEnabled();
+  const learningPolicy = memoryExtractionEnabled
+    ? evaluateLearningPolicy(reasoning.learnings, context.currentMessage, context.pet.id)
+    : { accepted: [], rejected: reasoning.learnings.map((learning) => ({ learning, reason: "global_memory_extraction_disabled" })) };
   const carePolicy = modelGroundedResolution ? proposedResolutionPolicy : evaluateCareActionPolicy({
     actions: reasoning.careActions, currentMessage: context.currentMessage,
     understanding: reasoning.messageUnderstanding, safetyLevel: reasoning.intelligenceSafety.level,

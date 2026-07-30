@@ -13,7 +13,10 @@ import {
 } from "../../../lib/shop/product-fit-explanation";
 import { filterAndRankShopProducts } from "../../../lib/shop/product-search";
 import { parseShopQueryInterpretation } from "../../../lib/shop-query";
+import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { AiCreditLimitReachedError, getRemainingAiCredits, runWithAiCredit, type AiCreditStatus } from "../../../lib/ai/usage-ledger";
+import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
+import { AiAdmissionError } from "../../../lib/ai/usage-guard/errors";
 import { getUserPlan, type PlanId } from "../../../lib/billing/plan-limits";
 import { buildFurviseContext, resolveProductSafety, runFeatureIntelligence, type FeatureIntelligenceResult } from "../../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
@@ -111,7 +114,10 @@ export async function POST(request: Request) {
       route: "/api/shop/explain-product-fit",
       userId: context.userId,
     });
-    const generated = await runWithAiCredit<FeatureIntelligenceResult<ShopProductFitExplanation>>({
+    const generated = await runAdmittedAiOperation({
+      feature: "product_explanation", intendedModel: getAskModelConfiguration().primary,
+      payload: { interpretation, petId, productCountry, productId, query }, requestId, userId: context.userId,
+    }, () => runWithAiCredit<FeatureIntelligenceResult<ShopProductFitExplanation>>({
       feature: "product_explanation",
       planId: context.planId,
       requestId,
@@ -123,10 +129,15 @@ export async function POST(request: Request) {
         maxOutputTokens: 360,
         parseValue: (value) => parseShopProductFitExplanation(value, memory.pet.name || "this pet"),
       }),
-    });
+    }));
     return Response.json({ explanation: generated.value.value, fallback: false, usage: generated.usage });
   } catch (error) {
     if (error instanceof RateLimitRejection) return error.response;
+    if (error instanceof AiAdmissionError) return Response.json({
+      aiUnavailable: true, code: error.code === "AI_PROVIDER_BUDGET_EXHAUSTED" ? "AI_TEMPORARILY_UNAVAILABLE" : error.code,
+      explanation: fallback(), fallback: true,
+      message: "AI guidance is temporarily unavailable. You can still browse products directly.",
+    });
     if (error instanceof AiCreditLimitReachedError) return Response.json({ error: "You have used this month's AI credits.", limitReached: true, usage: context.usage }, { status: 402 });
     logShopProductFitFallback(error);
     return Response.json({ explanation: fallback(), fallback: true });

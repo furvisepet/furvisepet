@@ -7,6 +7,9 @@ import {
   parseAnalysis,
 } from "../../lib/ai-analysis";
 import { AiCreditLimitReachedError, runWithAiCredit } from "../../lib/ai/usage-ledger";
+import { getAskModelConfiguration } from "../../lib/ai/ask-reasoning";
+import { runAdmittedAiOperation } from "../../lib/ai/usage-guard/admission";
+import { AiAdmissionError, aiAdmissionErrorResponse } from "../../lib/ai/usage-guard/errors";
 import { getUserPlan, type PlanId } from "../../lib/billing/plan-limits";
 import {
   adaptSafetyFollowupToLegacy,
@@ -78,7 +81,10 @@ export async function POST(request: Request) {
       userId: auth.userId,
     });
     let persistenceWarning = "";
-    const generated = await runWithAiCredit<FeatureIntelligenceResult<IntelligenceSafetyFollowup>>({
+    const generated = await runAdmittedAiOperation({
+      feature: "safety_followup", intendedModel: getAskModelConfiguration().primary,
+      payload: { answers, petId, questions }, requestId, userId: auth.userId,
+    }, () => runWithAiCredit<FeatureIntelligenceResult<IntelligenceSafetyFollowup>>({
       feature: "safety_followup", planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
       generate: async () => runFeatureIntelligence({
         context, feature: "safety_followup", maxOutputTokens: 650,
@@ -105,7 +111,7 @@ export async function POST(request: Request) {
           logIntelligenceEvent("safety follow-up learning persistence failed", { feature: "safety_followup", petId, requestId, safeCode: "NONFATAL_PERSISTENCE" });
         }
       },
-    });
+    }));
     const structured = generated.value.value;
     const safetyLevel = applySafetyFloor(structured.safetyLevel, generated.value.safety);
     const normalized = { ...structured, safetyLevel, shoppingSuppressed: safetyLevel === "urgent" || safetyLevel === "emergency" ? true : structured.shoppingSuppressed };
@@ -118,6 +124,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...legacy, intelligence: normalized, ...(persistenceWarning ? { persistenceWarning } : {}), usage: generated.usage });
   } catch (error) {
     if (error instanceof RateLimitRejection) return error.response;
+    if (error instanceof AiAdmissionError) return aiAdmissionErrorResponse(error, requestId);
     if (error instanceof AiCreditLimitReachedError) return NextResponse.json({ error: "You have used this month's AI credits.", limitReached: true }, { status: 402 });
     logIntelligenceEvent("safety follow-up failed", { feature: "safety_followup", petId, requestId, safeCode: "GENERATION_UNAVAILABLE" });
     return NextResponse.json({ error: "Safety guidance is temporarily unavailable.", fallback: true }, { status: 503 });

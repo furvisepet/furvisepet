@@ -16,6 +16,8 @@ import {
   type AskProviderEvent,
 } from "../../lib/ai/ask-reasoning";
 import { orchestrateAskTurn } from "../../lib/ai/ask-orchestrator";
+import { runAdmittedAiOperation } from "../../lib/ai/usage-guard/admission";
+import { AiAdmissionError, aiAdmissionErrorResponse } from "../../lib/ai/usage-guard/errors";
 import type { PendingUpdateSuggestion, PetConcern } from "../../lib/ai/concern-engine";
 import {
   AiCreditLedgerError,
@@ -338,53 +340,58 @@ export async function POST(request: Request) {
           route: "/api/ask",
           userId,
         });
-        if (!usage.allowed) throw new AiCreditLimitError();
         const model = getAskModelConfiguration().primary;
-        const cooldown = getAskProviderCooldown(model);
-        if (cooldown.active) {
-          throw new AskPipelineError("primary_provider_failed", "Ask provider is cooling down.", {
-            elapsedMs: 0,
-            model,
-            providerErrorCode: "rate_limit_exceeded",
-            providerErrorType: "requests",
-            providerStatus: 429,
-            retryAfterMs: cooldown.retryAfterMs,
-          });
-        }
-        if (usage.ledgerMode === "development_missing_migration") {
-          logAskStage("AI credit persistence skipped", { reason: "development_missing_migration", requestId });
+        return runAdmittedAiOperation({
+          feature: "ask", intendedModel: model,
+          payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId, userId,
+        }, async () => {
+          if (!usage.allowed) throw new AiCreditLimitError();
+          const cooldown = getAskProviderCooldown(model);
+          if (cooldown.active) {
+            throw new AskPipelineError("primary_provider_failed", "Ask provider is cooling down.", {
+              elapsedMs: 0,
+              model,
+              providerErrorCode: "rate_limit_exceeded",
+              providerErrorType: "requests",
+              providerStatus: 429,
+              retryAfterMs: cooldown.retryAfterMs,
+            });
+          }
+          if (usage.ledgerMode === "development_missing_migration") {
+            logAskStage("AI credit persistence skipped", { reason: "development_missing_migration", requestId });
+            intelligenceResult = await withTimeout(runFurviseIntelligence({
+              context: liveContext,
+              requestId,
+              sourceMessageId: preparedRequest.userMessageId,
+              onProviderEvent: generationInput.onProviderEvent,
+            }), askRequestTimeoutMs);
+            return intelligenceResult.reasoning;
+          }
+          const reservation = await reserveAiCredit({ feature: "ask", planId, requestId, supabase, userId });
+          if (reservation.status === "limit_reached") throw new AiCreditLimitError();
+          creditReserved = reservation.status === "reserved";
+          creditFinalState = reservation.status;
+          logAskStage("AI credit reserved", { creditReservationId: requestId, feature: "ask", requestId, retryReuse, status: reservation.status });
           intelligenceResult = await withTimeout(runFurviseIntelligence({
             context: liveContext,
             requestId,
             sourceMessageId: preparedRequest.userMessageId,
             onProviderEvent: generationInput.onProviderEvent,
           }), askRequestTimeoutMs);
+          logAskStage("intelligence validated", {
+            acceptedCareActions: intelligenceResult.acceptedCareActions.length,
+            acceptedLearnings: intelligenceResult.acceptedLearnings.length,
+            rejectedCareActions: intelligenceResult.rejectedCareActionCount,
+            rejectedLearnings: intelligenceResult.rejectedLearningCount,
+            requestId,
+            safetyLevel: intelligenceResult.reasoning.intelligenceSafety.level,
+            proposedActionCount: intelligenceResult.reasoning.careActions.length + intelligenceResult.reasoning.learnings.length,
+            acceptedActionCount: intelligenceResult.acceptedCareActions.length + intelligenceResult.acceptedLearnings.length,
+            rejectedActionCount: intelligenceResult.rejectedCareActionCount + intelligenceResult.rejectedLearningCount,
+            deterministicRepairsApplied: intelligenceResult.answerValidation.repairs,
+          });
           return intelligenceResult.reasoning;
-        }
-        const reservation = await reserveAiCredit({ feature: "ask", planId, requestId, supabase, userId });
-        if (reservation.status === "limit_reached") throw new AiCreditLimitError();
-        creditReserved = reservation.status === "reserved";
-        creditFinalState = reservation.status;
-        logAskStage("AI credit reserved", { creditReservationId: requestId, feature: "ask", requestId, retryReuse, status: reservation.status });
-        intelligenceResult = await withTimeout(runFurviseIntelligence({
-          context: liveContext,
-          requestId,
-          sourceMessageId: preparedRequest.userMessageId,
-          onProviderEvent: generationInput.onProviderEvent,
-        }), askRequestTimeoutMs);
-        logAskStage("intelligence validated", {
-          acceptedCareActions: intelligenceResult.acceptedCareActions.length,
-          acceptedLearnings: intelligenceResult.acceptedLearnings.length,
-          rejectedCareActions: intelligenceResult.rejectedCareActionCount,
-          rejectedLearnings: intelligenceResult.rejectedLearningCount,
-          requestId,
-          safetyLevel: intelligenceResult.reasoning.intelligenceSafety.level,
-          proposedActionCount: intelligenceResult.reasoning.careActions.length + intelligenceResult.reasoning.learnings.length,
-          acceptedActionCount: intelligenceResult.acceptedCareActions.length + intelligenceResult.acceptedLearnings.length,
-          rejectedActionCount: intelligenceResult.rejectedCareActionCount + intelligenceResult.rejectedLearningCount,
-          deterministicRepairsApplied: intelligenceResult.answerValidation.repairs,
         });
-        return intelligenceResult.reasoning;
       },
     });
     logAskStage("turn orchestrated", {
@@ -403,6 +410,7 @@ export async function POST(request: Request) {
     logAskStage("Ask generation finalized", { creditFinalState, creditReservationId: requestId, providerCallCount, requestId, retryReuse });
     if (rateGateRef.current) await rateGateRef.current.release();
     if (error instanceof RateLimitRejection) return error.response;
+    if (error instanceof AiAdmissionError) return aiAdmissionErrorResponse(error, requestId);
     if (error instanceof AiCreditLimitError) {
       return askFailure("RATE_LIMITED", "You have used this month's AI credits. Your pet profiles, history, saved details, and non-AI tools are still available.", 429, { usage }, "credit_limit");
     }

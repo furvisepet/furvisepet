@@ -1,12 +1,13 @@
 import OpenAI from "openai";
+import { executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
 import {
   buildFurviseSafetyLine,
   buildMissingSavedInformationMessage,
   FURVISE_SHARED_PROMPT_RULES,
 } from "../furvise-voice.ts";
-import type { PetMemoryContext } from "../pet-memory";
+import type { PetMemoryContext } from "../pet-memory.ts";
 import { FURVISE_SAFETY_LINE } from "../safety-copy.ts";
-import { OPENAI_ANALYSIS_MODEL } from "./config.ts";
+import { OPENAI_ANALYSIS_MODEL, OPENAI_OUTPUT_LIMITS } from "./config.ts";
 import {
   getPetReferenceGuidance,
   removeUnsupportedGenderedPronouns,
@@ -48,12 +49,13 @@ type GenerateGroundedAskAnswerInput = {
 
 type GroundedAskOpenAiClient = {
   responses: {
-    create(request: GroundedAskOpenAiRequest, options?: { signal?: AbortSignal }): Promise<{ output_text: string }>;
+    create(request: GroundedAskOpenAiRequest, options?: { signal?: AbortSignal }): Promise<{ output_text: string; usage?: unknown }>;
   };
 };
 
 type GroundedAskOpenAiRequest = {
   model: string;
+  max_output_tokens: number;
   instructions: string;
   input: string;
   text: {
@@ -145,8 +147,9 @@ export async function generateGroundedAskAnswer({
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 40_000);
   try {
-    const response = await activeClient.responses.create({
+    const providerRequest: GroundedAskOpenAiRequest = {
       model: OPENAI_ANALYSIS_MODEL,
+      max_output_tokens: OPENAI_OUTPUT_LIMITS.analysis,
       instructions: groundedAskSystemPrompt,
       input: JSON.stringify(payload),
       text: {
@@ -157,7 +160,13 @@ export async function generateGroundedAskAnswer({
           schema: groundedAskJsonSchema,
         },
       },
-    }, { signal: controller.signal });
+    };
+    const response = await executeAdmittedProviderCall({
+      invoke: () => activeClient.responses.create(providerRequest, { signal: controller.signal }),
+      maxOutputTokens: OPENAI_OUTPUT_LIMITS.analysis,
+      model: OPENAI_ANALYSIS_MODEL,
+      providerInput: { input: providerRequest.input, instructions: providerRequest.instructions },
+    });
 
     const parsed = parseGroundedAskOutput(
       JSON.parse(response.output_text),

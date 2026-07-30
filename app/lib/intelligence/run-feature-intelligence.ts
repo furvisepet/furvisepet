@@ -1,6 +1,7 @@
 import "server-only";
 
 import { generateStructuredFeatureResponse, type AskProviderEvent } from "../ai/ask-reasoning";
+import { isAiMemoryExtractionEnabled } from "../ai/usage-guard/config.ts";
 import { FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice";
 import { getIntelligenceFeatureMode } from "./feature-modes";
 import { logIntelligenceEvent } from "./logging";
@@ -72,9 +73,10 @@ export async function runFeatureIntelligence<T>({
   if (!value) throw new Error(`${mode.responseSchemaName} failed compatibility validation.`);
   const proposedLearnings = Array.isArray(raw.learnings) ? raw.learnings.filter(isIntelligenceLearning) : [];
   const proposedCareActions = Array.isArray(raw.careActions) ? raw.careActions.filter(isIntelligenceCareAction) : [];
-  const learningPolicy = mode.persistencePolicy.allowMemories
+  const memoryExtractionEnabled = isAiMemoryExtractionEnabled();
+  const learningPolicy = mode.persistencePolicy.allowMemories && memoryExtractionEnabled
     ? evaluateLearningPolicy(proposedLearnings, context.currentMessage, context.pet.id)
-    : { accepted: [], rejected: proposedLearnings.map((learning) => ({ learning, reason: "feature_memory_disabled" })) };
+    : { accepted: [], rejected: proposedLearnings.map((learning) => ({ learning, reason: memoryExtractionEnabled ? "feature_memory_disabled" : "global_memory_extraction_disabled" })) };
   const carePolicy = mode.persistencePolicy.allowCareActions
     ? evaluateCareActionPolicy({
       actions: proposedCareActions, currentMessage: context.currentMessage,

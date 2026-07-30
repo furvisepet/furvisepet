@@ -900,14 +900,15 @@ test("product question route only completes a shared credit after valid AI outpu
   const offTopicGuard = route.indexOf('if (questionIntent.intent === "clearly_off_topic")');
   const capCheck = route.indexOf("if (!context.usage.allowed)");
   const providerCall = route.indexOf("runFeatureIntelligence", capCheck);
-  const usageCompletion = route.indexOf("const generated = await runWithAiCredit", capCheck);
+  const admission = route.indexOf("const generated = await runAdmittedAiOperation", capCheck);
+  const usageCompletion = route.indexOf("runWithAiCredit<FeatureIntelligenceResult", admission);
 
   assert.match(invalidBranch, /Choose a pet, product, and shorter product question/);
   assert.doesNotMatch(invalidBranch, /runWithAiCredit|answerShopProductQuestion|createAiAnalysisProvider/);
   assert.ok(offTopicGuard > -1);
   assert.ok(capCheck > offTopicGuard);
   assert.ok(providerCall > capCheck);
-  assert.ok(usageCompletion > capCheck && usageCompletion < providerCall);
+  assert.ok(admission > capCheck && usageCompletion > admission && usageCompletion < providerCall);
   assert.match(route.slice(offTopicGuard, capCheck), /buildOffTopicShopProductQuestionAnswer\(\{ memory \}\)/);
   assert.doesNotMatch(route.slice(offTopicGuard, capCheck), /answerShopProductQuestion|runWithAiCredit/);
   assert.match(capBranch, /status: 402/);

@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { AiAdmissionError } from "./usage-guard/errors.ts";
+import { executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow } from "../supabase.ts";
 import { FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import {
@@ -737,6 +739,7 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
     onEvent?.({ stage, outcome: "failed", ...failure.diagnostics });
     throw failure;
   } catch (error) {
+    if (error instanceof AiAdmissionError) throw error;
     if (error instanceof AskPipelineError) throw error;
     const diagnostics = providerDiagnostics(error);
     const failureStage = stage === "primary"
@@ -759,7 +762,14 @@ async function createWithTimeout(client: AskReasoningOpenAiClient, request: Reco
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await client.responses.create(request, { signal: controller.signal });
+    const model = typeof request.model === "string" ? request.model : "";
+    const maxOutputTokens = typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0;
+    return await executeAdmittedProviderCall({
+      invoke: () => client.responses.create(request, { signal: controller.signal }),
+      maxOutputTokens,
+      model,
+      providerInput: { input: request.input, instructions: request.instructions },
+    });
   } finally {
     clearTimeout(timeout);
   }
