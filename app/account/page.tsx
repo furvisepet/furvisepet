@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AppPage } from "../components/app-page";
+import { accountInputClass } from "../components/account-access";
 import { PageHeader, PrimaryButton } from "../components/product-primitives";
 import { getAccountCountrySourceLabel } from "../lib/account-country";
+import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import { GOOGLE_AUTH_ENABLED, buildOAuthCallbackUrl, getConnectedAuthProviders } from "../lib/auth-identity";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import {
@@ -25,6 +27,9 @@ export default function AccountPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [connectedProviders, setConnectedProviders] = useState<string[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   useEffect(() => {
     if (authStatus !== "signedIn" || !authUser) return;
@@ -91,6 +96,38 @@ export default function AccountPage() {
     if (linkError) setError("Furvise could not connect Google. Sign in with your existing method and try again.");
   }
 
+  async function authorizationHeaders() {
+    const client = getBrowserSupabase();
+    const { data } = await client?.auth.getSession() || { data: { session: null } };
+    if (!data.session?.access_token) throw new Error("Sign in again to continue.");
+    return { Authorization: `Bearer ${data.session.access_token}` };
+  }
+
+  async function exportAccountData() {
+    setExporting(true); setError(""); setMessage("");
+    try {
+      const response = await idempotentClientFetch("/api/account/export", { headers: await authorizationHeaders(), method: "POST" }, "account-data-export");
+      if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.error || "Your export could not be prepared."); }
+      const blob = await response.blob(); const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob); link.download = `furvise-data-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(link.href);
+      setMessage("Your Furvise data export is ready.");
+    } catch (exportError) { setError(exportError instanceof Error ? exportError.message : "Your export could not be prepared."); }
+    finally { setExporting(false); }
+  }
+
+  async function deleteAccount() {
+    if (deleteConfirmation !== "DELETE") return setError("Type DELETE to confirm account deletion.");
+    setDeleting(true); setError(""); setMessage("");
+    try {
+      const response = await idempotentClientFetch("/api/account/delete", { body: JSON.stringify({ confirmation: deleteConfirmation }), headers: { ...(await authorizationHeaders()), "Content-Type": "application/json" }, method: "POST" }, "account-delete");
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.error || "Account deletion could not be completed.");
+      await getBrowserSupabase()?.auth.signOut().catch(() => null);
+      window.location.replace("/login");
+    } catch (deleteError) { setError(deleteError instanceof Error ? deleteError.message : "Account deletion could not be completed."); }
+    finally { setDeleting(false); }
+  }
+
   return (
     <AppPage shell="reading">
       <PageHeader supportingText="Your signed-in Furvise account." title="Account" />
@@ -148,6 +185,18 @@ export default function AccountPage() {
         <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Plan</h2>
         <p className="mt-2 font-semibold text-[var(--pw-text)]">Free plan</p>
         <p className="mt-2 leading-7 text-[var(--pw-muted)]">Furvise Plus is not available yet. No checkout is started from this page.</p>
+      </section>
+      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
+        <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Your Furvise data</h2>
+        <p className="mt-2 leading-7 text-[var(--pw-muted)]">Download a private JSON copy of your current Furvise account data. Large accounts require a support-assisted export.</p>
+        <PrimaryButton className="mt-4 w-full sm:w-auto" disabled={exporting || deleting} loading={exporting} onClick={() => void exportAccountData()} type="button">{exporting ? "Preparing export..." : "Download my data"}</PrimaryButton>
+      </section>
+      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--pw-danger-border)] bg-[var(--surface-primary)] p-6">
+        <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Delete account</h2>
+        <p className="mt-2 leading-7 text-[var(--pw-muted)]">This permanently removes your Furvise pets, care history, memories, conversations, briefs, and account identity. Sign in again first if your session is older than 15 minutes.</p>
+        <label className="mt-4 block text-sm font-semibold text-[var(--pw-text)]" htmlFor="delete-confirmation">Type DELETE to confirm</label>
+        <input className={`${accountInputClass} mt-2`} id="delete-confirmation" onChange={(event) => setDeleteConfirmation(event.target.value)} value={deleteConfirmation} />
+        <PrimaryButton className="mt-4 w-full sm:w-auto" disabled={deleting || exporting || deleteConfirmation !== "DELETE"} loading={deleting} onClick={() => void deleteAccount()} type="button">{deleting ? "Deleting account..." : "Permanently delete account"}</PrimaryButton>
       </section>
       </>
       )}

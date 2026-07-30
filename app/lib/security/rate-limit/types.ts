@@ -9,6 +9,7 @@ export type RateLimitPolicyName =
   | "CONVERSATION_WRITE"
   | "DESTRUCTIVE_WRITE"
   | "CATALOG_READ"
+  | "DATA_EXPORT"
   | "AUTH_SIGNUP"
   | "AUTH_LOGIN"
   | "AUTH_PASSWORD_RECOVERY"

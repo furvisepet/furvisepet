@@ -1,11 +1,11 @@
 import "server-only";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
 
 export async function getAuthenticatedApiContext(request: Request): Promise<
   | { response: Response }
-  | { supabase: SupabaseClient; userId: string }
+  | { supabase: SupabaseClient; user: User; userId: string }
 > {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return { response: Response.json({ error: "Authentication required." }, { status: 401 }) };
@@ -22,5 +22,5 @@ export async function getAuthenticatedApiContext(request: Request): Promise<
   if (!data.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
-  return { supabase, userId: data.user.id };
+  return { supabase, user: data.user, userId: data.user.id };
 }
