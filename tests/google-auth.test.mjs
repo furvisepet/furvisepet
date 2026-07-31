@@ -66,7 +66,13 @@ test("OAuth cancellation returns safely and email authentication remains availab
   assert.match(callback, /new URL\("\/login\?error=google_auth_failed", request\.nextUrl\.origin\)/);
   assert.match(login, /"\/api\/auth\/login"/);
   assert.match(login, /"\/api\/auth\/signup"/);
-  assert.match(login, /Check your email to continue\. If you already have an account, sign in or reset your password\./);
+  assert.match(login, /role="status"/);
+  assert.match(login, /aria-live="polite"/);
+  assert.match(login, />Check your email</);
+  assert.match(login, /We sent you a confirmation link\. Open it to finish creating your Furvise account\./);
+  assert.match(login, /--pw-success-surface/);
+  assert.match(login, /--pw-success-border/);
+  assert.match(login, /function SignupSuccessNotice\(\)[\s\S]*svg aria-hidden="true" className="h-4 w-4"[\s\S]*m5 12 4 4L19 6/);
   assert.match(login, /showConfirmationRecovery \? <button[\s\S]*Resend confirmation email/);
 });
 

@@ -114,7 +114,7 @@ function LoginPageContent() {
     if (mode === "signup") {
       setShowConfirmationRecovery(true);
       setResendCooldown(60);
-      setStatusMessage(payload?.message || "Check your email to continue. If you already have an account, sign in or reset your password.");
+      setStatusMessage("");
     }
   }
 
@@ -162,6 +162,7 @@ function LoginPageContent() {
         {!authChecked ? <AccountStatus text="Checking your session..." /> : null}
         {configError ? <AccountStatus tone="warning" text={configError} /> : null}
         {error ? <AccountStatus tone="danger" text={error} /> : null}
+        {showConfirmationRecovery ? <SignupSuccessNotice /> : null}
         {statusMessage ? <AccountStatus text={statusMessage} /> : null}
 
         {GOOGLE_AUTH_ENABLED ? <>
@@ -213,4 +214,20 @@ function LoginPageContent() {
 
 function GoogleIcon() {
   return <svg aria-hidden="true" className="absolute left-4 h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21.35 12.2c0-.7-.06-1.38-.18-2.03H12v3.85h5.24a4.48 4.48 0 0 1-1.95 2.94v2.5h3.16c1.85-1.71 2.9-4.22 2.9-7.26ZM12 21.7c2.64 0 4.85-.87 6.45-2.24l-3.16-2.5c-.88.59-2 .94-3.29.94-2.54 0-4.69-1.71-5.47-4.02H3.27v2.54A9.75 9.75 0 0 0 12 21.7ZM6.53 13.88A5.87 5.87 0 0 1 6.23 12c0-.65.11-1.29.3-1.88V7.58H3.27A9.75 9.75 0 0 0 2.25 12c0 1.57.37 3.06 1.02 4.42l3.26-2.54ZM12 6.1c1.43 0 2.72.5 3.73 1.46l2.8-2.8A9.38 9.38 0 0 0 12 2.25a9.75 9.75 0 0 0-8.73 5.33l3.26 2.54C7.31 7.81 9.46 6.1 12 6.1Z"/></svg>;
+}
+
+function SignupSuccessNotice() {
+  return (
+    <div aria-live="polite" className="rounded-[var(--radius-md)] border border-[var(--pw-success-border)] bg-[var(--pw-success-surface)] p-4 sm:p-5" role="status">
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--surface-primary)] text-[var(--pw-success-text)]">
+          <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+        </span>
+        <div>
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">Check your email</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">We sent you a confirmation link. Open it to finish creating your Furvise account.</p>
+        </div>
+      </div>
+    </div>
+  );
 }
