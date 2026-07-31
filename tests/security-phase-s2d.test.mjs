@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { buildContentSecurityPolicy, configuredOrigins, getCspHeaderName, getCspMode } from "../app/lib/security/headers/content-security-policy.ts";
 import { createCspNonce, isValidCspNonce } from "../app/lib/security/headers/nonce.ts";
-import { resolveTargetOrigin, validateSensitiveRequestOrigin } from "../app/lib/security/headers/origin-policy.ts";
+import { getAllowedApplicationOrigins, resolveTargetOrigin, validateSensitiveRequestOrigin } from "../app/lib/security/headers/origin-policy.ts";
 import { PERMISSIONS_POLICY, buildSecurityHeaders } from "../app/lib/security/headers/security-headers.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -124,6 +124,46 @@ test("untrusted forwarded hosts cannot bypass target matching and verified Verce
   const env = { FURVISE_ALLOWED_ORIGINS: "https://furvise-preview.vercel.app", NODE_ENV: "production", VERCEL: "1" };
   assert.equal(resolveTargetOrigin(preview, env), "https://furvise-preview.vercel.app");
   assert.deepEqual(validateSensitiveRequestOrigin(preview, env), { allowed: true, mode: "browser-origin" });
+});
+
+test("only the exact current Vercel Preview origin is added from deployment metadata", () => {
+  const currentOrigin = "https://furvise-git-security-preview.vercel.app";
+  const env = { NODE_ENV: "production", VERCEL: "1", VERCEL_ENV: "preview", VERCEL_URL: "furvise-git-security-preview.vercel.app" };
+  const current = new Request("https://internal.invalid/api/pets", { method: "POST", headers: {
+    origin: currentOrigin, "x-forwarded-host": "furvise-git-security-preview.vercel.app", "x-forwarded-proto": "https", "x-vercel-id": "iad1::current",
+  } });
+  const unrelated = new Request("https://internal.invalid/api/pets", { method: "POST", headers: {
+    origin: "https://unrelated-preview.vercel.app", "x-forwarded-host": "unrelated-preview.vercel.app", "x-forwarded-proto": "https", "x-vercel-id": "iad1::unrelated",
+  } });
+
+  assert.equal(getAllowedApplicationOrigins(current, env).has(currentOrigin), true);
+  assert.equal(resolveTargetOrigin(current, env), currentOrigin);
+  assert.deepEqual(validateSensitiveRequestOrigin(current, env), { allowed: true, mode: "browser-origin" });
+  assert.equal(resolveTargetOrigin(unrelated, env), "https://unrelated-preview.vercel.app");
+  assert.deepEqual(validateSensitiveRequestOrigin(unrelated, env), { allowed: false, reason: "foreign_origin" });
+});
+
+test("malformed or production VERCEL_URL metadata does not grant a preview origin", () => {
+  const origin = "https://furvise-git-security-preview.vercel.app";
+  const request = new Request("https://internal.invalid/api/pets", { method: "POST", headers: {
+    origin, "x-forwarded-host": "furvise-git-security-preview.vercel.app", "x-forwarded-proto": "https", "x-vercel-id": "iad1::request",
+  } });
+  const production = { NODE_ENV: "production", VERCEL: "1", VERCEL_ENV: "production", VERCEL_URL: "furvise-git-security-preview.vercel.app" };
+
+  for (const vercelUrl of ["furvise-git-security-preview.vercel.app/path", "https://furvise-git-security-preview.vercel.app", "furvise-git-security-preview.vercel.app,unrelated.vercel.app"]) {
+    const malformed = { NODE_ENV: "production", VERCEL: "1", VERCEL_ENV: "preview", VERCEL_URL: vercelUrl };
+    assert.equal(getAllowedApplicationOrigins(request, malformed).has(origin), false);
+    assert.deepEqual(validateSensitiveRequestOrigin(request, malformed), { allowed: false, reason: "foreign_origin" });
+  }
+  assert.equal(getAllowedApplicationOrigins(request, production).has(origin), false);
+  assert.deepEqual(validateSensitiveRequestOrigin(request, production), { allowed: false, reason: "foreign_origin" });
+});
+
+test("canonical production origin remains allowed alongside preview metadata", () => {
+  const request = new Request("https://www.furvise.com/api/pets", { method: "POST", headers: { origin: "https://www.furvise.com" } });
+  const env = { NODE_ENV: "production", VERCEL: "1", VERCEL_ENV: "preview", VERCEL_URL: "furvise-git-security-preview.vercel.app" };
+  assert.equal(getAllowedApplicationOrigins(request, env).has("https://www.furvise.com"), true);
+  assert.deepEqual(validateSensitiveRequestOrigin(request, env), { allowed: true, mode: "browser-origin" });
 });
 
 test("production never accepts arbitrary localhost while development binds to the actual local origin", () => {

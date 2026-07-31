@@ -51,6 +51,10 @@ export function validateSensitiveRequestOriginResponse(request: Request, env: Re
 
 export function getAllowedApplicationOrigins(request: Request, env: Record<string, string | undefined> = process.env) {
   const allowed = new Set([CANONICAL_ORIGIN, ...configuredOrigins(env.FURVISE_ALLOWED_ORIGINS, ["https:"])]);
+  if (env.VERCEL === "1" && env.VERCEL_ENV === "preview" && env.VERCEL_URL) {
+    const previewOrigin = parseOrigin(`https://${env.VERCEL_URL}`);
+    if (previewOrigin) allowed.add(previewOrigin);
+  }
   if (env.NODE_ENV !== "production") {
     const requestOrigin = parseOrigin(new URL(request.url).origin);
     if (requestOrigin && isDevelopmentLocalOrigin(requestOrigin)) allowed.add(requestOrigin);
