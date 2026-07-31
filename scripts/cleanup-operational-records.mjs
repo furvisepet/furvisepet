@@ -1,4 +1,9 @@
+import nextEnv from "@next/env";
 import { createClient } from "@supabase/supabase-js";
+
+const { loadEnvConfig } = nextEnv;
+
+loadEnvConfig(process.cwd());
 
 const apply = process.argv.includes("--apply");
 const batch = Number((process.argv.find((value) => value.startsWith("--batch=")) || "--batch=500").slice(8));
