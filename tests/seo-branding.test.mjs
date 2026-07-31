@@ -14,7 +14,8 @@ test("global metadata uses the canonical Furvise title and clean description", (
   assert.match(seo, /https:\/\/www\.furvise\.com/);
   assert.match(seo, /Furvise \| Pet Care History, Notes, Products, and Guidance/);
   assert.match(layout, /template: "%s \| Furvise"/);
-  assert.match(seo, /focused AI guidance in one private place/);
+  assert.match(seo, /helpful answers in one calm place/);
+  assert.doesNotMatch(seo, /focused AI guidance/);
   assert.doesNotMatch(metadataSource, /launching soon|technology website/i);
   assert.doesNotMatch(metadataSource, /—/);
 });
@@ -87,50 +88,44 @@ test("robots allows public pages and blocks private and API routes", () => {
   assert.match(robots, /canonicalUrl\("\/sitemap\.xml"\)/);
 });
 
-test("manifest and generated icon inventory use only Furvise brand assets", () => {
-  const manifest = JSON.parse(read("public/site.webmanifest"));
-  const generator = read("scripts/generate-brand-assets.mjs");
+test("manifest and metadata use only existing approved Furvise brand assets", () => {
+  const manifest = JSON.parse(read("public/manifest.webmanifest"));
+  const layout = read("app/layout.tsx");
+  const seo = read("app/lib/seo.ts");
 
   assert.equal(manifest.name, "Furvise");
   assert.equal(manifest.short_name, "Furvise");
   assert.equal(manifest.description, "Pet care history, notes, products, and guidance.");
   assert.deepEqual(
     manifest.icons.map((icon) => icon.src),
-    ["/android-chrome-192x192.png", "/android-chrome-512x512.png"],
+    ["/favicon.ico"],
   );
-  assert.match(generator, /public[\"', ]+, [\"']brand[\"', ]+, [\"']furvise-logo\.png/);
-  assert.match(generator, /furvise-og\.png/);
   assert.equal(existsSync(path.join(root, "public/favicon.svg")), false);
+  assert.match(layout, /\/favicon\.ico/);
+  assert.doesNotMatch(layout, /favicon-(?:16|32)\.png|apple-touch-icon\.png/);
+  assert.match(seo, /\/brand\/logo\.png/);
+  assert.doesNotMatch(seo, /furvise-og/);
 
   for (const asset of [
     "app/favicon.ico",
-    "public/favicon.ico",
-    "public/favicon-16x16.png",
-    "public/favicon-32x32.png",
-    "public/apple-touch-icon.png",
-    "public/android-chrome-192x192.png",
-    "public/android-chrome-512x512.png",
-    "public/brand/furvise-og.png",
+    "public/brand/logo.png",
   ]) {
     assert.ok(existsSync(path.join(root, asset)), `${asset} should exist`);
   }
-
-  const og = readFileSync(path.join(root, "public/brand/furvise-og.png"));
-  assert.equal(og.readUInt32BE(16), 1200);
-  assert.equal(og.readUInt32BE(20), 630);
 });
 
 test("app UI has no default Next, Vercel, triangle, or house logo references", () => {
   const uiSource = [
     "app/components/app-header.tsx",
     "app/components/homepage-client.tsx",
+    "app/components/brand-mark.tsx",
     "app/layout.tsx",
   ]
     .map(read)
     .join("\n");
 
   assert.doesNotMatch(uiSource, /next\.svg|vercel\.svg|triangle(?:-|_)icon|house(?:-|_)icon/i);
-  assert.match(uiSource, /\/brand\/furvise-logo\.png/);
+  assert.match(uiSource, /\/brand\/logo\.png/);
 });
 
 test("private app routes use shared noindex metadata", () => {
@@ -157,7 +152,7 @@ test("private app routes use shared noindex metadata", () => {
 
   const shop = read("app/shop/layout.tsx");
   assert.match(shop, /"Products"/);
-  assert.match(shop, /filters by species, country, and saved avoid ingredients/);
+  assert.match(shop, /Find food, grooming, dental, and everyday care products/);
 });
 
 test("home JSON-LD is limited to WebSite and Organization", () => {
@@ -165,6 +160,6 @@ test("home JSON-LD is limited to WebSite and Organization", () => {
   assert.match(page, /application\/ld\+json/);
   assert.match(page, /"@type": "WebSite"/);
   assert.match(page, /"@type": "Organization"/);
-  assert.match(page, /brand\/furvise-logo\.png/);
+  assert.match(page, /brand\/logo\.png/);
   assert.doesNotMatch(page, /MedicalBusiness|VeterinaryCare|AggregateRating|Review|Offer/);
 });

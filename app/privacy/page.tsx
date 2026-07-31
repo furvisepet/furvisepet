@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AppPage } from "../components/app-page";
+import { LegalPageShell } from "../components/legal-page-shell";
 import { createPublicPageMetadata } from "../lib/seo";
 
 const description =
@@ -13,13 +13,13 @@ export const metadata: Metadata = createPublicPageMetadata({
 
 export default function PrivacyPage() {
   return (
-    <AppPage>
+    <LegalPageShell>
       <section className="max-w-3xl">
         <h1 className="text-4xl font-semibold tracking-tight text-[var(--pw-heading)]">Privacy</h1>
         <div className="mt-6 grid gap-5 leading-7 text-[var(--pw-muted)]">
           <p>
             Furvise stores the account and pet care details you choose to save so your care history,
-            product feedback, and guidance context stay connected to your signed-in account.
+            product feedback, and guidance stay connected to your signed-in account.
           </p>
           <p>
             We detect your approximate country to show relevant regional product suggestions. You can
@@ -30,6 +30,6 @@ export default function PrivacyPage() {
           </p>
         </div>
       </section>
-    </AppPage>
+    </LegalPageShell>
   );
 }

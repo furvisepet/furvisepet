@@ -121,7 +121,7 @@ test("incomplete unknown context does not display high confidence and prioritize
 
   assert.equal(rocky.completeness.status, "Limited context");
   assert.deepEqual(rocky.completeness.limitingUnknownFields, ["age", "weight", "current food"]);
-  assert.equal(rocky.headerSummary, "Dog · Mixed / unknown · Age unknown · Weight unknown");
+  assert.equal(rocky.headerSummary, "Dog");
   assert.equal(rocky.nextStep.kind, "missing_profile_information");
   assert.equal(rocky.nextStep.title, "Add Rocky's weight when you can");
   assert.equal(rocky.nextStep.actionLabel, "Add weight");
@@ -148,7 +148,7 @@ test("legacy null species remains accessible and requires species", () => {
   });
 
   assert.equal(model.completeness.status, "Missing required information");
-  assert.equal(model.headerSummary, "Species not provided · Mixed / unknown · 4 years · 42 lb");
+  assert.equal(model.headerSummary, "4 years · 42 lb");
   assert.deepEqual(model.completeness.missingFields, ["species"]);
   assert.equal(model.nextStep.kind, "missing_profile_information");
 });
@@ -319,7 +319,7 @@ test("urgent stored guidance has highest next-step priority", () => {
   assert.equal(model.showProductLink, false);
 });
 
-test("saved details are limited to three user-facing memory texts", () => {
+test("saved details expose all reusable facts on the canonical pet dashboard", () => {
   const model = buildPetProfileOverviewModel({
     entries: [],
     guidance: null,
@@ -342,7 +342,7 @@ test("saved details are limited to three user-facing memory texts", () => {
 
   assert.deepEqual(
     model.savedDetails.map((memory) => memory.text),
-    ["Sensitive to chicken", "Prefers wet food", "Dislikes nail trimming"],
+    ["Sensitive to chicken", "Prefers wet food", "Dislikes nail trimming", "Sleeps upstairs"],
   );
 });
 
@@ -356,12 +356,14 @@ test("profile overview route keeps mobile layout from overflowing", () => {
 test("profile overview source removes duplicate log actions and keeps quiet empty states", () => {
   const source = readFileSync(new URL("../app/pets/[id]/page.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, />\s*Log update\s*</);
-  assert.match(source, /View full care history/);
-  assert.doesNotMatch(source, /href=\{`\/care-log\?pet=\$\{petId\}&new=1`\}/);
-  assert.match(source, /Nothing saved for \{name\} yet\./);
+  assert.match(source, /View full history/);
+  assert.match(source, /href=\{`\/care-log\?pet=\$\{profile\.id\}&new=1`\}/);
+  assert.match(source, /No remembered details yet\./);
   assert.match(source, /Products for \{name\}/);
   assert.match(source, /\/shop\?petId=/);
-  assert.match(source, /Ask Furvise about this pet/);
-  assert.match(source, /Furvise has only a few saved details for \{petName\}/);
-  assert.match(source, /Logging food, symptoms, behavior, or weight helps make guidance more specific\./);
+  assert.match(source, /<PrimaryButton href=\{askHref\}>Ask Furvise<\/PrimaryButton>/);
+  assert.match(source, /The more Furvise knows about \{petName\}, the more specific its guidance can be\./);
+  assert.match(source, /Nothing needs your attention right now\./);
+  assert.doesNotMatch(source, /\/results\?/);
+  assert.match(source, /View remembered details/);
 });

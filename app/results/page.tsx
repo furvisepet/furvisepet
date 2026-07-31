@@ -32,6 +32,7 @@ import {
   selectedConcern,
 } from "../lib/petwise";
 import { NEW_PET_LOGIN_PATH, buildLoginHref } from "../lib/auth-routing";
+import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getFinishProfileItemsFromDraft } from "../lib/finish-profile";
 import {
   buildPetMemoryContext,
@@ -48,6 +49,7 @@ import {
   PROFILE_MEMORIES_STORAGE_KEY,
   DogProfileRow,
   dogProfileRowToDraft,
+  getCurrentAccessToken,
   getCurrentUser,
   listCareEntriesForPet,
   loadDogProductFeedbackForUser,
@@ -59,9 +61,21 @@ import { writeStoredGuidanceResult } from "../lib/stored-guidance";
 export default function ResultsPage() {
   return (
     <Suspense fallback={<AppPage>{null}</AppPage>}>
-      <ResultsPageContent />
+      <ResultsRedirect />
     </Suspense>
   );
+}
+
+function ResultsRedirect() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const profileId = searchParams.get("profileId") || "";
+
+  useEffect(() => {
+    router.replace(profileId ? `/pets/${encodeURIComponent(profileId)}` : "/pets");
+  }, [profileId, router]);
+
+  return <AppPage><p className="py-8 text-[var(--text-secondary)]" role="status">Opening pet details...</p></AppPage>;
 }
 
 function ResultsPageContent() {
@@ -268,11 +282,14 @@ function ResultsPageContent() {
       // Recommendation pipeline stage 1: AI analysis enriches the user-entered profile.
       setAnalysisLoading(true);
       try {
-        const response = await fetch("/api/analyze", {
+        const accessToken = await getCurrentAccessToken();
+        if (!accessToken) throw new Error("Please sign in again.");
+        const requestId = getOrCreateClientMutationKey(`analyze:${dogProfileId || "new"}`);
+        const response = await idempotentClientFetch("/api/analyze", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profile, memories: savedMemories }),
-        });
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ profile, memories: savedMemories, requestId }),
+        }, `analyze:${dogProfileId || "new"}`, requestId);
         const payload: unknown = await response.json().catch(() => null);
         const analysis =
           payload && typeof payload === "object" && "analysis" in payload
@@ -318,7 +335,7 @@ function ResultsPageContent() {
     return () => {
       active = false;
     };
-  }, [analysisResult, loaded, profile, savedMemories]);
+  }, [analysisResult, dogProfileId, loaded, profile, savedMemories]);
 
   const analysis = analysisResult?.status === "available" ? analysisResult.analysis : null;
   const petMemory: PetMemoryContext | null = useMemo(() => {
@@ -394,7 +411,7 @@ function ResultsPageContent() {
 
   return (
     <AppPage>
-      <section className="mx-auto max-w-5xl py-9 sm:py-14">
+      <section className="w-full py-9 sm:py-14">
           <p className="mb-4 inline-flex rounded-full border border-[var(--pw-border)] bg-[var(--pw-surface)] px-3 py-1 text-sm font-medium text-[var(--pw-primary)]">
             {urgentVetAttention
               ? "Emergency safety"
@@ -404,7 +421,7 @@ function ResultsPageContent() {
           </p>
           <h1 className="max-w-3xl break-words text-4xl font-semibold leading-[1.06] tracking-tight text-[var(--pw-heading)] sm:text-6xl sm:leading-[1.02]">
             {urgentVetAttention
-              ? "Urgent care context for " + formatPetDisplayName(profile.name)
+              ? "Urgent care details for " + formatPetDisplayName(profile.name)
               : soonVetAttention
                 ? "Safety check for " + formatPetDisplayName(profile.name)
                 : "First care summary for " + formatPetDisplayName(profile.name)}
@@ -439,10 +456,10 @@ function ResultsPageContent() {
           {!urgentVetAttention ? (
             <div className="mt-6 grid gap-3 md:grid-cols-2">
               <p className="rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4 text-sm leading-6 text-[var(--pw-muted)]">
-                Furvise summarizes saved context and turns it into care notes you can log or discuss with your vet.
+                Turn the details you notice into care notes you can keep or discuss with your vet.
               </p>
               <p className="rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4 text-sm leading-6 text-[var(--pw-muted)]">
-                Furvise only used saved details and care logs. It does not infer medical facts.
+                Your summary reflects the information you recorded. It does not infer medical facts.
               </p>
             </div>
           ) : null}
@@ -455,7 +472,7 @@ function ResultsPageContent() {
                   : "Furvise needs a main concern before it can summarize this profile."}
               </p>
               <Link
-                className="mt-4 inline-flex rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)]"
+                className="mt-4 inline-flex rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)]"
                 href={dogProfileId ? `/pets/${dogProfileId}/edit` : "/onboarding"}
                 onClick={prepareEditProfile}
               >
@@ -503,6 +520,7 @@ function ResultsPageContent() {
           ) : soonVetAttention && analysis ? (
             <SoonSafetyPanel
               analysis={analysis}
+              petId={dogProfileId}
               key={safetyFollowupKey}
               profile={profile}
               onResult={(result) => setSafetyFollowupState({ key: safetyFollowupKey, result })}
@@ -522,6 +540,8 @@ function ResultsPageContent() {
     </AppPage>
   );
 }
+
+void ResultsPageContent;
 
 function FinishProfilePrompt({
   editHref,
@@ -543,7 +563,7 @@ function FinishProfilePrompt({
           </h2>
           <p className="mt-2 leading-7 text-[var(--pw-muted)]">
             Furvise has enough to give a first care summary. Add food, avoid ingredients,
-            weight, and budget later to improve saved care context.
+            weight, and budget later to make future questions more specific.
           </p>
           <ul className="mt-3 grid gap-2 text-sm font-semibold text-[var(--pw-text)] sm:grid-cols-2">
             {items.map((item) => (
@@ -554,7 +574,7 @@ function FinishProfilePrompt({
           </ul>
         </div>
         <Link
-          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[var(--pw-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)]"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[var(--pw-primary)] px-4 text-sm font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)]"
           href={editHref}
           onClick={onPrepareEditProfile}
         >
@@ -631,10 +651,7 @@ function logResultsLoadFailure(profileId: string, error: unknown) {
   console.warn("[Furvise results] profile load failed", {
     action: "select",
     errorCode: databaseError?.code || "",
-    errorDetails: databaseError?.details || "",
-    errorHint: databaseError?.hint || "",
-    errorMessage: databaseError?.message || "",
-    profileId,
+    profileIdPresent: Boolean(profileId),
     table: "dog_profiles",
   });
 }
@@ -648,7 +665,7 @@ function MissingSpeciesPanel({ dogProfileId, name }: { dogProfileId: string; nam
         summarize the profile reliably.
       </p>
       <Link
-        className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)]"
+        className="mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)]"
         href={dogProfileId ? `/pets/${dogProfileId}/edit` : "/onboarding?step=2"}
       >
         Add species
@@ -748,7 +765,7 @@ function SuggestedMemories({
           </p>
         </div>
         <button
-          className="rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-not-allowed disabled:bg-[var(--pw-secondary)]"
+          className="rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-not-allowed disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]"
           disabled={saving || selected.length === 0}
           onClick={saveSelected}
           type="button"
@@ -772,7 +789,7 @@ function SuggestedMemories({
             <span>
               <span className="block font-semibold text-[var(--pw-text)]">{suggestion.text}</span>
               <span className="mt-1 block text-sm text-[var(--pw-muted)]">
-                {formatMemoryType(suggestion.type)} - {suggestion.confidence}
+                {formatMemoryType(suggestion.type)}
               </span>
             </span>
           </label>
@@ -804,7 +821,7 @@ function MemoryUnderstandingPanel({
     <div className="mt-8 rounded-[2rem] border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6 shadow-2xl shadow-[var(--pw-shadow)]">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--pw-primary)]">
-          Saved care context
+          Saved details
         </p>
         <h2 className="mt-3 text-2xl font-semibold text-[var(--pw-text)]">
           What Furvise knows about {petName}
@@ -812,9 +829,9 @@ function MemoryUnderstandingPanel({
       </div>
       {understanding.safetyFlags.length > 0 ? (
         <div className="mt-5 rounded-2xl border border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] p-4 text-[var(--pw-danger-text)]">
-          <p className="font-semibold">Urgent safety guidance comes first because saved memory contains warning signs.</p>
+          <p className="font-semibold">{FURVISE_URGENT_SAFETY_MESSAGE}</p>
           <p className="mt-2 leading-7">
-            Furvise found: {understanding.safetyFlags.join(", ")}. {FURVISE_URGENT_SAFETY_MESSAGE}
+            The saved notes include these warning signs: {understanding.safetyFlags.join(", ")}.
           </p>
         </div>
       ) : null}
@@ -882,11 +899,13 @@ function CareSummaryPanel({ plan }: { plan: ResultsCareSummary }) {
 function SoonSafetyPanel({
   analysis,
   onResult,
+  petId,
   profile,
   result,
 }: {
   analysis: PetWiseAnalysis;
   onResult: (result: SafetyFollowupResult) => void;
+  petId: string;
   profile: DogProfile;
   result: SafetyFollowupResult | null;
 }) {
@@ -946,16 +965,21 @@ function SoonSafetyPanel({
     setSubmitting(true);
     setError("");
     try {
-      const response = await fetch("/api/safety-followup", {
+      const accessToken = await getCurrentAccessToken();
+      if (!accessToken) throw new Error("Please sign in again.");
+      const requestId = getOrCreateClientMutationKey(`safety-followup:${petId}`);
+      const response = await idempotentClientFetch("/api/safety-followup", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
+          petId,
           profile,
           analysis,
           followUpQuestions: visibleQuestions,
           followUpAnswers: followupAnswers,
+          requestId,
         }),
-      });
+      }, `safety-followup:${petId}`, requestId);
       const payload: unknown = await response.json().catch(() => null);
       const parsed = parseSafetyFollowupResult(payload);
       if (!response.ok || !parsed) {
@@ -983,7 +1007,7 @@ function SoonSafetyPanel({
     <section className="mt-8 rounded-[2rem] border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-6 text-[var(--pw-warning-text)] shadow-2xl shadow-amber-950/10 sm:p-8">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#8a5521]">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--pw-warning-text)]">
             Safety pause
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--pw-warning-text)] sm:text-4xl">
@@ -996,7 +1020,7 @@ function SoonSafetyPanel({
         </div>
         <div className="max-w-xs">
           <span className="inline-flex rounded-full bg-[var(--pw-warning-border)] px-3 py-1 text-sm font-semibold text-[var(--pw-warning-text)]">
-            Care context
+            Care details
           </span>
           <p className="mt-2 text-xs leading-5 text-[var(--pw-warning-text)]">
             {FURVISE_SAFETY_LINE}
@@ -1014,7 +1038,7 @@ function SoonSafetyPanel({
             </p>
             <button
               aria-pressed={useCombinedAnswer}
-            className="w-full rounded-full border border-[var(--pw-warning-border)] bg-[var(--pw-surface)] px-4 py-2 text-sm font-semibold text-[var(--pw-warning-text)] transition hover:border-[var(--pw-warning-text)] hover:text-[var(--pw-warning-text)] disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+            className="w-full rounded-full border border-[var(--pw-warning-border)] bg-[var(--pw-surface)] px-4 py-2 text-sm font-semibold text-[var(--pw-warning-text)] transition hover:border-[var(--pw-warning-text)] hover:text-[var(--pw-warning-text)] disabled:cursor-wait disabled:border-[var(--pw-border)] disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)] sm:w-auto"
               disabled={submitting}
               onClick={toggleAnswerMode}
               type="button"
@@ -1107,7 +1131,7 @@ function SoonSafetyPanel({
         </p>
       ) : (
         <button
-          className="mt-6 w-full rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-default disabled:bg-[var(--pw-secondary)] sm:w-auto"
+          className="mt-6 w-full rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-default disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)] sm:w-auto"
           disabled={submitting}
           onClick={analyzeAnswers}
           type="button"
@@ -1281,7 +1305,7 @@ function UrgentCarePanel({
       ) : null}
 
       <button
-        className="mt-6 w-full rounded-full bg-[var(--pw-danger-border)] px-5 py-3 text-sm font-semibold text-white opacity-70 sm:w-auto"
+        className="mt-6 w-full rounded-full bg-[var(--pw-disabled-background)] px-5 py-3 text-sm font-semibold text-[var(--pw-disabled-text)] sm:w-auto"
         disabled
         type="button"
       >

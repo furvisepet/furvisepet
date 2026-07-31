@@ -30,7 +30,7 @@ const structuredData = [
     "@type": "Organization",
     name: "Furvise",
     url: canonicalUrl(),
-    logo: `${CANONICAL_ORIGIN}/brand/furvise-logo.png`,
+    logo: `${CANONICAL_ORIGIN}/brand/logo.png`,
   },
 ];
 

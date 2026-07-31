@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { CareEntryRow, CareEntryWithPetName } from "../lib/supabase";
 import {
-  formatCareEntryCategory,
-  formatCareEntryTimestamp,
+  formatCareEntryTitle,
   formatCareNotePreview,
-  sortCareEntriesNewestFirst,
+  groupCareEntriesByDate,
 } from "../lib/care-log.mjs";
+import { EmptyState } from "./product-primitives";
+import { OverflowMenu } from "./overflow-menu";
+import { LocalPhoto } from "./local-photo";
+import { CareEntryMetadata } from "./care-entry-metadata";
+import { classifyCareEvent } from "../lib/intelligence/concern-chronology";
 
 type Props = {
   entries: CareEntryRow[] | CareEntryWithPetName[];
@@ -19,90 +22,61 @@ type Props = {
   showPetName?: boolean;
 };
 
-export function CareTimeline({
-  entries,
-  emptyMessage,
-  onDelete,
-  onEdit,
-  onOpen,
-  petNameById,
-  showPetName = false,
-}: Props) {
-  if (!entries.length) {
-    return (
-      <p className="rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-6 text-[var(--pw-muted)]">
-        {emptyMessage}
-      </p>
-    );
-  }
-
-  const sortedEntries = sortCareEntriesNewestFirst(entries as CareEntryRow[]);
+export function CareTimeline({ entries, emptyMessage, onDelete, onEdit, onOpen, petNameById, showPetName = false }: Props) {
+  if (!entries.length) return <EmptyState description={emptyMessage} title="Nothing here yet" />;
+  const groups = groupCareEntriesByDate(entries as CareEntryRow[]) as Array<{ label: string; entries: CareEntryRow[] }>;
 
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold text-[var(--pw-subtle)]">Recent updates</h2>
-      <div className="divide-y divide-[var(--pw-border)] rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] px-5">
-        {sortedEntries.map((entry) => (
-          <article className="flex items-start gap-2 py-3" key={entry.id}>
-            <button
-              aria-label={`Open ${entry.title || "update"} details`}
-              className="min-w-0 flex-1 rounded-2xl px-2 py-2 text-left transition hover:bg-[var(--pw-card-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]"
-              onClick={() => onOpen(entry)}
-              type="button"
-            >
-              <p className="text-sm font-semibold text-[var(--pw-primary)]">
-                {formatCareEntryCategory(entry.category)}
-                {showPetName ? ` - ${petNameById?.get(entry.pet_profile_id) || "Unknown pet"}` : ""}
-              </p>
-              <h3 className="mt-1 font-semibold text-[var(--pw-heading)]">{entry.title || "Update"}</h3>
-              <p className="mt-1 text-sm leading-6 text-[var(--pw-muted)]">
-                {formatCareNotePreview(entry.note, 150)}
-              </p>
-              <time className="mt-2 block text-sm text-[var(--pw-subtle)]" dateTime={entry.occurred_at}>
-                {formatCareEntryTimestamp(entry.occurred_at)}
-              </time>
-            </button>
-            <EntryMenu entry={entry} onDelete={onDelete} onEdit={onEdit} />
-          </article>
-        ))}
-      </div>
+    <section aria-label="Recorded care history" className="w-full space-y-8 py-3">
+      {groups.map((group) => (
+        <section aria-labelledby={`history-${slugify(group.label)}`} key={group.label}>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]" id={`history-${slugify(group.label)}`}>
+            {group.label}
+          </h2>
+          <div className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] shadow-[0_8px_24px_var(--shadow)]">
+            {group.entries.map((entry) => {
+              const title = formatCareEntryTitle(entry);
+              const eventType = classifyCareEvent(entry);
+              const eventTone = eventType === "recovery"
+                ? "border-l-4 border-l-[var(--pw-success-border)] bg-[var(--surface-supportive)]"
+                : eventType === "urgent"
+                  ? "border-l-4 border-l-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)]"
+                  : eventType === "recurrence"
+                    ? "border-l-4 border-l-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)]"
+                    : "bg-[var(--surface-primary)]";
+              return (
+                <article className={`flex items-start gap-2 border-b border-[var(--line)] p-4 last:border-b-0 sm:p-5 ${eventTone}`} data-care-state={eventType} key={entry.id}>
+                  <button aria-label={`Open ${title} details`} className="min-h-11 min-w-0 flex-1 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => onOpen(entry)} type="button">
+                    <CareEntryMetadata category={entry.category} occurredAt={entry.occurred_at} petName={petNameById?.get(entry.pet_profile_id) || (showPetName ? "Pet" : "Selected pet")} />
+                    <h3 className="mt-1 font-semibold text-[var(--text-primary)]">{title}</h3>
+                    <p className="mt-1 break-words text-sm leading-6 text-[var(--text-secondary)]">{formatCareNotePreview(entry.note, 180)}</p>
+                    <LocalPhoto alt={`Photo for ${title}`} className="mt-3 max-h-56 w-full rounded-[var(--radius-md)]" id={entry.id} kind="care" />
+                  </button>
+                  <EntryMenu entry={entry} onDelete={onDelete} onEdit={onEdit} title={title} />
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </section>
   );
 }
 
-function EntryMenu({
-  entry,
-  onDelete,
-  onEdit,
-}: {
-  entry: CareEntryRow;
-  onDelete: (entry: CareEntryRow) => void;
-  onEdit: (entry: CareEntryRow) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDetailsElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-        ref.current?.querySelector("summary")?.focus();
-      }
-    };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [open]);
+function EntryMenu({ entry, onDelete, onEdit, title }: { entry: CareEntryRow; onDelete: (entry: CareEntryRow) => void; onEdit: (entry: CareEntryRow) => void; title: string }) {
   return (
-    <details ref={ref} className="relative shrink-0" onToggle={(event) => setOpen(event.currentTarget.open)} open={open}>
-      <summary aria-label="Update actions" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-[var(--pw-border)]">
-        ...
-      </summary>
-      <div className="absolute right-0 z-10 mt-2 w-32 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-2 shadow-xl">
-        <button className={itemClass} onClick={() => { setOpen(false); onEdit(entry); }} type="button">Edit</button>
-        <button className={`${itemClass} text-[var(--pw-danger-text)]`} onClick={() => { setOpen(false); onDelete(entry); }} type="button">Delete</button>
-      </div>
-    </details>
+    <OverflowMenu
+      ariaLabel={`More actions for ${title}`}
+      dataUi="history-entry-menu"
+      items={[
+        { label: "Edit", onSelect: () => onEdit(entry), type: "item" },
+        { type: "separator" },
+        { label: "Delete", onSelect: () => onDelete(entry), tone: "danger", type: "item" },
+      ]}
+    />
   );
 }
 
-const itemClass = "inline-flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-[var(--pw-card-muted)]";
+function slugify(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}

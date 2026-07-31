@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { SignedInHeader } from "../../../components/signed-in-header";
+import { AppPage } from "../../../components/app-page";
+import { useRequireConfirmedSupabaseAuth } from "../../../lib/auth-session";
 import {
   DogProductFeedbackRow,
   DogProfileRow,
@@ -18,6 +19,7 @@ import { formatPetDisplayName } from "../../../lib/petwise";
 export default function DogFeedbackPage() {
   const params = useParams<{ id: string }>();
   const dogId = params.id;
+  const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
   const configError = getSupabaseConfigError();
   const [profile, setProfile] = useState<DogProfileRow | null>(null);
   const [feedback, setFeedback] = useState<DogProductFeedbackRow[]>([]);
@@ -26,16 +28,14 @@ export default function DogFeedbackPage() {
   const [deletingFeedbackId, setDeletingFeedbackId] = useState("");
 
   const loadFeedback = useCallback(async () => {
+    if (authStatus !== "signedIn" || !authUser) return;
     setLoading(true);
     setError("");
 
     try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error("Please sign in to manage this pet's product feedback.");
-
       const [profileRow, feedbackRows] = await Promise.all([
-        loadDogProfileForUser(dogId, user),
-        loadDogProductFeedbackForUser(dogId, user),
+        loadDogProfileForUser(dogId, authUser),
+        loadDogProductFeedbackForUser(dogId, authUser),
       ]);
       setProfile(profileRow);
       setFeedback(feedbackRows);
@@ -48,10 +48,10 @@ export default function DogFeedbackPage() {
     } finally {
       setLoading(false);
     }
-  }, [dogId]);
+  }, [authStatus, authUser, dogId]);
 
   useEffect(() => {
-    if (configError) return;
+    if (configError || authStatus !== "signedIn" || !authUser) return;
 
     const loadTimer = window.setTimeout(() => {
       loadFeedback();
@@ -60,7 +60,7 @@ export default function DogFeedbackPage() {
     return () => {
       window.clearTimeout(loadTimer);
     };
-  }, [configError, loadFeedback]);
+  }, [authStatus, authUser, configError, loadFeedback]);
 
   async function deleteFeedback(item: DogProductFeedbackRow) {
     if (!window.confirm("Delete this product feedback?")) return;
@@ -86,10 +86,8 @@ export default function DogFeedbackPage() {
   }
 
   return (
-    <main className="min-h-screen bg-transparent text-[var(--pw-text)]">
-      <div className="mx-auto w-full max-w-4xl px-5 py-5 sm:px-8">
-        <SignedInHeader />
-
+    <AppPage>
+      <div className="w-full max-w-4xl">
         <section className="py-10 sm:py-14">
           <p className="mb-4 inline-flex rounded-full border border-[var(--pw-border)] bg-[var(--pw-surface)] px-3 py-1 text-sm font-medium text-[var(--pw-primary)]">
             Product feedback
@@ -157,7 +155,7 @@ export default function DogFeedbackPage() {
             )}
 
             <Link
-              className="mt-6 inline-flex rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)]"
+              className="mt-6 inline-flex rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)]"
               href="/dashboard"
             >
               Back to dashboard
@@ -165,7 +163,7 @@ export default function DogFeedbackPage() {
           </section>
         )}
       </div>
-    </main>
+    </AppPage>
   );
 }
 

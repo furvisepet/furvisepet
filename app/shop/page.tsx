@@ -1,12 +1,21 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppPage } from "../components/app-page";
+import { PageHeader, PrimaryButton } from "../components/product-primitives";
 import type { ProductAiUsageStatus } from "../lib/billing/shop-usage";
+import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
-import { readStoredGuidanceSnapshot } from "../lib/stored-guidance";
+import {
+  buildNoSafeProductMatchMessage,
+  FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE,
+  FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE,
+  FURVISE_PRODUCT_USAGE_CAP_MESSAGE,
+  FURVISE_SEARCH_FALLBACK_MESSAGE,
+  FURVISE_URGENT_SAFETY_MESSAGE,
+} from "../lib/furvise-voice";
 import {
   formatPetDisplayName,
   formatSpecies,
@@ -20,8 +29,7 @@ import {
 } from "../lib/product-providers";
 import {
   MIN_SHOP_QUERY_LENGTH,
-  searchStaticRealShopProducts,
-  shouldHideShopProductsForUrgentCare,
+  searchShopProducts,
 } from "../lib/shop";
 import {
   isVagueShopQueryWithoutSignal,
@@ -45,33 +53,30 @@ import {
   detectAccountProductCountry,
   getCurrentAccessToken,
   getSupabaseConfigError,
-  listCareEntriesForPet,
   loadDogProfilesWithMemories,
   loadUserProfileForUser,
-  type CareEntryRow,
   type DogProfileWithMemories,
 } from "../lib/supabase";
 
-const SHOP_QUERY_EXAMPLES = [
-  "shampoo",
-  "dental treats",
-  "food",
-  "treats",
-  "grooming",
-  "itchy skin",
-  "sensitive stomach",
-  "flea comb",
-  "chicken-free food",
-  "grooming wipes",
-];
-
 type LoadState = "loading" | "ready" | "error";
 type InterpretationState = {
+  aiExhausted: boolean;
+  aiUnavailable: boolean;
   error: string;
   fallback: boolean;
   interpretation: ShopQueryInterpretation | null;
   loading: boolean;
   petId: string;
+  query: string;
+  message: string;
+};
+type ProductExperienceState = "idle" | "understanding_request" | "awaiting_followup" | "searching_catalog" | "ranking_results" | "results" | "no_results" | "ai_exhausted" | "safety_suppressed" | "failed";
+type CatalogState = {
+  error: string;
+  loading: boolean;
+  petId: string;
+  productCountry: ProductCountry;
+  products: MockProduct[];
   query: string;
 };
 type FitExplanationState = {
@@ -128,24 +133,31 @@ function ShopPageContent() {
   const [queryInput, setQueryInput] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [interpretationState, setInterpretationState] = useState<InterpretationState>({
+    aiExhausted: false,
+    aiUnavailable: false,
     error: "",
     fallback: false,
     interpretation: null,
     loading: false,
     petId: "",
     query: "",
+    message: "",
   });
   const [shopUsage, setShopUsage] = useState<ProductAiUsageStatus | null>(null);
   const [shopUsageError, setShopUsageError] = useState("");
+  const [catalogState, setCatalogState] = useState<CatalogState>({
+    error: "",
+    loading: false,
+    petId: "",
+    productCountry: "US",
+    products: [],
+    query: "",
+  });
   const [limitReachedQuery, setLimitReachedQuery] = useState("");
   const [fitExplanationCache, setFitExplanationCache] = useState<Record<string, FitExplanationState>>({});
   const [productQuestionCache, setProductQuestionCache] = useState<Record<string, ProductQuestionState>>({});
   const [productQuestionInputs, setProductQuestionInputs] = useState<Record<string, string>>({});
   const [productCountry, setProductCountry] = useState<ProductCountry>("US");
-  const [careEntryState, setCareEntryState] = useState<{ entries: CareEntryRow[]; petId: string }>({
-    entries: [],
-    petId: "",
-  });
   const [state, setState] = useState<LoadState>(configError ? "error" : "loading");
   const [error, setError] = useState(configError);
   const [invalidPetParam, setInvalidPetParam] = useState(false);
@@ -213,7 +225,7 @@ function ShopPageContent() {
           usage?: unknown;
         } | null;
         if (!response.ok) {
-          throw new Error("Product AI usage is temporarily unavailable.");
+          throw new Error(FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE);
         }
         if (active) {
           setShopUsage(parseProductAiUsageStatus(payload?.usage));
@@ -221,7 +233,7 @@ function ShopPageContent() {
         }
       } catch (usageError) {
         if (active) {
-          setShopUsageError(usageError instanceof Error ? usageError.message : "Product AI usage is temporarily unavailable.");
+          setShopUsageError(usageError instanceof Error ? usageError.message : FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE);
         }
       }
     }
@@ -232,56 +244,28 @@ function ShopPageContent() {
     };
   }, [authStatus, configError]);
 
-  useEffect(() => {
-    if (authStatus !== "signedIn" || !selectedPetId) {
-      return;
-    }
-
-    let active = true;
-    listCareEntriesForPet(selectedPetId)
-      .then((entries) => {
-        if (active) setCareEntryState({ entries, petId: selectedPetId });
-      })
-      .catch(() => {
-        if (active) setCareEntryState({ entries: [], petId: selectedPetId });
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [authStatus, selectedPetId]);
-
   const selectedProfile = useMemo(
     () => profiles.find((profile) => profile.id === selectedPetId) || null,
     [profiles, selectedPetId],
   );
   const selectedPetName = selectedProfile ? formatPetDisplayName(selectedProfile.name) : "";
   const selectedDraft = selectedProfile ? dogProfileRowToDraft(selectedProfile) : null;
-  const careEntries = careEntryState.petId === selectedPetId ? careEntryState.entries : [];
-  const storedGuidance = useMemo(() => readStoredGuidanceSnapshot(), []);
-  const guidance =
-    storedGuidance.profileId === selectedPetId && storedGuidance.result?.status === "available"
-      ? storedGuidance.result.analysis
-      : null;
-  const urgentShopHidden = shouldHideShopProductsForUrgentCare({
-    entries: careEntries,
-    guidance,
-  });
   const interpretationMatches =
     interpretationState.petId === selectedPetId && interpretationState.query === submittedQuery;
   const activeInterpretation = interpretationMatches ? interpretationState.interpretation : null;
   const interpretationLoading = interpretationMatches && interpretationState.loading;
   const interpretationError = interpretationMatches ? interpretationState.error : "";
+  const catalogMatches = catalogState.petId === selectedPetId
+    && catalogState.productCountry === productCountry
+    && catalogState.query === submittedQuery;
+  const catalogProducts = useMemo(
+    () => (catalogMatches ? catalogState.products : []),
+    [catalogMatches, catalogState.products],
+  );
+  const catalogLoading = catalogMatches && catalogState.loading;
+  const catalogError = catalogMatches ? catalogState.error : "";
   const searchResult = useMemo(
-    () =>
-      limitReachedQuery && limitReachedQuery === submittedQuery
-        ? {
-            avoidIngredientsRemovedMatches: false,
-            emptyState: "shop_limit" as const,
-            ingredientVerificationRemovedMatches: false,
-            products: [],
-          }
-        : (urgentShopHidden || activeInterpretation?.safetyFlags.urgentCare) && submittedQuery.trim()
+    () => activeInterpretation?.safetyFlags.urgentCare && submittedQuery.trim()
         ? {
             avoidIngredientsRemovedMatches: false,
             emptyState: "urgent" as const,
@@ -295,36 +279,52 @@ function ShopPageContent() {
               ingredientVerificationRemovedMatches: false,
               products: [],
             }
-          : searchStaticRealShopProducts({
+          : searchShopProducts({
             interpretation: activeInterpretation,
             productCountry,
+            products: catalogProducts,
             profile: selectedDraft,
             query: submittedQuery,
           }),
-    [activeInterpretation, limitReachedQuery, productCountry, selectedDraft, submittedQuery, urgentShopHidden],
+    [activeInterpretation, catalogProducts, productCountry, selectedDraft, submittedQuery],
   );
   const showAvoidNote = !interpretationLoading && searchResult.avoidIngredientsRemovedMatches;
-  const searchCapReached = shopUsage?.allowed === false;
-  const canSearch = queryInput.trim().length >= MIN_SHOP_QUERY_LENGTH && Boolean(selectedPetId) && !searchCapReached;
+  const canSearch = queryInput.trim().length >= MIN_SHOP_QUERY_LENGTH && Boolean(selectedPetId) && !interpretationLoading && !catalogLoading;
+  const productExperienceState: ProductExperienceState = !submittedQuery ? "idle"
+    : interpretationLoading ? "understanding_request"
+    : catalogLoading ? "searching_catalog"
+    : activeInterpretation?.safetyFlags.urgentCare ? "safety_suppressed"
+    : interpretationState.aiExhausted ? "ai_exhausted"
+    : interpretationError || catalogError ? "failed"
+    : searchResult.products.length ? "results" : "no_results";
 
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextQuery = queryInput.trim();
     if (nextQuery.length < MIN_SHOP_QUERY_LENGTH || !selectedPetId) return;
-    if (searchCapReached) return;
+    startSearch(nextQuery);
+  }
+
+  function startSearch(nextQuery: string) {
+    if (nextQuery.length < MIN_SHOP_QUERY_LENGTH || !selectedPetId) return;
+    setQueryInput(nextQuery);
     setSubmittedQuery(nextQuery);
     setLimitReachedQuery("");
     setFitExplanationCache({});
     setProductQuestionCache({});
     setProductQuestionInputs({});
+    void loadSubmittedCatalog({ petId: selectedPetId, productCountry, query: nextQuery });
     if (isVagueShopQueryWithoutSignal(nextQuery)) {
       setInterpretationState({
+        aiExhausted: false,
+        aiUnavailable: false,
         error: "",
         fallback: false,
         interpretation: null,
         loading: false,
         petId: "",
         query: "",
+        message: "",
       });
       return;
     }
@@ -337,17 +337,21 @@ function ShopPageContent() {
 
   function resetInterpretation() {
     setInterpretationState({
+      aiExhausted: false,
+      aiUnavailable: false,
       error: "",
       fallback: false,
       interpretation: null,
       loading: false,
       petId: "",
       query: "",
+      message: "",
     });
     setLimitReachedQuery("");
     setFitExplanationCache({});
     setProductQuestionCache({});
     setProductQuestionInputs({});
+    setCatalogState({ error: "", loading: false, petId: "", productCountry, products: [], query: "" });
   }
 
   async function explainProductFit(productId: string) {
@@ -374,31 +378,33 @@ function ShopPageContent() {
       const token = await getCurrentAccessToken();
       if (!token) throw new Error("Please sign in again before checking this product.");
 
-      const response = await fetch("/api/shop/explain-product-fit", {
+      const requestId = getOrCreateClientMutationKey(`product-explain:${selectedPetId}:${productId}`);
+      const response = await idempotentClientFetch("/api/shop/explain-product-fit", {
         body: JSON.stringify({
           interpretation: activeInterpretation,
           petId: selectedPetId,
           productCountry,
           productId,
           query: submittedQuery,
+          requestId,
         }),
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         method: "POST",
-      });
+      }, `product-explain:${selectedPetId}:${productId}`, requestId);
       const payload = (await response.json().catch(() => null)) as {
         error?: unknown;
         explanation?: unknown;
         fallback?: unknown;
       } | null;
       if (!response.ok) {
-        throw new Error(typeof payload?.error === "string" ? payload.error : "Furvise could not check this product.");
+        throw new Error(typeof payload?.error === "string" ? payload.error : FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE);
       }
 
       const explanation = parseShopProductFitExplanation(payload?.explanation, selectedPetName || "this pet");
-      if (!explanation) throw new Error("Furvise could not check this product.");
+      if (!explanation) throw new Error(FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE);
 
       setFitExplanationCache((current) => ({
         ...current,
@@ -413,7 +419,7 @@ function ShopPageContent() {
       setFitExplanationCache((current) => ({
         ...current,
         [cacheKey]: {
-          error: fitError instanceof Error ? fitError.message : "Furvise could not check this product.",
+          error: fitError instanceof Error ? fitError.message : FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE,
           explanation: null,
           fallback: true,
           loading: false,
@@ -424,7 +430,6 @@ function ShopPageContent() {
 
   async function askProductQuestion(productId: string, questionOverride?: string) {
     if (!selectedPetId || !submittedQuery.trim() || !selectedProfile) return;
-    if (shopUsage?.allowed === false) return;
     const cacheKey = buildFitExplanationCacheKey({
       petId: selectedPetId,
       productId,
@@ -432,6 +437,20 @@ function ShopPageContent() {
     });
     const question = (questionOverride ?? productQuestionInputs[cacheKey] ?? "").trim();
     if (!question || productQuestionCache[cacheKey]?.loading) return;
+    if (shopUsage?.allowed === false) {
+      setProductQuestionCache((current) => ({
+        ...current,
+        [cacheKey]: {
+          answer: current[cacheKey]?.answer || null,
+          error: "You’ve used all of your AI guidance for this month. Product details and direct browsing are still available.",
+          fallback: true,
+          loading: false,
+          question,
+          usage: shopUsage,
+        },
+      }));
+      return;
+    }
 
     setProductQuestionCache((current) => ({
       ...current,
@@ -449,7 +468,8 @@ function ShopPageContent() {
       const token = await getCurrentAccessToken();
       if (!token) throw new Error("Please sign in again before asking about this product.");
 
-      const response = await fetch("/api/shop/product-question", {
+      const requestId = getOrCreateClientMutationKey(`product-question:${selectedPetId}:${productId}`);
+      const response = await idempotentClientFetch("/api/shop/product-question", {
         body: JSON.stringify({
           interpretation: activeInterpretation,
           petId: selectedPetId,
@@ -457,13 +477,14 @@ function ShopPageContent() {
           productId,
           query: submittedQuery,
           question,
+          requestId,
         }),
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         method: "POST",
-      });
+      }, `product-question:${selectedPetId}:${productId}`, requestId);
       const payload = (await response.json().catch(() => null)) as {
         answer?: unknown;
         error?: unknown;
@@ -473,13 +494,13 @@ function ShopPageContent() {
       } | null;
       const usage = parseProductAiUsageStatus(payload?.usage);
       if (usage) setShopUsage(usage);
-      setShopUsageError(payload?.usageUnavailable === true ? "Product AI usage is temporarily unavailable." : "");
+      setShopUsageError(payload?.usageUnavailable === true ? FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE : "");
       if (!response.ok) {
-        throw new Error(typeof payload?.error === "string" ? payload.error : buildProductQuestionRetryMessage(selectedPetName));
+        throw new Error(typeof payload?.error === "string" ? payload.error : buildProductQuestionRetryMessage());
       }
 
       const answer = parseShopProductQuestionAnswer(payload?.answer, selectedPetName || "this pet");
-      if (!answer) throw new Error(buildProductQuestionRetryMessage(selectedPetName));
+      if (!answer) throw new Error(buildProductQuestionRetryMessage());
 
       setProductQuestionCache((current) => ({
         ...current,
@@ -498,7 +519,7 @@ function ShopPageContent() {
         ...current,
         [cacheKey]: {
           answer: current[cacheKey]?.answer || null,
-          error: questionError instanceof Error ? questionError.message : buildProductQuestionRetryMessage(selectedPetName),
+          error: questionError instanceof Error ? questionError.message : buildProductQuestionRetryMessage(),
           fallback: true,
           loading: false,
           question,
@@ -508,8 +529,8 @@ function ShopPageContent() {
     }
   }
 
-  function buildProductQuestionRetryMessage(petName: string) {
-    return `Furvise could not answer that right now. Try asking about ingredients, directions, warnings, or whether it fits ${petName || "this pet"}.`;
+  function buildProductQuestionRetryMessage() {
+    return FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE;
   }
 
   async function interpretSubmittedQuery({
@@ -522,32 +543,40 @@ function ShopPageContent() {
     query: string;
   }) {
     setInterpretationState({
+      aiExhausted: false,
+      aiUnavailable: false,
       error: "",
       fallback: false,
       interpretation: null,
       loading: true,
       petId,
       query,
+      message: "",
     });
 
     try {
       const token = await getCurrentAccessToken();
       if (!token) throw new Error("Please sign in again before searching products.");
 
-      const response = await fetch("/api/shop/interpret-query", {
-        body: JSON.stringify({ petId, productCountry: country, query }),
+      const requestId = getOrCreateClientMutationKey(`product-interpret:${petId}`);
+      const response = await idempotentClientFetch("/api/shop/interpret-query", {
+        body: JSON.stringify({ petId, productCountry: country, query, requestId }),
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         method: "POST",
-      });
+        cache: "no-store",
+      }, `product-interpret:${petId}`, requestId);
       const payload = (await response.json().catch(() => null)) as {
         cached?: unknown;
         error?: unknown;
         fallback?: unknown;
         interpretation?: unknown;
         limitReached?: unknown;
+        creditsExhausted?: unknown;
+        aiUnavailable?: unknown;
+        message?: unknown;
         usage?: unknown;
       } | null;
       const usage = parseProductAiUsageStatus(payload?.usage);
@@ -556,52 +585,99 @@ function ShopPageContent() {
         if (response.status === 402 || payload?.limitReached === true) {
           setLimitReachedQuery(query);
         }
-        throw new Error(typeof payload?.error === "string" ? payload.error : "Product AI is temporarily unavailable, so Furvise searched the catalog using your typed query.");
+        throw new Error(typeof payload?.error === "string" ? payload.error : FURVISE_SEARCH_FALLBACK_MESSAGE);
       }
 
       const interpretation = parseShopQueryInterpretation(payload?.interpretation);
-      if (!interpretation) throw new Error("Product AI is temporarily unavailable, so Furvise searched the catalog using your typed query.");
+      if (!interpretation) throw new Error(FURVISE_SEARCH_FALLBACK_MESSAGE);
 
       setInterpretationState({
+        aiExhausted: payload?.creditsExhausted === true || payload?.limitReached === true,
+        aiUnavailable: payload?.aiUnavailable === true,
         error: "",
         fallback: payload?.fallback === true,
         interpretation,
         loading: false,
         petId,
         query,
+        message: typeof payload?.message === "string" ? payload.message : "",
       });
-      setLimitReachedQuery("");
+      setLimitReachedQuery(payload?.creditsExhausted === true || payload?.limitReached === true ? query : "");
     } catch (interpretError) {
       setInterpretationState({
+        aiExhausted: false,
+        aiUnavailable: true,
         error: interpretError instanceof Error
           ? interpretError.message
-          : "Product AI is temporarily unavailable, so Furvise searched the catalog using your typed query.",
+          : FURVISE_SEARCH_FALLBACK_MESSAGE,
         fallback: true,
         interpretation: null,
         loading: false,
         petId,
+        query,
+        message: "AI guidance is unavailable right now, but these products match the filters we could identify.",
+      });
+    }
+  }
+
+  async function loadSubmittedCatalog({
+    petId,
+    productCountry: country,
+    query,
+  }: {
+    petId: string;
+    productCountry: ProductCountry;
+    query: string;
+  }) {
+    setCatalogState({ error: "", loading: true, petId, productCountry: country, products: [], query });
+    try {
+      const token = await getCurrentAccessToken();
+      if (!token) throw new Error("Please sign in again before searching products.");
+      const response = await fetch("/api/shop/catalog", {
+        body: JSON.stringify({ petId, productCountry: country, query }),
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: unknown; products?: unknown } | null;
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE);
+      }
+      setCatalogState({
+        error: "",
+        loading: false,
+        petId,
+        productCountry: country,
+        products: parseCatalogProducts(payload?.products),
+        query,
+      });
+    } catch (catalogLoadError) {
+      setCatalogState({
+        error: catalogLoadError instanceof Error ? catalogLoadError.message : FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE,
+        loading: false,
+        petId,
+        productCountry: country,
+        products: [],
         query,
       });
     }
   }
 
   return (
-    <AppPage width="wide">
+    <AppPage layout="focused" shell="wide">
       <div className="min-w-0 overflow-x-hidden">
-        <header className="w-full max-w-[calc(100vw-2.5rem)] min-w-0 sm:max-w-3xl">
-          <h1 className="break-words text-4xl font-semibold text-[var(--pw-heading)] sm:text-5xl">Products</h1>
-          <p className="mt-3 max-w-full whitespace-normal break-words text-lg leading-7 text-[var(--pw-muted)]">
-            Search product ideas using your pet&apos;s saved context. Furvise filters by species, country, and saved avoid ingredients when available.
-          </p>
-        </header>
+        <PageHeader
+          mobileTitleSize="compact"
+          supportingText={`Find food, grooming, dental, and everyday care products that fit ${selectedPetName || "your pet"}.`}
+          title={`Products for ${selectedPetName || "your pet"}`}
+        />
 
         {state === "loading" ? <Status text="Loading Products..." /> : null}
         {state === "error" ? <Status text={error || "Furvise could not load Products."} tone="warn" /> : null}
 
         {state === "ready" ? (
-          <div className="mt-7 grid min-w-0 gap-6 lg:grid-cols-[minmax(22.5rem,26.25rem)_minmax(0,1fr)] xl:gap-8">
-            <section className="min-w-0 rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 shadow-sm sm:p-6">
-              <form className="grid min-w-0 gap-4" onSubmit={submitSearch}>
+          <div className="mt-6 min-w-0 md:mt-8" data-product-state={productExperienceState}>
+            <section className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] p-4 shadow-[var(--shadow-surface-1)] md:p-6">
+              <form className="grid min-w-0 gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-end md:gap-4" onSubmit={submitSearch}>
                 <label className="grid gap-2">
                   <span className={labelClass}>Pet</span>
                   <select
@@ -634,52 +710,54 @@ function ShopPageContent() {
                     className={inputClass}
                     minLength={MIN_SHOP_QUERY_LENGTH}
                     onChange={(event) => setQueryInput(event.target.value)}
-                    placeholder="What are you shopping for?"
+                    placeholder="What are you looking for?"
                     type="search"
                     value={queryInput}
                   />
                 </label>
 
-                <button
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-default disabled:bg-[var(--pw-secondary)] sm:w-fit"
+                <PrimaryButton
+                  className="w-full sm:w-fit"
                   disabled={!canSearch}
                   type="submit"
                 >
-                  Search products
-                </button>
-
-                <ShopUsageCounter error={shopUsageError} usage={shopUsage} />
+                  Search
+                </PrimaryButton>
               </form>
 
-              <div className="mt-5 flex flex-wrap gap-2" aria-label="Search examples">
-                {SHOP_QUERY_EXAMPLES.map((example) => (
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2 md:gap-x-5" aria-label="Popular categories">
+                <span className="basis-full text-center text-sm text-[var(--text-tertiary)] md:basis-auto">Popular categories</span>
+                {["Food", "Dental", "Grooming", "Skin and coat"].map((example) => (
                   <button
-                    className="inline-flex min-h-10 max-w-full items-center rounded-full border border-[var(--pw-border)] bg-[var(--pw-card-muted)] px-3 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)]"
+                    className="inline-flex min-h-11 max-w-full items-center rounded-full border border-[var(--border-subtle)] bg-[var(--chip-background)] px-3.5 text-[0.9375rem] font-semibold text-[var(--ghost-action-foreground)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] md:min-h-10 md:px-4 md:text-sm"
                     key={example}
-                    onClick={() => setQueryInput(example)}
+                    onClick={() => startSearch(example.toLowerCase())}
                     type="button"
                   >
                     {example}
                   </button>
                 ))}
               </div>
-
-              <div className="mt-5 rounded-2xl bg-[var(--pw-card-muted)] p-4 text-sm leading-6 text-[var(--pw-muted)]">
-                {selectedProfile ? (
-                  <p>
-                    Search carefully using {selectedPetName}&apos;s saved context. Product country: {productCountry === "US" ? "United States" : "Canada"}.
-                  </p>
-                ) : (
-                  <p>Choose a pet before searching so Furvise can check species and saved avoid ingredients.</p>
-                )}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 md:gap-x-5" aria-label="Browse by need">
+                <span className="basis-full text-center text-sm text-[var(--text-tertiary)] md:basis-auto">Browse by need</span>
+                {["Sensitive stomach", "Itchy skin", "Paw care"].map((example) => (
+                  <button
+                    className="inline-flex min-h-11 max-w-full items-center rounded-full border border-[var(--border-subtle)] bg-[var(--chip-background)] px-3.5 text-[0.9375rem] font-semibold text-[var(--ghost-action-foreground)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] md:min-h-10 md:px-4 md:text-sm"
+                    key={example}
+                    onClick={() => startSearch(example.toLowerCase())}
+                    type="button"
+                  >
+                    {example}
+                  </button>
+                ))}
               </div>
             </section>
 
-            <section className="min-w-0">
+            {submittedQuery.trim() ? <section className="mt-10 min-w-0">
               {submittedQuery.trim() ? (
                 <div className="mb-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[var(--pw-primary)]">Catalog search</p>
+                    <p className="text-sm font-semibold text-[var(--pw-primary)]">Results for</p>
                     <h2 className="mt-1 break-words text-2xl font-semibold text-[var(--pw-heading)]">
                       {submittedQuery}
                     </h2>
@@ -694,20 +772,30 @@ function ShopPageContent() {
 
               {showAvoidNote ? (
                 <p className="mb-4 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4 text-sm font-semibold text-[var(--pw-muted)]">
-                  Some matches may be hidden because of saved avoid ingredients.
+                  We left out products with ingredients you have said to avoid.
                 </p>
               ) : null}
 
-              {interpretationError ? (
+              {interpretationError || catalogError ? (
                 <p className="mb-4 rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-4 text-sm font-semibold leading-6 text-[var(--pw-warning-text)]">
-                  {interpretationError}
+                  {catalogError || interpretationError}
                 </p>
               ) : null}
+
+              {limitReachedQuery === submittedQuery ? <CapabilityNotice
+                clear={() => { setQueryInput(""); setSubmittedQuery(""); resetInterpretation(); }}
+                browse={(value) => startSearch(value)}
+                message="You’ve used all of your AI guidance for this month. You can still browse products directly by category or keyword."
+              /> : interpretationState.aiUnavailable ? <CapabilityNotice
+                clear={() => { setQueryInput(""); setSubmittedQuery(""); resetInterpretation(); }}
+                browse={(value) => startSearch(value)}
+                message={interpretationState.message || "AI guidance is unavailable right now, but these products match the filters we could identify."}
+              /> : null}
 
               <ShopResults
                 emptyState={searchResult.emptyState}
                 explanationCache={fitExplanationCache}
-                loading={interpretationLoading}
+                loading={interpretationLoading || catalogLoading}
                 onExplainProductFit={explainProductFit}
                 onProductQuestion={askProductQuestion}
                 onProductQuestionInputChange={(cacheKey, value) =>
@@ -722,12 +810,22 @@ function ShopPageContent() {
                 selectedPetId={selectedPetId}
                 selectedPetName={selectedPetName || "this pet"}
               />
-            </section>
+            </section> : null}
           </div>
         ) : null}
       </div>
     </AppPage>
   );
+}
+
+function CapabilityNotice({ browse, clear, message }: { browse: (query: string) => void; clear: () => void; message: string }) {
+  return <div className="mb-5 rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-4" role="status">
+    <p className="text-sm font-semibold leading-6 text-[var(--pw-warning-text)]">{message}</p>
+    <div className="mt-3 flex flex-wrap gap-2">
+      {["dental", "food", "grooming"].map((query) => <button className="min-h-11 rounded-full border border-[var(--border-strong)] bg-[var(--surface-primary)] px-4 text-sm font-semibold" key={query} onClick={() => browse(query)} type="button">Browse {query[0].toUpperCase() + query.slice(1)}</button>)}
+      <button className="min-h-11 px-3 text-sm font-semibold underline underline-offset-4" onClick={clear} type="button">Clear search</button>
+    </div>
+  </div>;
 }
 
 function ShopResults({
@@ -746,7 +844,7 @@ function ShopResults({
   selectedPetId,
   selectedPetName,
 }: {
-  emptyState: ReturnType<typeof searchStaticRealShopProducts>["emptyState"];
+  emptyState: ReturnType<typeof searchShopProducts>["emptyState"];
   explanationCache: Record<string, FitExplanationState>;
   loading?: boolean;
   onExplainProductFit: (productId: string) => void;
@@ -762,37 +860,22 @@ function ShopResults({
   selectedPetName: string;
 }) {
   if (!query.trim() || emptyState === "no_query") {
-    return (
-      <EmptyState
-        body="Choose a pet and search for something specific, like shampoo, dental treats, or chicken-free food."
-        title="What are you shopping for?"
-      />
-    );
+    return null;
   }
 
   if (emptyState === "missing_pet") {
-    return (
-      <EmptyState
-        body="Choose a pet and search for something specific, like shampoo, dental treats, or chicken-free food."
-        title="What are you shopping for?"
-      />
-    );
+    return null;
   }
 
   if (emptyState === "query_too_short") {
-    return (
-      <EmptyState
-        body={`Use at least ${MIN_SHOP_QUERY_LENGTH} characters so Furvise can search products carefully.`}
-        title="What are you shopping for?"
-      />
-    );
+    return null;
   }
 
   if (emptyState === "vague_query") {
     return (
       <EmptyState
-        body="Try a specific product type like shampoo, dental treats, grooming wipes, flea comb, or chicken-free food."
-        title="What are you shopping for?"
+        body="Try a broader term or another category."
+        title="No matches in the current collection"
       />
     );
   }
@@ -800,7 +883,7 @@ function ShopResults({
   if (emptyState === "urgent") {
     return (
       <EmptyState
-        body="This pet has urgent care signs. Contact a veterinarian or emergency clinic before shopping for products."
+        body={FURVISE_URGENT_SAFETY_MESSAGE}
         title="Product shopping is hidden for now"
         tone="urgent"
       />
@@ -810,8 +893,8 @@ function ShopResults({
   if (emptyState === "shop_limit") {
     return (
       <EmptyState
-        body="You've used your included Product AI for this month. You can still view saved pets, care history, and any product results already loaded."
-        title="Monthly Product AI limit reached"
+        body={FURVISE_PRODUCT_USAGE_CAP_MESSAGE}
+        title="Monthly search limit reached"
       />
     );
   }
@@ -819,8 +902,8 @@ function ShopResults({
   if (loading) {
     return (
       <EmptyState
-        body="Furvise is interpreting the shopping query before searching products."
-        title="Reading search"
+        body="Checking available products for this pet."
+        title="Searching the current collection"
       />
     );
   }
@@ -847,7 +930,7 @@ function ShopResults({
   if (emptyState === "ingredient_verification_empty") {
     return (
       <EmptyState
-        body="Furvise does not have a product that fits that search and your saved avoid ingredients right now."
+        body={buildNoSafeProductMatchMessage(selectedPetName)}
         title="No verified ingredient match yet"
       />
     );
@@ -856,7 +939,7 @@ function ShopResults({
   if (emptyState === "region_empty") {
     return (
       <EmptyState
-        body="Furvise does not have a product available for your product country right now. You can change product country in Account settings."
+        body={buildNoSafeProductMatchMessage(selectedPetName)}
         title="No product for this country yet"
       />
     );
@@ -865,8 +948,8 @@ function ShopResults({
   if (emptyState === "no_match") {
     return (
       <EmptyState
-        body="Furvise does not have a careful product option for that search, pet context, and country right now."
-        title="No careful match yet"
+        body="Try a broader term or another category."
+        title="No matches in the current collection"
       />
     );
   }
@@ -1039,12 +1122,12 @@ function ProductCard({
         <div className="flex min-w-0 flex-wrap gap-2">
           <button
             aria-expanded={whyPanelOpen}
-            className="inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-4 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)] disabled:cursor-default disabled:opacity-70"
+            className="inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-4 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)] disabled:cursor-default disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]"
             disabled={explanationState?.loading}
             onClick={openWhyPanel}
             type="button"
           >
-            {explanationState?.loading ? "Checking saved context..." : "Why this product?"}
+            {explanationState?.loading ? "Checking product fit..." : "Why this product?"}
           </button>
           <button
             aria-expanded={askPanelOpen}
@@ -1135,15 +1218,15 @@ function ProductQuestionPanel({
     <div className="mt-4 min-w-0 max-w-full border-t border-[var(--pw-border)] pt-4">
       <h4 className="text-base font-semibold text-[var(--pw-heading)]">Ask about this product</h4>
       <p className="mt-1 text-sm leading-6 text-[var(--pw-muted)]">
-        Ask about ingredients, use, warnings, or whether it fits {selectedPetName}&apos;s saved context.
+        Ask about ingredients, use, warnings, or whether it fits {selectedPetName}.
       </p>
       {productsAiUsageError ? (
-        <p className="mt-2 text-xs font-semibold text-[var(--pw-warning-text)]">Product AI usage is temporarily unavailable.</p>
+        <p className="mt-2 text-xs font-semibold text-[var(--pw-warning-text)]">{FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE}</p>
       ) : null}
       {questionCapReached ? (
         <div className="mt-2 text-xs font-semibold leading-5 text-[var(--pw-warning-text)]" role="status">
-          <p>You&apos;ve used your included Product AI for this month.</p>
-          <p>You can still view saved pets, care history, and any product results already loaded.</p>
+          <p>{FURVISE_PRODUCT_USAGE_CAP_MESSAGE}</p>
+          <p>You can still browse products by category or keyword and open product details.</p>
         </div>
       ) : null}
       <form
@@ -1178,7 +1261,7 @@ function ProductQuestionPanel({
           value={questionInput}
         />
         <button
-          className="inline-flex min-h-10 w-full items-center justify-center rounded-full bg-[var(--pw-primary)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-default disabled:bg-[var(--pw-secondary)] sm:w-fit"
+          className="inline-flex min-h-10 w-full items-center justify-center rounded-full border border-[var(--secondary-action-border)] bg-[var(--secondary-action)] px-4 text-sm font-semibold text-[var(--secondary-action-text)] transition hover:bg-[var(--secondary-action-hover)] active:bg-[var(--secondary-action-active)] disabled:cursor-default disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)] sm:w-fit"
           disabled={questionCapReached || questionState?.loading || !questionInput.trim()}
           type="submit"
         >
@@ -1230,16 +1313,16 @@ function buildProductQuestionImportantMissingNote(missingInfo: string[], questio
   const alreadyMentionsWarnings = /warning|watch|irritation|worse/.test(normalizedAnswer);
 
   if (missingIngredients && missingDirections && asksAboutIngredientsOrLabel && !alreadyMentionsLabelCheck && !alreadyMentionsDirections) {
-    return "Furvise does not have the full verified ingredient list or label directions for this product yet, so review the label and follow the package directions before using it.";
+    return FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE;
   }
   if (missingIngredients && asksAboutIngredientsOrLabel && !alreadyMentionsLabelCheck) {
-    return "Furvise does not have the full verified ingredient list yet, so review the label before using it.";
+    return FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE;
   }
   if (missingDirections && asksAboutDirections && !alreadyMentionsDirections) {
-    return "Furvise does not have verified label directions for this product yet, so follow the package directions before using it.";
+    return FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE;
   }
   if (missingWarnings && asksAboutWarnings && !alreadyMentionsWarnings) {
-    return "Furvise does not have verified warnings from the product label yet, so review the label before using it.";
+    return FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE;
   }
   return "";
 }
@@ -1281,39 +1364,19 @@ function Status({ text, tone = "neutral" }: { text: string; tone?: "neutral" | "
   );
 }
 
-function ShopUsageCounter({
-  error,
-  usage,
-}: {
-  error: string;
-  usage: ProductAiUsageStatus | null;
-}) {
-  if (error) {
-    return (
-      <p className="text-sm font-semibold text-[var(--pw-warning-text)]">
-        Product AI usage is temporarily unavailable.
-      </p>
-    );
-  }
-  if (!usage) {
-    return <p className="text-sm font-semibold text-[var(--pw-muted)]">Loading Product AI usage...</p>;
-  }
-  if (!usage.allowed) {
-    return (
-      <div className="rounded-2xl bg-[var(--pw-card-muted)] p-3 text-sm leading-6 text-[var(--pw-warning-text)]" role="status">
-        <p className="font-semibold">You&apos;ve used your included Product AI for this month.</p>
-        <p>You can still view saved pets, care history, and any product results already loaded.</p>
-      </div>
-    );
-  }
-  const nearLimit = usage.remaining > 0 && usage.remaining <= 3;
-  return (
-    <div className="rounded-2xl bg-[var(--pw-card-muted)] p-3 text-sm leading-6 text-[var(--pw-muted)]" role="status">
-      <p className="font-semibold text-[var(--pw-heading)]">
-        {nearLimit ? "A few product AI uses left this month" : "Product AI included this month"}
-      </p>
-    </div>
-  );
+function parseCatalogProducts(value: unknown): MockProduct[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is MockProduct => {
+    if (!item || typeof item !== "object") return false;
+    const product = item as Partial<MockProduct>;
+    return typeof product.id === "string"
+      && typeof product.name === "string"
+      && Array.isArray(product.species)
+      && Array.isArray(product.availableCountries)
+      && Array.isArray(product.concernTags)
+      && Array.isArray(product.excludedIngredients)
+      && typeof product.category === "string";
+  });
 }
 
 function parseProductAiUsageStatus(value: unknown): ProductAiUsageStatus | null {
@@ -1412,4 +1475,4 @@ function buildFitExplanationCacheKey({
 
 const labelClass = "text-sm font-semibold text-[var(--pw-heading)]";
 const inputClass =
-  "min-h-12 w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 text-base text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-subtle)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface-elevated)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pw-primary)_22%,transparent)]";
+  "min-h-[3.25rem] w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 text-base text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-subtle)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface-elevated)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--pw-primary)_22%,transparent)] lg:min-h-12";

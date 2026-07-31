@@ -58,7 +58,7 @@ test("Ask Furvise builds clean copy, save, context, and urgent safety content", 
   });
   assert.ok(response);
   assert.match(formatAskResponsePlainText(response), /Watch next\n- Track appetite/);
-  assert.match(buildGuidanceCareNote(response), /^Furvise-generated note/);
+  assert.match(buildGuidanceCareNote(response), /^Saved from Ask, not veterinary advice\./);
   assert.equal(
     buildContextSummary({
       petName: "Rocky",
@@ -70,7 +70,7 @@ test("Ask Furvise builds clean copy, save, context, and urgent safety content", 
   );
   const urgent = buildUrgentAskResponse();
   assert.match(urgent.title, /veterinarian now/i);
-  assert.match(urgent.safetyNote, /Furvise organizes care context/);
+  assert.match(urgent.safetyNote, /Based on what you've saved about your pet/);
 });
 
 test("saving vet prep guidance creates a concise Furvise care-history entry", () => {
@@ -99,7 +99,7 @@ test("saving vet prep guidance creates a concise Furvise care-history entry", ()
   const entry = buildGuidanceCareEntry(response, saveMetadata);
   assert.equal(entry.category, "general");
   assert.equal(entry.title, "Furvise vet prep summary");
-  assert.match(entry.note, /^Furvise-generated note, not veterinary advice\./);
+  assert.match(entry.note, /^Saved from Ask, not veterinary advice\./);
   assert.match(entry.note, /Prepared a vet summary/);
   assert.equal(entry.note.length <= 500, true);
   assert.doesNotMatch(entry.note, /Use these saved facts and recent logs/);

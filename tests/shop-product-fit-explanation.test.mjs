@@ -83,15 +83,14 @@ test("product fit explanation schema validates sales-copy fields and exact safet
 });
 
 test("product fit prompt asks for benefit-focused copy without audit wording", () => {
-  assert.match(shopProductFitExplanationSystemPrompt, /product advisor copy/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /benefit-focused/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /Do not infer ingredients unless ingredientsVerified is true/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /Never say safe for the pet/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /Do not use bullets, section labels, or internal reasoning language/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /Do not include assistant-style follow-up offers/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /If you want, I can, I can help, ask me, or let me know/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /If ingredientsVerified is false, do not repeat a full missing-ingredient warning/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /Use one brief label-review sentence/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /knowledgeable store advisor/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /Start by saying what the product is/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /full ingredient list is included/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /Never promise suitability/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /Do not use bullets, section labels, or reasoning language/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /Do not make follow-up offers/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /one brief label-check sentence/i);
+  assert.doesNotMatch(shopProductFitExplanationSystemPrompt, /ingredientsVerified|provided data|catalog signals|verified fields|If you want, I can/i);
 });
 
 test("verified product payload includes ingredients only when ingredientsVerified is true", () => {
@@ -129,7 +128,7 @@ test("fallback explanation reads like concise product advisor copy", () => {
   assert.equal(explanation.bodyParagraphs.length, 2);
   assert.equal(
     explanation.bodyParagraphs[0],
-    "Earthbath Oatmeal & Aloe Fragrance Free Pet Shampoo may make sense for Rocky because it is a dog shampoo for routine bathing and gentle coat cleaning. It is a better fit for grooming questions than dental, food, or flea concerns.",
+    "Earthbath Oatmeal & Aloe Fragrance Free Pet Shampoo is a dog shampoo for routine bathing and gentle coat cleaning, which relates directly to a grooming search for Rocky.",
   );
   assert.equal(
     explanation.bodyParagraphs[1],
@@ -140,7 +139,7 @@ test("fallback explanation reads like concise product advisor copy", () => {
   assert.doesNotMatch(explanation.bodyParagraphs.join(" "), /full verified ingredient list/i);
   assert.ok((renderedText.match(/\bingredient/i) || []).length <= 1);
   assert.ok(renderedText.split(/\s+/).length <= 110);
-  assert.equal(explanation.safetyLine, "Based on what you've saved about Rocky. Not a substitute for vet or professional advice.");
+  assert.equal(explanation.safetyLine, "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.");
   assert.equal(explanation.confidence, "medium");
   assert.doesNotMatch(renderedText, /Product fit|Good for|Keep in mind|Pet context used|Saved context matched|Product signals Furvise used|Cautions/);
   assert.doesNotMatch(renderedText, /catalog tags|catalog search|provided product data|positioned for|signals|\bAI\b|matched because|evidence is limited|available in the US/i);
@@ -162,7 +161,8 @@ test("product fit prompt input includes no unverified ingredient claims", () => 
   assert.equal(promptInput.requiredSafetyLine, buildProductFitSafetyLine("Rocky"));
   assert.equal(promptInput.selectedPet.name, "Rocky");
   assert.equal(promptInput.selectedPet.species, "dog");
-  assert.equal(promptInput.product.ingredientsVerified, false);
+  assert.equal(promptInput.product.fullIngredientListAvailable, false);
+  assert.equal("ingredientsVerified" in promptInput.product, false);
   assert.equal(promptInput.product.ingredientStatus, "not fully verified");
   assert.deepEqual(promptInput.product.ingredientHighlights, []);
 });
@@ -215,7 +215,7 @@ test("parser keeps product fit safety line only once at the bottom", () => {
   const explanation = parseShopProductFitExplanation(
     validExplanation({
       bodyParagraphs: [
-        "Earthbath Oatmeal & Aloe Fragrance Free Pet Shampoo is a dog shampoo for routine bathing. Based on what you've saved about Rocky. Not a substitute for vet or professional advice.",
+        "Earthbath Oatmeal & Aloe Fragrance Free Pet Shampoo is a dog shampoo for routine bathing. Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.",
         "Review the label before using it.",
       ],
     }),
@@ -226,7 +226,7 @@ test("parser keeps product fit safety line only once at the bottom", () => {
   const renderedText = visibleExplanationText(explanation);
   assert.doesNotMatch(explanation.bodyParagraphs.join(" "), /Based on what you've saved about Rocky/i);
   assert.equal(
-    countOccurrences(renderedText, /Based on what you've saved about Rocky\. Not a substitute for vet or professional advice\./g),
+    countOccurrences(renderedText, /Based on what you've saved about Rocky\. Not a substitute for veterinary or professional advice\./g),
     1,
   );
 });
@@ -254,7 +254,7 @@ test("product UI copy contains no em dash", () => {
 
   assert.doesNotMatch(page, /â€”|\\u2014/);
   assert.doesNotMatch(helper, /â€”/);
-  assert.match(helper, /Based on what you've saved about \$\{petName \|\| "this pet"\}\. Not a substitute for vet or professional advice\./);
+  assert.match(helper, /buildFurviseSafetyLine\(petName \|\| "this pet"\)/);
 });
 
 

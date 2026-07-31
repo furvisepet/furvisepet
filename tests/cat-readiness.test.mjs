@@ -21,7 +21,7 @@ test("application profile model and onboarding are species-ready", () => {
 
   assert.match(model, /export type PetProfile =/);
   assert.match(model, /export type DogProfile = PetProfile/);
-  assert.match(onboarding, /Is your pet a dog or a cat\?/);
+  assert.match(onboarding, /Who are we setting up\?/);
   assert.match(onboarding, /\["dog", "cat"\] as const/);
   assert.doesNotMatch(onboarding, /e\.g\. Rocky/);
   assert.match(providerPrompt, /suitable for display to a pet owner/);

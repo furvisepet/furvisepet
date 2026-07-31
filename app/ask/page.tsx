@@ -1,17 +1,33 @@
-"use client";
+﻿"use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AppPage } from "../components/app-page";
+import { AskUsageNotice } from "../components/ask-usage-notice";
+import { BrandMark } from "../components/brand-mark";
+import { PageHeader, PrimaryButton } from "../components/product-primitives";
+import { WorkflowDialog, WorkflowEmptyState } from "../components/workflow-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import { ANALYSIS_STORAGE_KEY, parseStoredAnalysis } from "../lib/ai-analysis";
 import {
-  buildContextSummary,
   buildGuidanceCareEntry,
   formatAskResponsePlainText,
-  parseAskResponse,
+  parseAskConversationResponse,
 } from "../lib/ask.mjs";
+import { trackAskEvent } from "../lib/ask-analytics";
+import { deriveConversationTitle, formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
 import { toLocalDateTimeInputValue } from "../lib/care-log.mjs";
+import { FURVISE_ANSWER_UNAVAILABLE_MESSAGE } from "../lib/furvise-voice";
+import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import {
   createCareEntryUnlessDuplicate,
   getBrowserSupabase,
@@ -21,20 +37,33 @@ import {
   type DogProfileWithMemories,
 } from "../lib/supabase";
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
-import { FURVISE_SAFETY_LINE, FURVISE_URGENT_SAFETY_MESSAGE } from "../lib/safety-copy";
 
-const prompts = [
-  "Summarize recent changes",
-  "Prepare for a vet visit",
-  "What should I watch next?",
-  "Explain recent history",
+const emptyStarters = [
+  "What should I track before {pet}'s next vet visit?",
+  "Summarize what has changed recently.",
+  "Could a food change be related to what I'm seeing?",
+  "Help me build a simple care routine.",
 ] as const;
 
+type AnswerType = "direct_answer" | "care_plan" | "tracking_plan" | "vet_prep" | "history_summary" | "product_guidance" | "clarification" | "urgent_guidance";
+type AnswerAction = "save_key_detail" | "add_to_care_history" | "start_tracking" | "prepare_vet_note" | "copy";
 type StructuredResponse = {
   title: string;
   summary: string;
+  directAnswer: string;
+  supportingText: string | null;
   sections: { heading: string; items: string[] }[];
   safetyNote: string | null;
+  answerType: AnswerType;
+  suggestedQuestions: string[];
+  actions: AnswerAction[];
+  usedContextSummary: string[];
+  missingUsefulDetails: string[];
+  urgency: "routine" | "resolved" | "monitor" | "urgent";
+  clarificationQuestion?: string;
+  saveSuggestions?: Array<{ type: string; statement: string; attribution: string; suggestedLabel: string; requiresConfirmation: true }>;
+  trackingPlan?: { observations: string[]; frequency: string; duration: string; comparison: string; seekCareSoonerIf: string[] };
+  vetBriefRelevant?: boolean;
 };
 type AskSaveMetadata = {
   answerType: string;
@@ -47,433 +76,632 @@ type AskSaveMetadata = {
   saveable: boolean;
   usedSavedFactsCount: number;
 };
-type ContextUsed = {
-  petName: string | null;
-  profileCount: number;
-  productFeedbackCount: number;
-  recentUpdateCount: number;
-  savedDetailCount: number;
-  storedGuidanceCount: number;
+type ContextUsed = { petName: string | null; usedSources: string[] };
+type CarePersistence = { status: "persisted" | "suggested" | "skipped" | "failed"; careEntryIds: string[]; concernIds: string[]; errorCode: string | null; memoryIds?: string[]; profileUpdated?: boolean };
+type AskUsageStatus = { allowed: boolean; count: number; limit: number; remaining: number };
+type SuggestionUiStatus = "idle" | "saving" | "applied" | "already_applied" | "failed" | "dismissed";
+type StateSuggestion = {
+  id: string;
+  type: "history" | "memory" | "concern_resolution" | "concern_opening";
+  title: string;
+  details?: string | null;
+  status?: "pending" | "saved" | "dismissed";
+  applyStatus?: "applied" | "already_applied";
+  uiStatus?: SuggestionUiStatus;
+  error?: string | null;
+  careEntryId?: string | null;
+  concernId?: string | null;
 };
-type AskUsageStatus = {
-  allowed: boolean;
-  count: number;
-  earlyAccessUnlocked: boolean;
-  limit: number;
-  remaining: number;
-  gate?: {
-    hardBlocked?: boolean;
-    message?: string | null;
-    softNotice?: string | null;
-  };
-};
-
-const askLimitMessage =
-  "You've used your free Ask Furvise messages for this month. Your care log, dashboard, pet profiles, and curated product suggestions are still available.";
+type ConversationMessage =
+  | { id: string; role: "user"; text: string; requestId?: string | null; failed?: boolean }
+  | { id: string; role: "furvise"; response: StructuredResponse; saveMetadata: AskSaveMetadata | null; contextUsed: ContextUsed | null; handledWithoutAi?: boolean; creditsUsed?: number; suggestion?: StateSuggestion | null; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null };
+type AskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR" | "NETWORK_ERROR";
+type AskRequestPhase = "idle" | "submitting" | "receiving" | "completed" | "failed" | "retrying";
+type FailedAskRequest = { code: AskFailureCode; prompt: string; requestId: string; userMessageId: string };
 
 export default function AskPage() {
-  return (
-    <Suspense fallback={<AppPage>{null}</AppPage>}>
-      <AskPageContent />
-    </Suspense>
-  );
+  return <Suspense fallback={<AppPage>{null}</AppPage>}><AskPageContent /></Suspense>;
 }
 
 function AskPageContent() {
   const searchParams = useSearchParams();
   const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
   const [profiles, setProfiles] = useState<DogProfileWithMemories[]>([]);
-  const [selectedPet, setSelectedPet] = useState(searchParams.get("pet") || "all");
+  const [selectedPet, setSelectedPet] = useState(searchParams.get("pet") || "");
+  const [conversations, setConversations] = useState<AskConversationSummary[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeTitle, setActiveTitle] = useState("New question");
+  const [thread, setThread] = useState<ConversationMessage[]>([]);
   const [question, setQuestion] = useState("");
-  const [response, setResponse] = useState<StructuredResponse | null>(null);
-  const [followUpResponse, setFollowUpResponse] = useState<StructuredResponse | null>(null);
-  const [saveMetadata, setSaveMetadata] = useState<AskSaveMetadata | null>(null);
-  const [followUpSaveMetadata, setFollowUpSaveMetadata] = useState<AskSaveMetadata | null>(null);
-  const [contextUsed, setContextUsed] = useState<ContextUsed | null>(null);
-  const [urgent, setUrgent] = useState(false);
-  const [followUpQuestion, setFollowUpQuestion] = useState("");
-  const [followUpUsed, setFollowUpUsed] = useState(false);
-  const [saveConfirmationOpen, setSaveConfirmationOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [pendingNewQuestion, setPendingNewQuestion] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<AskConversationSummary | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<AskConversationSummary | null>(null);
+  const [saveTargetId, setSaveTargetId] = useState<string | null>(null);
+  const [saveDraft, setSaveDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [conversationListError, setConversationListError] = useState("");
+  const [requestPhase, setRequestPhase] = useState<AskRequestPhase>("idle");
+  const [failedRequest, setFailedRequest] = useState<FailedAskRequest | null>(null);
   const [status, setStatus] = useState("");
+  const [persistenceWarning, setPersistenceWarning] = useState("");
   const [usage, setUsage] = useState<AskUsageStatus | null>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const conversationEndRef = useRef<HTMLDivElement>(null);
+  const askRequestActiveRef = useRef(false);
 
   useEffect(() => {
     if (authStatus !== "signedIn" || !authUser) return;
+    const user = authUser;
     let active = true;
     async function load() {
       try {
-        const user = authUser;
-        if (!user) return;
         const rows = await loadDogProfilesWithMemories(user);
-        if (active) {
-          setProfiles(rows);
-          if (!searchParams.get("pet") && rows.length === 1) setSelectedPet(rows[0].id);
+        if (!active) return;
+        setProfiles(rows);
+        const requestedPet = searchParams.get("pet");
+        const petId = rows.some((profile) => profile.id === requestedPet) && requestedPet ? requestedPet : rows[0]?.id || "";
+        setSelectedPet(petId);
+        const usageStatus = await fetchAskUsage().catch(() => null);
+        const history = await fetchConversationList().catch(() => {
+          setConversationListError("Recent conversations could not be loaded. Try again.");
+          return [];
+        });
+        if (!active) return;
+        if (usageStatus) setUsage(usageStatus);
+        setConversations(history);
+        const requestedConversation = searchParams.get("conversation");
+        if (requestedConversation && history.some((item) => item.id === requestedConversation)) {
+          await openConversation(requestedConversation, history);
+        } else if (petId) {
+          await importLegacyConversation(petId, history);
+          setQuestion(readDraft(getDraftKey(null, petId)));
         }
-        const usageStatus = await fetchAskUsage();
-        if (active && usageStatus) setUsage(usageStatus);
       } catch (loadError) {
-        if (active) setError(loadError instanceof Error ? loadError.message : "Furvise could not load your pets.");
+        if (active) setError(loadError instanceof Error ? loadError.message : "Furvise could not open Ask.");
       } finally {
         if (active) setLoading(false);
       }
     }
-    load();
-    return () => {
-      active = false;
-    };
-  }, [authStatus, authUser, searchParams]);
+    void load();
+    return () => { active = false; };
+    // The initial route selection is intentionally captured once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus, authUser]);
+
+  useEffect(() => {
+    if (!selectedPet || typeof window === "undefined") return;
+    window.localStorage.setItem(getDraftKey(activeConversationId, selectedPet), question);
+  }, [activeConversationId, question, selectedPet]);
+
+  const activeProfile = profiles.find((profile) => profile.id === selectedPet) || null;
+  const petName = activeProfile ? formatPetDisplayName(activeProfile.name) : "your pet";
+  const assistantMessages = useMemo(() => thread.filter((message): message is Extract<ConversationMessage, { role: "furvise" }> => message.role === "furvise"), [thread]);
+  const latestAnswer = assistantMessages.at(-1) || null;
+  const saveTarget = assistantMessages.find((message) => message.id === saveTargetId) || null;
+  const hasThread = Boolean(thread.length);
+  const requestActive = requestPhase === "submitting" || requestPhase === "receiving" || requestPhase === "retrying";
+  const composerUnavailable = submitting || requestActive || profiles.length === 0 || !selectedPet;
+
+  useEffect(() => {
+    conversationEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [requestPhase, thread]);
+
+  async function refreshConversations() {
+    try {
+      const history = await fetchConversationList();
+      setConversations(history);
+      setConversationListError("");
+      return history;
+    } catch (refreshError) {
+      setConversationListError("Recent conversations could not be loaded. Try again.");
+      throw refreshError;
+    }
+  }
+
+  async function openConversation(id: string, known = conversations) {
+    saveCurrentDraft();
+    setError("");
+    setStatus("");
+    setLoading(true);
+    try {
+      const payload = await conversationJson(`/api/ask/conversations/${encodeURIComponent(id)}`) as { conversation?: AskConversationDetail };
+      if (!payload.conversation) throw new Error("That conversation is not available.");
+      const parsedThread = parseConversationDetail(payload.conversation);
+      setSelectedPet(payload.conversation.petId);
+      setActiveConversationId(payload.conversation.id);
+      setActiveTitle(payload.conversation.title);
+      setThread(parsedThread);
+      const lastMessage = parsedThread.at(-1);
+      setFailedRequest(lastMessage?.role === "user" && lastMessage.failed && lastMessage.requestId
+        ? { code: "UNKNOWN_ERROR", prompt: lastMessage.text, requestId: lastMessage.requestId, userMessageId: lastMessage.id }
+        : null);
+      setQuestion(readDraft(getDraftKey(payload.conversation.id, payload.conversation.petId)));
+      setHistoryOpen(false);
+      trackAskEvent("conversation_reopened");
+      if (!known.some((item) => item.id === id)) await refreshConversations();
+      requestAnimationFrame(() => composerRef.current?.focus());
+    } catch (openError) {
+      setError(openError instanceof Error ? openError.message : "That conversation could not be opened.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function switchPet(petId: string) {
+    saveCurrentDraft();
+    setSelectedPet(petId);
+    setActiveConversationId(null);
+    setActiveTitle("New question");
+    setThread([]);
+    setQuestion(readDraft(getDraftKey(null, petId)));
+    setError("");
+    setPersistenceWarning("");
+    setStatus("");
+    requestAnimationFrame(() => composerRef.current?.focus());
+  }
+
+  function requestNewQuestion() {
+    if (question.trim()) setPendingNewQuestion(true);
+    else startNewQuestion();
+  }
+
+  function startNewQuestion() {
+    if (selectedPet && typeof window !== "undefined") window.localStorage.removeItem(getDraftKey(activeConversationId, selectedPet));
+    setQuestion("");
+    setThread([]);
+    setActiveConversationId(null);
+    setActiveTitle("New question");
+    setPendingNewQuestion(false);
+    setError("");
+    setPersistenceWarning("");
+    setStatus(activeConversationId ? "Your previous conversation is saved in Recent conversations." : "");
+    requestAnimationFrame(() => composerRef.current?.focus());
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await ask(question.trim(), false);
+    await ask(question.trim(), "composer");
   }
 
-  async function submitFollowUp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!response || followUpUsed) return;
-    await ask(followUpQuestion.trim(), true);
-  }
-
-  async function ask(prompt: string, isFollowUp: boolean) {
-    if (!prompt || submitting) return;
-    setSubmitting(true);
+  async function ask(promptValue: string, source: "composer" | "empty_state" | "response_suggestion", retry?: FailedAskRequest) {
+    const prompt = promptValue.trim();
+    if (!prompt || composerUnavailable || askRequestActiveRef.current) return;
+    const conversationIdAtSubmit = activeConversationId;
+    const previousResponse = latestAnswer?.response || null;
+    const requestId = retry?.requestId || getOrCreateClientMutationKey(`ask:${selectedPet}:${conversationIdAtSubmit || "new"}`);
+    const userMessageId = retry?.userMessageId || createMessageId("user");
+    askRequestActiveRef.current = true;
+    setRequestPhase(retry ? "retrying" : "submitting");
+    setFailedRequest(null);
     setError("");
+    setPersistenceWarning("");
     setStatus("");
-    if (!isFollowUp) {
-      setResponse(null);
-      setFollowUpResponse(null);
-      setSaveMetadata(null);
-      setFollowUpSaveMetadata(null);
-      setFollowUpUsed(false);
-      setUrgent(false);
-    }
+    if (!retry) setThread((current) => [...current, { id: userMessageId, role: "user", text: prompt }]);
+    trackAskEvent(previousResponse ? "follow_up_submitted" : "question_submitted", { source });
     try {
       const token = await getAskAuthToken();
-      if (!token) throw new Error("Please sign in again before asking Furvise.");
-      const storedAnalysis = readRelevantStoredAnalysis(selectedPet);
-      const result = await fetch("/api/ask", {
+      if (!token) throw new AskRequestError("AUTH_REQUIRED");
+      const request = idempotentClientFetch("/api/ask", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          petId: selectedPet,
-          previousResponse: isFollowUp ? response : null,
-          question: prompt,
-          storedAnalysis,
-        }),
-      });
-      const payload = await result.json().catch(() => null) as {
-        contextUsed?: ContextUsed | null;
-        error?: string;
-        response?: unknown;
-        saveMetadata?: AskSaveMetadata | null;
-        usage?: AskUsageStatus | null;
-        urgent?: boolean;
-      } | null;
-      const parsed = parseAskResponse(payload?.response) as StructuredResponse | null;
+        body: JSON.stringify({ conversationId: conversationIdAtSubmit, locale: navigator.language, message: prompt, petId: selectedPet, previousResponse, question: prompt, requestId, storedAnalysis: readRelevantStoredAnalysis(selectedPet) }),
+        signal: AbortSignal.timeout(55_000),
+      }, `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`, requestId);
+      setQuestion("");
+      const result = await request;
+      setRequestPhase("receiving");
+      const payload = await result.json().catch(() => null) as { assistantMessageId?: string; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null; code?: AskFailureCode; contextUsed?: ContextUsed | null; conversationId?: string; creditsUsed?: number; handledWithoutAi?: boolean; message?: string; persistence?: { saved?: boolean; warning?: string }; response?: unknown; saveMetadata?: AskSaveMetadata | null; success?: boolean; suggestion?: StateSuggestion | null; usage?: AskUsageStatus | null; userMessageId?: string } | null;
+      const parsed = parseAskConversationResponse(payload?.response) as StructuredResponse | null;
       if (payload?.usage) setUsage(payload.usage);
-      if (!result.ok || !parsed) throw new Error(payload?.error || "Furvise could not answer right now. Please try again.");
-      if (isFollowUp) {
-        setFollowUpResponse(parsed);
-        setFollowUpSaveMetadata(payload?.saveMetadata || null);
-        setFollowUpUsed(true);
-        setFollowUpQuestion("");
-      } else {
-        setResponse(parsed);
-        setSaveMetadata(payload?.saveMetadata || null);
+      if (!result.ok || !payload?.success || !parsed || !payload.conversationId) throw new AskRequestError(payload?.code || "UNKNOWN_ERROR", payload?.message);
+
+      const confirmedCarePersistence = payload.carePersistence?.status === "persisted" && Boolean(payload.carePersistence.careEntryIds.length);
+      const assistantMessage = { automaticSaveConfirmation: confirmedCarePersistence ? "Added to care history" : null, carePersistence: payload.carePersistence || null, contextUsed: payload.contextUsed || null, creditsUsed: payload.creditsUsed || 0, handledWithoutAi: Boolean(payload.handledWithoutAi), id: payload.assistantMessageId || createMessageId("furvise"), response: parsed, role: "furvise" as const, saveMetadata: payload.saveMetadata || null, suggestion: payload.suggestion || null };
+      setThread((current) => {
+        const withoutExistingAssistant = current.filter((message) => message.id !== assistantMessage.id);
+        return [...withoutExistingAssistant.map((message) => message.id === userMessageId && payload.userMessageId ? { ...message, id: payload.userMessageId } : message), assistantMessage];
+      });
+      if (!conversationIdAtSubmit) {
+        setActiveConversationId(payload.conversationId);
+        setActiveTitle(deriveConversationTitle(prompt, petName));
+        trackAskEvent("conversation_started", { source });
       }
-      setContextUsed(payload?.contextUsed || null);
-      setUrgent(Boolean(payload?.urgent));
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Furvise could not answer right now. Please try again.");
+      await refreshConversations().catch(() => undefined);
+      setPersistenceWarning(payload.persistence?.saved === false ? payload.persistence.warning || "This answer could not be saved to conversation history." : "");
+      setRequestPhase("completed");
+      if (parsed.urgency === "urgent") trackAskEvent("urgent_guidance_shown", { answerType: parsed.answerType });
+      if (parsed.clarificationQuestion) trackAskEvent("clarification_requested", { answerType: parsed.answerType });
+      if (parsed.saveSuggestions?.length) trackAskEvent("memory_save_suggested", { answerType: parsed.answerType });
+    } catch (askError) {
+      const code = getAskFailureCode(askError);
+      setFailedRequest({ code, prompt, requestId, userMessageId });
+      setRequestPhase("failed");
+      trackAskEvent("answer_failed", { source });
     } finally {
-      setSubmitting(false);
+      askRequestActiveRef.current = false;
     }
   }
 
-  async function copyResponse() {
-    if (!response) return;
-    const text = [formatAskResponsePlainText(response), followUpResponse ? `Follow-up\n\n${formatAskResponsePlainText(followUpResponse)}` : ""]
-      .filter(Boolean)
-      .join("\n\n");
+  function editFailedMessage() {
+    if (!failedRequest) return;
+    setThread((current) => current.filter((message) => message.id !== failedRequest.userMessageId));
+    setQuestion(failedRequest.prompt);
+    setFailedRequest(null);
+    setRequestPhase("idle");
+    requestAnimationFrame(() => composerRef.current?.focus());
+  }
+
+  function saveCurrentDraft() {
+    if (selectedPet && typeof window !== "undefined") window.localStorage.setItem(getDraftKey(activeConversationId, selectedPet), question);
+  }
+
+  async function renameConversation() {
+    if (!renameTarget || !renameDraft.trim()) return;
     try {
-      await navigator.clipboard.writeText(text);
-      setStatus("Response copied.");
-    } catch {
-      setError("Furvise could not copy the response. Select the text and copy it manually.");
+      await conversationJson(`/api/ask/conversations/${encodeURIComponent(renameTarget.id)}`, { method: "PATCH", body: JSON.stringify({ title: renameDraft.trim() }) });
+      setConversations((items) => items.map((item) => item.id === renameTarget.id ? { ...item, title: renameDraft.trim() } : item));
+      if (activeConversationId === renameTarget.id) setActiveTitle(renameDraft.trim());
+      setRenameTarget(null);
+      setStatus("Conversation renamed.");
+    } catch (renameError) {
+      setError(renameError instanceof Error ? renameError.message : "The conversation could not be renamed.");
     }
   }
 
-  function requestSave() {
-    const activeSaveMetadata = followUpResponse ? followUpSaveMetadata : saveMetadata;
-    if (!activeSaveMetadata?.saveable) {
-      setStatus("");
-      return;
+  async function deleteConversation() {
+    if (!deleteTarget) return;
+    try {
+      await conversationJson(`/api/ask/conversations/${encodeURIComponent(deleteTarget.id)}`, { method: "DELETE" });
+      setConversations((items) => items.filter((item) => item.id !== deleteTarget.id));
+      if (activeConversationId === deleteTarget.id) startNewQuestion();
+      setDeleteTarget(null);
+      setStatus("Conversation deleted.");
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "The conversation could not be deleted.");
     }
-    if (selectedPet === "all") {
-      setError("Choose one pet before saving guidance to care history.");
-      return;
-    }
-    setSaveConfirmationOpen(true);
+  }
+
+  async function copyAnswer(message: Extract<ConversationMessage, { role: "furvise" }>) {
+    try { await navigator.clipboard.writeText(formatAskResponsePlainText(message.response)); setStatus("Answer copied."); }
+    catch { setError("I couldn't copy that answer. Select the text and copy it manually."); }
+  }
+
+  function requestSave(message: Extract<ConversationMessage, { role: "furvise" }>) {
+    if (!message.saveMetadata?.saveable || !activeProfile) return;
+    setSaveTargetId(message.id);
+    setSaveDraft(message.saveMetadata.saveDetail);
   }
 
   async function confirmSave() {
-    const guidance = followUpResponse || response;
-    const activeSaveMetadata = followUpResponse ? followUpSaveMetadata : saveMetadata;
-    if (!guidance || !activeSaveMetadata?.saveable || selectedPet === "all") return;
+    if (!saveTarget?.saveMetadata?.saveable || !activeProfile || !saveDraft.trim()) return;
     setSubmitting(true);
     setError("");
     try {
-      const entry = buildGuidanceCareEntry(guidance, activeSaveMetadata);
-      const result = await createCareEntryUnlessDuplicate({
-        category: entry.category as CareEntryCategory,
-        note: entry.note,
-        occurredAt: toLocalDateTimeInputValue(),
-        petProfileId: selectedPet,
-        severity: null,
-        title: entry.title,
-      });
-      setSaveConfirmationOpen(false);
-      setStatus(result.action === "duplicate" ? "This summary is already saved in Care History." : "Furvise guidance saved to care history.");
+      const entry = buildGuidanceCareEntry(saveTarget.response, { ...saveTarget.saveMetadata, saveDetail: saveDraft.trim() });
+      const result = await createCareEntryUnlessDuplicate({ category: entry.category as CareEntryCategory, note: entry.note, occurredAt: toLocalDateTimeInputValue(), petProfileId: activeProfile.id, severity: null, title: entry.title });
+      setSaveTargetId(null);
+      setStatus(result.action === "duplicate" ? "This detail is already in History." : `Saved to ${petName}'s care history.`);
+      trackAskEvent("memory_saved", { answerType: saveTarget.response.answerType });
     } catch (saveError) {
       logAskCareSaveFailure(saveError);
-      setError("Furvise could not save this update.");
+      setError("I couldn't save that detail. You can try again.");
+    } finally { setSubmitting(false); }
+  }
+
+  function selectSuggestion(suggestion: string, source: "empty_state" | "response_suggestion") {
+    setQuestion(suggestion);
+    if (source === "response_suggestion") trackAskEvent("suggestion_selected", { answerType: latestAnswer?.response.answerType, source });
+    void ask(suggestion, source);
+  }
+
+  function runAction(action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) {
+    trackAskEvent("answer_action_selected", { action, answerType: message.response.answerType });
+    if (action === "copy") void copyAnswer(message);
+    if (action === "prepare_vet_note") {
+      trackAskEvent("vet_brief_started", { answerType: message.response.answerType });
+      const conversation = activeConversationId ? `&conversation=${encodeURIComponent(activeConversationId)}` : "";
+      window.location.assign(`/vet-brief?pet=${encodeURIComponent(selectedPet)}&source=ask${conversation}`);
+    }
+    if (action === "start_tracking") trackAskEvent("tracking_started", { answerType: message.response.answerType });
+    if (action === "save_key_detail" || action === "add_to_care_history" || action === "start_tracking") requestSave(message);
+  }
+
+  async function applyStateSuggestion(messageId: string, suggestion: StateSuggestion, action: "save" | "monitor" | "dismiss" | "edit", details?: string) {
+    setThread((current) => updateMessageSuggestion(current, messageId, suggestion.id, { error: null, uiStatus: "saving" }));
+    try {
+      const payload = await suggestionJson(`/api/ask/suggestions/${encodeURIComponent(suggestion.id)}`, {
+        body: JSON.stringify({ action, ...(details ? { details } : {}) }),
+        method: "PATCH",
+      });
+      if (action === "edit" && payload.suggestion) {
+        const editedSuggestion = payload.suggestion;
+        setThread((current) => current.map((item) => item.id === messageId && item.role === "furvise" ? { ...item, suggestion: { ...editedSuggestion, error: null, uiStatus: "idle" } } : item));
+        return;
+      }
+      if (action === "dismiss") {
+        setThread((current) => updateMessageSuggestion(current, messageId, suggestion.id, { error: null, status: "dismissed", uiStatus: "dismissed" }));
+        return;
+      }
+      const applyStatus = payload.status === "already_applied" ? "already_applied" : "applied";
+      setThread((current) => updateMessageSuggestion(current, messageId, suggestion.id, {
+        ...(payload.suggestion || {}),
+        applyStatus,
+        careEntryId: payload.careEntryId || null,
+        concernId: payload.concernId || suggestion.concernId || null,
+        error: null,
+        status: "saved",
+        uiStatus: applyStatus,
+      }));
+      await refreshConversations().catch(() => undefined);
+    } catch (applyError) {
+      setThread((current) => updateMessageSuggestion(current, messageId, suggestion.id, {
+        error: getFriendlySuggestionError(applyError),
+        uiStatus: "failed",
+      }));
     } finally {
-      setSubmitting(false);
+      setThread((current) => updateMessageSuggestionIfSaving(current, messageId, suggestion.id));
     }
   }
 
-  function askAnother() {
-    setResponse(null);
-    setFollowUpResponse(null);
-    setSaveMetadata(null);
-    setFollowUpSaveMetadata(null);
-    setContextUsed(null);
-    setFollowUpUsed(false);
-    setFollowUpQuestion("");
-    setQuestion("");
-    setUrgent(false);
-    setError("");
-    setStatus("");
-  }
-
-  const responseToRender = response;
-  const monthlyLimitReached = Boolean(usage && !usage.earlyAccessUnlocked && usage.count >= usage.limit);
-  const askSubmitDisabled = submitting || profiles.length === 0 || monthlyLimitReached;
-  const askSubmitLabel = monthlyLimitReached ? "Monthly limit reached" : submitting ? "Thinking…" : "Ask Furvise";
-  const askUsageNotice = usage ? getAskUsageNotice(usage) : "";
-  const savePetName = profiles.find((profile) => profile.id === selectedPet)?.name;
-  const savePetLabel = savePetName ? formatPetDisplayName(savePetName) : "this pet";
-  const activeSaveMetadata = followUpResponse ? followUpSaveMetadata : saveMetadata;
-  const saveDisabled = !activeSaveMetadata?.saveable;
-  const saveDisabledMessage = "Nothing useful to save yet. Add a care update first, then Ask Furvise can save a better summary.";
-
   return (
-    <AppPage>
-      <div className="ask-print-root">
-        <header className="print:hidden">
-          <h1 className="text-4xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-5xl">Ask Furvise</h1>
-          <p className="mt-3 max-w-2xl leading-7 text-[var(--pw-muted)]">Ask one focused question using the pet context already saved to your account.</p>
-          {askUsageNotice ? <AskUsageNotice text={askUsageNotice} /> : null}
-        </header>
+    <AppPage layout="focused" shell="reading">
+      <header>
+        <PageHeader
+          actions={<nav aria-label="Conversation actions" className="flex flex-wrap gap-2">
+            {activeConversationId ? <button aria-label="Rename current conversation" className={quietButton} onClick={() => { const target = conversations.find((item) => item.id === activeConversationId); if (target) { setRenameTarget(target); setRenameDraft(target.title); } }} title="Rename conversation" type="button">Rename</button> : null}
+            <button className={secondaryButton} onClick={() => setHistoryOpen(true)} type="button">Recent conversations</button>
+            {activeConversationId || thread.length ? <button className={secondaryButton} onClick={requestNewQuestion} type="button">New question</button> : null}
+          </nav>}
+          supportingText="Ask about changes, routines, products, or an upcoming vet visit."
+          title={activeConversationId ? activeTitle : `Ask about ${petName}`}
+        />
+        {usage && selectedPet ? <AskUsageNotice petId={selectedPet} usage={usage} /> : null}
+      </header>
 
-        {loading ? <Status text="Loading pet context…" /> : !responseToRender ? (
-          <section className="mt-8 max-w-full overflow-hidden rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 sm:p-6 print:hidden">
-            <form onSubmit={submit}>
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-[var(--pw-heading)]">Pet context</span>
-                <select className={inputClass} onChange={(event) => setSelectedPet(event.target.value)} value={selectedPet}>
-                  <option value="all">All pets</option>
-                  {profiles.map((profile) => (
-                    <option value={profile.id} key={profile.id}>
-                      {formatPetDisplayName(profile.name)} ({formatSpecies(profile.species)})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="mt-5">
-                <p className="text-sm font-semibold text-[var(--pw-heading)]">Suggested prompts</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {prompts.map((prompt) => <button className="min-h-10 max-w-full whitespace-normal break-words rounded-full border border-[var(--pw-border)] bg-[var(--pw-card-muted)] px-3 py-2 text-left text-sm font-semibold leading-5 text-[var(--pw-text)] hover:border-[var(--pw-primary)]" key={prompt} onClick={() => setQuestion(prompt)} type="button">{prompt}</button>)}
-                </div>
+      {loading ? <Status text="Getting your pet's space ready..." /> : null}
+      {!loading && profiles.length === 0 ? <Status text="Choose a pet so Furvise knows who you're asking about." tone="warn" /> : null}
+      {error ? <Status text={error} tone="warn" /> : null}
+      {status ? <Status text={status} /> : null}
+      {persistenceWarning ? <Status text={persistenceWarning} tone="warn" /> : null}
+
+      {!loading && profiles.length ? (
+        <div className="mt-7 min-w-0">
+          <CompactPetSelector activeProfile={activeProfile} onChange={switchPet} profiles={profiles} selectedPet={selectedPet} />
+          <main className="min-w-0">
+            <section aria-label="Conversation with Furvise" className={`flex w-full flex-col ${thread.length || requestActive ? "min-h-[66vh]" : ""}`}>
+              <div aria-live="polite" className="flex-1 space-y-8">
+                {!thread.length && !submitting ? <EmptyConversation petName={petName} onSelect={(prompt) => selectSuggestion(prompt, "empty_state")} /> : null}
+                {thread.map((message, index) => message.role === "user"
+                  ? <UserMessage key={message.id} text={message.text} />
+                  : <FurviseMessage key={message.id} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} />)}
+                {requestActive ? <Thinking petName={petName} /> : null}
+                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.prompt, "composer", failedRequest)} /> : null}
+                <div aria-hidden="true" ref={conversationEndRef} />
               </div>
-              <label className="mt-5 block">
-                <span className="mb-2 block text-sm font-semibold text-[var(--pw-heading)]">What would you like help with?</span>
-                <textarea className={`${inputClass} min-h-36 resize-y py-3`} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about changes, preparation, or what to monitor." required value={question} />
-              </label>
-              <button className={primaryButton} disabled={askSubmitDisabled} type="submit">{askSubmitLabel}</button>
-            </form>
-          </section>
-        ) : null}
-
-        {monthlyLimitReached ? <Status text={askLimitMessage} tone="warn" /> : null}
-        {error ? <Status text={error} tone="warn" /> : null}
-        {status ? <Status text={status} /> : null}
-
-        {responseToRender ? (
-          <div className="mt-8 grid gap-5" aria-live="polite">
-            {contextUsed ? <ContextSummary context={contextUsed} /> : null}
-            <ResponseCard response={responseToRender} urgent={urgent} />
-            {followUpResponse ? (
-              <section>
-                <p className="mb-2 text-sm font-semibold text-[var(--pw-primary)]">Follow-up response</p>
-                <ResponseCard response={followUpResponse} urgent={urgent} />
-              </section>
-            ) : null}
-
-            <div className="flex flex-wrap gap-3 print:hidden">
-              <button className={secondaryButton} onClick={copyResponse} type="button">Copy</button>
-              <button className={secondaryButton} disabled={saveDisabled} onClick={requestSave} title={saveDisabled ? saveDisabledMessage : undefined} type="button">Save to care history</button>
-              <button className={secondaryButton} onClick={() => window.print()} type="button">Print</button>
-              <button className={secondaryButton} onClick={askAnother} type="button">Ask another question</button>
-            </div>
-            {saveDisabled ? <p className="text-sm leading-6 text-[var(--pw-muted)] print:hidden">{saveDisabledMessage}</p> : null}
-
-            {!followUpUsed && !urgent ? (
-              <form className="rounded-3xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-5 print:hidden" onSubmit={submitFollowUp}>
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-[var(--pw-heading)]">One follow-up question</span>
-                  <textarea className={`${inputClass} min-h-24 resize-y py-3`} onChange={(event) => setFollowUpQuestion(event.target.value)} placeholder="Ask one focused follow-up using the same pet context." required value={followUpQuestion} />
-                </label>
-                <button className={primaryButton} disabled={askSubmitDisabled} type="submit">{monthlyLimitReached ? "Monthly limit reached" : submitting ? "Thinking…" : "Ask follow-up"}</button>
-              </form>
-            ) : followUpUsed ? (
-              <p className="text-sm text-[var(--pw-muted)] print:hidden">One follow-up has been used. Ask another question to start a new response.</p>
-            ) : null}
-          </div>
-        ) : null}
-
-        <p className="mt-8 max-w-3xl rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4 text-sm leading-6 text-[var(--pw-muted)]">
-          {FURVISE_SAFETY_LINE} {FURVISE_URGENT_SAFETY_MESSAGE}
-        </p>
-      </div>
-
-      {saveConfirmationOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 print:hidden">
-          <section aria-labelledby="save-guidance-title" aria-modal="true" className="w-full max-w-[540px] rounded-3xl bg-[var(--pw-surface)] p-8 shadow-2xl shadow-black/20 sm:p-10" role="alertdialog">
-            <h2 className="mb-4 text-xl font-semibold text-[var(--pw-heading)]" id="save-guidance-title">Save to care history?</h2>
-            <p className="max-w-[30rem] leading-7 text-[var(--pw-muted)]">Save this Furvise response as a clearly labeled note in {savePetLabel === "this pet" ? "this pet's" : `${savePetLabel}'s`} care history.</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <button className={modalSecondaryButton} onClick={() => setSaveConfirmationOpen(false)} type="button">Cancel</button>
-              <button className={modalPrimaryButton} disabled={submitting} onClick={confirmSave} type="button">{submitting ? "Saving…" : "Save note"}</button>
-            </div>
-          </section>
+              {latestAnswer && latestAnswer.response.urgency !== "urgent" ? <SuggestedQuestions onSelect={(suggestion) => selectSuggestion(suggestion, "response_suggestion")} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
+              <div className={`app-sticky-composer sticky ${hasThread ? "lg:sticky" : "lg:relative"} mt-4 bg-[var(--surface-page)] pt-1`} data-ui="ask-composer-region">
+                <Composer disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onChange={setQuestion} onSubmit={submit} petName={petName} value={question} />
+                <p className="mt-2 text-center text-xs leading-5 text-[var(--pw-subtle)]">Furvise organizes care information and does not replace a veterinarian.</p>
+              </div>
+            </section>
+          </main>
         </div>
       ) : null}
+
+      {historyOpen ? <RecentConversations conversations={conversations} error={conversationListError} onClose={() => setHistoryOpen(false)} onDelete={setDeleteTarget} onOpen={(id) => void openConversation(id)} onRename={(item) => { setRenameTarget(item); setRenameDraft(item.title); }} onRetry={() => void refreshConversations()} /> : null}
+      {pendingNewQuestion ? <ConfirmDialog description={`Your current conversation will stay in ${petName}\u2019s history.`} onCancel={() => setPendingNewQuestion(false)} onConfirm={startNewQuestion} title="Start a new question?" confirmLabel="Start new question" cancelLabel="Keep writing" /> : null}
+      {renameTarget ? <RenameDialog loading={false} onCancel={() => setRenameTarget(null)} onChange={setRenameDraft} onConfirm={() => void renameConversation()} value={renameDraft} /> : null}
+      {deleteTarget ? <ConfirmDialog description={`Delete \u201c${deleteTarget.title}\u201d? This cannot be undone.`} onCancel={() => setDeleteTarget(null)} onConfirm={() => void deleteConversation()} title="Delete conversation?" confirmLabel="Delete" cancelLabel="Cancel" danger /> : null}
+      {saveTarget ? <SaveDialog draft={saveDraft} loading={submitting} onCancel={() => setSaveTargetId(null)} onChange={setSaveDraft} onConfirm={confirmSave} petName={petName} /> : null}
     </AppPage>
   );
 }
 
-function logAskCareSaveFailure(error: unknown) {
-  if (process.env.NODE_ENV === "production") return;
-
-  const databaseError = error as {
-    code?: string;
-    details?: string;
-    hint?: string;
-    message?: string;
-  };
-
-  console.warn("[Furvise ask] care entry save failed", {
-    action: "insert",
-    errorCode: databaseError?.code || "",
-    errorDetails: databaseError?.details || "",
-    errorHint: databaseError?.hint || "",
-    errorMessage: databaseError?.message || "",
-    table: "pet_care_entries",
-  });
+function EmptyConversation({ petName, onSelect }: { petName: string; onSelect: (prompt: string) => void }) {
+  return <section className="pb-4 pt-7 sm:pt-9">
+    <h2 className="text-2xl font-semibold text-[var(--text-primary)]">What would you like help with?</h2>
+    <p className="mt-3 max-w-2xl leading-7 text-[var(--text-secondary)]">Ask about routines, changes you have noticed, products, or an upcoming vet visit.</p>
+    <div className="mt-6 max-w-3xl border-t border-[var(--line)]">{emptyStarters.map((starter) => { const label = starter.replace("{pet}", petName); return <button className="group flex min-h-14 w-full cursor-pointer items-center justify-between gap-4 border-b border-[var(--line)] px-2 text-left text-sm font-semibold text-[var(--ghost-action-foreground)] transition-colors hover:bg-[var(--selection)] hover:text-[var(--selected-text)] active:bg-[var(--surface-interactive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pw-focus-ring)]" data-ui="starter-question" key={starter} onClick={() => onSelect(label)} type="button"><span>{label}</span><span aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5">→</span></button>; })}</div>
+  </section>;
 }
 
-async function getAskAuthToken() {
-  const client = getBrowserSupabase();
-  const { data } = client ? await client.auth.getSession() : { data: { session: null } };
-  return data.session?.access_token || "";
+function UserMessage({ text }: { text: string }) {
+  return <article aria-label="You" className="border-b border-[var(--line)] pb-6"><p className="text-sm font-medium text-[var(--text-tertiary)]">You</p><p className="mt-2 whitespace-pre-wrap text-[1.02rem] leading-7 text-[var(--text-primary)]">{text}</p></article>;
 }
 
-async function fetchAskUsage() {
-  try {
-    const token = await getAskAuthToken();
-    if (!token) return null;
-    const response = await fetch("/api/ask", {
-      headers: { Authorization: `Bearer ${token}` },
-      method: "GET",
-    });
-    const payload = await response.json().catch(() => null) as { usage?: AskUsageStatus | null } | null;
-    if (response.ok && payload?.usage) return payload.usage;
-  } catch {
-    // Usage display is helpful, but the Ask form should still load if this fails.
+function FurviseMessage({ likelyVetConcern, message, onAction, onSuggestionAction }: { likelyVetConcern: boolean; message: Extract<ConversationMessage, { role: "furvise" }>; onAction: (action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) => void; onSuggestionAction: (suggestion: StateSuggestion, action: "save" | "monitor" | "dismiss" | "edit", details?: string) => Promise<void> }) {
+  const { response } = message;
+  const configuredActions: AnswerAction[] = likelyVetConcern && response.urgency !== "urgent" ? ["prepare_vet_note", "copy"] : response.actions;
+  const actions = [...new Set(configuredActions)].filter((action) => {
+    const saves = action === "save_key_detail" || action === "add_to_care_history" || action === "start_tracking";
+    return !saves || Boolean(message.saveMetadata?.saveable);
+  }).slice(0, 2);
+  const urgent = response.urgency === "urgent";
+  const monitoring = response.urgency === "monitor";
+  const resolved = response.urgency === "resolved";
+  return <article className={urgent
+    ? "rounded-2xl border border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] p-5 sm:p-6"
+    : monitoring ? "rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-5 sm:p-6"
+      : resolved ? "rounded-2xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] p-5 sm:p-6" : ""}>
+    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--pw-heading)]"><BrandMark showName={false} size={24} /><span>Furvise</span></div>
+    {shouldShowAnswerHeading(response.title) ? <h2 className="text-xl font-semibold leading-8 text-[var(--pw-heading)]">{response.title}</h2> : null}
+    <p className={shouldShowAnswerHeading(response.title) ? "mt-2 text-[1.05rem] leading-8 text-[var(--pw-text)]" : "text-[1.05rem] leading-8 text-[var(--pw-text)]"}>{response.directAnswer}</p>
+    {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
+    <AdaptiveSections answerType={response.answerType} sections={response.sections} />
+    {actions.length ? <div className="mt-5 flex flex-wrap gap-2">{actions.map((action) => <button className={secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
+    {message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
+    {getPersistenceNotices(message).map((notice) => <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]" data-persistence-notice={notice.type} key={notice.key}>{notice.label}</p>)}
+    {message.carePersistence?.status === "failed" ? <p className="mt-3 text-xs font-semibold text-[var(--pw-warning-text)]" role="status">This update could not be added to care history. Ask Furvise to save it to try again.</p> : null}
+  </article>;
+}
+
+function StateUpdateSuggestion({ onAction, suggestion }: { onAction: (suggestion: StateSuggestion, action: "save" | "monitor" | "dismiss" | "edit", details?: string) => Promise<void>; suggestion: StateSuggestion }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(suggestion.details || "");
+  const resolution = suggestion.type === "concern_resolution";
+  const uiStatus = suggestion.uiStatus || (suggestion.status === "saved" ? suggestion.applyStatus || "applied" : suggestion.status === "dismissed" ? "dismissed" : "idle");
+  const working = uiStatus === "saving";
+  function act(action: "save" | "monitor" | "dismiss" | "edit", details?: string) {
+    if (working) return;
+    void onAction(suggestion, action, details).then(() => { if (action === "edit") setEditing(false); }).catch(() => undefined);
   }
-  return null;
-}
-
-function getAskUsageNotice(usage: AskUsageStatus) {
-  if (usage.earlyAccessUnlocked || usage.remaining <= 0 || usage.remaining > 5) return "";
-  return `You have ${usage.remaining} Ask Furvise message${usage.remaining === 1 ? "" : "s"} left this month.`;
-}
-
-function AskUsageNotice({ text }: { text: string }) {
-  return (
-    <div className="mt-4 inline-flex max-w-full flex-col rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] px-4 py-3 text-sm leading-6 text-[var(--pw-muted)]">
-      <span className="font-semibold text-[var(--pw-heading)]">{text}</span>
+  if (uiStatus === "dismissed") return null;
+  if (uiStatus === "applied" || uiStatus === "already_applied") return <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">{uiStatus === "already_applied" ? "Already added to care history" : "Added to care history"}</p>;
+  return <section aria-label={suggestion.title} className="mt-5 max-w-xl rounded-xl border border-[var(--line)] bg-[var(--surface-supportive)] p-4">
+    <p className="text-sm font-semibold text-[var(--text-primary)]">{suggestion.title}</p>
+    {editing ? <textarea aria-label="Edit suggested update" className={`${inputClass} mt-3 min-h-24 py-3`} onChange={(event) => setDraft(event.target.value)} value={draft} /> : suggestion.details ? <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{suggestion.details}</p> : null}
+    {uiStatus === "failed" ? <p className="mt-3 text-sm font-medium text-[var(--pw-warning-text)]" role="status">{suggestion.error || "This improvement could not be saved."}</p> : null}
+    <div className="mt-3 flex flex-wrap gap-2">
+      {editing ? <button className={secondaryButton} disabled={working || !draft.trim()} onClick={() => act("edit", draft.trim())} type="button">Save edit</button> : <button className={secondaryButton} disabled={working} onClick={() => act("save")} type="button">{working ? "Saving..." : uiStatus === "failed" ? "Try again" : resolution ? "Save improvement" : "Save"}</button>}
+      {!resolution && !editing ? <button className={quietButton} disabled={working} onClick={() => setEditing(true)} type="button">Edit</button> : null}
+      <button className={quietButton} disabled={working} onClick={() => editing ? setEditing(false) : act("dismiss")} type="button">{editing ? "Cancel" : "Not now"}</button>
     </div>
-  );
+  </section>;
 }
 
-function ResponseCard({ response, urgent }: { response: StructuredResponse; urgent: boolean }) {
-  return (
-    <section className={`rounded-3xl border p-6 ${urgent ? "border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)]" : "border-[var(--pw-border)] bg-[var(--pw-surface)]"}`}>
-      <h2 className="text-2xl font-semibold text-[var(--pw-heading)]">{response.title}</h2>
-      <p className="mt-3 leading-7 text-[var(--pw-text)]">{response.summary}</p>
-      {response.sections.length ? (
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          {response.sections.map((section) => (
-            <section key={section.heading}>
-              <h3 className="font-semibold text-[var(--pw-heading)]">{section.heading}</h3>
-              <ul className="mt-2 list-disc space-y-2 pl-5 leading-6 text-[var(--pw-text)]">
-                {section.items.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-            </section>
-          ))}
-        </div>
-      ) : null}
-      {response.safetyNote ? <p className="mt-6 rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-4 text-sm leading-6 text-[var(--pw-warning-text)]">{response.safetyNote}</p> : null}
-    </section>
-  );
+function shouldShowAnswerHeading(title: string) {
+  return Boolean(title && !/^(?:Furvise|A\s+good\s+update|Greeting|What is missing|Next step)$/i.test(title.trim()));
 }
 
-function ContextSummary({ context }: { context: ContextUsed }) {
-  return (
-    <details className="rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4 print:hidden">
-      <summary className="cursor-pointer text-sm font-semibold text-[var(--pw-heading)]">{buildContextSummary(context)}</summary>
-      <dl className="mt-3 grid gap-2 text-sm text-[var(--pw-muted)] sm:grid-cols-2">
-        <div><dt className="font-semibold text-[var(--pw-heading)]">Profiles</dt><dd>{context.profileCount}</dd></div>
-        <div><dt className="font-semibold text-[var(--pw-heading)]">Saved details</dt><dd>{context.savedDetailCount}</dd></div>
-        <div><dt className="font-semibold text-[var(--pw-heading)]">Recent updates</dt><dd>{context.recentUpdateCount}</dd></div>
-        <div><dt className="font-semibold text-[var(--pw-heading)]">Stored guidance</dt><dd>{context.storedGuidanceCount}</dd></div>
-        {context.productFeedbackCount ? <div><dt className="font-semibold text-[var(--pw-heading)]">Relevant product notes</dt><dd>{context.productFeedbackCount}</dd></div> : null}
-      </dl>
-    </details>
-  );
+function AdaptiveSections({ answerType, sections }: { answerType: AnswerType; sections: StructuredResponse["sections"] }) {
+  if (!sections.length) return null;
+  if (answerType === "care_plan") return <div className="mt-5 space-y-5">{sections.map((section) => <section key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ol className="mt-2 list-decimal space-y-3 pl-6 leading-7 text-[var(--pw-text)]">{section.items.map((item, index) => <li className="pl-1" key={`${index}-${item}`}>{item}</li>)}</ol></section>)}</div>;
+  if (answerType === "history_summary") return <div className="mt-5 border-l border-[var(--pw-border-strong)] pl-5">{sections.map((section) => <section className="mb-5 last:mb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-2 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li key={item}>{item}</li>)}</ul></section>)}</div>;
+  return <div className="mt-5 grid gap-5 md:grid-cols-2">{sections.map((section) => <section className="min-w-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-2 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li className="flex gap-3" key={item}><span aria-hidden="true" className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--pw-subtle)]" /><span>{item}</span></li>)}</ul></section>)}</div>;
 }
 
-function readRelevantStoredAnalysis(selectedPet: string) {
-  if (typeof window === "undefined" || selectedPet === "all" || window.localStorage.getItem(PROFILE_ID_STORAGE_KEY) !== selectedPet) return null;
-  try {
-    const raw = window.localStorage.getItem(ANALYSIS_STORAGE_KEY);
-    return raw ? parseStoredAnalysis(JSON.parse(raw)) : null;
-  } catch {
-    return null;
+function SuggestedQuestions({ onSelect, suggestions }: { onSelect: (suggestion: string) => void; suggestions: string[] }) {
+  if (!suggestions.length) return null;
+  return <div aria-label="Suggested follow-up questions" className="mt-7 flex snap-x gap-2 overflow-x-auto pb-2 sm:flex-wrap">{suggestions.slice(0, 3).map((suggestion) => <button className={`${suggestionButton} min-w-[15rem] snap-start sm:min-w-0`} key={suggestion} onClick={() => onSelect(suggestion)} type="button">{suggestion}</button>)}</div>;
+}
+
+function Composer({ disabled, hasThread, inputRef, loading, onChange, onSubmit, petName, value }: { disabled: boolean; hasThread: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>; loading: boolean; onChange: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; petName: string; value: string }) {
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
   }
+  const placeholder = hasThread ? `Ask a follow-up about ${petName}\u2026` : `Ask anything about ${petName}\u2026`;
+  const canSend = Boolean(value.trim()) && !disabled;
+  return <form className="rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-primary)] p-3 shadow-[var(--shadow-surface-2)]" onSubmit={onSubmit}>
+    <div className="mb-2 flex items-center justify-between gap-3 px-1"><span className="text-xs font-semibold text-[var(--pw-primary)]">{petName}</span><span className="hidden text-xs text-[var(--pw-subtle)] sm:inline">Enter to send · Shift + Enter for a new line</span></div>
+    <div className="flex items-end gap-2"><textarea aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onChange={(event) => onChange(event.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label="Send question" className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">Ask</PrimaryButton></div>
+  </form>;
 }
 
-function Status({ text, tone = "neutral" }: { text: string; tone?: "neutral" | "warn" }) {
-  return <div className={`mt-6 rounded-3xl border p-5 print:hidden ${tone === "warn" ? "border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] bg-[var(--pw-surface)] text-[var(--pw-muted)]"}`} role="status">{text}</div>;
+function Thinking({ petName }: { petName: string }) { return <div className="flex items-center gap-3 py-3 text-sm text-[var(--pw-muted)]" role="status"><BrandMark showName={false} size={24} /><span>{`Furvise is reviewing ${petName}'s saved details...`}</span></div>; }
+
+function AskFailureState({ code, onEdit, onRetry }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void }) {
+  const message = code === "AUTH_REQUIRED"
+    ? "Your session expired. Sign in again to continue."
+    : code === "RATE_LIMITED"
+      ? "You have used this month's AI credits. Your pet profiles, history, saved details, and non-AI tools are still available."
+      : code === "AI_RATE_LIMITED"
+        ? "Furvise is receiving a lot of questions right now. Your message is saved, and no AI credit was used. Try again in a moment."
+      : code === "NETWORK_ERROR"
+        ? "Furvise could not connect. Check your connection and try again."
+        : code === "PET_NOT_FOUND"
+          ? "That pet is no longer available. Choose another pet and try again."
+        : FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
+  return <div className="max-w-xl rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] px-4 py-3 text-sm text-[var(--text-secondary)]" role="alert"><p>{message}</p><div className="mt-2 flex flex-wrap gap-2">{code === "AUTH_REQUIRED" ? <Link className={secondaryButton} href="/login?next=%2Fask">Sign in</Link> : <button className={secondaryButton} onClick={onRetry} type="button">Try again</button>}<button className={quietButton} onClick={onEdit} type="button">Edit question</button></div></div>;
 }
 
-const inputClass = "min-h-11 w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 text-base text-[var(--pw-text)] outline-none focus:border-[var(--pw-primary)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
-const primaryButton = "mt-5 inline-flex min-h-11 items-center rounded-full bg-[var(--pw-primary)] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[var(--pw-subtle)] disabled:opacity-70";
-const secondaryButton = "inline-flex min-h-11 items-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-4 text-sm font-semibold text-[var(--pw-text)] hover:border-[var(--pw-primary)] disabled:opacity-60";
-const modalPrimaryButton = "inline-flex h-14 w-full items-center justify-center rounded-full bg-[var(--pw-primary)] px-8 text-sm font-semibold text-white transition hover:bg-[var(--pw-primary-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)] disabled:cursor-not-allowed disabled:bg-[var(--pw-subtle)] disabled:opacity-70 sm:w-auto";
-const modalSecondaryButton = "inline-flex h-14 w-full items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-surface)] px-8 text-sm font-semibold text-[var(--pw-text)] transition hover:border-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)] disabled:opacity-60 sm:w-auto";
+function CompactPetSelector({ activeProfile, onChange, profiles, selectedPet }: { activeProfile: DogProfileWithMemories | null; onChange: (id: string) => void; profiles: DogProfileWithMemories[]; selectedPet: string }) {
+  if (!activeProfile) return null;
+  return <div className="mb-4 flex flex-wrap items-center gap-3 border-y border-[var(--line)] py-3"><label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="ask-pet-select">Asking about</label><select className="min-h-10 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-interactive)] px-3 text-sm font-semibold text-[var(--text-primary)]" id="ask-pet-select" onChange={(event) => onChange(event.target.value)} value={selectedPet}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{formatPetDisplayName(profile.name)}</option>)}</select><span className="text-sm text-[var(--text-tertiary)]">{formatSpecies(activeProfile.species)}{formatAge(activeProfile) ? ` · ${formatAge(activeProfile)}` : ""}</span></div>;
+}
+
+function RecentConversations({ conversations, error, onClose, onDelete, onOpen, onRename, onRetry }: { conversations: AskConversationSummary[]; error: string; onClose: () => void; onDelete: (item: AskConversationSummary) => void; onOpen: (id: string) => void; onRename: (item: AskConversationSummary) => void; onRetry: () => void }) {
+  useEffect(() => { const closeOnEscape = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") onClose(); }; window.addEventListener("keydown", closeOnEscape); return () => window.removeEventListener("keydown", closeOnEscape); }, [onClose]);
+  return <div className="fixed inset-0 z-[var(--z-dialog)] flex justify-end bg-[var(--pw-overlay)]" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><aside aria-label="Recent conversations" aria-modal="true" className="h-full w-full max-w-md overflow-y-auto bg-[var(--pw-surface)] p-5 shadow-2xl" role="dialog"><div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-semibold text-[var(--pw-heading)]">Recent conversations</h2><p className="mt-1 text-sm text-[var(--pw-muted)]">Open a past question and answer.</p></div><button aria-label="Close recent conversations" className={quietButton} onClick={onClose} type="button">Close</button></div>{error ? <div className="mt-5 rounded-xl border border-[var(--pw-warning-border)] p-3 text-sm text-[var(--pw-warning-text)]" role="status"><p>{error}</p><button className={`${quietButton} mt-2`} onClick={onRetry} type="button">Retry</button></div> : null}{conversations.length ? <ul className="mt-6 divide-y divide-[var(--pw-border)]">{conversations.map((item) => <li className="py-4" key={item.id}><button className="w-full text-left" onClick={() => onOpen(item.id)} type="button"><span className="block font-semibold text-[var(--pw-heading)]">{item.title}</span><span className="mt-1 block text-xs font-medium text-[var(--pw-subtle)]">{formatPetDisplayName(item.petName)} · {formatConversationDate(item.lastActivityAt)}</span><span className="mt-2 block line-clamp-2 text-sm leading-6 text-[var(--pw-muted)]">{item.preview}</span></button><div className="mt-2 flex gap-3"><button className={quietButton} onClick={() => onOpen(item.id)} type="button">Open</button><button className={quietButton} onClick={() => onRename(item)} type="button">Rename</button><button className={`${quietButton} text-[var(--pw-danger-text)]`} onClick={() => onDelete(item)} type="button">Delete</button></div></li>)}</ul> : !error ? <WorkflowEmptyState title="No conversations yet" text="Questions you ask Furvise will appear here." /> : null}</aside></div>;
+}
+
+function ConfirmDialog({ cancelLabel, confirmLabel, danger = false, description, onCancel, onConfirm, title }: { cancelLabel: string; confirmLabel: string; danger?: boolean; description: string; onCancel: () => void; onConfirm: () => void; title: string }) {
+  return <WorkflowDialog title={title}><p className="mt-2 leading-7 text-[var(--pw-muted)]">{description}</p><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button className={modalSecondaryButton} onClick={onCancel} type="button">{cancelLabel}</button>{danger ? <button className={dangerButton} onClick={onConfirm} type="button">{confirmLabel}</button> : <PrimaryButton onClick={onConfirm} type="button">{confirmLabel}</PrimaryButton>}</div></WorkflowDialog>;
+}
+
+function RenameDialog({ loading, onCancel, onChange, onConfirm, value }: { loading: boolean; onCancel: () => void; onChange: (value: string) => void; onConfirm: () => void; value: string }) {
+  return <WorkflowDialog title="Rename conversation"><label className="mt-5 block text-sm font-semibold text-[var(--pw-heading)]">Conversation title<input autoFocus className={`${inputClass} mt-2`} maxLength={80} onChange={(event) => onChange(event.target.value)} value={value} /></label><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button className={modalSecondaryButton} onClick={onCancel} type="button">Cancel</button><PrimaryButton disabled={loading || !value.trim()} loading={loading} onClick={onConfirm} type="button">Save title</PrimaryButton></div></WorkflowDialog>;
+}
+
+function SaveDialog({ draft, loading, onCancel, onChange, onConfirm, petName }: { draft: string; loading: boolean; onCancel: () => void; onChange: (value: string) => void; onConfirm: () => void; petName: string }) {
+  return <WorkflowDialog title={`Save this to ${petName}'s care history?`}><p className="mt-2 text-sm leading-6 text-[var(--pw-muted)]">Review the exact detail before saving. You can edit it now.</p><textarea className={`${inputClass} mt-5 min-h-36 py-3`} onChange={(event) => onChange(event.target.value)} value={draft} /><div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button className={modalSecondaryButton} onClick={onCancel} type="button">Cancel</button><PrimaryButton disabled={loading || !draft.trim()} loading={loading} onClick={onConfirm} type="button">Save detail</PrimaryButton></div></WorkflowDialog>;
+}
+
+
+function hasLikelyVetConcern(thread: ConversationMessage[], assistantIndex: number) { const answer = thread[assistantIndex]; if (answer?.role !== "furvise" || answer.response.urgency === "urgent") return false; if (answer.response.answerType === "vet_prep") return true; const question = [...thread.slice(0, assistantIndex)].reverse().find((message) => message.role === "user"); return question?.role === "user" && /\b(vet|veterinarian|appointment|visit)\b/i.test(question.text); }
+function formatAge(profile: DogProfileWithMemories) { return profile.age_value === null || !profile.age_unit ? "" : `${profile.age_value} ${profile.age_unit}`; }
+function formatAction(action: AnswerAction) { return ({ add_to_care_history: "Save to care history", copy: "Copy", prepare_vet_note: "Prepare vet brief", save_key_detail: "Save useful detail", start_tracking: "Start tracking" } as const)[action]; }
+
+function parseConversationDetail(detail: AskConversationDetail): ConversationMessage[] {
+  const messages: ConversationMessage[] = [];
+  for (const message of detail.messages) {
+    if (message.role === "user") messages.push({ failed: message.failed, id: message.id, requestId: message.requestId, role: "user", text: message.text });
+    else { const response = parseAskConversationResponse(message.response) as StructuredResponse | null; if (response) { const carePersistence = parseCarePersistence(message.carePersistence); messages.push({ automaticSaveConfirmation: carePersistence?.status === "persisted" && carePersistence.careEntryIds.length ? "Added to care history" : null, carePersistence, contextUsed: parseContextUsed(message.contextUsed), id: message.id, response, role: "furvise", saveMetadata: parseStoredSaveMetadata(message.saveMetadata), suggestion: parseStateSuggestion(message.suggestion) }); } }
+  }
+  return messages;
+}
+function parseLegacyThread(value: unknown): ConversationMessage[] { if (!Array.isArray(value)) return []; const messages: ConversationMessage[] = []; for (const item of value.slice(-40)) { if (!item || typeof item !== "object") continue; const draft = item as { id?: unknown; role?: unknown; text?: unknown; response?: unknown; saveMetadata?: unknown; contextUsed?: unknown }; if (draft.role === "user" && typeof draft.text === "string") messages.push({ id: typeof draft.id === "string" ? draft.id : createMessageId("user"), role: "user", text: draft.text.slice(0, 1200) }); else if (draft.role === "furvise") { const response = parseAskConversationResponse(draft.response) as StructuredResponse | null; if (response) messages.push({ contextUsed: parseContextUsed(draft.contextUsed), id: typeof draft.id === "string" ? draft.id : createMessageId("furvise"), response, role: "furvise", saveMetadata: parseStoredSaveMetadata(draft.saveMetadata) }); } } return messages; }
+function parseContextUsed(value: unknown): ContextUsed | null { if (!value || typeof value !== "object") return null; const draft = value as { petName?: unknown; usedSources?: unknown }; return { petName: typeof draft.petName === "string" ? draft.petName : null, usedSources: Array.isArray(draft.usedSources) ? draft.usedSources.filter((item): item is string => typeof item === "string").slice(0, 8) : [] }; }
+function parseCarePersistence(value: unknown): CarePersistence | null { if (!value || typeof value !== "object") return null; const draft = value as Partial<CarePersistence>; if (!draft.status || !["persisted", "suggested", "skipped", "failed"].includes(draft.status)) return null; return { status: draft.status, careEntryIds: Array.isArray(draft.careEntryIds) ? draft.careEntryIds.filter((id): id is string => typeof id === "string") : [], concernIds: Array.isArray(draft.concernIds) ? draft.concernIds.filter((id): id is string => typeof id === "string") : [], errorCode: typeof draft.errorCode === "string" ? draft.errorCode : null, memoryIds: Array.isArray(draft.memoryIds) ? draft.memoryIds.filter((id): id is string => typeof id === "string") : [], profileUpdated: draft.profileUpdated === true }; }
+function parseStateSuggestion(value: unknown): StateSuggestion | null { if (!value || typeof value !== "object") return null; const draft = value as Partial<StateSuggestion>; if (typeof draft.id !== "string" || typeof draft.title !== "string" || !draft.type || !["history", "memory", "concern_resolution", "concern_opening"].includes(draft.type)) return null; return { applyStatus: draft.applyStatus, careEntryId: typeof draft.careEntryId === "string" ? draft.careEntryId : null, concernId: typeof draft.concernId === "string" ? draft.concernId : null, id: draft.id, type: draft.type, title: draft.title, details: typeof draft.details === "string" ? draft.details : null, status: draft.status }; }
+function parseStoredSaveMetadata(value: unknown): AskSaveMetadata | null { if (!value || typeof value !== "object") return null; const draft = value as Partial<AskSaveMetadata>; if (typeof draft.answerType !== "string" || typeof draft.saveCategory !== "string" || typeof draft.saveDetail !== "string" || typeof draft.saveTitle !== "string" || typeof draft.saveable !== "boolean") return null; return { answerType: draft.answerType, cannotAnswerFromSavedData: Boolean(draft.cannotAnswerFromSavedData), saveCategory: draft.saveCategory as CareEntryCategory, saveDetail: draft.saveDetail.slice(0, 500), saveDetailPreview: typeof draft.saveDetailPreview === "string" ? draft.saveDetailPreview.slice(0, 220) : "", saveDisabledReason: typeof draft.saveDisabledReason === "string" ? draft.saveDisabledReason : "", saveTitle: draft.saveTitle.slice(0, 120), saveable: draft.saveable, usedSavedFactsCount: typeof draft.usedSavedFactsCount === "number" ? Math.max(0, draft.usedSavedFactsCount) : 0 }; }
+
+async function importLegacyConversation(petId: string, known: AskConversationSummary[]) {
+  if (known.some((item) => item.petId === petId) || typeof window === "undefined") return;
+  try {
+    const key = `furvise:ask-thread:${petId}`;
+    const raw = window.sessionStorage.getItem(key);
+    const messages = raw ? parseLegacyThread(JSON.parse(raw)) : [];
+    if (!messages.some((message) => message.role === "furvise")) return;
+    await conversationJson("/api/ask/conversations", { method: "POST", body: JSON.stringify({ messages, petId }) });
+    window.sessionStorage.removeItem(key);
+  } catch { /* A legacy session remains available for a later migration attempt. */ }
+}
+function getDraftKey(conversationId: string | null, petId: string) { return `furvise:ask-draft:${conversationId || `new:${petId}`}`; }
+function readDraft(key: string) { try { return typeof window === "undefined" ? "" : window.localStorage.getItem(key) || ""; } catch { return ""; } }
+function createMessageId(role: string) { return `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
+class AskRequestError extends Error { constructor(public code: AskFailureCode, message = "") { super(message); } }
+class SuggestionApplyError extends Error { constructor(public code: string, message = "") { super(message); this.name = "SuggestionApplyError"; } }
+function getAskFailureCode(error: unknown): AskFailureCode { if (error instanceof AskRequestError) return error.code; if (error instanceof TypeError || (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError"))) return "NETWORK_ERROR"; return "UNKNOWN_ERROR"; }
+function logAskCareSaveFailure(error: unknown) { if (process.env.NODE_ENV === "production") return; const databaseError = error as { code?: string; message?: string }; console.warn("[Furvise ask] care entry save failed", { errorCode: databaseError?.code || "", errorMessage: databaseError?.message || "" }); }
+async function getAskAuthToken() { const client = getBrowserSupabase(); const { data } = client ? await client.auth.getSession() : { data: { session: null } }; return data.session?.access_token || ""; }
+async function suggestionJson(url: string, init: RequestInit = {}) {
+  const token = await getAskAuthToken();
+  if (!token) throw new SuggestionApplyError("SUGGESTION_FORBIDDEN", "Please sign in again.");
+  const response = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) } });
+  const payload = await response.json().catch(() => null) as { careEntryId?: string | null; code?: string; concernId?: string | null; error?: string; status?: string; suggestion?: StateSuggestion } | null;
+  if (!response.ok) throw new SuggestionApplyError(payload?.code || "SUGGESTION_PERSISTENCE_FAILED", payload?.error || "This improvement could not be saved.");
+  return payload || {};
+}
+function getFriendlySuggestionError(error: unknown) {
+  if (error instanceof SuggestionApplyError && error.code === "SUGGESTION_FORBIDDEN") return "Please sign in again, then try saving this improvement.";
+  if (error instanceof SuggestionApplyError && error.code === "SUGGESTION_INVALID") return "This improvement no longer has enough information to save.";
+  if (error instanceof SuggestionApplyError && error.code === "SUGGESTION_CONFLICT") return "A newer update changed this concern. Refresh and try again.";
+  return "This improvement could not be saved.";
+}
+function updateMessageSuggestion(thread: ConversationMessage[], messageId: string, suggestionId: string, patch: Partial<StateSuggestion>) {
+  return thread.map((item) => item.id === messageId && item.role === "furvise" && item.suggestion?.id === suggestionId
+    ? { ...item, suggestion: { ...item.suggestion, ...patch } }
+    : item);
+}
+function updateMessageSuggestionIfSaving(thread: ConversationMessage[], messageId: string, suggestionId: string) {
+  return thread.map((item) => item.id === messageId && item.role === "furvise" && item.suggestion?.id === suggestionId && item.suggestion.uiStatus === "saving"
+    ? { ...item, suggestion: { ...item.suggestion, uiStatus: "idle" as const } }
+    : item);
+}
+async function conversationJson(url: string, init: RequestInit = {}) { const token = await getAskAuthToken(); if (!token) throw new Error("Please sign in again."); const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) }; const method = (init.method || "GET").toUpperCase(); const response = method === "GET" ? await fetch(url, { ...init, headers }) : await idempotentClientFetch(url, { ...init, headers }, `conversation:${method}:${url}`); if (response.status === 204) return {}; const payload = await response.json().catch(() => null) as { error?: string } | null; if (!response.ok) throw new Error(payload?.error || "Conversation history is temporarily unavailable."); return payload || {}; }
+async function fetchConversationList() { const payload = await conversationJson("/api/ask/conversations") as { conversations?: AskConversationSummary[] }; return payload.conversations || []; }
+async function fetchAskUsage() { try { const token = await getAskAuthToken(); if (!token) return null; const response = await fetch("/api/ask", { headers: { Authorization: `Bearer ${token}` }, method: "GET" }); const payload = await response.json().catch(() => null) as { usage?: AskUsageStatus | null } | null; return response.ok && payload?.usage ? payload.usage : null; } catch { return null; } }
+function readRelevantStoredAnalysis(selectedPet: string) { if (typeof window === "undefined" || !selectedPet || window.localStorage.getItem(PROFILE_ID_STORAGE_KEY) !== selectedPet) return null; try { const raw = window.localStorage.getItem(ANALYSIS_STORAGE_KEY); return raw ? parseStoredAnalysis(JSON.parse(raw)) : null; } catch { return null; } }
+function Status({ action, text, tone = "neutral" }: { action?: { label: string; onClick: () => void }; text: string; tone?: "neutral" | "warn" }) { return <div className={`mx-auto mt-5 flex max-w-[78rem] items-center justify-between gap-3 border-y px-1 py-3 text-sm leading-6 ${tone === "warn" ? "border-[var(--pw-warning-border)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] text-[var(--pw-muted)]"}`} role="status"><span>{text}</span>{action ? <button className={secondaryButton} onClick={action.onClick} type="button">{action.label}</button> : null}</div>; }
+
+const inputClass = "min-h-11 w-full rounded-xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3 text-sm text-[var(--pw-text)] outline-none focus:border-[var(--pw-primary)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
+const suggestionButton = "rounded-xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] px-4 py-3 text-left text-sm font-semibold leading-5 text-[var(--pw-text)] shadow-[0_4px_12px_var(--shadow)] transition hover:border-[var(--pw-primary)] hover:text-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
+const secondaryButton = "inline-flex min-h-10 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-transparent px-3.5 text-sm font-semibold text-[var(--pw-text)] hover:border-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
+const quietButton = "inline-flex min-h-9 items-center rounded-lg px-2 text-xs font-semibold text-[var(--pw-muted)] hover:bg-[var(--pw-card-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
+const modalSecondaryButton = "inline-flex min-h-11 items-center justify-center rounded-full border border-[var(--pw-border-strong)] px-5 text-sm font-semibold text-[var(--pw-text)]";
+const dangerButton = "inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--pw-danger)] px-5 text-sm font-semibold text-[var(--pw-danger-foreground)] hover:bg-[var(--pw-danger-hover)]";
+const sectionHeading = "text-sm font-semibold uppercase tracking-[0.08em] text-[var(--pw-muted)]";

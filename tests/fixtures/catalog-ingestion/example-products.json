@@ -1,0 +1,46 @@
+{
+  "products": [
+    {
+      "externalId": "json-multi-1",
+      "brandName": "Gentle Works",
+      "productName": "Shared Coat Brush",
+      "categoryName": "Grooming",
+      "subcategoryName": "Brush",
+      "speciesCodes": ["canine", "feline"],
+      "countryCodes": ["US", "CA"],
+      "productType": "brush",
+      "sourceUrl": "https://manufacturer.example.com/shared-brush",
+      "variants": [
+        { "name": "Small", "sku": "GW-BRUSH-S", "originalSizeText": "5 count" },
+        { "name": "Large", "sku": "GW-BRUSH-L", "originalSizeText": "8 count" }
+      ],
+      "images": [{ "imageUrl": "https://example.com/shared-brush.jpg", "isPrimary": true }],
+      "directions": ["Brush gently in the direction of the coat."],
+      "warnings": ["Stop if skin irritation appears."],
+      "offers": [
+        { "retailerName": "US Pet Store", "countryCode": "US", "destinationUrl": "https://us.example.com/shared-brush", "currencyCode": "USD", "priceAmount": "14.99", "availability": "in stock", "variantIdentifier": "Small", "externalProductId": "US-100" },
+        { "retailerName": "Canada Pet Store", "countryCode": "CA", "destinationUrl": "https://ca.example.com/shared-brush", "currencyCode": "CAD", "priceAmount": "19.99", "availability": "unknown", "variantIdentifier": "Large", "externalProductId": "CA-100" }
+      ]
+    },
+    {
+      "externalId": "json-ca-only-1",
+      "brandName": "Maple Paws",
+      "productName": "Canada Paw Balm",
+      "categoryName": "Paw Care",
+      "speciesCodes": ["dog"],
+      "countryCodes": ["CA"],
+      "productType": "paw_balm",
+      "sourceUrl": "https://manufacturer.example.com/ca-balm"
+    },
+    {
+      "externalId": "json-us-only-1",
+      "brandName": "Desert Pet",
+      "productName": "US Grooming Wipes",
+      "categoryName": "Grooming Wipes",
+      "speciesCodes": ["dog", "cat"],
+      "countryCodes": ["US"],
+      "productType": "wipes",
+      "sourceUrl": "https://manufacturer.example.com/us-wipes"
+    }
+  ]
+}

@@ -548,7 +548,7 @@ export const staticRealProducts: MockProduct[] = [
     lastVerifiedAt,
     sourceNote: "Official FURminator cat deShedding product page.",
     whyItFits:
-      "A real cat grooming option for shedding or routine coat-care context.",
+      "A real cat grooming option for shedding or routine coat care.",
     whyCategoryFits:
       "Grooming tools fit routine coat care when there are no severe skin or pain concerns.",
     cautions:

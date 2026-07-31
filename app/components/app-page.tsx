@@ -1,18 +1,26 @@
 import { SignedInHeader } from "./signed-in-header";
+import { AppShell, appPageContentClasses, focusedLayout, PageShell, workspaceLayout } from "./product-primitives";
+
+type AppPageContentPreset = keyof typeof appPageContentClasses;
 
 export function AppPage({
   children,
-  width = "default",
+  layout = "workspace",
+  shell = "standard",
 }: {
   children: React.ReactNode;
+  layout?: "focused" | "workspace";
+  shell?: AppPageContentPreset;
   width?: "default" | "wide";
 }) {
-  const contentWidth = width === "wide" ? "max-w-[92rem]" : "max-w-7xl";
-
   return (
-    <main className="min-h-screen w-full max-w-full overflow-x-hidden bg-[var(--pw-app-background)] text-[var(--pw-text)]">
+    <AppShell>
       <SignedInHeader />
-      <div className={`mx-auto w-full ${contentWidth} min-w-0 px-5 pb-16 pt-8 sm:px-8 lg:px-10`}>{children}</div>
-    </main>
+      <main className="app-mobile-nav-clearance min-w-0 pt-8 sm:pt-12 lg:pt-14">
+        <PageShell preset="app">
+          <div className={`${appPageContentClasses[shell]} ${layout === "focused" ? focusedLayout : workspaceLayout}`} data-app-page-content={shell}>{children}</div>
+        </PageShell>
+      </main>
+    </AppShell>
   );
 }

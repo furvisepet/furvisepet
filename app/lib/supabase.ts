@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import {
   MAIN_CONCERN_OPTIONS,
@@ -23,10 +23,14 @@ import {
   prepareCareEntryForInsert,
   prepareCareEntryForUpdate,
 } from "./care-log.mjs";
+import type { PetConcern } from "./ai/concern-engine";
+import type { FurviseMemoryRow } from "./intelligence/types";
+import { idempotentClientFetch } from "./security/idempotency/client.ts";
 
 export const PROFILE_ID_STORAGE_KEY = "petwise:dog-profile-id";
 export const PROFILE_MEMORIES_STORAGE_KEY = "petwise:dog-profile-memories";
 const AUTH_PERSISTENCE_STORAGE_KEY = "petwise:auth-persistence";
+const SESSION_AUTH_COOKIE = "furvise-auth-session";
 
 export type DogProfileRow = {
   id: string;
@@ -43,6 +47,8 @@ export type DogProfileRow = {
   wellness_goal: string | null;
   avoid_ingredients: string[] | null;
   monthly_budget: number | null;
+  sex?: "female" | "male" | "not_sure" | null;
+  routine_note?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -58,6 +64,8 @@ export type DogMemoryRow = {
   confidence: string | null;
   source: string | null;
   created_at: string;
+  status?: "active" | "superseded" | "rejected";
+  superseded_by?: string | null;
 };
 
 export type PetMemoryRow = DogMemoryRow;
@@ -125,6 +133,13 @@ export type CareEntryRow = {
   occurred_at: string;
   created_at: string;
   updated_at: string;
+  concern_id?: string | null;
+  intelligence_source_message_id?: string | null;
+  intelligence_source_type?: string | null;
+  intelligence_confidence?: number | null;
+  state_action_type?: string | null;
+  care_event_metadata?: Record<string, unknown> | null;
+  episode_id?: string | null;
 };
 
 export type CareEntryWithPetName = CareEntryRow & {
@@ -141,6 +156,11 @@ export type DogProfileWithMemories = DogProfileRow & {
 };
 
 export type PetProfileWithMemories = DogProfileWithMemories;
+
+export type CanonicalRememberedDetailsRows = {
+  canonical: FurviseMemoryRow[];
+  legacy: DogMemoryRow[];
+};
 
 export type MemoryInput = {
   type: string;
@@ -168,7 +188,6 @@ export type ToggleProductFeedbackResult =
 
 let browserClient: SupabaseClient | null | undefined;
 type BrowserAuthPersistence = "persistent" | "session";
-type BrowserAuthStorage = Pick<Storage, "getItem" | "removeItem" | "setItem">;
 
 export function getSupabaseConfigError() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -205,62 +224,6 @@ function setBrowserAuthPersistence(mode: BrowserAuthPersistence | null) {
   }
 }
 
-function getBrowserStorageForMode(mode: BrowserAuthPersistence): BrowserAuthStorage | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    return mode === "session" ? window.sessionStorage : window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function readBrowserStorageItem(storage: BrowserAuthStorage | null, key: string) {
-  try {
-    return storage?.getItem(key) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function writeBrowserStorageItem(storage: BrowserAuthStorage | null, key: string, value: string) {
-  try {
-    storage?.setItem(key, value);
-  } catch {
-    // Ignore storage access issues and let Supabase keep auth state in memory.
-  }
-}
-
-function removeBrowserStorageItem(storage: BrowserAuthStorage | null, key: string) {
-  try {
-    storage?.removeItem(key);
-  } catch {
-    // Ignore storage access issues and let Supabase keep auth state in memory.
-  }
-}
-
-function createBrowserAuthStorage(): BrowserAuthStorage {
-  return {
-    getItem(key) {
-      const mode = getBrowserAuthPersistence();
-      const primary = getBrowserStorageForMode(mode);
-      const fallback = getBrowserStorageForMode(mode === "session" ? "persistent" : "session");
-      return readBrowserStorageItem(primary, key) ?? readBrowserStorageItem(fallback, key);
-    },
-    removeItem(key) {
-      removeBrowserStorageItem(getBrowserStorageForMode("persistent"), key);
-      removeBrowserStorageItem(getBrowserStorageForMode("session"), key);
-    },
-    setItem(key, value) {
-      const mode = getBrowserAuthPersistence();
-      const primary = getBrowserStorageForMode(mode);
-      const fallback = getBrowserStorageForMode(mode === "session" ? "persistent" : "session");
-      writeBrowserStorageItem(primary, key, value);
-      removeBrowserStorageItem(fallback, key);
-    },
-  };
-}
-
 function createBrowserSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -268,17 +231,34 @@ function createBrowserSupabase() {
     return null;
   }
 
-  return createClient(normalizeSupabaseUrl(url), key, {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      storage: createBrowserAuthStorage(),
+  return createBrowserClient(normalizeSupabaseUrl(url), key, {
+    cookieOptions: {
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     },
+    cookies: {
+      getAll: readDocumentCookies,
+      setAll(cookiesToSet) {
+        const sessionOnly = getBrowserAuthPersistence() === "session";
+        cookiesToSet.forEach(({ name, value, options }) => {
+          document.cookie = serializeBrowserCookie(name, value, sessionOnly && options.maxAge !== 0
+            ? { ...options, expires: undefined, maxAge: undefined }
+            : options);
+        });
+      },
+    },
+    isSingleton: false,
   });
 }
 
 export function setBrowserSupabasePersistence(mode: BrowserAuthPersistence | null) {
   setBrowserAuthPersistence(mode);
+  if (typeof document !== "undefined") {
+    document.cookie = mode === "session"
+      ? `${SESSION_AUTH_COOKIE}=1; Path=/; SameSite=Lax`
+      : `${SESSION_AUTH_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0`;
+  }
 }
 
 export function getBrowserSupabase(persistSession?: boolean) {
@@ -322,10 +302,17 @@ export async function loadUserProfileForUser(user: User) {
 }
 
 export async function updateUserProductCountryForUser(country: string, user: User) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  return updateUserProductCountryWithClient(supabase, country, user);
+  void user;
+  const response = await authenticatedApiFetch("/api/account/product-country", {
+    body: JSON.stringify({ country }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
+  });
+  const payload = await response.json().catch(() => null) as { error?: string; profile?: unknown } | null;
+  if (!response.ok) throw new Error(payload?.error || "The account profile could not be saved.");
+  const profile = normalizeUserProfileRow(payload?.profile);
+  if (!profile) throw new Error("The account profile could not be saved.");
+  return profile;
 }
 
 export async function updateUserProductCountryWithClient(
@@ -347,10 +334,10 @@ export async function detectAccountProductCountry() {
   const token = await getCurrentAccessToken();
   if (!token) return null;
 
-  const response = await fetch("/api/account/detect-country", {
+  const response = await idempotentClientFetch("/api/account/detect-country", {
     headers: { Authorization: `Bearer ${token}` },
     method: "POST",
-  });
+  }, "account-country-detect");
   const payload = await response.json().catch(() => null) as { profile?: unknown } | null;
   if (!response.ok) return null;
   return normalizeUserProfileRow(payload?.profile);
@@ -358,34 +345,17 @@ export async function detectAccountProductCountry() {
 
 export async function saveDogProfileForUser(
   profile: DogProfile,
-  user: User,
+  _user: User,
   existingProfileId?: string | null,
 ) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const payload = toDogProfilePayload(profile, user.id);
-  if (existingProfileId) {
-    const { data, error } = await supabase
-      .from("dog_profiles")
-      .update(payload)
-      .eq("id", existingProfileId)
-      .eq("user_id", user.id)
-      .select()
-      .single<DogProfileRow>();
-
-    if (error) throw friendlyDatabaseSaveError(error, "pet profile");
-    return data;
-  }
-
-  const { data, error } = await supabase
-    .from("dog_profiles")
-    .insert(payload)
-    .select()
-    .single<DogProfileRow>();
-
-  if (error) throw friendlyDatabaseSaveError(error, "pet profile");
-  return data;
+  const response = await authenticatedApiFetch(existingProfileId ? `/api/pets/${existingProfileId}` : "/api/pets", {
+    body: JSON.stringify({ profile }),
+    headers: { "content-type": "application/json" },
+    method: existingProfileId ? "PATCH" : "POST",
+  });
+  const payload = await response.json().catch(() => null) as { error?: string; profile?: DogProfileRow } | null;
+  if (!response.ok || !payload?.profile) throw new Error(payload?.error || "The pet profile could not be saved.");
+  return payload.profile;
 }
 
 export async function loadDogProfilesWithMemories(user: User) {
@@ -472,6 +442,23 @@ export async function listCareEntriesForPet(
   return data || [];
 }
 
+export async function listActiveConcernsForPet(petProfileId: string, deps: CareLogHelperDeps = {}) {
+  const supabase = deps.getClient?.() ?? getBrowserSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const user = await requireCurrentUser(deps.getCurrentUser);
+  await ensurePetOwnership(petProfileId, user, deps.getClient);
+  const { data, error } = await supabase
+    .from("pet_concerns")
+    .select("*")
+    .eq("pet_profile_id", petProfileId)
+    .eq("user_id", user.id)
+    .in("status", ["active", "monitoring", "reopened"])
+    .order("updated_at", { ascending: false })
+    .returns<PetConcern[]>();
+  if (error) throw friendlyDatabaseError(error, "active concerns");
+  return data || [];
+}
+
 export async function listRecentCareEntries(limit: number, deps: CareLogHelperDeps = {}) {
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
@@ -506,6 +493,16 @@ export async function listRecentCareEntries(limit: number, deps: CareLogHelperDe
 }
 
 export async function createCareEntry(input: CareEntryInput, deps: CareLogHelperDeps = {}) {
+  if (!deps.getClient && !deps.getCurrentUser) {
+    const response = await authenticatedApiFetch("/api/care-entries", {
+      body: JSON.stringify({ input }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    const payload = await response.json().catch(() => null) as { entry?: CareEntryRow; error?: string } | null;
+    if (!response.ok || !payload?.entry) throw new Error(payload?.error || "The care entry could not be saved.");
+    return payload.entry;
+  }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -527,6 +524,16 @@ export async function createCareEntryUnlessDuplicate(
   input: CareEntryInput,
   deps: CareLogHelperDeps = {},
 ): Promise<CreateCareEntryUnlessDuplicateResult> {
+  if (!deps.getClient && !deps.getCurrentUser) {
+    const response = await authenticatedApiFetch("/api/care-entries", {
+      body: JSON.stringify({ dedupe: true, input }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    const payload = await response.json().catch(() => null) as (CreateCareEntryUnlessDuplicateResult & { error?: string }) | null;
+    if (!response.ok || !payload?.entry) throw new Error(payload?.error || "The care entry could not be saved.");
+    return payload;
+  }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -565,6 +572,16 @@ export async function updateCareEntry(
   input: CareEntryInput,
   deps: CareLogHelperDeps = {},
 ) {
+  if (!deps.getClient && !deps.getCurrentUser) {
+    const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, {
+      body: JSON.stringify({ input }),
+      headers: { "content-type": "application/json" },
+      method: "PATCH",
+    });
+    const payload = await response.json().catch(() => null) as { entry?: CareEntryRow; error?: string } | null;
+    if (!response.ok || !payload?.entry) throw new Error(payload?.error || "The care entry could not be saved.");
+    return payload.entry;
+  }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -585,6 +602,14 @@ export async function updateCareEntry(
 }
 
 export async function deleteCareEntry(entryId: string, deps: CareLogHelperDeps = {}) {
+  if (!deps.getClient && !deps.getCurrentUser) {
+    const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, { method: "DELETE" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(payload?.error || "The care entry could not be deleted.");
+    }
+    return;
+  }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
@@ -614,62 +639,63 @@ export async function loadDogProfileWithMemoriesForUser(profileId: string, user:
   const supabase = getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { data, error } = await supabase
-    .from("dog_profiles")
-    .select("*, dog_memories(*)")
-    .eq("id", profileId)
-    .eq("user_id", user.id)
-    .order("created_at", { referencedTable: "dog_memories", ascending: false })
-    .single<DogProfileWithMemories>();
-
-  if (error) throw friendlyDatabaseError(error, "pet profile memories");
-  return data;
+  const [profile, memories] = await Promise.all([
+    supabase.from("dog_profiles").select("*").eq("id", profileId).eq("user_id", user.id).single<DogProfileRow>(),
+    supabase.from("dog_memories").select("*").eq("dog_profile_id", profileId).eq("user_id", user.id)
+      .eq("status", "active").order("created_at", { ascending: false }).returns<DogMemoryRow[]>(),
+  ]);
+  if (profile.error) throw friendlyDatabaseError(profile.error, "pet profile memories");
+  if (memories.error) throw friendlyDatabaseError(memories.error, "pet profile memories");
+  return { ...profile.data, dog_memories: memories.data || [], dog_product_feedback: [] } as DogProfileWithMemories;
 }
 
-export async function deleteDogProfileForUser(profileId: string, user: User) {
+export async function loadCanonicalRememberedDetailsForUser(profileId: string, user: User): Promise<CanonicalRememberedDetailsRows> {
   const supabase = getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { error } = await supabase
-    .from("dog_profiles")
-    .delete()
-    .eq("id", profileId)
-    .eq("user_id", user.id);
+  const [canonical, legacy] = await Promise.all([
+    supabase.from("furvise_memories").select("*").eq("user_id", user.id).eq("status", "active")
+      .or(`pet_id.eq.${profileId},pet_id.is.null`).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`).order("last_confirmed_at", { ascending: false }).returns<FurviseMemoryRow[]>(),
+    supabase.from("dog_memories").select("*").eq("dog_profile_id", profileId).eq("user_id", user.id)
+      .eq("status", "active").order("created_at", { ascending: false }).returns<DogMemoryRow[]>(),
+  ]);
+  if (canonical.error) throw friendlyDatabaseError(canonical.error, "remembered details");
+  if (legacy.error) throw friendlyDatabaseError(legacy.error, "remembered details");
+  return {
+    canonical: (canonical.data || []).filter((memory) => memory.subject_type === "owner" || memory.pet_id === profileId),
+    legacy: legacy.data || [],
+  };
+}
 
-  if (error) throw friendlyDatabaseError(error, "pet profile");
+export async function deleteDogProfileForUser(profileId: string, _user: User) {
+  void _user;
+  const response = await authenticatedApiFetch(`/api/pets/${profileId}`, { method: "DELETE" });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || "The pet profile could not be deleted.");
+  }
 }
 
 export async function deleteDogMemoryForUser(memoryId: string, dogProfileId: string, user: User) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { error } = await supabase
-    .from("dog_memories")
-    .delete()
-    .eq("id", memoryId)
-    .eq("dog_profile_id", dogProfileId)
-    .eq("user_id", user.id);
-
-  if (error) throw friendlyDatabaseError(error, "dog memory");
+  await deleteDogMemoriesForUser([memoryId], dogProfileId, user);
 }
 
 export async function deleteDogMemoriesForUser(
   memoryIds: string[],
   dogProfileId: string,
-  user: User,
+  _user: User,
 ) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
+  void _user;
   if (memoryIds.length === 0) return;
-
-  const { error } = await supabase
-    .from("dog_memories")
-    .delete()
-    .in("id", memoryIds)
-    .eq("dog_profile_id", dogProfileId)
-    .eq("user_id", user.id);
-
-  if (error) throw friendlyDatabaseError(error, "dog memories");
+  const response = await authenticatedApiFetch("/api/legacy-memories", {
+    body: JSON.stringify({ memoryIds, petId: dogProfileId }),
+    headers: { "content-type": "application/json" },
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(payload?.error || "Remembered details could not be removed.");
+  }
 }
 
 export async function loadDogProductFeedbackForUser(dogProfileId: string, user: User) {
@@ -710,34 +736,12 @@ export async function toggleProductFeedbackForUser(
     return { action: "removed", feedback: existing };
   }
 
-  const { data, error } = await supabase
-    .from("dog_product_feedback")
-    .insert({
-      user_id: user.id,
-      dog_profile_id: input.dogProfileId,
-      product_id: input.productId,
-      product_name: input.productName,
-      feedback_type: input.feedbackType,
-      note: input.note?.trim() || null,
-    })
-    .select()
-    .single<DogProductFeedbackRow>();
-
-  if (error) {
-    if (error.code === "23505") {
-      const latest = await loadDogProductFeedbackForUser(input.dogProfileId, user);
-      const duplicate = latest.find(
-        (item) => item.product_id === input.productId && item.feedback_type === input.feedbackType,
-      );
-      if (duplicate) {
-        await deleteProductFeedbackForUser(duplicate.id, input.dogProfileId, user);
-        return { action: "removed", feedback: duplicate };
-      }
-    }
-    throw friendlyDatabaseError(error, "product feedback");
-  }
-
-  return { action: "added", feedback: data };
+  const response = await authenticatedApiFetch("/api/product-feedback", {
+    body: JSON.stringify(input), headers: { "content-type": "application/json" }, method: "POST",
+  });
+  const payload = await response.json().catch(() => null) as { error?: string; feedback?: DogProductFeedbackRow } | null;
+  if (!response.ok || !payload?.feedback) throw new Error(payload?.error || "Product feedback could not be saved.");
+  return { action: "added", feedback: payload.feedback };
 }
 
 export async function deleteProductFeedbackForUser(
@@ -745,69 +749,27 @@ export async function deleteProductFeedbackForUser(
   dogProfileId: string,
   user: User,
 ) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { error } = await supabase
-    .from("dog_product_feedback")
-    .delete()
-    .eq("id", feedbackId)
-    .eq("dog_profile_id", dogProfileId)
-    .eq("user_id", user.id);
-
-  if (error) throw friendlyDatabaseError(error, "product feedback");
+  void user;
+  const response = await authenticatedApiFetch("/api/product-feedback", {
+    body: JSON.stringify({ dogProfileId, feedbackId }), headers: { "content-type": "application/json" }, method: "DELETE",
+  });
+  if (!response.ok) { const payload = await response.json().catch(() => null) as { error?: string } | null; throw new Error(payload?.error || "Product feedback could not be removed."); }
 }
 
 export async function saveDogMemories(
   dogProfileId: string,
-  user: User,
+  _user: User,
   memories: MemoryInput[],
 ): Promise<SaveDogMemoriesResult> {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
   if (memories.length === 0) return { saved: [], skippedDuplicates: 0 };
-
-  const { data: existingMemories, error: existingError } = await supabase
-    .from("dog_memories")
-    .select("text")
-    .eq("dog_profile_id", dogProfileId)
-    .eq("user_id", user.id)
-    .returns<{ text: string }[]>();
-
-  if (existingError) throw friendlyDatabaseError(existingError, "saved memories");
-
-  const seen = new Set((existingMemories || []).map((memory) => normalizeMemoryText(memory.text)));
-  let skippedDuplicates = 0;
-  const rows = memories.flatMap((memory) => {
-    const normalized = normalizeMemoryText(memory.text);
-    if (!normalized || seen.has(normalized)) {
-      skippedDuplicates += 1;
-      return [];
-    }
-
-    seen.add(normalized);
-    return [
-      {
-        user_id: user.id,
-        dog_profile_id: dogProfileId,
-        type: memory.type,
-        text: memory.text.trim(),
-        confidence: memory.confidence,
-        source: memory.source || "ai_suggestion",
-      },
-    ];
+  const response = await authenticatedApiFetch("/api/legacy-memories", {
+    body: JSON.stringify({ memories, petId: dogProfileId }),
+    headers: { "content-type": "application/json" },
+    method: "POST",
   });
-
-  if (rows.length === 0) return { saved: [], skippedDuplicates };
-
-  const { data, error } = await supabase
-    .from("dog_memories")
-    .insert(rows)
-    .select()
-    .returns<DogMemoryRow[]>();
-
-  if (error) throw friendlyDatabaseError(error, "saved memories");
-  return { saved: data, skippedDuplicates };
+  const payload = await response.json().catch(() => null) as (SaveDogMemoriesResult & { error?: string }) | null;
+  if (!response.ok || !payload?.saved) throw new Error(payload?.error || "Remembered details could not be saved.");
+  return payload;
 }
 
 export function dogProfileRowToDraft(row: DogProfileRow): DogProfile {
@@ -832,7 +794,10 @@ export function dogProfileRowToDraft(row: DogProfileRow): DogProfile {
     otherConcern,
     wellnessGoal: normalizeWellnessGoal(row.wellness_goal),
     avoidIngredients: row.avoid_ingredients || [],
+    avoidIngredientsNoneKnown: Array.isArray(row.avoid_ingredients) && row.avoid_ingredients.length === 0,
     monthlyBudget: row.monthly_budget === null ? "" : String(row.monthly_budget),
+    sex: row.sex || "",
+    routineNote: row.routine_note || "",
   });
 }
 
@@ -846,10 +811,6 @@ export const loadPetProfileWithMemoriesForUser = loadDogProfileWithMemoriesForUs
 export const petProfileRowToDraft = dogProfileRowToDraft;
 export const savePetMemories = saveDogMemories;
 export const savePetProfileForUser = saveDogProfileForUser;
-
-function toDogProfilePayload(profile: DogProfile, userId: string) {
-  return buildDogProfilePayload(profile, userId);
-}
 
 export function buildDogProfilePayload(profile: DogProfile, userId: string) {
   const age = profile.ageUnknown || !profile.age.trim() ? Number.NaN : parsePositiveNumber(profile.age);
@@ -872,8 +833,14 @@ export function buildDogProfilePayload(profile: DogProfile, userId: string) {
     main_concern:
       profile.mainConcern === "Other" ? profile.otherConcern.trim() : profile.mainConcern || null,
     wellness_goal: wellnessGoal || null,
-    avoid_ingredients: normalizeAvoidIngredientValues(profile.avoidIngredients),
+    avoid_ingredients: profile.avoidIngredientsNoneKnown
+      ? []
+      : profile.avoidIngredients.length
+        ? normalizeAvoidIngredientValues(profile.avoidIngredients)
+        : null,
     monthly_budget: Number.isFinite(budget) ? budget : null,
+    sex: profile.sex || null,
+    routine_note: profile.routineNote?.trim() || null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -890,6 +857,49 @@ function normalizeSupabaseUrl(url: string) {
   return url.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 }
 
+function readDocumentCookies() {
+  if (typeof document === "undefined" || !document.cookie) return [];
+  return document.cookie.split(";").flatMap((part) => {
+    const separator = part.indexOf("=");
+    if (separator < 0) return [];
+    try {
+      return [{
+        name: decodeURIComponent(part.slice(0, separator).trim()),
+        value: decodeURIComponent(part.slice(separator + 1).trim()),
+      }];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function serializeBrowserCookie(
+  name: string,
+  value: string,
+  options: {
+    domain?: string;
+    expires?: Date;
+    httpOnly?: boolean;
+    maxAge?: number;
+    path?: string;
+    sameSite?: boolean | "lax" | "strict" | "none";
+    secure?: boolean;
+  },
+) {
+  const parts = [`${encodeURIComponent(name)}=${encodeURIComponent(value)}`];
+  if (options.maxAge !== undefined) parts.push(`Max-Age=${Math.floor(options.maxAge)}`);
+  if (options.domain) parts.push(`Domain=${options.domain}`);
+  if (options.path) parts.push(`Path=${options.path}`);
+  if (options.expires) parts.push(`Expires=${options.expires.toUTCString()}`);
+  if (options.httpOnly) parts.push("HttpOnly");
+  if (options.secure) parts.push("Secure");
+  if (options.sameSite) {
+    const sameSite = options.sameSite === true ? "Strict" : `${options.sameSite[0].toUpperCase()}${options.sameSite.slice(1)}`;
+    parts.push(`SameSite=${sameSite}`);
+  }
+  return parts.join("; ");
+}
+
 function normalizeUserProfileRow(row: unknown): UserProfileRow | null {
   if (!row || typeof row !== "object") return null;
   const profile = row as Partial<UserProfileRow>;
@@ -904,10 +914,6 @@ function normalizeUserProfileRow(row: unknown): UserProfileRow | null {
     updated_at: typeof profile.updated_at === "string" ? profile.updated_at : null,
     user_id: typeof profile.user_id === "string" ? profile.user_id : "",
   };
-}
-
-function normalizeMemoryText(text: string) {
-  return text.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 function isDuplicateFurviseCareEntry(entry: CareEntryRow, input: CareEntryInput) {
@@ -936,6 +942,7 @@ async function loadOptionalDogMemories(profileIds: string[], user: User) {
     .select()
     .in("dog_profile_id", profileIds)
     .eq("user_id", user.id)
+    .eq("status", "active")
     .order("created_at", { ascending: false })
     .returns<DogMemoryRow[]>();
 
@@ -985,6 +992,17 @@ async function requireCurrentUser(getter: (() => Promise<User | null>) | undefin
   return user;
 }
 
+async function authenticatedApiFetch(path: string, init: RequestInit) {
+  const token = await getCurrentAccessToken();
+  if (!token) throw new Error("Please sign in again before continuing.");
+  const headers = new Headers(init.headers);
+  headers.set("authorization", `Bearer ${token}`);
+  const method = (init.method || "GET").toUpperCase();
+  return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE"
+    ? idempotentClientFetch(path, { ...init, headers }, `${method}:${path}`)
+    : fetch(path, { ...init, headers });
+}
+
 async function ensurePetOwnership(
   profileId: string,
   user: User,
@@ -1024,6 +1042,9 @@ function friendlyDatabaseError(error: { code?: string; message?: string }, label
 }
 
 function friendlyDatabaseSaveError(error: { code?: string; message?: string }, label: string) {
+  if (error.message?.includes("PET_LIMIT_REACHED")) {
+    return Object.assign(new Error("Your plan's pet limit was reached before this pet could be added."), error, { code: "PET_LIMIT_REACHED" });
+  }
   const missingTableCodes = new Set(["42P01", "PGRST205"]);
   if (error.code && missingTableCodes.has(error.code)) {
     return Object.assign(new Error(
@@ -1032,4 +1053,8 @@ function friendlyDatabaseSaveError(error: { code?: string; message?: string }, l
   }
 
   return Object.assign(new Error(`Furvise could not save this ${label}. Please try again.`), error);
+}
+
+export function isPetLimitReachedError(error: unknown) {
+  return error instanceof Error && ("code" in error && error.code === "PET_LIMIT_REACHED" || error.message.includes("PET_LIMIT_REACHED") || error.message.includes("pet limit was reached"));
 }

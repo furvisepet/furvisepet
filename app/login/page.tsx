@@ -3,28 +3,32 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
-import { AppHeader } from "../components/app-header";
+import {
+  AccountAccessLayout,
+  AccountField,
+  AccountStatus,
+  accountInputClass,
+  accountPrimaryClass,
+} from "../components/account-access";
+import { TurnstileChallenge } from "../components/turnstile-challenge";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
-import { getSafeNextPath, pointsToNewPetOnboarding } from "../lib/auth-routing";
-import { getBrowserSupabase, getSupabaseConfigError, setBrowserSupabasePersistence } from "../lib/supabase";
+import { GOOGLE_AUTH_ENABLED, normalizeAuthEmail } from "../lib/auth-identity";
+import { getSafeNextPath } from "../lib/auth-routing";
+import { signInWithGoogle } from "../lib/google-auth-client";
+import { getSupabaseConfigError, setBrowserSupabasePersistence } from "../lib/supabase";
+import { idempotentClientFetch } from "../lib/security/idempotency/client";
 
 type AuthMode = "signin" | "signup";
 
 export default function LoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginPageContent />
-    </Suspense>
-  );
+  return <Suspense fallback={null}><LoginPageContent /></Suspense>;
 }
 
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = getBrowserSupabase();
   const configError = getSupabaseConfigError();
-  const nextPath = getSafeNextPath(searchParams.get("next") || searchParams.get("returnTo"), "/dashboard");
-  const isNewPetNext = pointsToNewPetOnboarding(nextPath);
+  const nextPath = getSafeNextPath(searchParams.get("next") || searchParams.get("returnTo"), "/today");
   const { status: authStatus } = useConfirmedSupabaseAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
@@ -32,390 +36,198 @@ function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [statusMessage, setStatusMessage] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() => searchParams.get("error") === "google_auth_failed" ? "Google sign-in couldn’t be completed. Please try again." : "");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [showConfirmationRecovery, setShowConfirmationRecovery] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const [loginCaptchaRequired, setLoginCaptchaRequired] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const didRedirectRef = useRef(false);
+  const googleStartingRef = useRef(false);
   const authChecked = authStatus !== "loading";
 
   useEffect(() => {
-    if (didRedirectRef.current) return;
-    if (authStatus !== "signedIn") return;
+    if (didRedirectRef.current || authStatus !== "signedIn") return;
     didRedirectRef.current = true;
     router.replace(nextPath);
   }, [authStatus, nextPath, router]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => setResendCooldown((value) => Math.max(0, value - 1)), 1_000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
     setError("");
     setStatusMessage("");
+    setShowConfirmationRecovery(false);
+    setCaptchaToken(null);
+    setCaptchaReset((value) => value + 1);
+    setLoginCaptchaRequired(false);
     setShowPassword(false);
-    if (nextMode === "signin") {
-      setKeepSignedIn(true);
-    }
+    if (nextMode === "signin") setKeepSignedIn(true);
   }
 
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase) return;
-
     setLoading(true);
     setError("");
     setStatusMessage("");
 
+    if (mode === "signin") setBrowserSupabasePersistence(keepSignedIn ? null : "session");
+    else setBrowserSupabasePersistence(null);
+
+    const normalizedEmail = normalizeAuthEmail(email);
+    setEmail(normalizedEmail);
+    const token = captchaToken;
+    setCaptchaToken(null);
+    setCaptchaReset((value) => value + 1);
+    const endpoint = mode === "signin" ? "/api/auth/login" : "/api/auth/signup";
+    const init = { body: JSON.stringify({ captchaToken: token || undefined, email: normalizedEmail, password }), headers: { "Content-Type": "application/json" }, method: "POST" };
+    let result: Response;
+    try {
+      result = mode === "signup"
+        ? await idempotentClientFetch(endpoint, init, `auth-signup:${normalizedEmail}`)
+        : await fetch(endpoint, init);
+    } catch {
+      setLoading(false);
+      setError("Account access is temporarily unavailable. Please try again.");
+      return;
+    }
+    const payload = await result.json().catch(() => null) as { code?: string; error?: string; message?: string; pendingConfirmation?: boolean } | null;
+    if (!result.ok) {
+      setLoading(false);
+      if (payload?.code === "CAPTCHA_REQUIRED" && mode === "signin") setLoginCaptchaRequired(true);
+      setError(payload?.error || (mode === "signin" ? "Email or password is incorrect." : "Furvise could not complete that request. Please try again."));
+      return;
+    }
     if (mode === "signin") {
-      setBrowserSupabasePersistence(keepSignedIn ? null : "session");
-    } else {
-      setBrowserSupabasePersistence(null);
-    }
-
-    const authSupabase = getBrowserSupabase(mode === "signin" ? keepSignedIn : true);
-    if (!authSupabase) {
-      setLoading(false);
-      setError(configError || "Supabase is not configured.");
-      return;
-    }
-
-    const result =
-      mode === "signin"
-        ? await authSupabase.auth.signInWithPassword({ email, password })
-        : await authSupabase.auth.signUp({ email, password });
-
-    if (result.error) {
-      setLoading(false);
-      setError(friendlyAuthError(result.error.message));
-      return;
-    }
-
-    if (result.data.session) {
       didRedirectRef.current = true;
       router.replace(nextPath);
       return;
     }
-
     setLoading(false);
-
     if (mode === "signup") {
-      setStatusMessage(
-        "Account created. Check your inbox if Furvise asked you to confirm your email.",
-      );
+      setShowConfirmationRecovery(true);
+      setResendCooldown(60);
+      setStatusMessage("");
     }
   }
 
-  const isSignedIn = authStatus === "signedIn";
+  async function startGoogle() {
+    if (googleStartingRef.current) return;
+    googleStartingRef.current = true;
+    setGoogleLoading(true); setError(""); setStatusMessage("");
+    try {
+      const { error: oauthError } = await signInWithGoogle(nextPath);
+      if (oauthError) throw oauthError;
+    } catch {
+      googleStartingRef.current = false;
+      setGoogleLoading(false);
+      setError("Google sign-in couldn’t start. Please try again.");
+    }
+  }
+
+  async function resendConfirmation() {
+    const normalizedEmail = normalizeAuthEmail(email);
+    if (!normalizedEmail || !captchaToken || resendCooldown > 0 || loading) return;
+    setLoading(true); setError("");
+    const token = captchaToken; setCaptchaToken(null); setCaptchaReset((value) => value + 1);
+    const response = await idempotentClientFetch("/api/auth/resend", { body: JSON.stringify({ captchaToken: token, email: normalizedEmail }), headers: { "Content-Type": "application/json" }, method: "POST" }, `auth-resend:${normalizedEmail}`);
+    const payload = await response.json().catch(() => null) as { error?: string; message?: string; retryAfterSeconds?: number } | null;
+    setLoading(false);
+    if (!response.ok) { setError(payload?.error || "Furvise could not complete that request. Please try again."); if (response.status === 429) setResendCooldown(Math.max(60, payload?.retryAfterSeconds || 60)); return; }
+    setResendCooldown(60);
+    setStatusMessage(payload?.message || "If confirmation is still required, a new email will be sent.");
+  }
+
+  if (authStatus === "signedIn") {
+    return (
+      <AccountAccessLayout supportingText="Your account is ready. Taking you back to Furvise." title="Welcome back">
+        <AccountStatus text="Opening Furvise..." />
+      </AccountAccessLayout>
+    );
+  }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-transparent text-[var(--pw-text)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl min-w-0 flex-col px-5 py-5 sm:px-8 lg:px-10">
-        <AppHeader
-          actions={[]}
-          backFallbackHref="/"
-          brandHref="/"
-          homepagePolish
-          showBackButton
-        />
+    <AccountAccessLayout
+      supportingText={mode === "signin" ? "Sign in to continue caring for your pets." : "Keep your pet’s care, history, and guidance in one private place."}
+      title={mode === "signin" ? "Welcome back" : "Create your Furvise account"}
+    >
+      <div className="space-y-5">
+        {!authChecked ? <AccountStatus text="Checking your session..." /> : null}
+        {configError ? <AccountStatus tone="warning" text={configError} /> : null}
+        {error ? <AccountStatus tone="danger" text={error} /> : null}
+        {showConfirmationRecovery ? <SignupSuccessNotice /> : null}
+        {statusMessage ? <AccountStatus text={statusMessage} /> : null}
 
-        <section className="grid min-w-0 flex-1 items-center gap-10 py-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-14 lg:py-14">
-          <div className="min-w-0 max-w-2xl">
-            <p className="inline-flex rounded-full border border-[var(--pw-border)] bg-[var(--pw-surface)] px-3 py-1 text-xs font-semibold tracking-[0.24em] text-[var(--pw-primary)] shadow-sm sm:text-sm">
-              YOUR PET FAMILY CARE COMPANION
-            </p>
-            <h1 className="mt-5 max-w-xl text-4xl font-semibold leading-[1.04] tracking-tight text-[var(--pw-heading)] sm:text-5xl lg:text-[3.95rem]">
-              Keep your pet&apos;s care history connected.
-            </h1>
-            <p className="mt-5 max-w-xl text-lg leading-8 text-[var(--pw-muted)] sm:text-xl">
-              {isNewPetNext
-                ? "Sign in to save your pet's care history."
-                : "Sign in to save pet profiles, memories, care updates, and product feedback in one private place."}
-            </p>
+        {GOOGLE_AUTH_ENABLED ? <>
+          <button className="relative inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-[var(--border-strong)] bg-[var(--surface-primary)] px-12 text-base font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-65" disabled={googleLoading} onClick={() => void startGoogle()} type="button">
+            <GoogleIcon />
+            {googleLoading ? "Opening Google…" : "Continue with Google"}
+          </button>
+          <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]"><span className="h-px flex-1 bg-[var(--line)]" /><span>Or use email</span><span className="h-px flex-1 bg-[var(--line)]" /></div>
+        </> : null}
 
-            <div className="mt-7 grid gap-2.5 sm:grid-cols-3 lg:max-w-xl lg:grid-cols-1">
-              {trustPoints.map((point) => (
-                <div
-                  className="flex items-center gap-2.5 rounded-[1.15rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] px-3.5 py-2.5 shadow-[0_10px_30px_var(--pw-shadow)]"
-                  key={point}
-                >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--pw-primary-soft)] text-[var(--pw-primary)] ring-1 ring-[color-mix(in_srgb,var(--pw-primary)_12%,transparent)]">
-                    <CheckIcon />
-                  </span>
-                  <span className="text-sm font-medium leading-5 text-[var(--pw-heading)] sm:text-[0.95rem]">
-                    {point}
-                  </span>
-                </div>
-              ))}
+        <form className="grid gap-4" onSubmit={submitAuth}>
+          <AccountField label="Email" name="email">
+            <input autoComplete="email" className={accountInputClass} id="email" name="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} />
+          </AccountField>
+          <AccountField label="Password" name="password">
+            <div className="relative">
+              <input autoComplete={mode === "signin" ? "current-password" : "new-password"} className={`${accountInputClass} pr-20`} id="password" maxLength={128} minLength={mode === "signin" ? 1 : 12} name="password" onChange={(event) => setPassword(event.target.value)} placeholder="Your password" required type={showPassword ? "text" : "password"} value={password} />
+              <button aria-pressed={showPassword} className="absolute right-2 top-1/2 inline-flex min-h-10 -translate-y-1/2 items-center px-3 text-sm font-semibold text-[var(--ghost-action-foreground)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" onClick={() => setShowPassword((value) => !value)} type="button">{showPassword ? "Hide" : "Show"}</button>
             </div>
-          </div>
+          </AccountField>
 
-          <div className="relative min-w-0 overflow-hidden rounded-[2rem]">
-            <div className="absolute -left-6 top-0 h-24 w-24 rounded-full bg-[color-mix(in_srgb,var(--pw-primary)_10%,transparent)] blur-3xl" />
-            <div className="absolute -right-8 bottom-8 h-32 w-32 rounded-full bg-[color-mix(in_srgb,var(--pw-secondary)_12%,transparent)] blur-3xl" />
-
-            <div className="relative overflow-hidden rounded-[2rem] border border-[var(--pw-border)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--pw-surface)_98%,white),color-mix(in_srgb,var(--pw-card-muted)_72%,var(--pw-surface)))] p-4 shadow-[0_30px_80px_var(--pw-shadow)] sm:p-5 lg:p-6">
-              <div className="rounded-[1.7rem] border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_16px_40px_var(--pw-shadow)] sm:p-6">
-                {isSignedIn ? (
-                  <div className="space-y-5">
-                    <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--pw-primary)]">
-                        Redirecting
-                      </p>
-                      <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-3xl">
-                        {isNewPetNext ? "Sending you to pet setup" : "Sending you to your dashboard"}
-                      </h2>
-                      <p className="mt-3 max-w-lg text-base leading-7 text-[var(--pw-muted)]">
-                        Your session is ready. Furvise is taking you to the right place now.
-                      </p>
-                    </div>
-
-                    <div className="rounded-[1.5rem] border border-[var(--pw-border)] bg-[var(--pw-card-muted)] p-4 sm:p-5">
-                      <div className="h-3 w-28 rounded-full bg-[var(--pw-border)]/70" />
-                      <div className="mt-3 h-11 w-full rounded-2xl bg-[var(--pw-card-muted)]" />
-                      <div className="mt-3 h-11 w-full rounded-2xl bg-[var(--pw-card-muted)]" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--pw-primary)]">
-                        Account access
-                      </p>
-                      <div
-                        aria-label="Authentication mode"
-                        className="mt-4 inline-grid w-full grid-cols-2 rounded-full border border-[var(--pw-border-strong)] bg-[var(--pw-card-muted)] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
-                        role="tablist"
-                      >
-                        <button
-                          aria-selected={mode === "signin"}
-                          className={`rounded-full px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)] ${
-                            mode === "signin"
-                              ? "border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] text-[var(--pw-heading)] shadow-sm"
-                              : "text-[var(--pw-muted)] hover:text-[var(--pw-text)]"
-                          }`}
-                          onClick={() => switchMode("signin")}
-                          role="tab"
-                          type="button"
-                        >
-                          Sign in
-                        </button>
-                        <button
-                          aria-selected={mode === "signup"}
-                          className={`rounded-full px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)] ${
-                            mode === "signup"
-                              ? "border border-[var(--pw-border)] bg-[var(--pw-surface-elevated)] text-[var(--pw-heading)] shadow-sm"
-                              : "text-[var(--pw-muted)] hover:text-[var(--pw-text)]"
-                          }`}
-                          onClick={() => switchMode("signup")}
-                          role="tab"
-                          type="button"
-                        >
-                          Create account
-                        </button>
-                      </div>
-                      {mode === "signup" ? (
-                        <p className="mt-4 text-sm leading-6 text-[var(--pw-muted)]">
-                          Passwords need at least 6 characters.
-                        </p>
-                      ) : null}
-                      {isNewPetNext ? (
-                        <p className="mt-4 text-sm leading-6 text-[var(--pw-muted)]">
-                          Sign in to save your pet&rsquo;s care history.
-                        </p>
-                      ) : null}
-                    </div>
-
-                    {!authChecked ? (
-                      <StatusBanner text="Checking your session..." />
-                    ) : configError ? (
-                      <StatusBanner tone="warning" text={configError} />
-                    ) : null}
-
-                    <form className="grid gap-4" onSubmit={submitAuth}>
-                      <Field label="Email" name="email">
-                        <input
-                          autoComplete="email"
-                          className="w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 py-3 text-base text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface-elevated)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)]"
-                          id="email"
-                          name="email"
-                          onChange={(event) => setEmail(event.target.value)}
-                          placeholder="you@example.com"
-                          required
-                          type="email"
-                          value={email}
-                        />
-                      </Field>
-
-                      <Field label="Password" name="password">
-                        <div className="space-y-2">
-                          <div className="relative">
-                            <input
-                              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                              className="w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 py-3 pr-20 text-base text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface-elevated)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)] sm:pr-24"
-                              id="password"
-                              minLength={6}
-                              name="password"
-                              onChange={(event) => setPassword(event.target.value)}
-                              placeholder="Your password"
-                              required
-                              type={showPassword ? "text" : "password"}
-                              value={password}
-                            />
-                            <button
-                              className="absolute right-2 top-1/2 inline-flex min-h-10 -translate-y-1/2 items-center rounded-full px-3 text-xs font-semibold text-[var(--pw-primary)] transition hover:bg-[var(--pw-primary-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)]"
-                              onClick={() => setShowPassword((value) => !value)}
-                              type="button"
-                              aria-pressed={showPassword}
-                            >
-                              <span className="sm:hidden">{showPassword ? "Hide" : "Show"}</span>
-                              <span className="hidden sm:inline">{showPassword ? "Hide" : "Show"} password</span>
-                              </button>
-                            </div>
-                          {mode === "signin" ? (
-                            <div className="flex justify-end">
-                              <Link
-                                className="text-sm font-semibold text-[var(--pw-primary)] underline decoration-[color-mix(in_srgb,var(--pw-primary)_42%,transparent)] decoration-2 underline-offset-4 transition hover:text-[var(--pw-primary-hover)]"
-                                href="/forgot-password"
-                              >
-                                Forgot password?
-                              </Link>
-                            </div>
-                          ) : null}
-                          {mode === "signup" ? (
-                            <p className="text-sm leading-6 text-[var(--pw-muted)]">
-                              Use at least 6 characters.
-                            </p>
-                          ) : null}
-                        </div>
-                      </Field>
-
-                      {mode === "signin" ? (
-                        <label
-                          className="flex cursor-pointer items-start gap-3 rounded-[1.25rem] border border-[var(--pw-border)] bg-[var(--pw-card-muted)] px-4 py-3 transition hover:border-[var(--pw-border-strong)] hover:bg-[color-mix(in_srgb,var(--pw-card-muted)_84%,white)]"
-                          htmlFor="keep-signed-in"
-                        >
-                          <input
-                            checked={keepSignedIn}
-                            className="mt-0.5 h-4 w-4 rounded border-[var(--pw-border-strong)] text-[var(--pw-primary)] accent-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)]"
-                            id="keep-signed-in"
-                            onChange={(event) => setKeepSignedIn(event.target.checked)}
-                            type="checkbox"
-                          />
-                          <span className="grid gap-0.5">
-                            <span className="text-sm font-semibold text-[var(--pw-heading)]">
-                              Keep me signed in
-                            </span>
-                            <span className="text-sm leading-6 text-[var(--pw-muted)]">
-                              Stay signed in on this device.
-                            </span>
-                          </span>
-                        </label>
-                      ) : null}
-
-                      <button
-                        className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--pw-primary)] px-5 py-3.5 text-base font-semibold text-white shadow-[0_18px_36px_var(--pw-shadow)] transition hover:bg-[var(--pw-primary-hover)] disabled:cursor-wait disabled:bg-[var(--pw-secondary)] disabled:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--pw-surface)]"
-                        disabled={!authChecked || loading || Boolean(configError)}
-                        type="submit"
-                      >
-                        {loading
-                          ? mode === "signin"
-                            ? "Signing in..."
-                            : "Creating account..."
-                          : mode === "signin"
-                            ? "Sign in"
-                            : "Create account"}
-                      </button>
-                    </form>
-                  </div>
-                )}
-
-                {error ? (
-                  <StatusBanner tone="danger" text={error} />
-                ) : statusMessage ? (
-                  <StatusBanner text={statusMessage} />
-                ) : null}
-              </div>
+          {mode === "signin" ? (
+            <div className="flex min-h-11 flex-wrap items-center justify-between gap-3">
+              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium text-[var(--text-primary)]" htmlFor="keep-signed-in">
+                <input checked={keepSignedIn} className="h-4 w-4 accent-[var(--action-primary)]" id="keep-signed-in" onChange={(event) => setKeepSignedIn(event.target.checked)} type="checkbox" />
+                Keep me signed in
+              </label>
+              <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" href="/forgot-password">Forgot password?</Link>
             </div>
-          </div>
-        </section>
+          ) : <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>}
+
+          {mode === "signup" || loginCaptchaRequired ? <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} /> : null}
+
+          <button className={accountPrimaryClass} disabled={!authChecked || loading || Boolean(configError) || (process.env.NODE_ENV === "production" && (mode === "signup" || loginCaptchaRequired) && !captchaToken)} type="submit">
+            {loading ? (mode === "signin" ? "Signing in..." : "Creating account...") : (mode === "signin" ? "Sign in" : "Create account")}
+          </button>
+        </form>
+
+        {showConfirmationRecovery ? <button className="inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold underline underline-offset-4" disabled={loading || resendCooldown > 0 || !captchaToken} onClick={() => void resendConfirmation()} type="button">{resendCooldown > 0 ? `Resend available in ${resendCooldown}s` : "Resend confirmation email"}</button> : null}
+
+        <button className="inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" onClick={() => switchMode(mode === "signin" ? "signup" : "signin")} type="button">
+          {mode === "signin" ? "New to Furvise? Create account" : "Already have an account? Sign in"}
+        </button>
+        <p className="border-t border-[var(--line)] pt-5 text-sm leading-6 text-[var(--text-secondary)]">Your pets, notes, conversations, and Vet Visit Briefs stay private to your account.</p>
       </div>
-    </main>
+    </AccountAccessLayout>
   );
 }
 
-function friendlyAuthError(message: string) {
-  const lower = message.toLowerCase();
-
-  if (
-    lower.includes("invalid login") ||
-    lower.includes("invalid credentials") ||
-    lower.includes("wrong email or password") ||
-    lower.includes("invalid email or password")
-  ) {
-    return "That email and password did not match.";
-  }
-
-  if (lower.includes("email not confirmed")) {
-    return "Please confirm your email before signing in.";
-  }
-
-  if (lower.includes("already registered") || lower.includes("user already registered")) {
-    return "An account already exists for that email.";
-  }
-
-  if (lower.includes("password")) {
-    return "Use a password with at least 6 characters.";
-  }
-
-  if (lower.includes("signups not allowed") || lower.includes("signup disabled")) {
-    return "New account creation is currently unavailable.";
-  }
-
-  if (lower.includes("network") || lower.includes("fetch")) {
-    return "Furvise could not reach the sign-in service. Please try again.";
-  }
-
-  return "Furvise could not complete that request. Please try again.";
+function GoogleIcon() {
+  return <svg aria-hidden="true" className="absolute left-4 h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21.35 12.2c0-.7-.06-1.38-.18-2.03H12v3.85h5.24a4.48 4.48 0 0 1-1.95 2.94v2.5h3.16c1.85-1.71 2.9-4.22 2.9-7.26ZM12 21.7c2.64 0 4.85-.87 6.45-2.24l-3.16-2.5c-.88.59-2 .94-3.29.94-2.54 0-4.69-1.71-5.47-4.02H3.27v2.54A9.75 9.75 0 0 0 12 21.7ZM6.53 13.88A5.87 5.87 0 0 1 6.23 12c0-.65.11-1.29.3-1.88V7.58H3.27A9.75 9.75 0 0 0 2.25 12c0 1.57.37 3.06 1.02 4.42l3.26-2.54ZM12 6.1c1.43 0 2.72.5 3.73 1.46l2.8-2.8A9.38 9.38 0 0 0 12 2.25a9.75 9.75 0 0 0-8.73 5.33l3.26 2.54C7.31 7.81 9.46 6.1 12 6.1Z"/></svg>;
 }
 
-function Field({ children, label, name }: { children: React.ReactNode; label: string; name: string }) {
+function SignupSuccessNotice() {
   return (
-    <label className="grid gap-2" htmlFor={name}>
-      <span className="text-sm font-semibold text-[var(--pw-heading)]">{label}</span>
-      {children}
-    </label>
+    <div aria-live="polite" className="rounded-[var(--radius-md)] border border-[var(--pw-success-border)] bg-[var(--pw-success-surface)] p-4 sm:p-5" role="status">
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--surface-primary)] text-[var(--pw-success-text)]">
+          <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+        </span>
+        <div>
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">Check your email</h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">We sent you a confirmation link. Open it to finish creating your Furvise account.</p>
+        </div>
+      </div>
+    </div>
   );
 }
-
-function StatusBanner({
-  text,
-  tone = "neutral",
-}: {
-  text: string;
-  tone?: "neutral" | "warning" | "danger";
-}) {
-  const toneClasses =
-    tone === "warning"
-      ? "border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] text-[var(--pw-warning-text)]"
-      : tone === "danger"
-        ? "border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] text-[var(--pw-danger-text)]"
-        : "border-[var(--pw-border)] bg-[var(--pw-card-muted)] text-[var(--pw-muted)]";
-
-  return <div className={`rounded-[1.25rem] border p-4 text-sm font-medium leading-6 ${toneClasses}`}>{text}</div>;
-}
-
-function CheckIcon() {
-  return (
-    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24">
-      <path
-        d="m6.5 12.5 3.2 3.2L17.5 8"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
-
-const trustPoints = [
-  "Private pet profiles",
-  "You control saved details",
-  "Open care across devices",
-] as const;

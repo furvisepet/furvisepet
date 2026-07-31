@@ -104,7 +104,7 @@ function parseTypedAvoidInput(value) {
 
 test("Shop avoid-ingredient normalization treats typed none values like the None known chip", () => {
   const cases = [
-    { label: "chip selection", raw: "None known", selectedValues: [] },
+    { label: "chip selection", raw: "None known", selectedValues: [], noneKnown: true },
     { label: "typed none", raw: "none" },
     { label: "typed None", raw: "None" },
     { label: "typed none known", raw: "none known" },
@@ -122,12 +122,12 @@ test("Shop avoid-ingredient normalization treats typed none values like the None
     assert.deepEqual(typedValues, [], item.label);
     assert.equal(typedValues.includes("none"), false, item.label);
     assert.deepEqual(
-      getNormalizedShopAvoidIngredients(profile({ avoidIngredients: selectedValues }), "dental treats", null),
+      getNormalizedShopAvoidIngredients(profile({ avoidIngredients: selectedValues, avoidIngredientsNoneKnown: Boolean(item.noneKnown) }), "dental treats", null),
       [],
       item.label,
     );
     assert.deepEqual(
-      buildDogProfilePayload(profile({ avoidIngredients: selectedValues }), "user-1").avoid_ingredients,
+      buildDogProfilePayload(profile({ avoidIngredients: selectedValues, avoidIngredientsNoneKnown: Boolean(item.noneKnown) }), "user-1").avoid_ingredients,
       [],
       item.label,
     );
@@ -136,7 +136,7 @@ test("Shop avoid-ingredient normalization treats typed none values like the None
       accountCountry: "US",
       products: [product()],
       query: "dental treats",
-      selectedPet: profile({ avoidIngredients: selectedValues }),
+      selectedPet: profile({ avoidIngredients: selectedValues, avoidIngredientsNoneKnown: Boolean(item.noneKnown) }),
     });
     assert.equal(result.emptyState, null, item.label);
     assert.deepEqual(result.products.map((candidate) => candidate.id), ["base-dental-treat"], item.label);

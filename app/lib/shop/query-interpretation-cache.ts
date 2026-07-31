@@ -64,7 +64,7 @@ export function normalizeShopQueryForCache(query: string) {
     .trim();
 }
 
-export function calculatePetContextHash(memory: PetMemoryContext) {
+export function calculatePetContextHash(memory: PetMemoryContext, canonicalMemories: Array<{ id: string; fact_key: string; fact_value: unknown; updated_at: string }> = []) {
   const relevantContext = {
     derived: {
       knownAvoids: memory.derived.knownAvoids,
@@ -88,6 +88,7 @@ export function calculatePetContextHash(memory: PetMemoryContext) {
       source: detail.source,
       value: detail.value,
     })),
+    canonicalMemories: canonicalMemories.map((item) => ({ id: item.id, factKey: item.fact_key, factValue: item.fact_value, updatedAt: item.updated_at })),
     timeline: memory.timeline.recentEntries.map((entry) => ({
       category: entry.category,
       date: entry.date,

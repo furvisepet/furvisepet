@@ -48,12 +48,12 @@ test("urgent safety continues to render care-first Results UI without product co
 
 test("privacy page includes approximate country copy", () => {
   const privacyPage = readFileSync("app/privacy/page.tsx", "utf8");
-  const footer = readFileSync("app/components/homepage-client.tsx", "utf8");
+  const footer = readFileSync("app/components/app-footer.tsx", "utf8");
 
   assert.match(
     privacyPage,
     /We detect your approximate country to show relevant regional product suggestions\. You can\s+change this anytime in account settings\./,
   );
   assert.doesNotMatch(privacyPage, /coordinates|postal|city|IP address/);
-  assert.match(footer, /href: "\/privacy", label: "Privacy"/);
+  assert.match(footer, /href="\/privacy">Privacy<\/Link>/);
 });

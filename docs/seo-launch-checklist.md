@@ -18,8 +18,8 @@ Use the URL-prefix property `https://www.furvise.com/` for URL inspection. If th
 - Public privacy page: `https://www.furvise.com/privacy`
 - Sitemap: `https://www.furvise.com/sitemap.xml`
 - Robots: `https://www.furvise.com/robots.txt`
-- Open Graph image: `https://www.furvise.com/brand/furvise-og.png`
-- Brand logo: `https://www.furvise.com/brand/furvise-logo.png`
+- Open Graph image: `https://www.furvise.com/brand/logo.png`
+- Brand logo: `https://www.furvise.com/brand/logo.png`
 - Apex redirect: `https://furvise.com/`
 - Production alias redirect: `https://petwise-nu.vercel.app/`
 

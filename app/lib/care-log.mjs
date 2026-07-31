@@ -101,6 +101,61 @@ export function formatCareEntryTimestamp(value, locale = undefined) {
   }).format(date);
 }
 
+export function formatCareEntryDate(value, locale = undefined) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
+}
+
+export function formatCareEntryTime(value, locale = undefined) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(date);
+}
+
+export function formatCareEntryTitle(entry) {
+  const explicitTitle = String(entry?.title || "").trim();
+  if (explicitTitle && explicitTitle.toLowerCase() !== "update") {
+    return explicitTitle.length > 64 ? `${explicitTitle.slice(0, 63).trimEnd()}…` : explicitTitle;
+  }
+
+  const searchable = `${entry?.category || ""} ${entry?.note || ""}`.toLowerCase();
+  const contentTitles = [
+    [/\b(appetite|eating|ate)\b/, "Appetite"],
+    [/\b(stool|poop|bowel|diarrhea)\b/, "Stool"],
+    [/\b(energy|letharg|activity|active)\b/, "Energy"],
+    [/\b(mood|anxious|behavio(?:u)?r)\b/, "Mood"],
+    [/\b(weight|weigh(?:ed|s)?)\b/, "Weight"],
+    [/\b(product|shampoo|supplement|treat|brand)\b/, "Product change"],
+    [/\b(routine|walk|sleep|schedule|habit)\b/, "Routine"],
+  ];
+  const contentMatch = contentTitles.find(([pattern]) => pattern.test(searchable));
+  if (contentMatch) return contentMatch[1];
+
+  const categoryTitles = {
+    symptom: "Symptoms",
+    food: "Food update",
+    medication: "Medication",
+    activity: "Energy",
+    grooming: "Grooming",
+    vet_visit: "Vet visit",
+    behavior: "Mood",
+    general: "General note",
+  };
+  return categoryTitles[entry?.category] || "General note";
+}
+
+export function groupCareEntriesByDate(entries, now = new Date()) {
+  const groups = new Map();
+  for (const entry of sortCareEntriesNewestFirst(entries)) {
+    const label = careEntryDateGroup(entry.occurred_at, now);
+    const group = groups.get(label) || [];
+    group.push(entry);
+    groups.set(label, group);
+  }
+  return [...groups].map(([label, groupedEntries]) => ({ label, entries: groupedEntries }));
+}
+
 export function formatCareNotePreview(note, maxLength = 96) {
   const normalized = String(note || "").trim().replace(/\s+/g, " ");
   if (normalized.length <= maxLength) return normalized;
@@ -256,4 +311,20 @@ function humanizeValue(value) {
   return String(value)
     .replaceAll("_", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function careEntryDateGroup(value, now) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Earlier";
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const entryDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysAgo = Math.round((today.getTime() - entryDay.getTime()) / 86400000);
+  if (daysAgo === 0) return "Today";
+  if (daysAgo === 1) return "Yesterday";
+  if (daysAgo >= 2 && daysAgo <= 6) return "This week";
+  if (date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()) {
+    return "Earlier this month";
+  }
+  return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(date);
 }

@@ -143,6 +143,17 @@ export function isVagueShopQueryWithoutSignal(value: string) {
   );
 }
 
+export type ShopQueryCapability = "deterministic" | "guided_ai";
+
+export function classifyShopQueryCapability(value: string): ShopQueryCapability {
+  const normalized = normalizeVagueShopQuery(value);
+  if (!normalized) return "deterministic";
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const hasDirectSignal = hasSpecificShopQuerySignal(normalized) || /\b(food|dental|chew|shampoo|grooming|paw balm|skin and coat)\b/.test(normalized);
+  const conversational = /\b(best|because|recommend|recommendation|compare|why|what would|premium|better option|for my pet)\b/.test(normalized);
+  return hasDirectSignal && tokens.length <= 8 && !conversational ? "deterministic" : "guided_ai";
+}
+
 export const shopQueryInterpretationJsonSchema = {
   type: "object",
   additionalProperties: false,

@@ -1,3 +1,9 @@
+import {
+  buildFurviseSafetyLine,
+  FURVISE_MISSING_INGREDIENTS_MESSAGE,
+  FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE,
+  FURVISE_SHARED_PROMPT_RULES,
+} from "../furvise-voice.ts";
 import type { PetMemoryContext } from "../pet-memory";
 import { getProductSpeciesLabel, type MockProduct } from "../petwise";
 import type { ShopQueryInterpretation } from "../shop-query";
@@ -40,24 +46,24 @@ export type ShopProductQuestionIntentClassification = {
 };
 
 export const shopProductQuestionSystemPrompt = [
-  "You answer one shopper follow-up question about one already-filtered pet product.",
+  "You are a knowledgeable store advisor answering one question about the pet product already on screen.",
+  ...FURVISE_SHARED_PROMPT_RULES,
   "Return strict JSON only.",
-  "Use only the selected pet context, current shopping query, verified product fields, enriched verified product details, and current product card data provided in the input.",
+  "Assume the question is about this product unless it is clearly unrelated.",
+  "Answer the exact question in the first sentence.",
+  "Use only the selected pet, shopping question, label details, and product card details in the input.",
   "Do not use general internet knowledge or memory about the product.",
-  "Do not invent product facts, prices, availability, ingredients, sizes, directions, warnings, or claims.",
-  "If verified ingredient details are missing or ingredientsVerified is false, mention that ingredient details are not fully verified and tell the user to review the label.",
-  "Never claim guaranteed safety, vet approval, treatment, cure, diagnosis, or that a product is best.",
-  "Do not say safe for the pet.",
+  "Never invent ingredients, directions, warnings, size, price, availability, or product claims.",
+  "When a detail needed for the answer is unavailable, say which detail is missing in plain language and tell the shopper what to check.",
+  "Never promise suitability, professional approval, medical benefit, or a certain reaction.",
   "Do not diagnose.",
   "Return sections for schema compatibility, but make directAnswer the only shopper-facing answer.",
   "Make directAnswer stand alone. Keep it to one or two short paragraphs, under 90 words when possible, and preserve honest uncertainty.",
-  "Only include label details, directions, or broader shopping checks when they directly answer the question.",
+  "Include label details, directions, or broader shopping checks only when they directly answer the question.",
   "Answer broad buyer doubts when they are about the selected product, including taste, size, age, breed, water, symptoms, reactions, comparison, or whether the pet may like it.",
-  "If the shopper's wording is messy, assume it is about the selected product unless it is clearly unrelated.",
+  "Give a useful answer to messy wording instead of rejecting it.",
   "The answer summary must be 120 words or fewer.",
-  "Do not use em dashes.",
-  "Do not mention AI, signals, catalog tags, catalog fields, provided data, database fields, or internal matching logic.",
-  "Make directAnswer casual and shopper-friendly. Avoid robotic phrasing, internal terminology, and formal uncertainty wording.",
+  "Make directAnswer casual and shopper-friendly.",
   "For category mismatch questions, answer plainly with wording like Yes, as a shampoo or No, this is more for dental care.",
   "safetyNote must exactly match the requiredSafetyNote.",
 ].join("\n");
@@ -89,7 +95,7 @@ export const shopProductQuestionJsonSchema = {
 } as const;
 
 export function buildProductQuestionSafetyNote(petName: string) {
-  return `Based on what you've saved about ${petName || "this pet"}. Not a substitute for vet or professional advice.`;
+  return buildFurviseSafetyLine(petName || "this pet");
 }
 
 export function buildShopProductQuestionPromptInput({
@@ -113,12 +119,33 @@ export function buildShopProductQuestionPromptInput({
       species: memory.pet.species,
     },
     product: {
-      ...buildVerifiedProductFields(product),
+      ...buildProductQuestionPromptDetails(product),
       currentCardData: {
         cautions: product.cautions || null,
         productType: getProductTypeLabel(product),
       },
     },
+  };
+}
+
+function buildProductQuestionPromptDetails(product: MockProduct) {
+  const {
+    ingredientsVerified: fullIngredientListAvailable,
+    verifiedDescription: description,
+    verifiedDirections: directions,
+    verifiedIngredients: ingredients,
+    verifiedProductPageUrl: productPageUrl,
+    verifiedWarnings: warnings,
+    ...details
+  } = buildVerifiedProductFields(product);
+  return {
+    ...details,
+    description,
+    directions,
+    fullIngredientListAvailable,
+    ingredients,
+    productPageUrl,
+    warnings,
   };
 }
 
@@ -213,7 +240,7 @@ export function buildOffTopicShopProductQuestionAnswer({
   memory: PetMemoryContext;
 }): ShopProductQuestionAnswer {
   const petName = memory.pet.name || "this pet";
-  const directAnswer = `I can help with this product, like ingredients, directions, warnings, taste, size, or whether it fits ${petName}.`;
+  const directAnswer = `This space is for questions about this product, including ingredients, directions, warnings, taste, size, or whether it may fit ${petName}.`;
   return {
     answer: directAnswer,
     confidence: "low",
@@ -290,16 +317,16 @@ function buildFallbackSections({
       ? buildMixedProductQuestionDirectAnswer({ isDental, isFood, isShampoo, petName, productType })
       : missingQuestion
       ? missing.length
-        ? `Furvise is missing ${formatList(missing)} for ${displayName}. You can still compare it, but check the label before buying or using.`
-        : `Furvise has the key label details for ${displayName}. Review the package before using it for ${petName}.`
+        ? `${FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE} The missing details for ${displayName} are ${formatList(missing)}.`
+        : `The key label details are available for ${displayName}. Review the package before using it for ${petName}.`
       : shampooDentalQuestion
         ? noTeethQuestion
           ? `Yes, as a shampoo. Teeth do not really matter here because this is used on the coat and skin, not chewed or eaten. Keep it away from the eyes and mouth, rinse well, and stop using it if irritation appears.`
           : `Yes, as a shampoo. It can be used for washing a pet, but it will not help sensitive teeth because it is not a dental product. For ${petName}, I'd treat it as a grooming product only. Follow the label directions, keep it away from the mouth and eyes, and stop using it if irritation appears.`
       : ingredientQuestion
         ? product.ingredientsVerified && product.verifiedIngredients?.length
-          ? `Yes, Furvise has verified ingredients for ${displayName}: ${formatList(product.verifiedIngredients.slice(0, 6))}. Still check the label before using it for ${petName}.`
-          : `Furvise does not have the full verified ingredient list for ${displayName} yet. Check the label before buying or using it for ${petName}.`
+          ? `Yes. The listed ingredients for ${displayName} include ${formatList(product.verifiedIngredients.slice(0, 6))}. Still check the current label before using it for ${petName}.`
+          : `${FURVISE_MISSING_INGREDIENTS_MESSAGE} Check the package for suitability before using it for ${petName}.`
       : isShampoo && noTeethQuestion
         ? `Yes, as a shampoo. Teeth do not really matter here because this is used on the coat and skin, not chewed or eaten. Keep it away from the eyes and mouth, rinse well, and stop using it if irritation appears.`
       : isFood && waterQuestion
@@ -475,9 +502,9 @@ function getPreferenceQuestionDirectAnswer({
     const ingredientText = product.verifiedIngredients.join(" ").toLowerCase();
     const present = dislikedIngredients.filter((ingredient) => ingredientText.includes(ingredient));
     if (present.length) {
-      return `${petName} may not like this if ${petName} already avoids ${formatList(present)}. ${displayName} has ${formatList(present)} in the verified ingredients Furvise has, so I would compare a different option and still check the label.`;
+      return `${petName} may not like this if ${petName} already avoids ${formatList(present)}. The listed ingredients include ${formatList(present)}, so I would compare a different option and still check the current label.`;
     }
-    return `I do not see ${formatList(dislikedIngredients)} in the verified ingredients Furvise has for ${displayName}, but check the current label before buying. ${petName} may still dislike the taste, so try a small amount first and watch appetite and stomach comfort.`;
+    return `I do not see ${formatList(dislikedIngredients)} in the listed ingredients for ${displayName}, but check the current label before buying. ${petName} may still dislike the taste, so try a small amount first and watch appetite and stomach comfort.`;
   }
 
   if (isFood || isFoodOrTreat) {
@@ -503,16 +530,16 @@ function getReactionQuestionDirectAnswer({
   product: MockProduct;
 }) {
   if (isShampoo) {
-    return `Furvise cannot know that for sure. Some pets can react to shampoos, so check the label and watch ${petName} after bathing. Stop if redness, licking, scratching, or discomfort gets worse.`;
+    return `I can't know whether ${petName} will react to it. Check the label and watch ${petName} after bathing. Stop using it if redness, licking, scratching, or discomfort gets worse.`;
   }
   if (isFood) {
-    return `Furvise cannot know that for sure. Check the ingredients, follow the package directions, and introduce it slowly. Watch for appetite changes, vomiting, diarrhea, stool changes, itching, scratching, or licking.`;
+    return `I can't know whether ${petName} will react to it. Check the ingredients, follow the package directions, and introduce it slowly. Watch for appetite changes, vomiting, diarrhea, stool changes, itching, scratching, or licking.`;
   }
   if (isDental) {
-    return `Furvise cannot know that for sure. Check the ingredients, size range, and chewing directions first. Supervise ${petName} and stop using it if chewing trouble, vomiting, diarrhea, itching, or discomfort appears.`;
+    return `I can't know whether ${petName} will react to it. Check the ingredients, size range, and chewing directions first. Supervise ${petName} and stop using it if chewing trouble, vomiting, diarrhea, itching, or discomfort appears.`;
   }
   const warningText = product.verifiedWarnings?.length ? ` Label warnings include: ${formatList(product.verifiedWarnings.slice(0, 2))}.` : "";
-  return `Furvise cannot know that for sure. Check the label before using it for ${petName} and watch for any reaction or discomfort.${warningText}`;
+  return `I can't know whether ${petName} will react to it. Check the label before using it and watch for any reaction or discomfort.${warningText}`;
 }
 
 function getAgeSizeQuestionDirectAnswer({
@@ -603,7 +630,7 @@ function buildCheckBeforeBuyingList({
 
 function buildHowToUseText(product: MockProduct) {
   if (!product.verifiedDirections) {
-    return "Furvise does not have verified label directions yet, so follow the package directions.";
+    return "The label directions are not available yet, so follow the directions on the package.";
   }
   return normalizeAnswer(`Follow the label directions: ${product.verifiedDirections}`);
 }
@@ -646,23 +673,23 @@ function getKnownProductFacts(product: MockProduct) {
   return normalizeList([
     `${getProductDisplayName(product)} is listed as a ${getProductTypeLabel(product)}.`,
     `Made for ${getProductSpeciesLabel(product, true)}.`,
-    product.verifiedDescription ? "Verified description is available." : "",
+    product.verifiedDescription ? "A product description is available." : "",
     product.ingredientsVerified && product.verifiedIngredients?.length
-      ? "Verified ingredients are available."
-      : "Full ingredient details are not fully verified.",
-    product.verifiedDirections ? "Verified directions are available." : "",
-    product.verifiedWarnings?.length ? "Verified warnings are available." : "",
+      ? "A full ingredient list is available."
+      : "The full ingredient list is not available.",
+    product.verifiedDirections ? "Label directions are available." : "",
+    product.verifiedWarnings?.length ? "Label warnings are available." : "",
   ]);
 }
 
 function getMissingProductFacts(product: MockProduct, question: string) {
   const missing = [
-    !product.verifiedDescription ? "Verified product details" : "",
-    !product.ingredientsVerified || !product.verifiedIngredients?.length ? "Full verified ingredient list" : "",
-    !product.verifiedDirections ? "Verified directions for use" : "",
-    !product.verifiedWarnings?.length ? "Verified warnings from the product label" : "",
+    !product.verifiedDescription ? "Full product details" : "",
+    !product.ingredientsVerified || !product.verifiedIngredients?.length ? "Full ingredient list" : "",
+    !product.verifiedDirections ? "Directions for use" : "",
+    !product.verifiedWarnings?.length ? "Warnings from the product label" : "",
   ];
-  if (/\b(size|weight|ounces|oz|count)\b/i.test(question)) missing.push("Verified size details from the product label");
+  if (/\b(size|weight|ounces|oz|count)\b/i.test(question)) missing.push("Size details from the product label");
   return normalizeList(missing);
 }
 

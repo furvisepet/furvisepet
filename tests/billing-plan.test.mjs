@@ -122,15 +122,17 @@ test("plan capabilities define generous free and future plus limits", () => {
   assert.equal(free.careLog, "unlimited");
   assert.equal(free.dashboard, true);
   assert.equal(free.curatedProducts, true);
-  assert.equal(free.askFurviseMonthlyLimit, 20);
-  assert.equal(free.productsAiMonthlyLimit, 80);
-  assert.equal(free.shopSearchMonthlyLimit, 80);
-  assert.equal(free.productQuestionMonthlyLimit, 80);
+  assert.equal(free.aiCreditsMonthlyLimit, 50);
+  assert.equal(free.askFurviseMonthlyLimit, 50);
+  assert.equal(free.productsAiMonthlyLimit, 50);
+  assert.equal(free.shopSearchMonthlyLimit, 50);
+  assert.equal(free.productQuestionMonthlyLimit, 50);
   assert.equal(free.longHistoryPatternDetection, false);
   assert.equal(free.vetPrepExports, false);
   assert.equal(free.liveProductResearch, false);
-  assert.equal(plus.askFurviseMonthlyLimit, 200);
-  assert.equal(plus.productsAiMonthlyLimit, 80);
+  assert.equal(plus.aiCreditsMonthlyLimit, 500);
+  assert.equal(plus.askFurviseMonthlyLimit, 500);
+  assert.equal(plus.productsAiMonthlyLimit, 500);
   assert.equal(plus.longHistoryPatternDetection, true);
   assert.equal(plus.vetPrepExports, true);
   assert.equal(plus.liveProductResearch, true);
@@ -162,31 +164,30 @@ test("pet limit gates new pets but never edits existing pets", () => {
   assert.match(early.softNotice || "", /1 pet/);
 });
 
-test("Ask Furvise usage gate allows 20 free messages and early access bypass", () => {
-  assert.equal(evaluateAskUsageLimit({ monthlyCount: 19, planId: "free", earlyAccessUnlocked: false }).allowed, true);
-  const blocked = evaluateAskUsageLimit({ monthlyCount: 20, planId: "free", earlyAccessUnlocked: false });
+test("legacy Ask usage gate mirrors the shared 50-credit allowance during compatibility", () => {
+  assert.equal(evaluateAskUsageLimit({ monthlyCount: 49, planId: "free", earlyAccessUnlocked: false }).allowed, true);
+  const blocked = evaluateAskUsageLimit({ monthlyCount: 50, planId: "free", earlyAccessUnlocked: false });
   assert.equal(blocked.hardBlocked, true);
   assert.equal(blocked.remaining, 0);
   const early = evaluateAskUsageLimit({ monthlyCount: 30, planId: "free", earlyAccessUnlocked: true });
   assert.equal(early.allowed, true);
-  assert.match(early.softNotice || "", /extra Ask Furvise messages/);
 });
 
-test("Products AI usage gate allows 80 free AI uses and early access bypass", () => {
-  assert.equal(evaluateShopSearchUsageLimit({ monthlyCount: 79, planId: "free", earlyAccessUnlocked: false }).allowed, true);
-  const blocked = evaluateShopSearchUsageLimit({ monthlyCount: 80, planId: "free", earlyAccessUnlocked: false });
+test("legacy product usage gate mirrors the shared 50-credit allowance during compatibility", () => {
+  assert.equal(evaluateShopSearchUsageLimit({ monthlyCount: 49, planId: "free", earlyAccessUnlocked: false }).allowed, true);
+  const blocked = evaluateShopSearchUsageLimit({ monthlyCount: 50, planId: "free", earlyAccessUnlocked: false });
   assert.equal(blocked.hardBlocked, true);
   assert.equal(blocked.remaining, 0);
-  assert.match(blocked.message || "", /included Product AI/);
+  assert.match(blocked.message || "", /AI credits/);
   const early = evaluateShopSearchUsageLimit({ monthlyCount: 81, planId: "free", earlyAccessUnlocked: true });
   assert.equal(early.allowed, true);
-  assert.match(early.softNotice || "", /extra Product AI uses/);
+  assert.match(early.softNotice || "", /extra product searches/);
 });
 
 test("Ask usage reads current month, increments successful answers, and resets by month key", async () => {
   const supabase = createUsageSupabase([
     { user_id: "user-1", month_key: "2026-06", count: 20 },
-    { user_id: "user-1", month_key: "2026-07", count: 19 },
+    { user_id: "user-1", month_key: "2026-07", count: 49 },
   ]);
 
   assert.equal(getAskUsageMonthKey(new Date("2026-07-13T12:00:00Z")), "2026-07");
@@ -198,7 +199,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     supabase,
     userId: "user-1",
   });
-  assert.equal(status.count, 19);
+  assert.equal(status.count, 49);
   assert.equal(status.remaining, 1);
 
   await incrementAskUsage({ monthKey: "2026-07", previousCount: status.count, supabase, userId: "user-1" });
@@ -210,7 +211,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     supabase,
     userId: "user-1",
   });
-  assert.equal(after.count, 20);
+  assert.equal(after.count, 50);
   assert.equal(after.allowed, false);
 
   const reset = await getAskUsageStatus({
@@ -222,7 +223,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     userId: "user-1",
   });
   assert.equal(reset.count, 0);
-  assert.equal(reset.remaining, 20);
+  assert.equal(reset.remaining, 50);
 });
 
 test("Ask usage treats a missing monthly row as zero for new users", async () => {
@@ -260,7 +261,7 @@ test("Products AI usage increments fresh AI work and resets by month key", async
     userId: "user-1",
   });
   assert.equal(status.count, 2);
-  assert.equal(status.remaining, 78);
+  assert.equal(status.remaining, 48);
 
   await incrementProductAiUsage({ monthKey: "2026-07", previousCount: status.count, supabase, userId: "user-1" });
   assert.equal(await readProductAiUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 3);
@@ -276,7 +277,7 @@ test("Products AI usage increments fresh AI work and resets by month key", async
     userId: "user-1",
   });
   assert.equal(reset.count, 0);
-  assert.equal(reset.remaining, 80);
+  assert.equal(reset.remaining, 50);
 });
 
 test("Ask usage read errors log Supabase details and early access falls back safely", async () => {
@@ -337,8 +338,8 @@ test("Ask usage read errors log Supabase details and early access falls back saf
   }
 });
 
-test("Ask usage still hard gates over-limit users when the usage table works", async () => {
-  const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 20 }]);
+test("legacy Ask usage still hard gates at the shared allowance while compatibility remains", async () => {
+  const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 50 }]);
   const status = await getAskUsageStatus({
     earlyAccessUnlocked: false,
     monthlyLimit: getPlanCapabilities("free").askFurviseMonthlyLimit,

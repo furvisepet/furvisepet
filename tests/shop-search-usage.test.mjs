@@ -173,8 +173,8 @@ test("Shop deterministic filtering and invalid query states do not touch usage",
   assert.equal(await readShopSearchUsageCount({ monthKey: "2026-07", supabase, userId: "user-1" }), 7);
 });
 
-test("Products AI cap blocks fresh uncached queries while allowing cached interpretations", async () => {
-  const supabase = createShopUsageSupabase([{ user_id: "user-1", month_key: "2026-07", used_count: 80 }]);
+test("legacy product search cap mirrors unified credits while cached interpretations remain free", async () => {
+  const supabase = createShopUsageSupabase([{ user_id: "user-1", month_key: "2026-07", used_count: 50 }]);
   const status = await getProductAiUsageStatus({
     earlyAccessUnlocked: false,
     monthlyLimit: getPlanCapabilities("free").productsAiMonthlyLimit,
@@ -185,23 +185,23 @@ test("Products AI cap blocks fresh uncached queries while allowing cached interp
   });
   assert.equal(status.allowed, false);
   assert.equal(status.remaining, 0);
-  assert.match(status.gate.message || "", /included Product AI/);
+  assert.match(status.gate.message || "", /AI credits/);
 
   const route = read("app/api/shop/interpret-query/route.ts");
   const cacheRead = route.indexOf("const cached = await readCachedShopQueryInterpretation");
   const cacheReturn = route.indexOf("cached: true", cacheRead);
-  const capCheck = route.indexOf("if (!context.usage.allowed)");
-  const providerCreation = route.indexOf("const provider = createAiAnalysisProvider");
-  const capBranch = route.slice(capCheck, providerCreation);
+  const capCheck = route.indexOf("if (!usage.allowed)");
+  const providerStart = route.indexOf('logShopInterpretationDiagnostic("calling AI provider"', capCheck);
+  const capBranch = route.slice(capCheck, providerStart);
 
   assert.ok(cacheRead > -1);
   assert.ok(cacheReturn > cacheRead);
   assert.ok(capCheck > cacheRead);
-  assert.ok(providerCreation > capCheck);
+  assert.ok(providerStart > capCheck);
   assert.match(capBranch, /limitReached: true/);
-  assert.match(capBranch, /status: 402/);
-  assert.match(capBranch, /You've used your included Product AI for this month\./);
-  assert.doesNotMatch(capBranch, /createAiAnalysisProvider|interpretShopQuery|incrementProductAiUsage/);
+  assert.doesNotMatch(capBranch, /status: 402/);
+  assert.match(capBranch, /interpretationSource: "fallback"/);
+  assert.doesNotMatch(capBranch, /createAiAnalysisProvider|interpretShopQuery/);
 });
 
 test("Shop route never increments usage for invalid bodies, cached hits, fallback, or product explanation", () => {
@@ -227,11 +227,11 @@ test("Shop route never increments usage for invalid bodies, cached hits, fallbac
   assert.doesNotMatch(explanationRoute, /getProductAiUsageStatus|incrementProductAiUsage|product_ai_usage/);
 });
 
-test("Products AI cap reached UI copy is visible and calm", () => {
+test("product search cap reached UI copy is visible and calm", () => {
   const page = read("app/shop/page.tsx");
 
-  assert.match(page, /Monthly Product AI limit reached/);
-  assert.match(page, /You've used your included Product AI for this month\./);
+  assert.match(page, /Monthly search limit reached/);
+  assert.match(page, /FURVISE_PRODUCT_USAGE_CAP_MESSAGE/);
   assert.doesNotMatch(page, /paywall|upgrade now|locked forever|subscribe to continue/i);
 });
 

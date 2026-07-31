@@ -29,9 +29,9 @@ test("Shop interpretation API route authenticates and loads pet memory server-si
 
   assert.match(route, /Authentication required\./);
   assert.match(route, /supabase\.auth\.getUser\(token\)/);
-  assert.match(route, /loadPetMemoryContext\(\{/);
+  assert.match(route, /buildFurviseContext\(\{/);
   assert.match(route, /petId,\s+supabase: context\.supabase,\s+userId: context\.userId/s);
-  assert.match(route, /createAiAnalysisProvider\(\)/);
+  assert.match(route, /runFeatureIntelligence\(\{/);
   assert.match(route, /getAiRuntimeDiagnostics/);
   assert.match(route, /logShopInterpretationDiagnostic/);
   assert.match(route, /classifyShopInterpretationFailure/);
@@ -39,9 +39,9 @@ test("Shop interpretation API route authenticates and loads pet memory server-si
   assert.match(route, /parseShopQueryInterpretation/);
   assert.match(route, /readCachedShopQueryInterpretation/);
   assert.match(route, /saveShopQueryInterpretationCache/);
-  assert.match(route, /getProductAiUsageStatus/);
-  assert.match(route, /incrementProductAiUsage/);
-  assert.match(route, /limitReached: true/);
+  assert.match(route, /getRemainingAiCredits/);
+  assert.match(route, /runWithAiCredit/);
+  assert.match(route, /feature: "product_query"/);
   assert.match(route, /interpretationSource: "ai"/);
   assert.match(route, /interpretationSource: "cache"/);
   assert.match(route, /interpretationSource: "fallback"/);
@@ -65,16 +65,16 @@ test("Shop interpretation usage cap checks cache before spending a fresh AI sear
 
   assert.match(cacheHitBranch, /cached: true/);
   assert.match(cacheHitBranch, /interpretationSource: "cache"/);
-  assert.match(cacheHitBranch, /usage: context\.usage/);
-  assert.doesNotMatch(cacheHitBranch, /createAiAnalysisProvider|incrementProductAiUsage/);
-  assert.match(aiBranch, /provider\.interpretShopQuery/);
-  assert.match(aiBranch, /incrementProductAiUsage/);
-  assert.match(aiBranch, /cached: false/);
+  assert.match(cacheHitBranch, /usage: null/);
+  assert.doesNotMatch(cacheHitBranch, /createAiAnalysisProvider|runWithAiCredit/);
+  assert.match(aiBranch, /runFeatureIntelligence/);
+  assert.match(aiBranch, /runWithAiCredit/);
+  assert.match(route, /cached: false/);
   assert.match(fallbackBranch, /source: "fallback"/);
   assert.match(fallbackBranch, /fallbackReason: failure\.reason/);
   assert.match(fallbackBranch, /interpretationSource: "fallback"/);
-  assert.match(fallbackBranch, /usage: context\.usage/);
-  assert.doesNotMatch(fallbackBranch, /incrementProductAiUsage/);
+  assert.match(fallbackBranch, /usage/);
+  assert.doesNotMatch(fallbackBranch, /completeAiCredit/);
 });
 
 test("Shop product fit explanation API authenticates and gates through deterministic filters", () => {
@@ -84,12 +84,12 @@ test("Shop product fit explanation API authenticates and gates through determini
 
   assert.match(route, /Authentication required\./);
   assert.match(route, /supabase\.auth\.getUser\(token\)/);
-  assert.match(route, /loadPetMemoryContext\(\{/);
+  assert.match(route, /buildFurviseContext\(\{/);
   assert.match(route, /filterAndRankShopProducts\(\{/);
   assert.match(route, /filtered\.products\.find\(\(item\) => item\.id === productId\)/);
   assert.match(route, /This product is no longer available for the selected pet context\./);
-  assert.match(route, /createAiAnalysisProvider\(\)/);
-  assert.match(route, /explainShopProductFit/);
+  assert.match(route, /runFeatureIntelligence\(\{/);
+  assert.match(route, /feature: "product_explanation"/);
   assert.match(route, /buildFallbackShopProductFitExplanation/);
   assert.match(productSearch, /passesShopIngredientVerification/);
   assert.match(helper, /buildVerifiedProductFields/);
@@ -129,15 +129,14 @@ test("Shop page calls interpretation only after submit and keeps query-first ren
   assert.match(page, /getCurrentAccessToken/);
   assert.match(page, /fetch\("\/api\/shop\/interpret-query"/);
   assert.match(page, /if \(nextQuery\.length < MIN_SHOP_QUERY_LENGTH \|\| !selectedPetId\) return/);
-  assert.match(page, /if \(searchCapReached\) return/);
+  assert.doesNotMatch(page, /if \(searchCapReached\) return/);
   assert.match(page, /setSubmittedQuery\(nextQuery\)/);
-  assert.match(page, /Product AI included this month/);
-  assert.match(page, /A few product AI uses left this month/);
   assert.match(page, /disabled=\{!canSearch\}/);
-  assert.match(page, /Monthly Product AI limit reached/);
+  assert.match(page, /You’ve used all of your AI guidance for this month/);
   assert.match(page, /interpretationLoading/);
-  assert.match(page, /searchStaticRealShopProducts\(\{\s+interpretation: activeInterpretation/s);
-  assert.match(page, /What are you shopping for\?/);
+  assert.match(page, /fetch\("\/api\/shop\/catalog"/);
+  assert.match(page, /searchShopProducts\(\{\s+interpretation: activeInterpretation,\s+productCountry,\s+products: catalogProducts/s);
+  assert.match(page, /What are you looking for\?/);
 });
 
 test("Shop product fit explanation is click-only and cached per page session", () => {
@@ -151,7 +150,7 @@ test("Shop product fit explanation is click-only and cached per page session", (
   assert.doesNotMatch(productCard, /fetch\(/);
   assert.match(page, /Why this product\?/);
   assert.doesNotMatch(page, /Why this product may make sense/);
-  assert.match(page, /Checking saved context/);
+  assert.match(page, /Checking product fit/);
   assert.match(explainHandler, /if \(cached\?\.loading \|\| cached\?\.explanation\) return/);
   assert.match(submitSearch, /setFitExplanationCache\(\{\}\)/);
   assert.match(page, /setSelectedPetId\(event\.target\.value\);[\s\S]*resetInterpretation\(\)/);
@@ -172,7 +171,7 @@ test("Shop product explanation route gates eligibility before calling AI and nev
   const filtering = route.indexOf("const filtered = filterAndRankShopProducts");
   const productLookup = route.indexOf("const product = filtered.products.find", filtering);
   const unavailable = route.indexOf("This product is no longer available for the selected pet context", productLookup);
-  const provider = route.indexOf("const provider = createAiAnalysisProvider", unavailable);
+  const provider = route.indexOf("runFeatureIntelligence", unavailable);
 
   assert.ok(filtering > -1);
   assert.ok(productLookup > filtering);
@@ -187,9 +186,9 @@ test("Shop product explanation remains click-only from page source", () => {
   const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
   const explainHandler = page.slice(page.indexOf("async function explainProductFit"), page.indexOf("async function interpretSubmittedQuery"));
 
-  assert.equal((page.match(/fetch\("\/api\/shop\/explain-product-fit"/g) || []).length, 1);
-  assert.doesNotMatch(shopResults, /fetch\("\/api\/shop\/explain-product-fit"/);
-  assert.doesNotMatch(productCard, /fetch\("\/api\/shop\/explain-product-fit"/);
+  assert.equal((page.match(/idempotentClientFetch\("\/api\/shop\/explain-product-fit"/g) || []).length, 1);
+  assert.doesNotMatch(shopResults, /idempotentClientFetch\("\/api\/shop\/explain-product-fit"/);
+  assert.doesNotMatch(productCard, /idempotentClientFetch\("\/api\/shop\/explain-product-fit"/);
   assert.match(productCard, /onClick=\{openWhyPanel\}/);
   assert.match(productCard, /function openWhyPanel\(\)[\s\S]*onExplain\(\);/);
   assert.match(explainHandler, /if \(cached\?\.loading \|\| cached\?\.explanation\) return/);
