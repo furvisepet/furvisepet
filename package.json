@@ -22,6 +22,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.69.0",
     "@supabase/ssr": "0.10.0",
     "@supabase/supabase-js": "^2.108.2",
     "@upstash/redis": "1.38.0",
