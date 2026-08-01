@@ -1,9 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
+import {
+  getActiveMobileNavigationTab,
+  MOBILE_NAVIGATION_IDLE_EXPAND_MS,
+  MOBILE_NAVIGATION_ITEMS,
+  resolveMobileNavigationState,
+  shouldShowMobileNavigation,
+  type MobileNavigationState,
+} from "../lib/navigation/mobile-navigation";
 import { getBrowserSupabase } from "../lib/supabase";
 import { BrandMark } from "./brand-mark";
 import { appPageContainer, PrimaryButton, TextAction } from "./product-primitives";
@@ -69,11 +78,13 @@ export const APP_NAV_ITEMS = [
 ] as const;
 
 const MOBILE_NAV_ITEMS = [
-  { href: "/dashboard", icon: "today", label: "Today" },
-  { href: "/care-log", icon: "history", label: "History" },
-  { href: "/ask", icon: "ask", label: "Ask" },
-  { href: "/pets", icon: "pets", label: "Pets" },
+  { ...MOBILE_NAVIGATION_ITEMS[0], icon: "today", label: "Today" },
+  { ...MOBILE_NAVIGATION_ITEMS[1], icon: "history", label: "History" },
+  { ...MOBILE_NAVIGATION_ITEMS[2], icon: "ask", label: "Ask" },
+  { ...MOBILE_NAVIGATION_ITEMS[3], icon: "pets", label: "Pets" },
 ] as const;
+
+let retainedMobileNavigationState: MobileNavigationState = "expanded";
 
 export function AppHeader({
   accountError = "",
@@ -91,9 +102,12 @@ export function AppHeader({
   const menuRef = useRef<HTMLDetailsElement>(null);
   const mobileMoreRef = useRef<HTMLDetailsElement>(null);
   const mobileMoreSummaryRef = useRef<HTMLElement | null>(null);
+  const [mobileNavigationState, setMobileNavigationState] = useState<MobileNavigationState>(() => retainedMobileNavigationState);
   const menuId = useId();
   const isHomepage = variant === "homepage" && pathname === "/";
   const resolvedAuthState = authState ?? localAuthState;
+  const activeMobileTab = getActiveMobileNavigationTab(pathname);
+  const showMobileNavigation = shouldShowMobileNavigation(pathname, resolvedAuthState === "authenticated");
   const items = variant === "site" || resolvedAuthState === "authenticated" ? APP_NAV_ITEMS : navItems ?? [];
   const resolvedHomepageActions = homepageActions ?? (
     resolvedAuthState === "authenticated"
@@ -149,6 +163,72 @@ export function AppHeader({
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showMobileNavigation) return;
+
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let lastScrollY = window.scrollY;
+    let accumulatedDelta = 0;
+    let direction = 0;
+    let animationFrame = 0;
+    let idleTimer = 0;
+
+    const updateState = (nextState: MobileNavigationState) => {
+      retainedMobileNavigationState = nextState;
+      setMobileNavigationState(nextState);
+    };
+
+    const expandAfterIdle = () => {
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => updateState("expanded"), MOBILE_NAVIGATION_IDLE_EXPAND_MS);
+    };
+
+    const readScrollPosition = () => {
+      animationFrame = 0;
+      const scrollY = Math.max(0, window.scrollY);
+      const delta = scrollY - lastScrollY;
+      const nextDirection = Math.sign(delta);
+      if (nextDirection && nextDirection !== direction) {
+        direction = nextDirection;
+        accumulatedDelta = 0;
+      }
+      if (Math.abs(delta) >= 1) accumulatedDelta += delta;
+      lastScrollY = scrollY;
+
+      setMobileNavigationState((currentState) => {
+        const nextState = resolveMobileNavigationState({
+          accumulatedDelta,
+          currentState,
+          reducedMotion: reducedMotionQuery.matches,
+          scrollY,
+        });
+        if (nextState !== currentState) {
+          retainedMobileNavigationState = nextState;
+          accumulatedDelta = 0;
+        }
+        return nextState;
+      });
+      expandAfterIdle();
+    };
+
+    const handleScroll = () => {
+      if (!animationFrame) animationFrame = window.requestAnimationFrame(readScrollPosition);
+    };
+
+    const handleReducedMotionChange = () => {
+      if (reducedMotionQuery.matches) updateState("expanded");
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      reducedMotionQuery.removeEventListener("change", handleReducedMotionChange);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      window.clearTimeout(idleTimer);
+    };
+  }, [showMobileNavigation]);
 
   return (
     <>
@@ -210,14 +290,28 @@ export function AppHeader({
         </div>
       </header>
 
-      {resolvedAuthState === "authenticated" ? (
-        <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-ui="mobile-bottom-navigation">
-          <div className="mx-4 grid h-[var(--mobile-nav-height)] grid-cols-5 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--navigation-background)] p-1 shadow-[var(--shadow-bottom-nav)]" data-ui="mobile-navigation-dock">
-            {MOBILE_NAV_ITEMS.map((item) => (
-              <Link aria-current={isActive(item.href) ? "page" : undefined} className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1 text-[0.6875rem] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isActive(item.href) ? "bg-[var(--selected-navigation-background)] font-semibold text-[var(--deep-forest)]" : "bg-transparent font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--deep-forest)]"}`} data-active-indicator={isActive(item.href) ? "background" : undefined} href={item.href} key={item.href}><MobileNavigationIcon name={item.icon} /><span>{item.label}</span></Link>
-            ))}
+      {showMobileNavigation ? (
+        <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-state={mobileNavigationState} data-ui="mobile-bottom-navigation">
+          <div className={`mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[color-mix(in_srgb,var(--navigation-background)_82%,transparent)] p-1.5 shadow-[var(--shadow-bottom-nav)] backdrop-blur-xl transition-[height,padding] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none sm:mx-auto ${mobileNavigationState === "compact" ? "h-[var(--mobile-nav-height)]" : "h-[var(--mobile-nav-expanded-height)]"}`} data-ui="mobile-navigation-dock">
+            {MOBILE_NAV_ITEMS.map((item) => {
+              const active = activeMobileTab === item.tab;
+              const hideLabel = mobileNavigationState === "compact" && !active;
+              return (
+                <Link aria-current={active ? "page" : undefined} aria-label={item.label} className={`flex min-h-11 min-w-0 flex-col items-center justify-center rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href}>
+                  <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
+                    <Image alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} height={40} src={item.asset} width={40} />
+                  </span>
+                  <span className={hideLabel ? "sr-only" : "block"}>{item.label}</span>
+                </Link>
+              );
+            })}
             <details className="relative" ref={mobileMoreRef}>
-              <summary aria-current={pathname === "/shop" || pathname.startsWith("/shop/") || pathname === "/account" || pathname.startsWith("/account/") ? "page" : undefined} className={`flex min-h-12 cursor-pointer list-none flex-col items-center justify-center gap-1 rounded-[var(--radius-sm)] px-1 text-[0.6875rem] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${pathname === "/shop" || pathname.startsWith("/shop/") || pathname === "/account" || pathname.startsWith("/account/") ? "bg-[var(--selected-navigation-background)] font-semibold text-[var(--deep-forest)]" : "bg-transparent font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--deep-forest)]"}`} ref={(node) => { mobileMoreSummaryRef.current = node; }}><MobileNavigationIcon name="more" /><span>More</span></summary>
+              <summary aria-current={activeMobileTab === "more" ? "page" : undefined} aria-label="Open More menu" className={`flex min-h-11 h-full cursor-pointer list-none flex-col items-center justify-center rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${activeMobileTab === "more" ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} ref={(node) => { mobileMoreSummaryRef.current = node; }}>
+                <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${activeMobileTab === "more" ? "bg-[var(--selected-navigation-background)]" : ""}`}>
+                  <Image alt="" aria-hidden="true" className="h-full w-full object-contain" draggable={false} height={40} src="/images/more_dots.png" width={40} />
+                </span>
+                <span className={mobileNavigationState === "compact" && activeMobileTab !== "more" ? "sr-only" : "block"}>More</span>
+              </summary>
               <div className="absolute right-0 bottom-[calc(100%+0.5rem)] z-[var(--z-popover)] w-64 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" data-ui="mobile-more-menu" role="menu">
                 <Link className="flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href="/shop" onClick={() => closeMobileMore()} role="menuitem">Products</Link>
                 {accountMenuItems.map((item) => item.type === "link" ? (
@@ -235,13 +329,4 @@ export function AppHeader({
       ) : null}
     </>
   );
-}
-
-function MobileNavigationIcon({ name }: { name: "ask" | "history" | "more" | "pets" | "today" }) {
-  const commonProps = { "aria-hidden": true, className: "h-5 w-5 shrink-0", fill: "none", stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.8, viewBox: "0 0 24 24" };
-  if (name === "today") return <svg {...commonProps}><path d="M3.5 10.5 12 3.75l8.5 6.75" /><path d="M5.5 9.5v10.25h13V9.5" /><path d="M9.5 19.75v-6h5v6" /></svg>;
-  if (name === "history") return <svg {...commonProps}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>;
-  if (name === "ask") return <svg {...commonProps}><path d="M4 5.5h16v11H9l-5 3v-14Z" /></svg>;
-  if (name === "pets") return <svg {...commonProps} data-icon="pets-paw"><path data-paw-pad="main" d="M8.25 11.25c-2.75.5-4.1 3.15-3.2 5.2.75 1.7 2.65 2.05 4.25 1.2 1.75-.9 3.65-.9 5.4 0 1.6.85 3.5.5 4.25-1.2.9-2.05-.45-4.7-3.2-5.2-2.5-.45-5-.45-7.5 0Z" /><circle cx="7.5" cy="7" data-paw-pad="toe" r="1.75" /><circle cx="12" cy="5.25" data-paw-pad="toe" r="1.75" /><circle cx="16.5" cy="7" data-paw-pad="toe" r="1.75" /></svg>;
-  return <svg {...commonProps}><circle cx="6" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="18" cy="12" r="1" fill="currentColor" stroke="none" /></svg>;
 }

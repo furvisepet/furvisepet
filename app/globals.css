@@ -133,10 +133,11 @@
   --motion-standard: 170ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --mobile-nav-height: 4.25rem;
+  --mobile-nav-expanded-height: 5.75rem;
   --mobile-nav-safe-area: env(safe-area-inset-bottom, 0px);
   --mobile-sticky-gap: var(--space-3);
   --mobile-nav-clearance: calc(
-    var(--mobile-nav-height) +
+    max(var(--mobile-nav-height), var(--mobile-nav-expanded-height)) +
     var(--mobile-nav-safe-area) +
     24px
   );
@@ -328,7 +329,7 @@ body {
 
 .app-sticky-composer {
   bottom: calc(
-    var(--mobile-nav-height) +
+    max(var(--mobile-nav-height), var(--mobile-nav-expanded-height)) +
     var(--mobile-nav-safe-area) +
     var(--mobile-sticky-gap)
   );
