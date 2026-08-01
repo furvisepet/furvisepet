@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ActionVisualAudit } from "./components/action-visual-audit";
+import { AuthenticatedAppChrome } from "./components/authenticated-app-chrome";
 import {
   CANONICAL_ORIGIN,
   FURVISE_OG_IMAGE_URL,
@@ -86,6 +87,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <AuthenticatedAppChrome />
         {children}
         {process.env.NODE_ENV === "development" ? <ActionVisualAudit /> : null}
       </body>

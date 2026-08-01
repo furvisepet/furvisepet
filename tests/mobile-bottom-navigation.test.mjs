@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import {
   getActiveMobileNavigationTab,
+  isAuthenticatedAppNavigationRoute,
   MOBILE_NAVIGATION_IDLE_EXPAND_MS,
   MOBILE_NAVIGATION_ITEMS,
   MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX,
@@ -13,6 +14,9 @@ import {
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const header = read("app/components/app-header.tsx");
 const mobileNavigation = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
+const rootLayout = read("app/layout.tsx");
+const appChrome = read("app/components/authenticated-app-chrome.tsx");
+const appPage = read("app/components/app-page.tsx");
 
 test("mobile destinations use the approved public image assets", () => {
   assert.deepEqual(
@@ -57,6 +61,28 @@ test("navigation is authenticated-only and excludes public Auth surfaces", () =>
   assert.match(mobileNavigation, /lg:hidden/);
 });
 
+test("one persistent root-owned authenticated chrome survives application route changes", () => {
+  assert.match(rootLayout, /<AuthenticatedAppChrome \/>[\s\S]*\{children\}/);
+  assert.match(appChrome, /usePathname\(\)/);
+  assert.match(appChrome, /isAuthenticatedAppNavigationRoute\(pathname\)/);
+  assert.match(appChrome, /return <SignedInHeader \/>/);
+  assert.doesNotMatch(appChrome, /key=\{pathname\}/);
+  assert.doesNotMatch(appPage, /SignedInHeader|AppHeader/);
+
+  const navigationOwners = ["app/components/app-header.tsx", "app/components/app-page.tsx", "app/components/authenticated-app-chrome.tsx", "app/layout.tsx"]
+    .map(read)
+    .join("\n")
+    .match(/data-ui="mobile-bottom-navigation"/g) || [];
+  assert.equal(navigationOwners.length, 1);
+
+  for (const pathname of ["/today", "/history", "/ask", "/pets", "/shop", "/pets/pet-id"]) {
+    assert.equal(isAuthenticatedAppNavigationRoute(pathname), true, pathname);
+  }
+  for (const pathname of ["/", "/login", "/signup", "/auth/callback", "/onboarding", "/privacy", "/terms"]) {
+    assert.equal(isAuthenticatedAppNavigationRoute(pathname), false, pathname);
+  }
+});
+
 test("scroll state uses a noise threshold, expands upward, and expands after idle", () => {
   assert.equal(MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX, 14);
   assert.equal(MOBILE_NAVIGATION_IDLE_EXPAND_MS, 300);
@@ -76,13 +102,20 @@ test("reduced motion remains expanded and disables visual transitions", () => {
 });
 
 test("the glass dock uses semantic color roles and reserves safe page space", () => {
-  assert.match(mobileNavigation, /backdrop-blur-xl/);
-  assert.match(mobileNavigation, /bg-\[color-mix\(in_srgb,var\(--navigation-background\)_82%,transparent\)\]/);
-  assert.match(mobileNavigation, /border-\[var\(--border-subtle\)\]/);
+  assert.match(mobileNavigation, /backdrop-blur-\[22px\]/);
+  assert.match(mobileNavigation, /backdrop-saturate-\[145%\]/);
+  assert.match(mobileNavigation, /bg-\[color-mix\(in_srgb,var\(--navigation-background\)_65%,transparent\)\]/);
+  assert.match(mobileNavigation, /border-\[color-mix\(in_srgb,var\(--border-subtle\)_70%,transparent\)\]/);
   assert.match(mobileNavigation, /shadow-\[var\(--shadow-bottom-nav\)\]/);
   assert.match(mobileNavigation, /pb-\[var\(--mobile-nav-safe-area\)\]/);
   assert.doesNotMatch(mobileNavigation, /#[0-9a-f]{3,8}|(?:bg|text|border|ring)-(?:white|black|red|green|blue|orange|amber|stone|gray)-/i);
   assert.match(read("app/globals.css"), /--mobile-nav-expanded-height: 5\.75rem;[\s\S]*--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-expanded-height\)/);
+});
+
+test("persistent navigation icons are eagerly decoded and do not remount by pathname", () => {
+  assert.match(mobileNavigation, /loading="eager"/);
+  assert.match(mobileNavigation, /decoding="sync"/);
+  assert.doesNotMatch(mobileNavigation, /key=\{pathname\}|opacity-0|animate-opacity/);
 });
 
 test("History alias reuses the established care-history implementation", () => {

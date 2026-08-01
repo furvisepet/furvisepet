@@ -12,7 +12,21 @@ export const MOBILE_NAVIGATION_ITEMS = [
 ] as const;
 
 const MORE_ROUTE_PREFIXES = ["/account", "/privacy", "/shop", "/terms", "/vet-brief", "/vet-briefs"] as const;
-const HIDDEN_ROUTE_PREFIXES = ["/auth", "/login", "/signup"] as const;
+const AUTHENTICATED_APP_NAVIGATION_PREFIXES = [
+  "/account",
+  "/ask",
+  "/care-log",
+  "/dashboard",
+  "/dogs",
+  "/history",
+  "/pets",
+  "/products",
+  "/results",
+  "/shop",
+  "/today",
+  "/vet-brief",
+  "/vet-briefs",
+] as const;
 
 function matchesRoute(pathname: string, route: string) {
   return pathname === route || pathname.startsWith(`${route}/`);
@@ -24,9 +38,12 @@ export function getActiveMobileNavigationTab(pathname: string): MobileNavigation
   return MORE_ROUTE_PREFIXES.some((route) => matchesRoute(pathname, route)) ? "more" : null;
 }
 
+export function isAuthenticatedAppNavigationRoute(pathname: string) {
+  return AUTHENTICATED_APP_NAVIGATION_PREFIXES.some((route) => matchesRoute(pathname, route));
+}
+
 export function shouldShowMobileNavigation(pathname: string, authenticated: boolean) {
-  if (!authenticated || pathname === "/") return false;
-  return !HIDDEN_ROUTE_PREFIXES.some((route) => matchesRoute(pathname, route));
+  return authenticated && isAuthenticatedAppNavigationRoute(pathname);
 }
 
 export function resolveMobileNavigationState({
