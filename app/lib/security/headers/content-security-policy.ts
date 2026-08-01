@@ -15,6 +15,7 @@ export function buildContentSecurityPolicy(input: {
   const production = input.production ?? env.NODE_ENV === "production";
   const nonce = input.nonce?.trim() || "";
   const supabaseOrigin = exactOrigin(env.NEXT_PUBLIC_SUPABASE_URL, ["https:"]);
+  const sentryOrigin = sentryDsnOrigin(env.NEXT_PUBLIC_SENTRY_DSN);
   const imageOrigins = configuredOrigins(env.FURVISE_ALLOWED_IMAGE_ORIGINS, ["https:"]);
   const connectOrigins = configuredOrigins(env.FURVISE_ALLOWED_CONNECT_ORIGINS, ["https:", "wss:"]);
   const reportUri = sameOriginReportPath(env.FURVISE_CSP_REPORT_URI);
@@ -38,6 +39,7 @@ export function buildContentSecurityPolicy(input: {
     ["connect-src", unique([
       "'self'",
       ...(supabaseOrigin ? [supabaseOrigin] : []),
+      ...(sentryOrigin ? [sentryOrigin] : []),
       ...(turnstileEnabled ? [turnstileOrigin] : []),
       ...connectOrigins,
       ...(!production ? ["ws://localhost:*", "ws://127.0.0.1:*"] : []),
@@ -68,6 +70,15 @@ function exactOrigin(value: string | undefined, protocols: string[]) {
   try {
     const parsed = new URL(value.trim());
     if (!protocols.includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash) return null;
+    return parsed.origin;
+  } catch { return null; }
+}
+
+function sentryDsnOrigin(value: string | undefined) {
+  if (!value?.trim()) return null;
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== "https:" || !parsed.username || parsed.password || parsed.pathname === "/" || parsed.search || parsed.hash) return null;
     return parsed.origin;
   } catch { return null; }
 }
