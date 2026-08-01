@@ -39,15 +39,16 @@ test("mobile dock has the exact icon and label destinations with a selected stat
     assert.ok(next > cursor, `${label} retains its required order and icon`);
     cursor = next;
   }
-  assert.match(header, /<MobileNavigationIcon name="more" \/><span>More<\/span>/);
-  assert.match(header, /flex min-h-12[\s\S]*flex-col[\s\S]*<MobileNavigationIcon name=\{item\.icon\} \/><span>\{item\.label\}<\/span>/);
-  assert.match(header, /bg-\[var\(--selected-navigation-background\)\] font-semibold text-\[var\(--deep-forest\)\]/);
+  assert.match(header, /src="\/images\/more_dots\.png"/);
+  assert.match(header, /flex min-h-11[\s\S]*flex-col[\s\S]*<Image[^>]*src=\{item\.asset\}[^>]*\/>[\s\S]*\{item\.label\}<\/span>/);
+  assert.match(header, /data-active-indicator=\{active \? "icon-capsule"/);
+  assert.match(header, /active \? "bg-\[var\(--selected-navigation-background\)\]"/);
 });
 
-test("mobile navigation is a cream floating dock with no logo or orange", () => {
+test("mobile navigation is a translucent semantic floating dock with no logo or orange", () => {
   const mobileNav = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
-  assert.match(mobileNav, /mx-4 grid h-\[var\(--mobile-nav-height\)\]/);
-  assert.match(mobileNav, /rounded-\[var\(--radius-lg\)\][\s\S]*bg-\[var\(--navigation-background\)\]/);
+  assert.match(mobileNav, /mx-4 mb-2 grid[\s\S]*h-\[var\(--mobile-nav-height\)\][\s\S]*h-\[var\(--mobile-nav-expanded-height\)\]/);
+  assert.match(mobileNav, /rounded-\[var\(--radius-xl\)\][\s\S]*bg-\[color-mix\(in_srgb,var\(--navigation-background\)_82%,transparent\)\][\s\S]*backdrop-blur-xl/);
   assert.doesNotMatch(mobileNav, /BrandMark|furvise-logo|action-primary|orange/i);
 });
 
