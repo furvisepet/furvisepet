@@ -51,7 +51,7 @@ test("one bottom-navigation token drives rendered height, safe-area clearance, a
   assert.match(appPage, /app-mobile-nav-clearance/);
 });
 
-test("mobile navigation order and visible labels remain unchanged with a compact active marker", () => {
+test("mobile navigation order remains stable while compact mode keeps only the active label visible", () => {
   const mobile = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
   let cursor = -1;
   for (const label of ["Today", "History", "Ask", "Pets"]) {
@@ -59,10 +59,10 @@ test("mobile navigation order and visible labels remain unchanged with a compact
     assert.ok(next > cursor, `${label} stays in route order`);
     cursor = next;
   }
-  assert.match(header, /<span>More<\/span><\/summary>/);
+  assert.match(header, /mobileNavigationState === "compact" && activeMobileTab !== "more" \? "sr-only" : "block"\}>More<\/span>/);
   assert.match(header, /text-\[0\.6875rem\]/);
-  assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "background"/);
-  assert.doesNotMatch(header, /isActive\(item\.href\) \? "bg-\[var\(--selected-background\)\]/);
+  assert.match(header, /data-active-indicator=\{active \? "icon-capsule"/);
+  assert.match(header, /hideLabel \? "sr-only" : "block"/);
 });
 
 test("Ask keeps composer and disclaimer in one nav-aware sticky region", () => {
