@@ -26,6 +26,16 @@ test("forgot-password keeps the reset request and safe return flow", () => {
   assert.match(page, /href="\/login"/);
 });
 
+test("signup and recovery keep their existing CAPTCHA submission behavior", () => {
+  const login = read("app/login/page.tsx");
+  const recovery = read("app/forgot-password/page.tsx");
+
+  assert.match(login, /mode === "signin" \? "\/api\/auth\/login" : "\/api\/auth\/signup"/);
+  assert.match(login, /idempotentClientFetch\(endpoint, init, `auth-signup:/);
+  assert.match(recovery, /captchaToken: token \|\| undefined/);
+  assert.match(recovery, /process\.env\.NODE_ENV === "production" && !captchaToken/);
+});
+
 test("update-password validates and prepares both supported recovery sessions", () => {
   const page = read("app/update-password/page.tsx");
 

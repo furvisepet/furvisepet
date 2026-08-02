@@ -6,7 +6,7 @@ const login = readFileSync(new URL("../app/login/page.tsx", import.meta.url), "u
 const submitAuth = login.slice(login.indexOf("async function submitAuth"), login.indexOf("async function startGoogle"));
 const resendConfirmation = login.slice(login.indexOf("async function resendConfirmation"), login.indexOf('if (authStatus === "signedIn")'));
 
-test("the current CAPTCHA token remains unchanged while the Auth request is pending", () => {
+test("the first login request includes the current CAPTCHA token and leaves it unchanged while pending", () => {
   const capture = submitAuth.indexOf("const token = captchaToken;");
   const request = submitAuth.indexOf("await idempotentClientFetch(endpoint");
   const reset = submitAuth.indexOf("resetCaptchaAfterRequest();");
@@ -18,11 +18,11 @@ test("the current CAPTCHA token remains unchanged while the Auth request is pend
   assert.doesNotMatch(submitAuth.slice(capture, submitAuth.indexOf("try {")), /setCaptchaToken\(null\)|setCaptchaReset|resetCaptchaAfterRequest/);
 });
 
-test("CAPTCHA_REQUIRED clears the spent token and resets the widget after the response", () => {
+test("a failed Auth request clears the spent token and resets the widget only after the response", () => {
   const failedResponse = submitAuth.slice(submitAuth.indexOf("if (!result.ok)"), submitAuth.indexOf('if (mode === "signin") {'));
 
   assert.match(failedResponse, /resetCaptchaAfterRequest\(\);/);
-  assert.match(failedResponse, /payload\?\.code === "CAPTCHA_REQUIRED"[\s\S]*setLoginCaptchaRequired\(true\)/);
+  assert.ok(submitAuth.indexOf("resetCaptchaAfterRequest();", submitAuth.indexOf("if (!result.ok)")) > submitAuth.indexOf("await idempotentClientFetch(endpoint"));
   assert.match(login, /function resetCaptchaAfterRequest\(\) \{\s*setCaptchaToken\(null\);\s*setCaptchaReset\(\(value\) => value \+ 1\);\s*\}/);
 });
 
