@@ -1,16 +1,22 @@
 import "server-only";
 
 import { isCaptchaDevelopmentBypassAllowed } from "./config";
+import { resolveLoginCaptchaPolicy, validateCaptchaToken } from "./login-captcha";
 
 export function requireCaptchaToken(value: unknown, env: Record<string, string | undefined> = process.env) {
   if (isCaptchaDevelopmentBypassAllowed(env) && (value === undefined || value === null || value === "")) {
     console.warn("[Furvise auth] CAPTCHA development bypass active", { production: false });
     return { allowed: true as const, bypassed: true as const, token: undefined };
   }
-  if (typeof value !== "string" || value.length < 10 || value.length > 4096 || /[\u0000-\u001f\u007f]/u.test(value)) {
-    return { allowed: false as const, code: "CAPTCHA_REQUIRED" as const };
-  }
-  return { allowed: true as const, bypassed: false as const, token: value };
+  return validateCaptchaToken(value);
+}
+
+export function resolveLoginCaptcha(
+  input: Record<string, unknown>,
+  challengeRequired: boolean,
+  env: Record<string, string | undefined> = process.env,
+) {
+  return resolveLoginCaptchaPolicy(input, challengeRequired, (value) => requireCaptchaToken(value, env));
 }
 
 export function isCaptchaAuthError(error: unknown) {

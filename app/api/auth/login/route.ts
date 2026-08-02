@@ -4,7 +4,7 @@ import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } f
 import {
   authJson, authLimitResponse, authUnavailableResponse, captchaRequiredResponse, clearLoginCredentialFailures,
   enforceAuthInitiationLimit, getLoginCaptchaMode, getLoginFailureState, isCaptchaAuthError, logAuthAbuseEvent,
-  normalizeAuthAbuseEmail, recordLoginCredentialFailure, requireCaptchaToken, validatePublicAuthOrigin,
+  normalizeAuthAbuseEmail, recordLoginCredentialFailure, resolveLoginCaptcha, validatePublicAuthOrigin,
 } from "../../../lib/security/auth-abuse";
 
 export async function POST(request: Request) {
@@ -21,13 +21,13 @@ export async function POST(request: Request) {
   try { failures = await getLoginFailureState({ email, request }); } catch { return authUnavailableResponse(requestId); }
   if (failures.blocked) return authLimitResponse(requestId, failures.retryAfterSeconds);
   const challengeRequired = getLoginCaptchaMode() === "always" || failures.challengeRequired;
-  const captcha = challengeRequired ? requireCaptchaToken(input.captchaToken) : null;
-  if (captcha && !captcha.allowed) return captchaRequiredResponse(requestId);
+  const captcha = resolveLoginCaptcha(input, challengeRequired);
+  if (!captcha.allowed) return captchaRequiredResponse(requestId);
   const supabase = await createServerSupabase(); if (!supabase) return authUnavailableResponse(requestId);
   const started = Date.now();
   let result;
   try {
-    result = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captcha?.token } });
+    result = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captcha.token } });
   } catch {
     return authUnavailableResponse(requestId);
   }
@@ -36,13 +36,13 @@ export async function POST(request: Request) {
     if (isCaptchaAuthError(error)) return captchaRequiredResponse(requestId);
     if (isCredentialFailure(error)) await recordLoginCredentialFailure({ email, request }).catch(() => null);
     if ((error.status || 0) >= 500) return authUnavailableResponse(requestId);
-    logAuthAbuseEvent({ captchaPresent: Boolean(captcha?.token), elapsedMs: Date.now() - started, flow: "login", outcome: "credentials_rejected", requestId });
+    logAuthAbuseEvent({ captchaPresent: Boolean(captcha.token), elapsedMs: Date.now() - started, flow: "login", outcome: "credentials_rejected", requestId });
     return authJson({ code: "INVALID_CREDENTIALS", error: "Email or password is incorrect.", requestId }, 401);
   }
   if (!data.user || !data.session) return authUnavailableResponse(requestId);
   await clearLoginCredentialFailures({ email, request }).catch(() => null);
   await ensureCanonicalApplicationUser(supabase, data.user).catch(() => null);
-  logAuthAbuseEvent({ captchaPresent: Boolean(captcha?.token), elapsedMs: Date.now() - started, flow: "login", outcome: "authenticated", requestId });
+  logAuthAbuseEvent({ captchaPresent: Boolean(captcha.token), elapsedMs: Date.now() - started, flow: "login", outcome: "authenticated", requestId });
   return authJson({ ok: true, requestId });
 }
 
