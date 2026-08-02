@@ -47,6 +47,7 @@ function LoginPageContent() {
   const didRedirectRef = useRef(false);
   const googleStartingRef = useRef(false);
   const authChecked = authStatus !== "loading";
+  const captchaBlocksSubmission = !captchaToken && (loginCaptchaRequired || (process.env.NODE_ENV === "production" && mode === "signup"));
 
   useEffect(() => {
     if (didRedirectRef.current || authStatus !== "signedIn") return;
@@ -72,6 +73,11 @@ function LoginPageContent() {
     if (nextMode === "signin") setKeepSignedIn(true);
   }
 
+  function resetCaptchaAfterRequest() {
+    setCaptchaToken(null);
+    setCaptchaReset((value) => value + 1);
+  }
+
   async function submitAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -84,8 +90,6 @@ function LoginPageContent() {
     const normalizedEmail = normalizeAuthEmail(email);
     setEmail(normalizedEmail);
     const token = captchaToken;
-    setCaptchaToken(null);
-    setCaptchaReset((value) => value + 1);
     const endpoint = mode === "signin" ? "/api/auth/login" : "/api/auth/signup";
     const init = { body: JSON.stringify({ captchaToken: token || undefined, email: normalizedEmail, password }), headers: { "Content-Type": "application/json" }, method: "POST" };
     let result: Response;
@@ -94,12 +98,14 @@ function LoginPageContent() {
         ? await idempotentClientFetch(endpoint, init, `auth-signup:${normalizedEmail}`)
         : await fetch(endpoint, init);
     } catch {
+      resetCaptchaAfterRequest();
       setLoading(false);
       setError("Account access is temporarily unavailable. Please try again.");
       return;
     }
     const payload = await result.json().catch(() => null) as { code?: string; error?: string; message?: string; pendingConfirmation?: boolean } | null;
     if (!result.ok) {
+      resetCaptchaAfterRequest();
       setLoading(false);
       if (payload?.code === "CAPTCHA_REQUIRED" && mode === "signin") setLoginCaptchaRequired(true);
       setError(payload?.error || (mode === "signin" ? "Email or password is incorrect." : "Furvise could not complete that request. Please try again."));
@@ -110,6 +116,7 @@ function LoginPageContent() {
       router.replace(nextPath);
       return;
     }
+    resetCaptchaAfterRequest();
     setLoading(false);
     if (mode === "signup") {
       setShowConfirmationRecovery(true);
@@ -136,8 +143,17 @@ function LoginPageContent() {
     const normalizedEmail = normalizeAuthEmail(email);
     if (!normalizedEmail || !captchaToken || resendCooldown > 0 || loading) return;
     setLoading(true); setError("");
-    const token = captchaToken; setCaptchaToken(null); setCaptchaReset((value) => value + 1);
-    const response = await idempotentClientFetch("/api/auth/resend", { body: JSON.stringify({ captchaToken: token, email: normalizedEmail }), headers: { "Content-Type": "application/json" }, method: "POST" }, `auth-resend:${normalizedEmail}`);
+    const token = captchaToken;
+    let response: Response;
+    try {
+      response = await idempotentClientFetch("/api/auth/resend", { body: JSON.stringify({ captchaToken: token, email: normalizedEmail }), headers: { "Content-Type": "application/json" }, method: "POST" }, `auth-resend:${normalizedEmail}`);
+    } catch {
+      resetCaptchaAfterRequest();
+      setLoading(false);
+      setError("Furvise could not complete that request. Please try again.");
+      return;
+    }
+    resetCaptchaAfterRequest();
     const payload = await response.json().catch(() => null) as { error?: string; message?: string; retryAfterSeconds?: number } | null;
     setLoading(false);
     if (!response.ok) { setError(payload?.error || "Furvise could not complete that request. Please try again."); if (response.status === 429) setResendCooldown(Math.max(60, payload?.retryAfterSeconds || 60)); return; }
@@ -196,7 +212,7 @@ function LoginPageContent() {
 
           {mode === "signup" || loginCaptchaRequired ? <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} /> : null}
 
-          <button className={accountPrimaryClass} disabled={!authChecked || loading || Boolean(configError) || (process.env.NODE_ENV === "production" && (mode === "signup" || loginCaptchaRequired) && !captchaToken)} type="submit">
+          <button className={accountPrimaryClass} disabled={!authChecked || loading || Boolean(configError) || captchaBlocksSubmission} type="submit">
             {loading ? (mode === "signin" ? "Signing in..." : "Creating account...") : (mode === "signin" ? "Sign in" : "Create account")}
           </button>
         </form>

@@ -1,0 +1,50 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+const login = readFileSync(new URL("../app/login/page.tsx", import.meta.url), "utf8");
+const submitAuth = login.slice(login.indexOf("async function submitAuth"), login.indexOf("async function startGoogle"));
+const resendConfirmation = login.slice(login.indexOf("async function resendConfirmation"), login.indexOf('if (authStatus === "signedIn")'));
+
+test("the current CAPTCHA token remains unchanged while the Auth request is pending", () => {
+  const capture = submitAuth.indexOf("const token = captchaToken;");
+  const request = submitAuth.indexOf("await idempotentClientFetch(endpoint");
+  const reset = submitAuth.indexOf("resetCaptchaAfterRequest();");
+
+  assert.ok(capture >= 0);
+  assert.ok(request > capture);
+  assert.ok(reset > request);
+  assert.match(submitAuth, /JSON\.stringify\(\{ captchaToken: token \|\| undefined, email: normalizedEmail, password \}\)/);
+  assert.doesNotMatch(submitAuth.slice(capture, submitAuth.indexOf("try {")), /setCaptchaToken\(null\)|setCaptchaReset|resetCaptchaAfterRequest/);
+});
+
+test("CAPTCHA_REQUIRED clears the spent token and resets the widget after the response", () => {
+  const failedResponse = submitAuth.slice(submitAuth.indexOf("if (!result.ok)"), submitAuth.indexOf('if (mode === "signin") {'));
+
+  assert.match(failedResponse, /resetCaptchaAfterRequest\(\);/);
+  assert.match(failedResponse, /payload\?\.code === "CAPTCHA_REQUIRED"[\s\S]*setLoginCaptchaRequired\(true\)/);
+  assert.match(login, /function resetCaptchaAfterRequest\(\) \{\s*setCaptchaToken\(null\);\s*setCaptchaReset\(\(value\) => value \+ 1\);\s*\}/);
+});
+
+test("successful login navigates without resetting the accepted token first", () => {
+  const successfulLogin = submitAuth.slice(submitAuth.indexOf('if (mode === "signin") {'), submitAuth.indexOf("resetCaptchaAfterRequest();", submitAuth.indexOf('if (mode === "signin") {')));
+
+  assert.match(successfulLogin, /didRedirectRef\.current = true;/);
+  assert.match(successfulLogin, /router\.replace\(nextPath\);/);
+  assert.match(successfulLogin, /return;/);
+  assert.doesNotMatch(successfulLogin, /resetCaptchaAfterRequest|setCaptchaToken|null\)/);
+});
+
+test("signup and confirmation resend reset Turnstile only after their requests settle", () => {
+  const signupRequest = submitAuth.indexOf("await idempotentClientFetch(endpoint");
+  const signupReset = submitAuth.indexOf("resetCaptchaAfterRequest();", signupRequest);
+  const resendCapture = resendConfirmation.indexOf("const token = captchaToken;");
+  const resendRequest = resendConfirmation.indexOf('await idempotentClientFetch("/api/auth/resend"');
+  const resendReset = resendConfirmation.indexOf("resetCaptchaAfterRequest();", resendRequest);
+
+  assert.ok(signupRequest >= 0 && signupReset > signupRequest);
+  assert.doesNotMatch(submitAuth.slice(submitAuth.indexOf("const token = captchaToken;"), signupRequest), /resetCaptchaAfterRequest|setCaptchaToken\(null\)|setCaptchaReset/);
+  assert.ok(resendCapture >= 0 && resendRequest > resendCapture && resendReset > resendRequest);
+  assert.doesNotMatch(resendConfirmation.slice(resendCapture, resendRequest), /resetCaptchaAfterRequest|setCaptchaToken\(null\)|setCaptchaReset/);
+  assert.match(resendConfirmation, /captchaToken: token/);
+});
