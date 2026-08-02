@@ -42,12 +42,11 @@ function LoginPageContent() {
   const [showConfirmationRecovery, setShowConfirmationRecovery] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
-  const [loginCaptchaRequired, setLoginCaptchaRequired] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const didRedirectRef = useRef(false);
   const googleStartingRef = useRef(false);
   const authChecked = authStatus !== "loading";
-  const captchaBlocksSubmission = !captchaToken && (loginCaptchaRequired || (process.env.NODE_ENV === "production" && mode === "signup"));
+  const captchaBlocksSubmission = process.env.NODE_ENV === "production" && !captchaToken;
 
   useEffect(() => {
     if (didRedirectRef.current || authStatus !== "signedIn") return;
@@ -68,7 +67,6 @@ function LoginPageContent() {
     setShowConfirmationRecovery(false);
     setCaptchaToken(null);
     setCaptchaReset((value) => value + 1);
-    setLoginCaptchaRequired(false);
     setShowPassword(false);
     if (nextMode === "signin") setKeepSignedIn(true);
   }
@@ -107,7 +105,6 @@ function LoginPageContent() {
     if (!result.ok) {
       resetCaptchaAfterRequest();
       setLoading(false);
-      if (payload?.code === "CAPTCHA_REQUIRED" && mode === "signin") setLoginCaptchaRequired(true);
       setError(payload?.error || (mode === "signin" ? "Email or password is incorrect." : "Furvise could not complete that request. Please try again."));
       return;
     }
@@ -210,7 +207,7 @@ function LoginPageContent() {
             </div>
           ) : <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>}
 
-          {mode === "signup" || loginCaptchaRequired ? <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} /> : null}
+          <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} />
 
           <button className={accountPrimaryClass} disabled={!authChecked || loading || Boolean(configError) || captchaBlocksSubmission} type="submit">
             {loading ? (mode === "signin" ? "Signing in..." : "Creating account...") : (mode === "signin" ? "Sign in" : "Create account")}
