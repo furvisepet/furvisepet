@@ -8,6 +8,7 @@ import {
   buildAskSaveMetadata,
   parseAskResponse,
 } from "../../lib/ask.mjs";
+import { ASK_REQUEST_KEYS } from "../../lib/ask-request-contract";
 import {
   AskPipelineError,
   getAskModelConfiguration,
@@ -126,7 +127,7 @@ export async function POST(request: Request) {
     const oversized = error instanceof RequestBoundaryError && error.code === "PAYLOAD_TOO_LARGE";
     return askFailure("INVALID_MESSAGE", oversized ? "That message is too large." : "Send a valid request.", oversized ? 413 : 400, {}, "request_validation");
   }
-  if (!hasOnlyKeys(rawBody, ["conversationId", "petId", "previousResponse", "message", "question", "requestId", "locale"])) {
+  if (!hasOnlyKeys(rawBody, ASK_REQUEST_KEYS)) {
     return askFailure("INVALID_MESSAGE", "The request contains unsupported fields.", 400, {}, "request_validation");
   }
   const body = rawBody as {

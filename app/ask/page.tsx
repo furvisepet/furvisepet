@@ -17,12 +17,12 @@ import { BrandMark } from "../components/brand-mark";
 import { PageHeader, PrimaryButton } from "../components/product-primitives";
 import { WorkflowDialog, WorkflowEmptyState } from "../components/workflow-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
-import { ANALYSIS_STORAGE_KEY, parseStoredAnalysis } from "../lib/ai-analysis";
 import {
   buildGuidanceCareEntry,
   formatAskResponsePlainText,
   parseAskConversationResponse,
 } from "../lib/ask.mjs";
+import { buildAskRequestPayload } from "../lib/ask-request-contract";
 import { trackAskEvent } from "../lib/ask-analytics";
 import { deriveConversationTitle, formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
 import { toLocalDateTimeInputValue } from "../lib/care-log.mjs";
@@ -32,7 +32,6 @@ import {
   createCareEntryUnlessDuplicate,
   getBrowserSupabase,
   loadDogProfilesWithMemories,
-  PROFILE_ID_STORAGE_KEY,
   type CareEntryCategory,
   type DogProfileWithMemories,
 } from "../lib/supabase";
@@ -288,7 +287,7 @@ function AskPageContent() {
       const request = idempotentClientFetch("/api/ask", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId: conversationIdAtSubmit, locale: navigator.language, message: prompt, petId: selectedPet, previousResponse, question: prompt, requestId, storedAnalysis: readRelevantStoredAnalysis(selectedPet) }),
+        body: JSON.stringify(buildAskRequestPayload({ conversationId: conversationIdAtSubmit, locale: navigator.language, message: prompt, petId: selectedPet, previousResponse, question: prompt, requestId })),
         signal: AbortSignal.timeout(55_000),
       }, `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`, requestId);
       setQuestion("");
@@ -695,7 +694,6 @@ function updateMessageSuggestionIfSaving(thread: ConversationMessage[], messageI
 async function conversationJson(url: string, init: RequestInit = {}) { const token = await getAskAuthToken(); if (!token) throw new Error("Please sign in again."); const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) }; const method = (init.method || "GET").toUpperCase(); const response = method === "GET" ? await fetch(url, { ...init, headers }) : await idempotentClientFetch(url, { ...init, headers }, `conversation:${method}:${url}`); if (response.status === 204) return {}; const payload = await response.json().catch(() => null) as { error?: string } | null; if (!response.ok) throw new Error(payload?.error || "Conversation history is temporarily unavailable."); return payload || {}; }
 async function fetchConversationList() { const payload = await conversationJson("/api/ask/conversations") as { conversations?: AskConversationSummary[] }; return payload.conversations || []; }
 async function fetchAskUsage() { try { const token = await getAskAuthToken(); if (!token) return null; const response = await fetch("/api/ask", { headers: { Authorization: `Bearer ${token}` }, method: "GET" }); const payload = await response.json().catch(() => null) as { usage?: AskUsageStatus | null } | null; return response.ok && payload?.usage ? payload.usage : null; } catch { return null; } }
-function readRelevantStoredAnalysis(selectedPet: string) { if (typeof window === "undefined" || !selectedPet || window.localStorage.getItem(PROFILE_ID_STORAGE_KEY) !== selectedPet) return null; try { const raw = window.localStorage.getItem(ANALYSIS_STORAGE_KEY); return raw ? parseStoredAnalysis(JSON.parse(raw)) : null; } catch { return null; } }
 function Status({ action, text, tone = "neutral" }: { action?: { label: string; onClick: () => void }; text: string; tone?: "neutral" | "warn" }) { return <div className={`mx-auto mt-5 flex max-w-[78rem] items-center justify-between gap-3 border-y px-1 py-3 text-sm leading-6 ${tone === "warn" ? "border-[var(--pw-warning-border)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] text-[var(--pw-muted)]"}`} role="status"><span>{text}</span>{action ? <button className={secondaryButton} onClick={action.onClick} type="button">{action.label}</button> : null}</div>; }
 
 const inputClass = "min-h-11 w-full rounded-xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3 text-sm text-[var(--pw-text)] outline-none focus:border-[var(--pw-primary)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
