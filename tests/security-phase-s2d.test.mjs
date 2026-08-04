@@ -4,7 +4,13 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { buildContentSecurityPolicy, configuredOrigins, getCspHeaderName, getCspMode } from "../app/lib/security/headers/content-security-policy.ts";
 import { createCspNonce, isValidCspNonce } from "../app/lib/security/headers/nonce.ts";
-import { getAllowedApplicationOrigins, resolveTargetOrigin, validateSensitiveRequestOrigin } from "../app/lib/security/headers/origin-policy.ts";
+import {
+  getAllowedApplicationOrigins,
+  originRejectionResponse,
+  resolveTargetOrigin,
+  validateRecoveryContinuationOrigin,
+  validateSensitiveRequestOrigin,
+} from "../app/lib/security/headers/origin-policy.ts";
 import { PERMISSIONS_POLICY, buildSecurityHeaders } from "../app/lib/security/headers/security-headers.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -104,6 +110,82 @@ test("same-origin browser writes pass and foreign, malformed, or cross-site requ
     new Request("https://www.furvise.com/api/pets", { method: "POST", headers: { origin: "https://www.furvise.com/path" } }),
     new Request("https://www.furvise.com/api/pets", { method: "POST", headers: { origin: "https://www.furvise.com", "sec-fetch-site": "cross-site" } }),
   ]) assert.equal(validateSensitiveRequestOrigin(request, { NODE_ENV: "production" }).allowed, false);
+});
+
+test("recovery continuation accepts the canonical native form headers and exact configured previews", () => {
+  const productionEnv = { NODE_ENV: "production", VERCEL: "1", VERCEL_ENV: "production" };
+  const production = new Request("https://www.furvise.com/api/auth/recovery/continue", { method: "POST", headers: {
+    host: "www.furvise.com", origin: "https://www.furvise.com", referer: "https://www.furvise.com/reset-password/confirm",
+    "sec-fetch-site": "same-origin", "x-forwarded-host": "www.furvise.com", "x-forwarded-proto": "https", "x-vercel-id": "pdx1::request",
+  } });
+  assert.deepEqual(validateRecoveryContinuationOrigin(production, productionEnv), { allowed: true, mode: "browser-origin" });
+
+  const previewOrigin = "https://furvise-git-recovery-preview.vercel.app";
+  const previewEnv = { ...productionEnv, VERCEL_ENV: "preview", VERCEL_URL: "furvise-git-recovery-preview.vercel.app" };
+  const preview = new Request(`${previewOrigin}/api/auth/recovery/continue`, { method: "POST", headers: {
+    host: "furvise-git-recovery-preview.vercel.app", origin: previewOrigin, "sec-fetch-site": "same-origin",
+    "x-forwarded-host": "furvise-git-recovery-preview.vercel.app", "x-forwarded-proto": "https", "x-vercel-id": "pdx1::preview",
+  } });
+  assert.deepEqual(validateRecoveryContinuationOrigin(preview, previewEnv), { allowed: true, mode: "browser-origin" });
+});
+
+test("recovery continuation rejects malformed, opaque, foreign, apex, and missing browser origins", () => {
+  const direct = (headers = {}) => new Request("https://www.furvise.com/api/auth/recovery/continue", {
+    method: "POST", headers: { host: "www.furvise.com", "sec-fetch-site": "same-origin", ...headers },
+  });
+  const env = { NODE_ENV: "production" };
+  assert.deepEqual(validateRecoveryContinuationOrigin(direct({ origin: "https://www.furvise.com/path" }), env), { allowed: false, reason: "malformed_origin" });
+  assert.deepEqual(validateRecoveryContinuationOrigin(direct({ origin: "null" }), env), { allowed: false, reason: "malformed_origin" });
+  assert.deepEqual(validateRecoveryContinuationOrigin(direct({ origin: "https://evil.example" }), env), { allowed: false, reason: "foreign_origin" });
+  assert.deepEqual(validateRecoveryContinuationOrigin(direct({ origin: "https://furvise.com" }), env), { allowed: false, reason: "foreign_origin" });
+  assert.deepEqual(validateRecoveryContinuationOrigin(direct(), env), { allowed: false, reason: "missing_browser_origin" });
+});
+
+test("recovery continuation's missing-Origin fallback is exact and route-scoped", () => {
+  const request = (referer, extra = {}) => new Request("https://www.furvise.com/api/auth/recovery/continue", { method: "POST", headers: {
+    host: "www.furvise.com", referer, "sec-fetch-site": "same-origin", ...extra,
+  } });
+  const env = { NODE_ENV: "production" };
+  assert.deepEqual(validateRecoveryContinuationOrigin(request("https://www.furvise.com/reset-password/confirm"), env), { allowed: true, mode: "same-origin-referer" });
+  assert.deepEqual(validateSensitiveRequestOrigin(request("https://www.furvise.com/reset-password/confirm"), env), { allowed: false, reason: "missing_browser_origin" });
+  assert.deepEqual(validateRecoveryContinuationOrigin(request("https://www.furvise.com/account"), env), { allowed: false, reason: "malformed_referer" });
+  assert.deepEqual(validateRecoveryContinuationOrigin(request("https://www.furvise.com/reset-password/confirm?token=forbidden"), env), { allowed: false, reason: "malformed_referer" });
+  assert.deepEqual(validateRecoveryContinuationOrigin(request("https://evil.example/reset-password/confirm"), env), { allowed: false, reason: "foreign_referer" });
+  assert.deepEqual(validateRecoveryContinuationOrigin(request("https://www.furvise.com/reset-password/confirm", { "sec-fetch-site": "cross-site" }), env), { allowed: false, reason: "cross_site_fetch" });
+});
+
+test("recovery continuation rejects spoofed or conflicting forwarding headers", () => {
+  const vercelEnv = { NODE_ENV: "production", VERCEL: "1", VERCEL_ENV: "production" };
+  const headers = {
+    host: "www.furvise.com", origin: "https://www.furvise.com", "sec-fetch-site": "same-origin",
+    "x-forwarded-host": "www.furvise.com", "x-forwarded-proto": "https", "x-vercel-id": "pdx1::request",
+  };
+  const make = (overrides, env = vercelEnv) => validateRecoveryContinuationOrigin(
+    new Request("https://www.furvise.com/api/auth/recovery/continue", { method: "POST", headers: { ...headers, ...overrides } }),
+    env,
+  );
+  assert.deepEqual(make({ "x-forwarded-host": "evil.example" }), { allowed: false, reason: "target_origin_mismatch" });
+  assert.deepEqual(make({ "x-forwarded-host": "www.furvise.com,evil.example" }), { allowed: false, reason: "target_origin_mismatch" });
+  assert.deepEqual(make({ "x-forwarded-proto": "http" }), { allowed: false, reason: "target_origin_mismatch" });
+  assert.deepEqual(make({}, { NODE_ENV: "production" }), { allowed: false, reason: "target_origin_mismatch" });
+});
+
+test("origin denial diagnostics never serialize token-bearing request values", () => {
+  const tokenValue = "never-log-this-recovery-token";
+  const request = new Request(`https://www.furvise.com/api/auth/recovery/continue?confirmation_url=${tokenValue}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${tokenValue}`, cookie: `furvise-auth-session=${tokenValue}`, origin: "null", referer: `https://www.furvise.com/reset-password/confirm#${tokenValue}` },
+  });
+  const originalWarn = console.warn;
+  const events = [];
+  console.warn = (...values) => events.push(values);
+  try {
+    originRejectionResponse({ allowed: false, reason: "malformed_origin" }, request);
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(JSON.stringify(events).includes(tokenValue), false);
+  assert.deepEqual(events[0][1], { method: "POST", reason: "malformed_origin", route: "/api/auth/recovery/continue" });
 });
 
 test("missing Origin follows the documented browser-cookie and explicit bearer policy", () => {

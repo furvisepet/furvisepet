@@ -31,6 +31,8 @@ Missing Origin policy:
 - An unauthenticated request with no browser evidence proceeds only far enough to receive the route's existing authentication failure.
 - A supplied foreign or malformed Origin is always rejected, including when a bearer token is present.
 
+The scanner-resistant recovery continuation is the sole route-specific exception. Its native form page uses `Referrer-Policy: same-origin`: `no-referrer` would cause a non-CORS form POST to serialize `Origin` as `null`. A supplied `Origin` (including `null`) must still pass the normal exact policy. If a browser genuinely omits `Origin`, only an exact `/reset-password/confirm` Referer from the independently validated target origin is accepted. The target must be an exact configured origin; on Vercel, `Host` and `X-Forwarded-Host` must agree and `X-Forwarded-Proto` must be exactly HTTPS. Missing Origin and Referer, malformed or foreign Referer, apex-host submissions, conflicting forwarding headers, and forwarding headers outside the declared Vercel production/preview environment fail closed.
+
 The rejection is HTTP 403, private/no-store, uses a stable safe code, and exposes no host/allowlist internals.
 
 ## Protected mutations
