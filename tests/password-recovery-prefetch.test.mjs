@@ -34,6 +34,17 @@ test("the initial email-link page and HEAD rendering cannot consume recovery", (
   assert.match(action, /export function HEAD\(\)[\s\S]*status: 405/);
   assert.match(action, /export function GET\(\)[\s\S]*methodNotAllowed/);
   assert.ok(action.indexOf("export async function POST") < action.indexOf("claimRecoveryContinuationToken(parsed.token)"));
+  assert.equal(action.match(/claimRecoveryContinuationToken\(parsed\.token\)/g)?.length, 1);
+  assert.equal(action.match(/privateRedirect\(parsed\.url\)/g)?.length, 1);
+  assert.doesNotMatch(action, /fetch\(|verifyOtp|exchangeCodeForSession/);
+});
+
+test("the canonical host owns the generated form action and apex requests redirect before rendering", () => {
+  const page = read("app/reset-password/confirm/page.tsx");
+  const config = read("next.config.ts");
+  assert.match(page, /<form action="\/api\/auth\/recovery\/continue"[\s\S]*method="post"/);
+  assert.match(config, /has: \[\{ type: "host", value: "furvise\.com" \}\][\s\S]*destination: "https:\/\/www\.furvise\.com\/:path\*"[\s\S]*permanent: true/);
+  assert.doesNotMatch(config, /destination: "https:\/\/furvise\.com/);
 });
 
 test("scanner GETs and client rendering retain the token only in memory until an explicit POST", () => {
@@ -93,11 +104,11 @@ test("continuation persistence and source contain no raw token-bearing data", as
   assert.doesNotMatch(helper, /key: `[^`]*\$\{token\}/);
 });
 
-test("intermediate and action responses are private, no-store, and no-referrer", () => {
+test("intermediate and action responses are private and use route-appropriate referrer policy", () => {
   const config = read("next.config.ts");
   const action = read("app/api/auth/recovery/continue/route.ts");
   const proxy = read("app/lib/supabase/proxy.ts");
-  assert.match(config, /source: "\/reset-password\/confirm"[\s\S]*private, no-cache, no-store[\s\S]*Referrer-Policy", value: "no-referrer"/);
+  assert.match(config, /source: "\/reset-password\/confirm"[\s\S]*private, no-cache, no-store[\s\S]*Referrer-Policy", value: "same-origin"/);
   assert.match(action, /applyPrivateCacheHeaders\(response\.headers\)/);
   assert.match(action, /response\.headers\.set\("Referrer-Policy", "no-referrer"\)/);
   assert.match(proxy, /request\.nextUrl\.pathname === "\/reset-password\/confirm"/);

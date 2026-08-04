@@ -28,7 +28,10 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "private, no-cache, no-store, must-revalidate, max-age=0" },
           { key: "Expires", value: "0" },
           { key: "Pragma", value: "no-cache" },
-          { key: "Referrer-Policy", value: "no-referrer" },
+          // Native form POSTs are non-CORS requests. `no-referrer` makes their
+          // standards-defined Origin value opaque (`null`), so retain only a
+          // same-origin referrer; URL fragments are never included.
+          { key: "Referrer-Policy", value: "same-origin" },
           { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
         ],
       },

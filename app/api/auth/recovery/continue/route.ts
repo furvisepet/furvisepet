@@ -7,7 +7,7 @@ import { claimRecoveryContinuationToken } from "../../../../lib/security/auth-ab
 const ERROR_PATH = "/reset-password/confirm?error=invalid";
 
 export async function POST(request: Request) {
-  const originFailure = validatePublicAuthOrigin(request);
+  const originFailure = validatePublicAuthOrigin(request, { recoveryContinuation: true });
   if (originFailure) return protect(originFailure);
 
   let confirmationUrl = "";

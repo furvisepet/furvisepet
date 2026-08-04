@@ -5,8 +5,8 @@ const CANONICAL_ORIGIN = "https://www.furvise.com";
 const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export type OriginValidationResult =
-  | { allowed: true; mode: "browser-origin" | "non-browser-bearer" | "not-applicable" | "unauthenticated" }
-  | { allowed: false; reason: "cross_site_fetch" | "foreign_origin" | "malformed_origin" | "missing_browser_origin" | "target_origin_mismatch" };
+  | { allowed: true; mode: "browser-origin" | "non-browser-bearer" | "not-applicable" | "same-origin-referer" | "unauthenticated" }
+  | { allowed: false; reason: "cross_site_fetch" | "foreign_origin" | "foreign_referer" | "malformed_origin" | "malformed_referer" | "missing_browser_origin" | "target_origin_mismatch" };
 
 export function validateSensitiveRequestOrigin(
   request: Request,
@@ -49,6 +49,43 @@ export function validateSensitiveRequestOriginResponse(request: Request, env: Re
   return result.allowed ? null : originRejectionResponse(result, request);
 }
 
+/**
+ * Compatibility policy for the native recovery-continuation form only.
+ *
+ * A supplied Origin always takes precedence and must pass the normal strict
+ * policy. When an older browser omits Origin, the exact confirmation-page
+ * Referer may stand in only when it and the independently resolved request
+ * target are the same explicitly allowed application origin.
+ */
+export function validateRecoveryContinuationOrigin(
+  request: Request,
+  env: Record<string, string | undefined> = process.env,
+): OriginValidationResult {
+  const suppliedOrigin = request.headers.get("origin");
+  if (suppliedOrigin !== null) {
+    if (!suppliedOrigin.trim()) return { allowed: false, reason: "malformed_origin" };
+    const result = validateSensitiveRequestOrigin(request, env);
+    if (!result.allowed) return result;
+    const origin = parseOrigin(suppliedOrigin.trim());
+    const target = resolveRecoveryContinuationTargetOrigin(request, env);
+    return origin && target === origin
+      ? { allowed: true, mode: "browser-origin" }
+      : { allowed: false, reason: "target_origin_mismatch" };
+  }
+
+  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase() || "";
+  if (fetchSite === "cross-site") return { allowed: false, reason: "cross_site_fetch" };
+  const refererHeader = request.headers.get("referer")?.trim() || "";
+  if (!refererHeader) return { allowed: false, reason: "missing_browser_origin" };
+  const referer = parseRecoveryConfirmationReferer(refererHeader);
+  if (!referer) return { allowed: false, reason: "malformed_referer" };
+  const allowedOrigins = getAllowedApplicationOrigins(request, env);
+  if (!allowedOrigins.has(referer.origin)) return { allowed: false, reason: "foreign_referer" };
+  const target = resolveRecoveryContinuationTargetOrigin(request, env);
+  if (!target || target !== referer.origin) return { allowed: false, reason: "target_origin_mismatch" };
+  return { allowed: true, mode: "same-origin-referer" };
+}
+
 export function getAllowedApplicationOrigins(request: Request, env: Record<string, string | undefined> = process.env) {
   const allowed = new Set([CANONICAL_ORIGIN, ...configuredOrigins(env.FURVISE_ALLOWED_ORIGINS, ["https:"])]);
   if (env.VERCEL === "1" && env.VERCEL_ENV === "preview" && env.VERCEL_URL) {
@@ -76,6 +113,37 @@ export function resolveTargetOrigin(request: Request, env: Record<string, string
   const host = normalizeHost(request.headers.get("host") || requestUrl.host);
   if (!host || host !== requestUrl.host.toLowerCase()) return null;
   return `${requestUrl.protocol}//${host}`;
+}
+
+function resolveRecoveryContinuationTargetOrigin(request: Request, env: Record<string, string | undefined>) {
+  const requestUrl = new URL(request.url);
+  const host = normalizeHost(request.headers.get("host") || requestUrl.host);
+  const forwardedHostHeader = request.headers.get("x-forwarded-host");
+  const forwardedProtoHeader = request.headers.get("x-forwarded-proto");
+  const trustedVercel = env.VERCEL === "1"
+    && (env.VERCEL_ENV === "production" || env.VERCEL_ENV === "preview")
+    && Boolean(request.headers.get("x-vercel-id")?.trim());
+
+  if (trustedVercel) {
+    const forwardedHost = normalizeHost(forwardedHostHeader || "");
+    const forwardedProto = forwardedProtoHeader?.trim().toLowerCase() || "";
+    if (!host || !forwardedHost || host !== forwardedHost || forwardedProto !== "https") return null;
+    return `https://${forwardedHost}`;
+  }
+
+  if (forwardedHostHeader !== null || forwardedProtoHeader !== null) return null;
+  if (!host || host !== requestUrl.host.toLowerCase()) return null;
+  return `${requestUrl.protocol}//${host}`;
+}
+
+function parseRecoveryConfirmationReferer(value: string) {
+  if (value.includes("\\")) return null;
+  try {
+    const parsed = new URL(value);
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.hash) return null;
+    if (parsed.pathname !== "/reset-password/confirm" || parsed.search) return null;
+    return parsed;
+  } catch { return null; }
 }
 
 function parseOrigin(value: string) {
