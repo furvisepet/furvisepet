@@ -5,6 +5,7 @@ export type OperationalEventType =
   | "provider_usage_reconciliation_failure" | "credit_reservation_stale"
   | "idempotency_conflict" | "idempotency_reconciliation_required" | "auth_captcha_failure"
   | "auth_throttled" | "email_delivery_failure" | "account_deletion_started"
+  | "password_recovery_authorized" | "password_recovery_completed" | "password_recovery_denied"
   | "account_deletion_completed" | "account_deletion_failed" | "data_export_started"
   | "data_export_completed" | "cleanup_failed" | "migration_mismatch";
 

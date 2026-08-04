@@ -36,14 +36,15 @@ test("signup and recovery keep their existing CAPTCHA submission behavior", () =
   assert.match(recovery, /process\.env\.NODE_ENV === "production" && !captchaToken/);
 });
 
-test("update-password validates and prepares both supported recovery sessions", () => {
+test("update-password routes recovery codes through the server assurance callback", () => {
   const page = read("app/update-password/page.tsx");
 
-  assert.match(page, /exchangeCodeForSession\(code\)/);
-  assert.match(page, /setSession\(\{[\s\S]*access_token: accessToken,[\s\S]*refresh_token: refreshToken/);
+  assert.match(page, /window\.location\.replace\(`\/auth\/callback\?flow=recovery&code=/);
+  assert.doesNotMatch(page, /exchangeCodeForSession\(code\)|authClient\.auth\.setSession/);
   assert.match(page, /getSession\(\)/);
   assert.match(page, /Passwords do not match\./);
   assert.match(page, /fetch\("\/api\/auth\/update-password"/);
+  assert.match(page, /"Idempotency-Key": idempotencyKey\.current/);
   assert.match(page, /disabled=\{loading \|\| saving \|\| Boolean\(configError\) \|\| !sessionReady\}/);
 });
 

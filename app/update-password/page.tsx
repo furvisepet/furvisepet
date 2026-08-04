@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AccountAccessLayout, AccountField, AccountStatus, accountInputClass, accountPrimaryClass } from "../components/account-access";
 import { getBrowserSupabase, getSupabaseConfigError } from "../lib/supabase";
 
@@ -15,6 +15,7 @@ export default function UpdatePasswordPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState(configError);
   const [sessionReady, setSessionReady] = useState(false);
+  const idempotencyKey = useRef<string | null>(null);
 
   useEffect(() => {
     const supabaseClient = getBrowserSupabase();
@@ -29,14 +30,10 @@ export default function UpdatePasswordPage() {
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
         if (code) {
-          const { error } = await authClient.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          url.searchParams.delete("code");
-          window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+          window.location.replace(`/auth/callback?flow=recovery&code=${encodeURIComponent(code)}`);
+          return;
         } else if (accessToken && refreshToken) {
-          const { error } = await authClient.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-          if (error) throw error;
-          window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+          throw new Error("This password reset link is invalid. Request a new reset email.");
         }
         const { data } = await authClient.auth.getSession();
         if (!data.session) throw new Error("This password reset link is missing or expired. Request a new reset email.");
@@ -72,9 +69,14 @@ export default function UpdatePasswordPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) throw new Error("This password reset link is missing or expired. Request a new reset email.");
-      const response = await fetch("/api/auth/update-password", { body: JSON.stringify({ password: newPassword }), headers: { "Content-Type": "application/json" }, method: "POST" });
-      const payload = await response.json().catch(() => null) as { error?: string; message?: string } | null;
-      if (!response.ok) throw new Error(payload?.error || "Furvise could not update your password. Please try again.");
+      idempotencyKey.current ||= crypto.randomUUID();
+      const response = await fetch("/api/auth/update-password", { body: JSON.stringify({ password: newPassword }), headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey.current }, method: "POST" });
+      const payload = await response.json().catch(() => null) as { code?: string; error?: string; message?: string } | null;
+      if (!response.ok) {
+        setErrorMessage(friendlyUpdatePasswordCode(payload?.code));
+        return;
+      }
+      idempotencyKey.current = null;
       setSuccessMessage(payload?.message || "Your password was updated.");
     } catch (updateError) {
       setErrorMessage(updateError instanceof Error ? friendlyUpdatePasswordError(updateError.message) : "Furvise could not update your password. Please try again.");
@@ -95,7 +97,7 @@ export default function UpdatePasswordPage() {
           </div>
         ) : (
           <form className="grid gap-4" onSubmit={submitPassword}>
-            <AccountField label="New password" name="new-password"><input autoComplete="new-password" className={accountInputClass} id="new-password" maxLength={128} minLength={12} name="new-password" onChange={(event) => setNewPassword(event.target.value)} placeholder="New password" required type="password" value={newPassword} /></AccountField>
+            <AccountField label="New password" name="new-password"><input autoComplete="new-password" className={accountInputClass} id="new-password" maxLength={128} minLength={12} name="new-password" onChange={(event) => { idempotencyKey.current = null; setNewPassword(event.target.value); }} placeholder="New password" required type="password" value={newPassword} /></AccountField>
             <AccountField label="Confirm password" name="confirm-password"><input autoComplete="new-password" className={accountInputClass} id="confirm-password" maxLength={128} minLength={12} name="confirm-password" onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm password" required type="password" value={confirmPassword} /></AccountField>
             <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>
             <button className={accountPrimaryClass} disabled={loading || saving || Boolean(configError) || !sessionReady} type="submit">{saving ? "Updating password..." : "Update password"}</button>
@@ -113,5 +115,14 @@ function friendlyUpdatePasswordError(message: string) {
   if (lower.includes("expired") || lower.includes("invalid") || lower.includes("missing")) return "This reset link is missing or expired. Request a new reset email.";
   if (lower.includes("password")) return "Use a stronger password and try again.";
   if (lower.includes("network") || lower.includes("fetch")) return "Furvise could not reach the password service. Please try again.";
+  return "Furvise could not update your password. Please try again.";
+}
+
+function friendlyUpdatePasswordCode(code?: string) {
+  if (code === "PASSWORD_INVALID") return "Use a password between 12 and 128 characters.";
+  if (code === "RATE_LIMITED") return "Too many password update attempts. Wait a moment and try again.";
+  if (code === "REQUEST_IN_PROGRESS" || code === "RECOVERY_UPDATE_IN_PROGRESS") return "This password update is already being processed.";
+  if (code === "RECOVERY_AUTH_CONSUMED") return "This reset link has already been used. Request a new reset email.";
+  if (code?.startsWith("RECOVERY_AUTH_") || code?.startsWith("IDEMPOTENCY_")) return "This reset link is missing or expired. Request a new reset email.";
   return "Furvise could not update your password. Please try again.";
 }
