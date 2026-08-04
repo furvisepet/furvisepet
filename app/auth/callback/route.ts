@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
     const { data, error: userError } = await supabase.auth.getUser();
     if (userError || !data.user) return callbackFailure(request, flow);
 
-    if (flow === "recovery") {
-      // redirectType is derived by Supabase from its server-managed PKCE verifier.
-      // Unlike the query parameter, an ordinary authenticated/OAuth session cannot forge it.
-      if ((exchangeData as typeof exchangeData & { redirectType?: unknown }).redirectType !== "recovery") return callbackFailure(request, flow);
+    const redirectType = (exchangeData as typeof exchangeData & { redirectType?: unknown }).redirectType;
+    if (redirectType === "recovery") {
+      // Supabase derives redirectType from its server-managed PKCE verifier. The
+      // recovery branch must never depend on flow, next, returnTo, or other URL input.
       const marker = await issueRecoveryAuthorization(data.user.id, exchangeData.session.access_token);
       if (!marker) return callbackFailure(request, flow);
       const response = noStoreRedirect(new URL("/update-password", request.nextUrl.origin));
@@ -40,6 +40,9 @@ export async function GET(request: NextRequest) {
       emitOperationalEvent({ actorId: data.user.id, eventType: "password_recovery_authorized", feature: "password_recovery", requestId: crypto.randomUUID(), route: "/auth/callback", severity: "info" });
       return response;
     }
+    // A query parameter may select friendlier failure copy, but it cannot turn a
+    // normal OAuth/login exchange into an authorized recovery callback.
+    if (flow === "recovery") return callbackFailure(request, flow);
 
     const { hasPet } = await ensureCanonicalApplicationUser(supabase, data.user);
     const destination = resolvePostGoogleAuthDestination(

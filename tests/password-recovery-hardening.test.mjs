@@ -29,13 +29,33 @@ function authorization(store, userId, marker = "A".repeat(43), operationKey = "o
 test("authoritative Supabase recovery evidence issues a narrow opaque marker", () => {
   const callback = read("app/auth/callback/route.ts");
   const authorizationSource = read("app/lib/security/auth-abuse/recovery-authorization.ts");
-  assert.ok(callback.indexOf('redirectType !== "recovery"') < callback.indexOf("issueRecoveryAuthorization(data.user.id, exchangeData.session.access_token)"));
+  assert.ok(callback.indexOf('redirectType === "recovery"') < callback.indexOf("issueRecoveryAuthorization(data.user.id, exchangeData.session.access_token)"));
   assert.match(callback, /response\.cookies\.set\(RECOVERY_AUTH_COOKIE/);
   assert.match(authorizationSource, /randomBytes\(32\)\.toString\("base64url"\)/);
   assert.match(authorizationSource, /httpOnly: true/);
   assert.match(authorizationSource, /sameSite: "strict"/);
   assert.match(authorizationSource, /path: "\/api\/auth\/update-password"/);
   assert.match(authorizationSource, /RECOVERY_AUTH_MAX_AGE_SECONDS = 10 \* 60/);
+});
+
+test("verified recovery callback has one fixed destination independent of URL parameters", () => {
+  const callback = read("app/auth/callback/route.ts");
+  const recoveryBranch = callback.slice(callback.indexOf('if (redirectType === "recovery")'), callback.indexOf("const { hasPet }"));
+  assert.match(recoveryBranch, /issueRecoveryAuthorization\(data\.user\.id, exchangeData\.session\.access_token\)/);
+  assert.match(recoveryBranch, /new URL\("\/update-password", request\.nextUrl\.origin\)/);
+  assert.ok(recoveryBranch.indexOf("issueRecoveryAuthorization") < recoveryBranch.indexOf("noStoreRedirect"));
+  assert.ok(recoveryBranch.indexOf("response.cookies.set") < recoveryBranch.indexOf("return response"));
+  assert.doesNotMatch(recoveryBranch, /searchParams\.get\("(?:flow|next|returnTo)"\)|resolvePostGoogleAuthDestination/);
+  assert.equal((callback.match(/new URL\("\/update-password"/g) || []).length, 1);
+});
+
+test("normal and maliciously annotated callbacks cannot enter recovery routing", () => {
+  const callback = read("app/auth/callback/route.ts");
+  assert.match(callback, /if \(flow === "recovery"\) return callbackFailure\(request, flow\)/);
+  assert.ok(callback.indexOf('if (redirectType === "recovery")') < callback.indexOf('if (flow === "recovery") return callbackFailure'));
+  assert.ok(callback.indexOf('if (flow === "recovery") return callbackFailure') < callback.indexOf("const destination = resolvePostGoogleAuthDestination"));
+  assert.match(callback, /resolvePostGoogleAuthDestination\([\s\S]*request\.nextUrl\.searchParams\.get\("next"\)/);
+  assert.doesNotMatch(callback.slice(callback.indexOf("function callbackFailure")), /issueRecoveryAuthorization|RECOVERY_AUTH_COOKIE|\/update-password/);
 });
 
 test("a valid recovery authorization permits exactly one password update", async () => {
