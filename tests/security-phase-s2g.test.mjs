@@ -111,7 +111,7 @@ test("password policy is length-only, bounded, and does not mutate passwords", (
 
 test("recovery redirects are server-selected and password update requires verified session", () => {
   const recovery = source("app/api/auth/recovery/route.ts"); const callback = source("app/auth/callback/route.ts"); const update = source("app/api/auth/update-password/route.ts");
-  assert.match(recovery, /\/auth\/callback\?flow=recovery&next=\/update-password/); assert.doesNotMatch(recovery, /redirectTo.*input|body.*redirect/i);
+  assert.match(recovery, /\/auth\/callback\?flow=recovery/); assert.doesNotMatch(recovery, /redirectTo.*input|body.*redirect/i);
   assert.match(callback, /redirectType === "recovery"/); assert.match(callback, /issueRecoveryAuthorization\(data\.user\.id, exchangeData\.session\.access_token\)/);
   assert.match(update, /supabase\.auth\.getUser\(\)/); assert.match(update, /readRecoveryAuthorizationCookie/); assert.ok(update.indexOf("getUser()") < update.indexOf("updateUser"));
   assert.match(source("app/lib/supabase/proxy.ts"), /pathname === "\/update-password"/);

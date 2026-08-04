@@ -24,7 +24,10 @@ export async function POST(request: Request) {
     await releasePublicAuthOperation({ email, flow: "password_recovery", idempotencyKey: key.key }).catch(() => null);
     return authUnavailableResponse(requestId);
   }
-  const redirectTo = new URL("/auth/callback?flow=recovery&next=/update-password", request.url).toString();
+  // The email template carries Supabase's ConfirmationURL in a fragment on the
+  // Furvise confirmation page. Keep this callback fixed so the continuation
+  // route can validate it exactly before allowing verification.
+  const redirectTo = new URL("/auth/callback?flow=recovery", request.url).toString();
   let result;
   try {
     result = await supabase.auth.resetPasswordForEmail(email, { captchaToken: captcha.token, redirectTo });

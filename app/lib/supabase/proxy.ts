@@ -59,7 +59,12 @@ export async function updateSupabaseSession(request: NextRequest) {
     return redirectToLogin(request, response);
   }
 
-  return protectCacheWhenNeeded(response, privateRoute || request.nextUrl.pathname === "/update-password");
+  return protectCacheWhenNeeded(
+    response,
+    privateRoute
+      || request.nextUrl.pathname === "/update-password"
+      || request.nextUrl.pathname === "/reset-password/confirm",
+  );
 }
 
 function protectCacheWhenNeeded(response: NextResponse, privateRoute = false) {

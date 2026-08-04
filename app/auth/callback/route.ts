@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 }
 
 function callbackFailure(request: NextRequest, flow: string | null) {
-  if (flow === "recovery") return noStoreRedirect(new URL("/forgot-password?error=recovery_link_failed", request.nextUrl.origin));
+  if (flow === "recovery") return noStoreRedirect(new URL("/reset-password/confirm?error=invalid", request.nextUrl.origin));
   if (flow === "confirmation") return noStoreRedirect(new URL("/login?error=confirmation_failed", request.nextUrl.origin));
   return noStoreRedirect(new URL("/login?error=google_auth_failed", request.nextUrl.origin));
 }
@@ -64,5 +64,6 @@ function callbackFailure(request: NextRequest, flow: string | null) {
 function noStoreRedirect(url: URL) {
   const response = NextResponse.redirect(url);
   applyPrivateCacheHeaders(response.headers);
+  response.headers.set("Referrer-Policy", "no-referrer");
   return response;
 }
