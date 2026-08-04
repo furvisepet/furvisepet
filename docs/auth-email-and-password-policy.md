@@ -17,9 +17,9 @@ Supabase Dashboard must independently enforce the minimum and leaked-password pr
 
 ## Recovery
 
-The recovery request is CAPTCHA-protected, IP/email limited, and non-enumerating. Its redirect is constructed server-side as `/auth/callback?flow=recovery&next=/update-password`; clients cannot supply a redirect. The callback exchanges the PKCE code with Supabase and redirects to the dynamic, no-store update page. Password update requires a Supabase-verified user session and a same-origin request.
+The recovery request is CAPTCHA-protected, IP/email limited, and non-enumerating. Its redirect is constructed server-side as `/auth/callback?flow=recovery`; clients cannot supply a redirect. The reset email first opens `/reset-password/confirm` with the Supabase confirmation URL in a fragment that is not sent on the initial GET. Only the native POST Continue button can pass the strictly validated Supabase verification URL through the one-time Redis gate. The callback exchanges the PKCE code with Supabase and redirects to the dynamic, no-store update page only when Supabase classifies the exchange as recovery. Password update requires that recovery-bound Supabase session, the single-use HttpOnly marker, and a same-origin request.
 
-Repository code does not create reset tokens and does not log codes or sessions. Supabase remains authoritative for token expiry, single-use behavior, password hashing, and other-session invalidation. Operators must document the selected session invalidation policy.
+Repository code does not create reset tokens and does not log confirmation URLs, token hashes, codes, or sessions. Supabase remains authoritative for token expiry, single-use behavior, password hashing, and other-session invalidation. Operators must install and verify the scanner-resistant Reset password template from `docs/supabase-auth-production-checklist.md` and document the selected session invalidation policy.
 
 ## Confirmation and entitlement
 

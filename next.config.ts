@@ -22,6 +22,16 @@ const nextConfig: NextConfig = {
           { key: "Pragma", value: "no-cache" },
         ],
       },
+      {
+        source: "/reset-password/confirm",
+        headers: [
+          { key: "Cache-Control", value: "private, no-cache, no-store, must-revalidate, max-age=0" },
+          { key: "Expires", value: "0" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+        ],
+      },
     ];
   },
   async redirects() {

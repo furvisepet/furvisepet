@@ -24,17 +24,6 @@ export default function UpdatePasswordPage() {
     let active = true;
     async function prepareSession() {
       try {
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get("code");
-        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
-        if (code) {
-          window.location.replace(`/auth/callback?flow=recovery&code=${encodeURIComponent(code)}`);
-          return;
-        } else if (accessToken && refreshToken) {
-          throw new Error("This password reset link is invalid. Request a new reset email.");
-        }
         const { data } = await authClient.auth.getSession();
         if (!data.session) throw new Error("This password reset link is missing or expired. Request a new reset email.");
         const { data: userData } = await authClient.auth.getUser();

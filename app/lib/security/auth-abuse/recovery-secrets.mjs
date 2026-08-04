@@ -15,6 +15,13 @@ export function createRecoveryMarkerIdentity(marker, userId, sessionToken, secre
   };
 }
 
+export function createRecoveryContinuationIdentity(token, secret) {
+  if (typeof token !== "string" || typeof secret !== "string" || secret.length < 32) return null;
+  // Only this keyed identity is stored in the replay gate. The Supabase token
+  // and its containing confirmation URL must never enter Redis or logs.
+  return hmac(`recovery-continuation:${token}`, secret);
+}
+
 function hmac(value, secret) {
   return createHmac("sha256", secret).update(value).digest("hex");
 }

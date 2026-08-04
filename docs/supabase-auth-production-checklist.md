@@ -25,6 +25,13 @@ These settings cannot be proven from repository code. Record screenshots/exporte
 - [ ] Review confirmation and recovery templates for neutral copy and exact approved redirects.
 - [ ] Disable mail-provider link tracking that mutates Supabase links.
 - [ ] Confirm magic link/OTP behavior is disabled or intentionally configured if unused.
+- [ ] In **Authentication → Email Templates → Reset password**, replace the reset link with the scanner-resistant Furvise intermediate link below. This Dashboard-only setting is not verifiable from the repository.
+
+```html
+<a href="{{ .SiteURL }}/reset-password/confirm#confirmation_url={{ .ConfirmationURL }}">Reset password</a>
+```
+
+The token-bearing `ConfirmationURL` must remain in the URL fragment. Do not move it into the query string, and do not link to `ConfirmationURL` directly. Set the production Site URL to `https://www.furvise.com` without a trailing slash, send a fresh recovery email, and verify that the first HTTP request is only to `/reset-password/confirm`.
 
 ## Password security
 
