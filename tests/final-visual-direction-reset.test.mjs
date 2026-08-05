@@ -53,7 +53,7 @@ test("homepage has one hero, exactly three benefits, and authenticated CTA logic
 test("Products is primary navigation, mobile More owns utilities, and Account stays account-only", () => {
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.match(desktop, /href: "\/shop", label: "Products"/);
-  assert.match(header, />More<[\s\S]*href="\/shop"[\s\S]*>Products<[\s\S]*accountMenuItems\.map/);
+  assert.match(header, /data-ui="mobile-more-container"[\s\S]*aria-label=\{mobileMoreOpen \? "Close More menu" : "Open More menu"\}[\s\S]*href="\/shop"[\s\S]*>Products<[\s\S]*accountMenuItems\.map/);
   assert.match(signedHeader, /href: "\/account"[\s\S]*label: "Account"/);
   assert.doesNotMatch(header, /Appearance|openAppearance/);
   assert.doesNotMatch(signedHeader, /\/shop|Browse products/);

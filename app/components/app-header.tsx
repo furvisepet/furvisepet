@@ -7,12 +7,9 @@ import { useEffect, useId, useRef, useState } from "react";
 import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import {
   getActiveMobileNavigationTab,
-  MOBILE_NAVIGATION_IDLE_EXPAND_MS,
   MOBILE_NAVIGATION_ITEMS,
   NAVIGATION_ICON_ASSETS,
-  resolveMobileNavigationState,
   shouldShowMobileNavigation,
-  type MobileNavigationState,
 } from "../lib/navigation/mobile-navigation";
 import { useMobileLiquidGlass } from "../lib/navigation/use-mobile-liquid-glass";
 import { getBrowserSupabase } from "../lib/supabase";
@@ -87,8 +84,6 @@ const MOBILE_NAV_ITEMS = [
   { ...MOBILE_NAVIGATION_ITEMS[4], icon: "products", label: "Products" },
 ] as const;
 
-let retainedMobileNavigationState: MobileNavigationState = "expanded";
-
 export function AppHeader({
   accountError = "",
   accountMenuItems = [],
@@ -103,12 +98,13 @@ export function AppHeader({
   const pathname = usePathname();
   const [localAuthState, setLocalAuthState] = useState<HeaderAuthState>(authState ?? "anonymous");
   const menuRef = useRef<HTMLDetailsElement>(null);
-  const mobileMoreRef = useRef<HTMLDetailsElement>(null);
-  const mobileMoreSummaryRef = useRef<HTMLElement | null>(null);
+  const mobileMoreRef = useRef<HTMLDivElement>(null);
+  const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
   const mobileGlassRootRef = useRef<HTMLElement>(null);
   const mobileGlassRef = useRef<HTMLDivElement>(null);
-  const [mobileNavigationState, setMobileNavigationState] = useState<MobileNavigationState>(() => retainedMobileNavigationState);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const menuId = useId();
+  const mobileMoreMenuId = useId();
   const isHomepage = variant === "homepage" && pathname === "/";
   const resolvedAuthState = authState ?? localAuthState;
   const activeMobileTab = getActiveMobileNavigationTab(pathname);
@@ -146,96 +142,29 @@ export function AppHeader({
   }
 
   function closeMobileMore(restoreFocus = false) {
-    if (mobileMoreRef.current) mobileMoreRef.current.open = false;
-    if (restoreFocus) requestAnimationFrame(() => mobileMoreSummaryRef.current?.focus());
+    setMobileMoreOpen(false);
+    if (restoreFocus) requestAnimationFrame(() => mobileMoreButtonRef.current?.focus());
   }
 
   useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (!mobileMoreRef.current?.open || mobileMoreRef.current.contains(event.target as Node)) return;
-      mobileMoreRef.current.open = false;
+    function handleOutsideClick(event: MouseEvent) {
+      if (mobileMoreRef.current?.contains(event.target as Node)) return;
+      setMobileMoreOpen(false);
     }
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape" || !mobileMoreRef.current?.open) return;
+      if (event.key !== "Escape" || !mobileMoreOpen) return;
       event.preventDefault();
-      mobileMoreRef.current.open = false;
-      requestAnimationFrame(() => mobileMoreSummaryRef.current?.focus());
+      closeMobileMore(true);
     }
 
-    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("click", handleOutsideClick);
     document.addEventListener("keydown", handleEscape);
     return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("click", handleOutsideClick);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, []);
-
-  useEffect(() => {
-    if (!showMobileNavigation) return;
-
-    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let lastScrollY = window.scrollY;
-    let accumulatedDelta = 0;
-    let direction = 0;
-    let animationFrame = 0;
-    let idleTimer = 0;
-
-    const updateState = (nextState: MobileNavigationState) => {
-      retainedMobileNavigationState = nextState;
-      setMobileNavigationState(nextState);
-    };
-
-    const expandAfterIdle = () => {
-      window.clearTimeout(idleTimer);
-      idleTimer = window.setTimeout(() => updateState("expanded"), MOBILE_NAVIGATION_IDLE_EXPAND_MS);
-    };
-
-    const readScrollPosition = () => {
-      animationFrame = 0;
-      const scrollY = Math.max(0, window.scrollY);
-      const delta = scrollY - lastScrollY;
-      const nextDirection = Math.sign(delta);
-      if (nextDirection && nextDirection !== direction) {
-        direction = nextDirection;
-        accumulatedDelta = 0;
-      }
-      if (Math.abs(delta) >= 1) accumulatedDelta += delta;
-      lastScrollY = scrollY;
-
-      setMobileNavigationState((currentState) => {
-        const nextState = resolveMobileNavigationState({
-          accumulatedDelta,
-          currentState,
-          reducedMotion: reducedMotionQuery.matches,
-          scrollY,
-        });
-        if (nextState !== currentState) {
-          retainedMobileNavigationState = nextState;
-          accumulatedDelta = 0;
-        }
-        return nextState;
-      });
-      expandAfterIdle();
-    };
-
-    const handleScroll = () => {
-      if (!animationFrame) animationFrame = window.requestAnimationFrame(readScrollPosition);
-    };
-
-    const handleReducedMotionChange = () => {
-      if (reducedMotionQuery.matches) updateState("expanded");
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      reducedMotionQuery.removeEventListener("change", handleReducedMotionChange);
-      if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      window.clearTimeout(idleTimer);
-    };
-  }, [showMobileNavigation]);
+  }, [mobileMoreOpen]);
 
   return (
     <>
@@ -266,6 +195,38 @@ export function AppHeader({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 lg:justify-self-end" data-ui="desktop-account-zone">
+            {showMobileNavigation ? (
+              <div className="relative lg:hidden" data-ui="mobile-more-container" ref={mobileMoreRef}>
+                <button
+                  aria-controls={mobileMoreMenuId}
+                  aria-expanded={mobileMoreOpen}
+                  aria-haspopup="menu"
+                  aria-label={mobileMoreOpen ? "Close More menu" : "Open More menu"}
+                  className={`touch-manipulation inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-md)] bg-transparent active:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${activeMobileTab === "more" ? "bg-[var(--selected-navigation-background)]" : "hover:bg-[var(--surface-hover)]"}`}
+                  data-active-indicator={activeMobileTab === "more" ? "icon-capsule" : undefined}
+                  onClick={() => setMobileMoreOpen((open) => !open)}
+                  ref={mobileMoreButtonRef}
+                  type="button"
+                >
+                  <span className="inline-flex h-8 w-10 items-center justify-center overflow-hidden rounded-[var(--radius-pill)]">
+                    <NavigationIcon asset={NAVIGATION_ICON_ASSETS.more} eager />
+                  </span>
+                </button>
+                {mobileMoreOpen ? (
+                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[var(--z-popover)] w-64 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" data-ui="mobile-more-menu" id={mobileMoreMenuId} role="menu">
+                    <Link className="touch-manipulation flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)]" href="/shop" onClick={() => closeMobileMore()} role="menuitem">Products</Link>
+                    {accountMenuItems.map((item) => item.type === "link" ? (
+                      <Link className="touch-manipulation flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)]" href={item.href} key={item.label} onClick={() => closeMobileMore()} role="menuitem">{item.label}</Link>
+                    ) : item.type === "label" ? (
+                      <div className="truncate border-y border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]" key={item.label} role="none">{item.label}</div>
+                    ) : (
+                      <button className={`touch-manipulation flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-medium active:bg-[var(--surface-primary)] disabled:cursor-not-allowed disabled:text-[var(--disabled-text)] ${item.tone === "danger" ? "mt-1 border-t border-[var(--border-subtle)] text-[var(--danger-text)]" : "text-[var(--text-primary)]"}`} disabled={item.disabled} key={item.label} onClick={item.onClick} role="menuitem" type="button">{item.label}</button>
+                    ))}
+                    {accountError ? <p className="px-3 py-2 text-xs leading-5 text-[var(--danger-text)]" role="alert">{accountError}</p> : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {isHomepage && resolvedAuthState !== "authenticated" ? (
               <div className="hidden items-center gap-2 lg:flex">
                 {resolvedHomepageActions.map((action, index) => action.href ? action.variant === "primary" ? (
@@ -298,41 +259,21 @@ export function AppHeader({
       </header>
 
       {showMobileNavigation ? (
-        <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state={mobileNavigationState} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
+        <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state="stable" data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
           <span aria-hidden="true" className="mobile-liquid-glass-scene" />
           <div aria-hidden="true" className="mobile-liquid-glass" data-liquid-glass-skip-content="" ref={mobileGlassRef} />
-          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-6 rounded-[var(--radius-xl)] p-1 transition-[height,padding] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none sm:mx-auto ${mobileNavigationState === "compact" ? "h-[var(--mobile-nav-height)]" : "h-[var(--mobile-nav-expanded-height)]"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock">
+          <div className="mobile-liquid-glass-content mx-4 mb-2 grid h-[var(--mobile-nav-expanded-height)] max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] p-1.5 sm:mx-auto" data-liquid-glass-ignore="" data-ui="mobile-navigation-dock">
             {MOBILE_NAV_ITEMS.map((item) => {
               const active = activeMobileTab === item.tab;
-              const hideLabel = mobileNavigationState === "compact" && !active;
               return (
-                <Link aria-current={active ? "page" : undefined} aria-label={item.label} className={`flex min-h-11 min-w-0 flex-col items-center justify-center rounded-[var(--radius-md)] px-0.5 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href}>
-                  <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
+                <Link aria-current={active ? "page" : undefined} aria-label={item.label} className={`touch-manipulation flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--surface-hover)] ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href}>
+                  <span className={`inline-flex h-10 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
                     <NavigationIcon asset={item.asset} eager />
                   </span>
-                  <span className={hideLabel ? "sr-only" : "block whitespace-nowrap"}>{item.label}</span>
+                  <span className="block whitespace-nowrap">{item.label}</span>
                 </Link>
               );
             })}
-            <details className="relative min-w-0" ref={mobileMoreRef}>
-              <summary aria-current={activeMobileTab === "more" ? "page" : undefined} aria-label="Open More menu" className={`flex min-h-11 h-full cursor-pointer list-none flex-col items-center justify-center rounded-[var(--radius-md)] px-0.5 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${activeMobileTab === "more" ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} ref={(node) => { mobileMoreSummaryRef.current = node; }}>
-                <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${activeMobileTab === "more" ? "bg-[var(--selected-navigation-background)]" : ""}`}>
-                  <NavigationIcon asset={NAVIGATION_ICON_ASSETS.more} eager />
-                </span>
-                <span className={mobileNavigationState === "compact" && activeMobileTab !== "more" ? "sr-only" : "block whitespace-nowrap"}>More</span>
-              </summary>
-              <div className="absolute right-0 bottom-[calc(100%+0.5rem)] z-[var(--z-popover)] w-64 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" data-ui="mobile-more-menu" role="menu">
-                <Link className="flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href="/shop" onClick={() => closeMobileMore()} role="menuitem">Products</Link>
-                {accountMenuItems.map((item) => item.type === "link" ? (
-                  <Link className="flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href={item.href} key={item.label} onClick={() => closeMobileMore()} role="menuitem">{item.label}</Link>
-                ) : item.type === "label" ? (
-                  <div className="truncate border-y border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]" key={item.label} role="none">{item.label}</div>
-                ) : (
-                  <button className={`flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-medium disabled:cursor-not-allowed disabled:text-[var(--disabled-text)] ${item.tone === "danger" ? "mt-1 border-t border-[var(--border-subtle)] text-[var(--danger-text)]" : "text-[var(--text-primary)]"}`} disabled={item.disabled} key={item.label} onClick={item.onClick} role="menuitem" type="button">{item.label}</button>
-                ))}
-                {accountError ? <p className="px-3 py-2 text-xs leading-5 text-[var(--danger-text)]" role="alert">{accountError}</p> : null}
-              </div>
-            </details>
           </div>
         </nav>
       ) : null}

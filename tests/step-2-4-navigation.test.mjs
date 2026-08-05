@@ -48,7 +48,7 @@ test("mobile dock has the exact icon and label destinations with a selected stat
 
 test("mobile navigation is a translucent semantic floating dock with no logo or orange", () => {
   const mobileNav = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
-  assert.match(mobileNav, /mx-4 mb-2 grid[\s\S]*h-\[var\(--mobile-nav-height\)\][\s\S]*h-\[var\(--mobile-nav-expanded-height\)\]/);
+  assert.match(mobileNav, /mx-4 mb-2 grid h-\[var\(--mobile-nav-expanded-height\)\][\s\S]*grid-cols-5/);
   assert.match(mobileNav, /mobile-liquid-glass[\s\S]*rounded-\[var\(--radius-xl\)\]/);
   assert.match(css, /\.mobile-liquid-glass-scene \{[\s\S]*linear-gradient[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
   assert.doesNotMatch(mobileNav, /BrandMark|furvise-logo|action-primary|orange/i);

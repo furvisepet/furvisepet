@@ -43,14 +43,15 @@ test("mobile destinations retain the intended icon assets while desktop stays te
   assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\} eager/);
 });
 
-test("the mobile dock has exactly six evenly distributed actions in the required order", () => {
+test("the mobile dock has exactly five evenly distributed routes in the required order", () => {
   assert.equal(MOBILE_NAVIGATION_ITEMS.length, 5);
   assert.deepEqual(MOBILE_NAVIGATION_ITEMS.map(({ label }) => label), ["Today", "History", "Ask", "Pets", "Products"]);
-  const mobile = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
-  assert.match(mobile, /grid-cols-6/);
+  const mobileStart = header.indexOf('<nav aria-label="Mobile navigation"');
+  const mobile = header.slice(mobileStart, header.indexOf("</nav>", mobileStart) + 6);
+  assert.match(mobile, /grid-cols-5/);
   assert.match(mobile, /MOBILE_NAV_ITEMS\.map/);
-  assert.match(mobile, /<span className=\{mobileNavigationState[\s\S]*>More<\/span>/);
-  assert.match(mobile, /mx-4[\s\S]*p-1[\s\S]*px-0\.5/);
+  assert.doesNotMatch(mobile, /NAVIGATION_ICON_ASSETS\.more|Open More menu/);
+  assert.match(mobile, /mx-4[\s\S]*p-1\.5[\s\S]*px-1/);
   assert.match(mobile, /min-h-11/);
   assert.match(mobile, /whitespace-nowrap/);
 });
@@ -71,9 +72,9 @@ test("navigation images use bounded object-contain rendering without artwork-dam
   assert.match(header, /className=\{`h-full w-full \$\{artworkScale\} object-contain`\}/);
   assert.match(header, /height=\{72\}/);
   assert.match(header, /width=\{48\}/);
-  assert.match(header, /grid-cols-6/);
+  assert.match(header, /grid-cols-5/);
   assert.match(header, /min-h-11 min-w-0/);
-  assert.match(header, /h-8 w-10" : "h-10 w-12"\}[^"]*overflow-hidden/);
+  assert.match(header, /inline-flex h-10 w-12[^"]*overflow-hidden/);
   assert.match(header, /alt=""[\s\S]*aria-hidden="true"/);
   assert.doesNotMatch(header, /(?:filter|opacity|mask|object-cover)/);
 });
@@ -89,7 +90,9 @@ test("navigation labels, destinations, state, and accessibility remain intact", 
 
   assert.match(header, /aria-label="Primary navigation"/);
   assert.match(header, /aria-label="Mobile navigation"/);
-  assert.match(header, /aria-label="Open More menu"/);
+  assert.match(header, /aria-label=\{mobileMoreOpen \? "Close More menu" : "Open More menu"\}/);
+  assert.match(header, /aria-expanded=\{mobileMoreOpen\}/);
+  assert.match(header, /aria-controls=\{mobileMoreMenuId\}/);
   assert.match(header, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(header, /focus-visible:ring-2/);
 });

@@ -366,6 +366,7 @@ body {
 }
 
 .mobile-liquid-glass > canvas {
+  pointer-events: none !important;
   z-index: 0 !important;
 }
 
@@ -376,6 +377,8 @@ body {
 
 .mobile-liquid-glass-content {
   position: relative;
+  pointer-events: auto;
+  touch-action: manipulation;
   z-index: 2;
 }
 

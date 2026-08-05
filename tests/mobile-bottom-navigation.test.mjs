@@ -4,16 +4,14 @@ import test from "node:test";
 import {
   getActiveMobileNavigationTab,
   isAuthenticatedAppNavigationRoute,
-  MOBILE_NAVIGATION_IDLE_EXPAND_MS,
   MOBILE_NAVIGATION_ITEMS,
-  MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX,
-  resolveMobileNavigationState,
   shouldShowMobileNavigation,
 } from "../app/lib/navigation/mobile-navigation.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const header = read("app/components/app-header.tsx");
-const mobileNavigation = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
+const mobileNavigationStart = header.indexOf('<nav aria-label="Mobile navigation"');
+const mobileNavigation = header.slice(mobileNavigationStart, header.indexOf("</nav>", mobileNavigationStart) + 6);
 const rootLayout = read("app/layout.tsx");
 const appChrome = read("app/components/authenticated-app-chrome.tsx");
 const appPage = read("app/components/app-page.tsx");
@@ -84,22 +82,16 @@ test("one persistent root-owned authenticated chrome survives application route 
   }
 });
 
-test("scroll state uses a noise threshold, expands upward, and expands after idle", () => {
-  assert.equal(MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX, 14);
-  assert.equal(MOBILE_NAVIGATION_IDLE_EXPAND_MS, 300);
-  assert.equal(resolveMobileNavigationState({ accumulatedDelta: 8, currentState: "expanded", reducedMotion: false, scrollY: 100 }), "expanded");
-  assert.equal(resolveMobileNavigationState({ accumulatedDelta: 14, currentState: "expanded", reducedMotion: false, scrollY: 100 }), "compact");
-  assert.equal(resolveMobileNavigationState({ accumulatedDelta: -14, currentState: "compact", reducedMotion: false, scrollY: 100 }), "expanded");
-  assert.match(header, /requestAnimationFrame\(readScrollPosition\)/);
-  assert.match(header, /setTimeout\(\(\) => updateState\("expanded"\), MOBILE_NAVIGATION_IDLE_EXPAND_MS\)/);
-  assert.match(mobileNavigation, /data-state=\{mobileNavigationState\}/);
+test("scrolling cannot move or temporarily disable the interactive dock", () => {
+  assert.match(mobileNavigation, /data-state="stable"/);
+  assert.match(mobileNavigation, /h-\[var\(--mobile-nav-expanded-height\)\]/);
+  assert.doesNotMatch(header, /addEventListener\("scroll"|readScrollPosition|expandAfterIdle|mobileNavigationState/);
+  assert.doesNotMatch(mobileNavigation, /translate|transition-\[height|transition-\[width/);
 });
 
-test("reduced motion remains expanded and disables visual transitions", () => {
-  assert.equal(resolveMobileNavigationState({ accumulatedDelta: 100, currentState: "compact", reducedMotion: true, scrollY: 100 }), "expanded");
-  assert.match(header, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+test("reduced motion keeps the fixed dock and disables cosmetic transitions", () => {
   assert.match(mobileNavigation, /motion-reduce:transition-none/);
-  assert.match(mobileNavigation, /duration-\[var\(--motion-standard\)\]/);
+  assert.match(mobileNavigation, /duration-\[var\(--motion-fast\)\]/);
 });
 
 test("the glass dock uses semantic color roles and reserves safe page space", () => {
@@ -115,7 +107,8 @@ test("the glass dock uses semantic color roles and reserves safe page space", ()
 
 test("persistent navigation icons are eagerly decoded and do not remount by pathname", () => {
   assert.match(mobileNavigation, /<NavigationIcon asset=\{item\.asset\} eager \/>/);
-  assert.match(mobileNavigation, /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} eager \/>/);
+  assert.doesNotMatch(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more/);
+  assert.match(header, /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} eager \/>/);
   assert.match(header, /loading=\{eager \? "eager" : "lazy"\}/);
   assert.match(header, /decoding=\{eager \? "sync" : "async"\}/);
   assert.doesNotMatch(mobileNavigation, /key=\{pathname\}|opacity-0|animate-opacity/);
