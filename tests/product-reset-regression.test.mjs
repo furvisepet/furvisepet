@@ -39,7 +39,8 @@ test("signup and recovery keep their existing CAPTCHA submission behavior", () =
 test("update-password accepts only the already-established recovery session", () => {
   const page = read("app/update-password/page.tsx");
 
-  assert.doesNotMatch(page, /window\.location\.(?:replace|assign)|searchParams\.get\("code"\)|location\.hash/);
+  assert.doesNotMatch(page, /searchParams\.get\("code"\)|location\.hash/);
+  assert.match(page, /window\.location\.replace\(PASSWORD_RESET_SUCCESS_PATH\)/);
   assert.doesNotMatch(page, /exchangeCodeForSession\(code\)|authClient\.auth\.setSession/);
   assert.match(page, /getSession\(\)/);
   assert.match(page, /Passwords do not match\./);

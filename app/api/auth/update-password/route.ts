@@ -1,4 +1,5 @@
 import { createServerSupabase } from "../../../lib/supabase/server";
+import { cookies } from "next/headers";
 import { emitOperationalEvent } from "../../../lib/operations/events/logger";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "../../../lib/security/request";
 import { claimIdempotentOperation, resolveIdempotencyKey } from "../../../lib/security/idempotency";
@@ -10,10 +11,16 @@ import {
   readRecoveryAuthorizationCookie,
 } from "../../../lib/security/auth-abuse/recovery-authorization";
 import { performRecoveryPasswordUpdate } from "../../../lib/security/auth-abuse/recovery-completion.mjs";
+import { finalizeTemporaryRecoverySession } from "../../../lib/security/auth-abuse/recovery-session-cleanup.mjs";
 import { claimRecoveryAuthorization, consumeRecoveryAuthorization, releaseRecoveryAuthorization } from "../../../lib/security/auth-abuse/recovery-authorization";
+import {
+  RECOVERY_HANDOFF_COOKIE,
+  recoveryHandoffCookieOptions,
+} from "../../../lib/security/auth-abuse/recovery-handoff";
 import { authJson, authUnavailableResponse, validateAuthPassword, validatePublicAuthOrigin } from "../../../lib/security/auth-abuse";
 
 const ROUTE = "/api/auth/update-password";
+const SESSION_AUTH_COOKIE = "furvise-auth-session";
 
 export async function POST(request: Request) {
   const startedAt = Date.now();
@@ -98,25 +105,67 @@ export async function POST(request: Request) {
         } catch { return false; }
       },
     });
-    if (result.outcome === "completed") {
-      await clearRecoveryAuthorizationCookie();
-      emitResult("password_recovery_completed", "PASSWORD_UPDATED", requestId, startedAt, userId);
+    if (result.outcome === "completed" || result.outcome === "reconciliation_required") {
+      await closeTemporaryRecoverySession(supabase);
+      emitResult(
+        "password_recovery_completed",
+        result.outcome === "completed" ? "PASSWORD_UPDATED" : "PASSWORD_UPDATED_RECONCILED",
+        requestId,
+        startedAt,
+        userId,
+        result.outcome === "completed" ? "info" : "high",
+      );
       return authJson({ code: "PASSWORD_UPDATED", message: "Your password was updated.", requestId });
     }
     if (result.outcome === "provider_failure") {
       emitResult("password_recovery_denied", "PASSWORD_PROVIDER_FAILURE", requestId, startedAt, userId, "warning");
       return authJson({ code: "PASSWORD_PROVIDER_FAILURE", error: "Furvise could not update your password. Please try again.", requestId }, 503);
     }
-    if (result.outcome === "reconciliation_required") {
-      await clearRecoveryAuthorizationCookie();
-      emitResult("password_recovery_denied", "RECOVERY_RECONCILIATION_REQUIRED", requestId, startedAt, userId, "high");
-      return authJson({ code: "RECOVERY_RECONCILIATION_REQUIRED", error: "Your password update is being reconciled. Request a new reset link before trying again.", requestId }, 503);
-    }
     const code = result.outcome === "in_progress" ? "RECOVERY_UPDATE_IN_PROGRESS"
       : result.outcome === "authorization_consumed" ? "RECOVERY_AUTH_CONSUMED"
         : result.outcome === "authorization_expired" ? "RECOVERY_AUTH_EXPIRED" : "RECOVERY_AUTH_INVALID";
     return recoveryDenied(code, requestId, startedAt, result.outcome === "in_progress" || result.outcome === "authorization_consumed" ? 409 : 401, userId);
   });
+}
+
+async function closeTemporaryRecoverySession(
+  supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabase>>>,
+) {
+  // Recovery must end every provider session, including the temporary session
+  // used for updateUser. Cookie cleanup below still runs if provider sign-out
+  // is unavailable so the browser cannot enter the authenticated application.
+  await finalizeTemporaryRecoverySession({
+    clearLocalState: clearTemporaryRecoveryCookies,
+    signOutGlobally: async () => {
+      const { error } = await supabase.auth.signOut({ scope: "global" });
+      if (error) throw error;
+    },
+  });
+}
+
+async function clearTemporaryRecoveryCookies() {
+  try { await clearRecoveryAuthorizationCookie(); }
+  catch { /* Continue clearing the remaining recovery and auth cookies. */ }
+
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(RECOVERY_HANDOFF_COOKIE, "", { ...recoveryHandoffCookieOptions(), maxAge: 0 });
+    cookieStore.set(SESSION_AUTH_COOKIE, "", { maxAge: 0, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+
+    const authCookiePrefix = getSupabaseAuthCookiePrefix();
+    if (authCookiePrefix) {
+      cookieStore.getAll()
+        .filter(({ name }) => name === authCookiePrefix || name.startsWith(`${authCookiePrefix}.`))
+        .forEach(({ name }) => cookieStore.set(name, "", { maxAge: 0, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production" }));
+    }
+  } catch { /* The fixed browser cleanup and login redirect remain mandatory. */ }
+}
+
+function getSupabaseAuthCookiePrefix() {
+  try {
+    const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "").hostname.split(".")[0] || "";
+    return projectRef ? `sb-${projectRef}-auth-token` : "";
+  } catch { return ""; }
 }
 
 function recoveryDenied(code: string, requestId: string, startedAt: number, status: number, userId?: string) {
