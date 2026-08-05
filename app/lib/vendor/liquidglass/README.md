@@ -8,6 +8,14 @@ the library's own `destroy()` method if asynchronous initialization fails, so
 the CSS fallback is not left with partial canvases or listeners. `index.d.ts`
 is a local declaration limited to the API used by Furvise.
 
+Furvise also carries a bounded-capture patch for the mobile navigation:
+`data-liquid-glass-static` disables mutation observers for a structurally
+static root, `data-liquid-glass-skip-content` prevents glass-content
+rasterization, and `data-liquid-glass-ignore` excludes interactive siblings
+from prewarming. Resize handling is debounced and ignores unchanged width,
+height, and device-pixel ratio. These changes prevent `html-to-image` from
+repeatedly fetching and embedding unchanged navigation icons.
+
 - Upstream: https://github.com/ybouane/liquidglass
 - npm package: https://www.npmjs.com/package/@ybouane/liquidglass/v/1.0.3
 - Registry integrity: `sha512-Ro/Q3vaEduvj1yUp/TVz9AYmxY+cYhnBj76eJ/Y9VQoPlRA0DWrKPQufEzrDSYzAWXL3qxiFibi5XQVW/egTnA==`

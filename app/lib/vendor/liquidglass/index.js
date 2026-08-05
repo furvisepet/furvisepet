@@ -1812,6 +1812,8 @@ var LiquidGlass = class _LiquidGlass {
     this._fpsTime = 0;
     this._observer = null;
     this._glassSubtreeObserver = null;
+    this._resizeTimer = 0;
+    this._lastResizeMetrics = null;
     this._sortedChildren = [];
     this._glassCache = /* @__PURE__ */ new Map();
     this._glassContentImages = /* @__PURE__ */ new Map();
@@ -1842,7 +1844,7 @@ var LiquidGlass = class _LiquidGlass {
       this._glassCache.clear();
       this._globalDirty = true;
     });
-    this._onResize = this._handleResize.bind(this);
+    this._onResize = this._scheduleResize.bind(this);
     this._onPointerDown = this._handlePointerDown.bind(this);
     this._onPointerMove = this._handlePointerMove.bind(this);
     this._onPointerUp = this._handlePointerUp.bind(this);
@@ -1877,32 +1879,34 @@ var LiquidGlass = class _LiquidGlass {
     this.root.addEventListener("pointerdown", this._onPointerDown);
     window.addEventListener("pointermove", this._onPointerMove);
     window.addEventListener("pointerup", this._onPointerUp);
-    this._observer = new MutationObserver(() => {
-      this._sortedChildren = this._getSortedChildren();
-      this._globalDirty = true;
-    });
-    this._observer.observe(this.root, { childList: true });
-    this._glassSubtreeObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        const owner = this._closestGlassAncestor(mutation.target);
-        if (mutation.type === "attributes" && mutation.attributeName === "data-config") {
-          if (owner) this._markGlassAndDependents(owner);
-          continue;
-        }
-        if (owner) {
-          this._glassContentDirty.add(owner);
-          this._markGlassAndDependents(owner);
-        }
-      }
-    });
-    for (const el of this.glassSet) {
-      this._glassSubtreeObserver.observe(el, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ["data-config"]
+    if (!this.root.hasAttribute("data-liquid-glass-static")) {
+      this._observer = new MutationObserver(() => {
+        this._sortedChildren = this._getSortedChildren();
+        this._globalDirty = true;
       });
+      this._observer.observe(this.root, { childList: true });
+      this._glassSubtreeObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          const owner = this._closestGlassAncestor(mutation.target);
+          if (mutation.type === "attributes" && mutation.attributeName === "data-config") {
+            if (owner) this._markGlassAndDependents(owner);
+            continue;
+          }
+          if (owner) {
+            this._glassContentDirty.add(owner);
+            this._markGlassAndDependents(owner);
+          }
+        }
+      });
+      for (const el of this.glassSet) {
+        this._glassSubtreeObserver.observe(el, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ["data-config"]
+        });
+      }
     }
     this._glassContentDirty.clear();
     this._running = true;
@@ -1912,6 +1916,7 @@ var LiquidGlass = class _LiquidGlass {
   destroy() {
     this._running = false;
     cancelAnimationFrame(this._rafId);
+    clearTimeout(this._resizeTimer);
     this.root.style.removeProperty("user-select");
     this.root.style.removeProperty("-webkit-user-select");
     window.removeEventListener("resize", this._onResize);
@@ -2146,6 +2151,10 @@ var LiquidGlass = class _LiquidGlass {
     try {
       for (const [el, glassCanvas] of this.glassCanvases) {
         if (targets && !targets.has(el)) continue;
+        if (el.hasAttribute("data-liquid-glass-skip-content")) {
+          this._glassContentImages.delete(el);
+          continue;
+        }
         const rect = el.getBoundingClientRect();
         const img = await this.capture.captureToCanvas(
           el,
@@ -2171,6 +2180,7 @@ var LiquidGlass = class _LiquidGlass {
   async _prewarmStaticCaptures() {
     for (const child of this._sortedChildren) {
       if (this.glassSet.has(child)) continue;
+      if (child.hasAttribute("data-liquid-glass-ignore")) continue;
       const tag = child.tagName;
       if (tag === "CANVAS" || tag === "IMG" || tag === "VIDEO") continue;
       if (child.hasAttribute("data-dynamic")) continue;
@@ -2306,16 +2316,31 @@ var LiquidGlass = class _LiquidGlass {
   // ────────────────────────────────────────────
   // Resize
   // ────────────────────────────────────────────
+  _scheduleResize() {
+    clearTimeout(this._resizeTimer);
+    this._resizeTimer = setTimeout(() => {
+      this._resizeTimer = 0;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = this.root.getBoundingClientRect();
+      const metrics = { width: Math.round(rect.width), height: Math.round(rect.height), dpr };
+      const previous = this._lastResizeMetrics;
+      if (previous && previous.width === metrics.width && previous.height === metrics.height && previous.dpr === metrics.dpr) return;
+      this._handleResize();
+    }, 250);
+  }
   _handleResize() {
     const dpr = window.devicePixelRatio || 1;
     const rect = this.root.getBoundingClientRect();
+    this._lastResizeMetrics = { width: Math.round(rect.width), height: Math.round(rect.height), dpr };
     this.capture.resize(dpr);
     this.renderer.resize(Math.round(rect.width * dpr), Math.round(rect.height * dpr));
     for (const el of this.glassSet) {
       this._updateGlassCanvasSize(el);
     }
     this._glassCache.clear();
-    for (const el of this.glassSet) this._glassContentDirty.add(el);
+    for (const el of this.glassSet) {
+      if (!el.hasAttribute("data-liquid-glass-skip-content")) this._glassContentDirty.add(el);
+    }
     this._globalDirty = true;
   }
   _updateGlassCanvasSize(el) {
@@ -2348,8 +2373,10 @@ var LiquidGlass = class _LiquidGlass {
       if (!last || Math.abs(last.w - w) > 0.5 || Math.abs(last.h - h) > 0.5) {
         this._updateGlassCanvasSize(el);
         this._glassCache.delete(el);
-        this.capture.invalidateCache(el);
-        this._glassContentDirty.add(el);
+        if (!el.hasAttribute("data-liquid-glass-skip-content")) {
+          this.capture.invalidateCache(el);
+          this._glassContentDirty.add(el);
+        }
         changed = true;
       }
     }

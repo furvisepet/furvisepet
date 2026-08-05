@@ -121,7 +121,7 @@ export function AppHeader({
         : []
   );
 
-  useMobileLiquidGlass(mobileGlassRootRef, mobileGlassRef, showMobileNavigation, pathname);
+  useMobileLiquidGlass(mobileGlassRootRef, mobileGlassRef, showMobileNavigation);
 
   useEffect(() => {
     if (authState) return;
@@ -297,9 +297,10 @@ export function AppHeader({
       </header>
 
       {showMobileNavigation ? (
-        <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-state={mobileNavigationState} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
+        <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state={mobileNavigationState} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
           <span aria-hidden="true" className="mobile-liquid-glass-scene" />
-          <div className={`mobile-liquid-glass mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] p-1.5 transition-[height,padding] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none sm:mx-auto ${mobileNavigationState === "compact" ? "h-[var(--mobile-nav-height)]" : "h-[var(--mobile-nav-expanded-height)]"}`} data-ui="mobile-navigation-dock" ref={mobileGlassRef}>
+          <div aria-hidden="true" className="mobile-liquid-glass" data-liquid-glass-skip-content="" ref={mobileGlassRef} />
+          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] p-1.5 transition-[height,padding] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none sm:mx-auto ${mobileNavigationState === "compact" ? "h-[var(--mobile-nav-height)]" : "h-[var(--mobile-nav-expanded-height)]"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock">
             {MOBILE_NAV_ITEMS.map((item) => {
               const active = activeMobileTab === item.tab;
               const hideLabel = mobileNavigationState === "compact" && !active;

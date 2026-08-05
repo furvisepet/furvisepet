@@ -13,17 +13,16 @@ type LiquidGlassSupport = {
   webglSupported: boolean;
 };
 
+type DestroyReason = "reduced_motion" | "stale_initialization" | "unmount" | "unsupported";
+
 type LiquidGlassDiagnostic = Partial<{
   backdrop_filter_supported: boolean;
   canvas_attached: boolean;
   canvas_supported: boolean;
-  destroyed_reason: "hidden" | "resize" | "route_change" | "reduced_motion" | "unsupported" | "unmount";
+  destroyed_reason: DestroyReason;
   foreign_object_supported: boolean;
   initialization_failed_reason: "api_unavailable" | "canvas_missing" | "dimensions_unavailable" | "foreign_object_unsupported" | "initialization_exception" | "module_load_failed";
-  initialization_started: boolean;
-  initialization_succeeded: boolean;
   mobile_match: boolean;
-  module_loaded: boolean;
   reduced_motion: boolean;
   target_found: boolean;
   target_height: number;
@@ -31,14 +30,38 @@ type LiquidGlassDiagnostic = Partial<{
   webgl_supported: boolean;
 }>;
 
+const lifecycleCounters = {
+  active_instance_count: 0,
+  capture_attempts: 0,
+  destroy_calls: 0,
+  image_load_restarts: 0,
+  init_attempts: 0,
+  mutation_restarts: 0,
+  resize_restarts: 0,
+  successful_instances: 0,
+  target_identity_changes: 0,
+};
+const targetIdentities = new WeakMap<HTMLElement, number>();
+let lastTargetIdentity = 0;
+let nextTargetIdentity = 1;
+
 const MOBILE_MEDIA_QUERY = "(max-width: 1023px)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-const RESIZE_RESTART_DELAY_MS = 180;
 const MEASUREMENT_RETRY_MS = 100;
 
 function emitLiquidGlassDiagnostic(event: string, diagnostic: LiquidGlassDiagnostic = {}) {
   if (process.env.NODE_ENV !== "development") return;
-  console.debug("[Furvise LiquidGlass]", { event, ...diagnostic });
+  console.debug("[Furvise LiquidGlass]", { event, ...diagnostic, ...lifecycleCounters });
+}
+
+function recordTargetIdentity(target: HTMLElement) {
+  let identity = targetIdentities.get(target);
+  if (!identity) {
+    identity = nextTargetIdentity++;
+    targetIdentities.set(target, identity);
+  }
+  if (lastTargetIdentity && lastTargetIdentity !== identity) lifecycleCounters.target_identity_changes += 1;
+  lastTargetIdentity = identity;
 }
 
 function inspectLiquidGlassSupport(): LiquidGlassSupport {
@@ -52,9 +75,6 @@ function inspectLiquidGlassSupport(): LiquidGlassSupport {
   try {
     const canvas2d = document.createElement("canvas");
     canvasSupported = Boolean(canvas2d.getContext("2d"));
-
-    // A canvas cannot switch context types after getContext succeeds.
-    // WebGL capability must be tested on a separate canvas.
     const webglCanvas = document.createElement("canvas");
     const webgl = webglCanvas.getContext("webgl");
     webglSupported = Boolean(webgl);
@@ -69,14 +89,22 @@ function inspectLiquidGlassSupport(): LiquidGlassSupport {
 
 function measuredSize(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
-  return {
-    height: Math.round(rect.height),
-    width: Math.round(rect.width),
-  };
+  return { height: Math.round(rect.height), width: Math.round(rect.width) };
 }
 
-function inspectForeignObjectSupport() {
-  if (typeof SVGForeignObjectElement === "undefined") return Promise.resolve(false);
+function measuredMetrics(element: HTMLElement) {
+  return { ...measuredSize(element), dpr: window.devicePixelRatio || 1 };
+}
+
+function metricsMatch(
+  left: ReturnType<typeof measuredMetrics> | null,
+  right: ReturnType<typeof measuredMetrics>,
+) {
+  return Boolean(left && left.width === right.width && left.height === right.height && left.dpr === right.dpr);
+}
+
+function inspectForeignObjectSupport(signal: AbortSignal) {
+  if (typeof SVGForeignObjectElement === "undefined" || signal.aborted) return Promise.resolve(false);
 
   return new Promise<boolean>((resolve) => {
     const image = new Image();
@@ -94,9 +122,12 @@ function inspectForeignObjectSupport() {
       if (settled) return;
       settled = true;
       window.clearTimeout(timeout);
+      signal.removeEventListener("abort", handleAbort);
       resolve(supported);
     };
+    const handleAbort = () => finish(false);
     const timeout = window.setTimeout(() => finish(false), 500);
+    signal.addEventListener("abort", handleAbort, { once: true });
 
     image.onload = () => {
       try {
@@ -121,7 +152,6 @@ export function useMobileLiquidGlass(
   rootRef: RefObject<HTMLElement | null>,
   glassRef: RefObject<HTMLDivElement | null>,
   enabled: boolean,
-  lifecycleKey: string,
 ) {
   useEffect(() => {
     if (!enabled) return;
@@ -132,42 +162,45 @@ export function useMobileLiquidGlass(
       emitLiquidGlassDiagnostic("eligibility", { target_found: false });
       return;
     }
+    recordTargetIdentity(glass);
 
     const mobileQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
     const reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
     let cancelled = false;
     let initializing = false;
+    let retryAfterCancellation = false;
     let instance: LiquidGlassInstance | null = null;
     let support: LiquidGlassSupport | null = null;
     let measurementRetry = 0;
-    let resizeRestart = 0;
-    let restartRequested = false;
-    let restartReason: LiquidGlassDiagnostic["destroyed_reason"] = "resize";
+    let pendingController: AbortController | null = null;
+    let generation = 0;
+    let lastInstanceMetrics: ReturnType<typeof measuredMetrics> | null = null;
 
     const readSupport = () => (support ??= inspectLiquidGlassSupport());
 
-    const eligibility = () => {
-      const currentSupport = mobileQuery.matches
-        ? readSupport()
-        : { backdropFilterSupported: false, canvasSupported: false, webglSupported: false };
-      return {
-        eligible: !cancelled
-          && mobileQuery.matches
-          && !reducedMotionQuery.matches
-          && document.visibilityState === "visible"
-          && currentSupport.backdropFilterSupported
-          && currentSupport.canvasSupported
-          && currentSupport.webglSupported,
-        support: currentSupport,
-      };
+    const destroyDetachedInstance = (detached: LiquidGlassInstance, reason: DestroyReason) => {
+      detached.destroy();
+      lifecycleCounters.destroy_calls += 1;
+      emitLiquidGlassDiagnostic("destroyed", { destroyed_reason: reason });
     };
 
-    const stop = (reason: LiquidGlassDiagnostic["destroyed_reason"]) => {
+    const destroyActiveInstance = (reason: DestroyReason) => {
+      if (!instance) return;
       const activeInstance = instance;
       instance = null;
-      activeInstance?.destroy();
+      activeInstance.destroy();
+      lifecycleCounters.destroy_calls += 1;
+      lifecycleCounters.active_instance_count = Math.max(0, lifecycleCounters.active_instance_count - 1);
       root.dataset.liquidGlassState = "fallback";
-      if (activeInstance) emitLiquidGlassDiagnostic("destroyed", { destroyed_reason: reason });
+      emitLiquidGlassDiagnostic("destroyed", { destroyed_reason: reason });
+    };
+
+    const cancelPendingInitialization = (retry: boolean) => {
+      if (!pendingController) return;
+      retryAfterCancellation ||= retry;
+      generation += 1;
+      pendingController.abort();
+      pendingController = null;
     };
 
     const scheduleMeasurementRetry = () => {
@@ -179,71 +212,87 @@ export function useMobileLiquidGlass(
     };
 
     const synchronize = async () => {
-      const current = eligibility();
-      const initialSize = measuredSize(glass);
+      if (cancelled || document.visibilityState !== "visible") return;
+
+      const currentSupport = mobileQuery.matches
+        ? readSupport()
+        : { backdropFilterSupported: false, canvasSupported: false, webglSupported: false };
+      const size = measuredSize(glass);
       emitLiquidGlassDiagnostic("eligibility", {
-        backdrop_filter_supported: current.support.backdropFilterSupported,
-        canvas_supported: current.support.canvasSupported,
+        backdrop_filter_supported: currentSupport.backdropFilterSupported,
+        canvas_supported: currentSupport.canvasSupported,
         mobile_match: mobileQuery.matches,
         reduced_motion: reducedMotionQuery.matches,
         target_found: true,
-        target_height: initialSize.height,
-        target_width: initialSize.width,
-        webgl_supported: current.support.webglSupported,
+        target_height: size.height,
+        target_width: size.width,
+        webgl_supported: currentSupport.webglSupported,
       });
 
-      if (!current.eligible) {
-        const reason = document.visibilityState !== "visible"
-          ? "hidden"
-          : reducedMotionQuery.matches
-            ? "reduced_motion"
-            : "unsupported";
-        stop(reason);
+      const supported = mobileQuery.matches
+        && !reducedMotionQuery.matches
+        && currentSupport.backdropFilterSupported
+        && currentSupport.canvasSupported
+        && currentSupport.webglSupported;
+      if (!supported) {
+        cancelPendingInitialization(false);
+        destroyActiveInstance(reducedMotionQuery.matches ? "reduced_motion" : "unsupported");
         return;
       }
 
       if (instance) {
-        instance.markChanged(root.firstElementChild instanceof HTMLElement ? root.firstElementChild : undefined);
+        const currentMetrics = measuredMetrics(glass);
+        if (!metricsMatch(lastInstanceMetrics, currentMetrics)) {
+          lastInstanceMetrics = currentMetrics;
+          lifecycleCounters.resize_restarts += 1;
+          instance.markChanged(root.firstElementChild instanceof HTMLElement ? root.firstElementChild : undefined);
+        }
         return;
       }
       if (initializing) return;
 
       initializing = true;
-      let failureReason: LiquidGlassDiagnostic["initialization_failed_reason"] = "module_load_failed";
+      const controller = new AbortController();
+      pendingController = controller;
+      const attemptGeneration = ++generation;
+      lifecycleCounters.init_attempts += 1;
+      let failureReason: LiquidGlassDiagnostic["initialization_failed_reason"] = "dimensions_unavailable";
       try {
         await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-        if (!eligibility().eligible) return;
+        if (controller.signal.aborted || attemptGeneration !== generation || cancelled) return;
+        await document.fonts.ready;
+        if (controller.signal.aborted || attemptGeneration !== generation || cancelled) return;
 
-        const size = measuredSize(glass);
-        if (size.width <= 0 || size.height <= 0) {
-          failureReason = "dimensions_unavailable";
+        const measured = measuredSize(glass);
+        if (measured.width <= 0 || measured.height <= 0) {
           emitLiquidGlassDiagnostic("initialization_failed", {
             initialization_failed_reason: failureReason,
-            target_height: size.height,
-            target_width: size.width,
+            target_height: measured.height,
+            target_width: measured.width,
           });
           scheduleMeasurementRetry();
           return;
         }
 
         failureReason = "foreign_object_unsupported";
-        const foreignObjectSupported = await inspectForeignObjectSupport();
+        const foreignObjectSupported = await inspectForeignObjectSupport(controller.signal);
         emitLiquidGlassDiagnostic("capture_support", { foreign_object_supported: foreignObjectSupported });
+        if (controller.signal.aborted || attemptGeneration !== generation || cancelled) return;
         if (!foreignObjectSupported) {
           emitLiquidGlassDiagnostic("initialization_failed", { initialization_failed_reason: failureReason });
           return;
         }
-        if (!eligibility().eligible) return;
 
+        failureReason = "module_load_failed";
         const liquidGlassModule = await import("../vendor/liquidglass/index.js");
-        emitLiquidGlassDiagnostic("module_loaded", { module_loaded: true });
+        if (controller.signal.aborted || attemptGeneration !== generation || cancelled) return;
         if (typeof liquidGlassModule.LiquidGlass?.init !== "function") {
           failureReason = "api_unavailable";
           throw new Error("LiquidGlass API unavailable");
         }
 
         failureReason = "initialization_exception";
-        emitLiquidGlassDiagnostic("initialization_started", { initialization_started: true });
+        lifecycleCounters.capture_attempts += 1;
         const nextInstance = await liquidGlassModule.LiquidGlass.init({
           root,
           glassElements: [glass],
@@ -270,79 +319,70 @@ export function useMobileLiquidGlass(
           },
         });
 
-        if (!eligibility().eligible || cancelled) {
-          nextInstance.destroy();
+        if (controller.signal.aborted || attemptGeneration !== generation || cancelled) {
+          destroyDetachedInstance(nextInstance, "stale_initialization");
           return;
         }
 
         const runtimeCanvas = findRuntimeCanvas(glass);
         if (!runtimeCanvas || runtimeCanvas.width <= 0 || runtimeCanvas.height <= 0) {
           failureReason = "canvas_missing";
-          nextInstance.destroy();
+          destroyDetachedInstance(nextInstance, "unsupported");
           throw new Error("LiquidGlass canvas unavailable");
         }
 
         instance = nextInstance;
+        lastInstanceMetrics = measuredMetrics(glass);
+        pendingController = null;
+        lifecycleCounters.successful_instances += 1;
+        lifecycleCounters.active_instance_count += 1;
         root.dataset.liquidGlassState = "active";
         emitLiquidGlassDiagnostic("initialization_succeeded", {
           canvas_attached: true,
-          initialization_succeeded: true,
-          target_height: size.height,
-          target_width: size.width,
+          target_height: measured.height,
+          target_width: measured.width,
         });
       } catch {
-        stop("unsupported");
+        root.dataset.liquidGlassState = "fallback";
         emitLiquidGlassDiagnostic("initialization_failed", { initialization_failed_reason: failureReason });
       } finally {
+        if (pendingController === controller) pendingController = null;
         initializing = false;
-        if (restartRequested && !cancelled) {
-          const reason = restartReason;
-          restartRequested = false;
-          stop(reason);
+        if (retryAfterCancellation && !cancelled && document.visibilityState === "visible") {
+          retryAfterCancellation = false;
           void synchronize();
         }
       }
     };
 
-    const requestRestart = (reason: LiquidGlassDiagnostic["destroyed_reason"]) => {
-      restartReason = reason;
-      if (initializing) {
-        restartRequested = true;
-        return;
-      }
-      stop(reason);
-      void synchronize();
-    };
-
-    const handleEligibilityChange = () => {
+    const handleMediaChange = () => {
       support = null;
       void synchronize();
     };
 
-    const handleResize = () => {
-      window.clearTimeout(resizeRestart);
-      resizeRestart = window.setTimeout(() => requestRestart("resize"), RESIZE_RESTART_DELAY_MS);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        cancelPendingInitialization(true);
+        return;
+      }
+      void synchronize();
     };
 
     root.dataset.liquidGlassState = "fallback";
-    mobileQuery.addEventListener("change", handleEligibilityChange);
-    reducedMotionQuery.addEventListener("change", handleEligibilityChange);
-    document.addEventListener("visibilitychange", handleEligibilityChange);
-    window.addEventListener("orientationchange", handleResize);
-    window.addEventListener("resize", handleResize, { passive: true });
+    mobileQuery.addEventListener("change", handleMediaChange);
+    reducedMotionQuery.addEventListener("change", handleMediaChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     void synchronize();
 
     return () => {
       cancelled = true;
       window.clearTimeout(measurementRetry);
-      window.clearTimeout(resizeRestart);
-      mobileQuery.removeEventListener("change", handleEligibilityChange);
-      reducedMotionQuery.removeEventListener("change", handleEligibilityChange);
-      document.removeEventListener("visibilitychange", handleEligibilityChange);
-      window.removeEventListener("orientationchange", handleResize);
-      window.removeEventListener("resize", handleResize);
-      stop(lifecycleKey ? "route_change" : "unmount");
+      cancelPendingInitialization(false);
+      mobileQuery.removeEventListener("change", handleMediaChange);
+      reducedMotionQuery.removeEventListener("change", handleMediaChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      destroyActiveInstance("unmount");
       delete root.dataset.liquidGlassState;
     };
-  }, [enabled, glassRef, lifecycleKey, rootRef]);
+  }, [enabled, glassRef, rootRef]);
 }
