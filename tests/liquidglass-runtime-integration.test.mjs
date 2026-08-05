@@ -95,7 +95,7 @@ test("cleanup destroys only a retained instance and stale async results are disc
 test("no cache-busting or changing navigation image URLs are generated", () => {
   const integration = header + "\n" + hook;
   assert.doesNotMatch(integration, /cacheBust|cache-bust|Date\.now\(\)|Math\.random\(\)|URLSearchParams/);
-  for (const path of ["today_house.png", "history_clock.png", "ask_chat.png", "pets_paw.png", "more_dots.png"]) {
+  for (const path of ["today_house.png", "history_clock.png", "ask_chat.png", "pets_paw.png", "pet_products.png", "more_dots.png"]) {
     assert.equal((header.match(new RegExp(path.replace(".", "\\."), "g")) ?? []).length, 0, "paths stay centralized outside the lifecycle integration");
   }
   assert.match(header, /<NavigationIcon asset=\{item\.asset\} eager \/>/);

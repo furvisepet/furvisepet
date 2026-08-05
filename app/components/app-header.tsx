@@ -84,6 +84,7 @@ const MOBILE_NAV_ITEMS = [
   { ...MOBILE_NAVIGATION_ITEMS[1], icon: "history", label: "History" },
   { ...MOBILE_NAVIGATION_ITEMS[2], icon: "ask", label: "Ask" },
   { ...MOBILE_NAVIGATION_ITEMS[3], icon: "pets", label: "Pets" },
+  { ...MOBILE_NAVIGATION_ITEMS[4], icon: "products", label: "Products" },
 ] as const;
 
 let retainedMobileNavigationState: MobileNavigationState = "expanded";
@@ -300,25 +301,25 @@ export function AppHeader({
         <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state={mobileNavigationState} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
           <span aria-hidden="true" className="mobile-liquid-glass-scene" />
           <div aria-hidden="true" className="mobile-liquid-glass" data-liquid-glass-skip-content="" ref={mobileGlassRef} />
-          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] p-1.5 transition-[height,padding] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none sm:mx-auto ${mobileNavigationState === "compact" ? "h-[var(--mobile-nav-height)]" : "h-[var(--mobile-nav-expanded-height)]"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock">
+          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-6 rounded-[var(--radius-xl)] p-1 transition-[height,padding] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none sm:mx-auto ${mobileNavigationState === "compact" ? "h-[var(--mobile-nav-height)]" : "h-[var(--mobile-nav-expanded-height)]"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock">
             {MOBILE_NAV_ITEMS.map((item) => {
               const active = activeMobileTab === item.tab;
               const hideLabel = mobileNavigationState === "compact" && !active;
               return (
-                <Link aria-current={active ? "page" : undefined} aria-label={item.label} className={`flex min-h-11 min-w-0 flex-col items-center justify-center rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href}>
+                <Link aria-current={active ? "page" : undefined} aria-label={item.label} className={`flex min-h-11 min-w-0 flex-col items-center justify-center rounded-[var(--radius-md)] px-0.5 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href}>
                   <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
                     <NavigationIcon asset={item.asset} eager />
                   </span>
-                  <span className={hideLabel ? "sr-only" : "block"}>{item.label}</span>
+                  <span className={hideLabel ? "sr-only" : "block whitespace-nowrap"}>{item.label}</span>
                 </Link>
               );
             })}
-            <details className="relative" ref={mobileMoreRef}>
-              <summary aria-current={activeMobileTab === "more" ? "page" : undefined} aria-label="Open More menu" className={`flex min-h-11 h-full cursor-pointer list-none flex-col items-center justify-center rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${activeMobileTab === "more" ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} ref={(node) => { mobileMoreSummaryRef.current = node; }}>
+            <details className="relative min-w-0" ref={mobileMoreRef}>
+              <summary aria-current={activeMobileTab === "more" ? "page" : undefined} aria-label="Open More menu" className={`flex min-h-11 h-full cursor-pointer list-none flex-col items-center justify-center rounded-[var(--radius-md)] px-0.5 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${activeMobileTab === "more" ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} ref={(node) => { mobileMoreSummaryRef.current = node; }}>
                 <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${activeMobileTab === "more" ? "bg-[var(--selected-navigation-background)]" : ""}`}>
                   <NavigationIcon asset={NAVIGATION_ICON_ASSETS.more} eager />
                 </span>
-                <span className={mobileNavigationState === "compact" && activeMobileTab !== "more" ? "sr-only" : "block"}>More</span>
+                <span className={mobileNavigationState === "compact" && activeMobileTab !== "more" ? "sr-only" : "block whitespace-nowrap"}>More</span>
               </summary>
               <div className="absolute right-0 bottom-[calc(100%+0.5rem)] z-[var(--z-popover)] w-64 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" data-ui="mobile-more-menu" role="menu">
                 <Link className="flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href="/shop" onClick={() => closeMobileMore()} role="menuitem">Products</Link>

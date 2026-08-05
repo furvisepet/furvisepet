@@ -34,7 +34,7 @@ test("desktop and mobile headers share the approved brand without duplicating it
 test("navigation destinations and order remain unchanged with a non-color active indicator", () => {
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   const mobile = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
-  for (const [source, labels] of [[desktop, ["Today", "Pets", "History", "Ask", "Products"]], [mobile, ["Today", "History", "Ask", "Pets"]]]) {
+  for (const [source, labels] of [[desktop, ["Today", "Pets", "History", "Ask", "Products"]], [mobile, ["Today", "History", "Ask", "Pets", "Products"]]]) {
     let cursor = -1;
     for (const label of labels) {
       const next = source.indexOf(`label: "${label}"`);
@@ -49,7 +49,7 @@ test("navigation destinations and order remain unchanged with a non-color active
 test("mobile bottom navigation is edge aligned, safe-area aware, and paired with content clearance", () => {
   assert.match(header, /fixed inset-x-0 bottom-0/);
   assert.match(header, /pb-\[var\(--mobile-nav-safe-area\)\]/);
-  assert.match(header, /grid-cols-5/);
+  assert.match(header, /grid-cols-6/);
   assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)[\s\S]*24px/);
   assert.match(css, /\.app-mobile-nav-clearance[\s\S]*var\(--mobile-nav-clearance\)/);
   assert.match(css, /\.app-sticky-composer[\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)/);

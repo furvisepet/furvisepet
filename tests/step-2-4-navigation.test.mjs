@@ -35,7 +35,7 @@ test("desktop routes use one shared warm-neutral container and compact selected 
 test("mobile dock has the exact icon and label destinations with a selected state", () => {
   const mobileItems = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
   let cursor = -1;
-  for (const [label, icon] of [["Today", "today"], ["History", "history"], ["Ask", "ask"], ["Pets", "pets"]]) {
+  for (const [label, icon] of [["Today", "today"], ["History", "history"], ["Ask", "ask"], ["Pets", "pets"], ["Products", "products"]]) {
     const next = mobileItems.indexOf(`icon: "${icon}", label: "${label}"`);
     assert.ok(next > cursor, `${label} retains its required order and icon`);
     cursor = next;

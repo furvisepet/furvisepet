@@ -35,7 +35,7 @@ test("main and every shared auth header use the larger undistorted BrandMark siz
   assert.match(read("app/components/brand-mark.tsx"), /objectFit: "contain"/);
 });
 
-test("mobile keeps all five image icons inside the LiquidGlass-enhanced dock", () => {
+test("mobile keeps all six image icons in the interactive layer above LiquidGlass", () => {
   const mobile = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
   assert.match(mobile, /<NavigationIcon asset=\{item\.asset\} eager \/>/);
   assert.match(mobile, /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} eager \/>/);
@@ -43,6 +43,8 @@ test("mobile keeps all five image icons inside the LiquidGlass-enhanced dock", (
   assert.match(mobile, /mobile-liquid-glass-scene/);
   assert.match(mobile, /ref=\{mobileGlassRootRef\}/);
   assert.match(mobile, /ref=\{mobileGlassRef\}/);
+  assert.match(mobile, /grid-cols-6/);
+  assert.match(mobile, /data-liquid-glass-ignore=""[\s\S]*<NavigationIcon/);
   assert.match(css, /\.mobile-liquid-glass-scene \{[\s\S]*linear-gradient[\s\S]*box-shadow:[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
   assert.match(css, /\.mobile-liquid-glass \{[\s\S]*background: transparent/);
 });
