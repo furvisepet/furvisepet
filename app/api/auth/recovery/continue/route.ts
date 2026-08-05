@@ -1,31 +1,36 @@
 import { NextResponse } from "next/server";
 import { applyPrivateCacheHeaders } from "../../../../lib/security/private-routes";
 import { validatePublicAuthOrigin } from "../../../../lib/security/auth-abuse";
-import { RECOVERY_CONFIRMATION_LIMITS, parseRecoveryConfirmationUrl } from "../../../../lib/security/auth-abuse/recovery-confirmation.mjs";
+import { RECOVERY_CONFIRMATION_LIMITS, buildRecoveryVerificationUrl } from "../../../../lib/security/auth-abuse/recovery-confirmation.mjs";
 import { claimRecoveryContinuationToken } from "../../../../lib/security/auth-abuse/recovery-continuation";
+import { parseRecoveryFormBody } from "../../../../lib/security/auth-abuse/recovery-fragment.mjs";
 
-const ERROR_PATH = "/reset-password/confirm?error=invalid";
+const ERROR_PATHS = {
+  malformed: "/reset-password/confirm?error=malformed",
+  replayed: "/reset-password/confirm?error=replayed",
+  unavailable: "/reset-password/confirm?error=unavailable",
+} as const;
 
 export async function POST(request: Request) {
   const originFailure = validatePublicAuthOrigin(request, { recoveryContinuation: true });
   if (originFailure) return protect(originFailure);
 
-  let confirmationUrl = "";
+  let recoveryPayload: { tokenHash: string; type: string };
   try {
-    confirmationUrl = await readConfirmationUrl(request);
+    recoveryPayload = await readRecoveryPayload(request);
   } catch {
-    return errorRedirect(request);
+    return errorRedirect(request, "malformed");
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-  const parsed = parseRecoveryConfirmationUrl(confirmationUrl, supabaseUrl, new URL(request.url).origin);
-  if (!parsed) return errorRedirect(request);
+  const parsed = buildRecoveryVerificationUrl(recoveryPayload, supabaseUrl, new URL(request.url).origin);
+  if (!parsed) return errorRedirect(request, "malformed");
 
   try {
-    const claim = await claimRecoveryContinuationToken(parsed.token);
-    if (claim !== "claimed") return errorRedirect(request);
+    const claim = await claimRecoveryContinuationToken(parsed.tokenHash);
+    if (claim !== "claimed") return errorRedirect(request, "replayed");
   } catch {
-    return errorRedirect(request);
+    return errorRedirect(request, "unavailable");
   }
 
   return privateRedirect(parsed.url);
@@ -39,7 +44,7 @@ export function HEAD() {
   return new Response(null, { headers: privateHeaders({ Allow: "POST" }), status: 405 });
 }
 
-async function readConfirmationUrl(request: Request) {
+async function readRecoveryPayload(request: Request) {
   const contentType = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
   if (contentType !== "application/x-www-form-urlencoded") throw new Error("INVALID_FORM");
   const declaredLength = Number(request.headers.get("content-length"));
@@ -66,9 +71,9 @@ async function readConfirmationUrl(request: Request) {
     reader.releaseLock();
   }
 
-  const form = new URLSearchParams(text);
-  if ([...form.keys()].length !== 1 || form.getAll("confirmation_url").length !== 1) throw new Error("INVALID_FORM");
-  return form.get("confirmation_url") || "";
+  const recovery = parseRecoveryFormBody(text);
+  if (!recovery) throw new Error("INVALID_FORM");
+  return recovery;
 }
 
 function methodNotAllowed() {
@@ -78,8 +83,8 @@ function methodNotAllowed() {
   );
 }
 
-function errorRedirect(request: Request) {
-  return privateRedirect(new URL(ERROR_PATH, request.url));
+function errorRedirect(request: Request, reason: keyof typeof ERROR_PATHS) {
+  return privateRedirect(new URL(ERROR_PATHS[reason], request.url));
 }
 
 function privateRedirect(url: URL) {

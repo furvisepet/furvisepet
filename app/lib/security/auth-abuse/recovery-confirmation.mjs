@@ -1,39 +1,27 @@
 const VERIFY_PATH = "/auth/v1/verify";
 const RECOVERY_CALLBACK_PATH = "/auth/callback?flow=recovery";
-const MAX_CONFIRMATION_URL_LENGTH = 4096;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,512}$/;
 
-export function parseRecoveryConfirmationUrl(rawUrl, supabaseUrl, applicationOrigin) {
-  if (typeof rawUrl !== "string" || rawUrl.length === 0 || rawUrl.length > MAX_CONFIRMATION_URL_LENGTH) return null;
-
+export function buildRecoveryVerificationUrl({ tokenHash, type }, supabaseUrl, applicationOrigin) {
   let configured;
-  let candidate;
   let appOrigin;
   try {
     configured = new URL(supabaseUrl);
-    candidate = new URL(rawUrl);
     appOrigin = new URL(applicationOrigin).origin;
   } catch {
     return null;
   }
 
-  if (!isAllowedConfiguredOrigin(configured) || candidate.origin !== configured.origin) return null;
-  if (candidate.username || candidate.password || candidate.hash || candidate.pathname !== VERIFY_PATH) return null;
-  if (!hasExactlyOnce(candidate.searchParams, ["redirect_to", "token", "type"])) return null;
-
-  const token = candidate.searchParams.get("token") || "";
-  const type = candidate.searchParams.get("type");
-  const redirectTo = candidate.searchParams.get("redirect_to");
+  if (!isAllowedConfiguredOrigin(configured) || !TOKEN_PATTERN.test(tokenHash) || type !== "recovery") return null;
   const expectedRedirect = new URL(RECOVERY_CALLBACK_PATH, appOrigin).toString();
-  if (!TOKEN_PATTERN.test(token) || type !== "recovery" || redirectTo !== expectedRedirect) return null;
 
-  // Reconstruct rather than forwarding arbitrary input. This fixes the origin,
-  // path, parameter set, recovery type, and Furvise callback destination.
+  // Construct rather than forwarding template input. This fixes the provider
+  // origin, path, parameter set, recovery type, and Furvise callback.
   const verified = new URL(VERIFY_PATH, configured.origin);
-  verified.searchParams.set("token", token);
+  verified.searchParams.set("token", tokenHash);
   verified.searchParams.set("type", "recovery");
   verified.searchParams.set("redirect_to", expectedRedirect);
-  return { token, url: verified };
+  return { tokenHash, url: verified };
 }
 
 export async function claimRecoveryContinuationInStore({ store, token, secret, ttlMs = 24 * 60 * 60 * 1000 }) {
@@ -49,15 +37,8 @@ export async function claimRecoveryContinuationInStore({ store, token, secret, t
   return result === "new" ? "claimed" : "already_used";
 }
 
-function hasExactlyOnce(parameters, expectedKeys) {
-  const keys = [...parameters.keys()];
-  if (keys.length !== expectedKeys.length) return false;
-  return expectedKeys.every((key) => parameters.getAll(key).length === 1)
-    && keys.every((key) => expectedKeys.includes(key));
-}
-
 function isAllowedConfiguredOrigin(url) {
-  if (url.username || url.password || url.search || url.hash) return false;
+  if (url.username || url.password || url.pathname !== "/" || url.search || url.hash) return false;
   if (url.protocol === "https:") return true;
   return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname);
 }

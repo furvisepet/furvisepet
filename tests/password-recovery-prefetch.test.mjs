@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { MemoryAuthAbuseTestStore } from "../app/lib/security/auth-abuse/memory-test-store.ts";
 import {
+  buildRecoveryVerificationUrl,
   claimRecoveryContinuationInStore,
-  parseRecoveryConfirmationUrl,
 } from "../app/lib/security/auth-abuse/recovery-confirmation.mjs";
+import { parseRecoveryFormBody, parseRecoveryFragment } from "../app/lib/security/auth-abuse/recovery-fragment.mjs";
 import { createRecoveryContinuationIdentity } from "../app/lib/security/auth-abuse/recovery-secrets.mjs";
+import { SENTRY_DATA_COLLECTION, SENTRY_PRIVACY_OPTIONS } from "../app/lib/operations/sentry-privacy.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const appOrigin = "https://www.furvise.com";
@@ -23,6 +25,14 @@ function confirmationUrl(overrides = {}) {
   return url.toString();
 }
 
+function recoveryFragment(overrides = {}) {
+  const parameters = new URLSearchParams();
+  parameters.set("token_hash", overrides.tokenHash || token);
+  parameters.set("type", overrides.type || "recovery");
+  if (overrides.extra) parameters.append(overrides.extra[0], overrides.extra[1]);
+  return `#${parameters}`;
+}
+
 test("the initial email-link page and HEAD rendering cannot consume recovery", () => {
   const page = read("app/reset-password/confirm/page.tsx");
   const layout = read("app/reset-password/confirm/layout.tsx");
@@ -33,8 +43,8 @@ test("the initial email-link page and HEAD rendering cannot consume recovery", (
   assert.doesNotMatch(page, /<Link[^>]+api\/auth\/recovery\/continue|prefetch={true}/);
   assert.match(action, /export function HEAD\(\)[\s\S]*status: 405/);
   assert.match(action, /export function GET\(\)[\s\S]*methodNotAllowed/);
-  assert.ok(action.indexOf("export async function POST") < action.indexOf("claimRecoveryContinuationToken(parsed.token)"));
-  assert.equal(action.match(/claimRecoveryContinuationToken\(parsed\.token\)/g)?.length, 1);
+  assert.ok(action.indexOf("export async function POST") < action.indexOf("claimRecoveryContinuationToken(parsed.tokenHash)"));
+  assert.equal(action.match(/claimRecoveryContinuationToken\(parsed\.tokenHash\)/g)?.length, 1);
   assert.equal(action.match(/privateRedirect\(parsed\.url\)/g)?.length, 1);
   assert.doesNotMatch(action, /fetch\(|verifyOtp|exchangeCodeForSession/);
 });
@@ -51,32 +61,69 @@ test("scanner GETs and client rendering retain the token only in memory until an
   const page = read("app/reset-password/confirm/page.tsx");
   assert.match(page, /const fragment = window\.location\.hash/);
   assert.match(page, /window\.history\.replaceState/);
-  assert.match(page, /setConfirmationUrl\(value\)/);
+  assert.match(page, /setTokenHash\(recovery\.tokenHash\)/);
   assert.doesNotMatch(page, /localStorage|sessionStorage|document\.cookie|automatically|onSubmit|requestSubmit/);
   const documentation = read("docs/supabase-auth-production-checklist.md");
-  assert.match(documentation, /#confirmation_url={{ \.ConfirmationURL }}/);
+  assert.match(documentation, /#token_hash={{ \.TokenHash }}&amp;type=recovery/);
+  assert.doesNotMatch(documentation, /confirmation_url={{ \.ConfirmationURL }}/);
   assert.doesNotMatch(documentation, /href="{{ \.ConfirmationURL }}"/);
 });
 
-test("only the configured Supabase recovery verification URL is accepted", () => {
-  const parsed = parseRecoveryConfirmationUrl(confirmationUrl(), supabaseOrigin, appOrigin);
+test("realistic nested ConfirmationURL data survives the browser fragment but is ambiguous as an outer parameter", () => {
+  const realistic = confirmationUrl({
+    redirectTo: `${appOrigin}/auth/callback?flow=recovery&source=email%2Breset`,
+  });
+  assert.match(realistic, /token=/);
+  assert.match(realistic, /&type=recovery&redirect_to=/);
+  assert.match(realistic, /%3Fflow%3Drecovery%26source%3Demail%252Breset/);
+
+  const browserUrl = new URL(`${appOrigin}/reset-password/confirm#confirmation_url=${realistic}`);
+  assert.equal(browserUrl.hash.slice("#confirmation_url=".length), realistic);
+  assert.notEqual(new URLSearchParams(browserUrl.hash.slice(1)).get("confirmation_url"), realistic);
+  assert.equal(browserUrl.search, "");
+});
+
+test("discrete recovery fragment fields round-trip without a nested URL", () => {
+  const parsed = parseRecoveryFragment(recoveryFragment());
+  assert.deepEqual(parsed, { ok: true, tokenHash: token, type: "recovery" });
+  const encoded = new URL(`${appOrigin}/reset-password/confirm${recoveryFragment()}`);
+  assert.equal(encoded.search, "");
+  assert.equal(parseRecoveryFragment(encoded.hash).tokenHash, token);
+});
+
+test("only one configured Supabase recovery verification URL is reconstructed", () => {
+  const parsed = buildRecoveryVerificationUrl({ tokenHash: token, type: "recovery" }, supabaseOrigin, appOrigin);
   assert.ok(parsed);
   assert.equal(parsed.url.origin, supabaseOrigin);
   assert.equal(parsed.url.pathname, "/auth/v1/verify");
+  assert.equal(parsed.url.searchParams.get("token"), token);
   assert.equal(parsed.url.searchParams.get("type"), "recovery");
   assert.equal(parsed.url.searchParams.get("redirect_to"), `${appOrigin}/auth/callback?flow=recovery`);
+  assert.deepEqual([...parsed.url.searchParams.keys()], ["token", "type", "redirect_to"]);
 
-  for (const candidate of [
-    confirmationUrl({ origin: "https://evil.example" }),
-    confirmationUrl({ redirectTo: "https://evil.example/update-password" }),
-    confirmationUrl({ redirectTo: "//evil.example/update-password" }),
-    confirmationUrl({ type: "signup" }),
-    confirmationUrl({ token: "short" }),
-    confirmationUrl({ extra: "https://evil.example" }),
-    `${supabaseOrigin}/auth/v1/token?token=${token}&type=recovery&redirect_to=${encodeURIComponent(`${appOrigin}/auth/callback?flow=recovery`)}`,
-    `https://user:password@project-ref.supabase.co/auth/v1/verify?token=${token}&type=recovery&redirect_to=${encodeURIComponent(`${appOrigin}/auth/callback?flow=recovery`)}`,
-    "not a URL",
-  ]) assert.equal(parseRecoveryConfirmationUrl(candidate, supabaseOrigin, appOrigin), null, candidate);
+  for (const [payload, provider, application] of [
+    [{ tokenHash: "short", type: "recovery" }, supabaseOrigin, appOrigin],
+    [{ tokenHash: token, type: "signup" }, supabaseOrigin, appOrigin],
+    [{ tokenHash: token, type: "recovery" }, "https://user:password@project-ref.supabase.co", appOrigin],
+    [{ tokenHash: token, type: "recovery" }, `${supabaseOrigin}/auth/v1/verify`, appOrigin],
+    [{ tokenHash: token, type: "recovery" }, "not a URL", appOrigin],
+  ]) assert.equal(buildRecoveryVerificationUrl(payload, provider, application), null);
+});
+
+test("malformed, duplicated, incomplete, and extra fragment fields fail closed", () => {
+  for (const fragment of [
+    "", "#", "#token_hash=short&type=recovery", `#token_hash=${token}`, `#type=recovery`,
+    `#token_hash=${token}&token_hash=${token}&type=recovery`,
+    `#token_hash=${token}&type=recovery&type=recovery`,
+    `#token_hash=${token}&type=recovery&redirect_to=${encodeURIComponent(appOrigin)}`,
+    `#token_hash=${token}&type=signup`, `#token_hash=${token}%ZZ&type=recovery`,
+  ]) assert.equal(parseRecoveryFragment(fragment).ok, false, fragment);
+
+  for (const body of [
+    "", `token_hash=${token}`, "type=recovery", `token_hash=${token}&token_hash=${token}&type=recovery`,
+    `token_hash=${token}&type=recovery&type=recovery`, `token_hash=${token}&type=recovery&extra=value`,
+    `token_hash=short&type=recovery`, `token_hash=${token}&type=signup`,
+  ]) assert.equal(parseRecoveryFormBody(body), null, body);
 });
 
 test("explicit continuation is single-use and concurrent duplicates are blocked", async () => {
@@ -102,6 +149,28 @@ test("continuation persistence and source contain no raw token-bearing data", as
   const helper = read("app/lib/security/auth-abuse/recovery-continuation.ts");
   assert.doesNotMatch(action + helper, /console\.(?:log|info|warn|error)|emitOperationalEvent|captureException|captureMessage|localStorage|sessionStorage/);
   assert.doesNotMatch(helper, /key: `[^`]*\$\{token\}/);
+});
+
+test("fragments stay out of HTTP-facing state, Sentry payloads, and request-new-link prefetch", () => {
+  const page = read("app/reset-password/confirm/page.tsx");
+  const action = read("app/api/auth/recovery/continue/route.ts");
+  assert.match(page, /const fragment = window\.location\.hash/);
+  assert.match(page, /window\.history\.replaceState\(null, "", `\$\{window\.location\.pathname}\$\{window\.location\.search}`\)/);
+  assert.match(page, /href="\/forgot-password" prefetch={false}/);
+  assert.doesNotMatch(page, /Sentry|console\./);
+  assert.doesNotMatch(action, /console\.|captureException|captureMessage|emitOperationalEvent/);
+  assert.equal(SENTRY_DATA_COLLECTION.urlQueryParams, false);
+  assert.equal(SENTRY_PRIVACY_OPTIONS.beforeBreadcrumb(), null);
+  const scrubbed = SENTRY_PRIVACY_OPTIONS.beforeSend({ request: { url: `${appOrigin}/reset-password/confirm#token_hash=${token}` } });
+  assert.equal(scrubbed.request, undefined);
+});
+
+test("the continuation form accepts exactly the two reconstructed fields", () => {
+  const page = read("app/reset-password/confirm/page.tsx");
+  const action = read("app/api/auth/recovery/continue/route.ts");
+  assert.match(page, /name="token_hash"[\s\S]*name="type"[\s\S]*value="recovery"/);
+  assert.match(action, /parseRecoveryFormBody\(text\)/);
+  assert.doesNotMatch(action, /confirmation_url/);
 });
 
 test("intermediate and action responses are private and use route-appropriate referrer policy", () => {
