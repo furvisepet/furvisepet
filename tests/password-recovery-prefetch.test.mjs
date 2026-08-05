@@ -14,6 +14,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const appOrigin = "https://www.furvise.com";
 const supabaseOrigin = "https://project-ref.supabase.co";
 const token = "a".repeat(64);
+const handoffId = "b".repeat(64);
 const secret = "scanner-resistant-recovery-test-secret-longer-than-32-characters";
 
 function confirmationUrl(overrides = {}) {
@@ -92,14 +93,18 @@ test("discrete recovery fragment fields round-trip without a nested URL", () => 
 });
 
 test("only one configured Supabase recovery verification URL is reconstructed", () => {
-  const parsed = buildRecoveryVerificationUrl({ tokenHash: token, type: "recovery" }, supabaseOrigin, appOrigin);
+  const parsed = buildRecoveryVerificationUrl({ tokenHash: token, type: "recovery" }, supabaseOrigin, appOrigin, handoffId);
   assert.ok(parsed);
   assert.equal(parsed.url.origin, supabaseOrigin);
   assert.equal(parsed.url.pathname, "/auth/v1/verify");
   assert.equal(parsed.url.searchParams.get("token"), token);
   assert.equal(parsed.url.searchParams.get("type"), "recovery");
-  assert.equal(parsed.url.searchParams.get("redirect_to"), `${appOrigin}/auth/callback?flow=recovery`);
+  assert.equal(parsed.url.searchParams.get("redirect_to"), `${appOrigin}/auth/callback?flow=recovery&recovery_handoff=${handoffId}`);
   assert.deepEqual([...parsed.url.searchParams.keys()], ["token", "type", "redirect_to"]);
+  const callback = new URL(parsed.url.searchParams.get("redirect_to"));
+  callback.searchParams.set("code", "provider-code-placeholder");
+  assert.equal(callback.searchParams.get("flow"), "recovery");
+  assert.equal(callback.searchParams.get("recovery_handoff"), handoffId);
 
   for (const [payload, provider, application] of [
     [{ tokenHash: "short", type: "recovery" }, supabaseOrigin, appOrigin],
@@ -107,7 +112,8 @@ test("only one configured Supabase recovery verification URL is reconstructed", 
     [{ tokenHash: token, type: "recovery" }, "https://user:password@project-ref.supabase.co", appOrigin],
     [{ tokenHash: token, type: "recovery" }, `${supabaseOrigin}/auth/v1/verify`, appOrigin],
     [{ tokenHash: token, type: "recovery" }, "not a URL", appOrigin],
-  ]) assert.equal(buildRecoveryVerificationUrl(payload, provider, application), null);
+  ]) assert.equal(buildRecoveryVerificationUrl(payload, provider, application, handoffId), null);
+  assert.equal(buildRecoveryVerificationUrl({ tokenHash: token, type: "recovery" }, supabaseOrigin, appOrigin, "forged"), null);
 });
 
 test("malformed, duplicated, incomplete, and extra fragment fields fail closed", () => {
@@ -186,7 +192,7 @@ test("intermediate and action responses are private and use route-appropriate re
 test("verified recovery and ordinary callbacks retain their distinct behavior", () => {
   const callback = read("app/auth/callback/route.ts");
   const recovery = read("app/api/auth/recovery/route.ts");
-  const recoveryBranch = callback.slice(callback.indexOf('if (redirectType === "recovery")'), callback.indexOf("const { hasPet }"));
+  const recoveryBranch = callback.slice(callback.indexOf("if (recoveryClassification.recoveryCandidate)"), callback.indexOf("const { hasPet }"));
   assert.match(recovery, /new URL\("\/auth\/callback\?flow=recovery", request\.url\)/);
   assert.match(recoveryBranch, /issueRecoveryAuthorization/);
   assert.match(recoveryBranch, /new URL\("\/update-password", request\.nextUrl\.origin\)/);

@@ -22,6 +22,11 @@ export function createRecoveryContinuationIdentity(token, secret) {
   return hmac(`recovery-continuation:${token}`, secret);
 }
 
+export function createRecoveryHandoffIdentity(marker, secret) {
+  if (typeof marker !== "string" || typeof secret !== "string" || secret.length < 32) return null;
+  return hmac(`recovery-handoff:${marker}`, secret);
+}
+
 function hmac(value, secret) {
   return createHmac("sha256", secret).update(value).digest("hex");
 }

@@ -4,6 +4,12 @@ import { validatePublicAuthOrigin } from "../../../../lib/security/auth-abuse";
 import { RECOVERY_CONFIRMATION_LIMITS, buildRecoveryVerificationUrl } from "../../../../lib/security/auth-abuse/recovery-confirmation.mjs";
 import { claimRecoveryContinuationToken } from "../../../../lib/security/auth-abuse/recovery-continuation";
 import { parseRecoveryFormBody } from "../../../../lib/security/auth-abuse/recovery-fragment.mjs";
+import {
+  consumeRecoveryHandoff,
+  issueRecoveryHandoff,
+  RECOVERY_HANDOFF_COOKIE,
+  recoveryHandoffCookieOptions,
+} from "../../../../lib/security/auth-abuse/recovery-handoff";
 
 const ERROR_PATHS = {
   malformed: "/reset-password/confirm?error=malformed",
@@ -23,17 +29,33 @@ export async function POST(request: Request) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-  const parsed = buildRecoveryVerificationUrl(recoveryPayload, supabaseUrl, new URL(request.url).origin);
-  if (!parsed) return errorRedirect(request, "malformed");
-
+  let handoff: Awaited<ReturnType<typeof issueRecoveryHandoff>> = null;
   try {
-    const claim = await claimRecoveryContinuationToken(parsed.tokenHash);
-    if (claim !== "claimed") return errorRedirect(request, "replayed");
+    handoff = await issueRecoveryHandoff();
   } catch {
     return errorRedirect(request, "unavailable");
   }
+  if (!handoff) return errorRedirect(request, "unavailable");
+  const parsed = buildRecoveryVerificationUrl(recoveryPayload, supabaseUrl, new URL(request.url).origin, handoff.id);
+  if (!parsed) {
+    await consumeRecoveryHandoff(handoff.marker, handoff.id).catch(() => false);
+    return errorRedirect(request, "malformed");
+  }
 
-  return privateRedirect(parsed.url);
+  try {
+    const claim = await claimRecoveryContinuationToken(parsed.tokenHash);
+    if (claim !== "claimed") {
+      await consumeRecoveryHandoff(handoff.marker, handoff.id).catch(() => false);
+      return errorRedirect(request, "replayed");
+    }
+  } catch {
+    await consumeRecoveryHandoff(handoff.marker, handoff.id).catch(() => false);
+    return errorRedirect(request, "unavailable");
+  }
+
+  const response = privateRedirect(parsed.url);
+  response.cookies.set(RECOVERY_HANDOFF_COOKIE, handoff.marker, recoveryHandoffCookieOptions());
+  return response;
 }
 
 export function GET() {

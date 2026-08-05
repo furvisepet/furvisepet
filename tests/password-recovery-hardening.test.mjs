@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { MemoryRecoveryAuthorizationStore } from "../app/lib/security/auth-abuse/memory-recovery-authorization-store.ts";
+import { MemoryRecoveryHandoffStore } from "../app/lib/security/auth-abuse/memory-recovery-handoff-store.ts";
+import { classifyRecoveryCallback } from "../app/lib/security/auth-abuse/recovery-callback.mjs";
 import { performRecoveryPasswordUpdate } from "../app/lib/security/auth-abuse/recovery-completion.mjs";
+import { consumeRecoveryHandoffInStore, issueRecoveryHandoffInStore } from "../app/lib/security/auth-abuse/recovery-handoff-core.mjs";
 import { createRecoveryMarkerIdentity, createRecoveryPasswordCommitment } from "../app/lib/security/auth-abuse/recovery-secrets.mjs";
 import { getRateLimitPolicy } from "../app/lib/security/rate-limit/config.ts";
 
@@ -26,21 +29,28 @@ function authorization(store, userId, marker = "A".repeat(43), operationKey = "o
   };
 }
 
-test("authoritative Supabase recovery evidence issues a narrow opaque marker", () => {
+test("verified handoff and Supabase exchange issue a narrow opaque marker", () => {
   const callback = read("app/auth/callback/route.ts");
   const authorizationSource = read("app/lib/security/auth-abuse/recovery-authorization.ts");
-  assert.ok(callback.indexOf('redirectType === "recovery"') < callback.indexOf("issueRecoveryAuthorization(data.user.id, exchangeData.session.access_token)"));
+  const handoffSource = read("app/lib/security/auth-abuse/recovery-handoff.ts");
+  assert.ok(callback.indexOf("consumeRecoveryHandoff(handoffMarker, recoveryHandoffId)") < callback.indexOf("issueRecoveryAuthorization(data.user.id, exchangeData.session.access_token)"));
   assert.match(callback, /response\.cookies\.set\(RECOVERY_AUTH_COOKIE/);
   assert.match(authorizationSource, /randomBytes\(32\)\.toString\("base64url"\)/);
   assert.match(authorizationSource, /httpOnly: true/);
   assert.match(authorizationSource, /sameSite: "strict"/);
   assert.match(authorizationSource, /path: "\/api\/auth\/update-password"/);
   assert.match(authorizationSource, /RECOVERY_AUTH_MAX_AGE_SECONDS = 10 \* 60/);
+  assert.match(handoffSource, /RECOVERY_HANDOFF_MAX_AGE_SECONDS = 5 \* 60/);
+  assert.match(handoffSource, /httpOnly: true/);
+  assert.match(handoffSource, /sameSite: "lax"/);
+  assert.match(handoffSource, /path: "\/auth\/callback"/);
+  assert.match(handoffSource, /secure: process\.env\.NODE_ENV === "production"/);
 });
 
 test("verified recovery callback has one fixed destination independent of URL parameters", () => {
   const callback = read("app/auth/callback/route.ts");
-  const recoveryBranch = callback.slice(callback.indexOf('if (redirectType === "recovery")'), callback.indexOf("const { hasPet }"));
+  const recoveryBranch = callback.slice(callback.indexOf("if (recoveryClassification.recoveryCandidate)"), callback.indexOf("const { hasPet }"));
+  assert.match(recoveryBranch, /recoveryClassification\.handoffEligible[\s\S]*consumeRecoveryHandoff/);
   assert.match(recoveryBranch, /issueRecoveryAuthorization\(data\.user\.id, exchangeData\.session\.access_token\)/);
   assert.match(recoveryBranch, /new URL\("\/update-password", request\.nextUrl\.origin\)/);
   assert.ok(recoveryBranch.indexOf("issueRecoveryAuthorization") < recoveryBranch.indexOf("noStoreRedirect"));
@@ -51,11 +61,67 @@ test("verified recovery callback has one fixed destination independent of URL pa
 
 test("normal and maliciously annotated callbacks cannot enter recovery routing", () => {
   const callback = read("app/auth/callback/route.ts");
+  const valid = classifyRecoveryCallback({ redirectType: undefined, flowValues: ["recovery"], handoffValues: ["b".repeat(64)] });
+  assert.deepEqual(valid, { flow: "recovery", handoffEligible: true, handoffId: "b".repeat(64), recoveryCandidate: true });
+  assert.equal(classifyRecoveryCallback({ redirectType: "recovery", flowValues: [], handoffValues: [] }).handoffEligible, false);
+  assert.equal(classifyRecoveryCallback({ redirectType: undefined, flowValues: ["recovery"], handoffValues: [] }).handoffEligible, false);
+  assert.equal(classifyRecoveryCallback({ redirectType: undefined, flowValues: ["recovery", "recovery"], handoffValues: ["b".repeat(64)] }).handoffEligible, false);
+  assert.equal(classifyRecoveryCallback({ redirectType: "signup", flowValues: ["recovery"], handoffValues: ["b".repeat(64)] }).handoffEligible, false);
+  assert.equal(classifyRecoveryCallback({ redirectType: undefined, flowValues: [], handoffValues: [] }).recoveryCandidate, false);
+  assert.match(callback, /if \(!verifiedHandoff\) return recoverySessionFailure\(supabase, request\)/);
+  assert.match(callback, /supabase\.auth\.signOut\(\{ scope: "local" \}\)/);
+  assert.ok(callback.indexOf("classifyRecoveryCallback({ redirectType") < callback.indexOf("supabase.auth.getUser()"));
+  assert.match(callback, /userError \|\| !data\.user[\s\S]*recoveryClassification\.recoveryCandidate[\s\S]*recoverySessionFailure/);
   assert.match(callback, /if \(flow === "recovery"\) return callbackFailure\(request, flow\)/);
-  assert.ok(callback.indexOf('if (redirectType === "recovery")') < callback.indexOf('if (flow === "recovery") return callbackFailure'));
+  assert.ok(callback.indexOf("if (recoveryCandidate)") < callback.indexOf('if (flow === "recovery") return callbackFailure'));
   assert.ok(callback.indexOf('if (flow === "recovery") return callbackFailure') < callback.indexOf("const destination = resolvePostGoogleAuthDestination"));
   assert.match(callback, /resolvePostGoogleAuthDestination\([\s\S]*request\.nextUrl\.searchParams\.get\("next"\)/);
   assert.doesNotMatch(callback.slice(callback.indexOf("function callbackFailure")), /issueRecoveryAuthorization|RECOVERY_AUTH_COOKIE|\/update-password/);
+});
+
+test("Supabase redirectType is only a PKCE verifier suffix and can be null after a successful exchange", () => {
+  const installedClient = read("node_modules/@supabase/auth-js/src/GoTrueClient.ts");
+  const exchange = installedClient.slice(installedClient.indexOf("private async _exchangeCodeForSession"), installedClient.indexOf("Allows signing in with an OIDC ID token"));
+  assert.match(exchange, /const \[codeVerifier, redirectType\] = [\s\S]*\.split\('\/'\)/);
+  assert.match(exchange, /data: \{ \.\.\.data, redirectType: redirectType \?\? null \}/);
+  assert.doesNotMatch(exchange, /redirectType\s*=\s*data\.(?:session|user)/);
+});
+
+test("recovery handoff is browser-bound, short-lived, single-use, and replay-safe", async () => {
+  let now = 10_000;
+  const store = new MemoryRecoveryHandoffStore(() => now);
+  const handoff = await issueRecoveryHandoffInStore({ secret, store, ttlMs: 300_000 });
+  assert.ok(handoff);
+  assert.match(handoff.marker, /^[A-Za-z0-9_-]{43}$/);
+  assert.match(handoff.id, /^[a-f0-9]{64}$/);
+  assert.equal(await consumeRecoveryHandoffInStore({ ...handoff, secret, store, id: "f".repeat(64) }), false);
+  assert.equal(await consumeRecoveryHandoffInStore({ ...handoff, secret, store }), true);
+  assert.equal(await consumeRecoveryHandoffInStore({ ...handoff, secret, store }), false);
+
+  const expired = await issueRecoveryHandoffInStore({ secret, store, ttlMs: 300_000 });
+  now += 300_001;
+  assert.equal(await consumeRecoveryHandoffInStore({ ...expired, secret, store }), false);
+  const serialized = JSON.stringify([...store.values.entries()]);
+  assert.equal(serialized.includes(expired.marker), false);
+});
+
+test("continuation creates one handoff and callback performs one verification and one marker issuance", () => {
+  const continuation = read("app/api/auth/recovery/continue/route.ts");
+  const callback = read("app/auth/callback/route.ts");
+  assert.equal((continuation.match(/issueRecoveryHandoff\(\)/g) || []).length, 1);
+  assert.equal((continuation.match(/privateRedirect\(parsed\.url\)/g) || []).length, 1);
+  assert.equal((callback.match(/exchangeCodeForSession\(code\)/g) || []).length, 1);
+  assert.equal((callback.match(/issueRecoveryAuthorization\(data\.user\.id, exchangeData\.session\.access_token\)/g) || []).length, 1);
+  assert.ok(callback.indexOf("issueRecoveryAuthorization") < callback.indexOf('new URL("/update-password"'));
+});
+
+test("callback diagnostics expose only privacy-safe classifications", () => {
+  const callback = read("app/auth/callback/route.ts");
+  const logger = read("app/lib/operations/events/logger.ts");
+  assert.doesNotMatch(callback, /console\.(?:log|info|warn|error)|code,|tokenHash|session:|cookie:|email:|ip:/);
+  assert.match(callback, /eventType: "password_recovery_authorized"/);
+  assert.match(logger, /actor: safeOperationalIdentifier\(input\.actorId\)/);
+  assert.doesNotMatch(callback, /metadata:|operationId:|resourceId:/);
 });
 
 test("a valid recovery authorization permits exactly one password update", async () => {
