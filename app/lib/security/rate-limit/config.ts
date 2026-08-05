@@ -36,6 +36,13 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
     name: "DATA_EXPORT",
     user: { limit: 3, windowMs: HOUR },
   },
+  ACCOUNT_PASSWORD_CHANGE: {
+    failurePolicy: "fail_closed",
+    ip: { limit: 20, windowMs: 15 * MINUTE },
+    modelBacked: false,
+    name: "ACCOUNT_PASSWORD_CHANGE",
+    user: { limit: 5, windowMs: 15 * MINUTE },
+  },
   AUTH_SIGNUP: authPolicy("AUTH_SIGNUP", 5, 15 * MINUTE, 3, HOUR, 20),
   AUTH_LOGIN: authPolicy("AUTH_LOGIN", 20, 15 * MINUTE, 10, 15 * MINUTE, 80),
   AUTH_PASSWORD_RECOVERY: authPolicy("AUTH_PASSWORD_RECOVERY", 5, HOUR, 3, HOUR, 20),

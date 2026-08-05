@@ -291,6 +291,7 @@ test("every current API mutation route is inventoried behind a direct or canonic
   const vetBriefs = new Set(["app/api/vet-briefs/draft/route.ts", "app/api/vet-briefs/route.ts"]);
   const petProfiles = new Set(["app/api/pets/route.ts"]);
   const publicAuth = new Set([
+    "app/api/account/change-password/route.ts",
     "app/api/auth/login/route.ts", "app/api/auth/oauth/route.ts", "app/api/auth/recovery/continue/route.ts", "app/api/auth/recovery/route.ts",
     "app/api/auth/resend/route.ts", "app/api/auth/signup/route.ts", "app/api/auth/update-password/route.ts",
   ]);
