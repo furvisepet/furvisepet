@@ -9,6 +9,7 @@ import {
   getActiveMobileNavigationTab,
   MOBILE_NAVIGATION_IDLE_EXPAND_MS,
   MOBILE_NAVIGATION_ITEMS,
+  NAVIGATION_ICON_ASSETS,
   resolveMobileNavigationState,
   shouldShowMobileNavigation,
   type MobileNavigationState,
@@ -70,10 +71,10 @@ type AppHeaderProps = {
 };
 
 export const APP_NAV_ITEMS = [
-  { href: "/dashboard", label: "Today" },
-  { href: "/pets", label: "Pets" },
-  { href: "/care-log", label: "History" },
-  { href: "/ask", label: "Ask" },
+  { asset: NAVIGATION_ICON_ASSETS.today, href: "/dashboard", label: "Today" },
+  { asset: NAVIGATION_ICON_ASSETS.pets, href: "/pets", label: "Pets" },
+  { asset: NAVIGATION_ICON_ASSETS.history, href: "/care-log", label: "History" },
+  { asset: NAVIGATION_ICON_ASSETS.ask, href: "/ask", label: "Ask" },
   { href: "/shop", label: "Products" },
 ] as const;
 
@@ -251,6 +252,11 @@ export function AppHeader({
                     href={item.href}
                     key={item.href}
                   >
+                    {"asset" in item ? (
+                      <span aria-hidden="true" className="mr-1.5 inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden">
+                        <NavigationIcon asset={item.asset} />
+                      </span>
+                    ) : null}
                     {item.label}
                   </Link>
                 ))}
@@ -298,8 +304,8 @@ export function AppHeader({
               const hideLabel = mobileNavigationState === "compact" && !active;
               return (
                 <Link aria-current={active ? "page" : undefined} aria-label={item.label} className={`flex min-h-11 min-w-0 flex-col items-center justify-center rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href}>
-                  <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
-                    <Image alt="" aria-hidden="true" className="h-full w-full object-contain" decoding="sync" draggable={false} height={40} loading="eager" src={item.asset} width={40} />
+                  <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
+                    <NavigationIcon asset={item.asset} eager />
                   </span>
                   <span className={hideLabel ? "sr-only" : "block"}>{item.label}</span>
                 </Link>
@@ -307,8 +313,8 @@ export function AppHeader({
             })}
             <details className="relative" ref={mobileMoreRef}>
               <summary aria-current={activeMobileTab === "more" ? "page" : undefined} aria-label="Open More menu" className={`flex min-h-11 h-full cursor-pointer list-none flex-col items-center justify-center rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-[gap,color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${mobileNavigationState === "compact" ? "gap-0.5" : "gap-1"} ${activeMobileTab === "more" ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} ref={(node) => { mobileMoreSummaryRef.current = node; }}>
-                <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${activeMobileTab === "more" ? "bg-[var(--selected-navigation-background)]" : ""}`}>
-                  <Image alt="" aria-hidden="true" className="h-full w-full object-contain" decoding="sync" draggable={false} height={40} loading="eager" src="/images/more_dots.png" width={40} />
+                <span className={`${mobileNavigationState === "compact" ? "h-8 w-10" : "h-10 w-12"} inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-[width,height,background-color] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none ${activeMobileTab === "more" ? "bg-[var(--selected-navigation-background)]" : ""}`}>
+                  <NavigationIcon asset={NAVIGATION_ICON_ASSETS.more} eager />
                 </span>
                 <span className={mobileNavigationState === "compact" && activeMobileTab !== "more" ? "sr-only" : "block"}>More</span>
               </summary>
@@ -328,5 +334,21 @@ export function AppHeader({
         </nav>
       ) : null}
     </>
+  );
+}
+
+function NavigationIcon({ asset, eager = false }: { asset: string; eager?: boolean }) {
+  return (
+    <Image
+      alt=""
+      aria-hidden="true"
+      className="h-full w-full scale-[2.35] object-contain"
+      decoding={eager ? "sync" : "async"}
+      draggable={false}
+      height={72}
+      loading={eager ? "eager" : "lazy"}
+      src={asset}
+      width={48}
+    />
   );
 }
