@@ -1,5 +1,6 @@
 export type LiquidGlassInstance = {
   destroy(): void;
+  markChanged(element?: HTMLElement): void;
 };
 
 export type LiquidGlassOptions = {

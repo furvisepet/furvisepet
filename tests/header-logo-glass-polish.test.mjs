@@ -43,8 +43,8 @@ test("mobile keeps all five image icons inside the LiquidGlass-enhanced dock", (
   assert.match(mobile, /mobile-liquid-glass-scene/);
   assert.match(mobile, /ref=\{mobileGlassRootRef\}/);
   assert.match(mobile, /ref=\{mobileGlassRef\}/);
-  assert.match(css, /\.mobile-liquid-glass \{[\s\S]*linear-gradient[\s\S]*box-shadow:[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
-  assert.match(css, /data-liquid-glass-state="active"[\s\S]*background: transparent/);
+  assert.match(css, /\.mobile-liquid-glass-scene \{[\s\S]*linear-gradient[\s\S]*box-shadow:[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
+  assert.match(css, /\.mobile-liquid-glass \{[\s\S]*background: transparent/);
 });
 
 test("the exact reviewed LiquidGlass release is vendored and lazy initialized only on capable mobile browsers", () => {
@@ -56,20 +56,20 @@ test("the exact reviewed LiquidGlass release is vendored and lazy initialized on
   assert.match(liquidGlassHook, /await import\("\.\.\/vendor\/liquidglass\/index\.js"\)/);
   assert.match(liquidGlassHook, /LiquidGlass\.init\(\{[\s\S]*root,[\s\S]*glassElements: \[glass\]/);
   assert.match(liquidGlassHook, /const MOBILE_MEDIA_QUERY = "\(max-width: 1023px\)"/);
-  assert.match(liquidGlassHook, /mobileQuery\.matches[\s\S]*\(capable \?\?= supportsLiquidGlass\(\)\)/);
+  assert.match(liquidGlassHook, /mobileQuery\.matches[\s\S]*\? readSupport\(\)/);
   assert.match(liquidGlassHook, /document\.visibilityState === "visible"/);
   assert.doesNotMatch(header, /@ybouane\/liquidglass|LiquidGlass\.init/);
 });
 
 test("SSR, reduced motion, unsupported platforms, and initialization errors retain the CSS fallback", () => {
   const beforeEffect = liquidGlassHook.slice(0, liquidGlassHook.indexOf("useEffect(() =>"));
-  assert.doesNotMatch(beforeEffect, /supportsLiquidGlass\(\);|import\("\.\.\/vendor\/liquidglass\/index\.js"\)/);
-  assert.match(liquidGlassHook, /useEffect\(\(\) => \{[\s\S]*supportsLiquidGlass\(\)/);
+  assert.doesNotMatch(beforeEffect, /inspectLiquidGlassSupport\(\);|import\("\.\.\/vendor\/liquidglass\/index\.js"\)/);
+  assert.match(liquidGlassHook, /useEffect\(\(\) => \{[\s\S]*inspectLiquidGlassSupport\(\)/);
   assert.match(liquidGlassHook, /REDUCED_MOTION_QUERY = "\(prefers-reduced-motion: reduce\)"/);
   assert.match(liquidGlassHook, /CSS\.supports\("backdrop-filter"/);
-  assert.match(liquidGlassHook, /canvas\.getContext\("webgl"\)/);
+  assert.match(liquidGlassHook, /webglCanvas\.getContext\("webgl"\)/);
   assert.match(liquidGlassHook, /root\.dataset\.liquidGlassState = "fallback"/);
-  assert.match(liquidGlassHook, /catch \{[\s\S]*stop\(\)/);
+  assert.match(liquidGlassHook, /catch \{[\s\S]*stop\("unsupported"\)/);
   assert.match(liquidGlassRuntime, /catch \(error\) \{[\s\S]*instance\.destroy\(\);[\s\S]*throw error;/);
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.mobile-liquid-glass-scene \{ display: none; \}/);
+  assert.doesNotMatch(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.mobile-liquid-glass-scene \{ display: none; \}/);
 });

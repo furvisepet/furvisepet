@@ -121,7 +121,7 @@ export function AppHeader({
         : []
   );
 
-  useMobileLiquidGlass(mobileGlassRootRef, mobileGlassRef, showMobileNavigation);
+  useMobileLiquidGlass(mobileGlassRootRef, mobileGlassRef, showMobileNavigation, pathname);
 
   useEffect(() => {
     if (authState) return;
