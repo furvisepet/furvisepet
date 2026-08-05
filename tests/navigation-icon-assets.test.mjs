@@ -14,6 +14,7 @@ const expectedAssets = {
   history: "/images/history_clock.png",
   more: "/images/more_dots.png",
   pets: "/images/pets_paw.png",
+  products: "/images/pet_products.png",
   today: "/images/today_house.png",
 };
 
@@ -30,6 +31,7 @@ test("mobile destinations retain the intended icon assets while desktop stays te
     ["History", "/history", expectedAssets.history],
     ["Ask", "/ask", expectedAssets.ask],
     ["Pets", "/pets", expectedAssets.pets],
+    ["Products", "/shop", expectedAssets.products],
   ];
   assert.deepEqual(
     MOBILE_NAVIGATION_ITEMS.map(({ asset, href, label }) => [label, href, asset]),
@@ -41,12 +43,36 @@ test("mobile destinations retain the intended icon assets while desktop stays te
   assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\} eager/);
 });
 
+test("the mobile dock has exactly six evenly distributed actions in the required order", () => {
+  assert.equal(MOBILE_NAVIGATION_ITEMS.length, 5);
+  assert.deepEqual(MOBILE_NAVIGATION_ITEMS.map(({ label }) => label), ["Today", "History", "Ask", "Pets", "Products"]);
+  const mobile = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
+  assert.match(mobile, /grid-cols-6/);
+  assert.match(mobile, /MOBILE_NAV_ITEMS\.map/);
+  assert.match(mobile, /<span className=\{mobileNavigationState[\s\S]*>More<\/span>/);
+  assert.match(mobile, /mx-4[\s\S]*p-1[\s\S]*px-0\.5/);
+  assert.match(mobile, /min-h-11/);
+  assert.match(mobile, /whitespace-nowrap/);
+});
+
+test("Products has one canonical icon path and remains outside the LiquidGlass capture target", () => {
+  const navigationSource = read("app/lib/navigation/mobile-navigation.ts");
+  assert.equal((navigationSource.match(/\/images\/pet_products\.png/g) ?? []).length, 1);
+  const mobile = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
+  const emptyGlassTarget = mobile.indexOf('data-liquid-glass-skip-content=""');
+  const ignoredInteractiveLayer = mobile.indexOf('data-liquid-glass-ignore=""');
+  const mappedIcons = mobile.indexOf("<NavigationIcon asset={item.asset}");
+  assert.ok(emptyGlassTarget >= 0 && ignoredInteractiveLayer > emptyGlassTarget && mappedIcons > ignoredInteractiveLayer);
+});
+
 test("navigation images use bounded object-contain rendering without artwork-damaging effects", () => {
   assert.match(header, /import Image from "next\/image"/);
   assert.match(header, /asset === NAVIGATION_ICON_ASSETS\.more \? "scale-\[2\.65\]" : "scale-\[2\.35\]"/);
   assert.match(header, /className=\{`h-full w-full \$\{artworkScale\} object-contain`\}/);
   assert.match(header, /height=\{72\}/);
   assert.match(header, /width=\{48\}/);
+  assert.match(header, /grid-cols-6/);
+  assert.match(header, /min-h-11 min-w-0/);
   assert.match(header, /h-8 w-10" : "h-10 w-12"\}[^"]*overflow-hidden/);
   assert.match(header, /alt=""[\s\S]*aria-hidden="true"/);
   assert.doesNotMatch(header, /(?:filter|opacity|mask|object-cover)/);

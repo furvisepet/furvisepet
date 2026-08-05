@@ -76,7 +76,7 @@ test("Pets actions, Ask composer, and overflow all clear the bottom navigation",
 });
 
 test("More contains Products and Account and has complete dismissal behavior", () => {
-  const more = header.slice(header.indexOf('<details className="relative" ref={mobileMoreRef}>'));
+  const more = header.slice(header.indexOf('<details className="relative min-w-0" ref={mobileMoreRef}>'));
   assert.match(more, /data-ui="mobile-more-menu"/);
   assert.match(more, /href="\/shop"[\s\S]*>Products<\/Link>/);
   assert.match(more, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);

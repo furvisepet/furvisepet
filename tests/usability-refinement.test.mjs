@@ -19,7 +19,7 @@ test("application navigation uses the reset route labels", () => {
   for (const label of ["Today", "Pets", "History", "Ask"]) {
     assert.match(header, new RegExp(`label: "${label}"`));
   }
-  assert.match(header, /const MOBILE_NAV_ITEMS = \[[\s\S]*Today[\s\S]*History[\s\S]*Ask[\s\S]*Pets/);
+  assert.match(header, /const MOBILE_NAV_ITEMS = \[[\s\S]*Today[\s\S]*History[\s\S]*Ask[\s\S]*Pets[\s\S]*Products/);
   assert.doesNotMatch(header, /label: "Dashboard"|label: "Care history"|label: "Ask Furvise"/);
 });
 
@@ -86,9 +86,9 @@ test("Products centers one search with four popular categories", () => {
   assert.doesNotMatch(products, /lg:grid-cols-\[minmax\(22\.5rem/);
 });
 
-test("Products is present in desktop navigation and under More on mobile", () => {
+test("Products is present in desktop and primary mobile navigation while More retains its menu", () => {
   const mobileNavigation = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
-  assert.doesNotMatch(mobileNavigation, /Products|\/shop/);
+  assert.match(mobileNavigation, /icon: "products", label: "Products"/);
   const desktopNavigation = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.match(desktopNavigation, /href: "\/shop", label: "Products"/);
   assert.match(header, />More<[\s\S]*href="\/shop"[\s\S]*>Products</);
