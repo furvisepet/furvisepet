@@ -11,9 +11,18 @@ import {
   RECOVERY_AUTH_COOKIE,
   recoveryAuthorizationCookieOptions,
 } from "../../lib/security/auth-abuse/recovery-authorization";
+import {
+  consumeRecoveryHandoff,
+  RECOVERY_HANDOFF_COOKIE,
+  RECOVERY_HANDOFF_QUERY,
+  recoveryHandoffCookieOptions,
+} from "../../lib/security/auth-abuse/recovery-handoff";
+import { classifyRecoveryCallback } from "../../lib/security/auth-abuse/recovery-callback.mjs";
 
 export async function GET(request: NextRequest) {
-  const flow = request.nextUrl.searchParams.get("flow");
+  const flowValues = request.nextUrl.searchParams.getAll("flow");
+  const handoffValues = request.nextUrl.searchParams.getAll(RECOVERY_HANDOFF_QUERY);
+  const flow = flowValues.length === 1 ? flowValues[0] : null;
   const code = request.nextUrl.searchParams.get("code");
   const providerError = request.nextUrl.searchParams.get("error_description")
     || request.nextUrl.searchParams.get("error");
@@ -26,17 +35,31 @@ export async function GET(request: NextRequest) {
     const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeError) return callbackFailure(request, flow);
 
-    const { data, error: userError } = await supabase.auth.getUser();
-    if (userError || !data.user) return callbackFailure(request, flow);
-
     const redirectType = (exchangeData as typeof exchangeData & { redirectType?: unknown }).redirectType;
-    if (redirectType === "recovery") {
-      // Supabase derives redirectType from its server-managed PKCE verifier. The
-      // recovery branch must never depend on flow, next, returnTo, or other URL input.
-      const marker = await issueRecoveryAuthorization(data.user.id, exchangeData.session.access_token);
-      if (!marker) return callbackFailure(request, flow);
+    const recoveryClassification = classifyRecoveryCallback({ redirectType, flowValues, handoffValues });
+    const { data, error: userError } = await supabase.auth.getUser();
+    if (userError || !data.user) {
+      return recoveryClassification.recoveryCandidate
+        ? recoverySessionFailure(supabase, request)
+        : callbackFailure(request, flow);
+    }
+
+    if (recoveryClassification.recoveryCandidate) {
+      const handoffMarker = request.cookies.get(RECOVERY_HANDOFF_COOKIE)?.value || "";
+      let verifiedHandoff = false;
+      try {
+        verifiedHandoff = recoveryClassification.handoffEligible
+          && await consumeRecoveryHandoff(handoffMarker, recoveryClassification.handoffId);
+      } catch { /* Fail closed below. */ }
+      if (!verifiedHandoff) return recoverySessionFailure(supabase, request);
+      let marker = null;
+      try {
+        marker = await issueRecoveryAuthorization(data.user.id, exchangeData.session.access_token);
+      } catch { /* Fail closed below. */ }
+      if (!marker) return recoverySessionFailure(supabase, request);
       const response = noStoreRedirect(new URL("/update-password", request.nextUrl.origin));
       response.cookies.set(RECOVERY_AUTH_COOKIE, marker, recoveryAuthorizationCookieOptions());
+      clearRecoveryHandoffCookie(response);
       emitOperationalEvent({ actorId: data.user.id, eventType: "password_recovery_authorized", feature: "password_recovery", requestId: crypto.randomUUID(), route: "/auth/callback", severity: "info" });
       return response;
     }
@@ -53,6 +76,17 @@ export async function GET(request: NextRequest) {
   } catch {
     return callbackFailure(request, flow);
   }
+}
+
+async function recoverySessionFailure(supabase: NonNullable<Awaited<ReturnType<typeof createServerSupabase>>>, request: NextRequest) {
+  await supabase.auth.signOut({ scope: "local" }).catch(() => null);
+  const response = callbackFailure(request, "recovery");
+  clearRecoveryHandoffCookie(response);
+  return response;
+}
+
+function clearRecoveryHandoffCookie(response: NextResponse) {
+  response.cookies.set(RECOVERY_HANDOFF_COOKIE, "", { ...recoveryHandoffCookieOptions(), maxAge: 0 });
 }
 
 function callbackFailure(request: NextRequest, flow: string | null) {

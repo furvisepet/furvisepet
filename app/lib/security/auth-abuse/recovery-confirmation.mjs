@@ -1,8 +1,9 @@
 const VERIFY_PATH = "/auth/v1/verify";
 const RECOVERY_CALLBACK_PATH = "/auth/callback?flow=recovery";
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,512}$/;
+const HANDOFF_ID_PATTERN = /^[a-f0-9]{64}$/;
 
-export function buildRecoveryVerificationUrl({ tokenHash, type }, supabaseUrl, applicationOrigin) {
+export function buildRecoveryVerificationUrl({ tokenHash, type }, supabaseUrl, applicationOrigin, handoffId) {
   let configured;
   let appOrigin;
   try {
@@ -12,15 +13,16 @@ export function buildRecoveryVerificationUrl({ tokenHash, type }, supabaseUrl, a
     return null;
   }
 
-  if (!isAllowedConfiguredOrigin(configured) || !TOKEN_PATTERN.test(tokenHash) || type !== "recovery") return null;
-  const expectedRedirect = new URL(RECOVERY_CALLBACK_PATH, appOrigin).toString();
+  if (!isAllowedConfiguredOrigin(configured) || !TOKEN_PATTERN.test(tokenHash) || type !== "recovery" || !HANDOFF_ID_PATTERN.test(handoffId)) return null;
+  const expectedRedirect = new URL(RECOVERY_CALLBACK_PATH, appOrigin);
+  expectedRedirect.searchParams.set("recovery_handoff", handoffId);
 
   // Construct rather than forwarding template input. This fixes the provider
   // origin, path, parameter set, recovery type, and Furvise callback.
   const verified = new URL(VERIFY_PATH, configured.origin);
   verified.searchParams.set("token", tokenHash);
   verified.searchParams.set("type", "recovery");
-  verified.searchParams.set("redirect_to", expectedRedirect);
+  verified.searchParams.set("redirect_to", expectedRedirect.toString());
   return { tokenHash, url: verified };
 }
 
