@@ -102,11 +102,11 @@ test("reduced motion remains expanded and disables visual transitions", () => {
 });
 
 test("the glass dock uses semantic color roles and reserves safe page space", () => {
-  assert.match(mobileNavigation, /backdrop-blur-\[22px\]/);
-  assert.match(mobileNavigation, /backdrop-saturate-\[145%\]/);
-  assert.match(mobileNavigation, /bg-\[color-mix\(in_srgb,var\(--navigation-background\)_65%,transparent\)\]/);
-  assert.match(mobileNavigation, /border-\[color-mix\(in_srgb,var\(--border-subtle\)_70%,transparent\)\]/);
-  assert.match(mobileNavigation, /shadow-\[var\(--shadow-bottom-nav\)\]/);
+  assert.match(mobileNavigation, /mobile-liquid-glass/);
+  const css = read("app/globals.css");
+  assert.match(css, /\.mobile-liquid-glass \{[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
+  assert.match(css, /\.mobile-liquid-glass \{[\s\S]*inset 0 1px 0[\s\S]*0 14px 38px/);
+  assert.match(css, /\.mobile-liquid-glass::before/);
   assert.match(mobileNavigation, /pb-\[var\(--mobile-nav-safe-area\)\]/);
   assert.doesNotMatch(mobileNavigation, /#[0-9a-f]{3,8}|(?:bg|text|border|ring)-(?:white|black|red|green|blue|orange|amber|stone|gray)-/i);
   assert.match(read("app/globals.css"), /--mobile-nav-expanded-height: 5\.75rem;[\s\S]*--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-expanded-height\)/);
@@ -118,7 +118,8 @@ test("persistent navigation icons are eagerly decoded and do not remount by path
   assert.match(header, /loading=\{eager \? "eager" : "lazy"\}/);
   assert.match(header, /decoding=\{eager \? "sync" : "async"\}/);
   assert.doesNotMatch(mobileNavigation, /key=\{pathname\}|opacity-0|animate-opacity/);
-  assert.match(header, /className="h-full w-full scale-\[2\.35\] object-contain"/);
+  assert.match(header, /asset === NAVIGATION_ICON_ASSETS\.more \? "scale-\[2\.65\]" : "scale-\[2\.35\]"/);
+  assert.match(header, /className=\{`h-full w-full \$\{artworkScale\} object-contain`\}/);
   assert.match(header, /height=\{72\}/);
   assert.match(header, /width=\{48\}/);
 });

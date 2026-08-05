@@ -22,7 +22,9 @@ export function AccountAccessLayout({
       <PageShell className="flex min-h-screen flex-col" preset="reading">
         <header className="flex min-h-[4.25rem] items-center border-b border-[var(--line)] pt-[env(safe-area-inset-top,0px)]">
           <Link className="inline-flex min-h-11 items-center" href="/" aria-label="Furvise home">
-            <BrandMark priority size={31} />
+            <span className="inline-flex items-center [--brand-mark-size:2.5rem]">
+              <BrandMark priority size={40} />
+            </span>
           </Link>
         </header>
         <section className="flex flex-1 items-center justify-center py-8 sm:py-12">

@@ -313,6 +313,72 @@ body {
   --brand-mark-size: 34px;
 }
 
+.mobile-liquid-glass-root {
+  isolation: isolate;
+}
+
+.mobile-liquid-glass-scene {
+  position: absolute;
+  inset: 0 1rem 0.5rem;
+  display: block;
+  max-width: 42rem;
+  margin-inline: auto;
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.74), transparent 34%),
+    linear-gradient(135deg, rgba(227, 243, 222, 0.42), rgba(255, 253, 247, 0.2) 48%, rgba(210, 232, 222, 0.38));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mobile-liquid-glass {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, white 68%, var(--border-subtle));
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.52), rgba(255, 253, 247, 0.22) 48%, rgba(227, 243, 222, 0.32)),
+    color-mix(in srgb, var(--navigation-background) 54%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    inset 0 -1px 0 rgba(18, 63, 39, 0.08),
+    0 14px 38px rgba(18, 63, 39, 0.14),
+    0 3px 10px rgba(18, 63, 39, 0.08);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
+  backdrop-filter: blur(24px) saturate(155%);
+}
+
+.mobile-liquid-glass-root[data-liquid-glass-state="active"] .mobile-liquid-glass-scene {
+  opacity: 0.72;
+}
+
+.mobile-liquid-glass-root[data-liquid-glass-state="active"] .mobile-liquid-glass {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.mobile-liquid-glass::before {
+  position: absolute;
+  inset: 1px 10% auto;
+  z-index: 0;
+  height: 42%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.46), transparent);
+  content: "";
+  pointer-events: none;
+}
+
+.mobile-liquid-glass-root[data-liquid-glass-state="active"] .mobile-liquid-glass::before {
+  display: none;
+}
+
+.mobile-liquid-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
 @media (min-width: 640px) {
   .onboarding-brand {
     --brand-mark-size: 40px;
@@ -321,6 +387,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .onboarding-success-mark { animation: none; }
+
+  .mobile-liquid-glass-scene { display: none; }
 }
 
 .app-page-end-clearance {

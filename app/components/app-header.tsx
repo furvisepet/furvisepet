@@ -14,6 +14,7 @@ import {
   shouldShowMobileNavigation,
   type MobileNavigationState,
 } from "../lib/navigation/mobile-navigation";
+import { useMobileLiquidGlass } from "../lib/navigation/use-mobile-liquid-glass";
 import { getBrowserSupabase } from "../lib/supabase";
 import { BrandMark } from "./brand-mark";
 import { appPageContainer, PrimaryButton, TextAction } from "./product-primitives";
@@ -71,10 +72,10 @@ type AppHeaderProps = {
 };
 
 export const APP_NAV_ITEMS = [
-  { asset: NAVIGATION_ICON_ASSETS.today, href: "/dashboard", label: "Today" },
-  { asset: NAVIGATION_ICON_ASSETS.pets, href: "/pets", label: "Pets" },
-  { asset: NAVIGATION_ICON_ASSETS.history, href: "/care-log", label: "History" },
-  { asset: NAVIGATION_ICON_ASSETS.ask, href: "/ask", label: "Ask" },
+  { href: "/dashboard", label: "Today" },
+  { href: "/pets", label: "Pets" },
+  { href: "/care-log", label: "History" },
+  { href: "/ask", label: "Ask" },
   { href: "/shop", label: "Products" },
 ] as const;
 
@@ -103,6 +104,8 @@ export function AppHeader({
   const menuRef = useRef<HTMLDetailsElement>(null);
   const mobileMoreRef = useRef<HTMLDetailsElement>(null);
   const mobileMoreSummaryRef = useRef<HTMLElement | null>(null);
+  const mobileGlassRootRef = useRef<HTMLElement>(null);
+  const mobileGlassRef = useRef<HTMLDivElement>(null);
   const [mobileNavigationState, setMobileNavigationState] = useState<MobileNavigationState>(() => retainedMobileNavigationState);
   const menuId = useId();
   const isHomepage = variant === "homepage" && pathname === "/";
@@ -117,6 +120,8 @@ export function AppHeader({
         ? [{ href: "/login", label: "Sign in", variant: "secondary" as const }, { href: NEW_PET_LOGIN_PATH, label: "Add your pet", variant: "secondary" as const }]
         : []
   );
+
+  useMobileLiquidGlass(mobileGlassRootRef, mobileGlassRef, showMobileNavigation);
 
   useEffect(() => {
     if (authState) return;
@@ -237,7 +242,7 @@ export function AppHeader({
         <div className={`${appPageContainer} flex min-h-[calc(4.25rem+env(safe-area-inset-top,0px))] items-center justify-between gap-4 pt-[env(safe-area-inset-top,0px)] lg:grid lg:min-h-[4.25rem] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4 lg:pt-0`} data-ui="header-optical-row">
           <div className="flex min-w-0 items-center lg:justify-self-start" data-ui="desktop-brand-zone">
             <Link aria-label="Furvise home" className="flex min-h-11 shrink-0 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2" href={brandHref}>
-              {brandMark ?? <span className="inline-flex items-center [--brand-mark-size:2rem] lg:[--brand-mark-size:2.55rem]"><BrandMark priority size={32} /></span>}
+              {brandMark ?? <span className="inline-flex items-center [--brand-mark-size:2rem] lg:[--brand-mark-size:3.125rem]"><BrandMark priority size={32} /></span>}
             </Link>
           </div>
 
@@ -252,11 +257,6 @@ export function AppHeader({
                     href={item.href}
                     key={item.href}
                   >
-                    {"asset" in item ? (
-                      <span aria-hidden="true" className="mr-1.5 inline-flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden">
-                        <NavigationIcon asset={item.asset} />
-                      </span>
-                    ) : null}
                     {item.label}
                   </Link>
                 ))}
@@ -297,8 +297,9 @@ export function AppHeader({
       </header>
 
       {showMobileNavigation ? (
-        <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-state={mobileNavigationState} data-ui="mobile-bottom-navigation">
-          <div className={`mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] border border-[color-mix(in_srgb,var(--border-subtle)_70%,transparent)] bg-[color-mix(in_srgb,var(--navigation-background)_65%,transparent)] p-1.5 shadow-[var(--shadow-bottom-nav)] backdrop-blur-[22px] backdrop-saturate-[145%] transition-[height,padding] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none sm:mx-auto ${mobileNavigationState === "compact" ? "h-[var(--mobile-nav-height)]" : "h-[var(--mobile-nav-expanded-height)]"}`} data-ui="mobile-navigation-dock">
+        <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-state={mobileNavigationState} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
+          <span aria-hidden="true" className="mobile-liquid-glass-scene" />
+          <div className={`mobile-liquid-glass mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] p-1.5 transition-[height,padding] duration-[var(--motion-standard)] ease-[var(--ease-out)] motion-reduce:transition-none sm:mx-auto ${mobileNavigationState === "compact" ? "h-[var(--mobile-nav-height)]" : "h-[var(--mobile-nav-expanded-height)]"}`} data-ui="mobile-navigation-dock" ref={mobileGlassRef}>
             {MOBILE_NAV_ITEMS.map((item) => {
               const active = activeMobileTab === item.tab;
               const hideLabel = mobileNavigationState === "compact" && !active;
@@ -338,11 +339,13 @@ export function AppHeader({
 }
 
 function NavigationIcon({ asset, eager = false }: { asset: string; eager?: boolean }) {
+  const artworkScale = asset === NAVIGATION_ICON_ASSETS.more ? "scale-[2.65]" : "scale-[2.35]";
+
   return (
     <Image
       alt=""
       aria-hidden="true"
-      className="h-full w-full scale-[2.35] object-contain"
+      className={`h-full w-full ${artworkScale} object-contain`}
       decoding={eager ? "sync" : "async"}
       draggable={false}
       height={72}
