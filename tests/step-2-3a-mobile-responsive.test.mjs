@@ -26,7 +26,7 @@ test("mobile header has a compact safe-area-aware height and responsive approved
   assert.match(header, /min-h-\[calc\(4\.25rem\+env\(safe-area-inset-top,0px\)\)\]/);
   assert.match(header, /\[--brand-mark-size:2rem\]/);
   assert.match(brand, /width: showName \? `calc\(\$\{responsiveSize\} \* 3\.2\)` : responsiveSize/);
-  assert.match(header, /lg:\[--brand-mark-size:2\.55rem\]/);
+  assert.match(header, /lg:\[--brand-mark-size:3\.125rem\]/);
   assert.match(brand, /var\(--brand-mark-size, \$\{size\}px\)/);
 });
 

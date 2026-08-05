@@ -15,20 +15,21 @@ test("desktop brand, routes, and Account share one optical alignment row", () =>
   assert.match(header, /lg:justify-self-start" data-ui="desktop-brand-zone"/);
   assert.match(header, /justify-self-center lg:flex" data-ui="desktop-navigation-zone"/);
   assert.match(header, /lg:justify-self-end" data-ui="desktop-account-zone"/);
-  assert.match(header, /inline-flex items-center \[--brand-mark-size:2rem\][\s\S]*lg:\[--brand-mark-size:2\.55rem\]/);
+  assert.match(header, /inline-flex items-center \[--brand-mark-size:2rem\][\s\S]*lg:\[--brand-mark-size:3\.125rem\]/);
   assert.match(header, /data-ui="desktop-account-container"/);
   assert.match(header, /aria-label="Open account menu" className="flex min-h-11/);
   assert.doesNotMatch(header, /(?:ml|mr|translate-x)-\[/);
 });
 
 test("desktop routes use one shared warm-neutral container and compact selected state", () => {
-  const desktop = header.slice(header.indexOf('<nav aria-label="Primary navigation"'), header.indexOf('<div className="flex shrink-0 items-center gap-2">'));
+  const desktop = header.slice(header.indexOf('<nav aria-label="Primary navigation"'), header.indexOf('data-ui="desktop-account-zone"'));
   assert.match(desktop, /bg-\[var\(--surface-raised\)\][\s\S]*data-ui="desktop-navigation-container"/);
   assert.match(desktop, /flex min-h-11 items-center/);
   assert.match(desktop, /bg-\[color-mix\(in_srgb,var\(--soft-sage\)_88%,var\(--sage\)_12%\)\]/);
   assert.match(desktop, /shadow-\[inset_0_0_0_1px_var\(--sage\)\]/);
   assert.match(desktop, /bg-transparent font-medium text-\[var\(--deep-forest\)\]/);
   assert.match(desktop, /data-active-indicator=\{isActive\(item\.href\) \? "background"/);
+  assert.doesNotMatch(desktop, /NavigationIcon|<Image|asset:/);
 });
 
 test("mobile dock has the exact icon and label destinations with a selected state", () => {
@@ -48,7 +49,8 @@ test("mobile dock has the exact icon and label destinations with a selected stat
 test("mobile navigation is a translucent semantic floating dock with no logo or orange", () => {
   const mobileNav = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
   assert.match(mobileNav, /mx-4 mb-2 grid[\s\S]*h-\[var\(--mobile-nav-height\)\][\s\S]*h-\[var\(--mobile-nav-expanded-height\)\]/);
-  assert.match(mobileNav, /rounded-\[var\(--radius-xl\)\][\s\S]*bg-\[color-mix\(in_srgb,var\(--navigation-background\)_65%,transparent\)\][\s\S]*backdrop-blur-\[22px\][\s\S]*backdrop-saturate-\[145%\]/);
+  assert.match(mobileNav, /mobile-liquid-glass[\s\S]*rounded-\[var\(--radius-xl\)\]/);
+  assert.match(css, /\.mobile-liquid-glass \{[\s\S]*linear-gradient[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
   assert.doesNotMatch(mobileNav, /BrandMark|furvise-logo|action-primary|orange/i);
 });
 

@@ -24,7 +24,7 @@ test("the shared navigation icon inventory maps every action to its replacement 
   }
 });
 
-test("desktop and mobile destinations share the intended icon assets", () => {
+test("mobile destinations retain the intended icon assets while desktop stays text-only", () => {
   const expectedMobile = [
     ["Today", "/today", expectedAssets.today],
     ["History", "/history", expectedAssets.history],
@@ -36,23 +36,17 @@ test("desktop and mobile destinations share the intended icon assets", () => {
     expectedMobile,
   );
 
-  for (const [key, href, label] of [
-    ["today", "/dashboard", "Today"],
-    ["pets", "/pets", "Pets"],
-    ["history", "/care-log", "History"],
-    ["ask", "/ask", "Ask"],
-  ]) {
-    assert.match(header, new RegExp(`asset: NAVIGATION_ICON_ASSETS\\.${key}, href: "${href}", label: "${label}"`));
-  }
+  const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
+  assert.doesNotMatch(desktop, /asset:|NAVIGATION_ICON_ASSETS|<Image|NavigationIcon/);
   assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\} eager/);
 });
 
 test("navigation images use bounded object-contain rendering without artwork-damaging effects", () => {
   assert.match(header, /import Image from "next\/image"/);
-  assert.match(header, /className="h-full w-full scale-\[2\.35\] object-contain"/);
+  assert.match(header, /asset === NAVIGATION_ICON_ASSETS\.more \? "scale-\[2\.65\]" : "scale-\[2\.35\]"/);
+  assert.match(header, /className=\{`h-full w-full \$\{artworkScale\} object-contain`\}/);
   assert.match(header, /height=\{72\}/);
   assert.match(header, /width=\{48\}/);
-  assert.match(header, /h-5 w-5[^"]*overflow-hidden/);
   assert.match(header, /h-8 w-10" : "h-10 w-12"\}[^"]*overflow-hidden/);
   assert.match(header, /alt=""[\s\S]*aria-hidden="true"/);
   assert.doesNotMatch(header, /(?:filter|opacity|mask|object-cover)/);
