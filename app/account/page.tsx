@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AppPage } from "../components/app-page";
 import { accountInputClass } from "../components/account-access";
-import { PageHeader, PrimaryButton } from "../components/product-primitives";
+import { PageHeader, PrimaryButton, TextAction } from "../components/product-primitives";
 import { getAccountCountrySourceLabel } from "../lib/account-country";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import { GOOGLE_AUTH_ENABLED, buildOAuthCallbackUrl, getConnectedAuthProviders } from "../lib/auth-identity";
@@ -185,6 +185,11 @@ export default function AccountPage() {
         <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Plan</h2>
         <p className="mt-2 font-semibold text-[var(--pw-text)]">Free plan</p>
         <p className="mt-2 leading-7 text-[var(--pw-muted)]">Furvise Plus is not available yet. No checkout is started from this page.</p>
+      </section>
+      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
+        <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Security</h2>
+        <p className="mt-2 leading-7 text-[var(--pw-muted)]">Change your sign-in password or use the verified reset-email option if you have forgotten it.</p>
+        <TextAction className="mt-3" href="/settings/security">Open security settings</TextAction>
       </section>
       <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
         <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Your Furvise data</h2>

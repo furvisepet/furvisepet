@@ -10,6 +10,7 @@ const PRIVATE_ROUTE_PREFIXES = [
   "/products",
   "/results",
   "/shop",
+  "/settings",
   "/today",
   "/vet-brief",
   "/vet-briefs",

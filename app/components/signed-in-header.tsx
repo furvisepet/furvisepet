@@ -87,6 +87,11 @@ export function SignedInHeader({ variant = "site" }: { variant?: "homepage" | "s
           },
           {
             type: "link" as const,
+            href: "/settings/security",
+            label: "Security",
+          },
+          {
+            type: "link" as const,
             href: "/privacy",
             label: "Privacy",
           },

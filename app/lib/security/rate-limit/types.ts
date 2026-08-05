@@ -10,6 +10,7 @@ export type RateLimitPolicyName =
   | "DESTRUCTIVE_WRITE"
   | "CATALOG_READ"
   | "DATA_EXPORT"
+  | "ACCOUNT_PASSWORD_CHANGE"
   | "AUTH_SIGNUP"
   | "AUTH_LOGIN"
   | "AUTH_PASSWORD_RECOVERY"
