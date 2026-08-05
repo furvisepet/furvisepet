@@ -104,9 +104,9 @@ test("reduced motion remains expanded and disables visual transitions", () => {
 test("the glass dock uses semantic color roles and reserves safe page space", () => {
   assert.match(mobileNavigation, /mobile-liquid-glass/);
   const css = read("app/globals.css");
-  assert.match(css, /\.mobile-liquid-glass \{[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
-  assert.match(css, /\.mobile-liquid-glass \{[\s\S]*inset 0 1px 0[\s\S]*0 14px 38px/);
-  assert.match(css, /\.mobile-liquid-glass::before/);
+  assert.match(css, /\.mobile-liquid-glass-scene \{[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
+  assert.match(css, /\.mobile-liquid-glass-scene \{[\s\S]*inset 0 1px 0[\s\S]*0 14px 38px/);
+  assert.match(css, /\.mobile-liquid-glass-scene::before/);
   assert.match(mobileNavigation, /pb-\[var\(--mobile-nav-safe-area\)\]/);
   assert.doesNotMatch(mobileNavigation, /#[0-9a-f]{3,8}|(?:bg|text|border|ring)-(?:white|black|red|green|blue|orange|amber|stone|gray)-/i);
   assert.match(read("app/globals.css"), /--mobile-nav-expanded-height: 5\.75rem;[\s\S]*--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-expanded-height\)/);
