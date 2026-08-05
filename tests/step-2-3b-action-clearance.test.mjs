@@ -76,14 +76,15 @@ test("Pets actions, Ask composer, and overflow all clear the bottom navigation",
 });
 
 test("More contains Products and Account and has complete dismissal behavior", () => {
-  const more = header.slice(header.indexOf('<details className="relative min-w-0" ref={mobileMoreRef}>'));
+  const more = header.slice(header.indexOf('data-ui="mobile-more-container"'), header.indexOf('{isHomepage && resolvedAuthState'));
   assert.match(more, /data-ui="mobile-more-menu"/);
   assert.match(more, /href="\/shop"[\s\S]*>Products<\/Link>/);
   assert.match(more, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);
-  assert.match(header, /document\.addEventListener\("pointerdown", handlePointerDown\)/);
+  assert.match(header, /document\.addEventListener\("click", handleOutsideClick\)/);
   assert.match(header, /event\.key !== "Escape"/);
-  assert.match(header, /mobileMoreSummaryRef\.current\?\.focus\(\)/);
-  assert.match(more, /bottom-\[calc\(100%\+0\.5rem\)\]/);
+  assert.match(header, /mobileMoreButtonRef\.current\?\.focus\(\)/);
+  assert.match(more, /top-\[calc\(100%\+0\.5rem\)\]/);
+  assert.match(more, /aria-expanded=\{mobileMoreOpen\}/);
 });
 
 test("navigation order, desktop active treatment, and brand assets stay protected", () => {

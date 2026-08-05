@@ -39,11 +39,11 @@ test("mobile controls and product discovery chips remain compact and touch frien
   assert.match(products, /min-h-11[\s\S]*text-\[0\.9375rem\]/);
 });
 
-test("one bottom-navigation token drives rendered height, safe-area clearance, and composer offset", () => {
+test("one stable bottom-navigation height drives safe-area clearance and composer offset", () => {
   assert.match(css, /--mobile-nav-height: 4\.25rem;/);
   assert.match(css, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\);/);
   assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*24px/);
-  assert.match(header, /h-\[var\(--mobile-nav-height\)\]/);
+  assert.match(header, /h-\[var\(--mobile-nav-expanded-height\)\]/);
   assert.match(header, /pb-\[var\(--mobile-nav-safe-area\)\]/);
   assert.match(css, /\.app-mobile-nav-clearance[\s\S]*var\(--mobile-nav-clearance\)/);
   assert.match(css, /--mobile-sticky-gap: var\(--space-3\);/);
@@ -51,7 +51,7 @@ test("one bottom-navigation token drives rendered height, safe-area clearance, a
   assert.match(appPage, /app-mobile-nav-clearance/);
 });
 
-test("mobile navigation order remains stable while compact mode keeps only the active label visible", () => {
+test("mobile navigation order and labels remain stable during scrolling", () => {
   const mobile = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
   let cursor = -1;
   for (const label of ["Today", "History", "Ask", "Pets", "Products"]) {
@@ -59,10 +59,10 @@ test("mobile navigation order remains stable while compact mode keeps only the a
     assert.ok(next > cursor, `${label} stays in route order`);
     cursor = next;
   }
-  assert.match(header, /mobileNavigationState === "compact" && activeMobileTab !== "more" \? "sr-only" : "block whitespace-nowrap"\}>More<\/span>/);
   assert.match(header, /text-\[0\.6875rem\]/);
   assert.match(header, /data-active-indicator=\{active \? "icon-capsule"/);
-  assert.match(header, /hideLabel \? "sr-only" : "block whitespace-nowrap"/);
+  assert.match(header, /<span className="block whitespace-nowrap">\{item\.label\}<\/span>/);
+  assert.doesNotMatch(header, /mobileNavigationState|hideLabel|addEventListener\("scroll"/);
 });
 
 test("Ask keeps composer and disclaimer in one nav-aware sticky region", () => {

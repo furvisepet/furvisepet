@@ -91,7 +91,7 @@ test("Products is present in desktop and primary mobile navigation while More re
   assert.match(mobileNavigation, /icon: "products", label: "Products"/);
   const desktopNavigation = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.match(desktopNavigation, /href: "\/shop", label: "Products"/);
-  assert.match(header, />More<[\s\S]*href="\/shop"[\s\S]*>Products</);
+  assert.match(header, /data-ui="mobile-more-container"[\s\S]*href="\/shop"[\s\S]*>Products</);
   assert.doesNotMatch(read("app/components/signed-in-header.tsx"), /href: "\/shop"|Browse products/);
 });
 

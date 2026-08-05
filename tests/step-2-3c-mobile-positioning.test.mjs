@@ -22,7 +22,7 @@ test("shared mobile navigation geometry owns height, safe area, clearance, and s
   assert.match(css, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\);/);
   assert.match(css, /--mobile-sticky-gap: var\(--space-3\);/);
   assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)[\s\S]*24px/);
-  assert.match(header, /h-\[var\(--mobile-nav-height\)\]/);
+  assert.match(header, /h-\[var\(--mobile-nav-expanded-height\)\]/);
   assert.match(header, /pb-\[var\(--mobile-nav-safe-area\)\]/);
 });
 

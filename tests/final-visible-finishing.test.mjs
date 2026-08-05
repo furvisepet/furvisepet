@@ -47,7 +47,7 @@ test("authenticated homepage and application use the same primary navigation", (
 test("Products is a normal feature location and not an Account action", () => {
   assert.doesNotMatch(signedHeader, /href: "\/shop"|Browse products/);
   assert.match(header, /href: "\/shop", label: "Products"/);
-  assert.match(header, />More<[\s\S]*href="\/shop"[\s\S]*>Products</);
+  assert.match(header, /data-ui="mobile-more-container"[\s\S]*href="\/shop"[\s\S]*>Products</);
   assert.match(products, /export default function ShopPage/);
 });
 
