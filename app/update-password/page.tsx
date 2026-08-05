@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AccountAccessLayout, AccountField, AccountStatus, accountInputClass, accountPrimaryClass } from "../components/account-access";
-import { getBrowserSupabase, getSupabaseConfigError } from "../lib/supabase";
+import { getBrowserSupabase, getSupabaseConfigError, setBrowserSupabasePersistence } from "../lib/supabase";
+
+const PASSWORD_RESET_SUCCESS_PATH = "/login?passwordReset=success";
 
 export default function UpdatePasswordPage() {
   const [email, setEmail] = useState("");
@@ -12,7 +14,6 @@ export default function UpdatePasswordPage() {
   const configError = getSupabaseConfigError();
   const [loading, setLoading] = useState(!configError);
   const [saving, setSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState(configError);
   const [sessionReady, setSessionReady] = useState(false);
   const idempotencyKey = useRef<string | null>(null);
@@ -54,7 +55,6 @@ export default function UpdatePasswordPage() {
     }
     setSaving(true);
     setErrorMessage("");
-    setSuccessMessage("");
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) throw new Error("This password reset link is missing or expired. Request a new reset email.");
@@ -66,7 +66,12 @@ export default function UpdatePasswordPage() {
         return;
       }
       idempotencyKey.current = null;
-      setSuccessMessage(payload?.message || "Your password was updated.");
+      setNewPassword("");
+      setConfirmPassword("");
+      try { await supabase.auth.signOut({ scope: "local" }); }
+      catch { /* Server cookie cleanup has already failed closed. */ }
+      setBrowserSupabasePersistence(null);
+      window.location.replace(PASSWORD_RESET_SUCCESS_PATH);
     } catch (updateError) {
       setErrorMessage(updateError instanceof Error ? friendlyUpdatePasswordError(updateError.message) : "Furvise could not update your password. Please try again.");
     } finally {
@@ -79,19 +84,13 @@ export default function UpdatePasswordPage() {
       <div className="space-y-5">
         {configError ? <AccountStatus tone="warning" text={configError} /> : null}
         {errorMessage ? <AccountStatus tone="danger" text={errorMessage} /> : null}
-        {successMessage ? (
-          <div className="grid gap-4">
-            <AccountStatus text={successMessage} />
-            <Link className={accountPrimaryClass} href="/dashboard">Go to Today</Link>
-          </div>
-        ) : (
-          <form className="grid gap-4" onSubmit={submitPassword}>
-            <AccountField label="New password" name="new-password"><input autoComplete="new-password" className={accountInputClass} id="new-password" maxLength={128} minLength={12} name="new-password" onChange={(event) => { idempotencyKey.current = null; setNewPassword(event.target.value); }} placeholder="New password" required type="password" value={newPassword} /></AccountField>
-            <AccountField label="Confirm password" name="confirm-password"><input autoComplete="new-password" className={accountInputClass} id="confirm-password" maxLength={128} minLength={12} name="confirm-password" onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm password" required type="password" value={confirmPassword} /></AccountField>
-            <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>
-            <button className={accountPrimaryClass} disabled={loading || saving || Boolean(configError) || !sessionReady} type="submit">{saving ? "Updating password..." : "Update password"}</button>
-          </form>
-        )}
+        <form className="grid gap-4" onSubmit={submitPassword}>
+          <AccountField label="New password" name="new-password"><input autoComplete="new-password" className={accountInputClass} id="new-password" maxLength={128} minLength={12} name="new-password" onChange={(event) => { idempotencyKey.current = null; setNewPassword(event.target.value); }} placeholder="New password" required type="password" value={newPassword} /></AccountField>
+          <AccountField label="Confirm password" name="confirm-password"><input autoComplete="new-password" className={accountInputClass} id="confirm-password" maxLength={128} minLength={12} name="confirm-password" onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm password" required type="password" value={confirmPassword} /></AccountField>
+          <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>
+          <button className={accountPrimaryClass} disabled={loading || saving || Boolean(configError) || !sessionReady} type="submit">{saving ? "Updating password..." : "Update password"}</button>
+        </form>
+        {errorMessage && !sessionReady ? <Link className={accountPrimaryClass} href="/forgot-password">Request a new reset link</Link> : null}
         <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" href="/login">Back to sign in</Link>
         {loading ? <p className="text-sm text-[var(--text-secondary)]">Recovery session is being prepared.</p> : null}
       </div>

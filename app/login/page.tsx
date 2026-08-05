@@ -28,6 +28,8 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const configError = getSupabaseConfigError();
+  const passwordResetValues = searchParams.getAll("passwordReset");
+  const passwordResetSucceeded = passwordResetValues.length === 1 && passwordResetValues[0] === "success";
   const nextPath = getSafeNextPath(searchParams.get("next") || searchParams.get("returnTo"), "/today");
   const { status: authStatus } = useConfirmedSupabaseAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -175,6 +177,7 @@ function LoginPageContent() {
         {!authChecked ? <AccountStatus text="Checking your session..." /> : null}
         {configError ? <AccountStatus tone="warning" text={configError} /> : null}
         {error ? <AccountStatus tone="danger" text={error} /> : null}
+        {passwordResetSucceeded ? <AccountStatus text="Your password has been updated. Sign in with your new password." /> : null}
         {showConfirmationRecovery ? <SignupSuccessNotice /> : null}
         {statusMessage ? <AccountStatus text={statusMessage} /> : null}
 
