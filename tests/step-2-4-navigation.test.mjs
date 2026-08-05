@@ -39,8 +39,8 @@ test("mobile dock has the exact icon and label destinations with a selected stat
     assert.ok(next > cursor, `${label} retains its required order and icon`);
     cursor = next;
   }
-  assert.match(header, /src="\/images\/more_dots\.png"/);
-  assert.match(header, /flex min-h-11[\s\S]*flex-col[\s\S]*<Image[^>]*src=\{item\.asset\}[^>]*\/>[\s\S]*\{item\.label\}<\/span>/);
+  assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\}/);
+  assert.match(header, /flex min-h-11[\s\S]*flex-col[\s\S]*<NavigationIcon asset=\{item\.asset\} eager \/>[\s\S]*\{item\.label\}<\/span>/);
   assert.match(header, /data-active-indicator=\{active \? "icon-capsule"/);
   assert.match(header, /active \? "bg-\[var\(--selected-navigation-background\)\]"/);
 });

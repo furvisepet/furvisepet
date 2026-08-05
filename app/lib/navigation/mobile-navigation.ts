@@ -4,11 +4,19 @@ export type MobileNavigationTab = "ask" | "history" | "more" | "pets" | "today";
 export const MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX = 14;
 export const MOBILE_NAVIGATION_IDLE_EXPAND_MS = 300;
 
+export const NAVIGATION_ICON_ASSETS = {
+  ask: "/images/ask_chat.png",
+  history: "/images/history_clock.png",
+  more: "/images/more_dots.png",
+  pets: "/images/pets_paw.png",
+  today: "/images/today_house.png",
+} as const;
+
 export const MOBILE_NAVIGATION_ITEMS = [
-  { asset: "/images/today_house.png", href: "/today", label: "Today", matches: ["/today", "/dashboard"], tab: "today" },
-  { asset: "/images/history_clock.png", href: "/history", label: "History", matches: ["/history", "/care-log"], tab: "history" },
-  { asset: "/images/ask_chat.png", href: "/ask", label: "Ask", matches: ["/ask"], tab: "ask" },
-  { asset: "/images/pets_paw.png", href: "/pets", label: "Pets", matches: ["/pets", "/dogs"], tab: "pets" },
+  { asset: NAVIGATION_ICON_ASSETS.today, href: "/today", label: "Today", matches: ["/today", "/dashboard"], tab: "today" },
+  { asset: NAVIGATION_ICON_ASSETS.history, href: "/history", label: "History", matches: ["/history", "/care-log"], tab: "history" },
+  { asset: NAVIGATION_ICON_ASSETS.ask, href: "/ask", label: "Ask", matches: ["/ask"], tab: "ask" },
+  { asset: NAVIGATION_ICON_ASSETS.pets, href: "/pets", label: "Pets", matches: ["/pets", "/dogs"], tab: "pets" },
 ] as const;
 
 const MORE_ROUTE_PREFIXES = ["/account", "/privacy", "/settings", "/shop", "/terms", "/vet-brief", "/vet-briefs"] as const;

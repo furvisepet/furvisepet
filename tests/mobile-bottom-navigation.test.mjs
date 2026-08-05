@@ -29,7 +29,7 @@ test("mobile destinations use the approved public image assets", () => {
     ],
   );
   for (const item of MOBILE_NAVIGATION_ITEMS) assert.equal(existsSync(new URL(`../public${item.asset}`, import.meta.url)), true);
-  assert.match(mobileNavigation, /src="\/images\/more_dots\.png"/);
+  assert.match(header, /NAVIGATION_ICON_ASSETS\.more/);
   assert.doesNotMatch(mobileNavigation, /\/images\/(?:cat|dog)\.png/);
   assert.match(header, /import Image from "next\/image"/);
 });
@@ -113,9 +113,14 @@ test("the glass dock uses semantic color roles and reserves safe page space", ()
 });
 
 test("persistent navigation icons are eagerly decoded and do not remount by pathname", () => {
-  assert.match(mobileNavigation, /loading="eager"/);
-  assert.match(mobileNavigation, /decoding="sync"/);
+  assert.match(mobileNavigation, /<NavigationIcon asset=\{item\.asset\} eager \/>/);
+  assert.match(mobileNavigation, /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} eager \/>/);
+  assert.match(header, /loading=\{eager \? "eager" : "lazy"\}/);
+  assert.match(header, /decoding=\{eager \? "sync" : "async"\}/);
   assert.doesNotMatch(mobileNavigation, /key=\{pathname\}|opacity-0|animate-opacity/);
+  assert.match(header, /className="h-full w-full scale-\[2\.35\] object-contain"/);
+  assert.match(header, /height=\{72\}/);
+  assert.match(header, /width=\{48\}/);
 });
 
 test("History alias reuses the established care-history implementation", () => {
