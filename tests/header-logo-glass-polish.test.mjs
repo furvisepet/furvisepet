@@ -69,7 +69,7 @@ test("SSR, reduced motion, unsupported platforms, and initialization errors reta
   assert.match(liquidGlassHook, /CSS\.supports\("backdrop-filter"/);
   assert.match(liquidGlassHook, /webglCanvas\.getContext\("webgl"\)/);
   assert.match(liquidGlassHook, /root\.dataset\.liquidGlassState = "fallback"/);
-  assert.match(liquidGlassHook, /catch \{[\s\S]*stop\("unsupported"\)/);
+  assert.match(liquidGlassHook, /catch \{[\s\S]*root\.dataset\.liquidGlassState = "fallback"/);
   assert.match(liquidGlassRuntime, /catch \(error\) \{[\s\S]*instance\.destroy\(\);[\s\S]*throw error;/);
   assert.doesNotMatch(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.mobile-liquid-glass-scene \{ display: none; \}/);
 });

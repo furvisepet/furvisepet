@@ -338,13 +338,20 @@ body {
   -webkit-backdrop-filter: blur(24px) saturate(155%);
   backdrop-filter: blur(24px) saturate(155%);
   pointer-events: none;
+  z-index: 0;
 }
 
 .mobile-liquid-glass {
-  position: relative;
+  position: absolute;
+  inset: 0 1rem calc(0.5rem + var(--mobile-nav-safe-area));
+  max-width: 42rem;
+  margin-inline: auto;
   isolation: isolate;
   border: 1px solid transparent;
   background: transparent;
+  border-radius: var(--radius-xl);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .mobile-liquid-glass-scene::before {
@@ -365,6 +372,11 @@ body {
 .mobile-liquid-glass > :not(canvas) {
   position: relative;
   z-index: 1;
+}
+
+.mobile-liquid-glass-content {
+  position: relative;
+  z-index: 2;
 }
 
 @media (min-width: 640px) {
