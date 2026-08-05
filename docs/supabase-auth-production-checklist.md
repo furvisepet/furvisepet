@@ -28,10 +28,10 @@ These settings cannot be proven from repository code. Record screenshots/exporte
 - [ ] In **Authentication → Email Templates → Reset password**, replace the reset link with the scanner-resistant Furvise intermediate link below. This Dashboard-only setting is not verifiable from the repository.
 
 ```html
-<a href="{{ .SiteURL }}/reset-password/confirm#confirmation_url={{ .ConfirmationURL }}">Reset password</a>
+<a href="{{ .SiteURL }}/reset-password/confirm#token_hash={{ .TokenHash }}&amp;type=recovery">Reset password</a>
 ```
 
-The token-bearing `ConfirmationURL` must remain in the URL fragment. Do not move it into the query string, and do not link to `ConfirmationURL` directly. Set the production Site URL to `https://www.furvise.com` without a trailing slash, send a fresh recovery email, and verify that the first HTTP request is only to `/reset-password/confirm`.
+Supabase documents `TokenHash` for constructing custom email links, but does not document an in-template URL-encoding helper for safely nesting `ConfirmationURL`. The template therefore transports only the URL-safe token hash and a literal recovery type. Furvise reconstructs the exact configured Supabase `/auth/v1/verify` URL and fixed callback only after the user explicitly continues. Keep the token hash in the fragment, never in the HTTP query string, and do not link to `ConfirmationURL` directly. Set the production Site URL to `https://www.furvise.com` without a trailing slash, send a fresh recovery email, and verify that the first HTTP request is only to `/reset-password/confirm`.
 
 ## Password security
 

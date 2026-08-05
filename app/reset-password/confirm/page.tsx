@@ -3,33 +3,43 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AccountAccessLayout, AccountStatus, accountPrimaryClass } from "../../components/account-access";
+import { parseRecoveryFragment } from "../../lib/security/auth-abuse/recovery-fragment.mjs";
 
-const FRAGMENT_PREFIX = "#confirmation_url=";
-const MAX_CONFIRMATION_URL_LENGTH = 4096;
+type RecoveryPageState = "loading" | "ready" | "missing_fragment" | "malformed_recovery_link" | "already_consumed" | "provider_invalid" | "service_unavailable";
 
 export default function ResetPasswordConfirmPage() {
-  const [confirmationUrl, setConfirmationUrl] = useState("");
-  const [state, setState] = useState<"loading" | "ready" | "invalid">("loading");
+  const [tokenHash, setTokenHash] = useState("");
+  const [state, setState] = useState<RecoveryPageState>("loading");
 
   useEffect(() => {
     const fragment = window.location.hash;
-    const hasError = new URLSearchParams(window.location.search).has("error");
+    const error = new URLSearchParams(window.location.search).get("error");
     // Remove the token-bearing fragment immediately. It is retained only in
     // component memory until the user explicitly submits the native form.
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
-      if (hasError || !fragment.startsWith(FRAGMENT_PREFIX)) {
-        setState("invalid");
+      if (error) {
+        setState(error === "replayed"
+          ? "already_consumed"
+          : error === "malformed"
+            ? "malformed_recovery_link"
+            : error === "unavailable"
+              ? "service_unavailable"
+              : "provider_invalid");
         return;
       }
-      const value = fragment.slice(FRAGMENT_PREFIX.length);
-      if (!value || value.length > MAX_CONFIRMATION_URL_LENGTH) {
-        setState("invalid");
+      const recovery = parseRecoveryFragment(fragment);
+      if (!recovery.ok) {
+        setState(recovery.reason === "missing_fragment" ? "missing_fragment" : "malformed_recovery_link");
         return;
       }
-      setConfirmationUrl(value);
+      if (!recovery.tokenHash) {
+        setState("malformed_recovery_link");
+        return;
+      }
+      setTokenHash(recovery.tokenHash);
       setState("ready");
     });
     return () => { active = false; };
@@ -45,14 +55,15 @@ export default function ResetPasswordConfirmPage() {
         <div className="space-y-5">
           <AccountStatus text="Your password reset request is ready. Continue when you are ready to choose a new password." />
           <form action="/api/auth/recovery/continue" encType="application/x-www-form-urlencoded" method="post">
-            <input name="confirmation_url" type="hidden" value={confirmationUrl} />
+            <input name="token_hash" type="hidden" value={tokenHash} />
+            <input name="type" type="hidden" value="recovery" />
             <button className={accountPrimaryClass} type="submit">Continue to reset password</button>
           </form>
         </div>
       ) : null}
-      {state === "invalid" ? (
+      {state !== "loading" && state !== "ready" ? (
         <div className="space-y-5">
-          <AccountStatus tone="danger" text="This password reset link is invalid, expired, or has already been used." />
+          <AccountStatus tone="danger" text="This password reset link can’t be used. Request a new link and try again." />
           <Link className={accountPrimaryClass} href="/forgot-password" prefetch={false}>Request a new reset link</Link>
         </div>
       ) : null}

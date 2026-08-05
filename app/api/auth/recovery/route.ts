@@ -24,9 +24,9 @@ export async function POST(request: Request) {
     await releasePublicAuthOperation({ email, flow: "password_recovery", idempotencyKey: key.key }).catch(() => null);
     return authUnavailableResponse(requestId);
   }
-  // The email template carries Supabase's ConfirmationURL in a fragment on the
-  // Furvise confirmation page. Keep this callback fixed so the continuation
-  // route can validate it exactly before allowing verification.
+  // The email template carries only Supabase's TokenHash and a literal recovery
+  // type in the fragment. Keep this callback fixed so the continuation route
+  // can reconstruct exactly one permitted provider verification URL.
   const redirectTo = new URL("/auth/callback?flow=recovery", request.url).toString();
   let result;
   try {
