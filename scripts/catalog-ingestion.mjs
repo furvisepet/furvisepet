@@ -3,6 +3,7 @@ import { createTrustedIngestionClientFromEnv } from "../app/lib/catalog-ingestio
 import { CsvProductIngestionAdapter } from "../app/lib/catalog-ingestion/adapters/csv-adapter.ts";
 import { JsonProductIngestionAdapter } from "../app/lib/catalog-ingestion/adapters/json-adapter.ts";
 import { PurinaCanadaManualAdapter } from "../app/lib/catalog-ingestion/adapters/purina-ca-manual-adapter.ts";
+import { OrganicCuratedProductAdapter } from "../app/lib/catalog-ingestion/providers/organic-curated.ts";
 import { preparePrivateAuthorizedCatalog, resolvePrivatePath } from "../app/lib/catalog-ingestion/providers/manual-authorized-upload.ts";
 import { recordIngestionEvent } from "../app/lib/catalog-ingestion/audit.ts";
 import {
@@ -39,6 +40,9 @@ switch (command) {
     break;
   case "authorized":
     await authorizedCatalog(args);
+    break;
+  case "organic":
+    await organicCatalog(args);
     break;
   case "stage":
     await stage(args);
@@ -151,6 +155,21 @@ async function authorizedCatalog([action, contractFilename, metadataFilename, fe
     return;
   }
   await stageWithAdapter({ adapter: prepared.adapter, body: prepared.body, filename: prepared.filename, manifest: metadata });
+}
+
+async function organicCatalog([action, contractFilename, productsFilename] = []) {
+  if (!(action === "preview" || action === "stage")) throw new Error("organic action must be preview or stage.");
+  required(contractFilename, "organic contract filename");
+  required(productsFilename, "organic products filename");
+  const contract = JSON.parse(await readSourceFile(contractFilename));
+  const adapter = new OrganicCuratedProductAdapter(contract);
+  const body = await readSourceFile(productsFilename);
+  if (action === "preview") {
+    const result = await processIngestionInput({ adapter, input: { body, filename: productsFilename } });
+    output({ provider: adapter.provider, quality: qualitySummary(result.records), summary: result.summary });
+    return;
+  }
+  await stageWithAdapter({ adapter, body, filename: productsFilename, manifest: { countries: contract.allowedCountries, ingestionMode: "organic_curated", providerId: contract.providerId } });
 }
 
 async function provider001([action, filename = "data/product-providers/purina-ca-001/products.csv"] = []) {
@@ -280,6 +299,7 @@ function usage() {
   process.stdout.write([
     "Usage:",
     "  catalog-ingestion.mjs authorized preview|stage CONTRACT.json METADATA.json FEED [MAPPING.json]",
+    "  catalog-ingestion.mjs organic preview|stage CONTRACT.json PRODUCTS.json",
     "  npm.cmd run catalog:ingest -- preview <csv|json> <file> [provider]",
     "  npm.cmd run catalog:ingest -- provider-001 <preview|stage|refresh> [file]",
     "  npm.cmd run catalog:ingest -- stage <csv|json> <file> <provider> [source-type]",

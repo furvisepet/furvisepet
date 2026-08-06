@@ -144,9 +144,10 @@ test("quality and publication gates require permission, Canada evidence, claims 
   const permitted = structuredClone(blocked.normalized);
   permitted.sourceMetadata.sourceUseStatus = "permitted";
   const quality = assessIngestionQuality(permitted, blocked.duplicate, []);
-  assert.equal(quality.state, "publishable_with_gaps");
+  assert.equal(quality.state, "blocked");
+  assert.ok(quality.reasons.some((reason) => reason.code === "complete_ingredients_required"));
   assert.equal(evaluatePublicationGate({ claims: [], duplicate: blocked.duplicate, product: permitted, quality, reviewerApproved: false }).allowed, false);
-  assert.equal(evaluatePublicationGate({ claims: [], duplicate: blocked.duplicate, product: permitted, quality, reviewerApproved: true }).allowed, true);
+  assert.equal(evaluatePublicationGate({ claims: [], duplicate: blocked.duplicate, product: permitted, quality, reviewerApproved: true }).allowed, false);
 });
 
 test("repeated imports are hash-idempotent and source failure cannot remove live products", async () => {

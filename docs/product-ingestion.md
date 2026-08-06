@@ -102,6 +102,8 @@ The first real-source workflow is documented in [product-provider-001.md](./prod
 
 The provider-neutral authorized-feed contract, private upload workflow, disabled Impact readiness module, field permissions, and freshness handling are documented in [authorized-catalog-ingestion.md](./authorized-catalog-ingestion.md). The commercial and technical approval sequence is in [provider-onboarding-checklist.md](./provider-onboarding-checklist.md). These capabilities do not authorize or activate any provider by themselves.
 
+The launch-safe, non-affiliate manual workflow is documented in [organic-curated-catalog.md](./organic-curated-catalog.md). Its per-record permission snapshots, CA/US isolation, product-class safety requirements, and prohibition on affiliate/unsourced commerce data are enforced in addition to the existing review and publication gates.
+
 ## Deferred scaling work
 
 This foundation is deliberately bounded and synchronous. Large feed operations still need background jobs, durable message queues, controlled worker concurrency, database connection pooling, bulk `COPY` staging, object storage for source files, provider rate-limit handling, asynchronous search indexing, metrics and tracing, dead-letter processing, scheduled feed refreshes, and a price-refresh policy. Those are required before claiming million-record ingestion capacity.

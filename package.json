@@ -11,6 +11,7 @@
     "catalog:ingest": "node scripts/catalog-ingestion.mjs",
     "catalog:provider-001": "node --env-file=.env.local scripts/catalog-ingestion.mjs provider-001",
     "catalog:authorized": "node --env-file=.env.local scripts/catalog-ingestion.mjs authorized",
+    "catalog:organic": "node --env-file=.env.local scripts/catalog-ingestion.mjs organic",
     "vet-brief:samples": "node scripts/generate-vet-brief-samples.mjs",
     "idempotency:cleanup": "node --env-file=.env.local scripts/cleanup-idempotency-operations.mjs",
     "dev": "next dev --webpack",
@@ -39,6 +40,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.2.12",
+    "supabase": "^2.111.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3"
   },
