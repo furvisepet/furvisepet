@@ -14,21 +14,16 @@ export async function loadShopCatalogProducts(
   supabase: SupabaseClient,
   context: ShopCatalogContext & { limit?: number; textQuery?: string | null },
 ): Promise<{ fallback: boolean; products: MockProduct[] }> {
-  try {
-    const page = await getCatalogProductDetailsForCompatibility(supabase, {
-      countryCode: context.countryCode,
-      limit: context.limit,
-      speciesCode: context.speciesCode,
-      textQuery: context.textQuery,
-    });
-    return {
-      fallback: false,
-      products: page.items.map((product) => catalogProductToLegacyProduct(product, context.countryCode)),
-    };
-  } catch (error) {
-    logCatalogFallback(error);
-    return { fallback: true, products: loadStaticFallback(context) };
-  }
+  const page = await getCatalogProductDetailsForCompatibility(supabase, {
+    countryCode: context.countryCode,
+    limit: context.limit,
+    speciesCode: context.speciesCode,
+    textQuery: context.textQuery,
+  });
+  return {
+    fallback: false,
+    products: page.items.map((product) => catalogProductToLegacyProduct(product, context.countryCode)),
+  };
 }
 
 export async function loadShopCatalogProductById(

@@ -257,10 +257,11 @@ test("disabled live provider is safe to call and returns no results", () => {
 test("static real provider returns curated species-compatible products", () => {
   assert.equal(getConfiguredProductProvider("static_real").id, "static_real");
   assert.equal(getConfiguredProductProvider("mock").id, "mock");
+  assert.equal(getConfiguredProductProvider("catalog").id, "catalog");
   assert.equal(getConfiguredProductProvider("unknown").id, "static_real");
   assert.equal(resolveProductProviderMode({ productProvider: "unknown", nodeEnv: "test" }), "static_real");
-  assert.equal(resolveProductProviderMode({ productProvider: "mock", nodeEnv: "production" }), "static_real");
-  assert.equal(getConfiguredProductProvider("mock", "production").id, "static_real");
+  assert.equal(resolveProductProviderMode({ productProvider: "mock", nodeEnv: "production" }), "catalog");
+  assert.equal(getConfiguredProductProvider("mock", "production").id, "catalog");
 
   const catCatalog = staticRealProvider.searchProducts({ productCountry: "US", profile: filledProfile({ species: "cat" }) });
   const dogCatalog = staticRealProvider.searchProducts({ productCountry: "US", profile: filledProfile({ species: "dog" }) });

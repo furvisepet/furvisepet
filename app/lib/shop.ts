@@ -24,6 +24,7 @@ export function searchShopProducts({
   interpretation = null,
   productCountry,
   products,
+  providerMode = "static_real",
   profile,
   query,
 }: {
@@ -31,6 +32,7 @@ export function searchShopProducts({
   interpretation?: ShopQueryInterpretation | null;
   productCountry: ProductCountry;
   products: MockProduct[];
+  providerMode?: import("./product-providers").ProductProviderMode;
   profile: PetProfile | null;
   query: string;
 }): ShopSearchResult {
@@ -39,6 +41,7 @@ export function searchShopProducts({
     includeDiagnostics,
     interpretation,
     products,
+    providerMode,
     query,
     selectedPet: profile,
   });

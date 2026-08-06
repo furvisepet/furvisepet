@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
 import { loadShopCatalogProducts } from "../../../lib/catalog/compatibility";
 import { loadPetMemoryContext } from "../../../lib/pet-memory";
-import { normalizeProductCountry } from "../../../lib/product-providers";
+import { normalizeProductCountry, resolveProductProviderMode } from "../../../lib/product-providers";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
 import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
 
@@ -17,6 +17,14 @@ type CatalogBody = {
 export async function POST(request: Request) {
   const context = await loadRequestContext(request);
   if ("response" in context) return context.response;
+  const providerMode = resolveProductProviderMode({
+    nextPublicProductProvider: null,
+    nodeEnv: process.env.NODE_ENV,
+    productProvider: process.env.PRODUCT_PROVIDER,
+  });
+  if (providerMode !== "catalog") {
+    return Response.json({ error: "Product guidance is temporarily unavailable." }, { status: 503 });
+  }
 
   let rawBody: unknown;
   try {
@@ -59,7 +67,7 @@ export async function POST(request: Request) {
       speciesCode: memory.pet.species,
       textQuery: query,
     });
-    return Response.json(result);
+    return Response.json({ ...result, source: "catalog" });
   } catch {
     return Response.json({ error: "Product guidance is temporarily unavailable, but you can still try again shortly." }, { status: 503 });
   }

@@ -6,9 +6,10 @@ function source(path) { return readFileSync(new URL(path, import.meta.url), "utf
 
 test("Products uses the bounded catalog endpoint without changing product-card markup", () => {
   const page = source("../app/shop/page.tsx");
-  assert.match(page, /fetch\("\/api\/shop\/catalog"/);
+  const catalogSource = source("../app/lib/shop/catalog-source.ts");
+  assert.match(catalogSource, /fetchImpl\("\/api\/shop\/catalog"/);
   assert.match(page, /searchShopProducts\(\{/);
-  assert.doesNotMatch(page, /searchStaticRealShopProducts/);
+  assert.match(page, /loadCatalogFirstShopProducts/);
   assert.match(page, /<ProductCard/);
 });
 
@@ -25,8 +26,9 @@ test("product explanation and question routes use the shared catalog adapter", (
 
 test("the static catalog is isolated to an explicitly temporary error fallback", () => {
   const compatibility = source("../app/lib/catalog/compatibility.ts");
-  assert.match(compatibility, /Temporary adapter|temporary curated fallback/i);
-  assert.match(compatibility, /catch \(error\)/);
+  const sourceResolver = source("../app/lib/shop/catalog-source.ts");
+  assert.match(sourceResolver, /staticFallback/);
+  assert.match(sourceResolver, /response\.status >= 500/);
   assert.match(compatibility, /staticRealProducts/);
 });
 

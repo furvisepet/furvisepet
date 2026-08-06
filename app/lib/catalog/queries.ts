@@ -44,6 +44,7 @@ const CATALOG_PRODUCT_SUMMARY_SELECT = `
     original_price_amount,
     availability_status,
     is_active,
+    last_checked_at,
     retailers(id, name, slug)
   )
 `;
@@ -85,6 +86,7 @@ const CATALOG_PRODUCT_DETAIL_SELECT = `
     original_price_amount,
     availability_status,
     is_active,
+    last_checked_at,
     retailers(id, name, slug)
   )
 `;

@@ -42,6 +42,7 @@ function productRow(overrides = {}) {
         id: "offer-1", variant_id: "variant-1", country_code: "US", destination_url: "https://store.example/item",
         affiliate_url: "https://affiliate.example/item", currency_code: "USD", price_amount: "19.90",
         original_price_amount: "24.00", availability_status: "in_stock", is_active: true,
+        last_checked_at: "2026-07-23T12:00:00Z",
         retailers: { id: "retailer-1", name: "Example Store", slug: "example-store" },
       },
       {
@@ -81,13 +82,45 @@ test("species, country, and lifecycle checks exclude unsafe products", () => {
   assert.equal(isCatalogProductSafeForContext(discontinued, "dog", "US"), false);
 });
 
-test("offers retain decimal strings, support multiples, and prefer an active affiliate URL", () => {
+test("organic offers use destination URLs without promoting unverified affiliate URLs", () => {
   const product = mapCatalogProductRow(productRow());
   assert.equal(product.offers.length, 2);
   assert.equal(product.offers[0].priceAmount, "19.90");
-  assert.equal(product.offers[0].publicUrl, "https://affiliate.example/item");
+  assert.equal(product.offers[0].affiliateUrl, "https://affiliate.example/item");
+  assert.equal(product.offers[0].publicUrl, "https://store.example/item");
   assert.equal(product.offers[1].publicUrl, "https://other.example/item");
   assert.equal(product.offers.some((offer) => offer.id === "offer-inactive"), false);
+});
+
+test("products without affiliate URLs remain eligible for organic shopping links", () => {
+  const row = productRow({
+    product_offers: [{
+      id: "organic-only", variant_id: null, country_code: "US", destination_url: "https://organic.example/item",
+      affiliate_url: null, currency_code: "USD", price_amount: "18.00", original_price_amount: null,
+      availability_status: "in_stock", is_active: true, last_checked_at: "2026-07-23T12:00:00Z",
+      retailers: { id: "organic-retailer", name: "Organic Store", slug: "organic-store" },
+    }],
+  });
+  const product = catalogProductToLegacyProduct(mapCatalogProductRow(row), "US");
+  assert.equal(product.active, true);
+  assert.equal(product.productPageUrl, "https://organic.example/item");
+  assert.equal(product.affiliateUrl, undefined);
+});
+
+test("affiliate presence has no effect on deterministic offer ordering", () => {
+  const common = {
+    availability_status: "in_stock", country_code: "US", currency_code: "USD", is_active: true,
+    last_checked_at: "2026-07-23T12:00:00Z", original_price_amount: null, price_amount: "20.00", variant_id: null,
+  };
+  const row = productRow({
+    product_offers: [
+      { ...common, id: "affiliate-b", destination_url: "https://b.example/item", affiliate_url: "https://affiliate.example/b", retailers: { id: "b", name: "B Store", slug: "b-store" } },
+      { ...common, id: "organic-a", destination_url: "https://a.example/item", affiliate_url: null, retailers: { id: "a", name: "A Store", slug: "a-store" } },
+    ],
+  });
+  const product = catalogProductToLegacyProduct(mapCatalogProductRow(row), "US");
+  assert.equal(product.retailer, "A Store");
+  assert.equal(product.productPageUrl, "https://a.example/item");
 });
 
 test("the legacy product-card adapter supplies the existing required fields", () => {
@@ -95,8 +128,76 @@ test("the legacy product-card adapter supplies the existing required fields", ()
   assert.equal(product.name, "Shared Grooming Tool");
   assert.deepEqual(product.species, ["dog", "cat"]);
   assert.deepEqual(product.availableCountries, ["US"]);
-  assert.equal(product.productPageUrl, "https://affiliate.example/item");
+  assert.equal(product.productPageUrl, "https://store.example/item");
+  assert.equal(product.affiliateUrl, undefined);
+  assert.equal(product.price, 19.9);
+  assert.equal(product.priceVerifiedAt, "2026-07-23T12:00:00Z");
+  assert.equal(product.availabilityStatus, "in_stock");
   assert.equal(product.category, "grooming");
+});
+
+test("legacy mapping keeps CA and US markets and offers isolated", () => {
+  const base = productRow();
+  const row = productRow({
+    product_markets: [
+      { country_code: "CA", status: "available", last_verified_at: "2026-07-23T00:00:00Z" },
+      { country_code: "US", status: "available", last_verified_at: "2026-07-23T00:00:00Z" },
+    ],
+    product_offers: [
+      ...base.product_offers,
+      {
+        id: "offer-ca", variant_id: null, country_code: "CA", destination_url: "https://store.example.ca/item",
+        affiliate_url: "https://affiliate.example.ca/item", currency_code: "CAD", price_amount: "22.50",
+        original_price_amount: null, availability_status: "in_stock", is_active: true,
+        last_checked_at: "2026-07-23T12:00:00Z",
+        retailers: { id: "retailer-ca", name: "Canada Store", slug: "canada-store" },
+      },
+    ],
+  });
+  const detail = mapCatalogProductRow(row);
+  const ca = catalogProductToLegacyProduct(detail, "CA");
+  const us = catalogProductToLegacyProduct(detail, "US");
+  assert.deepEqual(ca.availableCountries, ["CA"]);
+  assert.equal(ca.productPageUrl, "https://store.example.ca/item");
+  assert.equal(ca.currency, "CAD");
+  assert.deepEqual(us.availableCountries, ["US"]);
+  assert.equal(us.productPageUrl, "https://store.example/item");
+  assert.equal(us.currency, "USD");
+});
+
+test("offer priority prefers stock and then same-currency lowest price", () => {
+  const base = productRow();
+  const common = {
+    affiliate_url: null, country_code: "US", currency_code: "USD", is_active: true,
+    last_checked_at: "2026-07-23T12:00:00Z", original_price_amount: null, variant_id: null,
+  };
+  const detail = mapCatalogProductRow(productRow({
+    product_offers: [
+      { ...common, id: "out-cheap", destination_url: "https://store.example/cheap", price_amount: "1.00", availability_status: "out_of_stock", retailers: { id: "r1", name: "A Store", slug: "a-store" } },
+      { ...common, id: "in-expensive", destination_url: "https://store.example/in", price_amount: "25.00", availability_status: "in_stock", retailers: { id: "r2", name: "B Store", slug: "b-store" } },
+      { ...common, id: "in-lower", destination_url: "https://store.example/lower", price_amount: "20.00", availability_status: "in_stock", retailers: { id: "r3", name: "C Store", slug: "c-store" } },
+    ],
+    product_markets: base.product_markets,
+  }));
+  const mapped = catalogProductToLegacyProduct(detail, "US");
+  assert.equal(mapped.productPageUrl, "https://store.example/lower");
+  assert.equal(mapped.availabilityStatus, "in_stock");
+  assert.equal(mapped.price, 20);
+});
+
+test("primary offers are deterministic and never manufacture price or stock", () => {
+  const withoutPrice = productRow({
+    product_offers: [{
+      id: "offer-out", variant_id: null, country_code: "US", destination_url: "https://store.example/out",
+      affiliate_url: null, currency_code: "USD", price_amount: null, original_price_amount: null,
+      availability_status: "out_of_stock", is_active: true, last_checked_at: "2026-07-23T12:00:00Z",
+      retailers: { id: "retailer-out", name: "Out Store", slug: "out-store" },
+    }],
+  });
+  const mapped = catalogProductToLegacyProduct(mapCatalogProductRow(withoutPrice), "US");
+  assert.equal(mapped.price, undefined);
+  assert.equal(mapped.priceVerifiedAt, undefined);
+  assert.equal(mapped.availabilityStatus, "out_of_stock");
 });
 
 test("catalog limits are always bounded", () => {

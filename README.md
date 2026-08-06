@@ -20,6 +20,12 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Regional Shop catalogue
+
+Shop searches use the authenticated `POST /api/shop/catalog` route and prefer published Supabase catalogue products. Results stay isolated to the account-selected CA or US market; offers from the other market are never substituted. If the catalogue request has a network/server failure or returns no usable products for that market, the existing country-eligible `static_real` catalogue is used as an explicit fallback. Mock products remain development-only and can never be selected in production.
+
+Retailer feed synchronization, credentials, and automated offer refresh are separate Phase 2 work. Phase 1 displays price or availability only when an active, same-country published offer provides those values.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

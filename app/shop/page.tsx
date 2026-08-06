@@ -26,11 +26,19 @@ import {
   getActiveProductCountry,
   getProductLabelLinkInfo,
   getProductLinkInfo,
+  mockProvider,
+  resolveProductProviderMode,
+  staticRealProvider,
+  type ProductProviderMode,
 } from "../lib/product-providers";
 import {
   MIN_SHOP_QUERY_LENGTH,
   searchShopProducts,
 } from "../lib/shop";
+import {
+  loadCatalogFirstShopProducts,
+  type ShopProductSource,
+} from "../lib/shop/catalog-source";
 import {
   isVagueShopQueryWithoutSignal,
   parseShopQueryInterpretation,
@@ -78,6 +86,7 @@ type CatalogState = {
   productCountry: ProductCountry;
   products: MockProduct[];
   query: string;
+  source: ShopProductSource | null;
 };
 type FitExplanationState = {
   error: string;
@@ -114,6 +123,12 @@ const GROOMING_PRODUCT_QUESTION_CHIPS = [
   "What should I check first?",
   "When should I avoid it?",
 ];
+
+const PRODUCT_PROVIDER_MODE = resolveProductProviderMode({
+  nextPublicProductProvider: process.env.NEXT_PUBLIC_PRODUCT_PROVIDER,
+  nodeEnv: process.env.NODE_ENV,
+  productProvider: null,
+});
 
 export default function ShopPage() {
   return (
@@ -152,6 +167,7 @@ function ShopPageContent() {
     productCountry: "US",
     products: [],
     query: "",
+    source: null,
   });
   const [limitReachedQuery, setLimitReachedQuery] = useState("");
   const [fitExplanationCache, setFitExplanationCache] = useState<Record<string, FitExplanationState>>({});
@@ -264,6 +280,12 @@ function ShopPageContent() {
   );
   const catalogLoading = catalogMatches && catalogState.loading;
   const catalogError = catalogMatches ? catalogState.error : "";
+  const productSource = catalogMatches ? catalogState.source : null;
+  const searchProviderMode: ProductProviderMode = productSource === "catalog"
+    ? "catalog"
+    : productSource === "mock"
+      ? "mock"
+      : "static_real";
   const searchResult = useMemo(
     () => activeInterpretation?.safetyFlags.urgentCare && submittedQuery.trim()
         ? {
@@ -283,10 +305,11 @@ function ShopPageContent() {
             interpretation: activeInterpretation,
             productCountry,
             products: catalogProducts,
+            providerMode: searchProviderMode,
             profile: selectedDraft,
             query: submittedQuery,
           }),
-    [activeInterpretation, catalogProducts, productCountry, selectedDraft, submittedQuery],
+    [activeInterpretation, catalogProducts, productCountry, searchProviderMode, selectedDraft, submittedQuery],
   );
   const showAvoidNote = !interpretationLoading && searchResult.avoidIngredientsRemovedMatches;
   const canSearch = queryInput.trim().length >= MIN_SHOP_QUERY_LENGTH && Boolean(selectedPetId) && !interpretationLoading && !catalogLoading;
@@ -306,14 +329,14 @@ function ShopPageContent() {
   }
 
   function startSearch(nextQuery: string) {
-    if (nextQuery.length < MIN_SHOP_QUERY_LENGTH || !selectedPetId) return;
+    if (nextQuery.length < MIN_SHOP_QUERY_LENGTH || !selectedPetId || !selectedDraft) return;
     setQueryInput(nextQuery);
     setSubmittedQuery(nextQuery);
     setLimitReachedQuery("");
     setFitExplanationCache({});
     setProductQuestionCache({});
     setProductQuestionInputs({});
-    void loadSubmittedCatalog({ petId: selectedPetId, productCountry, query: nextQuery });
+    void loadSubmittedCatalog({ petId: selectedPetId, productCountry, profile: selectedDraft, query: nextQuery });
     if (isVagueShopQueryWithoutSignal(nextQuery)) {
       setInterpretationState({
         aiExhausted: false,
@@ -351,7 +374,7 @@ function ShopPageContent() {
     setFitExplanationCache({});
     setProductQuestionCache({});
     setProductQuestionInputs({});
-    setCatalogState({ error: "", loading: false, petId: "", productCountry, products: [], query: "" });
+    setCatalogState({ error: "", loading: false, petId: "", productCountry, products: [], query: "", source: null });
   }
 
   async function explainProductFit(productId: string) {
@@ -623,32 +646,52 @@ function ShopPageContent() {
   async function loadSubmittedCatalog({
     petId,
     productCountry: country,
+    profile,
     query,
   }: {
     petId: string;
     productCountry: ProductCountry;
+    profile: NonNullable<typeof selectedDraft>;
     query: string;
   }) {
-    setCatalogState({ error: "", loading: true, petId, productCountry: country, products: [], query });
+    setCatalogState({ error: "", loading: true, petId, productCountry: country, products: [], query, source: null });
     try {
+      if (PRODUCT_PROVIDER_MODE === "mock") {
+        setCatalogState({
+          error: "",
+          loading: false,
+          petId,
+          productCountry: country,
+          products: mockProvider.searchProducts({ productCountry: country, profile }),
+          query,
+          source: "mock",
+        });
+        return;
+      }
+
+      const fallbackProducts = () => staticRealProvider.searchProducts({ productCountry: country, profile });
+      if (PRODUCT_PROVIDER_MODE === "static_real") {
+        setCatalogState({ error: "", loading: false, petId, productCountry: country, products: fallbackProducts(), query, source: "static_fallback" });
+        return;
+      }
+
       const token = await getCurrentAccessToken();
       if (!token) throw new Error("Please sign in again before searching products.");
-      const response = await fetch("/api/shop/catalog", {
-        body: JSON.stringify({ petId, productCountry: country, query }),
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        method: "POST",
+      const result = await loadCatalogFirstShopProducts({
+        fallbackProducts,
+        petId,
+        productCountry: country,
+        query,
+        token,
       });
-      const payload = (await response.json().catch(() => null)) as { error?: unknown; products?: unknown } | null;
-      if (!response.ok) {
-        throw new Error(typeof payload?.error === "string" ? payload.error : FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE);
-      }
       setCatalogState({
         error: "",
         loading: false,
         petId,
         productCountry: country,
-        products: parseCatalogProducts(payload?.products),
+        products: result.products,
         query,
+        source: result.source,
       });
     } catch (catalogLoadError) {
       setCatalogState({
@@ -658,6 +701,7 @@ function ShopPageContent() {
         productCountry: country,
         products: [],
         query,
+        source: null,
       });
     }
   }
@@ -675,7 +719,11 @@ function ShopPageContent() {
         {state === "error" ? <Status text={error || "Furvise could not load Products."} tone="warn" /> : null}
 
         {state === "ready" ? (
-          <div className="mt-6 min-w-0 md:mt-8" data-product-state={productExperienceState}>
+          <div
+            className="mt-6 min-w-0 md:mt-8"
+            data-product-source={productSource || undefined}
+            data-product-state={productExperienceState}
+          >
             <section className="min-w-0 rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] p-4 shadow-[var(--shadow-surface-1)] md:p-6">
               <form className="grid min-w-0 gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-end md:gap-4" onSubmit={submitSearch}>
                 <label className="grid gap-2">
@@ -1362,21 +1410,6 @@ function Status({ text, tone = "neutral" }: { text: string; tone?: "neutral" | "
       {text}
     </div>
   );
-}
-
-function parseCatalogProducts(value: unknown): MockProduct[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is MockProduct => {
-    if (!item || typeof item !== "object") return false;
-    const product = item as Partial<MockProduct>;
-    return typeof product.id === "string"
-      && typeof product.name === "string"
-      && Array.isArray(product.species)
-      && Array.isArray(product.availableCountries)
-      && Array.isArray(product.concernTags)
-      && Array.isArray(product.excludedIngredients)
-      && typeof product.category === "string";
-  });
 }
 
 function parseProductAiUsageStatus(value: unknown): ProductAiUsageStatus | null {
