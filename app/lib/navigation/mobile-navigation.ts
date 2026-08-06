@@ -5,12 +5,12 @@ export const MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX = 14;
 export const MOBILE_NAVIGATION_IDLE_EXPAND_MS = 300;
 
 export const NAVIGATION_ICON_ASSETS = {
-  ask: "/images/ask_chat.png",
-  history: "/images/history_clock.png",
-  more: "/images/more_dots.png",
-  pets: "/images/pets_paw.png",
-  products: "/images/pet_products.png",
-  today: "/images/today_house.png",
+  ask: "/images/nav-ask-v1.webp",
+  history: "/images/nav-history-v1.webp",
+  more: "/images/nav-more-v1.webp",
+  pets: "/images/nav-pets-v1.webp",
+  products: "/images/nav-products-v1.webp",
+  today: "/images/nav-today-v1.webp",
 } as const;
 
 export const MOBILE_NAVIGATION_ITEMS = [

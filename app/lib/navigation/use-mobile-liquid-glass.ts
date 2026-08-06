@@ -48,6 +48,8 @@ let nextTargetIdentity = 1;
 const MOBILE_MEDIA_QUERY = "(max-width: 1023px)";
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const MEASUREMENT_RETRY_MS = 100;
+const LIQUID_GLASS_IDLE_TIMEOUT_MS = 2_000;
+const LIQUID_GLASS_FALLBACK_DELAY_MS = 500;
 
 function emitLiquidGlassDiagnostic(event: string, diagnostic: LiquidGlassDiagnostic = {}) {
   if (process.env.NODE_ENV !== "development") return;
@@ -175,6 +177,9 @@ export function useMobileLiquidGlass(
     let pendingController: AbortController | null = null;
     let generation = 0;
     let lastInstanceMetrics: ReturnType<typeof measuredMetrics> | null = null;
+    let initializationAllowed = false;
+    let idleCallback = 0;
+    let idleFallbackTimer = 0;
 
     const readSupport = () => (support ??= inspectLiquidGlassSupport());
 
@@ -212,7 +217,7 @@ export function useMobileLiquidGlass(
     };
 
     const synchronize = async () => {
-      if (cancelled || document.visibilityState !== "visible") return;
+      if (cancelled || !initializationAllowed || document.visibilityState !== "visible") return;
 
       const currentSupport = mobileQuery.matches
         ? readSupport()
@@ -368,16 +373,36 @@ export function useMobileLiquidGlass(
       void synchronize();
     };
 
+    const beginDeferredInitialization = () => {
+      const start = () => {
+        if (cancelled) return;
+        initializationAllowed = true;
+        void synchronize();
+      };
+
+      if (typeof window.requestIdleCallback === "function") {
+        idleCallback = window.requestIdleCallback(start, { timeout: LIQUID_GLASS_IDLE_TIMEOUT_MS });
+      } else {
+        idleFallbackTimer = window.setTimeout(start, LIQUID_GLASS_FALLBACK_DELAY_MS);
+      }
+    };
+
+    const handleWindowLoad = () => beginDeferredInitialization();
+
     root.dataset.liquidGlassState = "fallback";
     mobileQuery.addEventListener("change", handleMediaChange);
     reducedMotionQuery.addEventListener("change", handleMediaChange);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    void synchronize();
+    if (document.readyState === "complete") beginDeferredInitialization();
+    else window.addEventListener("load", handleWindowLoad, { once: true });
 
     return () => {
       cancelled = true;
       window.clearTimeout(measurementRetry);
+      window.clearTimeout(idleFallbackTimer);
+      if (idleCallback && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idleCallback);
       cancelPendingInitialization(false);
+      window.removeEventListener("load", handleWindowLoad);
       mobileQuery.removeEventListener("change", handleMediaChange);
       reducedMotionQuery.removeEventListener("change", handleMediaChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);

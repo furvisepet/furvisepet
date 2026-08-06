@@ -20,11 +20,11 @@ test("mobile destinations use the approved public image assets", () => {
   assert.deepEqual(
     MOBILE_NAVIGATION_ITEMS.map(({ asset, href, label }) => ({ asset, href, label })),
     [
-      { asset: "/images/today_house.png", href: "/today", label: "Today" },
-      { asset: "/images/history_clock.png", href: "/history", label: "History" },
-      { asset: "/images/ask_chat.png", href: "/ask", label: "Ask" },
-      { asset: "/images/pets_paw.png", href: "/pets", label: "Pets" },
-      { asset: "/images/pet_products.png", href: "/shop", label: "Products" },
+      { asset: "/images/nav-today-v1.webp", href: "/today", label: "Today" },
+      { asset: "/images/nav-history-v1.webp", href: "/history", label: "History" },
+      { asset: "/images/nav-ask-v1.webp", href: "/ask", label: "Ask" },
+      { asset: "/images/nav-pets-v1.webp", href: "/pets", label: "Pets" },
+      { asset: "/images/nav-products-v1.webp", href: "/shop", label: "Products" },
     ],
   );
   for (const item of MOBILE_NAVIGATION_ITEMS) assert.equal(existsSync(new URL(`../public${item.asset}`, import.meta.url)), true);
@@ -105,16 +105,16 @@ test("the glass dock uses semantic color roles and reserves safe page space", ()
   assert.match(read("app/globals.css"), /--mobile-nav-expanded-height: 5\.75rem;[\s\S]*--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-expanded-height\)/);
 });
 
-test("persistent navigation icons are eagerly decoded and do not remount by pathname", () => {
-  assert.match(mobileNavigation, /<NavigationIcon asset=\{item\.asset\} eager \/>/);
+test("persistent navigation icons are low-priority and do not remount by pathname", () => {
+  assert.match(mobileNavigation, /<NavigationIcon asset=\{item\.asset\} \/>/);
   assert.doesNotMatch(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more/);
-  assert.match(header, /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} eager \/>/);
-  assert.match(header, /loading=\{eager \? "eager" : "lazy"\}/);
-  assert.match(header, /decoding=\{eager \? "sync" : "async"\}/);
+  assert.match(header, /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} \/>/);
+  assert.match(header, /loading="lazy"/);
+  assert.match(header, /decoding="async"/);
   assert.doesNotMatch(mobileNavigation, /key=\{pathname\}|opacity-0|animate-opacity/);
-  assert.match(header, /asset === NAVIGATION_ICON_ASSETS\.more \? "scale-\[2\.65\]" : "scale-\[2\.35\]"/);
-  assert.match(header, /className=\{`h-full w-full \$\{artworkScale\} object-contain`\}/);
-  assert.match(header, /height=\{72\}/);
+  assert.doesNotMatch(header, /artworkScale|scale-\[/);
+  assert.match(header, /className="h-full w-full object-contain"/);
+  assert.match(header, /height=\{48\}/);
   assert.match(header, /width=\{48\}/);
 });
 

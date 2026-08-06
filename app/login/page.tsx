@@ -21,7 +21,15 @@ import { idempotentClientFetch } from "../lib/security/idempotency/client";
 type AuthMode = "signin" | "signup";
 
 export default function LoginPage() {
-  return <Suspense fallback={null}><LoginPageContent /></Suspense>;
+  return <Suspense fallback={<LoginPageFallback />}><LoginPageContent /></Suspense>;
+}
+
+function LoginPageFallback() {
+  return (
+    <AccountAccessLayout supportingText="Sign in to continue caring for your pets." title="Welcome back">
+      <div aria-hidden="true" className="min-h-[28rem]" />
+    </AccountAccessLayout>
+  );
 }
 
 function LoginPageContent() {

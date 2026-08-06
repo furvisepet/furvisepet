@@ -53,7 +53,7 @@ test("homepage navigation follows the resolved authentication state", () => {
   const header = read("app/components/app-header.tsx");
   const homepage = read("app/components/homepage-client.tsx");
 
-  assert.match(homepage, /showSignIn=\{mode === "anonymous"\}/);
+  assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*Add your pet/);
   assert.match(homepage, /mode === "with-pet"[\s\S]*Ask about \{petName\}/);
   assert.match(header, /resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);

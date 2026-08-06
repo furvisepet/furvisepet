@@ -10,15 +10,15 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const header = read("app/components/app-header.tsx");
 
 const expectedAssets = {
-  ask: "/images/ask_chat.png",
-  history: "/images/history_clock.png",
-  more: "/images/more_dots.png",
-  pets: "/images/pets_paw.png",
-  products: "/images/pet_products.png",
-  today: "/images/today_house.png",
+  ask: "/images/nav-ask-v1.webp",
+  history: "/images/nav-history-v1.webp",
+  more: "/images/nav-more-v1.webp",
+  pets: "/images/nav-pets-v1.webp",
+  products: "/images/nav-products-v1.webp",
+  today: "/images/nav-today-v1.webp",
 };
 
-test("the shared navigation icon inventory maps every action to its replacement PNG", () => {
+test("the shared navigation icon inventory maps every action to its optimized derivative", () => {
   assert.deepEqual(NAVIGATION_ICON_ASSETS, expectedAssets);
   for (const asset of Object.values(expectedAssets)) {
     assert.equal(existsSync(new URL(`../public${asset}`, import.meta.url)), true, asset);
@@ -40,7 +40,7 @@ test("mobile destinations retain the intended icon assets while desktop stays te
 
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.doesNotMatch(desktop, /asset:|NAVIGATION_ICON_ASSETS|<Image|NavigationIcon/);
-  assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\} eager/);
+  assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\}/);
 });
 
 test("the mobile dock has exactly five evenly distributed routes in the required order", () => {
@@ -58,7 +58,7 @@ test("the mobile dock has exactly five evenly distributed routes in the required
 
 test("Products has one canonical icon path and remains outside the LiquidGlass capture target", () => {
   const navigationSource = read("app/lib/navigation/mobile-navigation.ts");
-  assert.equal((navigationSource.match(/\/images\/pet_products\.png/g) ?? []).length, 1);
+  assert.equal((navigationSource.match(/\/images\/nav-products-v1\.webp/g) ?? []).length, 1);
   const mobile = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
   const emptyGlassTarget = mobile.indexOf('data-liquid-glass-skip-content=""');
   const ignoredInteractiveLayer = mobile.indexOf('data-liquid-glass-ignore=""');
@@ -68,9 +68,9 @@ test("Products has one canonical icon path and remains outside the LiquidGlass c
 
 test("navigation images use bounded object-contain rendering without artwork-damaging effects", () => {
   assert.match(header, /import Image from "next\/image"/);
-  assert.match(header, /asset === NAVIGATION_ICON_ASSETS\.more \? "scale-\[2\.65\]" : "scale-\[2\.35\]"/);
-  assert.match(header, /className=\{`h-full w-full \$\{artworkScale\} object-contain`\}/);
-  assert.match(header, /height=\{72\}/);
+  assert.doesNotMatch(header, /artworkScale|scale-\[/);
+  assert.match(header, /className="h-full w-full object-contain"/);
+  assert.match(header, /height=\{48\}/);
   assert.match(header, /width=\{48\}/);
   assert.match(header, /grid-cols-5/);
   assert.match(header, /min-h-11 min-w-0/);

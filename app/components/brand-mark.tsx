@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 export const FURVISE_BRAND_ASSET = "/brand/logo.png";
+export const FURVISE_BRAND_OPTIMIZED_ASSET = "/brand/logo-header-v1.webp";
 export const FURVISE_MASCOT_ASSET = "/App%20icon.png";
 
 export function BrandMark({
@@ -15,7 +16,7 @@ export function BrandMark({
   size?: number;
 }) {
   const responsiveSize = `var(--brand-mark-size, ${size}px)`;
-  const asset = showName ? FURVISE_BRAND_ASSET : FURVISE_MASCOT_ASSET;
+  const asset = showName ? FURVISE_BRAND_OPTIMIZED_ASSET : FURVISE_MASCOT_ASSET;
 
   return (
     <span
@@ -29,16 +30,14 @@ export function BrandMark({
         alt={showName ? "Furvise" : ""}
         aria-hidden={showName ? undefined : "true"}
         className="block shrink-0 object-contain"
-        height={showName ? 1024 : 1254}
+        height={showName ? 159 : 1254}
         priority={priority}
         src={asset}
         style={showName
           ? {
-              height: "auto",
-              maxWidth: "none",
+              height: "100%",
               objectFit: "contain",
-              transform: `translateY(calc(${responsiveSize} * 0.117)) scale(2.75)`,
-              width: `calc(${responsiveSize} * 1.5)`,
+              width: "100%",
             }
           : {
               height: responsiveSize,
@@ -46,7 +45,7 @@ export function BrandMark({
               width: responsiveSize,
             }}
         unoptimized
-        width={showName ? 1536 : 1254}
+        width={showName ? 512 : 1254}
       />
     </span>
   );

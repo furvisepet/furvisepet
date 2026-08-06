@@ -38,9 +38,9 @@ test("main and every shared auth header use the larger undistorted BrandMark siz
 test("mobile keeps five dock icons above LiquidGlass and More in the header", () => {
   const mobileStart = header.indexOf('<nav aria-label="Mobile navigation"');
   const mobile = header.slice(mobileStart, header.indexOf("</nav>", mobileStart) + 6);
-  assert.match(mobile, /<NavigationIcon asset=\{item\.asset\} eager \/>/);
+  assert.match(mobile, /<NavigationIcon asset=\{item\.asset\} \/>/);
   assert.doesNotMatch(mobile, /NAVIGATION_ICON_ASSETS\.more/);
-  assert.match(header.slice(0, header.indexOf('<nav aria-label="Mobile navigation"')), /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} eager \/>/);
+  assert.match(header.slice(0, header.indexOf('<nav aria-label="Mobile navigation"')), /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} \/>/);
   assert.match(mobile, /mobile-liquid-glass-root/);
   assert.match(mobile, /mobile-liquid-glass-scene/);
   assert.match(mobile, /ref=\{mobileGlassRootRef\}/);

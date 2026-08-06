@@ -41,7 +41,7 @@ test("mobile dock has the exact icon and label destinations with a selected stat
     cursor = next;
   }
   assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\}/);
-  assert.match(header, /flex min-h-11[\s\S]*flex-col[\s\S]*<NavigationIcon asset=\{item\.asset\} eager \/>[\s\S]*\{item\.label\}<\/span>/);
+  assert.match(header, /flex min-h-11[\s\S]*flex-col[\s\S]*<NavigationIcon asset=\{item\.asset\} \/>[\s\S]*\{item\.label\}<\/span>/);
   assert.match(header, /data-active-indicator=\{active \? "icon-capsule"/);
   assert.match(header, /active \? "bg-\[var\(--selected-navigation-background\)\]"/);
 });
@@ -67,7 +67,7 @@ test("approved brand asset remains byte-identical", () => {
   const brand = read("app/components/brand-mark.tsx");
   assert.match(header, /<BrandMark priority size=\{32\} \/>/);
   assert.match(brand, /objectFit: "contain"/);
-  assert.match(brand, /height: "auto"/);
-  assert.match(brand, /translateY\(calc\(\$\{responsiveSize\} \* 0\.117\)\) scale\(2\.75\)/);
+  assert.match(brand, /height: "100%"/);
+  assert.doesNotMatch(brand, /translateY|scale\(2\.75\)/);
   assert.equal(hash("public/brand/logo.png"), "D24A7A73878FB4692918D140D69DC9D803281D53FF2704AC51B5720A782BECB6");
 });

@@ -209,7 +209,7 @@ export function AppHeader({
                   type="button"
                 >
                   <span className="inline-flex h-8 w-10 items-center justify-center overflow-hidden rounded-[var(--radius-pill)]">
-                    <NavigationIcon asset={NAVIGATION_ICON_ASSETS.more} eager />
+                    <NavigationIcon asset={NAVIGATION_ICON_ASSETS.more} />
                   </span>
                 </button>
                 {mobileMoreOpen ? (
@@ -268,7 +268,7 @@ export function AppHeader({
               return (
                 <Link aria-current={active ? "page" : undefined} aria-label={item.label} className={`touch-manipulation flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--surface-hover)] ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href}>
                   <span className={`inline-flex h-10 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
-                    <NavigationIcon asset={item.asset} eager />
+                    <NavigationIcon asset={item.asset} />
                   </span>
                   <span className="block whitespace-nowrap">{item.label}</span>
                 </Link>
@@ -281,18 +281,16 @@ export function AppHeader({
   );
 }
 
-function NavigationIcon({ asset, eager = false }: { asset: string; eager?: boolean }) {
-  const artworkScale = asset === NAVIGATION_ICON_ASSETS.more ? "scale-[2.65]" : "scale-[2.35]";
-
+function NavigationIcon({ asset }: { asset: string }) {
   return (
     <Image
       alt=""
       aria-hidden="true"
-      className={`h-full w-full ${artworkScale} object-contain`}
-      decoding={eager ? "sync" : "async"}
+      className="h-full w-full object-contain"
+      decoding="async"
       draggable={false}
-      height={72}
-      loading={eager ? "eager" : "lazy"}
+      height={48}
+      loading="lazy"
       src={asset}
       width={48}
     />
