@@ -2,6 +2,15 @@ import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import { getSecurityHeadersForNextConfig } from "./app/lib/security/headers/security-headers";
 
+const IMMUTABLE_NAVIGATION_ASSETS = [
+  "/images/nav-today-v1.webp",
+  "/images/nav-history-v1.webp",
+  "/images/nav-ask-v1.webp",
+  "/images/nav-pets-v1.webp",
+  "/images/nav-products-v1.webp",
+  "/images/nav-more-v1.webp",
+] as const;
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1", "localhost"],
@@ -21,6 +30,14 @@ const nextConfig: NextConfig = {
           { key: "Expires", value: "0" },
           { key: "Pragma", value: "no-cache" },
         ],
+      },
+      ...IMMUTABLE_NAVIGATION_ASSETS.map((source) => ({
+        source,
+        headers: [...immutableAssetHeaders],
+      })),
+      {
+        source: "/brand/logo-header-v1.webp",
+        headers: [...immutableAssetHeaders],
       },
       {
         source: "/reset-password/confirm",
@@ -56,6 +73,10 @@ const nextConfig: NextConfig = {
     ];
   },
 };
+
+const immutableAssetHeaders = [
+  { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+] as const;
 
 export default withSentryConfig(nextConfig, {
   org: "furvise",

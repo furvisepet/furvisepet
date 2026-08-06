@@ -93,7 +93,7 @@ test("the bottom-left N is the disabled Next development indicator, not Furvise 
   assert.doesNotMatch(furviseSources, /fixed[^\n]*(?:bottom[^\n]*left|left[^\n]*bottom)/);
 });
 
-test("approved branding remains byte-source constrained with no new brand assets", () => {
+test("approved branding preserves its source and has one delivery-optimized derivative", () => {
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/logo\.png"/);
-  assert.deepEqual(readdirSync(new URL("../public/brand/", import.meta.url)).sort(), ["logo.png"]);
+  assert.deepEqual(readdirSync(new URL("../public/brand/", import.meta.url)).sort(), ["logo-header-v1.webp", "logo.png"]);
 });

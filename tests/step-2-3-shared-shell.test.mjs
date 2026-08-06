@@ -98,7 +98,7 @@ test("surface balance reserves sage while navigation, composer, search, and foot
 });
 
 test("footer is compact, shell aligned, and uses the canonical logo component", () => {
-  assert.match(homepage, /<AppFooter showSignIn=\{mode === "anonymous"\} \/>/);
+  assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
   assert.match(footer, /<BrandMark size=\{24\} \/>/);
   assert.match(footer, /href="\/privacy">Privacy/);
   assert.match(footer, /href="\/terms">Terms/);

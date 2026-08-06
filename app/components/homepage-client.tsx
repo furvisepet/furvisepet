@@ -41,6 +41,7 @@ export function HomepageClient() {
           ? "with-pet"
           : "no-pets";
   const petName = activePet ? formatPetDisplayName(activePet.name) : "";
+  const visibleMode: Exclude<HomepageMode, "loading"> = mode === "loading" ? "anonymous" : mode;
 
   return (
     <main className={`min-h-screen bg-[var(--surface-page)] text-[var(--text-primary)] ${mode === "no-pets" || mode === "with-pet" ? "app-mobile-nav-clearance" : ""}`}>
@@ -48,21 +49,13 @@ export function HomepageClient() {
         ? <SignedInHeader variant="homepage" />
         : <AppHeader authState={mode === "loading" ? "loading" : "anonymous"} brandHref="/" sticky variant="homepage" />}
 
-      {mode === "loading" ? <HomepageLoading /> : (
-        <>
-          <Hero activePet={activePet} mode={mode} petName={petName} />
-          <Benefits />
-          <FinalCallToAction activePet={activePet} mode={mode} petName={petName} />
-        </>
-      )}
+      <Hero activePet={activePet} mode={visibleMode} petName={petName} />
+      <Benefits />
+      <FinalCallToAction activePet={activePet} mode={visibleMode} petName={petName} />
 
-      <AppFooter showSignIn={mode === "anonymous"} />
+      <AppFooter showSignIn={visibleMode === "anonymous"} />
     </main>
   );
-}
-
-function HomepageLoading() {
-  return <PageShell className="min-h-[68vh] py-20" preset="marketing"><div className="h-12 max-w-[620px] animate-pulse rounded-2xl bg-[var(--selection)]" /><div className="mt-5 h-24 max-w-[540px] animate-pulse rounded-2xl bg-[var(--selection)]" /></PageShell>;
 }
 
 function Hero({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: Exclude<HomepageMode, "loading">; petName: string }) {

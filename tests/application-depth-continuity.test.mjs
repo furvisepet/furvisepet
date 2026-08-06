@@ -71,7 +71,7 @@ test("Products has no pre-search result panel and only shows no-result copy afte
 test("homepage ends with the final conversion section", () => {
   assert.match(homepage, /Start with your pet's name\./);
   assert.match(homepage, /You can add more details whenever you are ready\./);
-  assert.match(homepage, /<AppFooter showSignIn=\{mode === "anonymous"\} \/>/);
+  assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
 });
 
 test("primary user-facing surfaces contain no em dash or visible technical positioning", () => {

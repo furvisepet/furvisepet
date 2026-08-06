@@ -63,7 +63,8 @@ test("the capture root excludes icons, labels, and generated canvas content", ()
 });
 
 test("generated canvas mutations, image loads, and ordinary rerenders schedule no restart", () => {
-  assert.doesNotMatch(hook, /MutationObserver|ResizeObserver|addEventListener\("load"|querySelectorAll\("img"/);
+  assert.doesNotMatch(hook, /MutationObserver|ResizeObserver|querySelectorAll\("img"/);
+  assert.match(hook, /window\.addEventListener\("load", handleWindowLoad, \{ once: true \}\)/);
   assert.doesNotMatch(hook, /addEventListener\("resize"|addEventListener\("orientationchange"/);
   assert.match(runtime, /data-liquid-glass-static[\s\S]*this\._observer = new MutationObserver/);
   assert.match(hook, /image_load_restarts: 0/);
@@ -98,7 +99,7 @@ test("no cache-busting or changing navigation image URLs are generated", () => {
   for (const path of ["today_house.png", "history_clock.png", "ask_chat.png", "pets_paw.png", "pet_products.png", "more_dots.png"]) {
     assert.equal((header.match(new RegExp(path.replace(".", "\\."), "g")) ?? []).length, 0, "paths stay centralized outside the lifecycle integration");
   }
-  assert.match(header, /<NavigationIcon asset=\{item\.asset\} eager \/>/);
+  assert.match(header, /<NavigationIcon asset=\{item\.asset\} \/>/);
 });
 
 test("fallback remains visible and generated canvas has deterministic stacking", () => {

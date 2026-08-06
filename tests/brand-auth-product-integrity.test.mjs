@@ -53,7 +53,7 @@ test("account notification dot is absent by default", () => {
 
 test("homepage explicitly implements anonymous, no-pet, and existing-pet actions", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /showSignIn=\{mode === "anonymous"\}/);
+  assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*Add your pet/);
   assert.match(homepage, /mode === "with-pet"[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
   assert.match(homepage, /auth\.status === "loading"[\s\S]*"loading"/);
@@ -61,7 +61,7 @@ test("homepage explicitly implements anonymous, no-pet, and existing-pet actions
 
 test("signed-in homepage branches do not render signed-out actions", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /<AppFooter showSignIn=\{mode === "anonymous"\} \/>/);
+  assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
   assert.doesNotMatch(homepage, /mode === "with-pet"[^?]+Sign in/s);
 });
 
@@ -119,7 +119,7 @@ test("homepage footer follows authentication state", () => {
   const footer = read("app/components/app-footer.tsx");
   assert.match(footer, /href="\/privacy">Privacy/);
   assert.match(footer, /href="\/terms">Terms/);
-  assert.match(homepage, /showSignIn=\{mode === "anonymous"\}/);
+  assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
   assert.equal(footer.split('href="/login">Sign in</Link>').length - 1, 1);
 });
 

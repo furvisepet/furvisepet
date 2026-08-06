@@ -47,7 +47,7 @@ test("homepage has one hero, exactly three benefits, and authenticated CTA logic
   for (const benefit of ["Remember what changed", "Ask when you are unsure", "Prepare for the vet"]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);
   assert.match(homepage, /mode === "with-pet"[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
-  assert.match(homepage, /<AppFooter showSignIn=\{mode === "anonymous"\} \/>/);
+  assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
 });
 
 test("Products is primary navigation, mobile More owns utilities, and Account stays account-only", () => {
