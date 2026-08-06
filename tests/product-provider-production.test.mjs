@@ -46,17 +46,19 @@ function withNodeEnv(value, callback) {
   }
 }
 
-test("production always resolves static_real and never mock", () => {
-  assert.equal(resolveProductProviderMode({ nodeEnv: "production", productProvider: "mock" }), "static_real");
+test("production defaults to catalog and never resolves mock", () => {
+  assert.equal(resolveProductProviderMode({ nodeEnv: "production", productProvider: "mock" }), "catalog");
+  assert.equal(resolveProductProviderMode({ nodeEnv: "production", productProvider: "catalog" }), "catalog");
+  assert.equal(resolveProductProviderMode({ nodeEnv: "production", productProvider: "static_real" }), "static_real");
   assert.equal(
     resolveProductProviderMode({
       nodeEnv: "production",
       productProvider: "unknown",
       nextPublicProductProvider: "mock",
     }),
-    "static_real",
+    "catalog",
   );
-  assert.equal(getConfiguredProductProvider("mock", "production").id, "static_real");
+  assert.equal(getConfiguredProductProvider("mock", "production").id, "catalog");
 });
 
 test("production filters mock and demo products out even if called directly", () => {

@@ -65,6 +65,7 @@ export type CatalogOffer = {
   destinationUrl: string;
   id: string;
   isActive: boolean;
+  lastCheckedAt: string | null;
   originalPriceAmount: string | null;
   priceAmount: string | null;
   publicUrl: string;

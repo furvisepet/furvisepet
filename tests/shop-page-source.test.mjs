@@ -11,7 +11,7 @@ test("Products remains protected, pet-scoped, and query-first", () => {
   assert.match(page, /setSelectedPetId\(nextSelectedPetId\)/);
   assert.match(page, /function submitSearch/);
   assert.match(page, /setSubmittedQuery\(nextQuery\)/);
-  assert.match(page, /if \(nextQuery\.length < MIN_SHOP_QUERY_LENGTH \|\| !selectedPetId\) return/);
+  assert.match(page, /if \(nextQuery\.length < MIN_SHOP_QUERY_LENGTH \|\| !selectedPetId \|\| !selectedDraft\) return/);
   assert.match(page, /What are you looking for\?/);
   assert.match(page, /title=\{`Products for \$\{selectedPetName \|\| "your pet"\}`\}/);
 });
@@ -26,9 +26,10 @@ test("Products uses one wide neutral search and the four approved categories", (
 
 test("Products keeps bounded catalog loading and deterministic filtering", () => {
   const page = read("app/shop/page.tsx");
+  const catalogSource = read("app/lib/shop/catalog-source.ts");
   const shop = read("app/lib/shop.ts");
   const productSearch = read("app/lib/shop/product-search.ts");
-  assert.match(page, /fetch\("\/api\/shop\/catalog"/);
+  assert.match(catalogSource, /fetchImpl\("\/api\/shop\/catalog"/);
   assert.match(page, /searchShopProducts\(\{/);
   assert.match(shop, /filterAndRankShopProducts/);
   assert.match(productSearch, /isProductAllowedForRuntime/);

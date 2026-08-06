@@ -13,7 +13,7 @@ export function clampCatalogResultLimit(value: number | null | undefined) {
 
 export function normalizeCatalogCountryCode(value: string) {
   const normalized = value.trim().toUpperCase();
-  return /^[A-Z]{2}$/.test(normalized) ? normalized : null;
+  return normalized === "CA" || normalized === "US" ? normalized : null;
 }
 
 export function normalizeCatalogSpeciesCode(value: string) {

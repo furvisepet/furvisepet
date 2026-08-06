@@ -125,16 +125,17 @@ test("Shop product search logs safe diagnostic counts without private data", () 
 
 test("Shop page calls interpretation only after submit and keeps query-first rendering", () => {
   const page = read("app/shop/page.tsx");
+  const catalogSource = read("app/lib/shop/catalog-source.ts");
 
   assert.match(page, /getCurrentAccessToken/);
   assert.match(page, /fetch\("\/api\/shop\/interpret-query"/);
-  assert.match(page, /if \(nextQuery\.length < MIN_SHOP_QUERY_LENGTH \|\| !selectedPetId\) return/);
+  assert.match(page, /if \(nextQuery\.length < MIN_SHOP_QUERY_LENGTH \|\| !selectedPetId \|\| !selectedDraft\) return/);
   assert.doesNotMatch(page, /if \(searchCapReached\) return/);
   assert.match(page, /setSubmittedQuery\(nextQuery\)/);
   assert.match(page, /disabled=\{!canSearch\}/);
   assert.match(page, /You’ve used all of your AI guidance for this month/);
   assert.match(page, /interpretationLoading/);
-  assert.match(page, /fetch\("\/api\/shop\/catalog"/);
+  assert.match(catalogSource, /fetchImpl\("\/api\/shop\/catalog"/);
   assert.match(page, /searchShopProducts\(\{\s+interpretation: activeInterpretation,\s+productCountry,\s+products: catalogProducts/s);
   assert.match(page, /What are you looking for\?/);
 });

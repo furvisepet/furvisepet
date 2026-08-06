@@ -112,6 +112,7 @@ export type MockProduct = {
   enrichmentStatus?: ProductEnrichmentStatus;
   retailer?: string;
   price?: number;
+  availabilityStatus?: "in_stock" | "out_of_stock" | "preorder" | "unknown";
   currency?: string;
   active?: boolean;
   source: ProductSource;
@@ -124,7 +125,7 @@ export type MockProduct = {
   lifeStage: "puppy" | "kitten" | "adult" | "senior" | "all";
   bagPrice?: number;
   estimatedMonthlyCost?: number;
-  evidenceType?: "demo" | "curated_static";
+  evidenceType?: "demo" | "curated_static" | "catalog";
   ingredientHighlights?: string[];
   avoidIngredientKeywords?: string[];
   safetyNotes?: string;

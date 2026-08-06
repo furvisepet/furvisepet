@@ -21,8 +21,8 @@ export type ProductSearchContext = {
   profile: PetProfile;
 };
 
-export type ProductProviderId = "mock" | "static_real" | "disabled_live";
-export type ProductProviderMode = "mock" | "static_real";
+export type ProductProviderId = "mock" | "static_real" | "catalog" | "disabled_live";
+export type ProductProviderMode = "mock" | "static_real" | "catalog";
 
 export type ProductProvider = {
   enabled: boolean;
@@ -178,6 +178,20 @@ export const staticRealProvider: ProductProvider = {
   },
 };
 
+export const catalogProvider: ProductProvider = {
+  enabled: true,
+  id: "catalog",
+  label: "Published regional product catalogue",
+  normalizeProduct: mockProvider.normalizeProduct,
+  rankProducts(products, context) {
+    return rankByFeedback(products, context.feedback || []);
+  },
+  searchProducts() {
+    // Catalogue reads require the authenticated /api/shop/catalog boundary.
+    return [];
+  },
+};
+
 export const disabledLiveProvider: ProductProvider = {
   enabled: false,
   id: "disabled_live",
@@ -202,10 +216,14 @@ export function resolveProductProviderMode({
   nodeEnv?: string;
   productProvider?: string | null;
 } = {}): ProductProviderMode {
-  if (nodeEnv === "production") return "static_real";
+  const serverConfigured = productProvider?.trim() || "";
+  if (nodeEnv === "production") {
+    if (serverConfigured === "static_real" || serverConfigured === "catalog") return serverConfigured;
+    return "catalog";
+  }
 
-  const configured = productProvider || nextPublicProductProvider || "";
-  if (configured === "mock" || configured === "static_real") return configured;
+  const configured = serverConfigured || nextPublicProductProvider?.trim() || "";
+  if (configured === "mock" || configured === "static_real" || configured === "catalog") return configured;
   return "static_real";
 }
 
@@ -219,7 +237,9 @@ export function getConfiguredProductProvider(
       value === undefined ? process.env.PRODUCT_PROVIDER : value,
     nextPublicProductProvider: value === undefined ? process.env.NEXT_PUBLIC_PRODUCT_PROVIDER : "",
   });
-  return mode === "mock" ? mockProvider : staticRealProvider;
+  if (mode === "mock") return mockProvider;
+  if (mode === "catalog") return catalogProvider;
+  return staticRealProvider;
 }
 
 export function isProductAllowedForRuntime(
@@ -231,6 +251,13 @@ export function isProductAllowedForRuntime(
   nodeEnv = process.env.NODE_ENV,
 ) {
   if (nodeEnv !== "production") return true;
+  if (providerMode === "catalog") {
+    return Boolean(
+      product.id &&
+        product.evidenceType === "catalog" &&
+        !/demo|mock|fictional/i.test(product.id),
+    );
+  }
   if (providerMode !== "static_real") return false;
   const productPageUrl = getCanonicalProductUrl(product);
   return Boolean(

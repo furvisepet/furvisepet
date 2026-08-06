@@ -18,7 +18,7 @@ export function mapCatalogProductRow(row: UnknownRow): CatalogProductDetail {
   const brand = asRecord(first(row.product_brands));
   const category = asRecord(first(row.product_categories));
   const images = asRows(row.product_images).map(mapImage).sort(byPosition);
-  const offers = asRows(row.product_offers).map(mapOffer).filter((offer) => offer.isActive && Boolean(offer.publicUrl));
+  const offers = asRows(row.product_offers).map(mapOffer).filter((offer) => offer.isActive);
 
   return {
     advisorSummary: nullableString(row.advisor_summary),
@@ -85,8 +85,11 @@ export function toCatalogProductSummary(product: CatalogProductDetail): CatalogP
 }
 
 export function catalogProductToLegacyProduct(product: CatalogProductDetail, countryCode: string): MockProduct {
+  if (countryCode !== "CA" && countryCode !== "US") throw new Error("Unsupported catalog country.");
   const country = (countryCode === "CA" ? "CA" : "US") as ProductCountry;
-  const offer = product.offers.find((item) => item.countryCode === country && item.isActive);
+  const offer = product.offers
+    .filter((item) => item.countryCode === country && item.isActive)
+    .sort(compareCatalogOffers)[0];
   const category = mapLegacyCategory(product.category.slug);
   const ingredients = product.ingredients.map((ingredient) => ingredient.labelName);
   const warnings = product.warnings.map((warning) => warning.text);
@@ -94,9 +97,9 @@ export function catalogProductToLegacyProduct(product: CatalogProductDetail, cou
 
   return {
     active: product.status === "active",
-    affiliateUrl: offer?.affiliateUrl || undefined,
+    availabilityStatus: offer?.availabilityStatus,
     availableCountries: product.markets
-      .filter((market) => market.status === "available" && (market.countryCode === "US" || market.countryCode === "CA"))
+      .filter((market) => market.status === "available" && market.countryCode === country)
       .map((market) => market.countryCode as ProductCountry),
     avoidIngredientKeywords: ingredients,
     brand: product.brand.name,
@@ -105,7 +108,7 @@ export function catalogProductToLegacyProduct(product: CatalogProductDetail, cou
     concernTags: product.concernTags as MockProduct["concernTags"],
     currency: offer?.currencyCode,
     enrichmentStatus: product.ingredientListComplete ? "verified" : "partial",
-    evidenceType: "curated_static",
+    evidenceType: "catalog",
     excludedIngredients: ingredients,
     id: product.id,
     imageUrl: product.defaultImageUrl || undefined,
@@ -115,6 +118,8 @@ export function catalogProductToLegacyProduct(product: CatalogProductDetail, cou
     lifeStage: product.lifeStage,
     name: product.name,
     productPageUrl: offer?.publicUrl,
+    price: offer?.priceAmount === null || offer?.priceAmount === undefined ? undefined : Number(offer.priceAmount),
+    priceVerifiedAt: offer?.priceAmount ? offer.lastCheckedAt || undefined : undefined,
     productTypeLabel: humanize(product.productType),
     protein: product.primaryProtein || "Not specified",
     recommendationKind: "product",
@@ -149,9 +154,13 @@ function mapOffer(row: UnknownRow): CatalogOffer {
     destinationUrl,
     id: requiredString(row.id, "offer id"),
     isActive: row.is_active !== false,
+    lastCheckedAt: nullableString(row.last_checked_at),
     originalPriceAmount: decimalString(row.original_price_amount),
     priceAmount: decimalString(row.price_amount),
-    publicUrl: affiliateUrl || destinationUrl,
+    // The current Shop select does not load affiliate-use authorization.
+    // Keep the value in the server-side domain model, but expose only the
+    // organic destination until provenance proves affiliate use is permitted.
+    publicUrl: destinationUrl,
     retailer: {
       id: requiredString(retailer.id, "retailer id"),
       name: requiredString(retailer.name, "retailer name"),
@@ -159,6 +168,19 @@ function mapOffer(row: UnknownRow): CatalogOffer {
     },
     variantId: nullableString(row.variant_id),
   };
+}
+
+export function compareCatalogOffers(a: CatalogOffer, b: CatalogOffer) {
+  const stockDifference = Number(b.availabilityStatus === "in_stock") - Number(a.availabilityStatus === "in_stock");
+  if (stockDifference) return stockDifference;
+  const urlDifference = Number(Boolean(b.publicUrl)) - Number(Boolean(a.publicUrl));
+  if (urlDifference) return urlDifference;
+  if (a.currencyCode === b.currencyCode && a.priceAmount !== null && b.priceAmount !== null) {
+    const priceDifference = Number(a.priceAmount) - Number(b.priceAmount);
+    if (priceDifference) return priceDifference;
+  }
+  const retailerDifference = a.retailer.name.localeCompare(b.retailer.name);
+  return retailerDifference || a.id.localeCompare(b.id);
 }
 
 function mapImage(row: UnknownRow): CatalogImage {
