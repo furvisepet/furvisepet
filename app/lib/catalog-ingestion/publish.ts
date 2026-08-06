@@ -11,6 +11,7 @@ import {
 } from "./trust-policy.ts";
 import type { ClaimFlag, DuplicateDetectionResult, NormalizedIngestionProduct, QualityAssessment } from "./types";
 import { validateNormalizedProduct } from "./validate.ts";
+import { isOrganicCuratedProduct } from "./providers/organic-curated.ts";
 
 type IngestionRecordRow = {
   attempt_count: number;
@@ -138,10 +139,10 @@ export async function publishApprovedRecord(
     const source = await upsertOne(supabase, "product_sources", {
       content_hash: record.normalized_hash || stableContentHash(product),
       external_id: sourceExternalId,
-      fetched_at: new Date().toISOString(),
+      fetched_at: verifiedSourceDate(product) || new Date().toISOString(),
       product_id: productId,
       provider: batch.provider,
-      raw_payload: record.raw_payload,
+      raw_payload: sourcePayload(record.raw_payload, product),
       source_type: batch.source_type,
       source_url: product.sourceUrl || batch.source_url,
       trust_level: tier,
@@ -263,6 +264,7 @@ async function publishTextFacts(supabase: SupabaseClient, productId: string, sou
 }
 
 async function publishOffers(supabase: SupabaseClient, batch: IngestionBatchRow, record: IngestionRecordRow, productId: string, sourceId: string, product: NormalizedIngestionProduct, variants: Map<string, string>, actorId?: string | null) {
+  const organic = isOrganicCuratedProduct(product);
   for (const offer of product.offers) {
     const retailer = await upsertOne(supabase, "retailers", { is_active: true, name: offer.retailerName, slug: offer.retailerSlug, website_url: origin(offer.destinationUrl) || offer.destinationUrl }, "slug", "id");
     const variantId = resolveVariant(variants, offer.variantIdentifier) || variants.get("__default__") || null;
@@ -271,11 +273,11 @@ async function publishOffers(supabase: SupabaseClient, batch: IngestionBatchRow,
     throwDb(error, "load offer");
     const stale = offer.freshnessStatus === "stale";
     const authorizedContent = authorizedContentTypes(product);
-    const pricePermitted = !authorizedContent || authorizedContent.has("prices");
-    const affiliatePermitted = !authorizedContent || authorizedContent.has("affiliate_links");
+    const pricePermitted = !organic && (!authorizedContent || authorizedContent.has("prices"));
+    const affiliatePermitted = !organic && (!authorizedContent || authorizedContent.has("affiliate_links"));
     const nextPrice = stale || !pricePermitted ? null : offer.priceAmount ?? existing?.price_amount ?? null;
     const nextOriginalPrice = stale || !pricePermitted ? null : offer.originalPriceAmount ?? existing?.original_price_amount ?? null;
-    const nextAvailability = stale ? "unknown" : offer.availabilityStatus === "unknown" && existing?.availability_status
+    const nextAvailability = organic ? "unknown" : stale ? "unknown" : offer.availabilityStatus === "unknown" && existing?.availability_status
       ? existing.availability_status
       : offer.availabilityStatus;
     await upsertOne(supabase, "product_offers", {
@@ -309,6 +311,17 @@ async function publishOffers(supabase: SupabaseClient, batch: IngestionBatchRow,
 function staleAfter(value: string | null, hours: number | null) {
   if (!value || hours === null) return null;
   return new Date(Date.parse(value) + hours * 60 * 60 * 1_000).toISOString();
+}
+
+function verifiedSourceDate(product: NormalizedIngestionProduct) {
+  if (!isOrganicCuratedProduct(product)) return null;
+  const value = product.sourceMetadata.verificationDate;
+  return typeof value === "string" && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
+}
+
+function sourcePayload(raw: Record<string, unknown>, product: NormalizedIngestionProduct) {
+  if (!isOrganicCuratedProduct(product)) return raw;
+  return { ...raw, _furvisePermissionSnapshot: product.sourceMetadata.permissionSnapshot };
 }
 
 function authorizedContentTypes(product: NormalizedIngestionProduct) {

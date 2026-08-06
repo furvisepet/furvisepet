@@ -5,6 +5,7 @@ import { loadPetMemoryContext } from "../../../lib/pet-memory";
 import { normalizeProductCountry, resolveProductProviderMode } from "../../../lib/product-providers";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
 import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
+import { attachOrganicProductDestinations, resolveOrganicProductDestinations } from "../../../lib/catalog/organic-destinations";
 
 const MAX_QUERY_LENGTH = 240;
 
@@ -61,13 +62,23 @@ export async function POST(request: Request) {
       userId: context.userId,
     });
     if (!rate.allowed) return rate.response;
-    const result = await loadShopCatalogProducts(context.supabase, {
+    const catalogContext = {
       countryCode,
       limit: 60,
       speciesCode: memory.pet.species,
       textQuery: query,
+    } as const;
+    const result = await loadShopCatalogProducts(context.supabase, catalogContext);
+    const destinations = await resolveOrganicProductDestinations(context.supabase, {
+      countryCode,
+      productIds: result.products.map((product) => product.id),
+      speciesCode: memory.pet.species,
     });
-    return Response.json({ ...result, source: "catalog" });
+    return Response.json({
+      ...result,
+      products: attachOrganicProductDestinations(result.products, destinations),
+      source: "catalog",
+    });
   } catch {
     return Response.json({ error: "Product guidance is temporarily unavailable, but you can still try again shortly." }, { status: 503 });
   }

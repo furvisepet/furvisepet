@@ -1007,6 +1007,9 @@ function ShopResults({
       <p className="text-sm text-[var(--pw-subtle)]">
         {formatProductResultCount(products.length)}
       </p>
+      <p className="text-xs leading-5 text-[var(--pw-subtle)]">
+        Recommendations are selected for fit. Furvise may not earn a commission from product links.
+      </p>
 
       {products.map((product) => (
         <ProductCard
@@ -1108,7 +1111,17 @@ function ProductCard({
   return (
     <article className="min-w-0 rounded-lg border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4 shadow-sm">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+        <div className="flex min-w-0 gap-3">
+          {!product.imageUrl ? (
+            <div
+              aria-hidden="true"
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[var(--pw-border)] bg-[var(--pw-surface-muted)] text-center text-[10px] font-semibold leading-3 text-[var(--pw-subtle)]"
+              data-product-image-placeholder="furvise-neutral"
+            >
+              Furvise<br />product
+            </div>
+          ) : null}
+          <div className="min-w-0">
           <p className="text-sm font-semibold text-[var(--pw-primary)]">
             {product.brand || product.retailer || "Product"}
           </p>
@@ -1133,6 +1146,7 @@ function ProductCard({
               {labelCheckNote}
             </p>
           ) : null}
+          </div>
         </div>
         <div className="flex w-full shrink-0 flex-col items-center gap-2 sm:w-fit">
           {productLink?.variant === "link" ? (

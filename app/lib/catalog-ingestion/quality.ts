@@ -1,4 +1,6 @@
 import type { ClaimFlag, DuplicateDetectionResult, NormalizedIngestionProduct, QualityAssessment, QualityReason, SourceUseStatus } from "./types";
+import { productSafetyFailures, requiresLaunchSafetyGate } from "./product-safety.ts";
+import { isOrganicCuratedProduct } from "./providers/organic-curated.ts";
 
 export function assessIngestionQuality(product: NormalizedIngestionProduct, duplicate: DuplicateDetectionResult, claims: ClaimFlag[]): QualityAssessment {
   const reasons: QualityReason[] = [];
@@ -6,14 +8,23 @@ export function assessIngestionQuality(product: NormalizedIngestionProduct, dupl
   if (sourceUseStatus !== "permitted") add("source", "source_use_not_permitted", "Source-use permission is restricted or unresolved.", true);
   if (!(product.externalId || product.gtin || product.manufacturerProductCode || product.sourceUrl)) add("identity", "insufficient_identity", "No stable identity signal is available.", true);
   if (!product.sourceUrl) add("source", "missing_source_url", "An inspectable source URL is required.", true);
-  if (product.speciesCodes.length !== 1 || product.speciesCodes[0] !== "dog") add("species", "species_not_certain", "Dog suitability is not explicit and singular.", true);
-  if (!product.countryCodes.includes("CA") || !product.sourceMetadata.canadaEvidence) add("country", "canada_evidence_missing", "Canadian market evidence is missing.", true);
+  if (isOrganicCuratedProduct(product)) {
+    if (!product.speciesCodes.length || product.speciesCodes.some((species) => species !== "dog" && species !== "cat")) add("species", "species_not_certain", "Dog or cat suitability must be explicit.", true);
+    if (!product.countryCodes.length || product.countryCodes.some((country) => country !== "CA" && country !== "US")) add("country", "market_not_supported", "Only CA and US markets are supported.", true);
+  } else {
+    if (product.speciesCodes.length !== 1 || product.speciesCodes[0] !== "dog") add("species", "species_not_certain", "Dog suitability is not explicit and singular.", true);
+    if (!product.countryCodes.includes("CA") || !product.sourceMetadata.canadaEvidence) add("country", "canada_evidence_missing", "Canadian market evidence is missing.", true);
+  }
   if (!product.category.categorySlug) add("category", "category_unmapped", "The source category is not mapped.", true);
   if (!product.images.length) add("image", "image_unavailable", "No display-permitted image is available.", false);
   if (!product.description && !product.shortDescription) add("description", "description_unavailable", "No reusable product description is available.", false);
   if (!product.ingredients.length) add("ingredients", "ingredients_unavailable", "The full ingredient list is unavailable.", false);
   if (!product.warnings.length) add("warnings", "warnings_unavailable", "Manufacturer warning text is unavailable.", false);
   if (!product.offers.length) add("offer", "offer_unavailable", "No current Canadian retailer offer is available.", false);
+  for (const failure of requiresLaunchSafetyGate(product) ? productSafetyFailures(product) : []) {
+    const dimension: QualityReason["dimension"] = failure.code.includes("ingredient") ? "ingredients" : failure.code.includes("species") ? "species" : failure.code.includes("market") ? "country" : failure.code.includes("category") ? "category" : failure.code.includes("url") ? "offer" : "identity";
+    if (!reasons.some((reason) => reason.code === failure.code)) add(dimension, failure.code, failure.message, true);
+  }
   if (duplicate.proposedAction === "manual_review") add("duplicate", "duplicate_needs_review", "A possible duplicate needs a reviewer decision.", true);
   if (claims.some((claim) => claim.reviewStatus !== "reviewed" || claim.publishDecision === "pending")) add("claims", "claims_need_review", "One or more source claims need review.", true);
   const mappingIssues = Array.isArray(product.sourceMetadata.fieldMappingIssues) ? product.sourceMetadata.fieldMappingIssues : [];
