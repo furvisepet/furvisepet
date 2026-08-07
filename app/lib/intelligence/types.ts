@@ -5,6 +5,31 @@ import type { PetCurrentStateRow } from "./pet-state/types";
 
 export type IntelligenceFeature = "ask" | "product_question" | "product_query_interpretation" | "product_explanation" | "safety_followup" | "vet_brief" | "care_plan";
 export type IntelligenceSafetyLevel = "routine" | "monitor" | "urgent" | "emergency" | "recently_resolved";
+export type SemanticEventDomain = "health" | "behavior" | "nutrition" | "medication" | "safety" | "routine" | "preference" | "profile" | "shopping" | "care" | "other";
+export type SemanticEventTransition = "observed" | "started" | "continued" | "changed" | "improved" | "worsened" | "resolved" | "corrected" | "confirmed" | "preference_set";
+export type SemanticEventState = "active" | "monitoring" | "resolved" | "historical" | "unknown";
+export type SemanticEventImportance = "routine" | "important" | "urgent";
+
+export type CanonicalEventProposal = {
+  subject: { type: "pet" | "owner" | "household" | "unknown"; name: string | null };
+  domain: SemanticEventDomain;
+  topic: string;
+  transition: SemanticEventTransition;
+  state: SemanticEventState;
+  temporal: { occurredAt: string | null; explicitTime: string | null };
+  importance: SemanticEventImportance;
+  confidence: number;
+  sourceExcerpt: string;
+};
+
+export type CanonicalEvent = CanonicalEventProposal & {
+  subject: CanonicalEventProposal["subject"] & { id: string | null };
+  references: { priorEventIds: string[]; episodeId: string | null; concernId: string | null };
+  normalizedTopic: string;
+};
+
+export type SemanticPersistenceDestination = "care_event" | "episode_current_state" | "pet_memory" | "owner_memory" | "profile_change" | "state_only" | "none";
+export type GovernedCanonicalEvent = { event: CanonicalEvent; destination: SemanticPersistenceDestination };
 export type IntelligenceIntent =
   | "question" | "update" | "correction" | "concern_resolution" | "new_symptom"
   | "food" | "routine" | "behavior" | "training" | "medication" | "product"
@@ -104,6 +129,7 @@ export type FurviseLiveContext = {
   recentlyResolvedConcerns: PetConcern[];
   activeEpisodes: CareEpisode[];
   monitoringEpisodes: CareEpisode[];
+  recentlyResolvedEpisodes: CareEpisode[];
   currentState: PetCurrentStateRow | null;
   legacyPetMemories: DogMemoryRow[];
   memories: FurviseMemoryRow[];

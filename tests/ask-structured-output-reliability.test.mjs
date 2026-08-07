@@ -39,6 +39,7 @@ function providerOutput(overrides = {}) {
     intelligenceSafety: { level: "urgent", reason: "Explicit abnormal breathing and extreme fatigue.", requiresImmediateAction: true },
     learnings: [],
     careActions: [{ action: "create_entry", category: "symptom", title: "Deep breathing after activity", details: "Maple was extremely tired and taking deep breaths after running.", severity: "urgent", confidence: 0.99, relatedRecordId: null }],
+    semanticEvents: [{ subject: { type: "pet", name: "Maple" }, domain: "health", topic: "respiratory_distress", transition: "started", state: "active", temporal: { occurredAt: null, explicitTime: null }, importance: "urgent", confidence: 0.99, sourceExcerpt: "extremely tired and taking deep breaths" }],
     ...overrides,
   };
 }
@@ -162,6 +163,7 @@ test("the reduced contract bounds ordinary output fields and omits deterministic
   assert.equal(askUnifiedJsonSchema.properties.suggestedFollowUps.maxItems, 1);
   assert.equal(askUnifiedJsonSchema.properties.learnings.maxItems, 5);
   assert.equal(askUnifiedJsonSchema.properties.careActions.maxItems, 3);
+  assert.equal(askUnifiedJsonSchema.properties.semanticEvents.maxItems, 4);
   assert.equal("shoppingSuppressed" in askUnifiedJsonSchema.properties, false);
   assert.equal("intelligenceMetadata" in askUnifiedJsonSchema.properties, false);
 });

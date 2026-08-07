@@ -68,7 +68,7 @@ export async function buildFurviseContext({
     .returns<Array<{ id: string; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>>()
     : Promise.resolve({ data: [], error: null });
   const episodesQuery = supabase.from("pet_care_episodes").select("*").eq("user_id", userId).eq("pet_profile_id", petId)
-    .in("status", ["active", "monitoring"]).order("last_event_at", { ascending: false }).limit(12).returns<CareEpisode[]>();
+    .in("status", ["active", "monitoring", "resolved"]).order("last_event_at", { ascending: false }).limit(20).returns<CareEpisode[]>();
   const currentStateQuery = supabase.from("pet_current_state").select("*").eq("user_id", userId).eq("pet_profile_id", petId).maybeSingle<PetCurrentStateRow>();
 
   const [conversation, profile, care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState] = await Promise.all([
@@ -94,6 +94,7 @@ export async function buildFurviseContext({
     activeConcerns, recentlyResolvedConcerns: resolvedConcerns, legacyPetMemories: legacyMemories.data || [],
     activeEpisodes: (episodes.data || []).filter((episode) => episode.status === "active"),
     monitoringEpisodes: (episodes.data || []).filter((episode) => episode.status === "monitoring"),
+    recentlyResolvedEpisodes: (episodes.data || []).filter((episode) => episode.status === "resolved").slice(0, 8),
     currentState: currentState.data || null,
     memories: selectFreshRelevantMemories(sharedMemories.data || [], currentMessage, new Date(), mode.contextPolicy.memoryLimit).map((item) => item.memory),
     productFeedback: feedback.data || [], conversationTurns,

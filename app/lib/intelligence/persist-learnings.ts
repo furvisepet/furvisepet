@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeMemoryValue } from "./memory-policy";
-import type { CarePersistenceResult, IntelligenceCareAction, IntelligenceLearning, IntelligencePersistenceSummary } from "./types";
+import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, IntelligenceLearning, IntelligencePersistenceSummary } from "./types";
 import { logIntelligenceError } from "./logging";
 
 export class IntelligencePersistenceError extends Error {
@@ -14,6 +14,7 @@ export class IntelligencePersistenceError extends Error {
 
 export async function persistIntelligenceLearnings({
   careActions,
+  semanticEvents = [],
   learnings,
   petId,
   sourceMessageId,
@@ -21,6 +22,7 @@ export async function persistIntelligenceLearnings({
   userId,
 }: {
   careActions: IntelligenceCareAction[];
+  semanticEvents?: GovernedCanonicalEvent[];
   learnings: IntelligenceLearning[];
   petId: string;
   sourceMessageId: string;
@@ -31,8 +33,11 @@ export async function persistIntelligenceLearnings({
     ...learning,
     normalizedValue: normalizeMemoryValue(learning.factValue),
   }));
-  const carePersistence = careActions[0]
-    ? await persistCanonicalCareAction({ action: careActions[0], petId, sourceMessageId, supabase, userId })
+  const semanticEvent = semanticEvents.find((item) => item.destination === "care_event" || item.destination === "episode_current_state" || item.destination === "state_only");
+  const carePersistence = semanticEvent
+    ? await persistCanonicalSemanticEvent({ event: semanticEvent, petId, sourceMessageId, supabase, userId })
+    : careActions[0]
+      ? await persistCanonicalCareAction({ action: careActions[0], petId, sourceMessageId, supabase, userId })
     : skippedCarePersistence();
   let row: Record<string, unknown> | null = null;
   if (normalizedLearnings.length) {
@@ -42,7 +47,7 @@ export async function persistIntelligenceLearnings({
       p_pet_id: petId,
       p_source_message_id: sourceMessageId,
     });
-    if (error && !careActions.length) throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
+    if (error && !careActions.length && !semanticEvent) throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
     if (error) {
       logIntelligenceError("memory_persistence_after_care", error, {
         sourceMessageIdPresent: Boolean(sourceMessageId), petIdPresent: Boolean(petId),
@@ -58,7 +63,7 @@ export async function persistIntelligenceLearnings({
   const persistedConcernId = carePersistence.concernIds[0] || null;
   return {
     careEntriesCreated: carePersistence.status === "persisted" && !carePersistence.alreadyPersisted ? carePersistence.careEntryIds.length : 0,
-    concernsResolved: carePersistence.status === "persisted" && careActions[0]?.action === "resolve_concern" ? 1 : 0,
+    concernsResolved: carePersistence.status === "persisted" && carePersistence.concernIds.length > 0 && careActions[0]?.action === "resolve_concern" ? 1 : 0,
     memoriesCreated: numberValue(row?.memories_created),
     memoriesSuperseded: numberValue(row?.memories_superseded),
     memoryIds,
@@ -69,6 +74,47 @@ export async function persistIntelligenceLearnings({
     persistenceMode: carePersistence.status === "persisted" && persistedCareEntryId ? "automatic" : "none",
     carePersistence: { ...carePersistence, memoryIds },
   };
+}
+
+async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, supabase, userId }: {
+  event: GovernedCanonicalEvent;
+  petId: string;
+  sourceMessageId: string;
+  supabase: SupabaseClient;
+  userId: string;
+}): Promise<CarePersistenceResult> {
+  const proposal = event.event;
+  const { data, error } = await supabase.rpc("persist_furvise_semantic_event", {
+    p_event: {
+      subject: { type: proposal.subject.type, name: proposal.subject.name },
+      domain: proposal.domain,
+      topic: proposal.normalizedTopic,
+      transition: proposal.transition,
+      state: proposal.state,
+      temporal: proposal.temporal,
+      importance: proposal.importance,
+      confidence: proposal.confidence,
+      sourceExcerpt: proposal.sourceExcerpt,
+    },
+    p_pet_id: petId,
+    p_source_message_id: sourceMessageId,
+    p_user_id: userId,
+  });
+  if (error) {
+    logIntelligenceError("semantic_event_persistence", error, {
+      sourceMessageIdPresent: Boolean(sourceMessageId), petIdPresent: Boolean(petId),
+      domain: proposal.domain, transition: proposal.transition,
+    });
+    return { status: "failed", careEntryIds: [], concernIds: [], errorCode: "SEMANTIC_EVENT_PERSISTENCE_FAILED", currentSafetyState: null, alreadyPersisted: false };
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  const entryId = typeof row?.care_entry_id === "string" ? row.care_entry_id : null;
+  if (!entryId || row?.persistence_status !== "persisted") {
+    return { status: "failed", careEntryIds: [], concernIds: [], errorCode: "SEMANTIC_EVENT_PERSISTENCE_UNCONFIRMED", currentSafetyState: null, alreadyPersisted: false };
+  }
+  return { status: "persisted", careEntryIds: [entryId], concernIds: [], errorCode: null,
+    currentSafetyState: proposal.state === "resolved" ? "recently_resolved" : proposal.importance === "urgent" ? "urgent" : "routine",
+    alreadyPersisted: row.already_persisted === true };
 }
 
 export async function persistFeatureIntelligenceLearnings({

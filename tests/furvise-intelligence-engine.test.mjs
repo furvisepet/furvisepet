@@ -87,6 +87,12 @@ test("resolved concern history does not dominate an unrelated future question", 
   assert.equal(state.shoppingSuppressed, false);
 });
 
+test("active semantic urgency is current state, while a resolved episode does not hijack later questions", () => {
+  const active = { id: "missing", pet_profile_id: "pet-1", normalized_key: "safety_pet_missing", episode_type: "care_tracking", status: "active", severity: "urgent", sequence_number: 1, recurrence_of: null, started_at: "2026-07-28T08:00:00Z", last_event_at: "2026-07-28T08:00:00Z", resolved_at: null };
+  assert.equal(resolveSafetyState(context("What should I do next?", { activeEpisodes: [active], monitoringEpisodes: [] })).level, "urgent");
+  assert.equal(resolveSafetyState(context("What food portions should I use?", { activeEpisodes: [], monitoringEpisodes: [], recentlyResolvedEpisodes: [{ ...active, status: "resolved", resolved_at: "2026-07-28T09:00:00Z" }] })).level, "routine");
+});
+
 test("explicit pet and owner preferences are learned but conversational filler is rejected", () => {
   const petPreference = { subjectType: "pet", subjectId: "pet-1", category: "food_preference", factKey: "preferred_flavor", factValue: "salmon", confidence: 0.96, importance: "medium", durability: "durable", action: "create", sourceExcerpt: "Mani prefers salmon" };
   const ownerPreference = { subjectType: "owner", subjectId: null, category: "retailer_preference", factKey: "preferred_retailer", factValue: "Costco", confidence: 0.93, importance: "medium", durability: "durable", action: "create", sourceExcerpt: "I usually shop at Costco" };

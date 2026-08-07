@@ -798,10 +798,11 @@ async function persistAssistantAnswer({
 
   let intelligencePersistence: IntelligencePersistenceSummary | null = null;
   let intelligencePersistenceWarning = "";
-  if (intelligenceResult && (intelligenceResult.acceptedLearnings.length || intelligenceResult.acceptedCareActions.length)) {
+  if (intelligenceResult && (intelligenceResult.acceptedLearnings.length || intelligenceResult.acceptedCareActions.length || intelligenceResult.acceptedSemanticEvents.length)) {
     try {
       intelligencePersistence = await persistIntelligenceLearnings({
         careActions: intelligenceResult.acceptedCareActions,
+        semanticEvents: intelligenceResult.acceptedSemanticEvents,
         learnings: intelligenceResult.acceptedLearnings,
         petId,
         sourceMessageId: userMessageId,
@@ -1315,11 +1316,13 @@ function resolveAskLocale(bodyLocale: unknown, acceptLanguage: string | null) {
 function formatContextSourceLabel(record: AskContextRecord) {
   return ({
     active_concern: "Active concerns",
+    active_episode: "Current episodes",
     care_update: "Recent care updates",
     conversation_turn: "Recent conversation",
     profile: "Pet profile",
     product_context: "Product history",
     remembered_detail: "Remembered details",
+    resolved_episode: "Recently resolved episodes",
   } satisfies Record<AskContextRecord["sourceType"], string>)[record.sourceType];
 }
 

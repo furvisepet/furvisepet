@@ -65,7 +65,7 @@ function unified(overrides = {}) {
       level: "routine", reason: "No current safety issue.",
       requiresImmediateAction: false, shoppingSuppressed: false,
     },
-    learnings: [], careActions: [],
+    learnings: [], careActions: [], semanticEvents: [],
     intelligenceMetadata: {
       confidence: "high", usedPetContext: true,
       usedCareHistory: false, usedMemories: false,
@@ -127,6 +127,15 @@ test("occurred_at determines the latest real-world update", () => {
   ];
   const updates = buildRankedAskContext(input({ careEntries: entries })).filter((record) => record.sourceType === "care_update");
   assert.equal(updates[0].id, "care:real-latest");
+});
+
+test("active semantic state outranks old history while unrelated resolved episodes stay out of context", () => {
+  const activeEpisodes = [{ id: "episode-active", pet_profile_id: "pet-mani", normalized_key: "safety_pet_missing", episode_type: "care_tracking", title: "Pet missing", severity: "urgent", status: "active", sequence_number: 1, recurrence_of: null, started_at: "2026-07-27T19:00:00Z", last_event_at: "2026-07-27T19:00:00Z", resolved_at: null }];
+  const resolvedEpisodes = [{ ...activeEpisodes[0], id: "episode-resolved", normalized_key: "health_vomiting", title: "Vomiting", status: "resolved", severity: "routine", started_at: "2026-06-01T00:00:00Z", last_event_at: "2026-06-02T00:00:00Z", resolved_at: "2026-06-02T00:00:00Z" }];
+  const records = buildRankedAskContext(input({ activeEpisodes, recentlyResolvedEpisodes: resolvedEpisodes, question: "Is Mani still missing?" }));
+  assert.equal(records.some((record) => record.id === "episode:episode-active"), true);
+  assert.equal(records.some((record) => record.id === "episode:episode-resolved"), false);
+  assert.equal(records.find((record) => record.id === "episode:episode-active")?.status, "active");
 });
 
 test("deterministic urgent context forces urgent safety and shopping suppression", async () => {
