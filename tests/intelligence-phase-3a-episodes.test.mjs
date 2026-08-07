@@ -33,6 +33,6 @@ test("ambiguous general observations are not assigned", () => assert.equal(assig
 test("episode retrieval is bounded and avoids N plus one queries", () => {
   const source = readFileSync(new URL("../app/lib/intelligence/retrieve-context.ts", import.meta.url), "utf8");
   assert.match(source, /episodesQuery/);
-  assert.match(source, /\.limit\(12\)/);
+  assert.match(source, /\.limit\(20\)/);
   assert.match(source, /Promise\.all/);
 });

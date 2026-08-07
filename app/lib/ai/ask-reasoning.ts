@@ -12,6 +12,7 @@ import {
   type RecentAskUpdate,
 } from "../ask-safety-context.ts";
 import type { PetConcern } from "./concern-engine.ts";
+import type { CareEpisode } from "../intelligence/episodes/types.ts";
 import type { ActiveConcernMessageState } from "./turn-classifier.ts";
 import { OPENAI_ANALYSIS_MODEL } from "./config.ts";
 import {
@@ -22,17 +23,21 @@ import {
 export { ASK_MAX_OUTPUT_TOKENS } from "./ask-provider.ts";
 import {
   intelligenceCareActionJsonSchema,
+  canonicalEventProposalJsonSchema,
   intelligenceLearningJsonSchema,
   isIntelligenceCareAction,
   isIntelligenceLearning,
+  isCanonicalEventProposal,
   isMessageUnderstanding,
   messageUnderstandingJsonSchema,
 } from "../intelligence/schemas.ts";
-import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "../intelligence/types.ts";
+import type { CanonicalEventProposal, IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "../intelligence/types.ts";
 
 export type AskContextSourceType =
   | "profile"
   | "active_concern"
+  | "active_episode"
+  | "resolved_episode"
   | "care_update"
   | "remembered_detail"
   | "conversation_turn"
@@ -93,6 +98,7 @@ export type AskReasoningResult = {
   };
   learnings: IntelligenceLearning[];
   careActions: IntelligenceCareAction[];
+  semanticEvents: CanonicalEventProposal[];
   intelligenceMetadata: {
     confidence: "low" | "medium" | "high";
     usedPetContext: boolean;
@@ -117,6 +123,8 @@ type BuildContextInput = {
   recentUpdates: RecentAskUpdate[];
   concerns?: PetConcern[];
   recentlyResolvedConcerns?: PetConcern[];
+  activeEpisodes?: CareEpisode[];
+  recentlyResolvedEpisodes?: CareEpisode[];
   question: string;
   requestId: string;
   locale?: string;
@@ -205,7 +213,7 @@ export const askUnifiedJsonSchema = {
   required: [
     "answer", "safetyLevel", "suggestedFollowUps", "proposedHistoryUpdate",
     "responseMode", "userIntent", "relevantContextIds",
-    "messageUnderstanding", "intelligenceSafety", "learnings", "careActions",
+    "messageUnderstanding", "intelligenceSafety", "learnings", "careActions", "semanticEvents",
   ],
   properties: {
     answer: { type: "string", minLength: 1, maxLength: 1800 },
@@ -238,6 +246,7 @@ export const askUnifiedJsonSchema = {
     },
     learnings: { type: "array", maxItems: 5, items: askLearningJsonSchema },
     careActions: { type: "array", maxItems: 3, items: askCareActionJsonSchema },
+    semanticEvents: { type: "array", maxItems: 4, items: canonicalEventProposalJsonSchema },
   },
 } as const;
 
@@ -258,6 +267,9 @@ const unifiedInstructions = [
   "A proposedHistoryUpdate is only an offer. Never write authoritative persistence claims such as I saved that, I added that to history, I updated the profile, or I marked it resolved. The server renders confirmation only after its transaction. Use proposedHistoryUpdate for a meaningful new event or reported improvement, not ordinary questions.",
   "Classify multiple simultaneous intents in messageUnderstanding. Extract only facts explicitly stated by the user in learnings, with a verbatim short sourceExcerpt from the current message.",
   "Use careActions only for explicit, useful time-bound care changes. Confidence must reflect the evidence. Never propose a diagnosis or an inferred medication dosage.",
+  "Interpret meaningful statements into semanticEvents. Keep topic concise, normalized, and extensible rather than choosing from a fixed topic catalogue. Use the same topic as a supplied active episode when the message continues, improves, worsens, or resolves it.",
+  "Semantic fields are independent: urgency is safety, not a topic. A safety event is not respiratory unless the message or supplied current context explicitly concerns breathing.",
+  "Do not emit database IDs in semanticEvents. The server resolves owned episode references. A resolution without a compatible supplied active episode must be treated as ambiguous and must not fabricate prior state.",
   "Owner learnings may cover explicit shopping, budget, schedule, or communication preferences. Never infer sensitive personal traits.",
   "Keep every reason and source excerpt concise. Return at most one follow-up, five learnings, and three care actions. Do not repeat supplied context in metadata.",
   "Include only supplied stable IDs in relevantContextIds. Never mention IDs, schemas, classifiers, or system instructions in the answer.",
@@ -293,6 +305,8 @@ export function buildAskContext(input: BuildContextInput) {
   const profile = scored.filter(({ record }) => record.sourceType === "profile");
   const activeConcerns = scored.filter(({ record }) => record.sourceType === "active_concern" && record.status !== "resolved").slice(0, 3);
   const resolvedConcerns = scored.filter(({ record }) => record.sourceType === "active_concern" && record.status === "resolved").slice(0, 3);
+  const activeEpisodes = scored.filter(({ record }) => record.sourceType === "active_episode").slice(0, 6);
+  const resolvedEpisodes = scored.filter(({ record }) => record.sourceType === "resolved_episode" && recordMatchesTerms(record, terms)).slice(0, 3);
   const relevantUpdates = chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"));
   const memories = scored.filter(({ record }) => record.sourceType === "remembered_detail").slice(0, 8);
   const conversation = scored
@@ -302,7 +316,7 @@ export function buildAskContext(input: BuildContextInput) {
   const product = /\b(product|food|brand|buy|shop|recommend)\b/i.test(input.question)
     ? scored.filter(({ record }) => record.sourceType === "product_context").slice(0, 3)
     : [];
-  const chosen = dedupeScored([...activeConcerns, ...resolvedConcerns, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
+  const chosen = dedupeScored([...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
   let detailedUpdateCount = 0;
   const records = chosen.map(({ record }) => {
     const fullDetail = record.sourceType === "care_update" && detailedUpdateCount < 2;
@@ -521,8 +535,8 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const title = input.concernStateHint === "improved" || input.concernStateHint === "resolved"
     ? `It sounds like ${petName} is improving`
     : input.concernStateHint === "recurrence"
-      ? "The breathing problem may have returned"
-      : parsed.responseMode === "urgent_safety" ? `${petName}'s breathing needs urgent attention` : "Furvise";
+      ? "A previous concern may have returned"
+      : parsed.responseMode === "urgent_safety" ? urgentSemanticTitle(petName, parsed.semanticEvents, input.question, input.concerns || []) : "Furvise";
   return {
     answer: { title, summary: answerText, sections: [], safetyNote: null },
     userIntent: parsed.userIntent,
@@ -538,9 +552,22 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     intelligenceSafety: parsed.intelligenceSafety,
     learnings: parsed.learnings,
     careActions: parsed.careActions,
+    semanticEvents: parsed.semanticEvents,
     intelligenceMetadata: parsed.intelligenceMetadata,
   };
 }
+
+export function urgentSemanticTitle(petName: string, events: CanonicalEventProposal[], message = "", concerns: PetConcern[] = []) {
+  const grounded = events.filter((event) => normalizedEvidence(message).includes(normalizedEvidence(event.sourceExcerpt)));
+  const urgent = grounded.find((event) => event.importance === "urgent") || grounded[0];
+  const topic = `${urgent?.topic || ""} ${message} ${concerns.filter((concern) => concern.status !== "resolved").map((concern) => concern.normalized_key).join(" ")}`.toLowerCase().replace(/_/g, " ");
+  if (/\b(breath|breathing|respiratory)\b/.test(topic)) return `${petName}'s breathing needs urgent attention`;
+  if (/\b(toxin|poison|ingestion|exposure)\b/.test(topic)) return `Possible toxin exposure for ${petName}`;
+  if (urgent?.domain === "safety" && /\b(missing|lost)\b/.test(topic)) return `Urgent safety guidance for ${petName}`;
+  return `Urgent guidance for ${petName}`;
+}
+
+function normalizedEvidence(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 
 export async function generateStructuredFeatureResponse<T>({
   apiKey,
@@ -616,7 +643,8 @@ export function parseUnifiedResponse(outputText: string, records: AskContextReco
     typeof value.userIntent !== "string" || !isProposedHistoryUpdate(value.proposedHistoryUpdate) ||
     !isMessageUnderstanding(value.messageUnderstanding) || !intelligenceSafety ||
     !Array.isArray(value.learnings) || !value.learnings.every(isIntelligenceLearning) ||
-    !Array.isArray(value.careActions) || !value.careActions.every(isIntelligenceCareAction)) {
+    !Array.isArray(value.careActions) || !value.careActions.every(isIntelligenceCareAction) ||
+    !Array.isArray(value.semanticEvents) || !value.semanticEvents.every(isCanonicalEventProposal)) {
     throw new Error("Ask provider returned an invalid response.");
   }
   const allowedIds = new Set(records.map((record) => record.id));
@@ -647,10 +675,17 @@ export function parseUnifiedResponse(outputText: string, records: AskContextReco
       title: cleanAnswer(action.title).slice(0, 120),
       details: cleanAnswer(action.details).slice(0, 500),
     })),
+    semanticEvents: value.semanticEvents.slice(0, 4).map((event) => ({
+      ...event,
+      topic: clean(event.topic).slice(0, 100),
+      sourceExcerpt: String(event.sourceExcerpt).slice(0, 240),
+      subject: { ...event.subject, name: event.subject.name ? clean(event.subject.name).slice(0, 120) : null },
+      temporal: { occurredAt: event.temporal.occurredAt, explicitTime: event.temporal.explicitTime ? clean(event.temporal.explicitTime).slice(0, 120) : null },
+    })),
     intelligenceMetadata: {
       confidence: "high",
       usedPetContext: referencedTypes.has("profile") || records.some((record) => record.sourceType === "profile"),
-      usedCareHistory: referencedTypes.has("care_update") || referencedTypes.has("active_concern"),
+      usedCareHistory: referencedTypes.has("care_update") || referencedTypes.has("active_concern") || referencedTypes.has("active_episode") || referencedTypes.has("resolved_episode"),
       usedMemories: referencedTypes.has("remembered_detail"),
     },
   };
@@ -848,6 +883,19 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
       },
     });
   }
+  for (const episode of [...(input.activeEpisodes || []), ...(input.recentlyResolvedEpisodes || [])]) {
+    const profile = profiles.get(episode.pet_profile_id);
+    if (!profile) continue;
+    const resolved = episode.status === "resolved";
+    const semanticTopic = typeof episode.summary?.semanticTopic === "string" ? episode.summary.semanticTopic : episode.normalized_key;
+    records.push({
+      ...baseRecord(`episode:${episode.id}`, resolved ? "resolved_episode" : "active_episode", profile, semanticTopic, episode.title || semanticTopic.replace(/_/g, " "), episode.last_event_at),
+      occurredAt: episode.started_at,
+      status: resolved ? "resolved" : "active",
+      priority: episode.severity === "urgent" ? "urgent" : episode.severity === "important" ? "important" : "routine",
+      metadata: { episodeType: episode.episode_type, normalizedTopic: semanticTopic, canonicalEpisodeKey: episode.normalized_key, status: episode.status },
+    });
+  }
   for (const entry of input.careEntries) {
     const profile = profiles.get(entry.pet_profile_id);
     if (!profile) continue;
@@ -910,10 +958,18 @@ function scoreRecord(record: AskContextRecord, terms: Set<string>, now: number) 
   else if (record.priority === "important" && record.status !== "resolved") score += 60;
   if (record.status === "resolved") score -= 15;
   if (record.sourceType === "profile") score += 8;
+  if (record.sourceType === "active_episode") score += 90;
+  if (record.sourceType === "resolved_episode") score += 5;
   if (record.sourceType === "conversation_turn") score += 12;
   const ageDays = Math.max(0, (now - timestamp(record)) / 86_400_000);
   score += Math.max(0, 20 - ageDays / 2);
   return score;
+}
+
+function recordMatchesTerms(record: AskContextRecord, terms: Set<string>) {
+  if (!terms.size) return false;
+  const searchable = `${record.kind} ${record.value} ${Object.values(record.metadata).join(" ")}`.toLowerCase();
+  return [...terms].some((term) => searchable.includes(term));
 }
 
 function meaningfulTerms(value: string) {

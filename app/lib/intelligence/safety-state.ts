@@ -29,6 +29,8 @@ export function resolveSafetyState(context: FurviseLiveContext): ResolvedSafetyS
   ) level = "recently_resolved";
   else if (stateBreathing === "abnormal") level = "urgent";
   else if (stateBreathing === "normal" && messageState !== "unrelated") level = "recently_resolved";
+  else if ((context.activeEpisodes || []).some((episode) => episode.severity === "urgent")) level = "urgent";
+  else if ((context.activeEpisodes || []).length || (context.monitoringEpisodes || []).length) level = "monitor";
   else if (chronology.state === "urgent") level = "urgent";
   else if (chronology.state === "recently_resolved" && messageState !== "unrelated") level = "recently_resolved";
   else if (context.activeConcerns.some((concern) => concern.severity === "urgent")) level = "urgent";

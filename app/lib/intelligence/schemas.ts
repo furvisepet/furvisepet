@@ -1,4 +1,43 @@
-import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding } from "./types";
+import type { CanonicalEventProposal, IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding } from "./types";
+
+export const canonicalEventProposalJsonSchema = {
+  type: "object", additionalProperties: false,
+  required: ["subject", "domain", "topic", "transition", "state", "temporal", "importance", "confidence", "sourceExcerpt"],
+  properties: {
+    subject: { type: "object", additionalProperties: false, required: ["type", "name"], properties: {
+      type: { type: "string", enum: ["pet", "owner", "household", "unknown"] },
+      name: { anyOf: [{ type: "string", maxLength: 120 }, { type: "null" }] },
+    } },
+    domain: { type: "string", enum: ["health", "behavior", "nutrition", "medication", "safety", "routine", "preference", "profile", "shopping", "care", "other"] },
+    topic: { type: "string", minLength: 2, maxLength: 100 },
+    transition: { type: "string", enum: ["observed", "started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed", "preference_set"] },
+    state: { type: "string", enum: ["active", "monitoring", "resolved", "historical", "unknown"] },
+    temporal: { type: "object", additionalProperties: false, required: ["occurredAt", "explicitTime"], properties: {
+      occurredAt: { anyOf: [{ type: "string", maxLength: 40 }, { type: "null" }] },
+      explicitTime: { anyOf: [{ type: "string", maxLength: 120 }, { type: "null" }] },
+    } },
+    importance: { type: "string", enum: ["routine", "important", "urgent"] },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    sourceExcerpt: { type: "string", minLength: 1, maxLength: 240 },
+  },
+} as const;
+
+export function isCanonicalEventProposal(value: unknown): value is CanonicalEventProposal {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  const subject = item.subject as Record<string, unknown> | null;
+  const temporal = item.temporal as Record<string, unknown> | null;
+  if (!subject || !temporal) return false;
+  return ["pet", "owner", "household", "unknown"].includes(String(subject.type)) &&
+    (subject.name === null || typeof subject.name === "string") &&
+    ["health", "behavior", "nutrition", "medication", "safety", "routine", "preference", "profile", "shopping", "care", "other"].includes(String(item.domain)) &&
+    typeof item.topic === "string" && item.topic.length >= 2 &&
+    ["observed", "started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed", "preference_set"].includes(String(item.transition)) &&
+    ["active", "monitoring", "resolved", "historical", "unknown"].includes(String(item.state)) &&
+    (temporal.occurredAt === null || typeof temporal.occurredAt === "string") && (temporal.explicitTime === null || typeof temporal.explicitTime === "string") &&
+    ["routine", "important", "urgent"].includes(String(item.importance)) && typeof item.confidence === "number" && item.confidence >= 0 && item.confidence <= 1 &&
+    typeof item.sourceExcerpt === "string";
+}
 
 export const intelligenceIntentValues = [
   "question", "update", "correction", "concern_resolution", "new_symptom", "food", "routine",

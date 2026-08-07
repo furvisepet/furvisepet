@@ -13,6 +13,7 @@ import { authorizeProposedActions, type GovernanceResult } from "./governance/in
 import { validateGeneratedAnswer, type AnswerValidationResult } from "./validation/index.ts";
 import { resolveRecoverySubject } from "./episodes/resolve-recovery-subject.ts";
 import { routePersistenceDestinations } from "./persistence-destination.ts";
+import { governCanonicalEvents, learningFromSemanticEvent } from "./semantic-events.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -21,6 +22,7 @@ export type FurviseIntelligenceResult = {
   acceptedLearnings: AskReasoningResult["learnings"];
   rejectedLearningCount: number;
   acceptedCareActions: AskReasoningResult["careActions"];
+  acceptedSemanticEvents: ReturnType<typeof governCanonicalEvents>["accepted"];
   rejectedCareActionCount: number;
   governance: GovernanceResult;
   answerValidation: Omit<AnswerValidationResult, "response">;
@@ -61,9 +63,17 @@ export async function runFurviseIntelligence({
     question: context.currentMessage,
     recentUpdates: buildRecentAskUpdates(context.selectedCareEntries),
     recentlyResolvedConcerns: context.recentlyResolvedConcerns,
+    activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
+    recentlyResolvedEpisodes: context.recentlyResolvedEpisodes,
     requestId,
     concernStateHint: safety.concernMessageState,
     onProviderEvent,
+  });
+  const semanticGovernance = governCanonicalEvents({
+    proposals: reasoning.semanticEvents,
+    message: context.currentMessage,
+    pet: { id: context.pet.id, name: context.pet.name },
+    activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
   });
 
   const proposedResolutionPolicy = evaluateCareActionPolicy({
@@ -76,7 +86,9 @@ export async function runFurviseIntelligence({
   const modelGroundedResolution = reasoning.intelligenceSafety.level === "recently_resolved"
     && !["worsening", "recurrence", "still_active"].includes(safety.concernMessageState)
     && proposedResolutionPolicy.accepted.some((action) => action.action === "resolve_concern");
-  reasoning.intelligenceSafety.level = modelGroundedResolution
+  const semanticGroundedResolution = semanticGovernance.accepted.some(({ event }) =>
+    event.transition === "resolved" && event.state === "resolved" && Boolean(event.references.episodeId)) && context.activeConcerns.length === 0;
+  reasoning.intelligenceSafety.level = modelGroundedResolution || semanticGroundedResolution
     ? "recently_resolved"
     : applySafetyFloor(reasoning.intelligenceSafety.level, safety);
   if (safety.shoppingSuppressed) {
@@ -101,7 +113,13 @@ export async function runFurviseIntelligence({
   const governance = authorizeProposedActions({ message: context.currentMessage, petId: context.pet.id, careActions: proposedCareActions, memories: learningPolicy.accepted });
   const governedCareActions = governance.careActions.filter((decision) => decision.decision === "accepted").map((decision) => decision.proposal);
   const governedLearnings = governance.memories.filter((decision) => decision.decision === "accepted").map((decision) => decision.proposal);
-  const routedPersistence = routePersistenceDestinations({ message: context.currentMessage, petId: context.pet.id, careActions: governedCareActions, learnings: governedLearnings });
+  const semanticLearnings = semanticGovernance.accepted.map(learningFromSemanticEvent).filter((item): item is NonNullable<typeof item> => Boolean(item));
+  const routedPersistence = routePersistenceDestinations({
+    message: context.currentMessage,
+    petId: context.pet.id,
+    careActions: governedCareActions,
+    learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
+  });
   const acceptedCareActions = routedPersistence.careActions;
   const acceptedLearnings = routedPersistence.learnings;
   const answerValidation = validateGeneratedAnswer(reasoning, context, reasoning.intelligenceSafety.level);
@@ -114,10 +132,16 @@ export async function runFurviseIntelligence({
     acceptedLearnings,
     rejectedLearningCount: learningPolicy.rejected.length,
     acceptedCareActions,
+    acceptedSemanticEvents: semanticGovernance.accepted,
     rejectedCareActionCount: carePolicy.rejected.length,
     governance,
     answerValidation: { valid: answerValidation.valid, repairs: answerValidation.repairs, errors: answerValidation.errors },
   };
+}
+
+function dedupeLearnings<T extends { subjectType: string; subjectId: string | null; factKey: string }>(items: T[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => { const key = `${item.subjectType}:${item.subjectId || ""}:${item.factKey}`; if (seen.has(key)) return false; seen.add(key); return true; });
 }
 
 function currentStateMemories(context: FurviseLiveContext) {
