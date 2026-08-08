@@ -138,6 +138,17 @@ test("active semantic state outranks old history while unrelated resolved episod
   assert.equal(records.find((record) => record.id === "episode:episode-active")?.status, "active");
 });
 
+test("a resolved missing-pet episode does not influence a future unrelated question", () => {
+  const resolvedMissing = [{
+    id: "episode-found", pet_profile_id: "pet-mani", normalized_key: "safety_missingpet", episode_type: "care_tracking",
+    title: "Mani ran away", severity: "urgent", status: "resolved", sequence_number: 1, recurrence_of: null,
+    started_at: "2026-07-27T18:00:00Z", last_event_at: "2026-07-27T19:00:00Z", resolved_at: "2026-07-27T19:00:00Z",
+    summary: { semanticDomain: "safety", semanticTopic: "missingpet", latestStatus: "resolved" },
+  }];
+  const records = buildRankedAskContext(input({ recentlyResolvedEpisodes: resolvedMissing, question: "How often should I brush Mani's teeth?" }));
+  assert.equal(records.some((record) => record.id === "episode:episode-found"), false);
+});
+
 test("deterministic urgent context forces urgent safety and shopping suppression", async () => {
   const entries = [care({ id: "breathing", category: "symptom", title: "Breathing trouble", note: "Open-mouth breathing and weakness", severity: "severe" })];
   const concerns = [{

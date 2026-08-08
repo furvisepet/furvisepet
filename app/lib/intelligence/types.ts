@@ -14,6 +14,8 @@ export type CanonicalEventProposal = {
   subject: { type: "pet" | "owner" | "household" | "unknown"; name: string | null };
   domain: SemanticEventDomain;
   topic: string;
+  /** User-facing chronology title. Never use this value as an identity key. */
+  eventTitle: string;
   transition: SemanticEventTransition;
   state: SemanticEventState;
   temporal: { occurredAt: string | null; explicitTime: string | null };
