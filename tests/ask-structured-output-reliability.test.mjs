@@ -168,6 +168,14 @@ test("the reduced contract bounds ordinary output fields and omits deterministic
   assert.equal("intelligenceMetadata" in askUnifiedJsonSchema.properties, false);
 });
 
+test("structured Ask extraction separates point-in-time chronology from memory and current state", () => {
+  const reasoning = readFileSync(new URL("../app/lib/ai/ask-reasoning.ts", import.meta.url), "utf8");
+  assert.match(reasoning, /every explicit high-confidence pet care action or occurrence tied to a point in time, emit a semanticEvent/);
+  assert.match(reasoning, /Chronology and memory are independent destinations/);
+  assert.match(reasoning, /state=historical for a completed standalone event/);
+  assert.match(reasoning, /active or monitoring only when it creates or changes an ongoing temporary state/);
+});
+
 test("canonical mutations remain after provider, schema, answer validation, and governance", () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
   const runIndex = route.indexOf("runFurviseIntelligence({");

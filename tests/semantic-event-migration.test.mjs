@@ -36,6 +36,14 @@ test("accepted transitions append history, update episodes, and preserve topic-s
   assert.doesNotMatch(sql, /delete from public\.(pet_care_entries|pet_care_episodes|pet_current_state)/);
 });
 
+test("completed preventive care uses the existing general History category and bounded occurrence policy", () => {
+  assert.match(sql, /when 'care' then 'general'/);
+  assert.match(sql, /v_occurred_at := v_source_created_at/);
+  assert.match(sql, /v_occurred_at > v_source_created_at \+ interval '5 minutes'/);
+  assert.match(sql, /v_occurred_at < v_source_created_at - interval '10 years'/);
+  assert.match(sql, /'explicitTime', p_event#>>'\{temporal,explicitTime\}'/);
+});
+
 test("the generic RPC preserves the legacy concern RPC and enforces confidence floors", () => {
   assert.doesNotMatch(sql, /create or replace function public\.persist_furvise_care_event/);
   assert.match(sql, /v_transition in \('resolved','corrected'\) then 0\.95/);

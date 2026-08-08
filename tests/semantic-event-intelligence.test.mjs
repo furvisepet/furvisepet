@@ -46,7 +46,30 @@ test("behavior and food changes use semantic chronology without becoming prefere
   for (const proposal of samples) {
     const result = governCanonicalEvents({ proposals: [proposal], message: proposal.sourceExcerpt, pet, activeEpisodes: [] });
     assert.equal(result.accepted[0].destination, "episode_current_state");
+    assert.deepEqual(result.accepted[0].destinations, ["care_event", "episode_current_state"]);
     assert.equal(learningFromSemanticEvent(result.accepted[0]), null);
+  }
+});
+
+test("time-bound completed care routes to History without requiring an ongoing episode", () => {
+  const vaccination = base({
+    domain: "care", topic: "preventive_immunization", transition: "confirmed", state: "historical",
+    temporal: { occurredAt: null, explicitTime: "today" }, importance: "routine", confidence: 0.99,
+    sourceExcerpt: "I also got her vaccinated today",
+  });
+  const result = governCanonicalEvents({ proposals: [vaccination], message: vaccination.sourceExcerpt, pet, activeEpisodes: [] });
+  assert.deepEqual(result.accepted[0].destinations, ["care_event"]);
+  assert.equal(result.accepted[0].event.temporal.explicitTime, "today");
+  assert.equal(learningFromSemanticEvent(result.accepted[0]), null);
+});
+
+test("medication and food starts route to both History and current state", () => {
+  for (const proposal of [
+    base({ domain: "medication", topic: "apoquel_course", transition: "started", state: "active", importance: "routine", sourceExcerpt: "I started giving Luna Apoquel today" }),
+    base({ domain: "nutrition", topic: "food_transition", transition: "changed", state: "monitoring", importance: "routine", sourceExcerpt: "I changed Luna's food today" }),
+  ]) {
+    const result = governCanonicalEvents({ proposals: [proposal], message: proposal.sourceExcerpt, pet, activeEpisodes: [] });
+    assert.deepEqual(result.accepted[0].destinations, ["care_event", "episode_current_state"]);
   }
 });
 
@@ -78,6 +101,15 @@ test("profile corrections and durable preferences route independently from chron
   assert.equal(learning.subjectType, "pet");
   assert.equal(learning.factKey, "treat_flavor");
   assert.equal(learning.durability, "durable");
+  assert.deepEqual(governCanonicalEvents({ proposals: [ownerPreference], message: ownerPreference.sourceExcerpt, pet, activeEpisodes: [] }).accepted[0].destinations, ["owner_memory"]);
+});
+
+test("a durable shopping preference is memory-only and casual conversation has no destination", () => {
+  const preference = base({ subject: { type: "owner", name: null }, domain: "shopping", topic: "maximum_budget", transition: "preference_set", state: "historical", temporal: { occurredAt: null, explicitTime: null }, sourceExcerpt: "Keep product suggestions under $40" });
+  const governed = governCanonicalEvents({ proposals: [preference], message: preference.sourceExcerpt, pet, activeEpisodes: [] });
+  assert.deepEqual(governed.accepted[0].destinations, ["owner_memory"]);
+  assert.equal(governed.accepted[0].destinations.includes("care_event"), false);
+  assert.deepEqual(governCanonicalEvents({ proposals: [], message: "That sounds good, thanks", pet, activeEpisodes: [] }).accepted, []);
 });
 
 test("casual turns persist nothing and ambiguous or wrong-pet mutations fail closed", () => {
