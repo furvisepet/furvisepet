@@ -38,22 +38,24 @@ export function routePersistenceDestinations(input: {
   const petPreference = /\b(refuses?|dislikes?|likes?|prefers?)\b/i.test(message) && /\b(chews?|treats?|textures?|baths?|groom\w*|food)\b/i.test(message);
   const retailerPreference = /\b(?:usually\s+)?shop(?:s|ping)?\s+(?:at|from)\s+([A-Z][\w&'-]*)/i.exec(message);
   const budgetPreference = /\bprefer\w*\s+products?\s+under\s+\$(\d+(?:\.\d{1,2})?)/i.exec(message);
-  const vagueMedication = /\b(?:medication|medicine|tablet|capsule)\b/i.test(message) && !hasNamedMedication(message);
-  const namedMedication = medicationUpdate(message);
+  const medicationLifecycle = medicationUpdate(message);
+  const vagueMedication = /\b(?:medication|medicine|tablet|capsule)\b/i.test(message) && !medicationLifecycle;
 
   if (vagueMedication) return {
     decisions: [{ destination: "none", reason: "unnamed_medication_requires_clarification", confidence: 1, requiresConfirmation: true }] satisfies PersistenceDestinationDecision[],
     learnings: [], careActions: [],
   };
-  if (namedMedication) {
+  if (medicationLifecycle) {
     const proposed = input.careActions.find((item) => item.category === "medication");
+    const medicationLabel = medicationLifecycle.name || "medication";
     const action: IntelligenceCareAction = {
       action: "create_entry", category: "medication",
-      title: `${namedMedication.operation === "start" ? "Started" : "Finished"} ${namedMedication.name}`,
+      title: `${medicationLifecycle.operation === "start" ? "Started" : "Stopped"} ${medicationLabel}`,
       details: proposed?.details || message, severity: "routine", confidence: 0.99, relatedRecordId: null,
-      episodeOperation: namedMedication.operation, normalizedEpisodeKey: `medication_${namedMedication.name.toLowerCase()}`,
+      episodeOperation: medicationLifecycle.operation,
+      normalizedEpisodeKey: `medication_${medicationLifecycle.name?.toLowerCase() || "unspecified"}`,
     };
-    return { decisions: [{ destination: "care_event", reason: `explicit_medication_${namedMedication.operation}`, confidence: 0.99, requiresConfirmation: false }] satisfies PersistenceDestinationDecision[], learnings: [], careActions: [action] };
+    return { decisions: [{ destination: "care_event", reason: `explicit_medication_${medicationLifecycle.operation}`, confidence: 0.99, requiresConfirmation: false }] satisfies PersistenceDestinationDecision[], learnings: [], careActions: [action] };
   }
   if (petPreference) {
     const learning = canonicalPetPreference(message, input.petId) || input.learnings.find((item) => item.subjectType === "pet");
@@ -95,13 +97,10 @@ function ownerLearning(factKey: string, factValue: string, message: string): Int
     importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: message };
 }
 
-function hasNamedMedication(message: string) {
-  const match = /\b(?:started|finished|completed|stopped|took)\s+([A-Za-z][A-Za-z0-9-]{2,})\b/i.exec(message);
-  return Boolean(match && !/^(?:a|an|one|the|some|medication|medicine|tablet|capsule)$/i.test(match[1]));
-}
-
 function medicationUpdate(message: string) {
   const match = /\b(started|finished|completed|stopped)\s+([A-Za-z][A-Za-z0-9-]{2,})\b/i.exec(message);
-  if (!match || /^(?:a|an|the|some|medication|medicine)$/i.test(match[2])) return null;
-  return { name: match[2], operation: /^(?:finished|completed|stopped)$/i.test(match[1]) ? "complete" as const : "start" as const };
+  if (!match) return null;
+  const operation = /^(?:finished|completed|stopped)$/i.test(match[1]) ? "complete" as const : "start" as const;
+  const conversationalOrUnknown = /^(?:a|an|the|some|giving|taking|using|administering|her|his|their|its|medication|medicine|tablet|capsule)$/i.test(match[2]);
+  return { name: conversationalOrUnknown ? null : match[2], operation };
 }

@@ -40,11 +40,26 @@ test("named medication start and completion create one medication episode lifecy
   const finish = routePersistenceDestinations({ message: "Maple finished Apoquel today.", petId, learnings: [], careActions: [] });
   assert.deepEqual([start.careActions[0].episodeOperation, finish.careActions[0].episodeOperation], ["start", "complete"]);
   assert.equal(start.careActions[0].normalizedEpisodeKey, finish.careActions[0].normalizedEpisodeKey);
+  assert.equal(start.careActions[0].title, "Started Apoquel");
+  assert.equal(finish.careActions[0].title, "Stopped Apoquel");
   const event = (id, title, date, stateAction = "create_entry") => ({ id, title, note: title, category: "medication", occurred_at: date, created_at: date, state_action_type: stateAction, severity: null, intelligence_confidence: 0.99 });
   const afterStart = reducePetState([event("start", "Started Apoquel", "2026-07-28T01:00:00Z")], [], {}).state;
   assert.equal(afterStart.currentMedications?.[0].name, "Apoquel");
   const afterFinish = reducePetState([event("start", "Started Apoquel", "2026-07-28T01:00:00Z"), event("finish", "Finished Apoquel", "2026-07-28T02:00:00Z", "resolve_concern")], [], {}).state;
   assert.deepEqual(afterFinish.currentMedications, []);
+});
+
+test("unnamed medication lifecycle stays generic instead of inventing an administration verb", () => {
+  const start = routePersistenceDestinations({ message: "I started giving Luna her medication today", petId, learnings: [], careActions: [] });
+  const stop = routePersistenceDestinations({ message: "I stopped giving Luna her medication today", petId, learnings: [], careActions: [] });
+  assert.deepEqual(start.careActions[0], {
+    action: "create_entry", category: "medication", title: "Started medication", details: "I started giving Luna her medication today",
+    severity: "routine", confidence: 0.99, relatedRecordId: null, episodeOperation: "start", normalizedEpisodeKey: "medication_unspecified",
+  });
+  assert.equal(stop.careActions[0].title, "Stopped medication");
+  assert.equal(stop.careActions[0].episodeOperation, "complete");
+  assert.equal(stop.careActions[0].normalizedEpisodeKey, "medication_unspecified");
+  assert.doesNotMatch(JSON.stringify([start, stop]), /medication_giving|Started giving|Stopped giving/);
 });
 
 test("persistence notices require confirmed canonical IDs", () => {
