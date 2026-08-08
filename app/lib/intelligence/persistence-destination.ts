@@ -1,7 +1,32 @@
-import type { IntelligenceCareAction, IntelligenceLearning } from "./types.ts";
+import type { CanonicalEvent, IntelligenceCareAction, IntelligenceLearning, SemanticPersistenceDestination } from "./types.ts";
 
 export type PersistenceDestination = "pet_memory" | "owner_memory" | "care_event" | "profile_change" | "state_only" | "none";
 export type PersistenceDestinationDecision = { destination: PersistenceDestination; reason: string; confidence: number; requiresConfirmation: boolean };
+
+const CHRONOLOGICAL_TRANSITIONS = new Set(["observed", "started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed"]);
+const CHRONOLOGICAL_DOMAINS = new Set(["health", "behavior", "nutrition", "medication", "safety", "routine", "care", "other"]);
+
+/**
+ * Routes validated semantics, not phrases. Completed point-in-time care belongs in
+ * History, while an ongoing lifecycle also updates its episode/current state.
+ */
+export function routeSemanticEventDestinations(event: CanonicalEvent): SemanticPersistenceDestination[] {
+  if (event.transition === "preference_set") return [event.subject.type === "owner" ? "owner_memory" : "pet_memory"];
+  if (event.domain === "profile" && event.transition === "corrected") return ["profile_change"];
+  if (event.subject.type !== "pet") return ["none"];
+
+  const destinations: SemanticPersistenceDestination[] = [];
+  const hasExplicitTime = Boolean(event.temporal.occurredAt?.trim() || event.temporal.explicitTime?.trim());
+  const isChronologicalCareEvent = CHRONOLOGICAL_DOMAINS.has(event.domain) && event.confidence >= 0.9 && (
+    event.state === "historical"
+    || hasExplicitTime
+    || CHRONOLOGICAL_TRANSITIONS.has(event.transition)
+  );
+  if (isChronologicalCareEvent) destinations.push("care_event");
+  if (CHRONOLOGICAL_DOMAINS.has(event.domain) && ["active", "monitoring", "resolved"].includes(event.state)) destinations.push("episode_current_state");
+
+  return destinations.length ? destinations : ["none"];
+}
 
 export function routePersistenceDestinations(input: {
   message: string;

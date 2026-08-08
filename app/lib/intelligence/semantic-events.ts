@@ -1,5 +1,6 @@
 import type { CareEpisode } from "./episodes/types.ts";
 import type { CanonicalEvent, CanonicalEventProposal, GovernedCanonicalEvent, IntelligenceLearning, SemanticPersistenceDestination } from "./types.ts";
+import { routeSemanticEventDestinations } from "./persistence-destination.ts";
 
 export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode";
 export type SemanticEventGovernance = { accepted: GovernedCanonicalEvent[]; rejected: Array<{ proposal: CanonicalEventProposal; reason: SemanticEventRejectionReason }> };
@@ -44,17 +45,19 @@ export function governCanonicalEvents(input: {
       subject: { ...proposal.subject, id: proposal.subject.type === "pet" ? input.pet.id : null },
       references: { priorEventIds: [], episodeId: episode?.id || null, concernId: episode?.linked_concern_id || null },
     };
-    accepted.push({ event, destination: destinationFor(event) });
+    const destinations = routeSemanticEventDestinations(event);
+    accepted.push({ event, destination: primaryDestination(destinations), destinations });
   }
   return { accepted, rejected };
 }
 
 export function learningFromSemanticEvent(item: GovernedCanonicalEvent): IntelligenceLearning | null {
-  if (item.destination !== "pet_memory" && item.destination !== "owner_memory") return null;
+  const memoryDestination = item.destinations.find((destination) => destination === "pet_memory" || destination === "owner_memory");
+  if (!memoryDestination) return null;
   const event = item.event;
   return {
-    subjectType: item.destination === "owner_memory" ? "owner" : "pet",
-    subjectId: item.destination === "pet_memory" ? event.subject.id : null,
+    subjectType: memoryDestination === "owner_memory" ? "owner" : "pet",
+    subjectId: memoryDestination === "pet_memory" ? event.subject.id : null,
     category: event.domain === "shopping" ? "shopping" : "preference",
     factKey: event.normalizedTopic,
     factValue: event.sourceExcerpt,
@@ -78,13 +81,8 @@ function validateProposal(proposal: CanonicalEventProposal, message: string, pet
   return null;
 }
 
-function destinationFor(event: CanonicalEvent): SemanticPersistenceDestination {
-  if (event.transition === "preference_set") return event.subject.type === "owner" ? "owner_memory" : "pet_memory";
-  if (event.domain === "profile" && event.transition === "corrected") return "profile_change";
-  if (event.subject.type !== "pet") return "none";
-  if (["active", "monitoring", "resolved"].includes(event.state)) return "episode_current_state";
-  if (event.state === "historical" || ["observed", "changed", "confirmed"].includes(event.transition)) return "care_event";
-  return "none";
+function primaryDestination(destinations: SemanticPersistenceDestination[]): SemanticPersistenceDestination {
+  return destinations.find((destination) => destination === "episode_current_state") || destinations[0] || "none";
 }
 
 function evidenceContains(message: string, excerpt: string) {
