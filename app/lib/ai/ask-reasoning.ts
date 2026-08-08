@@ -267,7 +267,7 @@ const unifiedInstructions = [
   "A proposedHistoryUpdate is only an offer. Never write authoritative persistence claims such as I saved that, I added that to history, I updated the profile, or I marked it resolved. The server renders confirmation only after its transaction. Use proposedHistoryUpdate for a meaningful new event or reported improvement, not ordinary questions.",
   "Classify multiple simultaneous intents in messageUnderstanding. Extract only facts explicitly stated by the user in learnings, with a verbatim short sourceExcerpt from the current message.",
   "Use careActions only for explicit, useful time-bound care changes. Confidence must reflect the evidence. Never propose a diagnosis or an inferred medication dosage.",
-  "Interpret meaningful statements into semanticEvents. Keep topic concise, normalized, and extensible rather than choosing from a fixed topic catalogue. Use the same topic as a supplied active episode when the message continues, improves, worsens, or resolves it.",
+  "Interpret meaningful statements into semanticEvents. Keep topic concise, normalized, and extensible rather than choosing from a fixed topic catalogue. Use the same topic as a supplied active episode when the message continues, improves, worsens, or resolves it. Keep eventTitle separate: write a short natural History title such as Luna was found, Started medication, Food changed, or Vaccination; never expose topic keys, underscores, or duplicated transition words in eventTitle.",
   "For every explicit high-confidence pet care action or occurrence tied to a point in time, emit a semanticEvent even when the same fact also qualifies as a durable learning. Chronology and memory are independent destinations. Use state=historical for a completed standalone event; use active or monitoring only when it creates or changes an ongoing temporary state.",
   "Classify preventive procedures and completed care services as domain=care rather than as a health symptom. Preserve the user's temporal wording in temporal.explicitTime, and set temporal.occurredAt only when the occurrence timestamp is supported by the supplied request context.",
   "Semantic fields are independent: urgency is safety, not a topic. A safety event is not respiratory unless the message or supplied current context explicitly concerns breathing.",
@@ -299,6 +299,9 @@ export function clearAskProviderCooldownsForTests() {
 export function buildAskContext(input: BuildContextInput) {
   const allRecords = buildContextRecords(input);
   const terms = meaningfulTerms(input.question);
+  for (const profile of input.profiles) {
+    for (const identityTerm of meaningfulTerms(profile.name || "")) terms.delete(identityTerm);
+  }
   const now = (input.now || new Date()).getTime();
   const scored = allRecords
     .map((record) => ({ record, score: scoreRecord(record, terms, now) }))
@@ -680,6 +683,7 @@ export function parseUnifiedResponse(outputText: string, records: AskContextReco
     semanticEvents: value.semanticEvents.slice(0, 4).map((event) => ({
       ...event,
       topic: clean(event.topic).slice(0, 100),
+      eventTitle: cleanAnswer(event.eventTitle).slice(0, 120),
       sourceExcerpt: String(event.sourceExcerpt).slice(0, 240),
       subject: { ...event.subject, name: event.subject.name ? clean(event.subject.name).slice(0, 120) : null },
       temporal: { occurredAt: event.temporal.occurredAt, explicitTime: event.temporal.explicitTime ? clean(event.temporal.explicitTime).slice(0, 120) : null },

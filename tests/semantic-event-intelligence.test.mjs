@@ -6,7 +6,7 @@ import { governCanonicalEvents, learningFromSemanticEvent, semanticEpisodeKey } 
 
 const pet = { id: "pet-luna", name: "Luna" };
 const base = (overrides = {}) => ({
-  subject: { type: "pet", name: "Luna" }, domain: "safety", topic: "pet_missing", transition: "started", state: "active",
+  subject: { type: "pet", name: "Luna" }, domain: "safety", topic: "pet_missing", eventTitle: "Luna ran away", transition: "started", state: "active",
   temporal: { occurredAt: null, explicitTime: "today" }, importance: "urgent", confidence: 0.99,
   sourceExcerpt: "Luna ran away during our walk", ...overrides,
 });
@@ -21,16 +21,19 @@ test("a general safety event opens and a related pronoun follow-up resolves the 
   assert.equal(opened.accepted[0].destination, "episode_current_state");
   assert.equal(opened.accepted[0].event.normalizedTopic, "pet_missing");
 
-  const active = episode("safety", "pet_missing");
-  const resolved = governCanonicalEvents({ proposals: [base({ transition: "resolved", state: "resolved", sourceExcerpt: "I found her" })], message: "I found her", pet, activeEpisodes: [active] });
+  const active = episode("safety", "missingpet", { summary: { semanticDomain: "safety", semanticTopic: "missingpet" } });
+  const resolved = governCanonicalEvents({ proposals: [base({ topic: "missing_pet", eventTitle: "Luna was found", transition: "resolved", state: "resolved", sourceExcerpt: "I found her" })], message: "I found her", pet, activeEpisodes: [active] });
   assert.equal(resolved.accepted[0].event.references.episodeId, active.id);
   assert.equal(resolved.accepted[0].event.state, "resolved");
+  assert.equal(resolved.accepted[0].event.normalizedTopic, "missingpet");
+  assert.equal(resolved.accepted[0].event.eventTitle, "Luna was found");
 });
 
 test("health and nutrition lifecycle topics resolve through the same mechanism", () => {
   for (const sample of [
     { domain: "health", topic: "vomiting", message: "The vomiting stopped" },
     { domain: "nutrition", topic: "appetite_reduced", message: "She started eating normally again" },
+    { domain: "behavior", topic: "temporary_reactivity", message: "Her temporary behavior problem has resolved" },
   ]) {
     const active = episode(sample.domain, sample.topic);
     const result = governCanonicalEvents({ proposals: [base({ domain: sample.domain, topic: sample.topic, transition: "resolved", state: "resolved", importance: "routine", sourceExcerpt: sample.message })], message: sample.message, pet, activeEpisodes: [active] });
@@ -125,6 +128,28 @@ test("casual turns persist nothing and ambiguous or wrong-pet mutations fail clo
 test("semantic resolution cannot close an unrelated episode", () => {
   const result = governCanonicalEvents({ proposals: [base({ transition: "resolved", state: "resolved", sourceExcerpt: "I found her" })], message: "I found her", pet, activeEpisodes: [episode("health", "vomiting")] });
   assert.equal(result.rejected[0].reason, "no_compatible_active_episode");
+});
+
+test("ambiguous compatible resolution fails closed", () => {
+  const proposal = base({ topic: "missing_pet", eventTitle: "Luna was found", transition: "resolved", state: "resolved", sourceExcerpt: "I found her" });
+  const result = governCanonicalEvents({ proposals: [proposal], message: proposal.sourceExcerpt, pet, activeEpisodes: [
+    episode("safety", "missingpet"), episode("safety", "missing_pet", { id: "second-missing" }),
+  ] });
+  assert.equal(result.accepted.length, 0);
+  assert.equal(result.rejected[0].reason, "ambiguous_episode");
+});
+
+test("History titles are presentation text with deterministic validated fallbacks", () => {
+  const raw = governCanonicalEvents({ proposals: [base({ topic: "missing_pet", eventTitle: "missing_pet" })], message: base().sourceExcerpt, pet, activeEpisodes: [] });
+  assert.equal(raw.accepted[0].event.eventTitle, "Safety incident started");
+  const duplicated = base({ domain: "medication", topic: "medication_start", eventTitle: "Started Medication Start", importance: "routine", sourceExcerpt: "I started medication today" });
+  const medication = governCanonicalEvents({ proposals: [duplicated], message: duplicated.sourceExcerpt, pet, activeEpisodes: [] });
+  assert.equal(medication.accepted[0].event.eventTitle, "Started medication");
+  const food = base({ domain: "nutrition", topic: "food_transition", eventTitle: "Food changed", transition: "changed", state: "monitoring", importance: "routine", sourceExcerpt: "I changed Luna's food" });
+  assert.equal(governCanonicalEvents({ proposals: [food], message: food.sourceExcerpt, pet, activeEpisodes: [] }).accepted[0].event.eventTitle, "Food changed");
+  const vaccination = base({ domain: "care", topic: "preventive_immunization", eventTitle: "Vaccination", transition: "confirmed", state: "historical", importance: "routine", sourceExcerpt: "Luna was vaccinated today" });
+  assert.equal(governCanonicalEvents({ proposals: [vaccination], message: vaccination.sourceExcerpt, pet, activeEpisodes: [] }).accepted[0].event.eventTitle, "Vaccination");
+  assert.doesNotMatch([raw.accepted[0].event.eventTitle, medication.accepted[0].event.eventTitle].join(" "), /missingpet|missing_pet|Started Medication Start/i);
 });
 
 test("urgent presentation is topic-aware and never equates urgency with breathing", () => {

@@ -2,7 +2,7 @@ import type { CanonicalEventProposal, IntelligenceCareAction, IntelligenceLearni
 
 export const canonicalEventProposalJsonSchema = {
   type: "object", additionalProperties: false,
-  required: ["subject", "domain", "topic", "transition", "state", "temporal", "importance", "confidence", "sourceExcerpt"],
+  required: ["subject", "domain", "topic", "eventTitle", "transition", "state", "temporal", "importance", "confidence", "sourceExcerpt"],
   properties: {
     subject: { type: "object", additionalProperties: false, required: ["type", "name"], properties: {
       type: { type: "string", enum: ["pet", "owner", "household", "unknown"] },
@@ -10,6 +10,7 @@ export const canonicalEventProposalJsonSchema = {
     } },
     domain: { type: "string", enum: ["health", "behavior", "nutrition", "medication", "safety", "routine", "preference", "profile", "shopping", "care", "other"] },
     topic: { type: "string", minLength: 2, maxLength: 100 },
+    eventTitle: { type: "string", minLength: 2, maxLength: 120 },
     transition: { type: "string", enum: ["observed", "started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed", "preference_set"] },
     state: { type: "string", enum: ["active", "monitoring", "resolved", "historical", "unknown"] },
     temporal: { type: "object", additionalProperties: false, required: ["occurredAt", "explicitTime"], properties: {
@@ -31,7 +32,7 @@ export function isCanonicalEventProposal(value: unknown): value is CanonicalEven
   return ["pet", "owner", "household", "unknown"].includes(String(subject.type)) &&
     (subject.name === null || typeof subject.name === "string") &&
     ["health", "behavior", "nutrition", "medication", "safety", "routine", "preference", "profile", "shopping", "care", "other"].includes(String(item.domain)) &&
-    typeof item.topic === "string" && item.topic.length >= 2 &&
+    typeof item.topic === "string" && item.topic.length >= 2 && typeof item.eventTitle === "string" && item.eventTitle.length >= 2 &&
     ["observed", "started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed", "preference_set"].includes(String(item.transition)) &&
     ["active", "monitoring", "resolved", "historical", "unknown"].includes(String(item.state)) &&
     (temporal.occurredAt === null || typeof temporal.occurredAt === "string") && (temporal.explicitTime === null || typeof temporal.explicitTime === "string") &&

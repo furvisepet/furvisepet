@@ -90,6 +90,7 @@ async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, su
       subject: { type: proposal.subject.type, name: proposal.subject.name },
       domain: proposal.domain,
       topic: proposal.normalizedTopic,
+      eventTitle: proposal.eventTitle,
       transition: proposal.transition,
       state: proposal.state,
       temporal: proposal.temporal,
