@@ -130,10 +130,19 @@ test("semantic resolution cannot close an unrelated episode", () => {
   assert.equal(result.rejected[0].reason, "no_compatible_active_episode");
 });
 
-test("ambiguous compatible resolution fails closed", () => {
+test("an exact canonical topic wins over a stale compact spelling", () => {
   const proposal = base({ topic: "missing_pet", eventTitle: "Luna was found", transition: "resolved", state: "resolved", sourceExcerpt: "I found her" });
   const result = governCanonicalEvents({ proposals: [proposal], message: proposal.sourceExcerpt, pet, activeEpisodes: [
     episode("safety", "missingpet"), episode("safety", "missing_pet", { id: "second-missing" }),
+  ] });
+  assert.equal(result.accepted[0].event.references.episodeId, "second-missing");
+  assert.equal(result.accepted[0].event.normalizedTopic, "missing_pet");
+});
+
+test("equally ranked compatible resolutions fail closed", () => {
+  const proposal = base({ topic: "missing_pet", eventTitle: "Luna was found", transition: "resolved", state: "resolved", sourceExcerpt: "I found her" });
+  const result = governCanonicalEvents({ proposals: [proposal], message: proposal.sourceExcerpt, pet, activeEpisodes: [
+    episode("safety", "missing_pet"), episode("safety", "missing_pet", { id: "second-missing" }),
   ] });
   assert.equal(result.accepted.length, 0);
   assert.equal(result.rejected[0].reason, "ambiguous_episode");

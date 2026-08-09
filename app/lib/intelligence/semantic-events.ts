@@ -52,7 +52,7 @@ export function governCanonicalEvents(input: {
     if (NEEDS_ACTIVE.has(proposal.transition) && compatible.length === 0) {
       rejected.push({ proposal, reason: "no_compatible_active_episode" }); continue;
     }
-    if (NEEDS_ACTIVE.has(proposal.transition) && compatible.length > 1) {
+    if (NEEDS_ACTIVE.has(proposal.transition) && compatible.length > 1 && compatible[0].score === compatible[1].score) {
       rejected.push({ proposal, reason: "ambiguous_episode" }); continue;
     }
     const episode = compatible[0]?.episode || null;
