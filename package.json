@@ -24,14 +24,14 @@
   },
   "dependencies": {
     "@sentry/nextjs": "^10.69.0",
-    "@supabase/ssr": "0.10.0",
+    "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "^2.108.2",
-    "@upstash/redis": "1.38.0",
-    "next": "16.2.12",
+    "@upstash/redis": "1.38.2",
+    "next": "16.3.0",
     "openai": "^6.44.0",
     "pdf-lib": "^1.17.1",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
