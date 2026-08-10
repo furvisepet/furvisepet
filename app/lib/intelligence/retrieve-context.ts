@@ -20,6 +20,7 @@ export class FurviseContextError extends Error {
 
 export async function buildFurviseContext({
   conversationId = null,
+  conversationPetId = null,
   currentMessage,
   dateRange,
   feature = "ask",
@@ -29,6 +30,7 @@ export async function buildFurviseContext({
   userId,
 }: {
   conversationId?: string | null;
+  conversationPetId?: string | null;
   currentMessage: string;
   dateRange?: { from: string; to: string };
   feature?: IntelligenceFeature;
@@ -42,7 +44,7 @@ export async function buildFurviseContext({
     .from("ask_conversations")
     .select("id")
     .eq("id", conversationId)
-    .eq("pet_profile_id", petId)
+    .eq("pet_profile_id", conversationPetId || petId)
     .eq("user_id", userId)
     .maybeSingle<{ id: string }>() : Promise.resolve({ data: null, error: null });
   const profileQuery = supabase.from("dog_profiles").select("*").eq("id", petId).eq("user_id", userId).maybeSingle<DogProfileRow>();
