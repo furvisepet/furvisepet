@@ -60,6 +60,9 @@ import {
   persistIntelligenceLearnings,
   persistedLearningConfirmation,
   runFurviseIntelligence,
+  logSemanticTrace,
+  semanticTraceForStorage,
+  withSemanticPersistenceOutcome,
   type FurviseIntelligenceResult,
   type FurviseLiveContext,
   type CarePersistenceResult,
@@ -731,7 +734,7 @@ async function persistAssistantAnswer({
       request_id: requestId,
       response_data: response,
       intelligence_validation: intelligenceResult?.answerValidation || null,
-      persistence_governance: intelligenceResult?.governance || null,
+      persistence_governance: intelligenceResult ? { ...intelligenceResult.governance, semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace) } : null,
       role: "furvise",
       save_metadata: saveMetadata,
       sequence_number: (lastMessage?.sequence_number || preparedRequest.userSequence) + 1,
@@ -754,7 +757,7 @@ async function persistAssistantAnswer({
         request_id: requestId,
         response_data: response,
         intelligence_validation: intelligenceResult?.answerValidation || null,
-        persistence_governance: intelligenceResult?.governance || null,
+        persistence_governance: intelligenceResult ? { ...intelligenceResult.governance, semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace) } : null,
         role: "furvise",
         save_metadata: saveMetadata,
         sequence_number: (lastMessage?.sequence_number || preparedRequest.userSequence) + 1,
@@ -798,6 +801,7 @@ async function persistAssistantAnswer({
 
   let intelligencePersistence: IntelligencePersistenceSummary | null = null;
   let intelligencePersistenceWarning = "";
+  let semanticTrace = intelligenceResult?.semanticTrace || null;
   if (intelligenceResult && (intelligenceResult.acceptedLearnings.length || intelligenceResult.acceptedCareActions.length || intelligenceResult.acceptedSemanticEvents.length)) {
     try {
       intelligencePersistence = await persistIntelligenceLearnings({
@@ -816,11 +820,25 @@ async function persistAssistantAnswer({
         memoriesSuperseded: intelligencePersistence.memoriesSuperseded,
         requestId,
       });
+      if (semanticTrace) {
+        semanticTrace = withSemanticPersistenceOutcome(semanticTrace, {
+          status: intelligencePersistence.carePersistence.status === "failed" ? "failed"
+            : intelligencePersistence.carePersistence.status === "persisted" ? "persisted" : "skipped",
+          errorCode: intelligencePersistence.carePersistence.errorCode,
+          careEntryCount: intelligencePersistence.carePersistence.careEntryIds.length,
+          memoryCount: intelligencePersistence.memoryIds.length,
+        });
+      }
     } catch (error) {
       intelligencePersistenceWarning = "Approved learnings could not be saved.";
       logAskServerError("learning_persistence_failed", error, { conversationId, petId, requestId }, 200);
+      if (semanticTrace) semanticTrace = withSemanticPersistenceOutcome(semanticTrace, { status: "failed", errorCode: "INTELLIGENCE_PERSISTENCE_EXCEPTION", careEntryCount: 0, memoryCount: 0 });
     }
   }
+  if (semanticTrace && !intelligencePersistence && !intelligencePersistenceWarning) {
+    semanticTrace = withSemanticPersistenceOutcome(semanticTrace, { status: "skipped", errorCode: null, careEntryCount: 0, memoryCount: 0 });
+  }
+  if (semanticTrace) logSemanticTrace(semanticTrace);
 
   let nextUsage = usage;
   let creditsUsed = 0;

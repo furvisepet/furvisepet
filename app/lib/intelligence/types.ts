@@ -130,6 +130,8 @@ export type FurviseLiveContext = {
   currentTimestamp: string;
   conversationId: string | null;
   pet: DogProfileRow;
+  /** All authenticated-owner pets eligible for shadow entity resolution. */
+  eligiblePets: Array<Pick<DogProfileRow, "id" | "name" | "species" | "age_value" | "age_unit">>;
   owner: { userId: string; profile: UserProfileRow | null };
   careEntries: CareEntryRow[];
   selectedCareEntries: CareEntryRow[];

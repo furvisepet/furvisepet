@@ -6,6 +6,8 @@ export { resolveProductSafety, type ProductSafety } from "./product-safety";
 export { persistFeatureIntelligenceLearnings } from "./persist-learnings";
 export { applySafetyFloor, resolveSafetyState } from "./safety-state";
 export { logIntelligenceEvent } from "./logging";
+export { logSemanticTrace, semanticTraceForStorage, withSemanticPersistenceOutcome } from "./semantic-observability";
+export type { SemanticTrace } from "./semantic-observability";
 export { evaluateLearningPolicy, evaluateCareActionPolicy } from "./memory-policy";
 export { toAskSafetyLevel, persistedLearningConfirmation } from "./response-rendering";
 export { getIntelligenceFeatureMode } from "./feature-modes";
