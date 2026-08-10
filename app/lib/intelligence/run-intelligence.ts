@@ -74,7 +74,7 @@ export async function runFurviseIntelligence({
   const semanticGovernance = governCanonicalEvents({
     proposals: reasoning.semanticEvents,
     message: context.currentMessage,
-    pet: { id: context.pet.id, name: context.pet.name },
+    resolvedPetSubject: { id: context.pet.id, name: context.pet.name },
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
   });
 

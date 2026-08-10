@@ -37,13 +37,17 @@ export function humanizeSemanticEventTitle(proposal: CanonicalEventProposal) {
 export function governCanonicalEvents(input: {
   proposals: CanonicalEventProposal[];
   message: string;
-  pet: { id: string; name: string | null };
+  resolvedPetSubject?: { id: string; name: string | null };
+  /** @deprecated Test/backward-compatible alias. Production callers must pass resolvedPetSubject. */
+  pet?: { id: string; name: string | null };
   activeEpisodes: CareEpisode[];
 }): SemanticEventGovernance {
+  const resolvedPetSubject = input.resolvedPetSubject || input.pet;
+  if (!resolvedPetSubject) return { accepted: [], rejected: input.proposals.map((proposal) => ({ proposal, reason: "ambiguous_subject" })) };
   const accepted: GovernedCanonicalEvent[] = [];
   const rejected: SemanticEventGovernance["rejected"] = [];
   for (const proposal of input.proposals.slice(0, 4)) {
-    const reason = validateProposal(proposal, input.message, input.pet);
+    const reason = validateProposal(proposal, input.message, resolvedPetSubject);
     if (reason) { rejected.push({ proposal, reason }); continue; }
     const proposedTopic = normalizeSemanticTopic(proposal.topic);
     const compatible = input.activeEpisodes.map((episode) => ({ episode, score: compatibilityScore(proposal.domain, proposedTopic, episode) }))
@@ -62,7 +66,7 @@ export function governCanonicalEvents(input: {
       topic: normalizedTopic,
       normalizedTopic,
       eventTitle: humanizeSemanticEventTitle(proposal),
-      subject: { ...proposal.subject, id: proposal.subject.type === "pet" ? input.pet.id : null },
+      subject: { ...proposal.subject, id: proposal.subject.type === "pet" ? resolvedPetSubject.id : null },
       references: { priorEventIds: [], episodeId: episode?.id || null, concernId: episode?.linked_concern_id || null },
     };
     const destinations = routeSemanticEventDestinations(event);

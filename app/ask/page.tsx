@@ -23,6 +23,8 @@ import {
   parseAskConversationResponse,
 } from "../lib/ask.mjs";
 import { buildAskRequestPayload } from "../lib/ask-request-contract";
+import { resolveAskPetSelection } from "../lib/ask-pet-selection";
+import { getActivePetId, setActivePetId } from "../lib/active-pet";
 import { trackAskEvent } from "../lib/ask-analytics";
 import { deriveConversationTitle, formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
 import { toLocalDateTimeInputValue } from "../lib/care-log.mjs";
@@ -142,8 +144,10 @@ function AskPageContent() {
         if (!active) return;
         setProfiles(rows);
         const requestedPet = searchParams.get("pet");
-        const petId = rows.some((profile) => profile.id === requestedPet) && requestedPet ? requestedPet : rows[0]?.id || "";
+        const storedPet = readStoredActivePetId();
+        const petId = resolveAskPetSelection({ explicitPetId: requestedPet, pets: rows, storedPetId: storedPet });
         setSelectedPet(petId);
+        if (petId) persistActivePetId(petId);
         const usageStatus = await fetchAskUsage().catch(() => null);
         const history = await fetchConversationList().catch(() => {
           setConversationListError("Recent conversations could not be loaded. Try again.");
@@ -211,6 +215,10 @@ function AskPageContent() {
       if (!payload.conversation) throw new Error("That conversation is not available.");
       const parsedThread = parseConversationDetail(payload.conversation);
       setSelectedPet(payload.conversation.petId);
+      if (typeof window !== "undefined") {
+        persistActivePetId(payload.conversation.petId);
+        replaceAskLocation({ conversationId: payload.conversation.id });
+      }
       setActiveConversationId(payload.conversation.id);
       setActiveTitle(payload.conversation.title);
       setThread(parsedThread);
@@ -233,6 +241,10 @@ function AskPageContent() {
   function switchPet(petId: string) {
     saveCurrentDraft();
     setSelectedPet(petId);
+    if (typeof window !== "undefined") {
+      persistActivePetId(petId);
+      replaceAskLocation({ petId });
+    }
     setActiveConversationId(null);
     setActiveTitle("New question");
     setThread([]);
@@ -253,6 +265,7 @@ function AskPageContent() {
     setQuestion("");
     setThread([]);
     setActiveConversationId(null);
+    if (selectedPet && typeof window !== "undefined") replaceAskLocation({ petId: selectedPet });
     setActiveTitle("New question");
     setPendingNewQuestion(false);
     setError("");
@@ -306,6 +319,7 @@ function AskPageContent() {
       });
       if (!conversationIdAtSubmit) {
         setActiveConversationId(payload.conversationId);
+        if (typeof window !== "undefined") replaceAskLocation({ conversationId: payload.conversationId });
         setActiveTitle(deriveConversationTitle(prompt, petName));
         trackAskEvent("conversation_started", { source });
       }
@@ -660,6 +674,14 @@ async function importLegacyConversation(petId: string, known: AskConversationSum
   } catch { /* A legacy session remains available for a later migration attempt. */ }
 }
 function getDraftKey(conversationId: string | null, petId: string) { return `furvise:ask-draft:${conversationId || `new:${petId}`}`; }
+function replaceAskLocation({ conversationId, petId }: { conversationId?: string; petId?: string }) {
+  const params = new URLSearchParams();
+  if (conversationId) params.set("conversation", conversationId);
+  else if (petId) params.set("pet", petId);
+  window.history.replaceState(null, "", `/ask${params.size ? `?${params.toString()}` : ""}`);
+}
+function readStoredActivePetId() { try { return typeof window === "undefined" ? "" : getActivePetId(window.localStorage); } catch { return ""; } }
+function persistActivePetId(petId: string) { try { if (typeof window !== "undefined") setActivePetId(window.localStorage, petId); } catch { /* Selection remains valid for this mounted Ask session. */ } }
 function readDraft(key: string) { try { return typeof window === "undefined" ? "" : window.localStorage.getItem(key) || ""; } catch { return ""; } }
 function createMessageId(role: string) { return `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 class AskRequestError extends Error { constructor(public code: AskFailureCode, message = "") { super(message); } }

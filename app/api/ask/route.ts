@@ -71,6 +71,8 @@ import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurit
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 import { claimIdempotentOperation } from "../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
+import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
+import { resolveAuthoritativeTurnSubject } from "../../lib/intelligence/entities/resolve-turn-subject";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
@@ -211,7 +213,7 @@ export async function POST(request: Request) {
     return handleAskApiError(error, requestId);
   }
 
-  let liveContext;
+  let liveContext: FurviseLiveContext;
   try {
     liveContext = await buildFurviseContext({
       conversationId: preparedRequest.conversationId,
@@ -230,73 +232,9 @@ export async function POST(request: Request) {
     return askFailure("DATABASE_ERROR", "Furvise could not load the latest saved details. Please try again.", 503, {}, "context_loading");
   }
 
-  const conversationMessages: ConversationMessage[] = liveContext.conversationTurns
-    .filter((message) => message.id !== preparedRequest.userMessageId)
-    .map((message) => message.role === "user"
-      ? { id: message.id, role: "user", text: message.text }
-      : { id: message.id, role: "furvise", response: { directAnswer: message.text } });
-  const entries = liveContext.careEntries;
-  const recentUpdates = buildRecentAskUpdates(entries);
-  const memories = liveContext.legacyPetMemories;
-  const feedback = liveContext.productFeedback;
-  const concerns = liveContext.activeConcerns;
-  const recentlyResolvedConcerns = liveContext.recentlyResolvedConcerns;
-  const safetyContext = evaluateAskSafetyContext({
-    activeCareNotes: memories.map((memory) => memory.text),
-    authoritativeActiveConcernTags: petId === "all"
-      ? undefined
-      : concerns.flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title)),
-    currentMessage: question,
-    recentConversationTurns: conversationMessages.map((message) => ({
-      role: message.role,
-      text: message.role === "user" ? message.text : message.response?.directAnswer || message.response?.summary || "",
-    })),
-    recentlyResolvedConcernTags: /\b(breath|tired|energy|symptom|normal|fine|good|worse|returned|again)\b/i.test(question)
-      ? recentlyResolvedConcerns.flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title))
-      : [],
-    recentUpdates,
-  });
-  const canonicalActiveConcernTags = concerns.flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title));
-  const messageDerivedSafetyTags = safetyContext.activeConcernTags.filter((tag) => !canonicalActiveConcernTags.includes(tag));
-  const memoryContexts = [liveContext.pet].map((profile) => {
-    const memory = buildPetMemoryContext({
-      careEntries: entries.filter((entry) => entry.pet_profile_id === profile.id),
-      productFeedback: feedback.filter((item) => item.dog_profile_id === profile.id),
-      profile,
-      savedMemories: memories.filter((savedMemory) => savedMemory.dog_profile_id === profile.id),
-    });
-    return {
-      ...memory,
-      derived: {
-        ...memory.derived,
-        safetyFlags: safetyContext.activeConcernTags.map(formatConcernTag),
-      },
-    };
-  });
-  logAskStage("context loaded", {
-    activeConcerns: concerns.map((concern) => ({ id: concern.id, status: concern.status })),
-    activeConcernTags: safetyContext.activeConcernTags,
-    canonicalActiveConcernTags,
-    messageDerivedSafetyTags,
-    categories: [...new Set(recentUpdates.map((update) => update.category))],
-    latestUpdateTimestamp: recentUpdates[0]?.occurredAt || null,
-    petId,
-    recentUpdateCount: recentUpdates.length,
-    selectedHistoryCount: liveContext.selectedCareEntries.length,
-    selectedMemoryCount: liveContext.memories.length + liveContext.legacyPetMemories.length,
-    recentlyResolvedConcernIds: recentlyResolvedConcerns.map((concern) => concern.id),
-    contextStateVersion: liveContext.currentState?.state_version || 0,
-    activeEpisodeCount: liveContext.activeEpisodes.length,
-    monitoringEpisodeCount: liveContext.monitoringEpisodes.length,
-    stateDomainsUsed: Object.keys(liveContext.currentState?.state || {}),
-    requestId,
-    safetyLevel: safetyContext.safetyLevel,
-  });
-
-  const contextUsed = {
-    petName: memoryContexts.length === 1 ? memoryContexts[0].pet.name : null,
-    usedSources: buildUsedContextSummary(memoryContexts, entries, memories),
-  };
+  let turnPetId = petId;
+  let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
+  let contextUsed = turnView.contextUsed;
 
   let orchestration;
   let creditReserved = false;
@@ -304,119 +242,128 @@ export async function POST(request: Request) {
   let providerCallCount = 0;
   let intelligenceResult: FurviseIntelligenceResult | null = null;
   const rateGateRef: { current: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null } = { current: null };
-  const confirmedExistingCarePersistence = await findExistingCareEventForSaveRequest({
-    context: liveContext, currentSourceMessageId: preparedRequest.userMessageId, message: question, petId, supabase, userId,
-  });
-  try {
-    const generationInput = {
-      careEntries: entries,
-      concerns,
-      conversationTurns: conversationMessages.map((message) => ({
-        id: message.id,
-        role: message.role,
-        text: message.role === "user" ? message.text : message.response?.directAnswer || message.response?.summary || "",
-      })),
-      locale,
-      memories,
-      productFeedback: feedback,
-      profiles,
-      question,
-      recentlyResolvedConcerns,
-      recentUpdates,
+  let confirmedExistingCarePersistence: CarePersistenceResult | null = null;
+  const onProviderEvent = (event: AskProviderEvent) => {
+    if (event.outcome === "started") providerCallCount += 1;
+    logAskProviderEvent(event, {
+      conversationId: preparedRequest.conversationId,
+      petId: turnPetId,
+      providerCallCount,
       requestId,
-      onProviderEvent: (event: AskProviderEvent) => {
-        if (event.outcome === "started") providerCallCount += 1;
-        logAskProviderEvent(event, {
+    });
+  };
+  try {
+    confirmedExistingCarePersistence = await findExistingCareEventForSaveRequest({
+      context: liveContext, currentSourceMessageId: preparedRequest.userMessageId, message: question, petId, supabase, userId,
+    });
+    const preconfirmedOrchestration = confirmedExistingCarePersistence ? buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet")
+      : null;
+    if (preconfirmedOrchestration) {
+      orchestration = preconfirmedOrchestration;
+    } else {
+    rateGateRef.current = await requireRateLimitedRequest({
+      idempotencyKey: requestId,
+      payload: { conversationId: preparedRequest.conversationId, petId, question },
+      policy: "ASK_AI",
+      request,
+      requestId,
+      route: "/api/ask",
+      userId,
+    });
+    if (!usage.allowed) throw new AiCreditLimitError();
+    const model = getAskModelConfiguration().primary;
+    const cooldown = getAskProviderCooldown(model);
+    if (cooldown.active) {
+      throw new AskPipelineError("primary_provider_failed", "Ask provider is cooling down.", {
+        elapsedMs: 0, model, providerErrorCode: "rate_limit_exceeded", providerErrorType: "requests",
+        providerStatus: 429, retryAfterMs: cooldown.retryAfterMs,
+      });
+    }
+    orchestration = await withTimeout(runAdmittedAiOperation({
+      feature: "ask", intendedModel: model,
+      payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId, userId,
+    }, async () => {
+      if (usage.ledgerMode === "development_missing_migration") {
+        logAskStage("AI credit persistence skipped", { reason: "development_missing_migration", requestId });
+      } else {
+        const reservation = await reserveAiCredit({ feature: "ask", requestId, supabase });
+        if (reservation.status === "limit_reached") throw new AiCreditLimitError();
+        creditReserved = reservation.status === "reserved";
+        creditFinalState = reservation.status;
+        logAskStage("AI credit reserved", { creditReservationId: requestId, feature: "ask", requestId, retryReuse, status: reservation.status });
+      }
+      const subjectFrame = await extractTurnSubjectFrame({
+        message: question,
+        model,
+        onProviderEvent,
+        recentConversation: liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId),
+      });
+      const subjectResolution = resolveAuthoritativeTurnSubject({
+        frame: subjectFrame,
+        message: question,
+        ownerId: userId,
+        pets: liveContext.eligiblePets,
+        recentConversation: liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId),
+        selectedPetId: petId,
+      });
+      logAskStage("turn subject resolved", {
+        explicitSubject: subjectResolution.explicitSubject,
+        reasonCode: subjectResolution.reasonCode,
+        requestId,
+        resolutionStatus: subjectResolution.status,
+        resolvedAlternatePet: Boolean(subjectResolution.petId && subjectResolution.petId !== petId),
+      });
+      if (subjectResolution.requiresClarification || !subjectResolution.petId) {
+        intelligenceResult = null;
+        contextUsed = { petName: null, usedSources: [] };
+        return buildSubjectClarificationOrchestration(question);
+      }
+
+      turnPetId = subjectResolution.petId;
+      if (turnPetId !== petId) {
+        liveContext = await buildFurviseContext({
           conversationId: preparedRequest.conversationId,
-          petId,
-          providerCallCount,
-          requestId,
-        });
-      },
-    };
-    orchestration = confirmedExistingCarePersistence ? {
-      aiResult: null,
-      answer: { title: "Already in history", summary: `Yes, that improvement is already in ${profiles[0]?.name || "your pet"}'s history.`, sections: [], safetyNote: null },
-      concern: null,
-      handledWithoutAi: true,
-      intent: "status_update" as const,
-      safetyLevel: "monitor" as const,
-      suggestion: null,
-    } : await orchestrateAskTurn({
-      concerns,
-      generationInput,
-      message: question,
-      petName: profiles[0]?.name || "your pet",
-      generate: async () => {
-        rateGateRef.current ||= await requireRateLimitedRequest({
-          idempotencyKey: requestId,
-          payload: { conversationId: preparedRequest.conversationId, petId, question },
-          policy: "ASK_AI",
-          request,
-          requestId,
-          route: "/api/ask",
+          conversationPetId: petId,
+          currentMessage: question,
+          feature: "ask",
+          locale,
+          petId: turnPetId,
+          supabase,
           userId,
         });
-        const model = getAskModelConfiguration().primary;
-        return runAdmittedAiOperation({
-          feature: "ask", intendedModel: model,
-          payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId, userId,
-        }, async () => {
-          if (!usage.allowed) throw new AiCreditLimitError();
-          const cooldown = getAskProviderCooldown(model);
-          if (cooldown.active) {
-            throw new AskPipelineError("primary_provider_failed", "Ask provider is cooling down.", {
-              elapsedMs: 0,
-              model,
-              providerErrorCode: "rate_limit_exceeded",
-              providerErrorType: "requests",
-              providerStatus: 429,
-              retryAfterMs: cooldown.retryAfterMs,
-            });
-          }
-          if (usage.ledgerMode === "development_missing_migration") {
-            logAskStage("AI credit persistence skipped", { reason: "development_missing_migration", requestId });
-            intelligenceResult = await withTimeout(runFurviseIntelligence({
-              context: liveContext,
-              requestId,
-              sourceMessageId: preparedRequest.userMessageId,
-              onProviderEvent: generationInput.onProviderEvent,
-            }), askRequestTimeoutMs);
-            return intelligenceResult.reasoning;
-          }
-          const reservation = await reserveAiCredit({ feature: "ask", requestId, supabase });
-          if (reservation.status === "limit_reached") throw new AiCreditLimitError();
-          creditReserved = reservation.status === "reserved";
-          creditFinalState = reservation.status;
-          logAskStage("AI credit reserved", { creditReservationId: requestId, feature: "ask", requestId, retryReuse, status: reservation.status });
-          intelligenceResult = await withTimeout(runFurviseIntelligence({
+      }
+      turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
+      contextUsed = turnView.contextUsed;
+      confirmedExistingCarePersistence = await findExistingCareEventForSaveRequest({
+        context: liveContext, currentSourceMessageId: preparedRequest.userMessageId, message: question, petId: turnPetId, supabase, userId,
+      });
+      if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
+
+      const generationInput = buildTurnGenerationInput({ locale, onProviderEvent, question, requestId, turnView, liveContext });
+      return await orchestrateAskTurn({
+        concerns: turnView.concerns,
+        generationInput,
+        message: question,
+        petName: liveContext.pet.name || "your pet",
+        generate: async () => {
+          intelligenceResult = await runFurviseIntelligence({
             context: liveContext,
             requestId,
             sourceMessageId: preparedRequest.userMessageId,
-            onProviderEvent: generationInput.onProviderEvent,
-          }), askRequestTimeoutMs);
-          logAskStage("intelligence validated", {
-            acceptedCareActions: intelligenceResult.acceptedCareActions.length,
-            acceptedLearnings: intelligenceResult.acceptedLearnings.length,
-            rejectedCareActions: intelligenceResult.rejectedCareActionCount,
-            rejectedLearnings: intelligenceResult.rejectedLearningCount,
-            requestId,
-            safetyLevel: intelligenceResult.reasoning.intelligenceSafety.level,
-            proposedActionCount: intelligenceResult.reasoning.careActions.length + intelligenceResult.reasoning.learnings.length,
-            acceptedActionCount: intelligenceResult.acceptedCareActions.length + intelligenceResult.acceptedLearnings.length,
-            rejectedActionCount: intelligenceResult.rejectedCareActionCount + intelligenceResult.rejectedLearningCount,
-            deterministicRepairsApplied: intelligenceResult.answerValidation.repairs,
+            onProviderEvent,
           });
+          logValidatedIntelligence(intelligenceResult, requestId);
           return intelligenceResult.reasoning;
-        });
-      },
-    });
+        },
+      });
+    }), askRequestTimeoutMs);
+    }
     logAskStage("turn orchestrated", {
-      activeConcernCount: concerns.length,
+      activeConcernCount: turnView.concerns.length,
       handledWithoutAi: orchestration.handledWithoutAi,
       intent: orchestration.intent,
       requestId,
-      recentlyResolvedConcernIds: recentlyResolvedConcerns.map((concern) => concern.id),
+      recentlyResolvedConcernIds: turnView.recentlyResolvedConcerns.map((concern) => concern.id),
       safetyLevel: orchestration.safetyLevel,
     });
   } catch (error) {
@@ -472,7 +419,7 @@ export async function POST(request: Request) {
       contextUsed,
       handledWithoutAi: false,
       intelligenceResult,
-      petId,
+      petId: turnPetId,
       preparedRequest,
       requestId,
       response: plannedResponse,
@@ -507,7 +454,7 @@ export async function POST(request: Request) {
     handledWithoutAi: orchestration.handledWithoutAi,
     intelligenceResult,
     preconfirmedCarePersistence: confirmedExistingCarePersistence,
-    petId,
+    petId: turnPetId,
     preparedRequest,
     requestId,
     response: conversationResponse,
@@ -519,6 +466,159 @@ export async function POST(request: Request) {
     usage,
     userId,
   }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
+  });
+}
+
+function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requestId }: {
+  currentSourceMessageId: string;
+  liveContext: FurviseLiveContext;
+  question: string;
+  requestId: string;
+}) {
+  const conversationMessages: ConversationMessage[] = liveContext.conversationTurns
+    .filter((message) => message.id !== currentSourceMessageId)
+    .map((message) => message.role === "user"
+      ? { id: message.id, role: "user", text: message.text }
+      : { id: message.id, role: "furvise", response: { directAnswer: message.text } });
+  const entries = liveContext.careEntries;
+  const recentUpdates = buildRecentAskUpdates(entries);
+  const memories = liveContext.legacyPetMemories;
+  const feedback = liveContext.productFeedback;
+  const concerns = liveContext.activeConcerns;
+  const recentlyResolvedConcerns = liveContext.recentlyResolvedConcerns;
+  const safetyContext = evaluateAskSafetyContext({
+    activeCareNotes: memories.map((memory) => memory.text),
+    authoritativeActiveConcernTags: concerns.flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title)),
+    currentMessage: question,
+    recentConversationTurns: conversationMessages.map((message) => ({
+      role: message.role,
+      text: message.role === "user" ? message.text : message.response?.directAnswer || message.response?.summary || "",
+    })),
+    recentlyResolvedConcernTags: /\b(breath|tired|energy|symptom|normal|fine|good|worse|returned|again)\b/i.test(question)
+      ? recentlyResolvedConcerns.flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title))
+      : [],
+    recentUpdates,
+  });
+  const canonicalActiveConcernTags = concerns.flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title));
+  const memoryContexts = [liveContext.pet].map((profile) => {
+    const memory = buildPetMemoryContext({
+      careEntries: entries.filter((entry) => entry.pet_profile_id === profile.id),
+      productFeedback: feedback.filter((item) => item.dog_profile_id === profile.id),
+      profile,
+      savedMemories: memories.filter((savedMemory) => savedMemory.dog_profile_id === profile.id),
+    });
+    return { ...memory, derived: { ...memory.derived, safetyFlags: safetyContext.activeConcernTags.map(formatConcernTag) } };
+  });
+  logAskStage("context loaded", {
+    activeConcerns: concerns.map((concern) => ({ id: concern.id, status: concern.status })),
+    activeConcernTags: safetyContext.activeConcernTags,
+    canonicalActiveConcernTags,
+    messageDerivedSafetyTags: safetyContext.activeConcernTags.filter((tag) => !canonicalActiveConcernTags.includes(tag)),
+    categories: [...new Set(recentUpdates.map((update) => update.category))],
+    latestUpdateTimestamp: recentUpdates[0]?.occurredAt || null,
+    petId: liveContext.pet.id,
+    recentUpdateCount: recentUpdates.length,
+    selectedHistoryCount: liveContext.selectedCareEntries.length,
+    selectedMemoryCount: liveContext.memories.length + liveContext.legacyPetMemories.length,
+    recentlyResolvedConcernIds: recentlyResolvedConcerns.map((concern) => concern.id),
+    contextStateVersion: liveContext.currentState?.state_version || 0,
+    activeEpisodeCount: liveContext.activeEpisodes.length,
+    monitoringEpisodeCount: liveContext.monitoringEpisodes.length,
+    stateDomainsUsed: Object.keys(liveContext.currentState?.state || {}),
+    requestId,
+    safetyLevel: safetyContext.safetyLevel,
+  });
+  return {
+    concerns,
+    contextUsed: { petName: memoryContexts[0]?.pet.name || null, usedSources: buildUsedContextSummary(memoryContexts, entries, memories) },
+    conversationMessages,
+    entries,
+    feedback,
+    memories,
+    recentlyResolvedConcerns,
+    recentUpdates,
+  };
+}
+
+function buildTurnGenerationInput({ locale, liveContext, onProviderEvent, question, requestId, turnView }: {
+  locale: string;
+  liveContext: FurviseLiveContext;
+  onProviderEvent: (event: AskProviderEvent) => void;
+  question: string;
+  requestId: string;
+  turnView: ReturnType<typeof deriveAskTurnView>;
+}) {
+  return {
+    careEntries: turnView.entries,
+    concerns: turnView.concerns,
+    conversationTurns: turnView.conversationMessages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      text: message.role === "user" ? message.text : message.response?.directAnswer || message.response?.summary || "",
+    })),
+    locale,
+    memories: turnView.memories,
+    productFeedback: turnView.feedback,
+    profiles: [liveContext.pet],
+    question,
+    recentlyResolvedConcerns: turnView.recentlyResolvedConcerns,
+    recentUpdates: turnView.recentUpdates,
+    requestId,
+    onProviderEvent,
+  };
+}
+
+function buildSubjectClarificationOrchestration(message: string) {
+  const safety = evaluateAskSafetyContext({
+    activeCareNotes: [],
+    currentMessage: message,
+    recentConversationTurns: [],
+    recentlyResolvedConcernTags: [],
+    recentUpdates: [],
+  });
+  const urgent = safety.safetyLevel === "urgent";
+  return {
+    aiResult: null,
+    answer: {
+      title: urgent ? "Urgent guidance while we identify the pet" : "Which pet do you mean?",
+      summary: urgent
+        ? "If the pet is in immediate distress, seems weak, collapses, or is having trouble breathing, contact a veterinarian or emergency clinic now. Which pet is this about? I will not use a pet's history or save the update until the subject is clear."
+        : "I can help, but I need to know which of your pets this update is about before I use pet-specific history or save anything.",
+      sections: [],
+      safetyNote: null,
+    },
+    concern: null,
+    handledWithoutAi: false,
+    intent: "unknown" as const,
+    safetyLevel: urgent ? "urgent" as const : "normal" as const,
+    suggestion: null,
+  };
+}
+
+function buildAlreadyPersistedOrchestration(petName: string) {
+  return {
+    aiResult: null,
+    answer: { title: "Already in history", summary: `Yes, that improvement is already in ${petName}'s history.`, sections: [], safetyNote: null },
+    concern: null,
+    handledWithoutAi: true,
+    intent: "status_update" as const,
+    safetyLevel: "monitor" as const,
+    suggestion: null,
+  };
+}
+
+function logValidatedIntelligence(result: FurviseIntelligenceResult, requestId: string) {
+  logAskStage("intelligence validated", {
+    acceptedCareActions: result.acceptedCareActions.length,
+    acceptedLearnings: result.acceptedLearnings.length,
+    rejectedCareActions: result.rejectedCareActionCount,
+    rejectedLearnings: result.rejectedLearningCount,
+    requestId,
+    safetyLevel: result.reasoning.intelligenceSafety.level,
+    proposedActionCount: result.reasoning.careActions.length + result.reasoning.learnings.length,
+    acceptedActionCount: result.acceptedCareActions.length + result.acceptedLearnings.length,
+    rejectedActionCount: result.rejectedCareActionCount + result.rejectedLearningCount,
+    deterministicRepairsApplied: result.answerValidation.repairs,
   });
 }
 
