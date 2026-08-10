@@ -35,7 +35,7 @@ test("final insert retains transaction-locked server-side plan enforcement", () 
 
 test("pet-limit screen is calm and never restarts onboarding", () => {
   const screen = read("app/components/pet-limit-screen.tsx");
-  assert.match(screen, /Your free plan includes 1 pet/);
+  assert.match(screen, /Your plan includes \{access\.maxPets\}/);
   assert.match(screen, /Open \{petName\}/);
   assert.match(screen, /Back to pets/);
   assert.match(screen, /See plan options/);

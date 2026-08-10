@@ -37,6 +37,7 @@ export async function saveProfile(request: Request, profileId: string | null) {
       const { data: replay } = await context.supabase.from("dog_profiles").select("*").eq("user_id", context.userId).eq("idempotency_key", gate.operation.key).maybeSingle<DogProfileRow>();
       if (replay) return Response.json({ profile: replay }, { status: 201 });
     }
+    if (error?.message?.includes("PET_LIMIT_REACHED")) return Response.json({ code: "PET_LIMIT_REACHED", error: "Your current pet limit was reached." }, { status: 409 });
     if (error || !data) return Response.json({ error: "The pet profile could not be saved." }, { status: 503 });
     return Response.json({ profile: data }, { status: profileId ? 200 : 201 });
   });

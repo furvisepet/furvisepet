@@ -11,6 +11,7 @@ export type PlanLimits = {
   liveProductResearch: boolean;
   longHistoryPatternDetection: boolean;
   maxPets: number;
+  productsPaidFunctionality: boolean;
   productQuestionMonthlyLimit: number;
   productsAiMonthlyLimit: number;
   shopSearchMonthlyLimit: number;
@@ -37,6 +38,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     liveProductResearch: false,
     longHistoryPatternDetection: false,
     maxPets: 1,
+    productsPaidFunctionality: false,
     productQuestionMonthlyLimit: 50,
     productsAiMonthlyLimit: 50,
     shopSearchMonthlyLimit: 50,
@@ -53,6 +55,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     liveProductResearch: true,
     longHistoryPatternDetection: true,
     maxPets: 10,
+    productsPaidFunctionality: true,
     productQuestionMonthlyLimit: 500,
     productsAiMonthlyLimit: 500,
     shopSearchMonthlyLimit: 500,
@@ -73,19 +76,6 @@ export function normalizePlanId(value: unknown): PlanId {
 
 export function getPlanCapabilities(planId: unknown): PlanCapabilities {
   return PLAN_CAPABILITIES[normalizePlanId(planId)];
-}
-
-export async function getUserPlan(
-  _userId: string,
-  lookup?: () => Promise<unknown> | unknown,
-): Promise<PlanId> {
-  if (!lookup) return FREE_PLAN_ID;
-
-  try {
-    return normalizePlanId(await lookup());
-  } catch {
-    return FREE_PLAN_ID;
-  }
 }
 
 export function isEarlyAccessFreeUnlockEnabled(env: Record<string, string | undefined> = process.env) {

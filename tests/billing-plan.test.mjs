@@ -6,7 +6,6 @@ import {
   evaluatePetLimit,
   getPaidGateMessage,
   getPlanCapabilities,
-  getUserPlan,
   isEarlyAccessFreeUnlockEnabled,
 } from "../app/lib/billing/plan-limits.ts";
 import {
@@ -354,10 +353,7 @@ test("legacy Ask usage still hard gates at the shared allowance while compatibil
   assert.equal(status.remaining, 0);
 });
 
-test("plan source defaults safely to free and paid gate messages exist", async () => {
-  assert.equal(await getUserPlan("user-1"), "free");
-  assert.equal(await getUserPlan("user-1", () => "plus"), "plus");
-  assert.equal(await getUserPlan("user-1", () => "unknown"), "free");
+test("paid gate messages exist", () => {
   assert.match(getPaidGateMessage("longHistoryPatternDetection"), /Furvise Plus/);
   assert.match(getPaidGateMessage("vetPrepExports"), /Furvise Plus/);
   assert.match(getPaidGateMessage("liveProductResearch"), /once it is built/);

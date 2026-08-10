@@ -47,7 +47,7 @@ begin
   end if;
 
   select * into v_result from public.complete_ai_credit(v_request_one, 2);
-  if v_result.event_status <> 'completed' or v_result.credits_used <> 1 or v_result.remaining <> 1 then
+  if v_result.event_status <> 'completed' or v_result.credits_used <> 1 or v_result.remaining <> 49 then
     raise exception 'completion failed: %', row_to_json(v_result);
   end if;
 
@@ -61,7 +61,7 @@ begin
     raise exception 'reservation after release failed: %', row_to_json(v_result);
   end if;
   select * into v_result from public.complete_ai_credit(v_request_three, 2);
-  if v_result.event_status <> 'completed' or v_result.remaining <> 0 then
+  if v_result.event_status <> 'completed' or v_result.remaining <> 48 then
     raise exception 'second completion failed: %', row_to_json(v_result);
   end if;
 
@@ -75,17 +75,17 @@ begin
   end if;
 
   select * into v_result from public.reserve_ai_credit(v_request_four, 'care_plan', 2);
-  if v_result.reservation_status <> 'limit_reached' or v_result.credits_used <> 0 or v_result.remaining <> 0 then
-    raise exception 'limit behavior failed: %', row_to_json(v_result);
+  if v_result.reservation_status <> 'reserved' or v_result.credits_used <> 1 or v_result.remaining <> 48 then
+    raise exception 'caller allowance was not ignored: %', row_to_json(v_result);
   end if;
 
   perform set_config('request.jwt.claim.sub', v_user_two::text, true);
   select * into v_result from public.reserve_ai_credit(v_user_two_request, 'ask', 2);
-  if v_result.reservation_status <> 'reserved' or v_result.remaining <> 2 then
+  if v_result.reservation_status <> 'reserved' or v_result.remaining <> 50 then
     raise exception 'second user was not isolated: %', row_to_json(v_result);
   end if;
   select * into v_result from public.complete_ai_credit(v_user_two_request, 2);
-  if v_result.event_status <> 'completed' or v_result.remaining <> 1 then
+  if v_result.event_status <> 'completed' or v_result.remaining <> 49 then
     raise exception 'second user completion failed: %', row_to_json(v_result);
   end if;
 

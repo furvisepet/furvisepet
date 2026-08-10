@@ -5,10 +5,8 @@ import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { AiCreditLedgerError, getRemainingAiCredits, runWithAiCredit, type AiCreditStatus } from "../../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../../lib/ai/usage-guard/errors";
-import {
-  getUserPlan,
-  type PlanId,
-} from "../../../lib/billing/plan-limits";
+import type { PlanId } from "../../../lib/billing/plan-limits";
+import { resolveEffectiveEntitlements } from "../../../lib/billing/entitlements";
 import { buildPetMemoryContext, type PetMemoryContext } from "../../../lib/pet-memory";
 import { normalizeProductCountry } from "../../../lib/product-providers";
 import {
@@ -291,6 +289,7 @@ export async function POST(request: Request) {
       payload: { petId, productCountry, query }, requestId, userId: context.userId,
     }, () => runWithAiCredit<FeatureIntelligenceResult<ShopQueryInterpretation>>({
       feature: "product_query",
+      monthlyAiCredits: context.monthlyAiCredits,
       planId: context.planId,
       requestId,
       supabase: context.supabase,
@@ -389,6 +388,7 @@ async function loadShopInterpretationRequestContext(request: Request): Promise<
   | { response: Response }
   | {
       planId: PlanId;
+      monthlyAiCredits: number;
       supabase: SupabaseClient;
       userId: string;
     }
@@ -434,13 +434,13 @@ async function loadShopInterpretationRequestContext(request: Request): Promise<
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
 
-  const planId = await getUserPlan(userData.user.id);
-  return { planId, supabase, userId: userData.user.id };
+  const entitlements = await resolveEffectiveEntitlements(supabase);
+  return { monthlyAiCredits: entitlements.limits.monthlyAiCredits, planId: entitlements.effectivePlan, supabase, userId: userData.user.id };
 }
 
-async function loadShopUsage(context: { planId: PlanId; supabase: SupabaseClient; userId: string }) {
+async function loadShopUsage(context: { monthlyAiCredits: number; planId: PlanId; supabase: SupabaseClient; userId: string }) {
   try {
-    const usage = await getRemainingAiCredits({ planId: context.planId, supabase: context.supabase, userId: context.userId });
+    const usage = await getRemainingAiCredits({ monthlyAiCredits: context.monthlyAiCredits, planId: context.planId, supabase: context.supabase, userId: context.userId });
     logShopInterpretationDiagnostic("Product AI usage loaded", { helper: "getRemainingAiCredits", table: "ai_usage_events", usageLoadSucceeded: true, userIdPresent: true });
     return usage;
   } catch (error) {

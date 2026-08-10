@@ -10,7 +10,8 @@ import { AiCreditLimitReachedError, runWithAiCredit } from "../../lib/ai/usage-l
 import { getAskModelConfiguration } from "../../lib/ai/ask-reasoning";
 import { runAdmittedAiOperation } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError, aiAdmissionErrorResponse } from "../../lib/ai/usage-guard/errors";
-import { getUserPlan, type PlanId } from "../../lib/billing/plan-limits";
+import type { PlanId } from "../../lib/billing/plan-limits";
+import { resolveEffectiveEntitlements } from "../../lib/billing/entitlements";
 import {
   adaptSafetyFollowupToLegacy,
   applySafetyFloor,
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
       feature: "safety_followup", intendedModel: getAskModelConfiguration().primary,
       payload: { answers, petId, questions }, requestId, userId: auth.userId,
     }, () => runWithAiCredit<FeatureIntelligenceResult<IntelligenceSafetyFollowup>>({
-      feature: "safety_followup", planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
+      feature: "safety_followup", monthlyAiCredits: auth.monthlyAiCredits, planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
       generate: async () => runFeatureIntelligence({
         context, feature: "safety_followup", maxOutputTokens: 650,
         featureInput: {
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
 
 async function loadSafetyRequestContext(request: Request): Promise<
   | { response: Response }
-  | { planId: PlanId; supabase: SupabaseClient; userId: string }
+  | { monthlyAiCredits: number; planId: PlanId; supabase: SupabaseClient; userId: string }
 > {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -151,7 +152,8 @@ async function loadSafetyRequestContext(request: Request): Promise<
   if (!data.user) return { response: NextResponse.json({ error: "Your session has expired." }, { status: 401 }) };
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
-  return { planId: await getUserPlan(data.user.id), supabase, userId: data.user.id };
+  const entitlements = await resolveEffectiveEntitlements(supabase);
+  return { monthlyAiCredits: entitlements.limits.monthlyAiCredits, planId: entitlements.effectivePlan, supabase, userId: data.user.id };
 }
 
 function isEligibleSoonSafetyAnalysis(analysis: PetWiseAnalysis) {
