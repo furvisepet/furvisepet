@@ -30,6 +30,11 @@ export default function AccountPage() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [entitlements, setEntitlements] = useState<{
+    accessRole: "consumer" | "internal_qa";
+    billingPlan: "free" | "plus";
+    effectivePlan: "free" | "plus";
+  } | null>(null);
 
   useEffect(() => {
     if (authStatus !== "signedIn" || !authUser) return;
@@ -47,6 +52,10 @@ export default function AccountPage() {
         if (!active) return;
         setProfile(detectedRow);
         setSelectedCountry(detectedRow?.country || "CA");
+        const entitlementResponse = await fetch("/api/account/entitlements", { headers: await authorizationHeaders() });
+        const entitlementPayload = await entitlementResponse.json().catch(() => null) as { entitlements?: typeof entitlements } | null;
+        if (!entitlementResponse.ok || !entitlementPayload?.entitlements) throw new Error("Furvise could not verify account access.");
+        setEntitlements(entitlementPayload.entitlements);
       } catch (loadError) {
         if (active) {
           setError(loadError instanceof Error ? loadError.message : "Furvise could not load account settings.");
@@ -183,8 +192,16 @@ export default function AccountPage() {
       </section> : null}
       <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6" id="plans">
         <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Plan</h2>
-        <p className="mt-2 font-semibold text-[var(--pw-text)]">Free plan</p>
-        <p className="mt-2 leading-7 text-[var(--pw-muted)]">Furvise Plus is not available yet. No checkout is started from this page.</p>
+        <p className="mt-2 font-semibold text-[var(--pw-text)]">
+          {entitlements?.accessRole === "internal_qa" ? "Internal testing access" : entitlements?.billingPlan === "plus" ? "Furvise Plus" : "Free plan"}
+        </p>
+        <p className="mt-2 leading-7 text-[var(--pw-muted)]">
+          {entitlements?.accessRole === "internal_qa"
+            ? "Paid feature entitlements and expanded testing quotas are enabled without changing billing."
+            : entitlements?.billingPlan === "plus"
+              ? "Your paid feature entitlements are active."
+              : "Furvise Plus is not available yet. No checkout is started from this page."}
+        </p>
       </section>
       <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
         <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Security</h2>

@@ -15,10 +15,10 @@ export function PetLimitScreen({ access }: { access: PetCreationAccess }) {
         <TextAction href="/pets">← Back to Pets</TextAction>
         <p className="mt-6 text-sm font-semibold text-[var(--text-secondary)]">Add a pet</p>
         <h1 className="mt-2 text-3xl font-bold tracking-[-0.03em] text-[var(--text-primary)] sm:text-4xl" id="pet-limit-title">
-          Your free plan includes 1 pet
+          Your plan includes {access.maxPets} {access.maxPets === 1 ? "pet" : "pets"}
         </h1>
         <p className="mt-3 max-w-xl leading-7 text-[var(--text-secondary)]" role="status">
-          You can keep using Furvise for {petName}. Additional pet profiles are available with Furvise Plus.
+          You can keep using Furvise for {petName}. Your current access does not include another pet profile.
         </p>
 
         {pet ? (

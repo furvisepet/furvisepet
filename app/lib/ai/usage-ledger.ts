@@ -51,8 +51,10 @@ export function getAiMonthKey(date = new Date()) {
   return getAiPeriodStart(date).slice(0, 7);
 }
 
-export function getMonthlyAiAllowance(_userId: string, planId: PlanId = "free") {
-  return getPlanCapabilities(planId).aiCreditsMonthlyLimit;
+export function getMonthlyAiAllowance(_userId: string, planId: PlanId = "free", entitlementLimit?: number) {
+  return typeof entitlementLimit === "number" && Number.isInteger(entitlementLimit) && entitlementLimit > 0
+    ? entitlementLimit
+    : getPlanCapabilities(planId).aiCreditsMonthlyLimit;
 }
 
 export async function getMonthlyAiUsage({
@@ -76,15 +78,17 @@ export async function getMonthlyAiUsage({
 }
 
 export async function getRemainingAiCredits({
+  monthlyAiCredits,
   planId = "free",
   supabase,
   userId,
 }: {
+  monthlyAiCredits?: number;
   planId?: PlanId;
   supabase: SupabaseClient;
   userId: string;
 }): Promise<AiCreditStatus> {
-  const limit = getMonthlyAiAllowance(userId, planId);
+  const limit = getMonthlyAiAllowance(userId, planId, monthlyAiCredits);
   const count = await getMonthlyAiUsage({ supabase, userId });
   const remaining = Math.max(0, limit - count);
   return { allowed: remaining > 0, count, ledgerMode: "database", limit, monthKey: getAiMonthKey(), planId, remaining };
@@ -92,20 +96,14 @@ export async function getRemainingAiCredits({
 
 export async function reserveAiCredit({
   feature,
-  planId = "free",
   requestId,
   supabase,
-  userId,
 }: {
   feature: AiFeature;
-  planId?: PlanId;
   requestId: string;
   supabase: SupabaseClient;
-  userId: string;
 }): Promise<AiCreditReservation> {
-  const allowance = getMonthlyAiAllowance(userId, planId);
   const { data, error } = await supabase.rpc("reserve_ai_credit", {
-    p_allowance: allowance,
     p_feature: feature,
     p_request_id: requestId,
   });
@@ -116,18 +114,13 @@ export async function reserveAiCredit({
 }
 
 export async function completeAiCredit({
-  planId = "free",
   requestId,
   supabase,
-  userId,
 }: {
-  planId?: PlanId;
   requestId: string;
   supabase: SupabaseClient;
-  userId: string;
 }) {
   const { data, error } = await supabase.rpc("complete_ai_credit", {
-    p_allowance: getMonthlyAiAllowance(userId, planId),
     p_request_id: requestId,
   });
   if (error) throw new AiCreditLedgerError("completion_failed", error, "complete_ai_credit", "rpc");
@@ -137,18 +130,13 @@ export async function completeAiCredit({
 }
 
 export async function releaseAiCredit({
-  planId = "free",
   requestId,
   supabase,
-  userId,
 }: {
-  planId?: PlanId;
   requestId: string;
   supabase: SupabaseClient;
-  userId: string;
 }) {
   const { data, error } = await supabase.rpc("release_ai_credit", {
-    p_allowance: getMonthlyAiAllowance(userId, planId),
     p_request_id: requestId,
   });
   if (error) throw new AiCreditLedgerError("release_failed", error, "release_ai_credit", "rpc");
@@ -218,6 +206,7 @@ export async function runWithAiCredit<T>({
   beforeComplete,
   feature,
   generate,
+  monthlyAiCredits,
   planId = "free",
   requestId,
   supabase,
@@ -226,28 +215,29 @@ export async function runWithAiCredit<T>({
   beforeComplete?: (value: T) => Promise<void>;
   feature: AiFeature;
   generate: () => Promise<T>;
+  monthlyAiCredits?: number;
   planId?: PlanId;
   requestId: string;
   supabase: SupabaseClient;
   userId: string;
 }) {
-  const reservation = await reserveAiCredit({ feature, planId, requestId, supabase, userId });
+  const reservation = await reserveAiCredit({ feature, requestId, supabase });
   if (reservation.status === "limit_reached") throw new AiCreditLimitReachedError();
   try {
     const value = await generate();
     if (beforeComplete) await beforeComplete(value);
     if (reservation.status !== "completed") {
       try {
-        await completeAiCredit({ planId, requestId, supabase, userId });
+        await completeAiCredit({ requestId, supabase });
       } catch {
-        await completeAiCredit({ planId, requestId, supabase, userId });
+        await completeAiCredit({ requestId, supabase });
       }
     }
-    const usage = await getRemainingAiCredits({ planId, supabase, userId });
+    const usage = await getRemainingAiCredits({ monthlyAiCredits, planId, supabase, userId });
     return { creditsUsed: reservation.status === "completed" ? 0 : 1, usage, value };
   } catch (error) {
     if (reservation.status === "reserved") {
-      try { await releaseAiCredit({ planId, requestId, supabase, userId }); } catch { /* The provider error remains the actionable failure. */ }
+      try { await releaseAiCredit({ requestId, supabase }); } catch { /* The provider error remains the actionable failure. */ }
     }
     throw error;
   }

@@ -101,7 +101,7 @@ test("SQL verification covers reservation, idempotency, completion, release, lim
     "completion failed",
     "release failed",
     "monthly usage expected 2",
-    "limit behavior failed",
+    "caller allowance was not ignored",
     "second user was not isolated",
   ]) assert.match(sqlVerification, new RegExp(phrase, "i"));
   assert.match(sqlVerification, /^begin;[\s\S]*rollback;\s*$/);

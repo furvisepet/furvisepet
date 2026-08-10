@@ -6,10 +6,8 @@ import { loadShopCatalogProductById } from "../../../lib/catalog/compatibility";
 import { AiCreditLedgerError, getRemainingAiCredits, runWithAiCredit, type AiCreditStatus } from "../../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../../lib/ai/usage-guard/errors";
-import {
-  getUserPlan,
-  type PlanId,
-} from "../../../lib/billing/plan-limits";
+import type { PlanId } from "../../../lib/billing/plan-limits";
+import { resolveEffectiveEntitlements } from "../../../lib/billing/entitlements";
 import { buildPetMemoryContext, type PetMemoryContext } from "../../../lib/pet-memory";
 import { initialProfile, type DogProfile, type MockProduct } from "../../../lib/petwise";
 import { normalizeProductCountry } from "../../../lib/product-providers";
@@ -236,6 +234,7 @@ export async function POST(request: Request) {
       payload: { interpretation, petId, productCountry, productId, query, question }, requestId, userId: context.userId,
     }, () => runWithAiCredit<FeatureIntelligenceResult<ShopProductQuestionAnswer>>({
       feature: "product_question",
+      monthlyAiCredits: context.monthlyAiCredits,
       planId: context.planId,
       requestId,
       supabase: context.supabase,
@@ -303,6 +302,7 @@ async function loadProductQuestionRequestContext(request: Request): Promise<
   | { response: Response }
   | {
       planId: PlanId;
+      monthlyAiCredits: number;
       supabase: SupabaseClient;
       usage: AiCreditStatus;
       usageUnavailable: boolean;
@@ -325,11 +325,14 @@ async function loadProductQuestionRequestContext(request: Request): Promise<
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
 
-  const planId = await getUserPlan(userData.user.id);
+  const entitlements = await resolveEffectiveEntitlements(supabase);
+  const planId = entitlements.effectivePlan;
+  const monthlyAiCredits = entitlements.limits.monthlyAiCredits;
   let usage: AiCreditStatus;
   try {
     usage = await getRemainingAiCredits({
       planId,
+      monthlyAiCredits,
       supabase,
       userId: userData.user.id,
     });
@@ -356,7 +359,7 @@ async function loadProductQuestionRequestContext(request: Request): Promise<
     throw error;
   }
 
-  return { planId, supabase, usage, usageUnavailable: false, userId: userData.user.id };
+  return { monthlyAiCredits, planId, supabase, usage, usageUnavailable: false, userId: userData.user.id };
 }
 
 function normalizeProductAiUsageError(error: unknown) {

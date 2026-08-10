@@ -11,7 +11,7 @@ import { OPENAI_ANALYSIS_MODEL } from "../../lib/ai/config";
 import { AiCreditLimitReachedError, runWithAiCredit } from "../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError, aiAdmissionErrorResponse } from "../../lib/ai/usage-guard/errors";
-import { getUserPlan } from "../../lib/billing/plan-limits";
+import { resolveEffectiveEntitlements } from "../../lib/billing/entitlements";
 import { API_BODY_LIMITS, RequestBoundaryError, readBoundedJson } from "../../lib/security/request";
 import { safeErrorForLog } from "../../lib/security/logging";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     });
     const generated = await runAdmittedAiOperation({
       feature: "care_plan", intendedModel: OPENAI_ANALYSIS_MODEL, payload: { memories, profile: validation.profile }, requestId, userId: context.userId,
-    }, () => runWithAiCredit({ feature: "care_plan", planId: context.planId, requestId, supabase: context.supabase, userId: context.userId, generate: async () => {
+    }, () => runWithAiCredit({ feature: "care_plan", monthlyAiCredits: context.monthlyAiCredits, planId: context.planId, requestId, supabase: context.supabase, userId: context.userId, generate: async () => {
         const provider = createAiAnalysisProvider();
         const analysis = await provider.analyzeDogProfile({ profile: validation.profile, memories });
         const validatedAnalysis = parseAnalysis(analysis);
@@ -111,5 +111,6 @@ async function loadAiRequestContext(request: Request) {
   if (!data.user) return { response: NextResponse.json({ error: "Your session has expired." }, { status: 401 }) } as const;
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse } as const;
-  return { planId: await getUserPlan(data.user.id), supabase, userId: data.user.id };
+  const entitlements = await resolveEffectiveEntitlements(supabase);
+  return { monthlyAiCredits: entitlements.limits.monthlyAiCredits, planId: entitlements.effectivePlan, supabase, userId: data.user.id };
 }

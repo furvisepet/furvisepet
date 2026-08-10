@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       feature: "vet_brief", intendedModel: getAskModelConfiguration().primary,
       payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, requestId, userId: auth.userId,
     }, () => runWithAiCredit<FeatureIntelligenceResult<IntelligenceVetBrief>>({
-      feature: "vet_brief", planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
+      feature: "vet_brief", monthlyAiCredits: auth.monthlyAiCredits, planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
       generate: async () => runFeatureIntelligence({
         context, feature: "vet_brief", maxOutputTokens: 1800,
         featureInput: {

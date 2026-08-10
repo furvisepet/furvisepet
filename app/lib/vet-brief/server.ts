@@ -2,12 +2,13 @@ import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { validateSensitiveRequestOriginResponse } from "../security/headers/origin-policy";
-import { getUserPlan, type PlanId } from "../billing/plan-limits";
+import type { PlanId } from "../billing/plan-limits";
+import { resolveEffectiveEntitlements } from "../billing/entitlements";
 import { parseVetBriefDocument } from "./schema";
 
 export async function getVetBriefRequestContext(request: Request): Promise<
   | { response: Response }
-  | { planId: PlanId; supabase: SupabaseClient; userId: string }
+  | { monthlyAiCredits: number; planId: PlanId; supabase: SupabaseClient; userId: string }
 > {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return { response: Response.json({ error: "Authentication required." }, { status: 401 }) };
@@ -22,7 +23,8 @@ export async function getVetBriefRequestContext(request: Request): Promise<
   if (!data.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
-  return { planId: await getUserPlan(data.user.id), supabase, userId: data.user.id };
+  const entitlements = await resolveEffectiveEntitlements(supabase);
+  return { monthlyAiCredits: entitlements.limits.monthlyAiCredits, planId: entitlements.effectivePlan, supabase, userId: data.user.id };
 }
 
 export type VetBriefDatabaseRow = {

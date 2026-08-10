@@ -43,10 +43,9 @@ import {
 } from "../../lib/furvise-voice";
 import {
   getPaidGateMessage,
-  getPlanCapabilities,
-  getUserPlan,
   type PlanId,
 } from "../../lib/billing/plan-limits";
+import { resolveEffectiveEntitlements, type EffectiveEntitlements } from "../../lib/billing/entitlements";
 import { deriveConversationTitle } from "../../lib/ask-conversations";
 import {
   buildRecentAskUpdates,
@@ -121,7 +120,7 @@ export async function POST(request: Request) {
     return askFailure("UNKNOWN_ERROR", "Furvise could not start that answer. Please try again.", 500, {}, "authentication");
   }
   if ("response" in context) return context.response;
-  const { planId, supabase, usage, userId } = context;
+  const { capabilities, supabase, usage, userId } = context;
 
   let rawBody: unknown;
   try {
@@ -385,7 +384,7 @@ export async function POST(request: Request) {
             }), askRequestTimeoutMs);
             return intelligenceResult.reasoning;
           }
-          const reservation = await reserveAiCredit({ feature: "ask", planId, requestId, supabase, userId });
+          const reservation = await reserveAiCredit({ feature: "ask", requestId, supabase });
           if (reservation.status === "limit_reached") throw new AiCreditLimitError();
           creditReserved = reservation.status === "reserved";
           creditFinalState = reservation.status;
@@ -422,7 +421,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (creditReserved) {
-      await safeReleaseAiCredit({ planId, requestId, supabase, userId });
+      await safeReleaseAiCredit({ requestId, supabase });
       creditFinalState = "released";
     }
     logAskStage("Ask generation finalized", { creditFinalState, creditReservationId: requestId, providerCallCount, requestId, retryReuse });
@@ -454,7 +453,7 @@ export async function POST(request: Request) {
   if (reasoning) contextUsed.usedSources = [...new Set(reasoning.referencedRecords.map(formatContextSourceLabel))].slice(0, 4);
   const safetyLevel = orchestration.safetyLevel;
   const plannedGate = reasoning && safetyLevel === "normal" && !reasoning.shoppingSuppressed
-    ? buildPlannedCapabilityResponse(question, planId)
+    ? buildPlannedCapabilityResponse(question, capabilities)
     : null;
   if (plannedGate) {
     const plannedResponse = buildAskConversationResponse(plannedGate, {
@@ -464,7 +463,7 @@ export async function POST(request: Request) {
       usedContextSummary: contextUsed.usedSources,
     });
     if (!plannedResponse) {
-      if (creditReserved) await safeReleaseAiCredit({ planId, requestId, supabase, userId });
+      if (creditReserved) await safeReleaseAiCredit({ requestId, supabase });
       if (rateGateRef.current) await rateGateRef.current.release();
       return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
     }
@@ -496,7 +495,7 @@ export async function POST(request: Request) {
     usedContextSummary: contextUsed.usedSources,
   });
   if (!conversationResponse) {
-    if (creditReserved) await safeReleaseAiCredit({ planId, requestId, supabase, userId });
+    if (creditReserved) await safeReleaseAiCredit({ requestId, supabase });
     if (rateGateRef.current) await rateGateRef.current.release();
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
   }
@@ -706,7 +705,7 @@ async function persistAssistantAnswer({
     .maybeSingle<{ sequence_number: number }>();
   if (sequenceError) {
     logAskServerError("persist_assistant_message", sequenceError, { requestId }, 200);
-    if (creditReserved) await safeReleaseAiCredit({ planId: usage.planId, requestId, supabase, userId });
+    if (creditReserved) await safeReleaseAiCredit({ requestId, supabase });
     return successfulAnswerResponse({
       concern,
       creditsUsed: 0,
@@ -769,7 +768,7 @@ async function persistAssistantAnswer({
     messageError = retryResult.error;
     if (!assistantMessage || messageError) {
       logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
-      if (creditReserved) await safeReleaseAiCredit({ planId: usage.planId, requestId, supabase, userId });
+      if (creditReserved) await safeReleaseAiCredit({ requestId, supabase });
       return successfulAnswerResponse({
         concern,
         creditsUsed: 0,
@@ -845,16 +844,16 @@ async function persistAssistantAnswer({
   if (creditReserved) {
     try {
       try {
-        await completeAiCredit({ planId: usage.planId, requestId, supabase, userId });
+        await completeAiCredit({ requestId, supabase });
       } catch {
-        await completeAiCredit({ planId: usage.planId, requestId, supabase, userId });
+        await completeAiCredit({ requestId, supabase });
       }
-      nextUsage = await getRemainingAiCredits({ planId: usage.planId, supabase, userId });
+      nextUsage = await getRemainingAiCredits({ monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId });
       creditsUsed = 1;
       logAskStage("AI credit completed", { creditFinalState: "completed", creditReservationId: requestId, requestId });
     } catch (error) {
       logAskServerError("credit_completion_failed", error, { requestId }, 200);
-      await safeReleaseAiCredit({ planId: usage.planId, requestId, supabase, userId });
+      await safeReleaseAiCredit({ requestId, supabase });
     }
   }
   const confirmedCarePersistence = preconfirmedCarePersistence || intelligencePersistence?.carePersistence || null;
@@ -966,18 +965,14 @@ async function persistPendingSuggestion({
 }
 
 async function safeReleaseAiCredit({
-  planId,
   requestId,
   supabase,
-  userId,
 }: {
-  planId: PlanId;
   requestId: string;
   supabase: SupabaseClient;
-  userId: string;
 }) {
   try {
-    await releaseAiCredit({ planId, requestId, supabase, userId });
+    await releaseAiCredit({ requestId, supabase });
     logAskStage("AI credit released", { requestId });
   } catch (error) {
     logAskServerError("credit_release_failed", error, { requestId }, 200);
@@ -1273,6 +1268,7 @@ async function loadAskRequestContext(request: Request): Promise<
   | { response: Response }
   | {
       planId: PlanId;
+      capabilities: EffectiveEntitlements["capabilities"];
       supabase: SupabaseClient;
       usage: AiCreditStatus;
       userId: string;
@@ -1297,11 +1293,13 @@ async function loadAskRequestContext(request: Request): Promise<
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
 
-  const planId = await getUserPlan(userData.user.id);
+  const entitlements = await resolveEffectiveEntitlements(supabase);
+  const planId = entitlements.effectivePlan;
   let usage: AiCreditStatus;
   try {
     usage = await getRemainingAiCredits({
       planId,
+      monthlyAiCredits: entitlements.limits.monthlyAiCredits,
       supabase,
       userId: userData.user.id,
     });
@@ -1322,7 +1320,7 @@ async function loadAskRequestContext(request: Request): Promise<
       }
     } else throw error;
   }
-  return { planId, supabase, usage, userId: userData.user.id };
+  return { capabilities: entitlements.capabilities, planId, supabase, usage, userId: userData.user.id };
 }
 
 function resolveAskLocale(bodyLocale: unknown, acceptLanguage: string | null) {
@@ -1344,26 +1342,25 @@ function formatContextSourceLabel(record: AskContextRecord) {
   } satisfies Record<AskContextRecord["sourceType"], string>)[record.sourceType];
 }
 
-function buildPlannedCapabilityResponse(question: string, planId: PlanId) {
+function buildPlannedCapabilityResponse(question: string, capabilities: EffectiveEntitlements["capabilities"]) {
   const normalized = question.toLowerCase();
-  const plan = getPlanCapabilities(planId);
   if (/\b(export|pdf|download|printable report|vet[- ]?prep report)\b/.test(normalized)) {
     return plannedCapabilityResponse(
-      plan.vetPrepExports
+      capabilities.vetPrepExports
         ? "Exportable vet-prep reports are not built yet."
         : getPaidGateMessage("vetPrepExports"),
     );
   }
   if (/\b(long|older|all history|pattern|trend|over time|months?)\b/.test(normalized)) {
     return plannedCapabilityResponse(
-      plan.longHistoryPatternDetection
+      capabilities.longHistoryPatternDetection
         ? "Longer-history pattern detection is not built yet."
         : getPaidGateMessage("longHistoryPatternDetection"),
     );
   }
   if (/\b(live product|research products|current price|chewy|amazon|walmart|retailer)\b/.test(normalized)) {
     return plannedCapabilityResponse(
-      plan.liveProductResearch
+      capabilities.liveProductResearch
         ? "Live product research is not built yet."
         : getPaidGateMessage("liveProductResearch"),
     );

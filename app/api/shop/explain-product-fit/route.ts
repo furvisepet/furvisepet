@@ -17,7 +17,8 @@ import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { AiCreditLimitReachedError, getRemainingAiCredits, runWithAiCredit, type AiCreditStatus } from "../../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../../lib/ai/usage-guard/errors";
-import { getUserPlan, type PlanId } from "../../../lib/billing/plan-limits";
+import type { PlanId } from "../../../lib/billing/plan-limits";
+import { resolveEffectiveEntitlements } from "../../../lib/billing/entitlements";
 import { buildFurviseContext, resolveProductSafety, runFeatureIntelligence, type FeatureIntelligenceResult } from "../../../lib/intelligence";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
@@ -123,6 +124,7 @@ export async function POST(request: Request) {
       payload: { interpretation, petId, productCountry, productId, query }, requestId, userId: context.userId,
     }, () => runWithAiCredit<FeatureIntelligenceResult<ShopProductFitExplanation>>({
       feature: "product_explanation",
+      monthlyAiCredits: context.monthlyAiCredits,
       planId: context.planId,
       requestId,
       supabase: context.supabase,
@@ -154,6 +156,7 @@ async function loadShopExplanationRequestContext(request: Request): Promise<
   | { response: Response }
   | {
       supabase: SupabaseClient;
+      monthlyAiCredits: number;
       planId: PlanId;
       usage: AiCreditStatus;
       userId: string;
@@ -175,10 +178,12 @@ async function loadShopExplanationRequestContext(request: Request): Promise<
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
 
-  const planId = await getUserPlan(userData.user.id);
   try {
-    const usage = await getRemainingAiCredits({ planId, supabase, userId: userData.user.id });
-    return { planId, supabase, usage, userId: userData.user.id };
+    const entitlements = await resolveEffectiveEntitlements(supabase);
+    const planId = entitlements.effectivePlan;
+    const monthlyAiCredits = entitlements.limits.monthlyAiCredits;
+    const usage = await getRemainingAiCredits({ monthlyAiCredits, planId, supabase, userId: userData.user.id });
+    return { monthlyAiCredits, planId, supabase, usage, userId: userData.user.id };
   } catch {
     return { response: Response.json({ error: FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE }, { status: 503 }) };
   }
