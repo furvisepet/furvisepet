@@ -46,6 +46,8 @@ export async function buildFurviseContext({
     .eq("user_id", userId)
     .maybeSingle<{ id: string }>() : Promise.resolve({ data: null, error: null });
   const profileQuery = supabase.from("dog_profiles").select("*").eq("id", petId).eq("user_id", userId).maybeSingle<DogProfileRow>();
+  const eligiblePetsQuery = supabase.from("dog_profiles").select("id,name,species,age_value,age_unit").eq("user_id", userId)
+    .returns<Array<Pick<DogProfileRow, "id" | "name" | "species" | "age_value" | "age_unit">>>();
   let careQuery = supabase.from("pet_care_entries").select("*").eq("pet_profile_id", petId).eq("user_id", userId);
   if (dateRange) careQuery = careQuery.gte("occurred_at", `${dateRange.from}T00:00:00.000Z`).lte("occurred_at", `${dateRange.to}T23:59:59.999Z`);
   const boundedCareQuery = careQuery.order("occurred_at", { ascending: false }).order("created_at", { ascending: false })
@@ -71,14 +73,14 @@ export async function buildFurviseContext({
     .in("status", ["active", "monitoring", "resolved"]).order("last_event_at", { ascending: false }).limit(20).returns<CareEpisode[]>();
   const currentStateQuery = supabase.from("pet_current_state").select("*").eq("user_id", userId).eq("pet_profile_id", petId).maybeSingle<PetCurrentStateRow>();
 
-  const [conversation, profile, care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState] = await Promise.all([
-    conversationQuery, profileQuery, boundedCareQuery, legacyMemoryQuery, sharedMemoryQuery, inactiveMemoryQuery, feedbackQuery, ownerQuery, messagesQuery,
+  const [conversation, profile, eligiblePets, care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState] = await Promise.all([
+    conversationQuery, profileQuery, eligiblePetsQuery, boundedCareQuery, legacyMemoryQuery, sharedMemoryQuery, inactiveMemoryQuery, feedbackQuery, ownerQuery, messagesQuery,
     loadActiveConcerns(supabase, userId, petId), loadRecentlyResolvedConcerns(supabase, userId, petId), episodesQuery, currentStateQuery,
   ]).catch((error) => { throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", error); });
 
   if (profile.error || !profile.data) throw new FurviseContextError("PET_NOT_FOUND", "That pet is not available.", profile.error);
   if (conversationId && (conversation.error || !conversation.data)) throw new FurviseContextError("CONVERSATION_NOT_FOUND", "That conversation is not available for this pet.", conversation.error);
-  const queryError = care.error || legacyMemories.error || sharedMemories.error || inactiveMemories.error || feedback.error || owner.error || messages.error || episodes.error || currentState.error;
+  const queryError = eligiblePets.error || care.error || legacyMemories.error || sharedMemories.error || inactiveMemories.error || feedback.error || owner.error || messages.error || episodes.error || currentState.error;
   if (queryError) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", queryError);
 
   const conversationTurns = removeInactiveMemoryClaimsFromConversation([...(messages.data || [])].reverse().map((message) => ({
@@ -90,7 +92,7 @@ export async function buildFurviseContext({
 
   return finalizeFurviseContext({
     feature, locale, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
-    pet: profile.data, owner: { userId, profile: owner.data || null }, careEntries: care.data || [],
+    pet: profile.data, eligiblePets: eligiblePets.data || [profile.data], owner: { userId, profile: owner.data || null }, careEntries: care.data || [],
     activeConcerns, recentlyResolvedConcerns: resolvedConcerns, legacyPetMemories: legacyMemories.data || [],
     activeEpisodes: (episodes.data || []).filter((episode) => episode.status === "active"),
     monitoringEpisodes: (episodes.data || []).filter((episode) => episode.status === "monitoring"),

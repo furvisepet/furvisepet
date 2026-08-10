@@ -32,6 +32,9 @@ import {
   messageUnderstandingJsonSchema,
 } from "../intelligence/schemas.ts";
 import type { CanonicalEventProposal, IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "../intelligence/types.ts";
+import { emptyProposedSemanticFrame, extractProposedSemanticFrame } from "../intelligence/semantic-frame/extract-frame.ts";
+import { proposedSemanticFrameJsonSchema } from "../intelligence/semantic-frame/schema.ts";
+import type { ProposedSemanticFrame } from "../intelligence/semantic-frame/types.ts";
 
 export type AskContextSourceType =
   | "profile"
@@ -99,6 +102,9 @@ export type AskReasoningResult = {
   learnings: IntelligenceLearning[];
   careActions: IntelligenceCareAction[];
   semanticEvents: CanonicalEventProposal[];
+  /** Diagnostic-only Phase 1 output. It never authorizes production persistence. */
+  semanticFrame: ProposedSemanticFrame;
+  semanticFrameValid: boolean;
   intelligenceMetadata: {
     confidence: "low" | "medium" | "high";
     usedPetContext: boolean;
@@ -213,7 +219,7 @@ export const askUnifiedJsonSchema = {
   required: [
     "answer", "safetyLevel", "suggestedFollowUps", "proposedHistoryUpdate",
     "responseMode", "userIntent", "relevantContextIds",
-    "messageUnderstanding", "intelligenceSafety", "learnings", "careActions", "semanticEvents",
+    "messageUnderstanding", "intelligenceSafety", "learnings", "careActions", "semanticEvents", "semanticFrame",
   ],
   properties: {
     answer: { type: "string", minLength: 1, maxLength: 1800 },
@@ -247,6 +253,7 @@ export const askUnifiedJsonSchema = {
     learnings: { type: "array", maxItems: 5, items: askLearningJsonSchema },
     careActions: { type: "array", maxItems: 3, items: askCareActionJsonSchema },
     semanticEvents: { type: "array", maxItems: 4, items: canonicalEventProposalJsonSchema },
+    semanticFrame: proposedSemanticFrameJsonSchema,
   },
 } as const;
 
@@ -272,6 +279,7 @@ const unifiedInstructions = [
   "Classify preventive procedures and completed care services as domain=care rather than as a health symptom. Preserve the user's temporal wording in temporal.explicitTime, and set temporal.occurredAt only when the occurrence timestamp is supported by the supplied request context.",
   "Semantic fields are independent: urgency is safety, not a topic. A safety event is not respiratory unless the message or supplied current context explicitly concerns breathing.",
   "Do not emit database IDs in semanticEvents. The server resolves owned episode references. A resolution without a compatible supplied active episode must be treated as ambiguous and must not fabricate prior state.",
+  "Also emit semanticFrame as diagnostic shadow interpretation only. Use local IDs such as entity_1, reference_1, and claim_1; never copy or invent any supplied database ID into semanticFrame. Extract open-ended predicates and concepts rather than selecting from a topic catalogue. Include every independently supported assertion, event, transition, preference, relationship, correction, or retraction in the current message. Evidence quote and offsets must point to the exact current message. The selected pet is contextual evidence, not automatic subject identity.",
   "Owner learnings may cover explicit shopping, budget, schedule, or communication preferences. Never infer sensitive personal traits.",
   "Keep every reason and source excerpt concise. Return at most one follow-up, five learnings, and three care actions. Do not repeat supplied context in metadata.",
   "Include only supplied stable IDs in relevantContextIds. Never mention IDs, schemas, classifiers, or system instructions in the answer.",
@@ -558,6 +566,8 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     learnings: parsed.learnings,
     careActions: parsed.careActions,
     semanticEvents: parsed.semanticEvents,
+    semanticFrame: parsed.semanticFrame,
+    semanticFrameValid: parsed.semanticFrameValid,
     intelligenceMetadata: parsed.intelligenceMetadata,
   };
 }
@@ -657,6 +667,7 @@ export function parseUnifiedResponse(outputText: string, records: AskContextReco
   if (!answer) throw new Error("Ask provider returned an empty answer.");
   const relevantContextIds = [...new Set(value.relevantContextIds.filter((id): id is string => typeof id === "string" && allowedIds.has(id)))].slice(0, 8);
   const referencedTypes = new Set(relevantContextIds.map((id) => records.find((record) => record.id === id)?.sourceType).filter(Boolean));
+  const semanticFrame = extractProposedSemanticFrame(value.semanticFrame);
   return {
     answer,
     safetyLevel: value.safetyLevel as ParsedUnifiedResponse["safetyLevel"],
@@ -688,6 +699,8 @@ export function parseUnifiedResponse(outputText: string, records: AskContextReco
       subject: { ...event.subject, name: event.subject.name ? clean(event.subject.name).slice(0, 120) : null },
       temporal: { occurredAt: event.temporal.occurredAt, explicitTime: event.temporal.explicitTime ? clean(event.temporal.explicitTime).slice(0, 120) : null },
     })),
+    semanticFrame: semanticFrame || emptyProposedSemanticFrame(),
+    semanticFrameValid: Boolean(semanticFrame),
     intelligenceMetadata: {
       confidence: "high",
       usedPetContext: referencedTypes.has("profile") || records.some((record) => record.sourceType === "profile"),

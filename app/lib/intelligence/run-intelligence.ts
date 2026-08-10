@@ -14,6 +14,7 @@ import { validateGeneratedAnswer, type AnswerValidationResult } from "./validati
 import { resolveRecoverySubject } from "./episodes/resolve-recovery-subject.ts";
 import { routePersistenceDestinations } from "./persistence-destination.ts";
 import { governCanonicalEvents, learningFromSemanticEvent } from "./semantic-events.ts";
+import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } from "./semantic-observability.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -26,6 +27,7 @@ export type FurviseIntelligenceResult = {
   rejectedCareActionCount: number;
   governance: GovernanceResult;
   answerValidation: Omit<AnswerValidationResult, "response">;
+  semanticTrace: SemanticTrace;
 };
 
 export async function runFurviseIntelligence({
@@ -125,6 +127,22 @@ export async function runFurviseIntelligence({
   const answerValidation = validateGeneratedAnswer(reasoning, context, reasoning.intelligenceSafety.level);
   if (!answerValidation.valid) throw new Error(`FURVISE_ANSWER_VALIDATION_FAILED:${answerValidation.errors.join(",")}`);
   Object.assign(reasoning, answerValidation.response);
+  const shadow = buildShadowSemanticAnalysis({
+    activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
+    acceptedCareActions,
+    acceptedLearnings,
+    acceptedSemanticEvents: semanticGovernance.accepted,
+    conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
+    eligiblePets: context.eligiblePets,
+    frame: reasoning.semanticFrame,
+    message: context.currentMessage,
+    ownerId: context.owner.userId,
+    reasoning,
+    requestId,
+    selectedPetId: context.pet.id,
+    sourceMessageId,
+  });
+  logSemanticTrace(shadow.trace);
   return {
     reasoning,
     deterministicUnderstanding,
@@ -136,6 +154,7 @@ export async function runFurviseIntelligence({
     rejectedCareActionCount: carePolicy.rejected.length,
     governance,
     answerValidation: { valid: answerValidation.valid, repairs: answerValidation.repairs, errors: answerValidation.errors },
+    semanticTrace: shadow.trace,
   };
 }
 
