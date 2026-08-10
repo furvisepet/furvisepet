@@ -26,9 +26,10 @@ export function retrieveEntityCandidates(input: {
     .sort((left, right) => right.score - left.score || left.entityId.localeCompare(right.entityId));
 }
 
-export function buildRecentPetIds(pets: EligibleSemanticPet[], conversation: Array<{ text: string }>) {
+export function buildRecentPetIds(pets: EligibleSemanticPet[], conversation: Array<{ text: string; role?: string }>) {
   const ids: string[] = [];
-  for (const turn of [...conversation].reverse()) {
+  const eligibleTurns = conversation.filter((turn) => !turn.role || turn.role === "user").slice(-4);
+  for (const turn of [...eligibleTurns].reverse()) {
     const normalizedTurn = normalize(turn.text);
     for (const pet of pets) {
       const name = normalize(pet.name || "");

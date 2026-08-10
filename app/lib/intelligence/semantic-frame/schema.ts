@@ -5,14 +5,20 @@ const confidence = { type: "number", minimum: 0, maximum: 1 } as const;
 const localId = { type: "string", pattern: "^[a-z][a-z0-9_]{0,39}$" } as const;
 const literal = { anyOf: [{ type: "string", maxLength: 300 }, { type: "number" }, { type: "boolean" }, { type: "null" }] } as const;
 const evidence = {
-  type: "array", maxItems: 4, items: {
-    type: "object", additionalProperties: false, required: ["start", "end", "quote"],
-    properties: { start: { type: "integer", minimum: 0 }, end: { type: "integer", minimum: 0 }, quote: { type: "string", minLength: 1, maxLength: 240 } },
+  type: "array", minItems: 1, maxItems: 4, items: {
+    type: "object", additionalProperties: false, required: ["surfaceText"],
+    description: "A contiguous extract copied from the current user message. The server, not the model, computes offsets.",
+    properties: { surfaceText: { type: "string", minLength: 1, maxLength: 240 } },
   },
 } as const;
 const concept = {
-  type: "object", additionalProperties: false, required: ["label", "definition"],
-  properties: { label: { type: "string", minLength: 2, maxLength: 100 }, definition: nullableString(240) },
+  type: "object", additionalProperties: false, required: ["label", "definition", "aliases", "parentLabels", "relatedLabels"],
+  properties: {
+    label: { type: "string", minLength: 2, maxLength: 100 }, definition: nullableString(240),
+    aliases: { type: "array", maxItems: 6, items: { type: "string", minLength: 2, maxLength: 100 } },
+    parentLabels: { type: "array", maxItems: 4, items: { type: "string", minLength: 2, maxLength: 100 } },
+    relatedLabels: { type: "array", maxItems: 6, items: { type: "string", minLength: 2, maxLength: 100 } },
+  },
 } as const;
 const temporal = {
   type: "object", additionalProperties: false,
@@ -40,6 +46,7 @@ const commonProperties = {
 const commonRequired = ["localId", "kind", "subjectRef", "predicate", "polarity", "modality", "temporal", "uncertainty", "evidence", "persistenceHint"] as const;
 
 const assertionClaim = {
+  description: "A property, measurement, durable fact, or state snapshot; not a bounded occurrence, relationship, preference, or correction.",
   type: "object", additionalProperties: false, required: [...commonRequired, "value", "unit", "durability"],
   properties: {
     ...commonProperties, kind: { type: "string", enum: ["assertion"] },
@@ -48,6 +55,7 @@ const assertionClaim = {
   },
 } as const;
 const eventClaim = {
+  description: "A bounded occurrence or action that happened, started, completed, or was observed at a time.",
   type: "object", additionalProperties: false, required: [...commonRequired, "participants", "lifecycle"],
   properties: {
     ...commonProperties, kind: { type: "string", enum: ["event"] },
@@ -59,6 +67,7 @@ const eventClaim = {
   },
 } as const;
 const transitionClaim = {
+  description: "An explicit change from a prior or active state into another state, including resolution, recurrence, improvement, or worsening.",
   type: "object", additionalProperties: false, required: [...commonRequired, "transition", "fromState", "toState", "targetConcept"],
   properties: {
     ...commonProperties, kind: { type: "string", enum: ["state_transition"] },
@@ -67,6 +76,7 @@ const transitionClaim = {
   },
 } as const;
 const preferenceClaim = {
+  description: "A like, dislike, requirement, avoidance, or quantitative constraint held by an entity.",
   type: "object", additionalProperties: false, required: [...commonRequired, "preference", "object", "constraints"],
   properties: {
     ...commonProperties, kind: { type: "string", enum: ["preference"] },
@@ -78,6 +88,7 @@ const preferenceClaim = {
   },
 } as const;
 const relationshipClaim = {
+  description: "A recurring or durable role or relationship between two entities, rather than a one-time action.",
   type: "object", additionalProperties: false, required: [...commonRequired, "objectRef", "qualifiers"],
   properties: {
     ...commonProperties, kind: { type: "string", enum: ["relationship"] }, objectRef: localId,
@@ -85,6 +96,7 @@ const relationshipClaim = {
   },
 } as const;
 const correctionClaim = {
+  description: "A replacement, retraction, negation, forgetting request, or confirmation that targets another assertion.",
   type: "object", additionalProperties: false, required: [...commonRequired, "operation", "target", "replacementClaimRef"],
   properties: {
     ...commonProperties, kind: { type: "string", enum: ["correction"] },
@@ -111,7 +123,11 @@ export const proposedSemanticFrameJsonSchema = {
       localId, surface: { type: "string", maxLength: 120 }, kind: { type: "string", enum: ["name", "pronoun", "description", "ellipsis", "prior_topic"] }, mentionRef: localId,
       antecedentRefs: { type: "array", maxItems: 6, items: localId }, confidence,
     } } },
-    claims: { type: "array", maxItems: 12, items: { anyOf: [assertionClaim, eventClaim, transitionClaim, preferenceClaim, relationshipClaim, correctionClaim] } },
+    claims: {
+      type: "array", maxItems: 12,
+      description: "Independent claims. Choose kinds by semantic structure, not vocabulary: occurrences are events; changes to prior state are transitions; properties are assertions.",
+      items: { anyOf: [assertionClaim, eventClaim, transitionClaim, preferenceClaim, relationshipClaim, correctionClaim] },
+    },
     uncertainty: { type: "object", additionalProperties: false, required: ["needsClarification", "clarificationQuestion", "reasons"], properties: {
       needsClarification: { type: "boolean" }, clarificationQuestion: nullableString(240), reasons: { type: "array", maxItems: 6, items: { type: "string", maxLength: 100 } },
     } },

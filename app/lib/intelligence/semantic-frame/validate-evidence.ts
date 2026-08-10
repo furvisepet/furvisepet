@@ -1,4 +1,4 @@
-import type { ProposedSemanticFrame, SemanticEvidenceSpan } from "./types.ts";
+import type { GroundedSemanticEvidence, ProposedSemanticFrame, SemanticEvidence } from "./types.ts";
 
 export type SemanticEvidenceValidation = {
   valid: boolean;
@@ -12,11 +12,8 @@ export function validateSemanticFrameEvidence(frame: ProposedSemanticFrame, sour
   return { valid: invalidMentionIds.length === 0 && invalidClaimIds.length === 0, invalidClaimIds, invalidMentionIds };
 }
 
-function validSpan(span: SemanticEvidenceSpan, source: string) {
+function validSpan(span: SemanticEvidence, source: string): span is GroundedSemanticEvidence {
+  if (!("start" in span) || !("end" in span) || !("quote" in span) || !("alignment" in span)) return false;
   if (!Number.isInteger(span.start) || !Number.isInteger(span.end) || span.start < 0 || span.end <= span.start || span.end > source.length) return false;
-  return normalize(source.slice(span.start, span.end)) === normalize(span.quote);
-}
-
-function normalize(value: string) {
-  return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
+  return source.slice(span.start, span.end) === span.quote && Boolean(span.surfaceText.trim());
 }

@@ -1,4 +1,4 @@
-export const SEMANTIC_FRAME_SCHEMA_VERSION = "furvise.semantic-frame.proposed.v1" as const;
+export const SEMANTIC_FRAME_SCHEMA_VERSION = "furvise.semantic-frame.proposed.v1.5" as const;
 
 export type SemanticDiscourseAct = "statement" | "question" | "request" | "acknowledgement" | "correction" | "retraction";
 export type SemanticClaimKind = "assertion" | "event" | "state_transition" | "preference" | "relationship" | "correction";
@@ -6,11 +6,20 @@ export type SemanticEntityType = "animal" | "person" | "organization" | "product
 export type SemanticPersistenceHint = "history" | "current_state" | "pet_memory" | "owner_memory" | "profile" | "relationship" | "none";
 export type SemanticLiteral = string | number | boolean | null;
 
-export type SemanticEvidenceSpan = {
+/** Extractive evidence requested from the model. Coordinates are deliberately server-owned. */
+export type ProposedSemanticEvidence = {
+  surfaceText: string;
+};
+
+/** Canonical source coordinates added only after deterministic server alignment. */
+export type GroundedSemanticEvidence = ProposedSemanticEvidence & {
   start: number;
   end: number;
   quote: string;
+  alignment: "exact" | "normalized";
 };
+
+export type SemanticEvidence = ProposedSemanticEvidence | GroundedSemanticEvidence;
 
 export type SemanticTemporalContext = {
   occurredAt: string | null;
@@ -34,7 +43,7 @@ export type ProposedEntityMention = {
     lifeStage: string | null;
     ownership: "owner" | "household" | "other" | "unknown";
   };
-  evidence: SemanticEvidenceSpan[];
+  evidence: SemanticEvidence[];
   confidence: number;
 };
 
@@ -50,6 +59,9 @@ export type ProposedReference = {
 export type ProposedConcept = {
   label: string;
   definition: string | null;
+  aliases: string[];
+  parentLabels: string[];
+  relatedLabels: string[];
 };
 
 type ProposedClaimBase = {
@@ -61,7 +73,7 @@ type ProposedClaimBase = {
   modality: "asserted" | "reported" | "suspected" | "hypothetical";
   temporal: SemanticTemporalContext;
   uncertainty: SemanticUncertainty;
-  evidence: SemanticEvidenceSpan[];
+  evidence: SemanticEvidence[];
   persistenceHint: SemanticPersistenceHint;
 };
 
