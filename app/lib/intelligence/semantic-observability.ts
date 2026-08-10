@@ -7,7 +7,12 @@ import { resolveShadowReferences } from "./entities/resolve-references.ts";
 import type { SemanticReasonCode } from "./entities/policy.ts";
 import type { GovernedCanonicalEvent, IntelligenceCareAction, IntelligenceLearning, SemanticPersistenceDestination } from "./types.ts";
 import type { ProposedSemanticClaim, ProposedSemanticFrame, SemanticClaimKind, SemanticPersistenceHint } from "./semantic-frame/types.ts";
+import { groundSemanticFrameEvidence, type EvidenceGroundingFailureReason } from "./semantic-frame/ground-evidence.ts";
+import { normalizeClaimKind } from "./semantic-frame/normalize-claim-kind.ts";
 import { validateSemanticFrameEvidence } from "./semantic-frame/validate-evidence.ts";
+import { normalizeConceptLabel } from "./concepts/normalize-concept.ts";
+import { resolveProvisionalConcept, uniqueProposedConcepts, type ShadowConceptResolution } from "./concepts/provisional-concepts.ts";
+import type { SemanticConceptRecord } from "./concepts/retrieve-candidates.ts";
 
 export type SemanticTracePersistence = {
   status: "not_attempted" | "persisted" | "skipped" | "failed";
@@ -17,6 +22,20 @@ export type SemanticTracePersistence = {
 };
 
 export type SemanticComparisonMetrics = {
+  subjectBindingAgreement: boolean;
+  proposedDestinationAgreement: boolean;
+  claimKindAgreement: boolean | null;
+  resolvedConceptAgreement: boolean | null;
+  semanticRelationAgreement: boolean | null;
+  productionSemanticOutputCount: number;
+  productionSemanticEventCount: number;
+  productionCareActionCount: number;
+  productionLearningCount: number;
+  shadowProposedClaimCount: number;
+  shadowAcceptedClaimCount: number;
+  shadowRejectedClaimCount: number;
+  shadowDeferredClaimCount: number;
+  rejectedClaimCountsByReason: Partial<Record<SemanticReasonCode, number>>;
   subjectDisagreement: boolean;
   persistenceDisagreement: boolean;
   eventCountDisagreement: boolean;
@@ -33,11 +52,19 @@ export type SemanticTrace = {
   sourceMessageId: string;
   selectedPetId: string;
   claimKinds: SemanticClaimKind[];
+  normalizedClaimKinds: Array<{ claimId: string; declaredKind: SemanticClaimKind; structuralKind: SemanticClaimKind; consistent: boolean }>;
+  evidenceGrounding: {
+    total: number;
+    grounded: number;
+    exact: number;
+    normalized: number;
+    failuresByReason: Partial<Record<SemanticReasonCode, number>>;
+  };
   mentionSurfaces: Array<{ mentionId: string; redactedSurface: string; entityType: string }>;
   entityCandidates: Array<{ mentionId: string; candidateTypes: string[]; scoreBands: string[] }>;
   entityBindings: Array<{ mentionId: string; result: string; binding: string | null; reasonCode: SemanticReasonCode | null }>;
   references: Array<{ referenceId: string; result: string; reasonCode: SemanticReasonCode | null }>;
-  concepts: Array<{ conceptKey: string; provisional: true }>;
+  concepts: Array<{ conceptKey: string; status: string; resolvedKey: string | null; relation: string; scoreBand: string; provisional: boolean }>;
   governance: Array<{ claimId: string; decision: "accepted" | "rejected" | "deferred" | "no_persistence"; reasonCode: SemanticReasonCode }>;
   productionDestinations: SemanticPersistenceDestination[];
   shadowDestinations: string[];
@@ -57,7 +84,7 @@ export function buildShadowSemanticAnalysis(input: {
   acceptedCareActions: IntelligenceCareAction[];
   acceptedLearnings: IntelligenceLearning[];
   acceptedSemanticEvents: GovernedCanonicalEvent[];
-  conversationTurns: Array<{ text: string }>;
+  conversationTurns: Array<{ text: string; role?: string }>;
   eligiblePets: EligibleSemanticPet[];
   frame: ProposedSemanticFrame;
   message: string;
@@ -67,32 +94,58 @@ export function buildShadowSemanticAnalysis(input: {
   selectedPetId: string;
   sourceMessageId: string;
 }): ShadowSemanticAnalysis {
+  const grounding = groundSemanticFrameEvidence(input.frame, input.message);
+  const frame = grounding.frame;
   const recentPetIds = buildRecentPetIds(input.eligiblePets, input.conversationTurns);
-  const bindings = resolveShadowEntities({ frame: input.frame, ownerId: input.ownerId, pets: input.eligiblePets, recentPetIds, selectedPetId: input.selectedPetId });
-  const references = resolveShadowReferences(input.frame, bindings);
-  const evidence = validateSemanticFrameEvidence(input.frame, input.message);
+  const bindings = resolveShadowEntities({ frame, ownerId: input.ownerId, pets: input.eligiblePets, recentPetIds, selectedPetId: input.selectedPetId });
+  const references = resolveShadowReferences(frame, bindings);
+  const evidence = validateSemanticFrameEvidence(frame, input.message);
   const effectiveBindings = bindReferences(bindings, references);
-  const governance = input.frame.claims.map((claim) => governShadowClaim(claim, effectiveBindings, evidence.invalidClaimIds, input.activeEpisodes));
+  const claimKindNormalizations = frame.claims.map(normalizeClaimKind);
+  const evidenceFailureReasons = claimEvidenceFailureReasons(grounding.failures);
+  const governance = frame.claims.map((claim) => governShadowClaim(
+    claim, effectiveBindings, evidence.invalidClaimIds, evidenceFailureReasons.get(claim.localId), input.activeEpisodes,
+  ));
   const shadowDestinations = unique(governance.filter((item) => item.decision === "accepted").flatMap((item) => destinationsForHint(item.claim.persistenceHint)));
   const productionDestinations = productionDestinationsFor(input.acceptedSemanticEvents, input.acceptedCareActions, input.acceptedLearnings);
   const shadowClarificationReasons = unique([
-    ...bindings.filter((binding) => binding.status !== "resolved" && claimUsesMention(input.frame.claims, binding.mentionId)).map((binding) => binding.reasonCode).filter(isReasonCode),
-    ...references.filter((reference) => reference.status !== "resolved" && claimUsesMention(input.frame.claims, reference.mentionId)).map((reference) => reference.reasonCode).filter(isReasonCode),
+    ...bindings.filter((binding) => binding.status !== "resolved" && claimUsesMention(frame.claims, binding.mentionId)).map((binding) => binding.reasonCode).filter(isReasonCode),
+    ...references.filter((reference) => reference.status !== "resolved" && claimUsesMention(frame.claims, reference.mentionId)).map((reference) => reference.reasonCode).filter(isReasonCode),
     ...governance.filter((item) => item.decision === "deferred").map((item) => item.reasonCode),
   ]);
-  const shadowClarification = input.frame.uncertainty.needsClarification || shadowClarificationReasons.length > 0;
+  const shadowClarification = frame.uncertainty.needsClarification || shadowClarificationReasons.length > 0;
   const frameStatus = input.reasoning.semanticFrameValid === false ? "invalid" as const : "valid" as const;
   const productionSubjects = productionSubjectKeys(input.acceptedSemanticEvents, input.acceptedCareActions, input.acceptedLearnings, input.selectedPetId, input.ownerId);
-  const shadowSubjects = unique(input.frame.claims.map((claim) => claim.subjectRef ? effectiveBindings.get(claim.subjectRef) : null)
+  const shadowSubjects = unique(frame.claims.map((claim) => claim.subjectRef ? effectiveBindings.get(claim.subjectRef) : null)
     .filter((binding): binding is ShadowEntityBinding => Boolean(binding?.entityId)).map((binding) => `${binding.entityType}:${binding.entityId}`));
-  const productionConcepts = unique([
-    ...input.acceptedSemanticEvents.map((item) => normalizeConcept(item.event.normalizedTopic)),
-    ...(input.acceptedSemanticEvents.length ? [] : input.acceptedCareActions.map((item) => normalizeConcept(item.category))),
-  ]);
-  const shadowConcepts = unique(input.frame.claims.map((claim) => normalizeConcept(claim.predicate.label)));
+  const productionConceptRecords = buildProductionConceptRecords(input.acceptedSemanticEvents, input.acceptedCareActions, input.acceptedLearnings, input.activeEpisodes);
+  const productionConcepts = unique(productionConceptRecords.filter((record) => record.source !== "active_episode").map((record) => record.key));
+  const shadowClaimConcepts = uniqueProposedConcepts(frame.claims.map(claimConcept));
+  const conceptResolutions = shadowClaimConcepts.map((concept) => resolveProvisionalConcept(concept, productionConceptRecords));
+  const shadowConcepts = shadowClaimConcepts.map((concept) => normalizeConceptLabel(concept.label));
+  const productionKinds = productionClaimKinds(input.acceptedSemanticEvents, input.acceptedCareActions, input.acceptedLearnings);
+  const acceptedShadowKinds = governance.filter((item) => item.decision === "accepted").map((item) => normalizeClaimKind(item.claim).structuralKind);
+  const rejectedClaimCountsByReason = countReasons(governance.filter((item) => item.decision === "rejected").map((item) => item.reasonCode));
+  const evidenceFailuresByReason = countReasons(grounding.failures.map((item) => evidenceReasonCode(item.reason)));
+  const identityEvaluated = conceptResolutions.filter((resolution) => resolution.status !== "provisional" || resolution.candidates.length > 0);
+  const relationEvaluated = conceptResolutions.filter((resolution) => resolution.candidates.length > 0);
   const productionEventCount = input.acceptedSemanticEvents.length || input.acceptedCareActions.length;
-  const shadowEventCount = input.frame.claims.filter((claim) => claim.kind === "event" || claim.kind === "state_transition").length;
+  const shadowEventCount = frame.claims.filter((claim) => claim.kind === "event" || claim.kind === "state_transition").length;
   const comparison: SemanticComparisonMetrics = {
+    subjectBindingAgreement: sameSet(productionSubjects, shadowSubjects),
+    proposedDestinationAgreement: sameSet(productionDestinations, shadowDestinations),
+    claimKindAgreement: productionKinds.length || acceptedShadowKinds.length ? sameMultiset(productionKinds, acceptedShadowKinds) : null,
+    resolvedConceptAgreement: identityEvaluated.length ? identityEvaluated.every((item) => item.status === "resolved" && item.relation === "identity") : null,
+    semanticRelationAgreement: relationEvaluated.length ? relationEvaluated.every((item) => item.status === "resolved" || item.relation === "parent" || item.relation === "related") : null,
+    productionSemanticOutputCount: productionKinds.length,
+    productionSemanticEventCount: input.acceptedSemanticEvents.length,
+    productionCareActionCount: input.acceptedCareActions.length,
+    productionLearningCount: input.acceptedLearnings.length,
+    shadowProposedClaimCount: frame.claims.length,
+    shadowAcceptedClaimCount: governance.filter((item) => item.decision === "accepted").length,
+    shadowRejectedClaimCount: governance.filter((item) => item.decision === "rejected").length,
+    shadowDeferredClaimCount: governance.filter((item) => item.decision === "deferred").length,
+    rejectedClaimCountsByReason,
     subjectDisagreement: !sameSet(productionSubjects, shadowSubjects),
     persistenceDisagreement: !sameSet(productionDestinations, shadowDestinations),
     eventCountDisagreement: productionEventCount !== shadowEventCount,
@@ -102,20 +155,25 @@ export function buildShadowSemanticAnalysis(input: {
   };
 
   return {
-    frame: input.frame,
+    frame,
     trace: {
       traceId: input.requestId,
       frameStatus,
-      schemaVersion: input.frame.schemaVersion,
+      schemaVersion: frame.schemaVersion,
       modelVersion: input.reasoning.model,
       sourceMessageId: input.sourceMessageId,
       selectedPetId: input.selectedPetId,
-      claimKinds: unique(input.frame.claims.map((claim) => claim.kind)),
-      mentionSurfaces: input.frame.mentions.map((mention) => ({ mentionId: mention.localId, redactedSurface: redactMentionSurface(mention.surface, mention.coarseType, input.eligiblePets), entityType: mention.coarseType })),
+      claimKinds: unique(frame.claims.map((claim) => claim.kind)),
+      normalizedClaimKinds: claimKindNormalizations,
+      evidenceGrounding: {
+        total: grounding.totalEvidence, grounded: grounding.groundedEvidence, exact: grounding.exactEvidence,
+        normalized: grounding.normalizedEvidence, failuresByReason: evidenceFailuresByReason,
+      },
+      mentionSurfaces: frame.mentions.map((mention) => ({ mentionId: mention.localId, redactedSurface: redactMentionSurface(mention.surface, mention.coarseType, input.eligiblePets), entityType: mention.coarseType })),
       entityCandidates: bindings.map((binding) => ({ mentionId: binding.mentionId, candidateTypes: unique(binding.candidates.map((candidate) => candidate.entityType)), scoreBands: unique(binding.candidates.map((candidate) => candidate.scoreBand)) })),
       entityBindings: bindings.map((binding) => ({ mentionId: binding.mentionId, result: binding.status, binding: binding.entityId ? bindingLabel(binding, input.selectedPetId, input.ownerId) : null, reasonCode: binding.reasonCode })),
       references: references.map((reference) => ({ referenceId: reference.referenceId, result: reference.status, reasonCode: reference.reasonCode })),
-      concepts: unique(input.frame.claims.map((claim) => normalizeConcept(claim.predicate.label))).map((conceptKey) => ({ conceptKey, provisional: true })),
+      concepts: conceptResolutions.map(traceConceptResolution),
       governance: governance.map(({ claim, decision, reasonCode }) => ({ claimId: claim.localId, decision, reasonCode })),
       productionDestinations,
       shadowDestinations,
@@ -124,6 +182,10 @@ export function buildShadowSemanticAnalysis(input: {
       persistence: { status: "not_attempted", errorCode: null, careEntryCount: 0, memoryCount: 0 },
       reasonCodes: unique([
         ...(frameStatus === "invalid" ? ["SHADOW_FRAME_INVALID" as const] : []),
+        ...grounding.failures.map((item) => evidenceReasonCode(item.reason)),
+        ...claimKindNormalizations.filter((item) => !item.consistent).map(() => "CLAIM_KIND_INCONSISTENT" as const),
+        ...conceptResolutions.filter((item) => item.status === "ambiguous").map(() => "CONCEPT_AMBIGUOUS" as const),
+        ...conceptResolutions.filter((item) => item.status === "provisional" && !item.candidates.length).map(() => "CONCEPT_PROVISIONAL" as const),
         ...governance.map((item) => item.reasonCode),
         ...shadowClarificationReasons,
       ]),
@@ -143,8 +205,16 @@ export function logSemanticTrace(trace: SemanticTrace) {
   console.info("[Furvise semantic trace] decision", semanticTraceForStorage(trace));
 }
 
-function governShadowClaim(claim: ProposedSemanticClaim, bindings: Map<string, ShadowEntityBinding>, invalidClaimIds: string[], episodes: CareEpisode[]) {
-  if (invalidClaimIds.includes(claim.localId)) return { claim, decision: "rejected" as const, reasonCode: "EVIDENCE_UNSUPPORTED" as const };
+function governShadowClaim(
+  claim: ProposedSemanticClaim,
+  bindings: Map<string, ShadowEntityBinding>,
+  invalidClaimIds: string[],
+  evidenceFailure: SemanticReasonCode | undefined,
+  episodes: CareEpisode[],
+) {
+  const kind = normalizeClaimKind(claim);
+  if (!kind.consistent) return { claim, decision: "rejected" as const, reasonCode: "CLAIM_KIND_INCONSISTENT" as const };
+  if (invalidClaimIds.includes(claim.localId)) return { claim, decision: "rejected" as const, reasonCode: evidenceFailure || "EVIDENCE_UNSUPPORTED" as const };
   if (claim.uncertainty.confidence < 0.8) return { claim, decision: "rejected" as const, reasonCode: "CLAIM_LOW_CONFIDENCE" as const };
   if (claim.subjectRef) {
     const binding = bindings.get(claim.subjectRef);
@@ -154,7 +224,7 @@ function governShadowClaim(claim: ProposedSemanticClaim, bindings: Map<string, S
     const binding = bindings.get(claim.objectRef);
     if (!binding || binding.status !== "resolved") return { claim, decision: "deferred" as const, reasonCode: binding?.reasonCode || "ENTITY_NO_MATCH" as const };
   }
-  if (claim.kind === "state_transition" && !compatibleEpisode(claim.targetConcept.label, episodes)) {
+  if (claim.kind === "state_transition" && !compatibleEpisode(claim.targetConcept, episodes)) {
     return { claim, decision: "deferred" as const, reasonCode: "TRANSITION_INCOMPATIBLE" as const };
   }
   if (claim.persistenceHint === "none") return { claim, decision: "no_persistence" as const, reasonCode: "CLAIM_NO_PERSISTENCE" as const };
@@ -193,13 +263,98 @@ function productionSubjectKeys(events: GovernedCanonicalEvent[], actions: Intell
   ].filter((value): value is string => Boolean(value)));
 }
 
-function compatibleEpisode(concept: string, episodes: CareEpisode[]) {
-  const normalized = compactConcept(concept);
-  return episodes.some((episode) => compactConcept(typeof episode.summary?.semanticTopic === "string" ? episode.summary.semanticTopic : episode.normalized_key) === normalized);
+function compatibleEpisode(concept: ReturnType<typeof claimConcept>, episodes: CareEpisode[]) {
+  const records = episodes.map((episode) => episodeConceptRecord(episode));
+  const resolution = resolveProvisionalConcept(concept, records);
+  return resolution.status === "resolved" && resolution.candidates.some((candidate) => candidate.key === resolution.canonicalKey && candidate.source === "active_episode");
 }
 
 function claimUsesMention(claims: ProposedSemanticClaim[], mentionId: string) {
   return claims.some((claim) => claim.subjectRef === mentionId || claim.kind === "relationship" && claim.objectRef === mentionId || claim.kind === "event" && claim.participants.some((participant) => participant.entityRef === mentionId));
+}
+
+function claimConcept(claim: ProposedSemanticClaim) {
+  return claim.kind === "state_transition" ? claim.targetConcept : claim.predicate;
+}
+
+function claimEvidenceFailureReasons(failures: Array<{ ownerType: "mention" | "claim"; ownerId: string; reason: EvidenceGroundingFailureReason }>) {
+  const result = new Map<string, SemanticReasonCode>();
+  for (const failure of failures) {
+    if (failure.ownerType === "claim" && !result.has(failure.ownerId)) result.set(failure.ownerId, evidenceReasonCode(failure.reason));
+  }
+  return result;
+}
+
+function evidenceReasonCode(reason: EvidenceGroundingFailureReason): SemanticReasonCode {
+  if (reason === "EVIDENCE_EMPTY_SURFACE") return "EVIDENCE_EMPTY_SURFACE";
+  if (reason === "EVIDENCE_AMBIGUOUS") return "EVIDENCE_AMBIGUOUS";
+  return "EVIDENCE_NOT_FOUND";
+}
+
+function countReasons(reasons: SemanticReasonCode[]) {
+  const counts: Partial<Record<SemanticReasonCode, number>> = {};
+  for (const reason of reasons) counts[reason] = (counts[reason] || 0) + 1;
+  return counts;
+}
+
+function buildProductionConceptRecords(
+  events: GovernedCanonicalEvent[], actions: IntelligenceCareAction[], learnings: IntelligenceLearning[], episodes: CareEpisode[],
+): SemanticConceptRecord[] {
+  const records: SemanticConceptRecord[] = [
+    ...events.map((item) => conceptRecord(item.event.normalizedTopic, "production_event" as const, [item.event.topic])),
+    ...actions.map((item) => conceptRecord(item.category, "production_action" as const)),
+    ...learnings.map((item) => conceptRecord(item.factKey, "production_learning" as const, [item.category])),
+    ...episodes.map(episodeConceptRecord),
+  ];
+  const seen = new Set<string>();
+  return records.filter((record) => {
+    const identity = `${record.source}:${record.key}`;
+    if (!record.key || seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
+function conceptRecord(label: string, source: SemanticConceptRecord["source"], aliases: string[] = []): SemanticConceptRecord {
+  return { key: normalizeConceptLabel(label), label, aliases, source };
+}
+
+function episodeConceptRecord(episode: CareEpisode): SemanticConceptRecord {
+  const summaryTopic = typeof episode.summary?.semanticTopic === "string" ? episode.summary.semanticTopic : "";
+  return conceptRecord(summaryTopic || episode.normalized_key, "active_episode", summaryTopic ? [episode.normalized_key] : []);
+}
+
+function productionClaimKinds(events: GovernedCanonicalEvent[], actions: IntelligenceCareAction[], learnings: IntelligenceLearning[]) {
+  const kinds: SemanticClaimKind[] = events.map((item) => productionEventKind(item.event.transition));
+  if (!events.length) {
+    kinds.push(...actions.filter((item) => item.action !== "none").map((item) => {
+      if (item.action === "resolve_concern" || item.action === "reopen_concern") return "state_transition" as const;
+      if (item.action === "update_profile") return "assertion" as const;
+      return "event" as const;
+    }));
+  }
+  const eventKeys = new Set(events.map((item) => normalizeConceptLabel(item.event.normalizedTopic)));
+  kinds.push(...learnings.filter((item) => !eventKeys.has(normalizeConceptLabel(item.factKey))).map((item) =>
+    item.category === "preference" || item.category === "shopping" ? "preference" as const : "assertion" as const));
+  return kinds;
+}
+
+function productionEventKind(transition: GovernedCanonicalEvent["event"]["transition"]): SemanticClaimKind {
+  if (transition === "preference_set") return "preference";
+  if (transition === "corrected") return "correction";
+  if (["continued", "changed", "improved", "worsened", "resolved"].includes(transition)) return "state_transition";
+  return "event";
+}
+
+function traceConceptResolution(resolution: ShadowConceptResolution) {
+  return {
+    conceptKey: resolution.proposedKey,
+    status: resolution.status,
+    resolvedKey: resolution.canonicalKey,
+    relation: resolution.relation,
+    scoreBand: resolution.confidence >= 0.95 ? "strong" : resolution.confidence >= 0.85 ? "likely" : resolution.confidence > 0 ? "weak" : "none",
+    provisional: resolution.status !== "resolved",
+  };
 }
 
 function redactMentionSurface(surface: string, coarseType: string, pets: Array<{ name: string | null }>) {
@@ -217,10 +372,9 @@ function bindingLabel(binding: ShadowEntityBinding, selectedPetId: string, owner
   return `${binding.entityType}:${createHash("sha256").update(binding.entityId || "").digest("hex").slice(0, 12)}`;
 }
 
-function normalizeConcept(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 100); }
-function compactConcept(value: string) { return normalizeConcept(value).replace(/_/g, ""); }
 function normalizeText(value: string) { return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 function lengthBand(length: number) { return length <= 4 ? "SHORT" : length <= 12 ? "MEDIUM" : "LONG"; }
 function sameSet(left: string[], right: string[]) { return left.length === right.length && left.every((item) => right.includes(item)); }
+function sameMultiset(left: string[], right: string[]) { return [...left].sort().join("|") === [...right].sort().join("|"); }
 function unique<T>(items: T[]) { return [...new Set(items)]; }
 function isReasonCode(value: SemanticReasonCode | null): value is SemanticReasonCode { return Boolean(value); }

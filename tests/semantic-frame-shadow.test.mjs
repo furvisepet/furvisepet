@@ -5,6 +5,7 @@ import { askUnifiedJsonSchema } from "../app/lib/ai/ask-reasoning.ts";
 import { resolveShadowEntities } from "../app/lib/intelligence/entities/resolve-entities.ts";
 import { buildShadowSemanticAnalysis } from "../app/lib/intelligence/semantic-observability.ts";
 import { extractProposedSemanticFrame } from "../app/lib/intelligence/semantic-frame/extract-frame.ts";
+import { groundSemanticFrameEvidence } from "../app/lib/intelligence/semantic-frame/ground-evidence.ts";
 import { proposedSemanticFrameJsonSchema } from "../app/lib/intelligence/semantic-frame/schema.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 import { validateSemanticFrameEvidence } from "../app/lib/intelligence/semantic-frame/validate-evidence.ts";
@@ -18,11 +19,11 @@ const pets = [
 const span = (message, quote) => {
   const start = message.indexOf(quote);
   assert.notEqual(start, -1, `Missing evidence quote: ${quote}`);
-  return { start, end: start + quote.length, quote };
+  return { surfaceText: quote };
 };
 const temporal = (surfaceText = null, precision = "unknown") => ({ occurredAt: null, validFrom: null, validTo: null, surfaceText, precision });
 const uncertainty = (confidence = 0.96) => ({ confidence, reasons: [] });
-const concept = (label) => ({ label, definition: null });
+const concept = (label, aliases = [], parentLabels = [], relatedLabels = []) => ({ label, definition: null, aliases, parentLabels, relatedLabels });
 const mention = (message, localId, surface, coarseType, attributes = {}) => ({
   localId, surface, coarseType,
   attributes: { species: null, lifeStage: null, ownership: "unknown", ...attributes },
@@ -144,7 +145,9 @@ test("the versioned, open-concept frame accepts all evaluation shapes through on
     const parsed = extractProposedSemanticFrame(fixture.frame);
     assert.ok(parsed, fixture.message);
     assert.deepEqual(parsed.claims.map((claim) => claim.kind), fixture.expected, fixture.message);
-    assert.deepEqual(validateSemanticFrameEvidence(parsed, fixture.message), { valid: true, invalidMentionIds: [], invalidClaimIds: [] }, fixture.message);
+    const grounded = groundSemanticFrameEvidence(parsed, fixture.message);
+    assert.equal(grounded.failures.length, 0, fixture.message);
+    assert.deepEqual(validateSemanticFrameEvidence(grounded.frame, fixture.message), { valid: true, invalidMentionIds: [], invalidClaimIds: [] }, fixture.message);
   }
   assert.equal(proposedSemanticFrameJsonSchema.properties.claims.items.anyOf[0].properties.predicate.properties.label.enum, undefined);
 });
@@ -176,7 +179,7 @@ test("pronouns use recent discourse and ambiguous species mentions fail closed",
 
 test("one frame retains independent pet facts, events, and owner preferences", () => {
   const message = "I changed Luna's food yesterday because chicken makes her itchy and I don't want to spend more than $60 a month.";
-  const mentions = [mention(message, "owner_1", "I", "person", { ownership: "owner" }), mention(message, "animal_1", "Luna", "animal")];
+  const mentions = [mention(message, "owner_1", "I don't", "person", { ownership: "owner" }), mention(message, "animal_1", "Luna", "animal")];
   const food = eventClaim(message, "claim_food", "animal_1", "food change", "changed Luna's food yesterday", "completed", "historical");
   food.temporal = temporal("yesterday", "day");
   const itchy = assertionClaim(message, "claim_itch", "animal_1", "chicken sensitivity", "chicken makes her itchy", true, "pet_memory");
@@ -186,7 +189,8 @@ test("one frame retains independent pet facts, events, and owner preferences", (
   assert.ok(parsed);
   assert.deepEqual(parsed.claims.map((claim) => claim.kind), ["event", "assertion", "preference"]);
   assert.deepEqual(parsed.claims.map((claim) => claim.persistenceHint), ["history", "pet_memory", "owner_memory"]);
-  assert.deepEqual(validateSemanticFrameEvidence(parsed, message), { valid: true, invalidMentionIds: [], invalidClaimIds: [] });
+  const grounded = groundSemanticFrameEvidence(parsed, message);
+  assert.deepEqual(validateSemanticFrameEvidence(grounded.frame, message), { valid: true, invalidMentionIds: [], invalidClaimIds: [] });
 });
 
 test("shadow trace is privacy-limited, machine-queryable, and compares interpretations", () => {
@@ -201,6 +205,7 @@ test("shadow trace is privacy-limited, machine-queryable, and compares interpret
   assert.equal(analysis.trace.mentionSurfaces[0].redactedSurface, "[PET_NAME]");
   assert.equal(JSON.stringify(analysis.trace).includes("Luna ran away"), false);
   assert.equal(analysis.trace.governance[0].reasonCode, "CLAIM_ACCEPTED");
+  assert.equal(analysis.trace.evidenceGrounding.grounded, 2);
   assert.equal(typeof analysis.trace.comparison.subjectDisagreement, "boolean");
   assert.equal(analysis.trace.persistence.status, "not_attempted");
 });
@@ -209,13 +214,13 @@ test("frames cannot contain database IDs and unsupported evidence is rejected by
   const fixture = evaluationFrames()[0];
   assert.equal(extractProposedSemanticFrame({ ...fixture.frame, frameLocalId: "03f71ca6-0954-4a88-8d0f-7fc79e474d45" }), null);
   const corrupted = structuredClone(fixture.frame);
-  corrupted.claims[0].evidence[0].quote = "not in the message";
+  corrupted.claims[0].evidence[0].surfaceText = "not in the message";
   const analysis = buildShadowSemanticAnalysis({
     activeEpisodes: [], acceptedCareActions: [], acceptedLearnings: [], acceptedSemanticEvents: [], conversationTurns: [], eligiblePets: pets,
     frame: corrupted, message: fixture.message, ownerId: "owner-1", requestId: "trace-2", selectedPetId: "pet-luna", sourceMessageId: "message-2",
     reasoning: { model: "shadow-test-v1", messageUnderstanding: { needsClarification: false } },
   });
-  assert.equal(analysis.trace.governance[0].reasonCode, "EVIDENCE_UNSUPPORTED");
+  assert.equal(analysis.trace.governance[0].reasonCode, "EVIDENCE_NOT_FOUND");
   assert.deepEqual(analysis.trace.shadowDestinations, []);
 });
 
