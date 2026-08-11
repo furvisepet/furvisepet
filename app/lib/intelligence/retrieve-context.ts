@@ -85,7 +85,23 @@ export async function buildFurviseContext({
   const queryError = eligiblePets.error || care.error || legacyMemories.error || sharedMemories.error || inactiveMemories.error || feedback.error || owner.error || messages.error || episodes.error || currentState.error;
   if (queryError) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", queryError);
 
-  const conversationTurns = removeInactiveMemoryClaimsFromConversation([...(messages.data || [])].reverse().map((message) => ({
+  const candidateSourceMessageIds = [...new Set([
+    ...(messages.data || []).map((message) => message.id),
+    ...(sharedMemories.data || []).flatMap((memory) => memory.source_type === "ask_message" && memory.source_id ? [memory.source_id] : []),
+  ])];
+  const deletedCareSources = candidateSourceMessageIds.length ? await supabase.from("pet_care_entries")
+    .select("id,intelligence_source_message_id,deleted_at")
+    .eq("user_id", userId).eq("pet_profile_id", petId)
+    .in("intelligence_source_message_id", candidateSourceMessageIds)
+    .returns<Array<{ deleted_at: string | null; id: string; intelligence_source_message_id: string | null }>>()
+    : { data: [], error: null };
+  if (deletedCareSources.error) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", deletedCareSources.error);
+  const deletedCareEntryIds = new Set((deletedCareSources.data || []).filter((row) => row.deleted_at).map((row) => row.id));
+  const suppressedSourceMessageIds = new Set((deletedCareSources.data || []).filter((row) => row.deleted_at && row.intelligence_source_message_id).map((row) => row.intelligence_source_message_id!));
+
+  const conversationTurns = removeInactiveMemoryClaimsFromConversation([...(messages.data || [])]
+    .filter((message) => !suppressedSourceMessageIds.has(message.id) && !responseReferencesCareEntry(message.response_data, deletedCareEntryIds))
+    .reverse().map((message) => ({
     id: message.id,
     role: message.role,
     text: message.role === "user" ? message.user_text || "" : responseText(message.response_data),
@@ -100,7 +116,9 @@ export async function buildFurviseContext({
     monitoringEpisodes: (episodes.data || []).filter((episode) => episode.status === "monitoring"),
     recentlyResolvedEpisodes: (episodes.data || []).filter((episode) => episode.status === "resolved").slice(0, 8),
     currentState: currentState.data || null,
-    memories: selectFreshRelevantMemories(sharedMemories.data || [], currentMessage, new Date(), mode.contextPolicy.memoryLimit).map((item) => item.memory),
+    memories: selectFreshRelevantMemories((sharedMemories.data || []).filter((memory) => !(
+      memory.source_type === "ask_message" && memory.source_id && suppressedSourceMessageIds.has(memory.source_id)
+    )), currentMessage, new Date(), mode.contextPolicy.memoryLimit).map((item) => item.memory),
     productFeedback: feedback.data || [], conversationTurns,
   });
 }
@@ -108,4 +126,12 @@ export async function buildFurviseContext({
 function responseText(value: Record<string, unknown> | null) {
   if (!value) return "";
   return typeof value.directAnswer === "string" ? value.directAnswer : typeof value.summary === "string" ? value.summary : "";
+}
+
+function responseReferencesCareEntry(value: Record<string, unknown> | null, deletedCareEntryIds: Set<string>) {
+  if (!value || deletedCareEntryIds.size === 0) return false;
+  const persistence = value.carePersistence;
+  if (!persistence || typeof persistence !== "object" || Array.isArray(persistence)) return false;
+  const careEntryIds = (persistence as { careEntryIds?: unknown }).careEntryIds;
+  return Array.isArray(careEntryIds) && careEntryIds.some((id) => typeof id === "string" && deletedCareEntryIds.has(id));
 }

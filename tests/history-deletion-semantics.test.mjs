@@ -12,13 +12,10 @@ const concernLoader = read("app/lib/ai/context-builder.ts");
 const episodeReducer = read("app/lib/intelligence/episodes/reduce-episode-state.ts");
 const documentation = read("docs/information-removal-semantics.md");
 
-test("History removal and lifecycle dismissal have separate server contracts", () => {
+test("History Delete always uses the governed lifecycle dismissal contract", () => {
   assert.match(migration, /status in \('active', 'monitoring', 'resolved', 'dismissed'/);
   assert.match(migration, /dismissal_reason = 'user_removed'/);
-  assert.match(migration, /create or replace function public\.get_my_care_entry_removal_impact/);
-  assert.match(migration, /active_episode_id uuid/);
   assert.match(migration, /create or replace function public\.remove_my_care_entry/);
-  assert.match(migration, /p_stop_tracking boolean default false/);
   assert.match(migration, /v_user uuid := auth\.uid\(\)/);
   assert.match(migration, /where id = p_entry_id and user_id = v_user for update/);
   assert.doesNotMatch(migration, /delete from public\.pet_care_entries/);
@@ -38,48 +35,48 @@ test("dismissal is non-clinical, preserves provenance, and cleans current projec
   assert.doesNotMatch(removal, /state_action_type[^\n]*resolve_concern/);
 });
 
-test("API returns lifecycle impact without exposing its internal episode ID", () => {
-  assert.match(route, /export async function GET/);
-  assert.match(route, /get_my_care_entry_removal_impact/);
-  assert.match(route, /activeConcernExists: data\.active_concern_exists/);
-  assert.match(route, /lifecycleStillActive: data\.lifecycle_still_active/);
-  assert.doesNotMatch(route, /activeEpisodeId:/);
-  assert.match(route, /stopTrackingIssue/);
+test("API has one direct Delete contract with no lifecycle-impact choices", () => {
+  assert.doesNotMatch(route, /export async function GET/);
+  assert.doesNotMatch(route, /get_my_care_entry_removal_impact|activeConcernExists|lifecycleStillActive|activeEpisodeId|stopTrackingIssue/);
   assert.match(route, /remove_my_care_entry/);
+  assert.match(route, /p_stop_tracking: true/);
   assert.match(route, /operationType: "care\.remove_history"/);
+  assert.match(route, /Response\.json\(\{ removedFromHistory: true \}\)/);
 });
 
-test("History UI offers the governed three-way choice only for active lifecycles", () => {
-  assert.match(workspace, /getCareEntryRemovalImpact/);
-  assert.match(workspace, /removalImpact\?\.lifecycleStillActive/);
-  for (const label of ["Remove from History only", "Stop tracking this issue too", "Cancel"]) {
-    assert.match(workspace, new RegExp(label));
-  }
-  assert.match(workspace, /Removing it from History does not by itself stop that tracking/);
-  assert.match(workspace, /It is not a full privacy erasure/);
-  assert.doesNotMatch(workspace, /This permanently removes the update/);
+test("History UI offers one Delete action and explains that Furvise stops using the event", () => {
+  assert.doesNotMatch(workspace, /getCareEntryRemovalImpact|removalImpact|Remove from History only|Stop tracking this issue too/);
+  assert.match(workspace, /Delete this History event\?/);
+  assert.match(workspace, /Furvise will stop remembering, tracking, and using this event/);
+  assert.match(workspace, /Internal audit links may be retained/);
+  assert.match(workspace, /Deleted\. Furvise will no longer use this event\./);
+  assert.match(workspace, /Cancel/);
 });
 
 test("Ask active and recently-resolved retrieval cannot classify dismissal as recovery", () => {
+  assert.match(retrieval, /\.is\("deleted_at", null\)/);
   assert.match(retrieval, /\.in\("status", \["active", "monitoring", "resolved"\]\)/);
   assert.doesNotMatch(retrieval, /\.in\("status", \[[^\]]*"dismissed"/);
   assert.match(concernLoader, /\.in\("status", \["active", "reopened"\]\)/);
   assert.match(concernLoader, /\.eq\("status", "resolved"\)/);
   assert.doesNotMatch(concernLoader, /"dismissed"/);
   assert.match(episodeReducer, /current === "dismissed"/);
+  assert.match(retrieval, /suppressedSourceMessageIds/);
+  assert.match(retrieval, /responseReferencesCareEntry/);
+  assert.match(retrieval, /memory\.source_type === "ask_message"/);
 });
 
-test("database verification covers history-only, dismissal, isolation, provenance, and idempotency", () => {
+test("database verification covers tombstone, dismissal, isolation, provenance, and idempotency", () => {
   for (const evidence of [
     "inactive historical entry was not tombstoned",
-    "History-only removal changed lifecycle tracking",
     "episode was not non-clinically dismissed",
     "canonical concern was not dismissed",
     "dismissed lifecycle remained in current state",
     "episode provenance was removed",
-    "dismissal fabricated clinical resolution History",
+    "History deletion fabricated clinical resolution History",
     "cross-user dismissal succeeded",
     "dismissal crossed into another owned pet",
+    "monitoring lifecycle was not dismissed by History deletion",
     "repeated dismissal was not idempotent",
   ]) assert.match(databaseVerification, new RegExp(evidence));
   assert.match(databaseVerification, /rollback;/);
@@ -92,4 +89,5 @@ test("memory forgetting and future privacy erasure remain explicitly separate", 
     assert.match(documentation, new RegExp(scope));
   }
   assert.match(documentation, /not implemented/);
+  assert.match(documentation, /Delete means Furvise stops remembering, tracking, and using the selected History event/);
 });
