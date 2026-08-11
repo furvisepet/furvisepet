@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     const { data: recent, error: recentError } = await context.supabase.from("pet_care_entries")
       .select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at")
       .eq("pet_profile_id", input.petProfileId).eq("user_id", context.userId).gte("created_at", cutoff)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false }).limit(50).returns<CareEntryRow[]>();
       if (recentError) return Response.json({ error: "Care entries are temporarily unavailable." }, { status: 503 });
     const duplicate = (recent || []).find((entry) => isDuplicateGeneratedEntry(entry, input));

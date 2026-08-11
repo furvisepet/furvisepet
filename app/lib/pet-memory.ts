@@ -236,6 +236,7 @@ export async function loadPetMemoryContext({
       .select("*")
       .eq("pet_profile_id", petId)
       .eq("user_id", userId)
+      .is("deleted_at", null)
       .order("occurred_at", { ascending: false })
       .limit(60)
       .returns<CareEntryRow[]>(),

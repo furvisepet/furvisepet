@@ -49,6 +49,7 @@ test("governed recovery removes only stale unconditional escalation and retains 
   assert.equal(result.response.answer.title, "It sounds like Mani is improving");
   assert.equal(result.response.safetyLevel, "monitor");
   assert.equal(result.response.responseMode, "practical_guidance");
+  assert.equal(result.response.shoppingSuppressed, false);
   assert.equal(result.response.intelligenceSafety.requiresImmediateAction, false);
   assert.ok(result.repairs.includes("removed_stale_emergency_directive"));
 });
