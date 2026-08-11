@@ -8,6 +8,8 @@ export type ResolvedSafetyState = {
   activeConcernIds: string[];
   recentlyResolvedConcernIds: string[];
   concernMessageState: ReturnType<typeof classifyActiveConcernMessage>;
+  currentMessageConcernTags: ReturnType<typeof detectAskConcernTags>;
+  currentMessageEmergency: boolean;
   shoppingSuppressed: boolean;
 };
 
@@ -41,8 +43,16 @@ export function resolveSafetyState(context: FurviseLiveContext): ResolvedSafetyS
     activeConcernIds: [...new Set([...context.activeConcerns.map((concern) => concern.id), ...(chronology.state === "urgent" && chronology.concernId ? [chronology.concernId] : [])])],
     recentlyResolvedConcernIds: context.recentlyResolvedConcerns.map((concern) => concern.id),
     concernMessageState: messageState,
+    currentMessageConcernTags: immediateTags,
+    currentMessageEmergency: immediateEmergency,
     shoppingSuppressed: level === "urgent" || level === "emergency",
   };
+}
+
+export function allowsAcceptedRecoverySafetyReconciliation(safety: ResolvedSafetyState) {
+  return !safety.currentMessageEmergency
+    && safety.currentMessageConcernTags.length === 0
+    && !["worsening", "recurrence", "still_active"].includes(safety.concernMessageState);
 }
 
 export function applySafetyFloor(modelLevel: IntelligenceSafetyLevel, deterministic: ResolvedSafetyState) {

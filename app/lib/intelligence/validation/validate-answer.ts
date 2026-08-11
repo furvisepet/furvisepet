@@ -24,6 +24,18 @@ export function validateGeneratedAnswer(result: AskReasoningResult, context: Fur
     replace(/[^.]*\bbreath(?:ing)?\b[^.]*\.?/gi, "", "removed_irrelevant_resolved_warning");
   response.answer.summary = text.replace(/\s+/g, " ").trim();
   if (canonicalSafety === "urgent" || canonicalSafety === "emergency") { response.safetyLevel = "urgent"; response.shoppingSuppressed = true; }
+  else if (canonicalSafety === "recently_resolved") {
+    const reconciled = response.answer.summary.replace(/^Contact an emergency veterinarian now\.\s*/i, "");
+    if (reconciled !== response.answer.summary) repairs.push("removed_stale_emergency_directive");
+    response.answer.summary = reconciled;
+    if (/^Urgent guidance for\b/i.test(response.answer.title)) response.answer.title = `It sounds like ${context.pet.name} is improving`;
+    response.safetyLevel = "monitor";
+    response.shoppingSuppressed = false;
+    response.intelligenceSafety.level = "recently_resolved";
+    response.intelligenceSafety.requiresImmediateAction = false;
+    response.intelligenceSafety.shoppingSuppressed = false;
+    if (response.responseMode === "urgent_safety") response.responseMode = "practical_guidance";
+  }
   else if (response.safetyLevel === "urgent" && canonicalSafety === "routine") { response.safetyLevel = "normal"; repairs.push("aligned_safety_to_current_state"); }
   if (!response.answer.summary) errors.push("empty_after_grounding_repair");
   if (/\b(?:I saved|I added|stack trace|requestId)\b/i.test(response.answer.summary)) errors.push("unsafe_content_remaining");
