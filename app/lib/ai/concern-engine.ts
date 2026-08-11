@@ -1,6 +1,6 @@
 import type { CareEntryRow } from "../supabase.ts";
 
-export type ConcernStatus = "active" | "monitoring" | "resolved" | "reopened";
+export type ConcernStatus = "active" | "monitoring" | "resolved" | "reopened" | "dismissed";
 export type ConcernSeverity = "routine" | "important" | "urgent";
 
 export type PetConcern = {
@@ -29,7 +29,7 @@ export type PendingUpdateSuggestion = {
 
 export function getCurrentConcern(concerns: PetConcern[]) {
   return concerns
-    .filter((concern) => concern.status !== "resolved")
+    .filter((concern) => concern.status !== "resolved" && concern.status !== "dismissed")
     .sort((a, b) => concernRank(b) - concernRank(a) || Date.parse(b.updated_at) - Date.parse(a.updated_at))[0] || null;
 }
 

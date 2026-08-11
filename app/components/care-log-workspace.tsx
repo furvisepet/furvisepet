@@ -11,12 +11,14 @@ import { NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import {
   createCareEntry,
-  deleteCareEntry,
+  getCareEntryRemovalImpact,
   getSupabaseConfigError,
   listCareEntriesForPet,
   listRecentCareEntries,
   loadDogProfilesWithMemories,
+  removeCareEntryFromHistory,
   updateCareEntry,
+  type CareEntryRemovalImpact,
   type CareEntryInput,
   type CareEntryRow,
   type DogProfileWithMemories,
@@ -47,6 +49,9 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
   const [editingEntry, setEditingEntry] = useState<CareEntryRow | null>(null);
   const [viewingEntry, setViewingEntry] = useState<CareEntryRow | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CareEntryRow | null>(null);
+  const [removalImpact, setRemovalImpact] = useState<CareEntryRemovalImpact | null>(null);
+  const [removalImpactLoading, setRemovalImpactLoading] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [visibleLimit, setVisibleLimit] = useState(25);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -219,16 +224,44 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
     closeOverlay();
   }
 
-  async function confirmDelete() {
-    if (!pendingDelete) return;
+  async function prepareRemoval(entry: CareEntryRow) {
+    setPendingDelete(entry);
+    setRemovalImpact(null);
+    setRemovalImpactLoading(true);
+    setError("");
     try {
-      await deleteCareEntry(pendingDelete.id);
+      setRemovalImpact(await getCareEntryRemovalImpact(entry.id));
+    } catch (impactError) {
+      setPendingDelete(null);
+      setError(impactError instanceof Error ? impactError.message : "Furvise could not check that update.");
+    } finally {
+      setRemovalImpactLoading(false);
+    }
+  }
+
+  function cancelRemoval() {
+    if (removing) return;
+    setPendingDelete(null);
+    setRemovalImpact(null);
+  }
+
+  async function confirmDelete(stopTrackingIssue: boolean) {
+    if (!pendingDelete) return;
+    setRemoving(true);
+    try {
+      const result = await removeCareEntryFromHistory(pendingDelete.id, { stopTrackingIssue });
       setEntries((current) => current.filter((item) => item.id !== pendingDelete.id));
-      setStatus("Update deleted.");
+      setStatus(result.lifecycleDismissed
+        ? "Removed from History and stopped tracking this issue."
+        : result.lifecycleStillActive
+          ? "Removed from History. Furvise is still tracking this issue."
+          : "Removed from History.");
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Furvise could not delete that update.");
+      setError(deleteError instanceof Error ? deleteError.message : "Furvise could not remove that update.");
     } finally {
       setPendingDelete(null);
+      setRemovalImpact(null);
+      setRemoving(false);
     }
   }
 
@@ -283,7 +316,7 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
             />
           ) : (
             <>
-              <CareTimeline entries={displayedEntries} emptyMessage="No updates match these filters." onDelete={setPendingDelete} onEdit={(entry) => { setViewingEntry(null); setEditingEntry(entry); setOverlayOpen(true); }} onOpen={setViewingEntry} petNameById={petNameById} showPetName={!isPetScope} />
+              <CareTimeline entries={displayedEntries} emptyMessage="No updates match these filters." onDelete={(entry) => void prepareRemoval(entry)} onEdit={(entry) => { setViewingEntry(null); setEditingEntry(entry); setOverlayOpen(true); }} onOpen={setViewingEntry} petNameById={petNameById} showPetName={!isPetScope} />
               {displayedEntries.length < visibleEntries.length ? (
                 <div className="w-full pt-1">
                   <SecondaryButton onClick={() => setVisibleLimit((current) => current + 25)} type="button">Load older updates</SecondaryButton>
@@ -337,12 +370,22 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
       {pendingDelete ? (
         <div className="fixed inset-0 z-[var(--z-critical-overlay)] flex items-center justify-center bg-[var(--pw-overlay)] p-4">
           <section aria-labelledby="delete-title" aria-modal="true" className="w-full max-w-md rounded-3xl border border-[color-mix(in_srgb,var(--pw-border)_72%,transparent)] bg-[var(--pw-surface-elevated)] p-6" ref={dialogRef} role="alertdialog">
-            <h2 className="text-xl font-semibold text-[var(--pw-heading)]" id="delete-title">Delete update?</h2>
-            <p className="mt-3 text-[var(--pw-muted)]">This permanently removes the update.</p>
-            <div className="mt-5 flex justify-end gap-3">
-              <button className="min-h-11 rounded-full border border-[var(--pw-border)] px-4 font-semibold" onClick={() => setPendingDelete(null)} type="button">Cancel</button>
-              <button className="min-h-11 rounded-full bg-[var(--pw-danger-surface)] px-4 font-semibold text-[var(--pw-danger-text)]" onClick={confirmDelete} type="button">Delete</button>
-            </div>
+            <h2 className="text-xl font-semibold text-[var(--pw-heading)]" id="delete-title">Remove from History?</h2>
+            {removalImpactLoading ? <p className="mt-3 text-[var(--pw-muted)]" role="status">Checking whether Furvise is still tracking this issue...</p>
+              : removalImpact?.lifecycleStillActive ? <>
+                <p className="mt-3 text-[var(--pw-muted)]">This update is part of an issue Furvise is still tracking. Removing it from History does not by itself stop that tracking.</p>
+                <div className="mt-5 grid gap-3">
+                  <button className="min-h-11 rounded-full border border-[var(--pw-border-strong)] px-4 font-semibold" disabled={removing} onClick={() => void confirmDelete(false)} type="button">Remove from History only</button>
+                  <button className="min-h-11 rounded-full bg-[var(--pw-danger-surface)] px-4 font-semibold text-[var(--pw-danger-text)]" disabled={removing} onClick={() => void confirmDelete(true)} type="button">Stop tracking this issue too</button>
+                  <button className="min-h-11 rounded-full px-4 font-semibold text-[var(--pw-muted)]" disabled={removing} onClick={cancelRemoval} type="button">Cancel</button>
+                </div>
+              </> : <>
+                <p className="mt-3 text-[var(--pw-muted)]">This hides the update from normal History. It is not a full privacy erasure.</p>
+                <div className="mt-5 flex justify-end gap-3">
+                  <button className="min-h-11 rounded-full border border-[var(--pw-border)] px-4 font-semibold" disabled={removing} onClick={cancelRemoval} type="button">Cancel</button>
+                  <button className="min-h-11 rounded-full bg-[var(--pw-danger-surface)] px-4 font-semibold text-[var(--pw-danger-text)]" disabled={removing} onClick={() => void confirmDelete(false)} type="button">Remove from History</button>
+                </div>
+              </>}
           </section>
         </div>
       ) : null}
