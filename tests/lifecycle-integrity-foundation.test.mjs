@@ -32,7 +32,7 @@ test("ordinary History deletion is an idempotent owner-scoped tombstone", () => 
   assert.match(migration, /v_user uuid := auth\.uid\(\)/);
   assert.match(migration, /where id = p_entry_id and user_id = v_user for update/);
   assert.match(migration, /revoke delete on public\.pet_care_entries from authenticated/);
-  assert.match(careRoute, /rpc\("tombstone_my_care_entry"/);
+  assert.match(careRoute, /rpc\("remove_my_care_entry"/);
   assert.doesNotMatch(careRoute, /from\("pet_care_entries"\)\.delete\(\)/);
   for (const source of contextSources) assert.match(source, /\.is\("deleted_at", null\)/);
 });

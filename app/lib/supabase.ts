@@ -153,6 +153,16 @@ export type CreateCareEntryUnlessDuplicateResult =
   | { action: "created"; entry: CareEntryRow }
   | { action: "duplicate"; entry: CareEntryRow };
 
+export type CareEntryRemovalImpact = {
+  activeConcernExists: boolean;
+  lifecycleStillActive: boolean;
+};
+
+export type CareEntryRemovalResult = CareEntryRemovalImpact & {
+  lifecycleDismissed: boolean;
+  removedFromHistory: true;
+};
+
 export type DogProfileWithMemories = DogProfileRow & {
   dog_memories: DogMemoryRow[];
   dog_product_feedback?: DogProductFeedbackRow[];
@@ -608,13 +618,33 @@ export async function updateCareEntry(
   return data;
 }
 
+export async function getCareEntryRemovalImpact(entryId: string): Promise<CareEntryRemovalImpact> {
+  const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, { method: "GET" });
+  const payload = await response.json().catch(() => null) as (CareEntryRemovalImpact & { error?: string }) | null;
+  if (!response.ok || !payload) throw new Error(payload?.error || "Furvise could not check that update.");
+  return {
+    activeConcernExists: payload.activeConcernExists === true,
+    lifecycleStillActive: payload.lifecycleStillActive === true,
+  };
+}
+
+export async function removeCareEntryFromHistory(
+  entryId: string,
+  options: { stopTrackingIssue: boolean },
+): Promise<CareEntryRemovalResult> {
+  const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, {
+    body: JSON.stringify({ stopTrackingIssue: options.stopTrackingIssue }),
+    headers: { "content-type": "application/json" },
+    method: "DELETE",
+  });
+  const payload = await response.json().catch(() => null) as (CareEntryRemovalResult & { error?: string }) | null;
+  if (!response.ok || !payload?.removedFromHistory) throw new Error(payload?.error || "The care entry could not be removed.");
+  return payload;
+}
+
 export async function deleteCareEntry(entryId: string, deps: CareLogHelperDeps = {}) {
   if (!deps.getClient && !deps.getCurrentUser) {
-    const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, { method: "DELETE" });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null) as { error?: string } | null;
-      throw new Error(payload?.error || "The care entry could not be deleted.");
-    }
+    await removeCareEntryFromHistory(entryId, { stopTrackingIssue: false });
     return;
   }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
