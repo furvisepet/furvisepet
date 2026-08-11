@@ -124,6 +124,8 @@ function inferUnderstanding(raw: Record<string, unknown>) {
     secondaryIntents: [], userIsAskingQuestion: false, userIsProvidingUpdate: careActions.length > 0,
     userIsCorrectingPriorInformation: false, userIsResolvingConcern: hasResolution,
     userIsProvidingPreference: false, userIsMakingSmallTalk: false,
+    recoveryStatus: hasResolution ? "terminal" as const : "none" as const,
+    recoveryConfidence: 1,
     requestedTopic: null, referencedPet: null, safetyRelevance: "none" as const,
     needsClarification: false, canAnswerDirectly: true,
   };

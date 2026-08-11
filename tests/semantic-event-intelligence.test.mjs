@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { urgentSemanticTitle } from "../app/lib/ai/ask-reasoning.ts";
@@ -97,6 +98,83 @@ test("a terminal recovery is normalized to one valid resolved transition", () =>
   assert.equal(result.accepted[0].event.state, "resolved");
   assert.equal(result.accepted[0].event.references.episodeId, active.id);
   assert.equal(result.accepted[0].event.references.concernId, "concern-vomiting");
+});
+
+test("a high-confidence terminal recovery assessment promotes a model improvement to resolution", () => {
+  const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
+  const recovered = base({
+    domain: "health", topic: "vomiting", eventTitle: "Luna seems normal now",
+    transition: "improved", state: "monitoring", importance: "important", confidence: 0.98,
+    sourceExcerpt: "Luna seems normal now",
+  });
+  const result = governCanonicalEvents({
+    proposals: [recovered], message: recovered.sourceExcerpt, pet, activeEpisodes: [active],
+    recoveryAssessment: { status: "terminal", confidence: 0.98 }, allowTerminalResolution: true,
+  });
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.accepted[0].event.transition, "resolved");
+  assert.equal(result.accepted[0].event.state, "resolved");
+  assert.equal(result.accepted[0].event.references.episodeId, active.id);
+  assert.equal(result.accepted[0].event.references.concernId, "concern-vomiting");
+});
+
+test("partial, uncertain, low-confidence, and unsafe recovery assessments remain non-terminal", () => {
+  const active = episode("health", "vomiting", { status: "active", linked_concern_id: "concern-vomiting" });
+  const improved = base({
+    domain: "health", topic: "vomiting", eventTitle: "Vomiting improved",
+    transition: "improved", state: "monitoring", importance: "important", confidence: 0.98,
+    sourceExcerpt: "Luna is a little better",
+  });
+  for (const assessment of [
+    { status: "partial", confidence: 0.99 },
+    { status: "uncertain", confidence: 0.99 },
+    { status: "terminal", confidence: 0.94 },
+  ]) {
+    const result = governCanonicalEvents({ proposals: [improved], message: improved.sourceExcerpt, pet, activeEpisodes: [active], recoveryAssessment: assessment, allowTerminalResolution: true });
+    assert.equal(result.accepted[0].event.transition, "improved");
+    assert.equal(result.accepted[0].event.state, "monitoring");
+  }
+  const unsafe = governCanonicalEvents({
+    proposals: [{ ...improved, sourceExcerpt: "Luna seems normal but collapsed" }],
+    message: "Luna seems normal but collapsed", pet, activeEpisodes: [active],
+    recoveryAssessment: { status: "terminal", confidence: 0.99 }, allowTerminalResolution: false,
+  });
+  assert.equal(unsafe.accepted[0].event.transition, "improved");
+  assert.equal(unsafe.accepted[0].event.state, "monitoring");
+});
+
+test("terminal recovery promotion still fails closed without a compatible owned episode", () => {
+  const recovered = base({
+    domain: "health", topic: "vomiting", transition: "improved", state: "monitoring",
+    confidence: 0.99, sourceExcerpt: "Luna is back to normal",
+  });
+  const result = governCanonicalEvents({
+    proposals: [recovered], message: recovered.sourceExcerpt, pet, activeEpisodes: [episode("behavior", "reactivity")],
+    recoveryAssessment: { status: "terminal", confidence: 0.99 }, allowTerminalResolution: true,
+  });
+  assert.equal(result.accepted.length, 0);
+  assert.equal(result.rejected[0].reason, "no_compatible_active_episode");
+});
+
+test("a terminal lifecycle transition is rejected when structured recovery or current safety contradicts it", () => {
+  const active = episode("health", "vomiting");
+  const resolved = base({ domain: "health", topic: "vomiting", transition: "resolved", state: "resolved", confidence: 0.99, sourceExcerpt: "Luna is still sick" });
+  for (const input of [
+    { recoveryAssessment: { status: "partial", confidence: 0.99 }, allowTerminalResolution: true },
+    { recoveryAssessment: { status: "terminal", confidence: 0.99 }, allowTerminalResolution: false },
+  ]) {
+    const result = governCanonicalEvents({ proposals: [resolved], message: resolved.sourceExcerpt, pet, activeEpisodes: [active], ...input });
+    assert.equal(result.accepted.length, 0);
+    assert.equal(result.rejected[0].reason, "invalid_transition");
+  }
+});
+
+test("resolved semantic persistence closes the linked concern and removes its active episode", () => {
+  const sql = readFileSync(new URL("../supabase/migrations/20260807010000_add_generic_semantic_event_persistence.sql", import.meta.url), "utf8");
+  assert.match(sql, /if v_transition = 'resolved' and v_linked_concern_id is not null/);
+  assert.match(sql, /status = 'resolved', resolved_at = v_occurred_at[\s\S]*active_episode_id = null/);
+  assert.match(sql, /episode_row\.status = 'active'/);
+  assert.match(sql, /episode_row\.status = 'monitoring'/);
 });
 
 test("terminal recovery normalization retains resolution confidence and compatibility floors", () => {
