@@ -13,7 +13,8 @@ end
 local calls = tonumber(redis.call('GET', KEYS[1]) or '0')
 local cost = tonumber(redis.call('GET', KEYS[2]) or '0')
 local operationCalls = tonumber(redis.call('GET', KEYS[5]) or '0')
-if calls + 1 > tonumber(ARGV[1]) or operationCalls + 1 > tonumber(ARGV[7]) then return {0, 0, calls, cost, 1} end
+if operationCalls + 1 > tonumber(ARGV[7]) then return {0, 0, calls, cost, 3} end
+if calls + 1 > tonumber(ARGV[1]) then return {0, 0, calls, cost, 1} end
 if cost + tonumber(ARGV[3]) > tonumber(ARGV[2]) then return {0, 0, calls, cost, 2} end
 calls = redis.call('INCR', KEYS[1])
 cost = redis.call('INCRBY', KEYS[2], ARGV[3])
@@ -73,7 +74,9 @@ export class RedisAiGuardStore implements AiGuardStore {
     const result = await this.redis.eval<string[], number[]>(RESERVE_SCRIPT, keys, [String(input.callLimit), String(input.costLimitMicrodollars), String(input.reservedCostMicrodollars), input.day, String(input.ttlSeconds), input.feature, String(input.maximumOperationCalls)]);
     const snapshot = { calls: Number(result[2]), costMicrodollars: Number(result[3]) };
     if (result[0] === 1) return { allowed: true as const, reused: result[1] === 1, snapshot };
-    return { allowed: false as const, reason: result[4] === 1 ? "call_limit" as const : "cost_limit" as const, snapshot };
+    const reason = result[4] === 1 ? "daily_call_limit" as const
+      : result[4] === 2 ? "daily_cost_limit" as const : "operation_call_limit" as const;
+    return { allowed: false as const, reason, snapshot };
   }
   async markCallStarted(input: { callId: string }) {
     const result = await this.redis.eval<string[], number>(START_SCRIPT, [`${PREFIX}:call:${input.callId}`], []);

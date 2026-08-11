@@ -9,6 +9,7 @@ export type RecoveryGovernanceReason =
   | "RECOVERY_NOT_CANDIDATE"
   | "RECOVERY_SUBJECT_UNRESOLVED"
   | "RECOVERY_EVIDENCE_UNGROUNDED"
+  | "RECOVERY_TERMINAL_EVIDENCE_UNSUPPORTED"
   | "RECOVERY_TERMINAL_SEMANTICS_MISSING"
   | "RECOVERY_EPISODE_MISSING"
   | "RECOVERY_EPISODE_AMBIGUOUS"
@@ -71,8 +72,12 @@ export function deriveEffectiveRecoveryAssessment(input: {
   };
   const recoveryEvidenceGrounded = Boolean(model.evidence?.surfaceText && uniquelyGrounded(model.evidence.surfaceText, input.message));
   const recoveryEvidenceTerminal = ["return_to_baseline", "symptom_absent", "problem_ended"].includes(model.evidence?.outcome || "none");
+  const recoveryEvidenceEntailed = recoveryEvidenceTerminal && terminalOutcomeSupportedBySurface(
+    model.evidence?.outcome || "none",
+    model.evidence?.surfaceText,
+  );
   const recoveryTargetMatched = sameConceptIdentity(model.evidence?.targetConcept, input.proposal.topic);
-  const recoveryEvidenceScore = recoveryEvidenceGrounded && recoveryEvidenceTerminal && recoveryTargetMatched ? model.evidence?.confidence || 0 : 0;
+  const recoveryEvidenceScore = recoveryEvidenceGrounded && recoveryEvidenceEntailed && recoveryTargetMatched ? model.evidence?.confidence || 0 : 0;
   const eventTerminalScore = !input.modelRecovery && input.proposal.transition === "resolved" && input.proposal.state === "resolved" && evidenceGrounded
     ? input.proposal.confidence : 0;
   const terminalSemanticsScore = Math.max(recoveryEvidenceScore, eventTerminalScore);
@@ -92,6 +97,7 @@ export function deriveEffectiveRecoveryAssessment(input: {
   if (!candidate) reasons.push("RECOVERY_NOT_CANDIDATE");
   if (!authoritativeSubject) reasons.push("RECOVERY_SUBJECT_UNRESOLVED");
   if (!evidenceGrounded) reasons.push("RECOVERY_EVIDENCE_UNGROUNDED");
+  if (recoveryEvidenceGrounded && recoveryEvidenceTerminal && !recoveryEvidenceEntailed) reasons.push("RECOVERY_TERMINAL_EVIDENCE_UNSUPPORTED");
   if (terminalSemanticsScore < 0.9) reasons.push("RECOVERY_TERMINAL_SEMANTICS_MISSING");
   if (lifecycle.compatibleCandidateCount === 0) reasons.push("RECOVERY_EPISODE_MISSING");
   else if (!lifecycle.unique) reasons.push("RECOVERY_EPISODE_AMBIGUOUS");
@@ -134,6 +140,26 @@ function hasContradictoryLifecycleProposal(candidate: CanonicalEventProposal, pr
 function uniquelyGrounded(surfaceText: string, message: string) {
   const result = alignEvidenceFragments([{ surfaceText }], message);
   return Boolean(result.grounded[0]) && result.failures.length === 0;
+}
+
+/**
+ * This validates the model-selected evidence surface, not the user's message as
+ * a phrase classifier. A terminal lifecycle claim must contain ordinary
+ * linguistic evidence of baseline restoration or cessation, and hedged text
+ * cannot independently establish a terminal state. The rule is topic-agnostic.
+ */
+export function terminalOutcomeSupportedBySurface(
+  outcome: "return_to_baseline" | "symptom_absent" | "problem_ended" | "partial_improvement" | "uncertain" | "none",
+  surfaceText: string | null | undefined,
+) {
+  if (!surfaceText) return false;
+  const surface = surfaceText.normalize("NFKC").toLocaleLowerCase("en").replace(/\s+/g, " ").trim();
+  if (/\b(?:maybe|perhaps|possibly|somewhat|might|not sure|i think|i guess)\b/.test(surface)) return false;
+  const baselineRestored = /\b(?:back|return(?:ed)?|acting)\b[^.!?]{0,40}\b(?:normal|baseline|usual self|like (?:her|him|them)self)\b|\b(?:normal|fine|well|okay|ok|recovered)\b[^.!?]{0,20}\b(?:again|now|fully)\b/.test(surface);
+  const endedOrAbsent = /\b(?:no|not|without)\b[^.!?]{0,30}\b(?:longer|more|symptoms?|problem|issue|pain|discomfort)\b|\b(?:stopp?ed|ended|gone|resolved|cleared|over|recovered)\b/.test(surface);
+  if (outcome === "return_to_baseline") return baselineRestored;
+  if (outcome === "symptom_absent" || outcome === "problem_ended") return endedOrAbsent || baselineRestored;
+  return false;
 }
 
 function normalized(value: string) {

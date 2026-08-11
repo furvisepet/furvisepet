@@ -135,7 +135,10 @@ export class AiOperationAdmission {
     try {
       result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: this.policy.maximumProviderCalls, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
     } catch { throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "daily_guard_store_unavailable"); }
-    if (!result.allowed) throw new AiAdmissionError(result.reason === "cost_limit" || result.reason === "call_limit" ? "AI_DAILY_CAP_REACHED" : "AI_TEMPORARILY_UNAVAILABLE", result.reason);
+    if (!result.allowed) {
+      if (result.reason === "operation_call_limit") throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", result.reason);
+      throw new AiAdmissionError("AI_DAILY_CAP_REACHED", result.reason);
+    }
     this.callNumber = nextNumber;
     this.queued = { callId, callNumber: nextNumber, day: utcDay(this.now), feature: this.feature, operationId: this.operationId, reservedCostMicrodollars: reservedCost };
     logAiGuardEvent("provider call reserved", { allowed: true, callNumber: nextNumber, dailyCallCount: result.snapshot.calls, dailyCostMicrodollars: result.snapshot.costMicrodollars, feature: this.feature, model, operationId: this.operationId, requestId: this.requestId, reservedCostMicrodollars: reservedCost });

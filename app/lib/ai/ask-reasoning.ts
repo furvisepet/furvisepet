@@ -35,6 +35,7 @@ import type { CanonicalEventProposal, IntelligenceCareAction, IntelligenceLearni
 import { emptyProposedSemanticFrame, extractProposedSemanticFrame } from "../intelligence/semantic-frame/extract-frame.ts";
 import { proposedSemanticFrameJsonSchema } from "../intelligence/semantic-frame/schema.ts";
 import type { ProposedSemanticFrame } from "../intelligence/semantic-frame/types.ts";
+import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-governance.ts";
 
 export type AskContextSourceType =
   | "profile"
@@ -267,6 +268,7 @@ const unifiedInstructions = [
   "A recent unresolved concern may outrank a lower-priority question. Resolved or unrelated history must not hijack the answer.",
   "If the user reports that a prior concern improved, acknowledge it without repeating a full emergency warning unless red flags remain. Ask at most one concise confirmation when needed.",
   "Use activeConcernMessageState as a deterministic hint. Improved or resolved means continue conversationally and offer a saved improvement; still_active, worsening, or recurrence means address current safety first; unclear means interpret the newest message in context.",
+  "Classify the newest currentMessage before using prior-turn or recently-resolved context. An explicit current report that a condition is present is current/active or recurrent evidence and must outrank an older recovery; never carry recoveryStatus forward from a prior turn.",
   "Set messageUnderstanding.recoveryStatus by meaning, not keywords. Use partial only when the condition remains present but is reduced or getting better. Use terminal only when the owner explicitly reports return to the pet's normal baseline, absence of the prior symptom, or that the problem ended. Use uncertain when the extent is unclear, and none when no recovery is reported. Set recoveryConfidence from the current message and supplied compatible lifecycle context. Independently extract recoveryEvidence: choose return_to_baseline, symptom_absent, or problem_ended only for terminal semantics; partial_improvement when the problem remains; uncertain when hedged or unclear; otherwise none. recoveryEvidence.surfaceText must be one exact contiguous fragment from the current message that supports that outcome, or null for none. Set targetConcept to the specific prior problem the evidence changes, using the supplied active episode topic when compatible, or null when no specific problem is supported. Its confidence must describe only that evidence.",
   "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording.",
   "For ordinary questions, write a natural answer first. Avoid report templates and headings unless the situation is genuinely complex.",
@@ -489,6 +491,37 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     }
   }
 
+  if (hasUnsupportedTerminalRecovery(parsed)) {
+    if (retryUsed) {
+      throw new AskPipelineError("fallback_invalid_output", "Ask provider returned unsupported terminal recovery.", {
+        elapsedMs: 0, model: usedModel, providerErrorCode: "ASK_OUTPUT_INVALID",
+        validationDetails: "Terminal recovery evidence did not entail baseline restoration, symptom absence, or an ended problem.",
+      });
+    }
+    const repairModel = models.fallback && models.fallback !== usedModel ? models.fallback : usedModel;
+    parsed = await runProviderRequest({
+      client,
+      fallbackFrom: usedModel,
+      model: repairModel,
+      onEvent: input.onProviderEvent,
+      parseOutput,
+      request: buildProviderRequest({
+        ...context.promptContext,
+        recoveryRepairInstruction: "Reclassify the newest currentMessage without inheriting recovery from prior context. A current condition report is not recovery. Terminal recovery requires explicit current-message evidence of baseline restoration, symptom absence, or an ended problem.",
+      }),
+      stage: "repair",
+      timeoutMs: 20_000,
+    });
+    retryUsed = true;
+    usedModel = repairModel;
+    if (hasUnsupportedTerminalRecovery(parsed)) {
+      throw new AskPipelineError("fallback_invalid_output", "Ask provider repeated unsupported terminal recovery.", {
+        elapsedMs: 0, model: usedModel, providerErrorCode: "ASK_OUTPUT_INVALID",
+        validationDetails: "Terminal recovery remained unsupported after one bounded current-message repair.",
+      });
+    }
+  }
+
   const previousAssistantText = [...input.conversationTurns].reverse().find((turn) => turn.role === "furvise")?.text || "";
   if (previousAssistantText && areAskResponsesMateriallyIdentical(parsed.answer, previousAssistantText)) {
     if (process.env.NODE_ENV === "development") {
@@ -574,6 +607,12 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     semanticFrameValid: parsed.semanticFrameValid,
     intelligenceMetadata: parsed.intelligenceMetadata,
   };
+}
+
+function hasUnsupportedTerminalRecovery(parsed: ParsedUnifiedResponse) {
+  const recovery = parsed.messageUnderstanding;
+  if (recovery.recoveryStatus !== "terminal") return false;
+  return !terminalOutcomeSupportedBySurface(recovery.recoveryEvidence.outcome, recovery.recoveryEvidence.surfaceText);
 }
 
 export function urgentSemanticTitle(petName: string, events: CanonicalEventProposal[], message = "", concerns: PetConcern[] = []) {

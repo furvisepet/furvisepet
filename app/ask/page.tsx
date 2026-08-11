@@ -22,14 +22,14 @@ import {
   formatAskResponsePlainText,
   parseAskConversationResponse,
 } from "../lib/ask.mjs";
-import { buildAskRequestPayload } from "../lib/ask-request-contract";
+import { buildAskRequestPayload, type AskRequestPayload } from "../lib/ask-request-contract";
 import { resolveAskPetSelection } from "../lib/ask-pet-selection";
 import { getActivePetId, setActivePetId } from "../lib/active-pet";
 import { trackAskEvent } from "../lib/ask-analytics";
 import { deriveConversationTitle, formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
 import { toLocalDateTimeInputValue } from "../lib/care-log.mjs";
 import { FURVISE_ANSWER_UNAVAILABLE_MESSAGE } from "../lib/furvise-voice";
-import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
+import { clearClientMutationKey, getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import {
   createCareEntryUnlessDuplicate,
   getBrowserSupabase,
@@ -98,7 +98,13 @@ type ConversationMessage =
   | { id: string; role: "furvise"; response: StructuredResponse; saveMetadata: AskSaveMetadata | null; contextUsed: ContextUsed | null; handledWithoutAi?: boolean; creditsUsed?: number; suggestion?: StateSuggestion | null; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null };
 type AskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR" | "NETWORK_ERROR";
 type AskRequestPhase = "idle" | "submitting" | "receiving" | "completed" | "failed" | "retrying";
-type FailedAskRequest = { code: AskFailureCode; prompt: string; requestId: string; userMessageId: string };
+type FailedAskRequest = {
+  code: AskFailureCode;
+  payload: AskRequestPayload;
+  requestId: string;
+  scope: string;
+  userMessageId: string;
+};
 
 export default function AskPage() {
   return <Suspense fallback={<AppPage>{null}</AppPage>}><AskPageContent /></Suspense>;
@@ -223,8 +229,24 @@ function AskPageContent() {
       setActiveTitle(payload.conversation.title);
       setThread(parsedThread);
       const lastMessage = parsedThread.at(-1);
+      const lastAnswer = [...parsedThread].reverse().find((message): message is Extract<ConversationMessage, { role: "furvise" }> => message.role === "furvise");
+      const retryScope = `ask:${payload.conversation.petId}:${payload.conversation.id}`;
       setFailedRequest(lastMessage?.role === "user" && lastMessage.failed && lastMessage.requestId
-        ? { code: "UNKNOWN_ERROR", prompt: lastMessage.text, requestId: lastMessage.requestId, userMessageId: lastMessage.id }
+        ? {
+            code: "UNKNOWN_ERROR",
+            payload: buildAskRequestPayload({
+              conversationId: payload.conversation.id,
+              locale: navigator.language,
+              message: lastMessage.text,
+              petId: payload.conversation.petId,
+              previousResponse: lastAnswer?.response || null,
+              question: lastMessage.text,
+              requestId: lastMessage.requestId,
+            }),
+            requestId: lastMessage.requestId,
+            scope: retryScope,
+            userMessageId: lastMessage.id,
+          }
         : null);
       setQuestion(readDraft(getDraftKey(payload.conversation.id, payload.conversation.petId)));
       setHistoryOpen(false);
@@ -282,9 +304,18 @@ function AskPageContent() {
   async function ask(promptValue: string, source: "composer" | "empty_state" | "response_suggestion", retry?: FailedAskRequest) {
     const prompt = promptValue.trim();
     if (!prompt || composerUnavailable || askRequestActiveRef.current) return;
-    const conversationIdAtSubmit = activeConversationId;
-    const previousResponse = latestAnswer?.response || null;
-    const requestId = retry?.requestId || getOrCreateClientMutationKey(`ask:${selectedPet}:${conversationIdAtSubmit || "new"}`);
+    const conversationIdAtSubmit = retry?.payload.conversationId || activeConversationId;
+    const scope = retry?.scope || `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`;
+    const requestId = retry?.requestId || getOrCreateClientMutationKey(scope);
+    const requestPayload = retry?.payload || buildAskRequestPayload({
+      conversationId: conversationIdAtSubmit,
+      locale: navigator.language,
+      message: prompt,
+      petId: selectedPet,
+      previousResponse: latestAnswer?.response || null,
+      question: prompt,
+      requestId,
+    });
     const userMessageId = retry?.userMessageId || createMessageId("user");
     askRequestActiveRef.current = true;
     setRequestPhase(retry ? "retrying" : "submitting");
@@ -293,16 +324,16 @@ function AskPageContent() {
     setPersistenceWarning("");
     setStatus("");
     if (!retry) setThread((current) => [...current, { id: userMessageId, role: "user", text: prompt }]);
-    trackAskEvent(previousResponse ? "follow_up_submitted" : "question_submitted", { source });
+    trackAskEvent(requestPayload.previousResponse ? "follow_up_submitted" : "question_submitted", { source });
     try {
       const token = await getAskAuthToken();
       if (!token) throw new AskRequestError("AUTH_REQUIRED");
       const request = idempotentClientFetch("/api/ask", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(buildAskRequestPayload({ conversationId: conversationIdAtSubmit, locale: navigator.language, message: prompt, petId: selectedPet, previousResponse, question: prompt, requestId })),
+        body: JSON.stringify(requestPayload),
         signal: AbortSignal.timeout(55_000),
-      }, `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`, requestId);
+      }, scope, requestId);
       setQuestion("");
       const result = await request;
       setRequestPhase("receiving");
@@ -331,7 +362,7 @@ function AskPageContent() {
       if (parsed.saveSuggestions?.length) trackAskEvent("memory_save_suggested", { answerType: parsed.answerType });
     } catch (askError) {
       const code = getAskFailureCode(askError);
-      setFailedRequest({ code, prompt, requestId, userMessageId });
+      setFailedRequest({ code, payload: requestPayload, requestId, scope, userMessageId });
       setRequestPhase("failed");
       trackAskEvent("answer_failed", { source });
     } finally {
@@ -342,7 +373,8 @@ function AskPageContent() {
   function editFailedMessage() {
     if (!failedRequest) return;
     setThread((current) => current.filter((message) => message.id !== failedRequest.userMessageId));
-    setQuestion(failedRequest.prompt);
+    clearClientMutationKey(failedRequest.scope, failedRequest.requestId);
+    setQuestion(failedRequest.payload.question);
     setFailedRequest(null);
     setRequestPhase("idle");
     requestAnimationFrame(() => composerRef.current?.focus());
@@ -492,7 +524,7 @@ function AskPageContent() {
                   ? <UserMessage key={message.id} text={message.text} />
                   : <FurviseMessage key={message.id} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} />)}
                 {requestActive ? <Thinking petName={petName} /> : null}
-                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.prompt, "composer", failedRequest)} /> : null}
+                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.question, "composer", failedRequest)} /> : null}
                 <div aria-hidden="true" ref={conversationEndRef} />
               </div>
               {latestAnswer && latestAnswer.response.urgency !== "urgent" ? <SuggestedQuestions onSelect={(suggestion) => selectSuggestion(suggestion, "response_suggestion")} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
