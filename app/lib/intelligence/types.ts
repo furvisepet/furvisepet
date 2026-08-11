@@ -53,6 +53,9 @@ export type IntelligenceMessageUnderstanding = {
   userIsResolvingConcern: boolean;
   userIsProvidingPreference: boolean;
   userIsMakingSmallTalk: boolean;
+  /** Whether the current report describes no recovery, partial improvement, or a terminal return to baseline. */
+  recoveryStatus: "none" | "partial" | "terminal" | "uncertain";
+  recoveryConfidence: number;
   requestedTopic: string | null;
   referencedPet: string | null;
   safetyRelevance: "none" | "possible" | "direct";

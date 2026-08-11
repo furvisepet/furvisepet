@@ -57,7 +57,7 @@ function unified(overrides = {}) {
       primaryIntent: "question", secondaryIntents: [], userIsAskingQuestion: true,
       userIsProvidingUpdate: false, userIsCorrectingPriorInformation: false,
       userIsResolvingConcern: false, userIsProvidingPreference: false,
-      userIsMakingSmallTalk: false, requestedTopic: "routine care",
+      userIsMakingSmallTalk: false, recoveryStatus: "none", recoveryConfidence: 1, requestedTopic: "routine care",
       referencedPet: "Mani", safetyRelevance: "none",
       needsClarification: false, canAnswerDirectly: true,
     },

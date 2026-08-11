@@ -76,6 +76,11 @@ export async function runFurviseIntelligence({
     message: context.currentMessage,
     resolvedPetSubject: { id: context.pet.id, name: context.pet.name },
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
+    recoveryAssessment: {
+      status: reasoning.messageUnderstanding.recoveryStatus,
+      confidence: reasoning.messageUnderstanding.recoveryConfidence,
+    },
+    allowTerminalResolution: allowsAcceptedRecoverySafetyReconciliation(safety),
   });
 
   const proposedResolutionPolicy = evaluateCareActionPolicy({

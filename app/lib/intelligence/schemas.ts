@@ -96,13 +96,15 @@ export function withIntelligenceLearningsSchema(base: Record<string, unknown>) {
 
 export const messageUnderstandingJsonSchema = {
   type: "object", additionalProperties: false,
-  required: ["primaryIntent", "secondaryIntents", "userIsAskingQuestion", "userIsProvidingUpdate", "userIsCorrectingPriorInformation", "userIsResolvingConcern", "userIsProvidingPreference", "userIsMakingSmallTalk", "requestedTopic", "referencedPet", "safetyRelevance", "needsClarification", "canAnswerDirectly"],
+  required: ["primaryIntent", "secondaryIntents", "userIsAskingQuestion", "userIsProvidingUpdate", "userIsCorrectingPriorInformation", "userIsResolvingConcern", "userIsProvidingPreference", "userIsMakingSmallTalk", "recoveryStatus", "recoveryConfidence", "requestedTopic", "referencedPet", "safetyRelevance", "needsClarification", "canAnswerDirectly"],
   properties: {
     primaryIntent: { type: "string", enum: [...intelligenceIntentValues] },
     secondaryIntents: { type: "array", maxItems: 4, items: { type: "string", enum: [...intelligenceIntentValues] } },
     userIsAskingQuestion: { type: "boolean" }, userIsProvidingUpdate: { type: "boolean" },
     userIsCorrectingPriorInformation: { type: "boolean" }, userIsResolvingConcern: { type: "boolean" },
     userIsProvidingPreference: { type: "boolean" }, userIsMakingSmallTalk: { type: "boolean" },
+    recoveryStatus: { type: "string", enum: ["none", "partial", "terminal", "uncertain"] },
+    recoveryConfidence: { type: "number", minimum: 0, maximum: 1 },
     requestedTopic: { anyOf: [{ type: "string", maxLength: 120 }, { type: "null" }] },
     referencedPet: { anyOf: [{ type: "string", maxLength: 120 }, { type: "null" }] },
     safetyRelevance: { type: "string", enum: ["none", "possible", "direct"] },
@@ -116,6 +118,8 @@ export function isMessageUnderstanding(value: unknown): value is IntelligenceMes
   return intelligenceIntentValues.includes(item.primaryIntent as never) && Array.isArray(item.secondaryIntents) &&
     item.secondaryIntents.every((intent) => intelligenceIntentValues.includes(intent as never)) &&
     ["userIsAskingQuestion", "userIsProvidingUpdate", "userIsCorrectingPriorInformation", "userIsResolvingConcern", "userIsProvidingPreference", "userIsMakingSmallTalk", "needsClarification", "canAnswerDirectly"].every((key) => typeof item[key] === "boolean") &&
+    ["none", "partial", "terminal", "uncertain"].includes(String(item.recoveryStatus)) &&
+    typeof item.recoveryConfidence === "number" && item.recoveryConfidence >= 0 && item.recoveryConfidence <= 1 &&
     ["none", "possible", "direct"].includes(String(item.safetyRelevance));
 }
 

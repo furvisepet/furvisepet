@@ -33,6 +33,7 @@ function providerOutput(overrides = {}) {
       primaryIntent: "new_symptom", secondaryIntents: [], userIsAskingQuestion: false,
       userIsProvidingUpdate: true, userIsCorrectingPriorInformation: false,
       userIsResolvingConcern: false, userIsProvidingPreference: false,
+      recoveryStatus: "none", recoveryConfidence: 1,
       userIsMakingSmallTalk: false, requestedTopic: "breathing", referencedPet: "Maple",
       safetyRelevance: "direct", needsClarification: false, canAnswerDirectly: true,
     },

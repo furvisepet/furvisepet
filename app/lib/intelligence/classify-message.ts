@@ -17,6 +17,8 @@ export function classifyMessageDeterministically(message: string, hasActiveConce
     userIsResolvingConcern: turn.intent === "resolution",
     userIsProvidingPreference: turn.intent === "preference",
     userIsMakingSmallTalk: turn.intent === "casual",
+    recoveryStatus: turn.concernState === "resolved" ? "terminal" : turn.concernState === "improved" ? "partial" : turn.concernState === "unclear" ? "uncertain" : "none",
+    recoveryConfidence: turn.concernState === "resolved" || turn.concernState === "improved" ? 0.99 : turn.concernState === "unclear" ? 0.5 : 1,
     requestedTopic: null,
     referencedPet: null,
     safetyRelevance: turn.immediateEmergency ? "direct" : turn.concernState === "unrelated" ? "none" : "possible",
