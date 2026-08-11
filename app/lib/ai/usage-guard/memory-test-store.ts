@@ -21,9 +21,9 @@ export class MemoryAiGuardTestStore implements AiGuardStore {
     const existing = this.calls.get(input.callId);
     const snapshot = this.snapshots.get(input.day) || { calls: 0, costMicrodollars: 0 };
     if (existing) return { allowed: true as const, reused: true, snapshot: { ...snapshot } };
-    if ((this.operationCalls.get(input.operationId) || 0) >= input.maximumOperationCalls) return { allowed: false as const, reason: "call_limit" as const, snapshot: { ...snapshot } };
-    if (snapshot.calls + 1 > input.callLimit) return { allowed: false as const, reason: "call_limit" as const, snapshot: { ...snapshot } };
-    if (snapshot.costMicrodollars + input.reservedCostMicrodollars > input.costLimitMicrodollars) return { allowed: false as const, reason: "cost_limit" as const, snapshot: { ...snapshot } };
+    if ((this.operationCalls.get(input.operationId) || 0) >= input.maximumOperationCalls) return { allowed: false as const, reason: "operation_call_limit" as const, snapshot: { ...snapshot } };
+    if (snapshot.calls + 1 > input.callLimit) return { allowed: false as const, reason: "daily_call_limit" as const, snapshot: { ...snapshot } };
+    if (snapshot.costMicrodollars + input.reservedCostMicrodollars > input.costLimitMicrodollars) return { allowed: false as const, reason: "daily_cost_limit" as const, snapshot: { ...snapshot } };
     snapshot.calls += 1; snapshot.costMicrodollars += input.reservedCostMicrodollars;
     this.snapshots.set(input.day, snapshot);
     this.calls.set(input.callId, { cost: input.reservedCostMicrodollars, day: input.day, feature: input.feature, operationId: input.operationId, started: false, state: "reserved" });

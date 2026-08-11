@@ -253,6 +253,31 @@ test("invalid structured output alone triggers one repair call", async () => {
   assert.equal(result.answer.summary, unified().answer);
 });
 
+test("unsupported terminal recovery is re-read from the current message before response use", async () => {
+  const stale = unified({
+    answer: "That is reassuring if Mani is back to normal.",
+    messageUnderstanding: {
+      ...unified().messageUnderstanding,
+      primaryIntent: "update",
+      recoveryStatus: "terminal",
+      recoveryConfidence: 0.92,
+      recoveryEvidence: { outcome: "return_to_baseline", surfaceText: "Mani is vomiting", targetConcept: "vomiting", confidence: 0.92 },
+      userIsProvidingUpdate: true,
+      userIsResolvingConcern: true,
+    },
+  });
+  const current = unified({
+    answer: "Mani is vomiting now, so use the current symptom report rather than the older recovery.",
+    messageUnderstanding: { ...unified().messageUnderstanding, primaryIntent: "update", userIsProvidingUpdate: true },
+  });
+  const client = mockClient([stale, current]);
+  const result = await generateContextAwareAskResponse({ ...input({ question: "Mani is vomiting" }), client });
+  assert.equal(client.requests.length, 2);
+  assert.match(JSON.parse(client.requests[1].input).recoveryRepairInstruction, /newest currentMessage/);
+  assert.equal(result.answer.summary, current.answer);
+  assert.equal(result.messageUnderstanding.recoveryStatus, "none");
+});
+
 test("a materially identical assistant answer is repaired before it can be persisted", async () => {
   const repeated = unified({ answer: "How is Mani breathing right now? Contact an emergency veterinarian if the breathing is still difficult." });
   const contextual = unified({ answer: "I’m glad Mani seems better. Keep an eye on breathing and energy after activity for a little while.", safetyLevel: "monitor" });

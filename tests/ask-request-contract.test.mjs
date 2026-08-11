@@ -42,7 +42,8 @@ test("Ask client builds first-question and follow-up payloads with only server-a
   assert.equal(followUp.message, followUp.question);
   assert.equal(followUp.previousResponse, previousResponse);
   assert.doesNotMatch(page, /storedAnalysis|readRelevantStoredAnalysis/);
-  assert.match(page, /JSON\.stringify\(buildAskRequestPayload\(/);
+  assert.match(page, /requestPayload = retry\?\.payload \|\| buildAskRequestPayload\(/);
+  assert.match(page, /body: JSON\.stringify\(requestPayload\)/);
 });
 
 test("Ask route contract continues to reject unsupported fields", () => {

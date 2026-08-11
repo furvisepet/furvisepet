@@ -234,6 +234,25 @@ test("terminal promotion rejects ambiguity, contradictions, unsafe evidence, and
   assert.ok(unsupported.recoveryAssessments[0].reasons.includes("RECOVERY_EVIDENCE_UNGROUNDED"));
 });
 
+test("a grounded current-condition assertion cannot masquerade as terminal recovery", () => {
+  const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
+  const message = "Mani is vomiting";
+  const staleRecovery = base({
+    domain: "health", topic: "vomiting", eventTitle: "Vomiting improved",
+    transition: "improved", state: "monitoring", importance: "important", confidence: 0.88,
+    sourceExcerpt: message,
+  });
+  const result = governCanonicalEvents({
+    proposals: [staleRecovery], message, pet, activeEpisodes: [active], allowTerminalResolution: true,
+    recoveryAssessment: recoveryAssessment("terminal", 0.92, message, "return_to_baseline", 0.92),
+    subjectConfidence: 0.99,
+  });
+  assert.equal(result.accepted[0].event.transition, "improved");
+  assert.equal(result.accepted[0].event.state, "monitoring");
+  assert.equal(result.accepted[0].recoveryGovernance.promoted, false);
+  assert.ok(result.accepted[0].recoveryGovernance.reasons.includes("RECOVERY_TERMINAL_EVIDENCE_UNSUPPORTED"));
+});
+
 test("partial, uncertain, low-confidence, and unsafe recovery assessments remain non-terminal", () => {
   const active = episode("health", "vomiting", { status: "active", linked_concern_id: "concern-vomiting" });
   const improved = base({

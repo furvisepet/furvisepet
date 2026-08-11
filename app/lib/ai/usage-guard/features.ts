@@ -3,7 +3,9 @@ import { OPENAI_OUTPUT_LIMITS } from "../config";
 import type { AiFeaturePolicy, AiGuardFeature } from "./types";
 
 export const AI_FEATURE_POLICIES: Record<AiGuardFeature, AiFeaturePolicy> = {
-  ask: policy("ask", "FURVISE_AI_ASK_ENABLED", 20_000, 80_000, ASK_MAX_OUTPUT_TOKENS, 2),
+  // Ask performs isolated subject binding before its primary answer and retains
+  // one bounded structured-output repair. All three calls share one operation.
+  ask: policy("ask", "FURVISE_AI_ASK_ENABLED", 20_000, 80_000, ASK_MAX_OUTPUT_TOKENS, 3),
   care_plan: policy("care_plan", "FURVISE_AI_CARE_PLAN_ENABLED", 12_000, 48_000, OPENAI_OUTPUT_LIMITS.analysis, 1),
   product_explanation: policy("product_explanation", "FURVISE_AI_PRODUCTS_ENABLED", 12_000, 48_000, 360, 1),
   product_query: policy("product_query", "FURVISE_AI_PRODUCTS_ENABLED", 12_000, 48_000, 520, 1),

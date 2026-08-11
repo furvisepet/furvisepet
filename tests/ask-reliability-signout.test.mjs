@@ -36,7 +36,9 @@ test("failure preserves the visible user message and retry reuses its request ID
   const askFunction = page.slice(page.indexOf("async function ask("), page.indexOf("function saveCurrentDraft"));
   assert.match(askFunction, /if \(!retry\) setThread/);
   assert.match(askFunction, /requestId = retry\?\.requestId \|\| getOrCreateClientMutationKey/);
-  assert.match(askFunction, /setFailedRequest\(\{ code, prompt, requestId, userMessageId \}\)/);
+  assert.match(askFunction, /requestPayload = retry\?\.payload \|\| buildAskRequestPayload/);
+  assert.match(askFunction, /setFailedRequest\(\{ code, payload: requestPayload, requestId, scope, userMessageId \}\)/);
+  assert.match(page, /clearClientMutationKey\(failedRequest\.scope, failedRequest\.requestId\)/);
   assert.doesNotMatch(askFunction, /current\.filter\(\(message\) => message\.id !== userMessageId\)/);
   assert.match(page, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
   assert.match(page, />Try again</);

@@ -22,7 +22,7 @@ test("daily provider-call ceiling is atomic at the exact boundary and shared acr
   assert.equal((await store.reserveCall(reservation({ callId: "c:1", feature: "vet_brief", operationId: "c" }))).allowed, true);
   const denied = await store.reserveCall(reservation({ callId: "d:1", operationId: "d" }));
   assert.equal(denied.allowed, false);
-  assert.equal(denied.reason, "call_limit");
+  assert.equal(denied.reason, "daily_call_limit");
   assert.deepEqual(store.getSnapshot("2026-07-29"), { calls: 3, costMicrodollars: 3_000 });
 });
 
@@ -41,7 +41,7 @@ test("daily cost reservations deny above ceiling and reconcile with integer micr
   assert.equal((await store.reserveCall(reservation({ callId: "a:1", costLimitMicrodollars: 1_500, operationId: "a" }))).allowed, true);
   const denied = await store.reserveCall(reservation({ callId: "b:1", costLimitMicrodollars: 1_500, operationId: "b" }));
   assert.equal(denied.allowed, false);
-  assert.equal(denied.reason, "cost_limit");
+  assert.equal(denied.reason, "daily_cost_limit");
   await store.markCallStarted({ callId: "a:1" });
   await store.reconcileCall({ actualCostMicrodollars: 400, callId: "a:1" });
   assert.equal(store.getSnapshot("2026-07-29").costMicrodollars, 400);
@@ -64,7 +64,7 @@ test("provider-call budget is enforced across retries for one logical operation"
   assert.equal((await store.reserveCall(reservation({ callId: "a:2" }))).allowed, true);
   const third = await store.reserveCall(reservation({ callId: "a:3" }));
   assert.equal(third.allowed, false);
-  assert.equal(third.reason, "call_limit");
+  assert.equal(third.reason, "operation_call_limit");
 });
 
 test("operation admission is idempotent, conflicts on changed payload, and remembers completion", async () => {
