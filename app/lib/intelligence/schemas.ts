@@ -96,7 +96,7 @@ export function withIntelligenceLearningsSchema(base: Record<string, unknown>) {
 
 export const messageUnderstandingJsonSchema = {
   type: "object", additionalProperties: false,
-  required: ["primaryIntent", "secondaryIntents", "userIsAskingQuestion", "userIsProvidingUpdate", "userIsCorrectingPriorInformation", "userIsResolvingConcern", "userIsProvidingPreference", "userIsMakingSmallTalk", "recoveryStatus", "recoveryConfidence", "requestedTopic", "referencedPet", "safetyRelevance", "needsClarification", "canAnswerDirectly"],
+  required: ["primaryIntent", "secondaryIntents", "userIsAskingQuestion", "userIsProvidingUpdate", "userIsCorrectingPriorInformation", "userIsResolvingConcern", "userIsProvidingPreference", "userIsMakingSmallTalk", "recoveryStatus", "recoveryConfidence", "recoveryEvidence", "requestedTopic", "referencedPet", "safetyRelevance", "needsClarification", "canAnswerDirectly"],
   properties: {
     primaryIntent: { type: "string", enum: [...intelligenceIntentValues] },
     secondaryIntents: { type: "array", maxItems: 4, items: { type: "string", enum: [...intelligenceIntentValues] } },
@@ -105,6 +105,14 @@ export const messageUnderstandingJsonSchema = {
     userIsProvidingPreference: { type: "boolean" }, userIsMakingSmallTalk: { type: "boolean" },
     recoveryStatus: { type: "string", enum: ["none", "partial", "terminal", "uncertain"] },
     recoveryConfidence: { type: "number", minimum: 0, maximum: 1 },
+    recoveryEvidence: {
+      type: "object", additionalProperties: false, required: ["outcome", "surfaceText", "targetConcept", "confidence"], properties: {
+        outcome: { type: "string", enum: ["return_to_baseline", "symptom_absent", "problem_ended", "partial_improvement", "uncertain", "none"] },
+        surfaceText: { anyOf: [{ type: "string", minLength: 1, maxLength: 240 }, { type: "null" }] },
+        targetConcept: { anyOf: [{ type: "string", minLength: 2, maxLength: 100 }, { type: "null" }] },
+        confidence: { type: "number", minimum: 0, maximum: 1 },
+      },
+    },
     requestedTopic: { anyOf: [{ type: "string", maxLength: 120 }, { type: "null" }] },
     referencedPet: { anyOf: [{ type: "string", maxLength: 120 }, { type: "null" }] },
     safetyRelevance: { type: "string", enum: ["none", "possible", "direct"] },
@@ -115,11 +123,16 @@ export const messageUnderstandingJsonSchema = {
 export function isMessageUnderstanding(value: unknown): value is IntelligenceMessageUnderstanding {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
+  const recoveryEvidence = item.recoveryEvidence as Record<string, unknown> | null;
   return intelligenceIntentValues.includes(item.primaryIntent as never) && Array.isArray(item.secondaryIntents) &&
     item.secondaryIntents.every((intent) => intelligenceIntentValues.includes(intent as never)) &&
     ["userIsAskingQuestion", "userIsProvidingUpdate", "userIsCorrectingPriorInformation", "userIsResolvingConcern", "userIsProvidingPreference", "userIsMakingSmallTalk", "needsClarification", "canAnswerDirectly"].every((key) => typeof item[key] === "boolean") &&
     ["none", "partial", "terminal", "uncertain"].includes(String(item.recoveryStatus)) &&
     typeof item.recoveryConfidence === "number" && item.recoveryConfidence >= 0 && item.recoveryConfidence <= 1 &&
+    Boolean(recoveryEvidence) && ["return_to_baseline", "symptom_absent", "problem_ended", "partial_improvement", "uncertain", "none"].includes(String(recoveryEvidence?.outcome)) &&
+    (recoveryEvidence?.surfaceText === null || typeof recoveryEvidence?.surfaceText === "string") &&
+    (recoveryEvidence?.targetConcept === null || typeof recoveryEvidence?.targetConcept === "string") &&
+    typeof recoveryEvidence?.confidence === "number" && recoveryEvidence.confidence >= 0 && recoveryEvidence.confidence <= 1 &&
     ["none", "possible", "direct"].includes(String(item.safetyRelevance));
 }
 

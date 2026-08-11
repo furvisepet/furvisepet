@@ -16,6 +16,12 @@ const episode = (domain, topic, overrides = {}) => ({
   title: topic, linked_concern_id: null, severity: "important", status: "active", sequence_number: 1, recurrence_of: null,
   started_at: "2026-08-07T10:00:00Z", last_event_at: "2026-08-07T10:00:00Z", resolved_at: null, ...overrides,
 });
+const recoveryAssessment = (status, confidence, message, outcome = status === "terminal" ? "return_to_baseline" : status === "partial" ? "partial_improvement" : status === "uncertain" ? "uncertain" : "none", evidenceConfidence = confidence) => ({
+  status, confidence, evidence: {
+    outcome, surfaceText: outcome === "none" ? null : message,
+    targetConcept: outcome === "none" || outcome === "uncertain" ? null : "vomiting", confidence: evidenceConfidence,
+  },
+});
 
 test("a general safety event opens and a related pronoun follow-up resolves the owned episode", () => {
   const opened = governCanonicalEvents({ proposals: [base()], message: "Luna ran away during our walk", pet, activeEpisodes: [] });
@@ -109,13 +115,123 @@ test("a high-confidence terminal recovery assessment promotes a model improvemen
   });
   const result = governCanonicalEvents({
     proposals: [recovered], message: recovered.sourceExcerpt, pet, activeEpisodes: [active],
-    recoveryAssessment: { status: "terminal", confidence: 0.98 }, allowTerminalResolution: true,
+    recoveryAssessment: recoveryAssessment("terminal", 0.98, recovered.sourceExcerpt), allowTerminalResolution: true,
   });
   assert.equal(result.rejected.length, 0);
   assert.equal(result.accepted[0].event.transition, "resolved");
   assert.equal(result.accepted[0].event.state, "resolved");
   assert.equal(result.accepted[0].event.references.episodeId, active.id);
   assert.equal(result.accepted[0].event.references.concernId, "concern-vomiting");
+});
+
+test("governed structural evidence promotes an under-confident model improvement", () => {
+  const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
+  const message = "Mani seems normal now";
+  const recovered = base({
+    subject: { type: "pet", name: "Luna" }, domain: "health", topic: "vomiting", eventTitle: "Vomiting improved",
+    transition: "improved", state: "monitoring", importance: "important", confidence: 0.88, sourceExcerpt: message,
+  });
+  const result = governCanonicalEvents({
+    proposals: [recovered], message, pet, activeEpisodes: [active],
+    recoveryAssessment: recoveryAssessment("partial", 0.88, message, "return_to_baseline", 0.99), allowTerminalResolution: true,
+    subjectConfidence: 0.99,
+  });
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.accepted[0].event.transition, "resolved");
+  assert.equal(result.accepted[0].event.state, "resolved");
+  assert.equal(result.accepted[0].event.eventTitle, "Vomiting resolved");
+  assert.equal(result.accepted[0].event.confidence, 0.928);
+  assert.equal(result.accepted[0].recoveryGovernance.promoted, true);
+  assert.deepEqual(result.accepted[0].recoveryGovernance.reasons, ["RECOVERY_PROMOTED"]);
+});
+
+test("terminal, partial, and uncertain recovery language follows one structural policy", () => {
+  const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
+  for (const message of [
+    "Mani seems normal now",
+    "she's back to normal",
+    "the vomiting stopped and she's acting like herself",
+    "he is fine now",
+  ]) {
+    const proposal = base({
+      domain: "health", topic: "vomiting", eventTitle: "Vomiting improved", transition: "improved", state: "monitoring",
+      importance: "important", confidence: 0.88, sourceExcerpt: message,
+    });
+    const result = governCanonicalEvents({
+      proposals: [proposal], message, pet, activeEpisodes: [active], allowTerminalResolution: true,
+      recoveryAssessment: recoveryAssessment("terminal", 0.9, message, "return_to_baseline", 0.99),
+    });
+    assert.equal(result.accepted[0].event.transition, "resolved", message);
+    assert.equal(result.accepted[0].event.state, "resolved", message);
+  }
+
+  for (const message of ["a little better", "vomiting less", "still tired but improving", "better but not normal yet"]) {
+    const proposal = base({
+      domain: "health", topic: "vomiting", eventTitle: "Vomiting improved", transition: "improved", state: "monitoring",
+      importance: "important", confidence: 0.96, sourceExcerpt: message,
+    });
+    const result = governCanonicalEvents({
+      proposals: [proposal], message, pet, activeEpisodes: [active], allowTerminalResolution: true,
+      recoveryAssessment: recoveryAssessment("partial", 0.98, message, "partial_improvement", 0.99),
+    });
+    assert.equal(result.accepted[0].event.transition, "improved", message);
+    assert.equal(result.accepted[0].event.state, "monitoring", message);
+  }
+
+  for (const message of ["I think maybe she's okay", "seems somewhat better"]) {
+    const proposal = base({
+      domain: "health", topic: "vomiting", eventTitle: "Vomiting improved", transition: "improved", state: "monitoring",
+      importance: "important", confidence: 0.88, sourceExcerpt: message,
+    });
+    const result = governCanonicalEvents({
+      proposals: [proposal], message, pet, activeEpisodes: [active], allowTerminalResolution: true,
+      recoveryAssessment: recoveryAssessment("uncertain", 0.8, message),
+    });
+    assert.equal(result.accepted[0].event.transition, "improved", message);
+    assert.equal(result.accepted[0].event.state, "monitoring", message);
+  }
+});
+
+test("terminal promotion rejects ambiguity, contradictions, unsafe evidence, and unsupported excerpts", () => {
+  const active = episode("health", "vomiting", { status: "active" });
+  const message = "Luna is back to normal";
+  const recovered = base({
+    domain: "health", topic: "vomiting", transition: "improved", state: "monitoring",
+    importance: "important", confidence: 0.9, sourceExcerpt: message,
+  });
+  const common = {
+    message, pet, recoveryAssessment: recoveryAssessment("terminal", 0.99, message), allowTerminalResolution: true,
+  };
+
+  const ambiguous = governCanonicalEvents({ proposals: [recovered], activeEpisodes: [active, { ...active, id: "other-vomiting" }], ...common });
+  assert.equal(ambiguous.accepted.length, 0);
+  assert.equal(ambiguous.rejected[0].reason, "ambiguous_episode");
+  assert.ok(ambiguous.recoveryAssessments[0].reasons.includes("RECOVERY_EPISODE_AMBIGUOUS"));
+
+  const continued = base({
+    domain: "health", topic: "vomiting", transition: "continued", state: "active", importance: "important",
+    confidence: 0.99, sourceExcerpt: message,
+  });
+  const contradicted = governCanonicalEvents({ proposals: [recovered, continued], activeEpisodes: [active], ...common });
+  assert.equal(contradicted.accepted[0].event.transition, "improved");
+  assert.ok(contradicted.accepted[0].recoveryGovernance.reasons.includes("RECOVERY_CONTRADICTED"));
+
+  const unsafe = governCanonicalEvents({ proposals: [recovered], activeEpisodes: [active], ...common, allowTerminalResolution: false });
+  assert.equal(unsafe.accepted[0].event.transition, "improved");
+  assert.ok(unsafe.accepted[0].recoveryGovernance.reasons.includes("RECOVERY_CURRENT_SAFETY_BLOCKED"));
+
+  const wrongTarget = governCanonicalEvents({
+    proposals: [recovered], activeEpisodes: [active], ...common,
+    recoveryAssessment: { ...common.recoveryAssessment, evidence: { ...common.recoveryAssessment.evidence, targetConcept: "itching" } },
+  });
+  assert.equal(wrongTarget.accepted[0].event.transition, "improved");
+  assert.ok(wrongTarget.accepted[0].recoveryGovernance.reasons.includes("RECOVERY_TERMINAL_SEMANTICS_MISSING"));
+
+  const unsupported = governCanonicalEvents({
+    proposals: [{ ...recovered, sourceExcerpt: "a different report" }], activeEpisodes: [active], ...common,
+  });
+  assert.equal(unsupported.accepted.length, 0);
+  assert.ok(unsupported.recoveryAssessments[0].reasons.includes("RECOVERY_EVIDENCE_UNGROUNDED"));
 });
 
 test("partial, uncertain, low-confidence, and unsafe recovery assessments remain non-terminal", () => {
@@ -150,7 +266,7 @@ test("terminal recovery promotion still fails closed without a compatible owned 
   });
   const result = governCanonicalEvents({
     proposals: [recovered], message: recovered.sourceExcerpt, pet, activeEpisodes: [episode("behavior", "reactivity")],
-    recoveryAssessment: { status: "terminal", confidence: 0.99 }, allowTerminalResolution: true,
+    recoveryAssessment: recoveryAssessment("terminal", 0.99, recovered.sourceExcerpt), allowTerminalResolution: true,
   });
   assert.equal(result.accepted.length, 0);
   assert.equal(result.rejected[0].reason, "no_compatible_active_episode");

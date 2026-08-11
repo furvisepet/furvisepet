@@ -38,7 +38,7 @@ function resolve(message, frame, pets = [luna, mani], recentConversation = []) {
 
 test("explicit unique names select an owned per-turn subject independently of the selected pet", () => {
   const maniResult = resolve("Mani is vomiting", subjectFrame("Mani is vomiting", "Mani", {}, "vomiting"));
-  assert.deepEqual(maniResult, { status: "resolved", petId: mani.id, reasonCode: null, requiresClarification: false, explicitSubject: true });
+  assert.deepEqual(maniResult, { status: "resolved", petId: mani.id, reasonCode: null, requiresClarification: false, explicitSubject: true, confidence: 0.99 });
 
   const lunaResult = resolveAuthoritativeTurnSubject({
     frame: subjectFrame("Luna is limping", "Luna", {}, "limping"), message: "Luna is limping", ownerId: "owner-1",
@@ -74,7 +74,7 @@ test("pronouns require discourse evidence and do not invent another pet", () => 
 test("casual conversation keeps selected pet as context without creating an alternate binding", () => {
   const frame = { ...subjectFrame("good morning", "good", {}, "greeting"), mentions: [], claims: [] };
   const result = resolve("good morning", frame);
-  assert.deepEqual(result, { status: "contextual", petId: luna.id, reasonCode: null, requiresClarification: false, explicitSubject: false });
+  assert.deepEqual(result, { status: "contextual", petId: luna.id, reasonCode: null, requiresClarification: false, explicitSubject: false, confidence: 0.84 });
 });
 
 test("cross-user collisions and deleted pets are never candidates", () => {

@@ -351,6 +351,7 @@ export async function POST(request: Request) {
             requestId,
             sourceMessageId: preparedRequest.userMessageId,
             onProviderEvent,
+            subjectConfidence: subjectResolution.confidence,
           });
           logValidatedIntelligence(intelligenceResult, requestId);
           return intelligenceResult.reasoning;

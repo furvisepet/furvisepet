@@ -12,6 +12,7 @@ export type AuthoritativeTurnSubjectResolution = {
   reasonCode: SemanticReasonCode | null;
   requiresClarification: boolean;
   explicitSubject: boolean;
+  confidence: number;
 };
 
 export function resolveAuthoritativeTurnSubject({
@@ -44,6 +45,7 @@ export function resolveAuthoritativeTurnSubject({
   if (!subjectRefs.length) return contextual(selectedPetId);
 
   const petIds = new Set<string>();
+  const bindingConfidences: number[] = [];
   let failure: ShadowEntityBinding | null = null;
   for (const ref of subjectRefs) {
     if (evidence.invalidMentionIds.includes(ref)) return failed("unresolved", "EVIDENCE_UNSUPPORTED");
@@ -53,10 +55,14 @@ export function resolveAuthoritativeTurnSubject({
       continue;
     }
     petIds.add(binding.entityId);
+    bindingConfidences.push(binding.confidence);
   }
   if (petIds.size > 1) return failed("ambiguous", "ENTITY_AMBIGUOUS");
   if (petIds.size === 1 && !failure) {
-    return { status: "resolved", petId: [...petIds][0], reasonCode: null, requiresClarification: false, explicitSubject: true };
+    return {
+      status: "resolved", petId: [...petIds][0], reasonCode: null, requiresClarification: false, explicitSubject: true,
+      confidence: Math.min(...bindingConfidences),
+    };
   }
   if (failure?.status === "ambiguous") return failed("ambiguous", failure.reasonCode || "ENTITY_AMBIGUOUS");
   return failed("unresolved", failure?.reasonCode || "ENTITY_NO_MATCH");
@@ -75,9 +81,9 @@ function effectiveBindings(bindings: ShadowEntityBinding[], references: ReturnTy
 }
 
 function contextual(selectedPetId: string): AuthoritativeTurnSubjectResolution {
-  return { status: "contextual", petId: selectedPetId, reasonCode: null, requiresClarification: false, explicitSubject: false };
+  return { status: "contextual", petId: selectedPetId, reasonCode: null, requiresClarification: false, explicitSubject: false, confidence: 0.84 };
 }
 
 function failed(status: "ambiguous" | "unresolved", reasonCode: SemanticReasonCode): AuthoritativeTurnSubjectResolution {
-  return { status, petId: null, reasonCode, requiresClarification: true, explicitSubject: true };
+  return { status, petId: null, reasonCode, requiresClarification: true, explicitSubject: true, confidence: 0 };
 }

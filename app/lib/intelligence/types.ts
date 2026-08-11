@@ -2,6 +2,7 @@ import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow, 
 import type { PetConcern } from "../ai/concern-engine";
 import type { CareEpisode } from "./episodes/types";
 import type { PetCurrentStateRow } from "./pet-state/types";
+import type { EffectiveRecoveryAssessment } from "./recovery-governance";
 
 export type IntelligenceFeature = "ask" | "product_question" | "product_query_interpretation" | "product_explanation" | "safety_followup" | "vet_brief" | "care_plan";
 export type IntelligenceSafetyLevel = "routine" | "monitor" | "urgent" | "emergency" | "recently_resolved";
@@ -37,6 +38,8 @@ export type GovernedCanonicalEvent = {
   destination: SemanticPersistenceDestination;
   /** One semantic event may update chronology and current state in one atomic RPC. */
   destinations: SemanticPersistenceDestination[];
+  /** Present when lifecycle recovery governance evaluated this event. */
+  recoveryGovernance?: EffectiveRecoveryAssessment;
 };
 export type IntelligenceIntent =
   | "question" | "update" | "correction" | "concern_resolution" | "new_symptom"
@@ -56,6 +59,12 @@ export type IntelligenceMessageUnderstanding = {
   /** Whether the current report describes no recovery, partial improvement, or a terminal return to baseline. */
   recoveryStatus: "none" | "partial" | "terminal" | "uncertain";
   recoveryConfidence: number;
+  recoveryEvidence: {
+    outcome: "return_to_baseline" | "symptom_absent" | "problem_ended" | "partial_improvement" | "uncertain" | "none";
+    surfaceText: string | null;
+    targetConcept: string | null;
+    confidence: number;
+  };
   requestedTopic: string | null;
   referencedPet: string | null;
   safetyRelevance: "none" | "possible" | "direct";

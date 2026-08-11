@@ -126,6 +126,7 @@ function inferUnderstanding(raw: Record<string, unknown>) {
     userIsProvidingPreference: false, userIsMakingSmallTalk: false,
     recoveryStatus: hasResolution ? "terminal" as const : "none" as const,
     recoveryConfidence: 1,
+    recoveryEvidence: { outcome: hasResolution ? "problem_ended" as const : "none" as const, surfaceText: null, targetConcept: null, confidence: hasResolution ? 1 : 0 },
     requestedTopic: null, referencedPet: null, safetyRelevance: "none" as const,
     needsClarification: false, canAnswerDirectly: true,
   };

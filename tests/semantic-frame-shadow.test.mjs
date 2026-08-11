@@ -199,6 +199,14 @@ test("shadow trace is privacy-limited, machine-queryable, and compares interpret
     activeEpisodes: [], acceptedCareActions: [], acceptedLearnings: [], acceptedSemanticEvents: [], conversationTurns: [], eligiblePets: pets,
     frame: fixture.frame, message: fixture.message, ownerId: "owner-1", requestId: "trace-stable", selectedPetId: "pet-luna", sourceMessageId: "message-1",
     reasoning: { model: "shadow-test-v1", messageUnderstanding: { needsClarification: false } },
+    recoveryAssessments: [{
+      candidate: true, promoted: true, effectiveConfidence: 0.928, threshold: 0.92, reasons: ["RECOVERY_PROMOTED"],
+      model: { status: "partial", confidence: 0.88, terminalSupport: 0 }, evidence: { grounded: true, score: 1 },
+      subject: { authoritative: true, score: 0.99 }, lifecycle: { compatibleCandidateCount: 1, unique: true, matchScore: 1 },
+      terminalSemantics: {
+        grounded: true, score: 0.99, source: "recovery_evidence", outcome: "return_to_baseline", targetMatched: true,
+      }, contradiction: { absent: true }, safety: { allowed: true },
+    }],
   });
   assert.equal(analysis.trace.traceId, "trace-stable");
   assert.deepEqual(analysis.trace.claimKinds, ["event"]);
@@ -208,6 +216,13 @@ test("shadow trace is privacy-limited, machine-queryable, and compares interpret
   assert.equal(analysis.trace.evidenceGrounding.grounded, 2);
   assert.equal(typeof analysis.trace.comparison.subjectDisagreement, "boolean");
   assert.equal(analysis.trace.persistence.status, "not_attempted");
+  assert.deepEqual(analysis.trace.recoveryGovernance[0], {
+    promoted: true, effectiveConfidence: 0.928, threshold: 0.92, reasons: ["RECOVERY_PROMOTED"],
+    modelStatus: "partial", modelConfidence: 0.88, evidenceGrounded: true, authoritativeSubject: true,
+    subjectConfidence: 0.99, compatibleEpisodeCount: 1, lifecycleMatchScore: 1, terminalSemanticsScore: 0.99,
+    terminalSemanticsSource: "recovery_evidence", terminalSemanticsOutcome: "return_to_baseline", terminalTargetMatched: true,
+    contradictionAbsent: true, safetyAllowed: true,
+  });
 });
 
 test("frames cannot contain database IDs and unsupported evidence is rejected by shadow governance", () => {
