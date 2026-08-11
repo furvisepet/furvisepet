@@ -6,7 +6,7 @@ import { isAiMemoryExtractionEnabled } from "../ai/usage-guard/config.ts";
 import { buildRecentAskUpdates } from "../ask-safety-context";
 import { classifyMessageDeterministically } from "./classify-message";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "./memory-policy";
-import { applySafetyFloor, resolveSafetyState } from "./safety-state";
+import { allowsAcceptedRecoverySafetyReconciliation, applySafetyFloor, resolveSafetyState } from "./safety-state";
 import type { FurviseLiveContext } from "./types";
 import { calculateMemoryFreshness } from "./memory-freshness/calculate-memory-freshness.ts";
 import { authorizeProposedActions, type GovernanceResult } from "./governance/index.ts";
@@ -85,11 +85,13 @@ export async function runFurviseIntelligence({
     safetyLevel: reasoning.intelligenceSafety.level,
     activeConcernIds: safety.activeConcernIds,
   });
-  const modelGroundedResolution = reasoning.intelligenceSafety.level === "recently_resolved"
+  const modelGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
+    && reasoning.intelligenceSafety.level === "recently_resolved"
     && !["worsening", "recurrence", "still_active"].includes(safety.concernMessageState)
     && proposedResolutionPolicy.accepted.some((action) => action.action === "resolve_concern");
-  const semanticGroundedResolution = semanticGovernance.accepted.some(({ event }) =>
-    event.transition === "resolved" && event.state === "resolved" && Boolean(event.references.episodeId)) && context.activeConcerns.length === 0;
+  const semanticGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
+    && semanticGovernance.accepted.some(({ event }) =>
+      event.transition === "resolved" && event.state === "resolved" && Boolean(event.references.episodeId));
   reasoning.intelligenceSafety.level = modelGroundedResolution || semanticGroundedResolution
     ? "recently_resolved"
     : applySafetyFloor(reasoning.intelligenceSafety.level, safety);

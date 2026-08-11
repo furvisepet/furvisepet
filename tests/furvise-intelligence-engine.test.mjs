@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { selectRelevantCareEntries } from "../app/lib/intelligence/build-context.ts";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
-import { resolveSafetyState } from "../app/lib/intelligence/safety-state.ts";
+import { allowsAcceptedRecoverySafetyReconciliation, resolveSafetyState } from "../app/lib/intelligence/safety-state.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const route = read("app/api/ask/route.ts");
@@ -77,6 +77,14 @@ test("relevance selection favors current safety evidence and topic matches", () 
 test("clear owner-reported improvement becomes recently resolved while vague improvement does not", () => {
   assert.equal(resolveSafetyState(context("Her breathing is back to normal after resting.", { activeConcerns: [concern()] })).level, "recently_resolved");
   assert.equal(resolveSafetyState(context("Maybe a little better.", { activeConcerns: [concern()] })).level, "urgent");
+});
+
+test("accepted recovery may reconcile stale prior urgency but never current-turn danger evidence", () => {
+  const stalePriorUrgency = resolveSafetyState(context("Mani seems normal now", { activeConcerns: [concern()] }));
+  const currentEmergency = resolveSafetyState(context("Mani seems normal now but cannot breathe", { activeConcerns: [concern()] }));
+  assert.equal(stalePriorUrgency.level, "urgent");
+  assert.equal(allowsAcceptedRecoverySafetyReconciliation(stalePriorUrgency), true);
+  assert.equal(allowsAcceptedRecoverySafetyReconciliation(currentEmergency), false);
 });
 
 test("resolved concern history does not dominate an unrelated future question", () => {

@@ -6,7 +6,7 @@ import { validateGeneratedAnswer } from "../app/lib/intelligence/validation/vali
 
 const care = (overrides = {}) => ({ action: "resolve_concern", category: "symptom", title: "Breathing returned to normal", details: "Owner reports Mani breathing is normal", severity: "routine", confidence: 0.99, relatedRecordId: "c", ...overrides });
 const memory = (overrides = {}) => ({ subjectType: "pet", subjectId: "pet", category: "preference", factKey: "grooming", factValue: "brush", confidence: 0.95, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "likes the brush", ...overrides });
-const reasoning = (summary) => ({ answer: { title: "Answer", summary, sections: [], safetyNote: null }, userIntent: "question", relevantContextIds: [], referencedRecords: [], safetyLevel: "normal", shoppingSuppressed: false, suggestedFollowUps: [], proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null }, responseMode: "conversational", model: "test", messageUnderstanding: {}, intelligenceSafety: { level: "routine", reason: "", requiresImmediateAction: false, shoppingSuppressed: false }, learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: "high", usedPetContext: true, usedCareHistory: true, usedMemories: false } });
+const reasoning = (summary, overrides = {}) => ({ answer: { title: "Answer", summary, sections: [], safetyNote: null }, userIntent: "question", relevantContextIds: [], referencedRecords: [], safetyLevel: "normal", shoppingSuppressed: false, suggestedFollowUps: [], proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null }, responseMode: "conversational", model: "test", messageUnderstanding: {}, intelligenceSafety: { level: "routine", reason: "", requiresImmediateAction: false, shoppingSuppressed: false }, learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: "high", usedPetContext: true, usedCareHistory: true, usedMemories: false }, ...overrides });
 const context = (message, memories = []) => ({ currentMessage: message, pet: { id: "pet", name: "Mani" }, memories, careEntries: [], currentState: { state: { breathing: { status: "normal" } } } });
 
 test("model proposal alone cannot write and explicit care evidence is accepted only by governance", () => {
@@ -34,6 +34,29 @@ test("unknown pronouns are neutralized and known pronouns are preserved", () => 
 });
 test("resolved breathing history does not dominate grooming", () => assert.doesNotMatch(validateGeneratedAnswer(reasoning("Mani's breathing was a concern. Brush gently."), context("What grooming brush?"), "routine").response.answer.summary, /breathing/i));
 test("current urgent state forces urgent safety handling", () => assert.equal(validateGeneratedAnswer(reasoning("Call a vet now."), context("cannot breathe"), "urgent").response.safetyLevel, "urgent"));
+test("governed recovery removes only stale unconditional escalation and retains return precautions", () => {
+  const result = validateGeneratedAnswer(reasoning(
+    "Contact an emergency veterinarian now. That's a good sign. If symptoms return, seek urgent care.",
+    {
+      answer: { title: "Urgent guidance for Mani", summary: "Contact an emergency veterinarian now. That's a good sign. If symptoms return, seek urgent care.", sections: [], safetyNote: null },
+      safetyLevel: "urgent",
+      shoppingSuppressed: true,
+      responseMode: "urgent_safety",
+      intelligenceSafety: { level: "recently_resolved", reason: "", requiresImmediateAction: true, shoppingSuppressed: true },
+    },
+  ), context("Mani seems normal now"), "recently_resolved");
+  assert.equal(result.response.answer.summary, "That's a good sign. If symptoms return, seek urgent care.");
+  assert.equal(result.response.answer.title, "It sounds like Mani is improving");
+  assert.equal(result.response.safetyLevel, "monitor");
+  assert.equal(result.response.responseMode, "practical_guidance");
+  assert.equal(result.response.intelligenceSafety.requiresImmediateAction, false);
+  assert.ok(result.repairs.includes("removed_stale_emergency_directive"));
+});
+test("emergency safety floors retain unconditional immediate escalation", () => {
+  const result = validateGeneratedAnswer(reasoning("Contact an emergency veterinarian now. Keep Mani still."), context("Mani cannot breathe"), "emergency");
+  assert.match(result.response.answer.summary, /^Contact an emergency veterinarian now\./);
+  assert.equal(result.response.safetyLevel, "urgent");
+});
 test("unrecoverable empty answer fails validation and route releases credit", () => {
   assert.equal(validateGeneratedAnswer(reasoning("I saved that."), context("save"), "routine").valid, false);
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
