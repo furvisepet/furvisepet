@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   let verifiedSourceIds: string[] = [];
   if (requestedSourceIds.length) {
     const [care, concerns, legacyMemories, memories] = await Promise.all([
-      context.supabase.from("pet_care_entries").select("id").eq("pet_profile_id", petId).eq("user_id", context.userId).in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
+      context.supabase.from("pet_care_entries").select("id").eq("pet_profile_id", petId).eq("user_id", context.userId).is("deleted_at", null).in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
       context.supabase.from("pet_concerns").select("id").eq("pet_profile_id", petId).eq("user_id", context.userId).in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
       context.supabase.from("dog_memories").select("id").eq("dog_profile_id", petId).eq("user_id", context.userId).eq("status", "active").in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
       context.supabase.from("furvise_memories").select("id").eq("user_id", context.userId).eq("status", "active").or(`pet_id.eq.${petId},pet_id.is.null`).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`).in("id", requestedSourceIds).returns<Array<{ id: string }>>(),

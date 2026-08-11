@@ -6,7 +6,7 @@ import { isAiMemoryExtractionEnabled } from "../ai/usage-guard/config.ts";
 import { buildRecentAskUpdates } from "../ask-safety-context";
 import { classifyMessageDeterministically } from "./classify-message";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "./memory-policy";
-import { allowsAcceptedRecoverySafetyReconciliation, applySafetyFloor, resolveSafetyState } from "./safety-state";
+import { allowsAcceptedRecoverySafetyReconciliation, allowsProposedRecoveryPresentation, applySafetyFloor, resolveSafetyState } from "./safety-state";
 import type { FurviseLiveContext } from "./types";
 import { calculateMemoryFreshness } from "./memory-freshness/calculate-memory-freshness.ts";
 import { authorizeProposedActions, type GovernanceResult } from "./governance/index.ts";
@@ -92,6 +92,14 @@ export async function runFurviseIntelligence({
   const semanticGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
     && semanticGovernance.accepted.some(({ event }) =>
       event.transition === "resolved" && event.state === "resolved" && Boolean(event.references.episodeId));
+  const proposedRecoveryPresentation = allowsProposedRecoveryPresentation({
+    activeConcernIds: safety.activeConcernIds,
+    confidence: reasoning.intelligenceMetadata.confidence,
+    resolvesConcernId: reasoning.proposedHistoryUpdate.resolvesConcernId,
+    safety,
+    shouldOffer: reasoning.proposedHistoryUpdate.shouldOffer,
+    userIsResolvingConcern: reasoning.messageUnderstanding.userIsResolvingConcern,
+  });
   reasoning.intelligenceSafety.level = modelGroundedResolution || semanticGroundedResolution
     ? "recently_resolved"
     : applySafetyFloor(reasoning.intelligenceSafety.level, safety);
@@ -126,6 +134,8 @@ export async function runFurviseIntelligence({
   });
   const acceptedCareActions = routedPersistence.careActions;
   const acceptedLearnings = routedPersistence.learnings;
+  // Presentation-only reconciliation happens after persistence governance and routing.
+  if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
   const answerValidation = validateGeneratedAnswer(reasoning, context, reasoning.intelligenceSafety.level);
   if (!answerValidation.valid) throw new Error(`FURVISE_ANSWER_VALIDATION_FAILED:${answerValidation.errors.join(",")}`);
   Object.assign(reasoning, answerValidation.response);

@@ -140,6 +140,9 @@ export type CareEntryRow = {
   state_action_type?: string | null;
   care_event_metadata?: Record<string, unknown> | null;
   episode_id?: string | null;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
+  deletion_reason?: string | null;
 };
 
 export type CareEntryWithPetName = CareEntryRow & {
@@ -435,6 +438,7 @@ export async function listCareEntriesForPet(
     .select()
     .eq("pet_profile_id", petProfileId)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("occurred_at", { ascending: false })
     .returns<CareEntryRow[]>();
 
@@ -468,6 +472,7 @@ export async function listRecentCareEntries(limit: number, deps: CareLogHelperDe
     .from("pet_care_entries")
     .select()
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("occurred_at", { ascending: false })
     .limit(limit)
     .returns<CareEntryRow[]>();
@@ -546,6 +551,7 @@ export async function createCareEntryUnlessDuplicate(
     .select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at")
     .eq("pet_profile_id", input.petProfileId)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .gte("created_at", cutoff)
     .order("created_at", { ascending: false })
     .limit(50)
@@ -594,6 +600,7 @@ export async function updateCareEntry(
     .update(payload)
     .eq("id", entryId)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .select()
     .single<CareEntryRow>();
 
@@ -616,19 +623,20 @@ export async function deleteCareEntry(entryId: string, deps: CareLogHelperDeps =
   const user = await requireCurrentUser(deps.getCurrentUser);
   const { data: existing, error: existingError } = await supabase
     .from("pet_care_entries")
-    .select("id")
+    .select("id,deleted_at")
     .eq("id", entryId)
     .eq("user_id", user.id)
-    .maybeSingle<{ id: string }>();
+    .maybeSingle<{ id: string; deleted_at: string | null }>();
 
   if (existingError) throw normalizeCareDatabaseError(existingError, "care entry");
   if (!existing) {
     throw new Error("Furvise could not find that care entry for your account.");
   }
 
+  if (existing.deleted_at) return;
   const { error } = await supabase
     .from("pet_care_entries")
-    .delete()
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id, deletion_reason: "user_removed", updated_at: new Date().toISOString() })
     .eq("id", entryId)
     .eq("user_id", user.id);
 

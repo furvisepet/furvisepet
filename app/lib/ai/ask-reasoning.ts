@@ -911,7 +911,7 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
     const semanticTopic = typeof episode.summary?.semanticTopic === "string" ? episode.summary.semanticTopic : episode.normalized_key;
     records.push({
       ...baseRecord(`episode:${episode.id}`, resolved ? "resolved_episode" : "active_episode", profile, semanticTopic, episode.title || semanticTopic.replace(/_/g, " "), episode.last_event_at),
-      occurredAt: episode.started_at,
+      occurredAt: episode.started_at || episode.last_event_at,
       status: resolved ? "resolved" : "active",
       priority: episode.severity === "urgent" ? "urgent" : episode.severity === "important" ? "important" : "routine",
       metadata: { episodeType: episode.episode_type, normalizedTopic: semanticTopic, canonicalEpisodeKey: episode.normalized_key, status: episode.status },

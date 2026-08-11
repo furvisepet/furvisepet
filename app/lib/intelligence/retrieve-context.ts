@@ -50,7 +50,7 @@ export async function buildFurviseContext({
   const profileQuery = supabase.from("dog_profiles").select("*").eq("id", petId).eq("user_id", userId).maybeSingle<DogProfileRow>();
   const eligiblePetsQuery = supabase.from("dog_profiles").select("id,name,species,age_value,age_unit").eq("user_id", userId)
     .returns<Array<Pick<DogProfileRow, "id" | "name" | "species" | "age_value" | "age_unit">>>();
-  let careQuery = supabase.from("pet_care_entries").select("*").eq("pet_profile_id", petId).eq("user_id", userId);
+  let careQuery = supabase.from("pet_care_entries").select("*").eq("pet_profile_id", petId).eq("user_id", userId).is("deleted_at", null);
   if (dateRange) careQuery = careQuery.gte("occurred_at", `${dateRange.from}T00:00:00.000Z`).lte("occurred_at", `${dateRange.to}T23:59:59.999Z`);
   const boundedCareQuery = careQuery.order("occurred_at", { ascending: false }).order("created_at", { ascending: false })
     .limit(mode.contextPolicy.careEntryLimit).returns<CareEntryRow[]>();

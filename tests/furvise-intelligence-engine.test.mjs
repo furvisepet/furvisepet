@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { selectRelevantCareEntries } from "../app/lib/intelligence/build-context.ts";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
-import { allowsAcceptedRecoverySafetyReconciliation, resolveSafetyState } from "../app/lib/intelligence/safety-state.ts";
+import { allowsAcceptedRecoverySafetyReconciliation, allowsProposedRecoveryPresentation, resolveSafetyState } from "../app/lib/intelligence/safety-state.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const route = read("app/api/ask/route.ts");
@@ -85,6 +85,22 @@ test("accepted recovery may reconcile stale prior urgency but never current-turn
   assert.equal(stalePriorUrgency.level, "urgent");
   assert.equal(allowsAcceptedRecoverySafetyReconciliation(stalePriorUrgency), true);
   assert.equal(allowsAcceptedRecoverySafetyReconciliation(currentEmergency), false);
+});
+
+test("a high-confidence owned-concern recovery proposal affects presentation only when current danger is absent", () => {
+  const stalePriorUrgency = resolveSafetyState(context("Mani seems normal now", { activeConcerns: [concern()] }));
+  const currentEmergency = resolveSafetyState(context("Mani seems normal now but cannot breathe", { activeConcerns: [concern()] }));
+  const proposal = {
+    activeConcernIds: stalePriorUrgency.activeConcernIds,
+    confidence: "high",
+    resolvesConcernId: "concern-1",
+    shouldOffer: true,
+    userIsResolvingConcern: true,
+  };
+  assert.equal(allowsProposedRecoveryPresentation({ ...proposal, safety: stalePriorUrgency }), true);
+  assert.equal(allowsProposedRecoveryPresentation({ ...proposal, safety: currentEmergency }), false);
+  assert.equal(allowsProposedRecoveryPresentation({ ...proposal, resolvesConcernId: "other-concern", safety: stalePriorUrgency }), false);
+  assert.equal(allowsProposedRecoveryPresentation({ ...proposal, confidence: "medium", safety: stalePriorUrgency }), false);
 });
 
 test("resolved concern history does not dominate an unrelated future question", () => {

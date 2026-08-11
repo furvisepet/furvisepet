@@ -55,6 +55,28 @@ export function allowsAcceptedRecoverySafetyReconciliation(safety: ResolvedSafet
     && !["worsening", "recurrence", "still_active"].includes(safety.concernMessageState);
 }
 
+export function allowsProposedRecoveryPresentation({
+  activeConcernIds,
+  confidence,
+  resolvesConcernId,
+  safety,
+  shouldOffer,
+  userIsResolvingConcern,
+}: {
+  activeConcernIds: string[];
+  confidence: "low" | "medium" | "high";
+  resolvesConcernId: string | null;
+  safety: ResolvedSafetyState;
+  shouldOffer: boolean;
+  userIsResolvingConcern: boolean;
+}) {
+  return confidence === "high"
+    && shouldOffer
+    && userIsResolvingConcern
+    && Boolean(resolvesConcernId && activeConcernIds.includes(resolvesConcernId))
+    && allowsAcceptedRecoverySafetyReconciliation(safety);
+}
+
 export function applySafetyFloor(modelLevel: IntelligenceSafetyLevel, deterministic: ResolvedSafetyState) {
   const rank: Record<IntelligenceSafetyLevel, number> = { routine: 0, recently_resolved: 1, monitor: 2, urgent: 3, emergency: 4 };
   return rank[modelLevel] < rank[deterministic.level] ? deterministic.level : modelLevel;

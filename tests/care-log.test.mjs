@@ -86,6 +86,11 @@ function createFakeSupabase({ dogProfiles = [], petCareEntries = [] }) {
       return this;
     }
 
+    is(field, value) {
+      this.filters.push({ field, kind: "is", value });
+      return this;
+    }
+
     order(field, options = {}) {
       this.orderField = field;
       this.orderAscending = Boolean(options.ascending);
@@ -126,6 +131,7 @@ function createFakeSupabase({ dogProfiles = [], petCareEntries = [] }) {
       const filtered = rows.filter((row) =>
         this.filters.every((filter) => {
           if (filter.kind === "eq") return row[filter.field] === filter.value;
+          if (filter.kind === "is") return (row[filter.field] ?? null) === filter.value;
           if (filter.kind === "gte") return new Date(row[filter.field]).getTime() >= new Date(filter.value).getTime();
           return filter.values.includes(row[filter.field]);
         }),
@@ -150,6 +156,7 @@ function createFakeSupabase({ dogProfiles = [], petCareEntries = [] }) {
         store[this.table] = store[this.table].map((row) => {
           const matches = this.filters.every((filter) => {
             if (filter.kind === "eq") return row[filter.field] === filter.value;
+            if (filter.kind === "is") return (row[filter.field] ?? null) === filter.value;
             if (filter.kind === "gte") return new Date(row[filter.field]).getTime() >= new Date(filter.value).getTime();
             return filter.values.includes(row[filter.field]);
           });
@@ -514,7 +521,7 @@ test("updateCareEntry edits the stored row", async () => {
   assert.equal(client.store.pet_care_entries[0].note, "Updated note");
 });
 
-test("deleteCareEntry removes the user's row and rejects others", async () => {
+test("deleteCareEntry tombstones the user's row, hides it, and rejects others", async () => {
   const { client, deps } = createDeps("user-1", {
     dogProfiles: [{ id: "pet-1", user_id: "user-1", name: "Milo" }],
     petCareEntries: [
@@ -546,7 +553,11 @@ test("deleteCareEntry removes the user's row and rejects others", async () => {
   });
 
   await deleteCareEntry("entry-1", deps);
-  assert.equal(client.store.pet_care_entries.length, 1);
+  assert.equal(client.store.pet_care_entries.length, 2);
+  assert.equal(client.store.pet_care_entries[0].deleted_by, "user-1");
+  assert.equal(client.store.pet_care_entries[0].deletion_reason, "user_removed");
+  assert.ok(client.store.pet_care_entries[0].deleted_at);
+  assert.deepEqual(await listCareEntriesForPet("pet-1", deps), []);
   await assert.rejects(() => deleteCareEntry("entry-2", deps), /could not find that care entry/i);
 });
 
