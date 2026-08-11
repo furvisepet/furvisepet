@@ -40,7 +40,8 @@ function understanding(overrides = {}) {
     primaryIntent: "update", secondaryIntents: [], userIsAskingQuestion: false,
     userIsProvidingUpdate: true, userIsCorrectingPriorInformation: false,
     userIsResolvingConcern: false, userIsProvidingPreference: false,
-    userIsMakingSmallTalk: false, recoveryStatus: "none", recoveryConfidence: 1, requestedTopic: "care", referencedPet: "Mani",
+    userIsMakingSmallTalk: false, recoveryStatus: "none", recoveryConfidence: 1,
+    recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 }, requestedTopic: "care", referencedPet: "Mani",
     safetyRelevance: "none", needsClarification: false, canAnswerDirectly: true, ...overrides,
   };
 }

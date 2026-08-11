@@ -1,9 +1,14 @@
 import type { CareEpisode } from "./episodes/types.ts";
 import type { CanonicalEvent, CanonicalEventProposal, GovernedCanonicalEvent, IntelligenceLearning, SemanticPersistenceDestination } from "./types.ts";
 import { routeSemanticEventDestinations } from "./persistence-destination.ts";
+import { deriveEffectiveRecoveryAssessment, EFFECTIVE_RECOVERY_RESOLUTION_THRESHOLD, type EffectiveRecoveryAssessment } from "./recovery-governance.ts";
 
 export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode";
-export type SemanticEventGovernance = { accepted: GovernedCanonicalEvent[]; rejected: Array<{ proposal: CanonicalEventProposal; reason: SemanticEventRejectionReason }> };
+export type SemanticEventGovernance = {
+  accepted: GovernedCanonicalEvent[];
+  rejected: Array<{ proposal: CanonicalEventProposal; reason: SemanticEventRejectionReason }>;
+  recoveryAssessments: EffectiveRecoveryAssessment[];
+};
 
 const MUTATING = new Set(["resolved", "corrected"]);
 const NEEDS_ACTIVE = new Set(["continued", "improved", "worsened", "resolved"]);
@@ -41,25 +46,46 @@ export function governCanonicalEvents(input: {
   /** @deprecated Test/backward-compatible alias. Production callers must pass resolvedPetSubject. */
   pet?: { id: string; name: string | null };
   activeEpisodes: CareEpisode[];
-  recoveryAssessment?: { status: "none" | "partial" | "terminal" | "uncertain"; confidence: number };
+  recoveryAssessment?: {
+    status: "none" | "partial" | "terminal" | "uncertain";
+    confidence: number;
+    evidence?: {
+      outcome: "return_to_baseline" | "symptom_absent" | "problem_ended" | "partial_improvement" | "uncertain" | "none";
+      surfaceText: string | null;
+      targetConcept: string | null;
+      confidence: number;
+    };
+  };
   allowTerminalResolution?: boolean;
+  subjectConfidence?: number;
 }): SemanticEventGovernance {
   const resolvedPetSubject = input.resolvedPetSubject || input.pet;
-  if (!resolvedPetSubject) return { accepted: [], rejected: input.proposals.map((proposal) => ({ proposal, reason: "ambiguous_subject" })) };
+  if (!resolvedPetSubject) return { accepted: [], rejected: input.proposals.map((proposal) => ({ proposal, reason: "ambiguous_subject" })), recoveryAssessments: [] };
   const accepted: GovernedCanonicalEvent[] = [];
   const rejected: SemanticEventGovernance["rejected"] = [];
+  const recoveryAssessments: EffectiveRecoveryAssessment[] = [];
   for (const rawProposal of input.proposals.slice(0, 4)) {
-    const proposal = normalizeLifecycleProposal(rawProposal, input.recoveryAssessment, input.allowTerminalResolution === true);
-    const reason = validateProposal(proposal, input.message, resolvedPetSubject);
-    if (reason) { rejected.push({ proposal, reason }); continue; }
-    if (proposal.transition === "resolved" && requiresTerminalRecoveryAssessment(proposal) && input.recoveryAssessment
-      && (input.recoveryAssessment.status !== "terminal" || input.recoveryAssessment.confidence < 0.95 || input.allowTerminalResolution !== true)) {
-      rejected.push({ proposal, reason: "invalid_transition" }); continue;
-    }
-    const proposedTopic = normalizeSemanticTopic(proposal.topic);
-    const compatible = input.activeEpisodes.map((episode) => ({ episode, score: compatibilityScore(proposal.domain, proposedTopic, episode) }))
+    const proposedTopic = normalizeSemanticTopic(rawProposal.topic);
+    const compatible = input.activeEpisodes.map((episode) => ({ episode, score: compatibilityScore(rawProposal.domain, proposedTopic, episode) }))
       .filter((candidate) => candidate.score >= 0.72)
       .sort((left, right) => right.score - left.score || Date.parse(right.episode.last_event_at) - Date.parse(left.episode.last_event_at));
+    const recoveryGovernance = deriveEffectiveRecoveryAssessment({
+      proposal: rawProposal,
+      proposals: input.proposals,
+      message: input.message,
+      modelRecovery: input.recoveryAssessment,
+      subjectConfidence: input.subjectConfidence ?? 1,
+      compatibleEpisodes: compatible,
+      safetyAllowsResolution: input.allowTerminalResolution === true,
+    });
+    if (recoveryGovernance.candidate) recoveryAssessments.push(recoveryGovernance);
+    const proposal = normalizeLifecycleProposal(rawProposal, recoveryGovernance, input.recoveryAssessment);
+    const reason = validateProposal(proposal, input.message, resolvedPetSubject, recoveryGovernance.promoted);
+    if (reason) { rejected.push({ proposal, reason }); continue; }
+    if (proposal.transition === "resolved" && requiresTerminalRecoveryAssessment(proposal) && input.recoveryAssessment
+      && !recoveryGovernance.promoted) {
+      rejected.push({ proposal, reason: "invalid_transition" }); continue;
+    }
     if (NEEDS_ACTIVE.has(proposal.transition) && compatible.length === 0) {
       rejected.push({ proposal, reason: "no_compatible_active_episode" }); continue;
     }
@@ -77,9 +103,9 @@ export function governCanonicalEvents(input: {
       references: { priorEventIds: [], episodeId: episode?.id || null, concernId: episode?.linked_concern_id || null },
     };
     const destinations = routeSemanticEventDestinations(event);
-    accepted.push({ event, destination: primaryDestination(destinations), destinations });
+    accepted.push({ event, destination: primaryDestination(destinations), destinations, ...(recoveryGovernance.candidate ? { recoveryGovernance } : {}) });
   }
-  return { accepted, rejected };
+  return { accepted, rejected, recoveryAssessments };
 }
 
 export function learningFromSemanticEvent(item: GovernedCanonicalEvent): IntelligenceLearning | null {
@@ -100,8 +126,10 @@ export function learningFromSemanticEvent(item: GovernedCanonicalEvent): Intelli
   };
 }
 
-function validateProposal(proposal: CanonicalEventProposal, message: string, pet: { id: string; name: string | null }): SemanticEventRejectionReason | null {
-  const threshold = MUTATING.has(proposal.transition) ? 0.95 : proposal.state === "active" || proposal.state === "resolved" ? 0.9 : 0.85;
+function validateProposal(proposal: CanonicalEventProposal, message: string, pet: { id: string; name: string | null }, governedRecovery = false): SemanticEventRejectionReason | null {
+  const threshold = governedRecovery && proposal.transition === "resolved"
+    ? EFFECTIVE_RECOVERY_RESOLUTION_THRESHOLD
+    : MUTATING.has(proposal.transition) ? 0.95 : proposal.state === "active" || proposal.state === "resolved" ? 0.9 : 0.85;
   if (proposal.confidence < threshold) return "low_confidence";
   if (!evidenceContains(message, proposal.sourceExcerpt)) return "unsupported_evidence";
   if (proposal.subject.type === "unknown" && proposal.state !== "historical") return "ambiguous_subject";
@@ -115,24 +143,31 @@ function validateProposal(proposal: CanonicalEventProposal, message: string, pet
 
 function normalizeLifecycleProposal(
   proposal: CanonicalEventProposal,
+  governedRecovery: EffectiveRecoveryAssessment,
   recoveryAssessment: { status: "none" | "partial" | "terminal" | "uncertain"; confidence: number } | undefined,
-  allowTerminalResolution: boolean,
 ): CanonicalEventProposal {
   // A terminal state is authoritative only when a compatible positive recovery
   // transition supports it. Promotion happens before validation so resolution's
   // stricter confidence floor and active-episode requirements still apply.
+  if (governedRecovery.promoted) {
+    return {
+      ...proposal,
+      transition: "resolved",
+      state: "resolved",
+      confidence: governedRecovery.effectiveConfidence,
+      eventTitle: `${presentationTopic(proposal.topic)} resolved`,
+    };
+  }
   if (proposal.state === "resolved" && proposal.transition === "improved") {
     if (!recoveryAssessment) return { ...proposal, transition: "resolved" };
-    return recoveryAssessment.status === "terminal" && recoveryAssessment.confidence >= 0.95 && allowTerminalResolution
-      ? { ...proposal, transition: "resolved" }
-      : proposal;
-  }
-  if (proposal.transition === "improved" && proposal.state === "monitoring"
-    && recoveryAssessment?.status === "terminal" && recoveryAssessment.confidence >= 0.95
-    && allowTerminalResolution) {
-    return { ...proposal, transition: "resolved", state: "resolved" };
+    return proposal;
   }
   return proposal;
+}
+
+function presentationTopic(topic: string) {
+  const words = normalizeSemanticTopic(topic).split("_").filter(Boolean).join(" ");
+  return words ? `${words.charAt(0).toUpperCase()}${words.slice(1)}` : "Care issue";
 }
 
 function requiresTerminalRecoveryAssessment(proposal: CanonicalEventProposal) {

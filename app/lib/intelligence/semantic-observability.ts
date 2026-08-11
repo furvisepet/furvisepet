@@ -13,6 +13,7 @@ import { validateSemanticFrameEvidence } from "./semantic-frame/validate-evidenc
 import { normalizeConceptLabel } from "./concepts/normalize-concept.ts";
 import { resolveProvisionalConcept, uniqueProposedConcepts, type ShadowConceptResolution } from "./concepts/provisional-concepts.ts";
 import type { SemanticConceptRecord } from "./concepts/retrieve-candidates.ts";
+import type { EffectiveRecoveryAssessment } from "./recovery-governance.ts";
 
 export type SemanticTracePersistence = {
   status: "not_attempted" | "persisted" | "skipped" | "failed";
@@ -71,6 +72,25 @@ export type SemanticTrace = {
   clarification: { production: boolean; shadow: boolean; reasonCodes: SemanticReasonCode[] };
   comparison: SemanticComparisonMetrics;
   persistence: SemanticTracePersistence;
+  recoveryGovernance: Array<{
+    promoted: boolean;
+    effectiveConfidence: number;
+    threshold: number;
+    reasons: EffectiveRecoveryAssessment["reasons"];
+    modelStatus: EffectiveRecoveryAssessment["model"]["status"];
+    modelConfidence: number;
+    evidenceGrounded: boolean;
+    authoritativeSubject: boolean;
+    subjectConfidence: number;
+    compatibleEpisodeCount: number;
+    lifecycleMatchScore: number;
+    terminalSemanticsScore: number;
+    terminalSemanticsSource: EffectiveRecoveryAssessment["terminalSemantics"]["source"];
+    terminalSemanticsOutcome: EffectiveRecoveryAssessment["terminalSemantics"]["outcome"];
+    terminalTargetMatched: boolean;
+    contradictionAbsent: boolean;
+    safetyAllowed: boolean;
+  }>;
   reasonCodes: SemanticReasonCode[];
 };
 
@@ -93,6 +113,7 @@ export function buildShadowSemanticAnalysis(input: {
   requestId: string;
   selectedPetId: string;
   sourceMessageId: string;
+  recoveryAssessments?: EffectiveRecoveryAssessment[];
 }): ShadowSemanticAnalysis {
   const grounding = groundSemanticFrameEvidence(input.frame, input.message);
   const frame = grounding.frame;
@@ -180,6 +201,27 @@ export function buildShadowSemanticAnalysis(input: {
       clarification: { production: input.reasoning.messageUnderstanding.needsClarification, shadow: shadowClarification, reasonCodes: shadowClarificationReasons },
       comparison,
       persistence: { status: "not_attempted", errorCode: null, careEntryCount: 0, memoryCount: 0 },
+      recoveryGovernance: (input.recoveryAssessments || input.acceptedSemanticEvents
+        .map((event) => event.recoveryGovernance).filter((item): item is EffectiveRecoveryAssessment => Boolean(item)))
+        .map((item) => ({
+          promoted: item.promoted,
+          effectiveConfidence: item.effectiveConfidence,
+          threshold: item.threshold,
+          reasons: item.reasons,
+          modelStatus: item.model.status,
+          modelConfidence: item.model.confidence,
+          evidenceGrounded: item.evidence.grounded,
+          authoritativeSubject: item.subject.authoritative,
+          subjectConfidence: item.subject.score,
+          compatibleEpisodeCount: item.lifecycle.compatibleCandidateCount,
+          lifecycleMatchScore: item.lifecycle.matchScore,
+          terminalSemanticsScore: item.terminalSemantics.score,
+          terminalSemanticsSource: item.terminalSemantics.source,
+          terminalSemanticsOutcome: item.terminalSemantics.outcome,
+          terminalTargetMatched: item.terminalSemantics.targetMatched,
+          contradictionAbsent: item.contradiction.absent,
+          safetyAllowed: item.safety.allowed,
+        })),
       reasonCodes: unique([
         ...(frameStatus === "invalid" ? ["SHADOW_FRAME_INVALID" as const] : []),
         ...grounding.failures.map((item) => evidenceReasonCode(item.reason)),

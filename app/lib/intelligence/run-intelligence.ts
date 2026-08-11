@@ -35,11 +35,13 @@ export async function runFurviseIntelligence({
   requestId,
   sourceMessageId,
   onProviderEvent,
+  subjectConfidence = 1,
 }: {
   context: FurviseLiveContext;
   requestId: string;
   sourceMessageId: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
+  subjectConfidence?: number;
 }): Promise<FurviseIntelligenceResult> {
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
@@ -79,8 +81,10 @@ export async function runFurviseIntelligence({
     recoveryAssessment: {
       status: reasoning.messageUnderstanding.recoveryStatus,
       confidence: reasoning.messageUnderstanding.recoveryConfidence,
+      evidence: reasoning.messageUnderstanding.recoveryEvidence,
     },
     allowTerminalResolution: allowsAcceptedRecoverySafetyReconciliation(safety),
+    subjectConfidence,
   });
 
   const proposedResolutionPolicy = evaluateCareActionPolicy({
@@ -156,6 +160,7 @@ export async function runFurviseIntelligence({
     ownerId: context.owner.userId,
     reasoning,
     requestId,
+    recoveryAssessments: semanticGovernance.recoveryAssessments,
     selectedPetId: context.pet.id,
     sourceMessageId,
   });

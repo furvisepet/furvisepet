@@ -19,6 +19,12 @@ export function classifyMessageDeterministically(message: string, hasActiveConce
     userIsMakingSmallTalk: turn.intent === "casual",
     recoveryStatus: turn.concernState === "resolved" ? "terminal" : turn.concernState === "improved" ? "partial" : turn.concernState === "unclear" ? "uncertain" : "none",
     recoveryConfidence: turn.concernState === "resolved" || turn.concernState === "improved" ? 0.99 : turn.concernState === "unclear" ? 0.5 : 1,
+    recoveryEvidence: {
+      outcome: turn.concernState === "resolved" ? "return_to_baseline" : turn.concernState === "improved" ? "partial_improvement" : turn.concernState === "unclear" ? "uncertain" : "none",
+      surfaceText: turn.concernState === "unrelated" ? null : message.trim() || null,
+      targetConcept: null,
+      confidence: turn.concernState === "resolved" || turn.concernState === "improved" ? 0.99 : turn.concernState === "unclear" ? 0.5 : 1,
+    },
     requestedTopic: null,
     referencedPet: null,
     safetyRelevance: turn.immediateEmergency ? "direct" : turn.concernState === "unrelated" ? "none" : "possible",
