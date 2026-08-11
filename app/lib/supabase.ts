@@ -1032,13 +1032,13 @@ async function requireCurrentUser(getter: (() => Promise<User | null>) | undefin
 
 async function authenticatedApiFetch(path: string, init: RequestInit) {
   const token = await getCurrentAccessToken();
-  if (!token) throw new Error("Please sign in again before continuing.");
   const headers = new Headers(init.headers);
-  headers.set("authorization", `Bearer ${token}`);
+  if (token) headers.set("authorization", `Bearer ${token}`);
+  const authenticatedInit = { ...init, credentials: "same-origin" as const, headers };
   const method = (init.method || "GET").toUpperCase();
   return method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE"
-    ? idempotentClientFetch(path, { ...init, headers }, `${method}:${path}`)
-    : fetch(path, { ...init, headers });
+    ? idempotentClientFetch(path, authenticatedInit, `${method}:${path}`)
+    : fetch(path, authenticatedInit);
 }
 
 async function ensurePetOwnership(
