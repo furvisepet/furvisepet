@@ -84,6 +84,41 @@ test("an improvement updates only a compatible active state", () => {
   assert.equal(result.accepted[0].event.state, "monitoring");
 });
 
+test("a terminal recovery is normalized to one valid resolved transition", () => {
+  const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
+  const recovered = base({
+    domain: "health", topic: "vomiting", eventTitle: "Luna seems normal now",
+    transition: "improved", state: "resolved", importance: "important", confidence: 0.98,
+    sourceExcerpt: "Luna seems normal now",
+  });
+  const result = governCanonicalEvents({ proposals: [recovered], message: recovered.sourceExcerpt, pet, activeEpisodes: [active] });
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.accepted[0].event.transition, "resolved");
+  assert.equal(result.accepted[0].event.state, "resolved");
+  assert.equal(result.accepted[0].event.references.episodeId, active.id);
+  assert.equal(result.accepted[0].event.references.concernId, "concern-vomiting");
+});
+
+test("terminal recovery normalization retains resolution confidence and compatibility floors", () => {
+  const active = episode("health", "vomiting", { status: "monitoring" });
+  const lowConfidence = base({
+    domain: "health", topic: "vomiting", transition: "improved", state: "resolved",
+    confidence: 0.94, sourceExcerpt: "Luna seems normal now",
+  });
+  const lowResult = governCanonicalEvents({ proposals: [lowConfidence], message: lowConfidence.sourceExcerpt, pet, activeEpisodes: [active] });
+  assert.equal(lowResult.accepted.length, 0);
+  assert.equal(lowResult.rejected[0].reason, "low_confidence");
+
+  const unrelated = governCanonicalEvents({ proposals: [{ ...lowConfidence, confidence: 0.99 }], message: lowConfidence.sourceExcerpt, pet, activeEpisodes: [episode("behavior", "reactivity")] });
+  assert.equal(unrelated.accepted.length, 0);
+  assert.equal(unrelated.rejected[0].reason, "no_compatible_active_episode");
+
+  const contradictory = { ...lowConfidence, transition: "worsened", confidence: 0.99 };
+  const contradictoryResult = governCanonicalEvents({ proposals: [contradictory], message: contradictory.sourceExcerpt, pet, activeEpisodes: [active] });
+  assert.equal(contradictoryResult.accepted.length, 0);
+  assert.equal(contradictoryResult.rejected[0].reason, "invalid_transition");
+});
+
 test("medication started and stopped use a generic episode lifecycle", () => {
   const start = base({ domain: "medication", topic: "apoquel_course", transition: "started", state: "active", importance: "routine", sourceExcerpt: "I started giving Luna Apoquel" });
   assert.equal(governCanonicalEvents({ proposals: [start], message: start.sourceExcerpt, pet, activeEpisodes: [] }).accepted.length, 1);
