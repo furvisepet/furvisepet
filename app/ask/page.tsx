@@ -692,7 +692,11 @@ async function getAskAuthToken() { const client = getBrowserSupabase(); const { 
 async function suggestionJson(url: string, init: RequestInit = {}) {
   const token = await getAskAuthToken();
   if (!token) throw new SuggestionApplyError("SUGGESTION_FORBIDDEN", "Please sign in again.");
-  const response = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) } });
+  const method = (init.method || "GET").toUpperCase();
+  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) };
+  const response = method === "GET"
+    ? await fetch(url, { ...init, headers })
+    : await idempotentClientFetch(url, { ...init, headers }, `suggestion:${method}:${url}`);
   const payload = await response.json().catch(() => null) as { careEntryId?: string | null; code?: string; concernId?: string | null; error?: string; status?: string; suggestion?: StateSuggestion } | null;
   if (!response.ok) throw new SuggestionApplyError(payload?.code || "SUGGESTION_PERSISTENCE_FAILED", payload?.error || "This improvement could not be saved.");
   return payload || {};
