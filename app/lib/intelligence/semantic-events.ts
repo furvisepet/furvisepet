@@ -46,7 +46,8 @@ export function governCanonicalEvents(input: {
   if (!resolvedPetSubject) return { accepted: [], rejected: input.proposals.map((proposal) => ({ proposal, reason: "ambiguous_subject" })) };
   const accepted: GovernedCanonicalEvent[] = [];
   const rejected: SemanticEventGovernance["rejected"] = [];
-  for (const proposal of input.proposals.slice(0, 4)) {
+  for (const rawProposal of input.proposals.slice(0, 4)) {
+    const proposal = normalizeLifecycleProposal(rawProposal);
     const reason = validateProposal(proposal, input.message, resolvedPetSubject);
     if (reason) { rejected.push({ proposal, reason }); continue; }
     const proposedTopic = normalizeSemanticTopic(proposal.topic);
@@ -100,9 +101,19 @@ function validateProposal(proposal: CanonicalEventProposal, message: string, pet
   if (proposal.subject.type === "unknown" && proposal.state !== "historical") return "ambiguous_subject";
   if (proposal.subject.type === "pet" && proposal.subject.name && pet.name && normalize(proposal.subject.name) !== normalize(pet.name)) return "wrong_pet";
   if (proposal.transition === "resolved" && proposal.state !== "resolved") return "invalid_transition";
+  if (proposal.state === "resolved" && proposal.transition !== "resolved") return "invalid_transition";
   if (["started", "continued", "worsened"].includes(proposal.transition) && proposal.state === "resolved") return "invalid_transition";
   if (proposal.transition === "preference_set" && !["preference", "shopping"].includes(proposal.domain)) return "invalid_transition";
   return null;
+}
+
+function normalizeLifecycleProposal(proposal: CanonicalEventProposal): CanonicalEventProposal {
+  // A terminal state is authoritative only when a compatible positive recovery
+  // transition supports it. Promotion happens before validation so resolution's
+  // stricter confidence floor and active-episode requirements still apply.
+  return proposal.state === "resolved" && proposal.transition === "improved"
+    ? { ...proposal, transition: "resolved" }
+    : proposal;
 }
 
 function primaryDestination(destinations: SemanticPersistenceDestination[]): SemanticPersistenceDestination {
