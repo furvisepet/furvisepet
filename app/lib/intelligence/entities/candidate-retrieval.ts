@@ -16,7 +16,7 @@ export function retrieveEntityCandidates(input: {
   ownerId: string;
   pets: EligibleSemanticPet[];
   recentPetIds: string[];
-  selectedPetId: string;
+  selectedPetId: string | null;
 }): EntityCandidate[] {
   if (input.mention.coarseType === "person" && input.mention.attributes.ownership === "owner") {
     return [{ entityId: input.ownerId, entityType: "owner", score: 0.99, evidence: ["ownership"], speciesConflict: false }];
@@ -39,7 +39,7 @@ export function buildRecentPetIds(pets: EligibleSemanticPet[], conversation: Arr
   return ids;
 }
 
-function scorePet(mention: ProposedEntityMention, pet: EligibleSemanticPet, selectedPetId: string, recentPetIds: string[]): EntityCandidate {
+function scorePet(mention: ProposedEntityMention, pet: EligibleSemanticPet, selectedPetId: string | null, recentPetIds: string[]): EntityCandidate {
   const evidence: EntityCandidate["evidence"] = [];
   const mentionedSpecies = normalize(mention.attributes.species || "");
   const petSpecies = normalize(pet.species || "");
