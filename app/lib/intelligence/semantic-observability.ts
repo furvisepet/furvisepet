@@ -14,6 +14,9 @@ import { normalizeConceptLabel } from "./concepts/normalize-concept.ts";
 import { resolveProvisionalConcept, uniqueProposedConcepts, type ShadowConceptResolution } from "./concepts/provisional-concepts.ts";
 import type { SemanticConceptRecord } from "./concepts/retrieve-candidates.ts";
 import type { EffectiveRecoveryAssessment } from "./recovery-governance.ts";
+import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
+import { observeGovernedSemanticTurnV2, type V2ShadowObservation } from "./v2/observability.ts";
+import type { GovernedSemanticTurn } from "./v2/types.ts";
 
 export type SemanticTracePersistence = {
   status: "not_attempted" | "persisted" | "skipped" | "failed";
@@ -91,6 +94,21 @@ export type SemanticTrace = {
     contradictionAbsent: boolean;
     safetyAllowed: boolean;
   }>;
+  v2: {
+    mode: "shadow_only";
+    status: "governed" | "failed";
+    errorCode: "V2_SHADOW_GOVERNANCE_FAILED" | null;
+    observation: V2ShadowObservation;
+    legacyComparison: {
+      legacyClaimCount: number;
+      v2GovernedClaimCount: number;
+      claimCountDelta: number;
+      subjectBindingAgreement: boolean;
+      conceptIdentityAgreement: boolean;
+      lifecycleRoleAgreement: boolean;
+      persistenceEligibilityAgreement: boolean;
+    };
+  };
   reasonCodes: SemanticReasonCode[];
 };
 
@@ -174,6 +192,38 @@ export function buildShadowSemanticAnalysis(input: {
     conceptDisagreement: !sameSet(productionConcepts, shadowConcepts),
     clarificationDisagreement: input.reasoning.messageUnderstanding.needsClarification !== shadowClarification,
   };
+  // Ask v2 consumes only the full SemanticFrame plus deterministic context. The
+  // legacy arrays below are used after governance solely for aggregate comparison.
+  let v2Status: SemanticTrace["v2"]["status"] = "governed";
+  let v2ErrorCode: SemanticTrace["v2"]["errorCode"] = null;
+  let v2Turn: GovernedSemanticTurn;
+  try {
+    v2Turn = governSemanticTurnV2({
+      frame: input.frame,
+      sourceMessage: input.message,
+      sourceMessageId: input.sourceMessageId,
+      ownerId: input.ownerId,
+      pets: input.eligiblePets,
+      conversationTurns: input.conversationTurns,
+      activeEpisodes: input.activeEpisodes,
+    });
+  } catch {
+    // Phase 1 shadow evaluation must never affect the legacy production answer.
+    v2Status = "failed";
+    v2ErrorCode = "V2_SHADOW_GOVERNANCE_FAILED";
+    v2Turn = {
+      frame: input.frame, sourceMessageId: input.sourceMessageId,
+      frameSchemaVersion: input.frame.schemaVersion, governancePolicyVersion: "ask_v2.governance.shadow.v1",
+      acceptedClaims: [], rejectedClaims: [], relations: [], needsClarification: false,
+      safetyFloor: { level: "routine", reasonCodes: [], policyVersion: "ask_v2.governance.shadow.v1" },
+      mode: "shadow_only",
+    };
+  }
+  const v2Observation = observeGovernedSemanticTurnV2(v2Turn);
+  const legacyLifecycleRoles = input.acceptedSemanticEvents.map((item) => legacyTransitionRole(item.event.transition));
+  const v2LifecycleRoles = v2Turn.acceptedClaims.map((claim) => claim.lifecycleRole).filter((role): role is NonNullable<typeof role> => Boolean(role));
+  const legacyPersistenceEligible = productionDestinations.length > 0;
+  const v2PersistenceEligible = v2Turn.acceptedClaims.some((claim) => claim.persistenceEligible);
 
   return {
     frame,
@@ -222,6 +272,23 @@ export function buildShadowSemanticAnalysis(input: {
           contradictionAbsent: item.contradiction.absent,
           safetyAllowed: item.safety.allowed,
         })),
+      v2: {
+        mode: "shadow_only",
+        status: v2Status,
+        errorCode: v2ErrorCode,
+        observation: v2Observation,
+        legacyComparison: {
+          legacyClaimCount: productionKinds.length,
+          v2GovernedClaimCount: v2Turn.acceptedClaims.length,
+          claimCountDelta: v2Turn.acceptedClaims.length - productionKinds.length,
+          subjectBindingAgreement: sameSet(productionSubjects, v2Turn.acceptedClaims.map((claim) => `${claim.subject.type}:${claim.subject.id}`)),
+          conceptIdentityAgreement: sameSet(productionConcepts, v2Turn.acceptedClaims
+            .map((claim) => claim.canonicalConceptKey)
+            .filter((key): key is string => Boolean(key))),
+          lifecycleRoleAgreement: sameMultiset(legacyLifecycleRoles, v2LifecycleRoles),
+          persistenceEligibilityAgreement: legacyPersistenceEligible === v2PersistenceEligible,
+        },
+      },
       reasonCodes: unique([
         ...(frameStatus === "invalid" ? ["SHADOW_FRAME_INVALID" as const] : []),
         ...grounding.failures.map((item) => evidenceReasonCode(item.reason)),
@@ -418,5 +485,14 @@ function normalizeText(value: string) { return value.normalize("NFKC").toLowerCa
 function lengthBand(length: number) { return length <= 4 ? "SHORT" : length <= 12 ? "MEDIUM" : "LONG"; }
 function sameSet(left: string[], right: string[]) { return left.length === right.length && left.every((item) => right.includes(item)); }
 function sameMultiset(left: string[], right: string[]) { return [...left].sort().join("|") === [...right].sort().join("|"); }
+function legacyTransitionRole(transition: GovernedCanonicalEvent["event"]["transition"]) {
+  if (transition === "started") return "opening";
+  if (transition === "continued") return "continuation";
+  if (transition === "improved") return "improvement";
+  if (transition === "worsened") return "worsening";
+  if (transition === "resolved") return "resolution";
+  if (transition === "corrected") return "correction";
+  return "unknown";
+}
 function unique<T>(items: T[]) { return [...new Set(items)]; }
 function isReasonCode(value: SemanticReasonCode | null): value is SemanticReasonCode { return Boolean(value); }

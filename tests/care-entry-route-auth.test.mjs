@@ -16,11 +16,12 @@ function authClient(user) {
   };
 }
 
-test("authenticated care-entry GET accepts the bearer session and derives the server user", async () => {
+test("authenticated care-entry DELETE accepts the bearer session and derives the server user", async () => {
   let receivedToken = "";
   const result = await resolveAuthenticatedApiContext(
     new Request("https://www.furvise.com/api/care-entries/11111111-1111-4111-8111-111111111111", {
       headers: { Authorization: "Bearer authenticated-get-token" },
+      method: "DELETE",
     }),
     {
       configurationAvailable: true,
@@ -74,16 +75,14 @@ test("unauthenticated care-entry requests are rejected", async () => {
   assert.deepEqual(await result.response.json(), { error: "Authentication required." });
 });
 
-test("care-entry GET and DELETE share authentication and server-owned authorization", () => {
-  const getRoute = routeSource.slice(routeSource.indexOf("export async function GET"), routeSource.indexOf("export async function PATCH"));
+test("care-entry DELETE is the sole deletion contract and keeps server-owned authorization", () => {
   const deleteRoute = routeSource.slice(routeSource.indexOf("export async function DELETE"));
 
-  for (const source of [getRoute, deleteRoute]) {
-    assert.match(source, /getAuthenticatedApiContext\(request\)/);
-    assert.match(source, /\.eq\("user_id", context\.userId\)/);
-    assert.doesNotMatch(source, /body\.(?:userId|user_id)|searchParams\.get\(["'](?:userId|user_id)/);
-  }
-  assert.match(clientSource, /getCareEntryRemovalImpact[\s\S]*authenticatedApiFetch\(`\/api\/care-entries\/\$\{entryId\}`,[\s\S]*method: "GET"/);
+  assert.doesNotMatch(routeSource, /export async function GET/);
+  assert.match(deleteRoute, /getAuthenticatedApiContext\(request\)/);
+  assert.match(deleteRoute, /\.eq\("user_id", context\.userId\)/);
+  assert.doesNotMatch(deleteRoute, /body\.(?:userId|user_id)|searchParams\.get\(["'](?:userId|user_id)/);
+  assert.doesNotMatch(clientSource, /getCareEntryRemovalImpact|stopTrackingIssue/);
   assert.match(clientSource, /removeCareEntryFromHistory[\s\S]*authenticatedApiFetch\(`\/api\/care-entries\/\$\{entryId\}`,[\s\S]*method: "DELETE"/);
   assert.match(clientSource, /credentials: "same-origin"/);
 });

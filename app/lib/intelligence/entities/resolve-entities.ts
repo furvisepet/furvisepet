@@ -17,7 +17,7 @@ export function resolveShadowEntities(input: {
   ownerId: string;
   pets: EligibleSemanticPet[];
   recentPetIds: string[];
-  selectedPetId: string;
+  selectedPetId: string | null;
 }): ShadowEntityBinding[] {
   return input.frame.mentions.map((mention) => {
     const candidates = retrieveEntityCandidates({ ...input, mention });

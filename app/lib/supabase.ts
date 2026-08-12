@@ -153,13 +153,7 @@ export type CreateCareEntryUnlessDuplicateResult =
   | { action: "created"; entry: CareEntryRow }
   | { action: "duplicate"; entry: CareEntryRow };
 
-export type CareEntryRemovalImpact = {
-  activeConcernExists: boolean;
-  lifecycleStillActive: boolean;
-};
-
-export type CareEntryRemovalResult = CareEntryRemovalImpact & {
-  lifecycleDismissed: boolean;
+export type CareEntryRemovalResult = {
   removedFromHistory: true;
 };
 
@@ -618,23 +612,8 @@ export async function updateCareEntry(
   return data;
 }
 
-export async function getCareEntryRemovalImpact(entryId: string): Promise<CareEntryRemovalImpact> {
-  const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, { method: "GET" });
-  const payload = await response.json().catch(() => null) as (CareEntryRemovalImpact & { error?: string }) | null;
-  if (!response.ok || !payload) throw new Error(payload?.error || "Furvise could not check that update.");
-  return {
-    activeConcernExists: payload.activeConcernExists === true,
-    lifecycleStillActive: payload.lifecycleStillActive === true,
-  };
-}
-
-export async function removeCareEntryFromHistory(
-  entryId: string,
-  options: { stopTrackingIssue: boolean },
-): Promise<CareEntryRemovalResult> {
+export async function removeCareEntryFromHistory(entryId: string): Promise<CareEntryRemovalResult> {
   const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, {
-    body: JSON.stringify({ stopTrackingIssue: options.stopTrackingIssue }),
-    headers: { "content-type": "application/json" },
     method: "DELETE",
   });
   const payload = await response.json().catch(() => null) as (CareEntryRemovalResult & { error?: string }) | null;
@@ -644,7 +623,7 @@ export async function removeCareEntryFromHistory(
 
 export async function deleteCareEntry(entryId: string, deps: CareLogHelperDeps = {}) {
   if (!deps.getClient && !deps.getCurrentUser) {
-    await removeCareEntryFromHistory(entryId, { stopTrackingIssue: false });
+    await removeCareEntryFromHistory(entryId);
     return;
   }
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
@@ -663,12 +642,10 @@ export async function deleteCareEntry(entryId: string, deps: CareLogHelperDeps =
     throw new Error("Furvise could not find that care entry for your account.");
   }
 
-  if (existing.deleted_at) return;
-  const { error } = await supabase
-    .from("pet_care_entries")
-    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id, deletion_reason: "user_removed", updated_at: new Date().toISOString() })
-    .eq("id", entryId)
-    .eq("user_id", user.id);
+  const { error } = await supabase.rpc("remove_my_care_entry", {
+    p_entry_id: entryId,
+    p_stop_tracking: true,
+  });
 
   if (error) throw normalizeCareDatabaseError(error, "care entry");
 }

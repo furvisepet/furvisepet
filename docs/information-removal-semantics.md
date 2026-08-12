@@ -2,11 +2,11 @@
 
 Furvise exposes three separate information-removal concepts. They must remain separate in product copy, APIs, and persistence.
 
-## Remove from History
+## Delete a History event
 
-This hides one `pet_care_entries` chronology item by tombstoning it. The event and its episode membership remain as internal provenance. If the event belongs to an active or monitoring lifecycle, the user must choose whether to keep tracking that lifecycle or dismiss it too.
+Delete means Furvise stops remembering, tracking, and using the selected History event. One governed operation tombstones the `pet_care_entries` chronology item and, when linked, dismisses its active or monitoring episode and canonical concern and removes their current-state projections.
 
-Lifecycle dismissal is non-clinical. It sets the episode and canonical concern to `dismissed` with `dismissal_reason = user_removed`, removes that lifecycle from current-state projections, and does not create a resolution History row or claim the condition ended.
+Lifecycle dismissal is non-clinical. It sets the episode and canonical concern to `dismissed` with `dismissal_reason = user_removed`, preserves relational episode membership as internal integrity/audit provenance, and does not create a resolution History row or claim the condition ended. Tombstoned entries and dismissed lifecycle projections are excluded from Ask context.
 
 ## Forget remembered detail
 
@@ -14,7 +14,7 @@ This changes only the lifecycle of the selected pet or owner memory. Forgotten m
 
 ## Fully erase information
 
-Full privacy erasure is not implemented by History removal or memory forgetting. A future explicit destructive/privacy API must accept a precisely scoped fact or record set and atomically remove or redact every matching representation:
+Full privacy erasure is not implemented by History deletion or memory forgetting. A future explicit destructive/privacy API must accept a precisely scoped fact or record set and atomically remove or redact every matching representation:
 
 - visible and tombstoned History content;
 - episode membership and materialized episode projections;

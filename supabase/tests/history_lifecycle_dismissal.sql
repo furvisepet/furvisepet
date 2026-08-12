@@ -18,7 +18,7 @@ insert into public.pet_care_episodes(
     'active', 'urgent', 1, now(), now(), '{"latestStatus":"active"}'),
   ('41000000-0000-4000-8000-000000000102', '41000000-0000-4000-8000-000000000001',
     '41000000-0000-4000-8000-000000000012', 'symptom', 'health_vomiting', 'Other pet vomiting',
-    'active', 'urgent', 1, now(), now(), '{"latestStatus":"active"}'),
+    'monitoring', 'urgent', 1, now(), now(), '{"latestStatus":"monitoring"}'),
   ('42000000-0000-4000-8000-000000000201', '42000000-0000-4000-8000-000000000002',
     '42000000-0000-4000-8000-000000000021', 'symptom', 'health_vomiting', 'Private vomiting',
     'active', 'urgent', 1, now(), now(), '{"latestStatus":"active"}');
@@ -75,38 +75,19 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 
 do $$
 declare
-  v_impact record;
   v_result record;
   v_entry_count integer;
 begin
-  select * into v_impact from public.get_my_care_entry_removal_impact('41000000-0000-4000-8000-000000000110');
-  if v_impact.lifecycle_still_active or v_impact.active_episode_id is not null then
-    raise exception 'inactive historical entry reported an active lifecycle';
-  end if;
-  select * into v_result from public.remove_my_care_entry('41000000-0000-4000-8000-000000000110', false);
+  select * into v_result from public.remove_my_care_entry('41000000-0000-4000-8000-000000000110', true);
   if not exists(select 1 from public.pet_care_entries where id = v_result.entry_id and deleted_at is not null) then
     raise exception 'inactive historical entry was not tombstoned';
-  end if;
-
-  select * into v_impact from public.get_my_care_entry_removal_impact('41000000-0000-4000-8000-000000000111');
-  if not v_impact.lifecycle_still_active or v_impact.active_episode_id <> '41000000-0000-4000-8000-000000000101'
-    or not v_impact.active_concern_exists then
-    raise exception 'active lifecycle impact was not detected';
-  end if;
-
-  select * into v_result from public.remove_my_care_entry('41000000-0000-4000-8000-000000000111', false);
-  if not v_result.lifecycle_still_active or v_result.lifecycle_dismissed then
-    raise exception 'History-only removal changed lifecycle tracking';
-  end if;
-  if not exists(select 1 from public.pet_care_episodes where id = v_impact.active_episode_id and status = 'active') then
-    raise exception 'History-only removal closed the episode';
   end if;
 
   select count(*) into v_entry_count from public.pet_care_entries
   where pet_profile_id = '41000000-0000-4000-8000-000000000011';
   select * into v_result from public.remove_my_care_entry('41000000-0000-4000-8000-000000000111', true);
   if not v_result.lifecycle_dismissed or v_result.lifecycle_still_active then
-    raise exception 'stop-tracking did not dismiss the lifecycle';
+    raise exception 'History deletion did not dismiss the lifecycle';
   end if;
   if not exists(select 1 from public.pet_care_episodes where id = '41000000-0000-4000-8000-000000000101'
     and status = 'dismissed' and dismissal_reason = 'user_removed' and resolved_at is null) then
@@ -132,7 +113,7 @@ begin
   end if;
   if exists(select 1 from public.pet_care_entries where pet_profile_id = '41000000-0000-4000-8000-000000000011'
     and state_action_type = 'resolve_concern') then
-    raise exception 'dismissal fabricated clinical resolution History';
+    raise exception 'History deletion fabricated clinical resolution History';
   end if;
   if exists(select 1 from public.pet_care_episodes where id = '41000000-0000-4000-8000-000000000101'
     and status in ('active', 'monitoring')) then
@@ -147,8 +128,16 @@ begin
   if not v_result.already_tombstoned or not v_result.lifecycle_dismissed then
     raise exception 'repeated dismissal was not idempotent';
   end if;
-  if not exists(select 1 from public.pet_care_episodes where id = '41000000-0000-4000-8000-000000000102' and status = 'active') then
+  if not exists(select 1 from public.pet_care_episodes where id = '41000000-0000-4000-8000-000000000102' and status = 'monitoring') then
     raise exception 'dismissal crossed into another owned pet';
+  end if;
+
+  select * into v_result from public.remove_my_care_entry('41000000-0000-4000-8000-000000000112', true);
+  if not v_result.lifecycle_dismissed or not exists(
+    select 1 from public.pet_care_episodes where id = '41000000-0000-4000-8000-000000000102'
+      and status = 'dismissed' and dismissal_reason = 'user_removed' and resolved_at is null
+  ) then
+    raise exception 'monitoring lifecycle was not dismissed by History deletion';
   end if;
 
   begin

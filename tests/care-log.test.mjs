@@ -33,10 +33,22 @@ function createFakeSupabase({ dogProfiles = [], petCareEntries = [] }) {
   const store = {
     dog_profiles: dogProfiles.map((row) => ({ ...row })),
     pet_care_entries: petCareEntries.map((row) => ({ ...row })),
+    rpc_calls: [],
   };
 
   function from(table) {
     return new Query(table);
+  }
+
+  async function rpc(name, args) {
+    store.rpc_calls.push({ args, name });
+    if (name !== "remove_my_care_entry") return { data: null, error: { message: "Unknown RPC" } };
+    const entry = store.pet_care_entries.find((row) => row.id === args.p_entry_id);
+    if (!entry) return { data: null, error: { message: "Care entry not found" } };
+    entry.deleted_at ||= new Date("2026-06-23T12:00:00Z").toISOString();
+    entry.deleted_by ||= entry.user_id;
+    entry.deletion_reason ||= "user_removed";
+    return { data: [{ removed_from_history: true }], error: null };
   }
 
   class Query {
@@ -202,7 +214,7 @@ function createFakeSupabase({ dogProfiles = [], petCareEntries = [] }) {
     }
   }
 
-  return { from, store };
+  return { from, rpc, store };
 }
 
 function createDeps(userId, store) {
@@ -557,6 +569,10 @@ test("deleteCareEntry tombstones the user's row, hides it, and rejects others", 
   assert.equal(client.store.pet_care_entries[0].deleted_by, "user-1");
   assert.equal(client.store.pet_care_entries[0].deletion_reason, "user_removed");
   assert.ok(client.store.pet_care_entries[0].deleted_at);
+  assert.deepEqual(client.store.rpc_calls[0], {
+    args: { p_entry_id: "entry-1", p_stop_tracking: true },
+    name: "remove_my_care_entry",
+  });
   assert.deepEqual(await listCareEntriesForPet("pet-1", deps), []);
   await assert.rejects(() => deleteCareEntry("entry-2", deps), /could not find that care entry/i);
 });
