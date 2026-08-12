@@ -136,6 +136,7 @@ test("production integration remains legacy-authoritative, service-only, and ide
   const sql = readFileSync(new URL("../supabase/migrations/20260811150000_add_ask_v2_semantic_claims_foundation.sql", import.meta.url), "utf8");
   assert.ok(route.indexOf("persistIntelligenceLearnings({") < route.indexOf("persistAskV2Phase3LowRisk({"));
   assert.match(runtime, /idempotencyKey: input\.requestId/);
+  assert.match(runtime, /collapsedEquivalentClaimCount: selection\.accepted\.reduce/);
   assert.match(runtime, /if \(result\.error\) throw result\.error/);
   for (const event of [
     "v2_shadow_read_ok", "v2_shadow_read_diverged", "v2_low_risk_write_attempt", "v2_low_risk_write_ok",

@@ -111,6 +111,10 @@ async function persistAskV2Phase3LowRiskInternal(input: {
     claimClasses: [...new Set(selection.accepted.map((decision) => decision.claimClass))],
     conceptResolutionStatuses: [...new Set(selection.accepted.map((decision) => decision.claim.conceptResolutionStatus))],
     persistenceDestinations: [...new Set(selection.accepted.map((decision) => decision.claim.persistenceDestination))],
+    collapsedEquivalentClaimCount: selection.accepted.reduce((count, decision) => {
+      const proposals = decision.claim.governanceMetadata.deduplicatedModelProposals;
+      return count + (Array.isArray(proposals) ? Math.max(0, proposals.length - 1) : 0);
+    }, 0),
   };
   for (const accepted of selection.accepted) {
     logPhase3("v2_low_risk_write_attempt", input, claimTelemetry(accepted.claim, { claimClass: accepted.claimClass }));

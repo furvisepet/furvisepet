@@ -21,6 +21,7 @@ import { groundV2Evidence } from "./evidence.ts";
 import { resolveV2ClaimSubject, resolveV2Entities } from "./entities.ts";
 import { normalizeTemporalSemanticsV2 } from "./temporal.ts";
 import { decidePersistenceV2 } from "./persistence.ts";
+import { deduplicateGovernedClaims } from "./deduplicate.ts";
 
 export const V2_GOVERNANCE_POLICY_VERSION = "ask_v2.governance.shadow.v1" as const;
 export const V2_MINIMUM_CLAIM_CONFIDENCE = 0.8;
@@ -61,15 +62,27 @@ export function governSemanticTurnV2(input: {
   const acceptedKeys = new Set(acceptedClaims.map((claim) => claim.sourceLocalClaimKey));
   const validRelations = relations.filter((relation) => acceptedKeys.has(relation.fromLocalClaimKey)
     && (!relation.toLocalClaimKey || acceptedKeys.has(relation.toLocalClaimKey)));
+  const deduplicated = deduplicateGovernedClaims(acceptedClaims, validRelations);
+  const proposalOrder = new Map(acceptedClaims.map((claim, index) => [claim.sourceLocalClaimKey, index]));
+  const orderedClaims = [...deduplicated.claims].sort((a, b) => earliestProposalIndex(a) - earliestProposalIndex(b));
+
+  function earliestProposalIndex(claim: GovernedSemanticClaim) {
+    const proposals = Array.isArray(claim.governanceMetadata.deduplicatedModelProposals)
+      ? claim.governanceMetadata.deduplicatedModelProposals as Array<{ sourceLocalClaimKey?: unknown }>
+      : [{ sourceLocalClaimKey: claim.sourceLocalClaimKey }];
+    return Math.min(...proposals.map((proposal) => typeof proposal.sourceLocalClaimKey === "string"
+      ? proposalOrder.get(proposal.sourceLocalClaimKey) ?? Number.MAX_SAFE_INTEGER
+      : Number.MAX_SAFE_INTEGER));
+  }
 
   return {
     frame: evidence.frame,
     sourceMessageId: input.sourceMessageId,
     frameSchemaVersion: input.frame.schemaVersion,
     governancePolicyVersion: V2_GOVERNANCE_POLICY_VERSION,
-    acceptedClaims,
+    acceptedClaims: orderedClaims,
     rejectedClaims,
-    relations: validRelations,
+    relations: deduplicated.relations,
     needsClarification: input.frame.uncertainty.needsClarification || rejectedClaims.some((item) => item.retryable),
     safetyFloor,
     mode: "shadow_only",

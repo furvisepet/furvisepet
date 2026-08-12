@@ -1,4 +1,5 @@
 import { evidenceForPersistence } from "../governance/evidence.ts";
+import { deduplicateGovernedClaims } from "../governance/deduplicate.ts";
 import type { GovernedSemanticClaim, GovernedSemanticTurn } from "../types.ts";
 
 export type PersistGovernedSemanticTurnV2Args = {
@@ -11,11 +12,16 @@ export type PersistGovernedSemanticTurnV2Args = {
 };
 
 export function serializeGovernedSemanticTurnV2(turn: GovernedSemanticTurn, sourceMessage: string) {
-  const eligibleKeys = new Set(turn.acceptedClaims.filter((claim) => claim.persistenceEligible).map((claim) => claim.sourceLocalClaimKey));
+  const eligibleClaims = turn.acceptedClaims.filter((claim) => claim.persistenceEligible);
+  const eligibleKeys = new Set(eligibleClaims.map((claim) => claim.sourceLocalClaimKey));
+  const deduplicated = deduplicateGovernedClaims(
+    eligibleClaims,
+    turn.relations.filter((relation) => eligibleKeys.has(relation.fromLocalClaimKey)
+      && (!relation.toLocalClaimKey || eligibleKeys.has(relation.toLocalClaimKey))),
+  );
   return {
-    claims: turn.acceptedClaims.filter((claim) => claim.persistenceEligible).map((claim) => serializeClaim(claim, sourceMessage)),
-    relations: turn.relations.filter((relation) => eligibleKeys.has(relation.fromLocalClaimKey)
-      && (!relation.toLocalClaimKey || eligibleKeys.has(relation.toLocalClaimKey))).map((relation) => ({
+    claims: deduplicated.claims.map((claim) => serializeClaim(claim, sourceMessage)),
+    relations: deduplicated.relations.map((relation) => ({
       source_local_relation_key: relation.sourceLocalRelationKey,
       from_local_claim_key: relation.fromLocalClaimKey,
       to_local_claim_key: relation.toLocalClaimKey,
@@ -27,6 +33,13 @@ export function serializeGovernedSemanticTurnV2(turn: GovernedSemanticTurn, sour
 }
 
 function serializeClaim(claim: GovernedSemanticClaim, sourceMessage: string) {
+  if (claim.conceptResolutionStatus === "canonical" && claim.conceptAuthority !== "governed_registry") {
+    throw new Error("V2_CANONICAL_CONCEPT_AUTHORITY_REQUIRED");
+  }
+  const persistedConceptKey = claim.conceptResolutionStatus === "canonical"
+    ? claim.canonicalConceptKey
+    : claim.conceptKey;
+  if (!persistedConceptKey) throw new Error("V2_CANONICAL_CONCEPT_KEY_REQUIRED");
   return {
     source_local_claim_key: claim.sourceLocalClaimKey,
     subject_type: claim.subject.type,
@@ -34,7 +47,7 @@ function serializeClaim(claim: GovernedSemanticClaim, sourceMessage: string) {
     resolved_entities: claim.resolvedEntities.map((entity) => ({ entity_type: entity.entityType, entity_id: entity.entityId })),
     claim_kind: claim.claimKind,
     operation_type: claim.operationType,
-    concept_key: claim.conceptKey,
+    concept_key: persistedConceptKey,
     canonical_concept_key: claim.canonicalConceptKey,
     concept_resolution_status: claim.conceptResolutionStatus,
     concept_authority: claim.conceptAuthority,
@@ -57,6 +70,10 @@ function serializeClaim(claim: GovernedSemanticClaim, sourceMessage: string) {
     server_episode_id: claim.serverEpisodeId,
     persistence_destination: claim.persistenceDestination,
     safety_floor_metadata: claim.safetyFloorMetadata,
-    governance_metadata: claim.governanceMetadata,
+    governance_metadata: {
+      ...claim.governanceMetadata,
+      proposedConceptKey: claim.conceptKey,
+      persistedConceptKey,
+    },
   };
 }
