@@ -7,6 +7,7 @@ import { persistGovernedSemanticTurnV2Shadow } from "../persistence/persist.ts";
 import { createV2ShadowPersistenceBoundary } from "../persistence/server-client.ts";
 import { rebuildSemanticProjectionsV2, type RebuildClaim, type RebuildRelation } from "../projections/rebuild.ts";
 import type { GovernedConceptIdentity, GovernedSemanticTurn } from "../types.ts";
+import { attachRegistryConceptPolicy } from "../concepts/registry-policy.ts";
 import { selectPhase3LowRiskTurn, type Phase3ConceptPolicy } from "./cutover-policy.ts";
 import { executePhase3WriteFailOpen, phase3AllowsLowRiskWrite, phase3AllowsShadowRead } from "./execution.ts";
 import { resolveAskV2Phase3Mode, type AskV2Phase3Mode } from "./rollout.ts";
@@ -197,7 +198,7 @@ async function loadPhase3Graph(serviceClient: SupabaseClient, userId: string) {
   return {
     claims,
     relations,
-    canonicalConcepts: concepts.map((concept) => ({
+    canonicalConcepts: concepts.map((concept) => attachRegistryConceptPolicy({
       key: String(concept.canonical_key),
       version: String(concept.concept_version),
       conceptKind: String(concept.concept_kind) as GovernedConceptIdentity["conceptKind"],

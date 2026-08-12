@@ -7,6 +7,7 @@ import { persistGovernedSemanticTurnV2Shadow } from "../app/lib/intelligence/v2/
 import { verifyV2PersistenceUser } from "../app/lib/intelligence/v2/persistence/server-identity-core.ts";
 import { selectPhase3LowRiskTurn } from "../app/lib/intelligence/v2/phase3/cutover-policy.ts";
 import { planV2ProjectionRebuild, V2_PROJECTION_VERSIONS } from "../app/lib/intelligence/v2/projections/contracts.ts";
+import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts/registry-policy.ts";
 import { buildShadowSemanticAnalysis } from "../app/lib/intelligence/semantic-observability.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
@@ -48,6 +49,9 @@ const frame = (mentions, claims, references = [], uncertainty = { needsClarifica
 const govern = (message, semanticFrame, options = {}) => governSemanticTurnV2({
   frame: semanticFrame, sourceMessage: message, sourceMessageId: "20000000-0000-4000-8000-000000000001",
   ownerId, pets, activeEpisodes: [], ...options,
+});
+const registryConcept = (key, conceptKind, lifecycleCapable = false) => attachRegistryConceptPolicy({
+  key, version: "furvise.core.v1", conceptKind, lifecycleCapable,
 });
 
 test("v2 governs a multi-claim turn without legacy intelligence outputs", () => {
@@ -174,6 +178,91 @@ test("governed preference concepts normalize model assertions before subject gov
   });
   assert.equal(cutover.accepted[0].claimClass, "owner_preference");
   assert.equal(cutover.accepted[0].claim.subject.id, ownerId);
+});
+
+test("registry semantic signatures canonicalize retailer wording independently of model labels", () => {
+  const variations = [
+    ["I prefer shopping at Chewy.", "Chewy", "prefer shopping at"],
+    ["I normally buy from PetSmart.", "PetSmart", "normal purchase source"],
+    ["My go-to store is ExampleStore.", "ExampleStore", "go to place"],
+    ["I usually order from ExampleMerchant.", "ExampleMerchant", "ordering source"],
+  ];
+  for (const [message, merchant, proposedLabel] of variations) {
+    const result = govern(message, frame([mention("merchant", merchant, "organization")], [
+      assertion("claim_retailer", "merchant", proposedLabel, message, merchant),
+    ]), {
+      canonicalConcepts: [
+        registryConcept("preferred_retailer", "preference"),
+        registryConcept("food_preference", "preference"),
+        registryConcept("weight", "profile"),
+      ],
+    });
+    assert.equal(result.rejectedClaims.length, 0, message);
+    const claim = result.acceptedClaims[0];
+    assert.equal(claim.conceptKey, proposedLabel.replaceAll(" ", "_"), message);
+    assert.equal(claim.canonicalConceptKey, "preferred_retailer", message);
+    assert.equal(claim.conceptResolutionStatus, "canonical", message);
+    assert.equal(claim.governanceMetadata.conceptResolutionMethod, "semantic_signature", message);
+    assert.equal(claim.subject.type, "owner", message);
+    assert.equal(claim.subject.id, ownerId, message);
+    assert.equal(claim.claimKind, "preference", message);
+    assert.equal(claim.structuredValue.object.value, merchant, message);
+    assert.equal(claim.persistenceDestination, "owner_memory", message);
+    const cutover = selectPhase3LowRiskTurn({
+      turn: result,
+      conceptPolicies: new Map([["preferred_retailer", { conceptKind: "preference", lifecycleCapable: false }]]),
+      legacyLearnings: [{
+        subjectType: "owner", subjectId: null, category: "preference", factKey: "preferred_retailer", factValue: merchant,
+        confidence: 0.96, importance: "medium", durability: "durable", action: "create", sourceExcerpt: message,
+      }],
+      selectedPetId: pets[2].id,
+    });
+    assert.equal(cutover.accepted[0].claimClass, "owner_preference", message);
+  }
+});
+
+test("registry signatures canonicalize pet food preferences and weight without crossing classes", () => {
+  const foodMessage = "Luna prefers chicken food.";
+  const food = govern(foodMessage, frame([mention("luna", "Luna", "animal")], [
+    preference("claim_food", "luna", "favorite meals", foodMessage, "chicken", "pet_memory"),
+  ]), { canonicalConcepts: [registryConcept("preferred_retailer", "preference"), registryConcept("food_preference", "preference")] });
+  assert.equal(food.acceptedClaims[0].canonicalConceptKey, "food_preference");
+  assert.equal(food.acceptedClaims[0].claimKind, "preference");
+  assert.equal(food.acceptedClaims[0].subject.id, pets[0].id);
+
+  const weightMessage = "Luna weighs 22 pounds.";
+  const weightClaim = assertion("claim_weight", "luna", "body measurement", weightMessage, 22, "profile");
+  weightClaim.unit = "pounds";
+  const weight = govern(weightMessage, frame([mention("luna", "Luna", "animal")], [weightClaim]), {
+    canonicalConcepts: [registryConcept("food_preference", "preference"), registryConcept("weight", "profile")],
+  });
+  assert.equal(weight.acceptedClaims[0].canonicalConceptKey, "weight");
+  assert.equal(weight.acceptedClaims[0].claimKind, "assertion");
+});
+
+test("ambiguous registry signatures fail closed and medical concepts remain exact-only", () => {
+  const message = "I usually order from Market Moon.";
+  const ambiguous = govern(message, frame([mention("merchant", "Market Moon", "organization")], [
+    assertion("claim_ambiguous", "merchant", "purchase habit", message, "Market Moon"),
+  ]), {
+    canonicalConcepts: [
+      registryConcept("preferred_retailer", "preference"),
+      {
+        key: "preferred_marketplace", version: "test.v1", conceptKind: "preference", lifecycleCapable: false,
+        semanticRole: "retailer_preference", selectionAuthority: "semantic_signature",
+      },
+    ],
+  });
+  assert.equal(ambiguous.acceptedClaims.length, 0);
+  assert.equal(ambiguous.rejectedClaims[0].reason, "CONCEPT_AMBIGUOUS");
+
+  const symptomMessage = "Luna is throwing up.";
+  const symptom = govern(symptomMessage, frame([mention("luna", "Luna", "animal")], [
+    assertion("claim_symptom", "luna", "throwing up", symptomMessage, true, "current_state"),
+  ]), { canonicalConcepts: [registryConcept("vomiting", "symptom", true)] });
+  assert.equal(symptom.acceptedClaims[0].canonicalConceptKey, null);
+  assert.equal(symptom.acceptedClaims[0].conceptResolutionStatus, "provisional");
+  assert.equal(symptom.acceptedClaims[0].claimKind, "assertion");
 });
 
 test("concept normalization does not turn organization facts or symptoms into preferences", () => {
