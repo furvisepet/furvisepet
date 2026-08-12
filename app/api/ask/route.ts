@@ -72,6 +72,7 @@ import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/securit
 import { claimIdempotentOperation } from "../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
+import type { ProposedSemanticFrame } from "../../lib/intelligence/semantic-frame/types";
 import { resolveAuthoritativeTurnSubject } from "../../lib/intelligence/entities/resolve-turn-subject";
 import {
   persistAskV2Phase3LowRisk,
@@ -357,7 +358,7 @@ export async function POST(request: Request) {
       });
       if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
 
-      const generationInput = buildTurnGenerationInput({ locale, onProviderEvent, question, requestId, turnView, liveContext });
+      const generationInput = buildTurnGenerationInput({ locale, onProviderEvent, question, requestId, turnSemanticFrame: subjectFrame, turnView, liveContext });
       return await orchestrateAskTurn({
         concerns: turnView.concerns,
         generationInput,
@@ -564,12 +565,13 @@ function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requ
   };
 }
 
-function buildTurnGenerationInput({ locale, liveContext, onProviderEvent, question, requestId, turnView }: {
+function buildTurnGenerationInput({ locale, liveContext, onProviderEvent, question, requestId, turnSemanticFrame, turnView }: {
   locale: string;
   liveContext: FurviseLiveContext;
   onProviderEvent: (event: AskProviderEvent) => void;
   question: string;
   requestId: string;
+  turnSemanticFrame: ProposedSemanticFrame;
   turnView: ReturnType<typeof deriveAskTurnView>;
 }) {
   return {
@@ -588,6 +590,7 @@ function buildTurnGenerationInput({ locale, liveContext, onProviderEvent, questi
     recentlyResolvedConcerns: turnView.recentlyResolvedConcerns,
     recentUpdates: turnView.recentUpdates,
     requestId,
+    turnSemanticFrame,
     onProviderEvent,
   };
 }

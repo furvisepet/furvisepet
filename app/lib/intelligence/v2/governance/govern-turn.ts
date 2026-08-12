@@ -18,7 +18,7 @@ import type {
   V2RejectionReason,
 } from "../types.ts";
 import { groundV2Evidence } from "./evidence.ts";
-import { resolveV2Entities } from "./entities.ts";
+import { resolveV2ClaimSubject, resolveV2Entities } from "./entities.ts";
 import { normalizeTemporalSemanticsV2 } from "./temporal.ts";
 import { decidePersistenceV2 } from "./persistence.ts";
 
@@ -91,7 +91,14 @@ function governOneClaim(input: {
   if (evidenceFailure) return reject(evidenceFailure, "evidence");
   if (!normalizeClaimKind(claim).consistent) return reject("CLAIM_KIND_INCONSISTENT", "confidence");
   if (claim.uncertainty.confidence < V2_MINIMUM_CLAIM_CONFIDENCE) return reject("CLAIM_LOW_CONFIDENCE", "confidence");
-  const subject = claim.subjectRef ? input.entities.subjectsByMention.get(claim.subjectRef) : undefined;
+  const groundedEvidence = input.evidence.groundedByClaim.get(claim.localId) || [];
+  const subject = resolveV2ClaimSubject({
+    claim,
+    entities: input.entities,
+    frame: input.evidence.frame,
+    groundedEvidence,
+    ownerId: input.input.ownerId,
+  });
   if (!subject) {
     const reason = claim.subjectRef ? input.entities.failuresByMention.get(claim.subjectRef) : "ENTITY_UNRESOLVED";
     return reject(reason || "ENTITY_UNRESOLVED", "entity", true);
@@ -108,7 +115,9 @@ function governOneClaim(input: {
 
   const relatedMentionIds = claim.kind === "relationship" ? [claim.objectRef] : claim.kind === "event" ? claim.participants.map((item) => item.entityRef) : [];
   const resolvedEntities = uniqueEntities([
-    ...(claim.subjectRef ? [input.entities.resolvedEntitiesByMention.get(claim.subjectRef)] : []),
+    ...(subject.id && subject.sourceMentionId && (subject.type === "owner" || subject.type === "pet")
+      ? [{ entityType: subject.type, entityId: subject.id, sourceMentionId: subject.sourceMentionId, confidence: subject.confidence } satisfies ResolvedEntity]
+      : []),
     ...relatedMentionIds.map((id) => input.entities.resolvedEntitiesByMention.get(id)),
   ].filter((item): item is ResolvedEntity => Boolean(item)));
   if (claim.kind === "relationship" && !input.entities.subjectsByMention.has(claim.objectRef)) {
@@ -129,7 +138,7 @@ function governOneClaim(input: {
     proposed: claim,
     subject,
     resolvedEntities,
-    groundedEvidence: input.evidence.groundedByClaim.get(claim.localId) || [],
+    groundedEvidence,
     temporal,
     extractionConfidence: claim.uncertainty.confidence,
     conceptKey: concept.key,

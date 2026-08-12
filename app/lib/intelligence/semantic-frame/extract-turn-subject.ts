@@ -24,6 +24,7 @@ const instructions = [
   "Represent every explicit animal or person mention, including names, descriptions such as my cat, and pronouns used as claim subjects.",
   "For animal mentions, populate species, lifeStage, and ownership only when supported by the message. Do not assume the selected pet is the subject.",
   "Include each supported assertion, event, state transition, preference, relationship, or correction so its subjectRef identifies the applicable mention.",
+  "Bind first-person preferences and first-person owner facts to the owner mention (I, me, or my). A named organization, retailer, brand, product, or place is the preference value/object, never the owner-subject.",
   "Evidence surfaceText must be copied exactly from the current message. Never invent or paraphrase evidence.",
   "Recent user discourse may establish a reference antecedent, but it is context only and must not be copied into current-message evidence.",
 ].join("\n");

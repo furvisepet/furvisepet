@@ -1,4 +1,4 @@
-import type { ProposedEntityMention, ProposedSemanticFrame } from "../../semantic-frame/types.ts";
+import type { GroundedSemanticEvidence, ProposedEntityMention, ProposedSemanticClaim, ProposedSemanticFrame } from "../../semantic-frame/types.ts";
 import type { EligibleSemanticPet } from "../../entities/candidate-retrieval.ts";
 import { resolveShadowEntities } from "../../entities/resolve-entities.ts";
 import { resolveShadowReferences } from "../../entities/resolve-references.ts";
@@ -68,6 +68,44 @@ export function resolveV2Entities(input: {
     }
   }
   return { subjectsByMention, resolvedEntitiesByMention, failuresByMention };
+}
+
+export function resolveV2ClaimSubject(input: {
+  claim: ProposedSemanticClaim;
+  entities: V2EntityResolution;
+  frame: ProposedSemanticFrame;
+  groundedEvidence: GroundedSemanticEvidence[];
+  ownerId: string;
+}): ResolvedSubject | undefined {
+  const proposedSubject = input.claim.subjectRef
+    ? input.entities.subjectsByMention.get(input.claim.subjectRef)
+    : undefined;
+
+  // A preference holder is a semantic role. When the grounded claim is explicitly
+  // first-person, the verified account owner holds the preference; an organization,
+  // product, store, or place named in the same evidence remains its value/object.
+  if (input.claim.kind === "preference" && hasFirstPersonOwnerRole(input)) {
+    const ownerMention = input.frame.mentions.find((mention) =>
+      mention.coarseType === "person" && mention.attributes.ownership === "owner");
+    return {
+      type: "owner",
+      id: input.ownerId,
+      sourceMentionId: ownerMention?.localId || null,
+      resolution: "owned",
+      confidence: Math.min(input.claim.uncertainty.confidence, ownerMention?.confidence ?? 0.99),
+    };
+  }
+
+  return proposedSubject;
+}
+
+function hasFirstPersonOwnerRole(input: {
+  claim: ProposedSemanticClaim;
+  frame: ProposedSemanticFrame;
+  groundedEvidence: GroundedSemanticEvidence[];
+}) {
+  const evidenceText = input.groundedEvidence.map((item) => item.quote).join(" ");
+  return /\b(?:i|me|my|mine)\b/i.test(evidenceText);
 }
 
 function externalMentionAllowed(mention: ProposedEntityMention) {
