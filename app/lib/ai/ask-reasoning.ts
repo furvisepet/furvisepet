@@ -8,6 +8,7 @@ import {
   concernKeyToAskTags,
   formatConcernTag,
   getPetReferenceGuidance,
+  isHistoricalSafetyRelevantToTurn,
   removeUnsupportedGenderedPronouns,
   type RecentAskUpdate,
 } from "../ask-safety-context.ts";
@@ -136,6 +137,7 @@ type BuildContextInput = {
   requestId: string;
   locale?: string;
   concernStateHint?: ActiveConcernMessageState;
+  turnSemanticFrame?: ProposedSemanticFrame;
   now?: Date;
 };
 
@@ -285,6 +287,7 @@ const unifiedInstructions = [
   "When recoveryStatus is terminal with high confidence and the current message contains no worsening, recurrence, or emergency evidence, represent a compatible active episode as transition=resolved and state=resolved. Partial recovery remains transition=improved and state=monitoring.",
   "Also emit semanticFrame as diagnostic shadow interpretation only. Use local IDs such as entity_1, reference_1, and claim_1; never copy or invent any supplied database ID into semanticFrame. Extract open-ended predicates and concepts rather than selecting from a topic catalogue. Include every independently supported assertion, event, transition, preference, relationship, correction, or retraction in the current message. A return to normal baseline, explicit symptom absence, or ended active problem is a state_transition with transition=resolved and the prior problem as targetConcept; reduced but continuing symptoms are transition=improved; uncertain wellbeing without a definite lifecycle change remains an assertion with suspected modality. For every evidence item, copy one contiguous surfaceText fragment from the current message; never calculate offsets and never paraphrase evidence. Use multiple fragments when support is non-contiguous.",
   "Choose SemanticFrame claim kinds by structure, not keywords. An assertion is a property, measurement, durable fact, or state snapshot. An event is a bounded occurrence or action. A state_transition explicitly changes a prior or active state, including resolution, recurrence, improvement, or worsening. A preference expresses desirability or a constraint. A relationship expresses a recurring or durable role between entities. A correction targets and revises, retracts, forgets, negates, or confirms another claim.",
+  "Bind first-person preferences and first-person owner facts to the owner mention (I, me, or my). Treat named organizations, retailers, brands, products, stores, and places as values or objects unless the message explicitly makes a third party the subject.",
   "For every SemanticFrame concept, provide short lexical aliases only when they mean the same thing, parentLabels only for broader concepts, and relatedLabels only for non-identical related concepts. Do not call merely similar concepts aliases. The selected pet is contextual evidence, not automatic subject identity.",
   "Owner learnings may cover explicit shopping, budget, schedule, or communication preferences. Never infer sensitive personal traits.",
   "Keep every reason and source excerpt concise. Return at most one follow-up, five learnings, and three care actions. Do not repeat supplied context in metadata.",
@@ -316,17 +319,28 @@ export function buildAskContext(input: BuildContextInput) {
   for (const profile of input.profiles) {
     for (const identityTerm of meaningfulTerms(profile.name || "")) terms.delete(identityTerm);
   }
+  const historicalSafetyRelevant = isHistoricalSafetyRelevantToTurn({
+    activeConcerns: input.concerns || [],
+    concernStateHint: input.concernStateHint,
+    currentMessage: input.question,
+    frame: input.turnSemanticFrame,
+  });
   const now = (input.now || new Date()).getTime();
   const scored = allRecords
     .map((record) => ({ record, score: scoreRecord(record, terms, now) }))
     .sort((left, right) => right.score - left.score || timestamp(right.record) - timestamp(left.record));
 
   const profile = scored.filter(({ record }) => record.sourceType === "profile");
-  const activeConcerns = scored.filter(({ record }) => record.sourceType === "active_concern" && record.status !== "resolved").slice(0, 3);
+  const activeConcerns = historicalSafetyRelevant
+    ? scored.filter(({ record }) => record.sourceType === "active_concern" && record.status !== "resolved").slice(0, 3)
+    : [];
   const resolvedConcerns = scored.filter(({ record }) => record.sourceType === "active_concern" && record.status === "resolved").slice(0, 3);
-  const activeEpisodes = scored.filter(({ record }) => record.sourceType === "active_episode").slice(0, 6);
+  const activeEpisodes = historicalSafetyRelevant
+    ? scored.filter(({ record }) => record.sourceType === "active_episode").slice(0, 6)
+    : [];
   const resolvedEpisodes = scored.filter(({ record }) => record.sourceType === "resolved_episode" && recordMatchesTerms(record, terms)).slice(0, 3);
-  const relevantUpdates = chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"));
+  const relevantUpdates = chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"
+    && (historicalSafetyRelevant || record.status === "resolved" || record.priority === "routine" || recordMatchesTerms(record, terms))));
   const memories = scored.filter(({ record }) => record.sourceType === "remembered_detail").slice(0, 8);
   const conversation = scored
     .filter(({ record }) => record.sourceType === "conversation_turn")
@@ -350,16 +364,19 @@ export function buildAskContext(input: BuildContextInput) {
 
   const recentTurns = input.conversationTurns.slice(-6).map((turn) => ({ role: turn.role, text: clean(turn.text).slice(0, 500) }));
   const safety = evaluateAskSafetyContext({
-    activeCareNotes: input.memories.map((memory) => memory.text),
-    authoritativeActiveConcernTags: (input.concerns || []).flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title)),
+    activeCareNotes: historicalSafetyRelevant ? input.memories.map((memory) => memory.text) : [],
+    authoritativeActiveConcernTags: historicalSafetyRelevant
+      ? (input.concerns || []).flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title))
+      : [],
     currentMessage: input.question,
     recentConversationTurns: recentTurns,
-    recentlyResolvedConcernTags: input.concernStateHint === "unrelated"
+    recentlyResolvedConcernTags: !historicalSafetyRelevant || input.concernStateHint === "unrelated"
       ? []
       : (input.recentlyResolvedConcerns || []).flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title)),
     recentUpdates: input.recentUpdates,
   });
-  const hasUrgentConcern = (input.concerns || []).some((concern) => concern.status !== "resolved" && concern.severity === "urgent");
+  const hasUrgentConcern = historicalSafetyRelevant
+    && (input.concerns || []).some((concern) => concern.status !== "resolved" && concern.severity === "urgent");
   const reportedImprovement = input.concernStateHint === "improved" || input.concernStateHint === "resolved";
   const minimumSafetyLevel = reportedImprovement
     ? "monitor"
@@ -386,6 +403,7 @@ export function buildAskContext(input: BuildContextInput) {
       locale: input.locale || "en",
       minimumSafetyLevel,
       activeConcernMessageState: input.concernStateHint || "unclear",
+      historicalSafetyRelevant,
       activeConcernTags: safety.activeConcernTags,
       recentlyResolvedConcerns: (input.recentlyResolvedConcerns || []).slice(0, 3).map((concern) => ({
         id: concern.id,

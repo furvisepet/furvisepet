@@ -4,9 +4,11 @@ import test from "node:test";
 import {
   buildRecentAskUpdates,
   evaluateAskSafetyContext,
+  isHistoricalSafetyRelevantToTurn,
   getPetReferenceGuidance,
   removeUnsupportedGenderedPronouns,
 } from "../app/lib/ask-safety-context.ts";
+import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
 const baseTime = new Date("2026-07-28T02:00:00Z");
 
@@ -25,6 +27,45 @@ function entry(overrides = {}) {
     ...overrides,
   };
 }
+
+function semanticFrame({ claims = [], mentions = [], question = false } = {}) {
+  return {
+    schemaVersion: SEMANTIC_FRAME_SCHEMA_VERSION,
+    frameLocalId: "frame_1",
+    discourseActs: [{ kind: question ? "question" : "statement", confidence: 0.99 }],
+    mentions,
+    references: [],
+    claims,
+    uncertainty: { needsClarification: false, clarificationQuestion: null, reasons: [] },
+  };
+}
+
+function conceptClaim(label, kind = "event") {
+  const common = {
+    localId: "claim_1", kind, subjectRef: "luna", predicate: { label, definition: null, aliases: [], parentLabels: [], relatedLabels: [] },
+    polarity: "affirmed", modality: "asserted", temporal: { occurredAt: null, validFrom: null, validTo: null, surfaceText: null, precision: "unknown" },
+    uncertainty: { confidence: 0.98, reasons: [] }, evidence: [{ surfaceText: label }], persistenceHint: "none",
+  };
+  return kind === "preference"
+    ? { ...common, preference: "prefer", object: { concept: common.predicate, value: label }, constraints: [] }
+    : { ...common, participants: [{ role: "subject", entityRef: "luna" }], lifecycle: { phase: "observed", boundedInMessage: true, resultingState: "active" } };
+}
+
+const lunaMention = { localId: "luna", surface: "Luna", coarseType: "animal", attributes: { species: "dog", lifeStage: null, ownership: "owner" }, evidence: [{ surfaceText: "Luna" }], confidence: 0.99 };
+
+test("historical urgent state requires current semantic relevance or new safety evidence", () => {
+  const activeConcerns = [{ normalized_key: "vomiting" }];
+  for (const message of ["I prefer shopping at Chewy.", "Luna likes chicken.", "Good morning.", "My sister helps take care of Luna."]) {
+    assert.equal(isHistoricalSafetyRelevantToTurn({
+      activeConcerns, concernStateHint: "unrelated", currentMessage: message,
+      frame: semanticFrame({ claims: message.includes("prefer") ? [conceptClaim("preferred retailer", "preference")] : [], mentions: message.includes("Luna") ? [lunaMention] : [] }),
+    }), false, message);
+  }
+  assert.equal(isHistoricalSafetyRelevantToTurn({ activeConcerns, currentMessage: "Luna vomited again.", frame: semanticFrame({ claims: [conceptClaim("vomiting")], mentions: [lunaMention] }) }), true);
+  assert.equal(isHistoricalSafetyRelevantToTurn({ activeConcerns, currentMessage: "She can't keep water down.", frame: semanticFrame() }), true);
+  assert.equal(isHistoricalSafetyRelevantToTurn({ activeConcerns, concernStateHint: "still_active", currentMessage: "What should I do about her vomiting?", frame: semanticFrame() }), true);
+  assert.equal(isHistoricalSafetyRelevantToTurn({ activeConcerns, currentMessage: "Is Luna okay?", frame: semanticFrame({ mentions: [lunaMention], question: true }) }), true);
+});
 
 test("Mani receives neutral references when no sex or pronouns are saved", () => {
   const reference = getPetReferenceGuidance({ name: "Mani", species: "cat" });

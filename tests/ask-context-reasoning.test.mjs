@@ -133,7 +133,7 @@ test("occurred_at determines the latest real-world update", () => {
 test("active semantic state outranks old history while unrelated resolved episodes stay out of context", () => {
   const activeEpisodes = [{ id: "episode-active", pet_profile_id: "pet-mani", normalized_key: "safety_pet_missing", episode_type: "care_tracking", title: "Pet missing", severity: "urgent", status: "active", sequence_number: 1, recurrence_of: null, started_at: "2026-07-27T19:00:00Z", last_event_at: "2026-07-27T19:00:00Z", resolved_at: null }];
   const resolvedEpisodes = [{ ...activeEpisodes[0], id: "episode-resolved", normalized_key: "health_vomiting", title: "Vomiting", status: "resolved", severity: "routine", started_at: "2026-06-01T00:00:00Z", last_event_at: "2026-06-02T00:00:00Z", resolved_at: "2026-06-02T00:00:00Z" }];
-  const records = buildRankedAskContext(input({ activeEpisodes, recentlyResolvedEpisodes: resolvedEpisodes, question: "Is Mani still missing?" }));
+  const records = buildRankedAskContext(input({ activeEpisodes, recentlyResolvedEpisodes: resolvedEpisodes, question: "Is Mani still missing?", concernStateHint: "still_active" }));
   assert.equal(records.some((record) => record.id === "episode:episode-active"), true);
   assert.equal(records.some((record) => record.id === "episode:episode-resolved"), false);
   assert.equal(records.find((record) => record.id === "episode:episode-active")?.status, "active");
@@ -150,7 +150,7 @@ test("a resolved missing-pet episode does not influence a future unrelated quest
   assert.equal(records.some((record) => record.id === "episode:episode-found"), false);
 });
 
-test("deterministic urgent context forces urgent safety and shopping suppression", async () => {
+test("current emergency evidence forces urgent safety and shopping suppression", async () => {
   const entries = [care({ id: "breathing", category: "symptom", title: "Breathing trouble", note: "Open-mouth breathing and weakness", severity: "severe" })];
   const concerns = [{
     id: "concern-breathing", user_id: "user-1", pet_profile_id: "pet-mani", title: "Breathing trouble",
@@ -158,11 +158,27 @@ test("deterministic urgent context forces urgent safety and shopping suppression
     opened_at: "2026-07-27T18:00:00Z", updated_at: "2026-07-27T18:00:00Z", resolved_at: null, resolution_note: null,
   }];
   const client = mockClient([unified({ answer: "Contact an emergency veterinarian now. Do not force food while Mani's breathing is abnormal.", relevantContextIds: ["care:breathing"] })]);
-  const result = await generateContextAwareAskResponse({ ...input({ careEntries: entries, concerns, question: "Which food should I buy?" }), client });
+  const result = await generateContextAwareAskResponse({ ...input({ careEntries: entries, concerns, question: "Mani has open-mouth breathing now. What should I do?" }), client });
   assert.equal(result.safetyLevel, "urgent");
   assert.equal(result.shoppingSuppressed, true);
   assert.equal(result.responseMode, "urgent_safety");
   assert.ok(result.relevantContextIds.includes("care:breathing"));
+});
+
+test("an unrelated preference turn is not hijacked by an active urgent concern", async () => {
+  const concerns = [{
+    id: "concern-vomiting", user_id: "user-1", pet_profile_id: "pet-mani", title: "Vomiting",
+    normalized_key: "vomiting", status: "active", severity: "urgent", source_care_entry_id: "vomiting",
+    opened_at: "2026-07-27T18:00:00Z", updated_at: "2026-07-27T18:00:00Z", resolved_at: null, resolution_note: null,
+  }];
+  const result = await generateContextAwareAskResponse({
+    ...input({ concerns, question: "I prefer shopping at Chewy.", concernStateHint: "unrelated" }),
+    client: mockClient([unified({ answer: "Chewy is now your preferred retailer." })]),
+  });
+  assert.equal(result.safetyLevel, "normal");
+  assert.equal(result.shoppingSuppressed, false);
+  assert.notEqual(result.responseMode, "urgent_safety");
+  assert.doesNotMatch(result.answer.summary, /emergency veterinarian/i);
 });
 
 test("a resolved urgent update is marked resolved and does not force urgent mode", async () => {

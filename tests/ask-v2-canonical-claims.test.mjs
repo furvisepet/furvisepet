@@ -5,6 +5,7 @@ import { governSemanticTurnV2 } from "../app/lib/intelligence/v2/governance/gove
 import { serializeGovernedSemanticTurnV2 } from "../app/lib/intelligence/v2/persistence/serialize.ts";
 import { persistGovernedSemanticTurnV2Shadow } from "../app/lib/intelligence/v2/persistence/persist.ts";
 import { verifyV2PersistenceUser } from "../app/lib/intelligence/v2/persistence/server-identity-core.ts";
+import { selectPhase3LowRiskTurn } from "../app/lib/intelligence/v2/phase3/cutover-policy.ts";
 import { planV2ProjectionRebuild, V2_PROJECTION_VERSIONS } from "../app/lib/intelligence/v2/projections/contracts.ts";
 import { buildShadowSemanticAnalysis } from "../app/lib/intelligence/semantic-observability.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
@@ -90,6 +91,61 @@ test("v2 supports owner preferences, pet preferences, and external relationships
   assert.deepEqual(result.acceptedClaims.map((claim) => claim.claimKind), ["preference", "preference", "relationship"]);
   assert.equal(result.acceptedClaims[2].subject.resolution, "external");
   assert.deepEqual(result.acceptedClaims[2].resolvedEntities.map((entity) => entity.entityId), [pets[0].id]);
+});
+
+test("first-person preference roles bind the verified owner while arbitrary stores remain values", () => {
+  for (const [message, store] of [
+    ["I prefer shopping at Chewy.", "Chewy"],
+    ["I prefer shopping at PetSmart.", "PetSmart"],
+    ["My favorite store is X.", "X"],
+  ]) {
+    const storeMention = mention("store", store, "organization");
+    const claim = preference("claim_store", "store", "preferred retailer", message, store, "owner_memory");
+    const result = govern(message, frame([storeMention], [claim]), {
+      canonicalConcepts: [{ key: "preferred_retailer", version: "furvise.core.v1" }],
+    });
+    assert.equal(result.rejectedClaims.length, 0);
+    assert.equal(result.acceptedClaims[0].subject.type, "owner");
+    assert.equal(result.acceptedClaims[0].subject.id, ownerId);
+    assert.equal(result.acceptedClaims[0].structuredValue.object.value, store);
+    assert.equal(result.acceptedClaims[0].groundedEvidence[0].quote, message);
+    assert.equal(result.acceptedClaims[0].persistenceDestination, "owner_memory");
+    const cutover = selectPhase3LowRiskTurn({
+      turn: result,
+      conceptPolicies: new Map([["preferred_retailer", { conceptKind: "preference", lifecycleCapable: false }]]),
+      legacyLearnings: [{
+        subjectType: "owner", subjectId: null, category: "preference", factKey: "preferred_retailer", factValue: store,
+        confidence: 0.96, importance: "medium", durability: "durable", action: "create", sourceExcerpt: message,
+      }],
+      selectedPetId: pets[0].id,
+    });
+    assert.equal(cutover.accepted[0].claimClass, "owner_preference");
+  }
+});
+
+test("semantic role repair does not hijack pet preferences, relationships, or third-party facts", () => {
+  const message = "Luna prefers chicken food. My sister helps take care of Luna. Acme prefers wholesale orders.";
+  const relationship = {
+    ...base("claim_relationship", "relationship", "sister", "caregiver relationship", "My sister helps take care of Luna", "relationship"),
+    objectRef: "luna", qualifiers: [{ key: "role", value: "caregiver" }],
+  };
+  const thirdParty = preference("claim_acme", "acme", "ordering preference", "Acme prefers wholesale orders", "wholesale", "owner_memory");
+  const result = govern(message, frame([
+    mention("luna", "Luna", "animal"),
+    mention("sister", "My sister", "person", { ownership: "household" }),
+    mention("acme", "Acme", "organization"),
+  ], [
+    preference("claim_luna", "luna", "food preference", "Luna prefers chicken food", "chicken", "pet_memory"),
+    relationship,
+    thirdParty,
+  ]));
+  assert.equal(result.acceptedClaims[0].subject.type, "pet");
+  assert.equal(result.acceptedClaims[0].subject.id, pets[0].id);
+  assert.equal(result.acceptedClaims[1].claimKind, "relationship");
+  assert.equal(result.acceptedClaims[1].subject.type, "person");
+  assert.equal(result.acceptedClaims[2].subject.type, "organization");
+  assert.equal(result.acceptedClaims[2].subject.id, null);
+  assert.equal(result.acceptedClaims[2].persistenceEligible, false);
 });
 
 test("v2 creates explicit correction and retraction relations", () => {

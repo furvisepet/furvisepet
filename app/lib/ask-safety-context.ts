@@ -1,4 +1,5 @@
 import type { CareEntryRow } from "./supabase";
+import type { ProposedSemanticFrame } from "./intelligence/semantic-frame/types.ts";
 
 export type AskConcernTag =
   | "breathing_difficulty"
@@ -24,13 +25,15 @@ export type RecentAskUpdate = {
 };
 
 type ConversationTurn = { role: string; text: string };
+type ActiveConcernMessageState = "worsening" | "still_active" | "improved" | "resolved" | "recurrence" | "unclear" | "unrelated";
+type ConcernConcept = { normalized_key: string };
 
 const concernPatterns: Array<{ tag: AskConcernTag; pattern: RegExp }> = [
   { tag: "breathing_difficulty", pattern: /\b(short(?:ness|age) of breath|trouble breathing|difficulty breathing|difficult breathing|labou?red breathing|open[- ]mouth breathing|breathing (?:hard|heavily|fast)|deep breaths?|gasping|cannot breathe|can't breathe)\b/i },
   { tag: "collapse", pattern: /\b(collapse[ds]?|unconscious|fainted|nonresponsive)\b/i },
   { tag: "seizure", pattern: /\b(seizure|seizing|convulsion)\b/i },
   { tag: "severe_bleeding", pattern: /\b(severe bleeding|bleeding heavily|bleeding (?:will not|won't) stop|blood in (?:vomit|stool))\b/i },
-  { tag: "repeated_vomiting", pattern: /\b(repeated vomiting|keeps vomiting|vomiting repeatedly|unable to keep water down)\b/i },
+  { tag: "repeated_vomiting", pattern: /\b(repeated vomiting|keeps vomiting|vomiting repeatedly|unable to keep water down|cannot keep water down|can't keep water down)\b/i },
   { tag: "inability_to_urinate", pattern: /\b(cannot urinate|can't urinate|unable to urinate|straining to pee|blocked urine)\b/i },
   { tag: "extreme_lethargy", pattern: /\b(extreme lethargy|severe weakness|barely moving|cannot stand|can't stand|unusually tired|very tired)\b/i },
   { tag: "toxin_exposure", pattern: /\b(toxin|toxic|poison(?:ing)?|antifreeze|rat poison|ate (?:chocolate|grapes|raisins))\b/i },
@@ -107,6 +110,37 @@ export function evaluateAskSafetyContext({
       ? "urgent" as const
       : recentlyResolvedConcernTags.length ? "monitor" as const : "normal" as const,
   };
+}
+
+export function isHistoricalSafetyRelevantToTurn({
+  activeConcerns,
+  concernStateHint,
+  currentMessage,
+  frame,
+}: {
+  activeConcerns: ConcernConcept[];
+  concernStateHint?: ActiveConcernMessageState;
+  currentMessage: string;
+  frame?: ProposedSemanticFrame;
+}) {
+  if (detectAskConcernTags(currentMessage).length) return true;
+  if (["worsening", "still_active", "improved", "resolved", "recurrence"].includes(concernStateHint || "")) return true;
+  if (!activeConcerns.length || !frame) return false;
+
+  const activeConcepts = new Set(activeConcerns.map((concern) => normalizeConceptKey(concern.normalized_key)).filter(Boolean));
+  const currentConcepts = new Set(frame.claims
+    .filter((claim) => claim.kind === "assertion" || claim.kind === "event" || claim.kind === "state_transition")
+    .flatMap((claim) => claim.kind === "state_transition"
+      ? [claim.predicate.label, claim.targetConcept.label]
+      : [claim.predicate.label])
+    .map(normalizeConceptKey)
+    .filter(Boolean));
+  if ([...currentConcepts].some((concept) => activeConcepts.has(concept))) return true;
+
+  const asksAboutCurrentSubject = frame.discourseActs.some((act) => act.kind === "question")
+    && frame.mentions.some((mention) => mention.coarseType === "animal")
+    && frame.claims.length === 0;
+  return asksAboutCurrentSubject;
 }
 
 export function concernKeyToAskTags(key: string, title = ""): AskConcernTag[] {
@@ -202,6 +236,10 @@ function effectiveTimestamp(entry: Pick<CareEntryRow, "occurred_at" | "created_a
 
 function normalizeCareCategory(category: string) {
   return category.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function normalizeConceptKey(value: string) {
+  return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
 function uniqueConcernTags(tags: AskConcernTag[]) {
