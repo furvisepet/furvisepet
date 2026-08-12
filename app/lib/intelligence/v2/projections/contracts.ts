@@ -38,7 +38,7 @@ export function planV2ProjectionRebuild(claims: GovernedSemanticClaim[]): V2Proj
 }
 
 function projectClaim(claim: GovernedSemanticClaim): V2ProjectionRecord[] {
-  const base = { sourceClaimKey: claim.sourceLocalClaimKey, subjectId: claim.subject.id, conceptKey: claim.canonicalConceptKey };
+  const base = { sourceClaimKey: claim.sourceLocalClaimKey, subjectId: claim.subject.id, conceptKey: claim.canonicalConceptKey || claim.conceptKey };
   const records: V2ProjectionRecord[] = [];
   if (claim.persistenceDestination === "history") records.push({ ...base, projection: "history", version: V2_PROJECTION_VERSIONS.history, payload: { claimKind: claim.claimKind } });
   if (claim.persistenceDestination === "pet_memory" || claim.persistenceDestination === "owner_memory") records.push({ ...base, projection: "memories", version: V2_PROJECTION_VERSIONS.memories, payload: { destination: claim.persistenceDestination } });
@@ -49,4 +49,3 @@ function projectClaim(claim: GovernedSemanticClaim): V2ProjectionRecord[] {
   if (claim.persistenceDestination === "current_state" || claim.lifecycleRole) records.push({ ...base, projection: "currentState", version: V2_PROJECTION_VERSIONS.currentState, payload: { transition: claim.lifecycleTransition } });
   return records;
 }
-

@@ -65,6 +65,8 @@ export type LifecycleTransition =
 
 export type ClaimOperation = "assert" | "retract" | "correct" | "supersede" | "confirm" | "forget" | "dismiss_lifecycle";
 export type ClaimRelationType = "retracts" | "corrects" | "supersedes" | "confirms" | "derived_from" | "dismisses_lifecycle";
+export type ConceptResolutionStatus = "provisional" | "canonical";
+export type ConceptAuthority = "provisional_normalizer" | "governed_registry";
 
 export type GovernedClaimRelation = {
   sourceLocalRelationKey: string;
@@ -76,9 +78,11 @@ export type GovernedClaimRelation = {
 };
 
 export type GovernedSemanticClaim = ResolvedSemanticClaim & {
-  canonicalConceptKey: string;
+  conceptKey: string;
+  canonicalConceptKey: string | null;
   conceptVersion: string;
-  conceptAuthority: "deterministic_v2";
+  conceptResolutionStatus: ConceptResolutionStatus;
+  conceptAuthority: ConceptAuthority;
   claimKind: SemanticClaimKind;
   operationType: ClaimOperation;
   structuredValue: unknown;
@@ -90,6 +94,8 @@ export type GovernedSemanticClaim = ResolvedSemanticClaim & {
   governedConfidence: number;
   persistenceDestination: SemanticPersistenceHint;
   persistenceEligible: boolean;
+  proposedPersistenceHint: SemanticPersistenceHint;
+  persistencePolicyReasons: string[];
   persistencePermission: "shadow_only";
   provenanceClassification: "ask_v2_shadow";
   governanceMetadata: Record<string, unknown>;
@@ -148,8 +154,24 @@ export type GovernedSemanticTurn = {
 export type ServerOwnedClaimAuthority = {
   authenticatedUserId: string;
   ownedEntityIds: ReadonlySet<string>;
-  canonicalConceptKey: string;
+  canonicalConceptKey: string | null;
+  conceptResolutionStatus: ConceptResolutionStatus;
   persistencePermission: "shadow_only";
   serverEpisodeId: string | null;
 };
 
+export type GovernedConceptIdentity = {
+  key: string;
+  version: string;
+};
+
+export type GovernedEpisodeConceptIdentity = GovernedConceptIdentity & {
+  episodeId: string;
+  status: "canonical";
+};
+
+export type PreviousClaimTarget = {
+  claimId: string;
+  subjectId: string | null;
+  conceptKey: string;
+};

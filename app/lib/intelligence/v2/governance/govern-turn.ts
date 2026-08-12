@@ -2,7 +2,7 @@ import type { CareEpisode } from "../../episodes/types.ts";
 import { buildRecentPetIds, type EligibleSemanticPet } from "../../entities/candidate-retrieval.ts";
 import { normalizeClaimKind } from "../../semantic-frame/normalize-claim-kind.ts";
 import type { ProposedSemanticClaim, ProposedSemanticFrame } from "../../semantic-frame/types.ts";
-import { normalizeClaimConceptV2 } from "../concepts/normalize.ts";
+import { resolveClaimConceptV2 } from "../concepts/normalize.ts";
 import { evaluateLifecycleCompatibilityV2 } from "../lifecycle/compatibility.ts";
 import type {
   ClaimOperation,
@@ -12,11 +12,15 @@ import type {
   RejectedSemanticClaim,
   ResolvedEntity,
   SafetyFloorMetadata,
+  GovernedConceptIdentity,
+  GovernedEpisodeConceptIdentity,
+  PreviousClaimTarget,
   V2RejectionReason,
 } from "../types.ts";
 import { groundV2Evidence } from "./evidence.ts";
 import { resolveV2Entities } from "./entities.ts";
 import { normalizeTemporalSemanticsV2 } from "./temporal.ts";
+import { decidePersistenceV2 } from "./persistence.ts";
 
 export const V2_GOVERNANCE_POLICY_VERSION = "ask_v2.governance.shadow.v1" as const;
 export const V2_MINIMUM_CLAIM_CONFIDENCE = 0.8;
@@ -29,6 +33,9 @@ export function governSemanticTurnV2(input: {
   pets: EligibleSemanticPet[];
   conversationTurns?: Array<{ text: string; role?: string }>;
   activeEpisodes?: CareEpisode[];
+  canonicalConcepts?: GovernedConceptIdentity[];
+  episodeConcepts?: GovernedEpisodeConceptIdentity[];
+  previousClaimTargets?: Record<string, PreviousClaimTarget>;
   safetyFloor?: Omit<SafetyFloorMetadata, "policyVersion">;
 }): GovernedSemanticTurn {
   const evidence = groundV2Evidence(input.frame, input.sourceMessage);
@@ -48,7 +55,7 @@ export function governSemanticTurnV2(input: {
     if ("reason" in rejection) rejectedClaims.push(rejection);
     else {
       acceptedClaims.push(rejection);
-      relations.push(...relationsForClaim(rejection, evidence.frame.claims));
+      relations.push(...relationsForClaim(rejection, evidence.frame.claims, input.previousClaimTargets || {}));
     }
   }
   const acceptedKeys = new Set(acceptedClaims.map((claim) => claim.sourceLocalClaimKey));
@@ -89,12 +96,13 @@ function governOneClaim(input: {
     const reason = claim.subjectRef ? input.entities.failuresByMention.get(claim.subjectRef) : "ENTITY_UNRESOLVED";
     return reject(reason || "ENTITY_UNRESOLVED", "entity", true);
   }
-  const concept = normalizeClaimConceptV2(claim);
+  const concept = resolveClaimConceptV2(claim, input.input.canonicalConcepts);
   if (!concept) return reject("CONCEPT_INVALID", "concept");
   const temporal = normalizeTemporalSemanticsV2(claim.temporal);
   if (!temporal) return reject("TEMPORAL_INVALID", "temporal");
   const lifecycle = evaluateLifecycleCompatibilityV2({
-    claim, canonicalConceptKey: concept.key, subjectId: subject.id, activeEpisodes: input.input.activeEpisodes || [],
+    claim, concept, subjectId: subject.id, activeEpisodes: input.input.activeEpisodes || [],
+    episodeConcepts: input.input.episodeConcepts || [],
   });
   if (!lifecycle.compatible) return reject("LIFECYCLE_INCOMPATIBLE", "lifecycle", true);
 
@@ -106,8 +114,16 @@ function governOneClaim(input: {
   if (claim.kind === "relationship" && !input.entities.subjectsByMention.has(claim.objectRef)) {
     return reject(input.entities.failuresByMention.get(claim.objectRef) || "ENTITY_UNRESOLVED", "entity", true);
   }
-  const persistenceDestination = claim.persistenceHint;
-  const persistenceEligible = persistenceDestination !== "none";
+  const operationType = operationForClaim(claim);
+  const correctionTargetResolved = claim.kind !== "correction" || Boolean(resolveCorrectionTarget(claim, input.evidence.frame.claims, input.input.previousClaimTargets || {}));
+  if (!correctionTargetResolved) return reject("CORRECTION_TARGET_UNRESOLVED", "permission", true);
+  const governedConfidence = Math.min(claim.uncertainty.confidence, subject.confidence);
+  const durability = claim.kind === "assertion" ? claim.durability : "unknown";
+  const persistence = decidePersistenceV2({
+    subjectType: subject.type, claimKind: claim.kind, operation: operationType, durability, temporal,
+    lifecycleRole: lifecycle.role, governedConfidence, modality: claim.modality,
+    correctionTargetResolved, safetyFloor: input.safetyFloor,
+  });
   return {
     sourceLocalClaimKey: claim.localId,
     proposed: claim,
@@ -116,23 +132,27 @@ function governOneClaim(input: {
     groundedEvidence: input.evidence.groundedByClaim.get(claim.localId) || [],
     temporal,
     extractionConfidence: claim.uncertainty.confidence,
-    canonicalConceptKey: concept.key,
+    conceptKey: concept.key,
+    canonicalConceptKey: concept.canonicalKey,
     conceptVersion: concept.version,
-    conceptAuthority: "deterministic_v2",
+    conceptResolutionStatus: concept.status,
+    conceptAuthority: concept.authority,
     claimKind: claim.kind,
-    operationType: operationForClaim(claim),
+    operationType,
     structuredValue: structuredValue(claim),
     unit: claim.kind === "assertion" ? claim.unit : null,
-    durability: claim.kind === "assertion" ? claim.durability : "unknown",
+    durability,
     lifecycleRole: lifecycle.role,
     lifecycleTransition: lifecycle.transition,
     serverEpisodeId: lifecycle.serverEpisodeId,
-    governedConfidence: Math.min(claim.uncertainty.confidence, subject.confidence),
-    persistenceDestination,
-    persistenceEligible,
+    governedConfidence,
+    persistenceDestination: persistence.destination,
+    persistenceEligible: persistence.eligible,
+    proposedPersistenceHint: claim.persistenceHint,
+    persistencePolicyReasons: persistence.reasons,
     persistencePermission: "shadow_only",
     provenanceClassification: "ask_v2_shadow",
-    governanceMetadata: { conceptSource: concept.source, lifecycleReason: lifecycle.reason },
+    governanceMetadata: { conceptSource: concept.source, lifecycleReason: lifecycle.reason, persistenceReasons: persistence.reasons },
     safetyFloorMetadata: input.safetyFloor,
   };
 }
@@ -155,7 +175,11 @@ function structuredValue(claim: ProposedSemanticClaim): unknown {
   return { operation: claim.operation, target: claim.target, replacementClaimRef: claim.replacementClaimRef };
 }
 
-function relationsForClaim(claim: GovernedSemanticClaim, allClaims: ProposedSemanticClaim[]): GovernedClaimRelation[] {
+function relationsForClaim(
+  claim: GovernedSemanticClaim,
+  allClaims: ProposedSemanticClaim[],
+  previousClaimTargets: Record<string, PreviousClaimTarget>,
+): GovernedClaimRelation[] {
   if (claim.proposed.kind !== "correction") return [];
   const proposed = claim.proposed;
   const targetLocal = proposed.target.claimRef && allClaims.some((item) => item.localId === proposed.target.claimRef)
@@ -165,19 +189,29 @@ function relationsForClaim(claim: GovernedSemanticClaim, allClaims: ProposedSema
   const relationType = proposed.operation === "retract" || proposed.operation === "forget" ? "retracts"
     : proposed.operation === "confirm" ? "confirms" : "corrects";
   const target = targetLocal || replacementLocal;
-  if (!target || target === claim.sourceLocalClaimKey) return [];
+  const previous = proposed.target.claimRef ? previousClaimTargets[proposed.target.claimRef] : undefined;
+  if ((!target && !previous) || target === claim.sourceLocalClaimKey) return [];
   return [{
     sourceLocalRelationKey: `relation_${claim.sourceLocalClaimKey}`,
     fromLocalClaimKey: claim.sourceLocalClaimKey,
-    toLocalClaimKey: target,
-    toClaimId: null,
+    toLocalClaimKey: target || null,
+    toClaimId: target ? null : previous?.claimId || null,
     relationType,
     metadata: { operation: proposed.operation },
   }];
+}
+
+function resolveCorrectionTarget(
+  claim: Extract<ProposedSemanticClaim, { kind: "correction" }>,
+  allClaims: ProposedSemanticClaim[],
+  previousClaimTargets: Record<string, PreviousClaimTarget>,
+) {
+  const claimRef = claim.target.claimRef;
+  if (!claimRef || claimRef === claim.localId) return null;
+  return allClaims.find((candidate) => candidate.localId === claimRef) || previousClaimTargets[claimRef] || null;
 }
 
 function uniqueEntities(entities: ResolvedEntity[]) {
   return entities.filter((entity, index) => entities.findIndex((candidate) =>
     candidate.entityType === entity.entityType && candidate.entityId === entity.entityId) === index);
 }
-

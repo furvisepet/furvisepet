@@ -5,7 +5,8 @@
 create table if not exists public.semantic_claims (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  source_message_id uuid references public.ask_conversation_messages(id) on delete cascade,
+  source_message_id uuid references public.ask_conversation_messages(id) on delete set null,
+  source_message_lineage_id uuid not null,
   source_type text not null check (source_type in (
     'ask_message', 'manual_history', 'legacy_import', 'system'
   )),
@@ -20,10 +21,16 @@ create table if not exists public.semantic_claims (
   operation_type text not null default 'assert' check (operation_type in (
     'assert', 'retract', 'correct', 'supersede', 'confirm', 'forget', 'dismiss_lifecycle'
   )),
-  canonical_concept_key text not null check (
-    canonical_concept_key ~ '^[a-z0-9]+(?:_[a-z0-9]+)*$'
-    and char_length(canonical_concept_key) <= 120
+  concept_key text not null check (
+    concept_key ~ '^[a-z0-9]+(?:_[a-z0-9]+)*$' and char_length(concept_key) <= 120
   ),
+  canonical_concept_key text check (
+    canonical_concept_key is null or (
+      canonical_concept_key ~ '^[a-z0-9]+(?:_[a-z0-9]+)*$' and char_length(canonical_concept_key) <= 120
+    )
+  ),
+  concept_resolution_status text not null check (concept_resolution_status in ('provisional', 'canonical')),
+  concept_authority text not null check (concept_authority in ('provisional_normalizer', 'governed_registry')),
   concept_version text not null check (char_length(btrim(concept_version)) between 1 and 80),
   predicate jsonb not null check (jsonb_typeof(predicate) = 'object'),
   structured_value jsonb not null default 'null'::jsonb,
@@ -70,6 +77,11 @@ create table if not exists public.semantic_claims (
   constraint semantic_claims_validity_window_check check (
     valid_from is null or valid_to is null or valid_to >= valid_from
   ),
+  constraint semantic_claims_concept_resolution_consistency_check check (
+    (concept_resolution_status = 'provisional' and concept_authority = 'provisional_normalizer' and canonical_concept_key is null)
+    or (concept_resolution_status = 'canonical' and concept_authority = 'governed_registry'
+      and canonical_concept_key is not null and canonical_concept_key = concept_key)
+  ),
   constraint semantic_claims_subject_identity_check check (
     (subject_type in ('owner', 'pet') and subject_id is not null)
     or subject_type not in ('owner', 'pet')
@@ -80,7 +92,7 @@ create table if not exists public.semantic_claims (
   ),
   unique (id, user_id),
   unique (id, user_id, subject_id),
-  unique (user_id, source_message_id, turn_idempotency_key, source_local_claim_key)
+  unique (user_id, source_message_lineage_id, turn_idempotency_key, source_local_claim_key)
 );
 
 create index if not exists semantic_claims_owner_recorded_idx
@@ -88,7 +100,7 @@ create index if not exists semantic_claims_owner_recorded_idx
 create index if not exists semantic_claims_subject_concept_time_idx
   on public.semantic_claims(user_id, subject_type, subject_id, canonical_concept_key, occurred_at, recorded_at, id);
 create index if not exists semantic_claims_source_message_idx
-  on public.semantic_claims(user_id, source_message_id, source_local_claim_key);
+  on public.semantic_claims(user_id, source_message_lineage_id, source_local_claim_key);
 create index if not exists semantic_claims_lifecycle_idx
   on public.semantic_claims(user_id, subject_id, canonical_concept_key, lifecycle_role, occurred_at)
   where lifecycle_role is not null;
@@ -166,7 +178,7 @@ alter table public.pet_care_episode_events add constraint pet_care_episode_event
 alter table public.pet_care_episode_events alter column care_entry_id drop not null;
 alter table public.pet_care_episode_events add column if not exists claim_id uuid;
 alter table public.pet_care_episode_events add constraint pet_care_episode_events_source_check
-  check (care_entry_id is not null or claim_id is not null);
+  check (num_nonnulls(care_entry_id, claim_id) = 1);
 alter table public.pet_care_episode_events add constraint pet_care_episode_events_care_entry_id_key
   unique (care_entry_id);
 alter table public.pet_care_episode_events add constraint pet_care_episode_events_claim_tenant_fk
@@ -191,6 +203,7 @@ grant select on table public.semantic_claims to service_role;
 grant select on table public.semantic_claim_relations to service_role;
 
 create or replace function public.persist_governed_semantic_turn_v2(
+  p_verified_user_id uuid,
   p_source_message_id uuid,
   p_idempotency_key uuid,
   p_frame_schema_version text,
@@ -208,7 +221,7 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  v_user_id uuid := auth.uid();
+  v_user_id uuid := p_verified_user_id;
   v_source_text text;
   v_claim jsonb;
   v_relation jsonb;
@@ -227,7 +240,7 @@ declare
   v_ordinal bigint;
 begin
   if v_user_id is null then
-    raise exception 'Authentication required' using errcode = '28000';
+    raise exception 'Server-verified user identity is required' using errcode = '28000';
   end if;
   if p_source_message_id is null or p_idempotency_key is null then
     raise exception 'Source message and idempotency key are required' using errcode = '22023';
@@ -269,7 +282,7 @@ begin
   select min(turn_payload_hash), array_agg(id order by source_local_claim_key)
   into v_existing_hash, v_claim_ids
   from public.semantic_claims
-  where user_id = v_user_id and source_message_id = p_source_message_id
+  where user_id = v_user_id and source_message_lineage_id = p_source_message_id
     and turn_idempotency_key = p_idempotency_key;
   v_claim_ids := coalesce(v_claim_ids, '{}');
   if v_existing_hash is not null then
@@ -288,11 +301,20 @@ begin
       or coalesce(v_claim->>'source_local_claim_key', '') !~ '^[A-Za-z][A-Za-z0-9_-]{0,79}$'
       or coalesce(v_claim->>'claim_kind', '') not in ('assertion','event','state_transition','preference','relationship','correction')
       or coalesce(v_claim->>'subject_type', '') not in ('owner','pet','person','organization','product','place','unknown')
-      or coalesce(v_claim->>'canonical_concept_key', '') !~ '^[a-z0-9]+(?:_[a-z0-9]+)*$'
+      or coalesce(v_claim->>'concept_key', '') !~ '^[a-z0-9]+(?:_[a-z0-9]+)*$'
+      or coalesce(v_claim->>'concept_resolution_status', '') not in ('provisional','canonical')
+      or coalesce(v_claim->>'concept_authority', '') not in ('provisional_normalizer','governed_registry')
       or jsonb_typeof(v_claim->'predicate') <> 'object'
       or jsonb_typeof(v_claim->'grounded_evidence') <> 'array'
       or jsonb_array_length(v_claim->'grounded_evidence') = 0 then
       raise exception 'Governed claim shape is invalid' using errcode = '22023';
+    end if;
+    if (v_claim->>'concept_resolution_status' = 'provisional'
+        and (nullif(v_claim->>'canonical_concept_key', '') is not null or v_claim->>'concept_authority' <> 'provisional_normalizer'))
+      or (v_claim->>'concept_resolution_status' = 'canonical'
+        and (v_claim->>'canonical_concept_key' is distinct from v_claim->>'concept_key'
+          or v_claim->>'concept_authority' <> 'governed_registry')) then
+      raise exception 'Concept authority is inconsistent' using errcode = '22023';
     end if;
 
     v_subject_id := null;
@@ -341,8 +363,9 @@ begin
     end loop;
 
     insert into public.semantic_claims(
-      user_id, source_message_id, source_type, subject_type, subject_id, resolved_entities,
-      claim_kind, operation_type, canonical_concept_key, concept_version, predicate,
+      user_id, source_message_id, source_message_lineage_id, source_type, subject_type, subject_id, resolved_entities,
+      claim_kind, operation_type, concept_key, canonical_concept_key, concept_resolution_status,
+      concept_authority, concept_version, predicate,
       structured_value, unit, polarity, modality, durability, occurred_at, valid_from,
       valid_to, temporal_precision, grounded_evidence, extraction_confidence,
       governed_confidence, frame_schema_version, governance_policy_version,
@@ -350,10 +373,11 @@ begin
       lifecycle_transition, persistence_destination, provenance_classification,
       safety_floor_metadata, governance_metadata
     ) values (
-      v_user_id, p_source_message_id, 'ask_message', v_claim->>'subject_type', v_subject_id,
+      v_user_id, p_source_message_id, p_source_message_id, 'ask_message', v_claim->>'subject_type', v_subject_id,
       coalesce(v_claim->'resolved_entities', '[]'::jsonb), v_claim->>'claim_kind',
-      coalesce(v_claim->>'operation_type', 'assert'), v_claim->>'canonical_concept_key',
-      coalesce(v_claim->>'concept_version', 'ask_v2.concepts.v1'), v_claim->'predicate',
+      coalesce(v_claim->>'operation_type', 'assert'), v_claim->>'concept_key',
+      nullif(v_claim->>'canonical_concept_key', ''), v_claim->>'concept_resolution_status',
+      v_claim->>'concept_authority', coalesce(v_claim->>'concept_version', 'ask_v2.concepts.provisional.v1'), v_claim->'predicate',
       coalesce(v_claim->'structured_value', 'null'::jsonb), nullif(btrim(v_claim->>'unit'), ''),
       coalesce(v_claim->>'polarity', 'affirmed'), coalesce(v_claim->>'modality', 'asserted'),
       coalesce(v_claim->>'durability', 'unknown'), nullif(v_claim->>'occurred_at', '')::timestamptz,
@@ -373,9 +397,13 @@ begin
       if v_claim->>'subject_type' <> 'pet' or coalesce(v_claim->>'lifecycle_role', '') = '' then
         raise exception 'Episode membership requires a pet lifecycle claim' using errcode = '22023';
       end if;
+      if v_claim->>'concept_resolution_status' <> 'canonical' or nullif(v_claim->>'canonical_concept_key', '') is null then
+        raise exception 'Episode membership requires governed canonical concept identity' using errcode = '22023';
+      end if;
       perform 1 from public.pet_care_episodes episode
       where episode.id = v_episode_id and episode.user_id = v_user_id
         and episode.pet_profile_id = v_subject_id
+        and episode.normalized_key = v_claim->>'canonical_concept_key'
       for update;
       if not found then
         raise exception 'Lifecycle episode is not owned by claim subject' using errcode = '42501';
@@ -400,7 +428,7 @@ begin
       raise exception 'Governed claim relation shape is invalid' using errcode = '22023';
     end if;
     select claim.id into v_from_claim_id from public.semantic_claims claim
-    where claim.user_id = v_user_id and claim.source_message_id = p_source_message_id
+    where claim.user_id = v_user_id and claim.source_message_lineage_id = p_source_message_id
       and claim.turn_idempotency_key = p_idempotency_key
       and claim.source_local_claim_key = v_relation->>'from_local_claim_key';
     if v_from_claim_id is null then
@@ -409,7 +437,7 @@ begin
     v_to_claim_id := null;
     if nullif(v_relation->>'to_local_claim_key', '') is not null then
       select claim.id into v_to_claim_id from public.semantic_claims claim
-      where claim.user_id = v_user_id and claim.source_message_id = p_source_message_id
+      where claim.user_id = v_user_id and claim.source_message_lineage_id = p_source_message_id
         and claim.turn_idempotency_key = p_idempotency_key
         and claim.source_local_claim_key = v_relation->>'to_local_claim_key';
     elsif nullif(v_relation->>'to_claim_id', '') is not null then
@@ -429,7 +457,7 @@ begin
 
   select array_agg(claim.id order by claim.source_local_claim_key) into v_claim_ids
   from public.semantic_claims claim
-  where claim.user_id = v_user_id and claim.source_message_id = p_source_message_id
+  where claim.user_id = v_user_id and claim.source_message_lineage_id = p_source_message_id
     and claim.turn_idempotency_key = p_idempotency_key;
   return query select coalesce(v_claim_ids, '{}'), 'ask_v2.shadow.projections.v1',
     jsonb_build_object('mode', 'shadow_only', 'claimCount', cardinality(v_claim_ids),
@@ -442,14 +470,14 @@ begin
 end;
 $$;
 
-revoke all on function public.persist_governed_semantic_turn_v2(uuid, uuid, text, text, jsonb)
+revoke all on function public.persist_governed_semantic_turn_v2(uuid, uuid, uuid, text, text, jsonb)
   from public, anon, authenticated;
-grant execute on function public.persist_governed_semantic_turn_v2(uuid, uuid, text, text, jsonb)
+grant execute on function public.persist_governed_semantic_turn_v2(uuid, uuid, uuid, text, text, jsonb)
   to service_role;
 
 comment on table public.semantic_claims is
   'Ask v2 append-oriented governed semantic claim ledger. Shadow-only in Phase 1.';
 comment on table public.semantic_claim_relations is
   'Directed, same-tenant semantic operations and provenance between governed claims.';
-comment on function public.persist_governed_semantic_turn_v2(uuid, uuid, text, text, jsonb) is
-  'Phase 1 service-only shadow persistence. Not production Ask write authority.';
+comment on function public.persist_governed_semantic_turn_v2(uuid, uuid, uuid, text, text, jsonb) is
+  'Phase 1 service-only shadow persistence. First argument is a user ID verified by the Furvise server, then revalidated against source and entity ownership. Not production Ask write authority.';

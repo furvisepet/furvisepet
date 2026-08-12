@@ -2,6 +2,7 @@ import { evidenceForPersistence } from "../governance/evidence.ts";
 import type { GovernedSemanticClaim, GovernedSemanticTurn } from "../types.ts";
 
 export type PersistGovernedSemanticTurnV2Args = {
+  p_verified_user_id: string;
   p_source_message_id: string;
   p_idempotency_key: string;
   p_frame_schema_version: string;
@@ -33,7 +34,10 @@ function serializeClaim(claim: GovernedSemanticClaim, sourceMessage: string) {
     resolved_entities: claim.resolvedEntities.map((entity) => ({ entity_type: entity.entityType, entity_id: entity.entityId })),
     claim_kind: claim.claimKind,
     operation_type: claim.operationType,
+    concept_key: claim.conceptKey,
     canonical_concept_key: claim.canonicalConceptKey,
+    concept_resolution_status: claim.conceptResolutionStatus,
+    concept_authority: claim.conceptAuthority,
     concept_version: claim.conceptVersion,
     predicate: claim.proposed.predicate,
     structured_value: claim.structuredValue,

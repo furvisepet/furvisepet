@@ -1,6 +1,6 @@
-import type { CareEpisode } from "../../episodes/types.ts";
 import type { ProposedSemanticClaim } from "../types.ts";
-import type { LifecycleRole, LifecycleTransition } from "../types.ts";
+import type { GovernedEpisodeConceptIdentity, LifecycleRole, LifecycleTransition } from "../types.ts";
+import type { V2ConceptNormalization } from "../concepts/normalize.ts";
 
 export type V2LifecycleDecision = {
   compatible: boolean;
@@ -12,18 +12,27 @@ export type V2LifecycleDecision = {
 
 export function evaluateLifecycleCompatibilityV2(input: {
   claim: ProposedSemanticClaim;
-  canonicalConceptKey: string;
+  concept: V2ConceptNormalization;
   subjectId: string | null;
-  activeEpisodes: CareEpisode[];
+  activeEpisodes: Array<{ id: string; pet_profile_id: string; status: string }>;
+  episodeConcepts: readonly GovernedEpisodeConceptIdentity[];
 }): V2LifecycleDecision {
   if (input.claim.kind !== "event" && input.claim.kind !== "state_transition") {
     return { compatible: true, role: null, transition: null, serverEpisodeId: null, reason: "not_lifecycle" };
   }
   const transition = claimTransition(input.claim);
   const role = lifecycleRole(input.claim, transition);
-  const candidates = input.activeEpisodes.filter((episode) => episode.pet_profile_id === input.subjectId
-    && (episode.status === "active" || episode.status === "monitoring")
-    && compatibleConcept(episode.normalized_key, input.canonicalConceptKey));
+  const candidates = input.concept.status === "canonical" ? input.activeEpisodes.filter((episode) => {
+    const identity = input.episodeConcepts.find((candidate) => candidate.episodeId === episode.id);
+    return episode.pet_profile_id === input.subjectId
+      && (episode.status === "active" || episode.status === "monitoring")
+      && identity?.status === "canonical"
+      && identity.key === input.concept.canonicalKey;
+  }) : [];
+  const requiresActiveEpisode = role === "resolution" || ["continuation", "improvement", "worsening"].includes(role);
+  if (requiresActiveEpisode && input.concept.status !== "canonical") {
+    return { compatible: false, role, transition, serverEpisodeId: null, reason: "provisional_concept_cannot_bind_lifecycle" };
+  }
   if (role === "resolution" && candidates.length !== 1) {
     return { compatible: false, role, transition, serverEpisodeId: null, reason: "terminal_requires_unique_active_episode" };
   }
@@ -57,8 +66,4 @@ function lifecycleRole(claim: ProposedSemanticClaim, transition: LifecycleTransi
   if (transition === "recurred") return "recurrence";
   if (claim.kind === "event" && claim.lifecycle.resultingState === "active") return "opening";
   return "unknown";
-}
-
-function compatibleConcept(episodeKey: string, claimKey: string) {
-  return episodeKey === claimKey || episodeKey.endsWith(`_${claimKey}`) || claimKey.endsWith(`_${episodeKey}`);
 }

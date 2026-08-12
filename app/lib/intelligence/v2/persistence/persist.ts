@@ -4,12 +4,14 @@ import type { GovernedSemanticTurn } from "../types.ts";
 
 /** Phase 1 verification helper. Production Ask must not call this module. */
 export async function persistGovernedSemanticTurnV2Shadow(input: {
-  supabase: SupabaseClient;
+  serviceClient: SupabaseClient;
+  verifiedUserId: string;
   turn: GovernedSemanticTurn;
   sourceMessage: string;
   idempotencyKey: string;
 }) {
-  return input.supabase.rpc("persist_governed_semantic_turn_v2", {
+  return input.serviceClient.rpc("persist_governed_semantic_turn_v2", {
+    p_verified_user_id: input.verifiedUserId,
     p_source_message_id: input.turn.sourceMessageId,
     p_idempotency_key: input.idempotencyKey,
     p_frame_schema_version: input.turn.frameSchemaVersion,
@@ -17,4 +19,3 @@ export async function persistGovernedSemanticTurnV2Shadow(input: {
     p_governed_turn: serializeGovernedSemanticTurnV2(input.turn, input.sourceMessage),
   });
 }
-

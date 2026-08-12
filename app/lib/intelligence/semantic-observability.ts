@@ -282,7 +282,9 @@ export function buildShadowSemanticAnalysis(input: {
           v2GovernedClaimCount: v2Turn.acceptedClaims.length,
           claimCountDelta: v2Turn.acceptedClaims.length - productionKinds.length,
           subjectBindingAgreement: sameSet(productionSubjects, v2Turn.acceptedClaims.map((claim) => `${claim.subject.type}:${claim.subject.id}`)),
-          conceptIdentityAgreement: sameSet(productionConcepts, v2Turn.acceptedClaims.map((claim) => claim.canonicalConceptKey)),
+          conceptIdentityAgreement: sameSet(productionConcepts, v2Turn.acceptedClaims
+            .map((claim) => claim.canonicalConceptKey)
+            .filter((key): key is string => Boolean(key))),
           lifecycleRoleAgreement: sameMultiset(legacyLifecycleRoles, v2LifecycleRoles),
           persistenceEligibilityAgreement: legacyPersistenceEligible === v2PersistenceEligible,
         },
