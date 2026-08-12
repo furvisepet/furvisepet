@@ -1,6 +1,7 @@
 import { normalizeConceptLabel } from "../../concepts/normalize-concept.ts";
 import type { IntelligenceLearning } from "../../types.ts";
 import type { GovernedSemanticClaim, GovernedSemanticTurn } from "../types.ts";
+import { deduplicateGovernedClaims } from "../governance/deduplicate.ts";
 
 export type Phase3ClaimClass = "owner_preference" | "pet_preference" | "owner_fact" | "pet_fact" | "relationship";
 export type Phase3ConceptPolicy = { conceptKind: string; lifecycleCapable: boolean };
@@ -50,21 +51,34 @@ export function selectPhase3LowRiskTurn(input: {
   selectedPetId: string;
 }) {
   const decisions = input.turn.acceptedClaims.map((claim) => decidePhase3LowRiskClaim(claim, input.conceptPolicies));
-  const accepted = decisions.filter((decision) => decision.eligible && hasMatchingLegacyLearning(decision.claim, input.legacyLearnings, input.selectedPetId));
-  const acceptedKeys = new Set(accepted.map((decision) => decision.claim.sourceLocalClaimKey));
-  const acceptedClaims = accepted.map((decision) => decision.claim);
+  const matched = decisions.filter((decision) => decision.eligible && hasMatchingLegacyLearning(decision.claim, input.legacyLearnings, input.selectedPetId));
+  const matchedKeys = new Set(matched.map((decision) => decision.claim.sourceLocalClaimKey));
+  const deduplicated = deduplicateGovernedClaims(
+    matched.map((decision) => decision.claim),
+    input.turn.relations.filter((relation) => matchedKeys.has(relation.fromLocalClaimKey)
+      && (!relation.toLocalClaimKey || matchedKeys.has(relation.toLocalClaimKey))),
+  );
+  const acceptedByOriginalKey = new Map(matched.map((decision) => [decision.claim.sourceLocalClaimKey, decision]));
+  const accepted = deduplicated.claims.map((claim) => ({
+    ...acceptedByOriginalKey.get(claim.sourceLocalClaimKey)!,
+    claim,
+  }));
+  const acceptedOrCollapsedKeys = new Set([
+    ...accepted.map((decision) => decision.claim.sourceLocalClaimKey),
+    ...deduplicated.duplicates.flatMap((duplicate) => duplicate.collapsedSourceLocalClaimKeys),
+  ]);
   return {
     accepted,
-    rejected: decisions.filter((decision) => !acceptedKeys.has(decision.claim.sourceLocalClaimKey)).map((decision) => ({
+    rejected: decisions.filter((decision) => !acceptedOrCollapsedKeys.has(decision.claim.sourceLocalClaimKey)).map((decision) => ({
       ...decision,
       reason: decision.eligible ? "no_exact_legacy_learning_match" : decision.reason,
     })),
+    deduplicated: deduplicated.duplicates,
     turn: {
       ...input.turn,
-      acceptedClaims,
+      acceptedClaims: deduplicated.claims,
       rejectedClaims: [],
-      relations: input.turn.relations.filter((relation) => acceptedKeys.has(relation.fromLocalClaimKey)
-        && (!relation.toLocalClaimKey || acceptedKeys.has(relation.toLocalClaimKey))),
+      relations: deduplicated.relations,
     },
   };
 }
