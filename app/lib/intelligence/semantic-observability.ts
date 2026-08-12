@@ -143,7 +143,7 @@ export function buildShadowSemanticAnalysis(input: {
   const references = resolveShadowReferences(frame, bindings);
   const evidence = validateSemanticFrameEvidence(frame, input.message);
   const effectiveBindings = bindReferences(bindings, references);
-  const claimKindNormalizations = frame.claims.map(normalizeClaimKind);
+  const claimKindNormalizations = frame.claims.map((claim) => normalizeClaimKind(claim));
   const evidenceFailureReasons = claimEvidenceFailureReasons(grounding.failures);
   const governance = frame.claims.map((claim) => governShadowClaim(
     claim, effectiveBindings, evidence.invalidClaimIds, evidenceFailureReasons.get(claim.localId), input.activeEpisodes,

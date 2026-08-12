@@ -33,6 +33,10 @@ const preference = (localId, subjectRef, predicate, surfaceText, value, hint) =>
   ...base(localId, "preference", subjectRef, predicate, surfaceText, hint), preference: "prefer",
   object: { concept: concept(predicate), value }, constraints: [],
 });
+const assertion = (localId, subjectRef, predicate, surfaceText, value, hint = "owner_memory") => ({
+  ...base(localId, "assertion", subjectRef, predicate, surfaceText, hint),
+  value, unit: null, durability: "durable",
+});
 const event = (localId, subjectRef, predicate, surfaceText, phase = "started", resultingState = "active") => ({
   ...base(localId, "event", subjectRef, predicate, surfaceText, "history"),
   participants: [{ role: "subject", entityRef: subjectRef }], lifecycle: { phase, boundedInMessage: false, resultingState },
@@ -121,6 +125,76 @@ test("first-person preference roles bind the verified owner while arbitrary stor
     });
     assert.equal(cutover.accepted[0].claimClass, "owner_preference");
   }
+});
+
+test("governed preference concepts normalize model assertions before subject governance", () => {
+  const ownerMessage = "I prefer shopping at Market Moon.";
+  const ownerResult = govern(ownerMessage, frame([
+    mention("store", "Market Moon", "organization"),
+  ], [
+    assertion("claim_owner_store", "store", "preferred retailer", ownerMessage, "Market Moon"),
+  ]), {
+    canonicalConcepts: [{
+      key: "preferred_retailer", version: "furvise.core.v1", conceptKind: "preference", lifecycleCapable: false,
+    }],
+  });
+  assert.equal(ownerResult.rejectedClaims.length, 0);
+  assert.equal(ownerResult.acceptedClaims[0].proposed.kind, "assertion");
+  assert.equal(ownerResult.acceptedClaims[0].claimKind, "preference");
+  assert.equal(ownerResult.acceptedClaims[0].subject.type, "owner");
+  assert.equal(ownerResult.acceptedClaims[0].subject.id, ownerId);
+  assert.equal(ownerResult.acceptedClaims[0].structuredValue.object.value, "Market Moon");
+  assert.equal(ownerResult.acceptedClaims[0].canonicalConceptKey, "preferred_retailer");
+  assert.equal(ownerResult.acceptedClaims[0].persistenceDestination, "owner_memory");
+  assert.equal(ownerResult.acceptedClaims[0].governanceMetadata.claimKindAuthority, "governed_concept");
+
+  const petMessage = "Luna prefers bison food.";
+  const petResult = govern(petMessage, frame([mention("luna", "Luna", "animal")], [
+    assertion("claim_pet_food", "luna", "food preference", petMessage, "bison", "pet_memory"),
+  ]), {
+    canonicalConcepts: [{
+      key: "food_preference", version: "furvise.core.v1", conceptKind: "preference", lifecycleCapable: false,
+    }],
+  });
+  assert.equal(petResult.acceptedClaims[0].proposed.kind, "assertion");
+  assert.equal(petResult.acceptedClaims[0].claimKind, "preference");
+  assert.equal(petResult.acceptedClaims[0].subject.type, "pet");
+  assert.equal(petResult.acceptedClaims[0].subject.id, pets[0].id);
+  assert.equal(petResult.acceptedClaims[0].structuredValue.object.value, "bison");
+  assert.equal(petResult.acceptedClaims[0].persistenceDestination, "pet_memory");
+
+  const cutover = selectPhase3LowRiskTurn({
+    turn: ownerResult,
+    conceptPolicies: new Map([["preferred_retailer", { conceptKind: "preference", lifecycleCapable: false }]]),
+    legacyLearnings: [{
+      subjectType: "owner", subjectId: null, category: "preference", factKey: "preferred_retailer", factValue: "Market Moon",
+      confidence: 0.96, importance: "medium", durability: "durable", action: "create", sourceExcerpt: ownerMessage,
+    }],
+    selectedPetId: pets[2].id,
+  });
+  assert.equal(cutover.accepted[0].claimClass, "owner_preference");
+  assert.equal(cutover.accepted[0].claim.subject.id, ownerId);
+});
+
+test("concept normalization does not turn organization facts or symptoms into preferences", () => {
+  const organizationMessage = "Acme operates warehouses.";
+  const organization = govern(organizationMessage, frame([mention("acme", "Acme", "organization")], [
+    assertion("claim_org", "acme", "organization profile", organizationMessage, "warehouses"),
+  ]), {
+    canonicalConcepts: [{ key: "organization_profile", version: "test.v1", conceptKind: "profile", lifecycleCapable: false }],
+  });
+  assert.equal(organization.acceptedClaims[0].claimKind, "assertion");
+  assert.equal(organization.acceptedClaims[0].subject.type, "organization");
+  assert.equal(organization.acceptedClaims[0].persistenceEligible, false);
+
+  const symptomMessage = "Luna is vomiting.";
+  const symptom = govern(symptomMessage, frame([mention("luna", "Luna", "animal")], [
+    assertion("claim_symptom", "luna", "vomiting", symptomMessage, true, "current_state"),
+  ]), {
+    canonicalConcepts: [{ key: "vomiting", version: "furvise.core.v1", conceptKind: "symptom", lifecycleCapable: true }],
+  });
+  assert.equal(symptom.acceptedClaims[0].claimKind, "assertion");
+  assert.equal(symptom.acceptedClaims[0].governanceMetadata.claimKindAuthority, "model_structure");
 });
 
 test("semantic role repair does not hijack pet preferences, relationships, or third-party facts", () => {

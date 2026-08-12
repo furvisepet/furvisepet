@@ -181,6 +181,27 @@ test("an unrelated preference turn is not hijacked by an active urgent concern",
   assert.doesNotMatch(result.answer.summary, /emergency veterinarian/i);
 });
 
+test("good morning has zero persistence context and no historical urgent spillover", () => {
+  const concerns = [{
+    id: "concern-vomiting", user_id: "user-1", pet_profile_id: "pet-mani", title: "Vomiting",
+    normalized_key: "vomiting", status: "active", severity: "urgent", source_care_entry_id: "vomiting",
+    opened_at: "2026-07-27T18:00:00Z", updated_at: "2026-07-27T18:00:00Z", resolved_at: null, resolution_note: null,
+  }];
+  const context = buildAskContext(input({
+    concerns,
+    question: "Good morning.",
+    concernStateHint: "unrelated",
+    turnSemanticFrame: {
+      schemaVersion: "furvise.semantic-frame.proposed.v1.5", frameLocalId: "frame_greeting",
+      discourseActs: [{ kind: "acknowledgement", confidence: 0.99 }], mentions: [], references: [], claims: [],
+      uncertainty: { needsClarification: false, clarificationQuestion: null, reasons: [] },
+    },
+  }));
+  assert.equal(context.minimumSafetyLevel, "normal");
+  assert.equal(context.records.some((record) => record.sourceType === "active_concern"), false);
+  assert.equal(context.promptContext.activeConcernTags.length, 0);
+});
+
 test("a resolved urgent update is marked resolved and does not force urgent mode", async () => {
   const entries = [
     care({ id: "symptom", category: "symptom", title: "Deep breathing", note: "Taking deep breaths", occurred_at: "2026-07-27T16:00:00Z" }),

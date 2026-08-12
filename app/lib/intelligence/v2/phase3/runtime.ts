@@ -197,7 +197,12 @@ async function loadPhase3Graph(serviceClient: SupabaseClient, userId: string) {
   return {
     claims,
     relations,
-    canonicalConcepts: concepts.map((concept) => ({ key: String(concept.canonical_key), version: String(concept.concept_version) })),
+    canonicalConcepts: concepts.map((concept) => ({
+      key: String(concept.canonical_key),
+      version: String(concept.concept_version),
+      conceptKind: String(concept.concept_kind) as GovernedConceptIdentity["conceptKind"],
+      lifecycleCapable: concept.lifecycle_capable === true,
+    })),
     conceptPolicies: new Map(concepts.map((concept) => [String(concept.canonical_key), {
       conceptKind: String(concept.concept_kind), lifecycleCapable: concept.lifecycle_capable === true,
     }])),
