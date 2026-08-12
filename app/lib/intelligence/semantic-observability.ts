@@ -51,6 +51,7 @@ export type SemanticComparisonMetrics = {
 export type SemanticTrace = {
   traceId: string;
   frameStatus: "valid" | "invalid";
+  frameRecovery: { applied: boolean; reason: "CLAIM_SUBJECT_REF_UNKNOWN" | null };
   schemaVersion: string;
   modelVersion: string;
   sourceMessageId: string;
@@ -236,6 +237,7 @@ export function buildShadowSemanticAnalysis(input: {
     trace: {
       traceId: input.requestId,
       frameStatus,
+      frameRecovery: input.reasoning.semanticFrameRecovery || { applied: false, reason: null },
       schemaVersion: frame.schemaVersion,
       modelVersion: input.reasoning.model,
       sourceMessageId: input.sourceMessageId,
