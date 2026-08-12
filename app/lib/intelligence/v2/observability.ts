@@ -4,6 +4,7 @@ export type V2ShadowObservation = {
   proposedClaimCount: number;
   governedClaimCount: number;
   rejectedClaimCount: number;
+  claimKinds: Array<{ claimKey: string; declaredKind: string; governedKind: string; normalized: boolean }>;
   subjectBindings: Array<{ claimKey: string; subjectType: string; status: "owned" | "external" }>;
   concepts: Array<{ claimKey: string; conceptKey: string; canonicalConceptKey: string | null; status: string; version: string }>;
   lifecycle: Array<{ claimKey: string; role: string | null; transition: string | null; episodeMatched: boolean }>;
@@ -16,6 +17,12 @@ export function observeGovernedSemanticTurnV2(turn: GovernedSemanticTurn): V2Sha
     proposedClaimCount: turn.frame.claims.length,
     governedClaimCount: turn.acceptedClaims.length,
     rejectedClaimCount: turn.rejectedClaims.length,
+    claimKinds: turn.acceptedClaims.map((claim) => ({
+      claimKey: claim.sourceLocalClaimKey,
+      declaredKind: claim.proposed.kind,
+      governedKind: claim.claimKind,
+      normalized: claim.proposed.kind !== claim.claimKind,
+    })),
     subjectBindings: turn.acceptedClaims.map((claim) => ({
       claimKey: claim.sourceLocalClaimKey, subjectType: claim.subject.type, status: claim.subject.resolution,
     })),

@@ -1,6 +1,6 @@
 import type { CareEpisode } from "../../episodes/types.ts";
 import { buildRecentPetIds, type EligibleSemanticPet } from "../../entities/candidate-retrieval.ts";
-import { normalizeClaimKind } from "../../semantic-frame/normalize-claim-kind.ts";
+import { normalizeClaimKind, type ClaimKindNormalization } from "../../semantic-frame/normalize-claim-kind.ts";
 import type { ProposedSemanticClaim, ProposedSemanticFrame } from "../../semantic-frame/types.ts";
 import { resolveClaimConceptV2 } from "../concepts/normalize.ts";
 import { evaluateLifecycleCompatibilityV2 } from "../lifecycle/compatibility.ts";
@@ -89,11 +89,18 @@ function governOneClaim(input: {
   });
   const evidenceFailure = input.evidence.rejectedByClaim.get(claim.localId);
   if (evidenceFailure) return reject(evidenceFailure, "evidence");
-  if (!normalizeClaimKind(claim).consistent) return reject("CLAIM_KIND_INCONSISTENT", "confidence");
   if (claim.uncertainty.confidence < V2_MINIMUM_CLAIM_CONFIDENCE) return reject("CLAIM_LOW_CONFIDENCE", "confidence");
   const groundedEvidence = input.evidence.groundedByClaim.get(claim.localId) || [];
+  const concept = resolveClaimConceptV2(claim, input.input.canonicalConcepts);
+  if (!concept) return reject("CONCEPT_INVALID", "concept");
+  const kind = normalizeClaimKind(claim, {
+    conceptKind: concept.conceptKind,
+    preferenceHolderSupported: preferenceHolderSupported(claim, input.evidence.frame, groundedEvidence),
+  });
+  if (!kind.consistent) return reject("CLAIM_KIND_INCONSISTENT", "confidence");
+  const governedClaim = materializeGovernedStructure(claim, kind);
   const subject = resolveV2ClaimSubject({
-    claim,
+    claim: governedClaim,
     entities: input.entities,
     frame: input.evidence.frame,
     groundedEvidence,
@@ -103,34 +110,33 @@ function governOneClaim(input: {
     const reason = claim.subjectRef ? input.entities.failuresByMention.get(claim.subjectRef) : "ENTITY_UNRESOLVED";
     return reject(reason || "ENTITY_UNRESOLVED", "entity", true);
   }
-  const concept = resolveClaimConceptV2(claim, input.input.canonicalConcepts);
-  if (!concept) return reject("CONCEPT_INVALID", "concept");
-  const temporal = normalizeTemporalSemanticsV2(claim.temporal);
+  const temporal = normalizeTemporalSemanticsV2(governedClaim.temporal);
   if (!temporal) return reject("TEMPORAL_INVALID", "temporal");
   const lifecycle = evaluateLifecycleCompatibilityV2({
-    claim, concept, subjectId: subject.id, activeEpisodes: input.input.activeEpisodes || [],
+    claim: governedClaim, concept, subjectId: subject.id, activeEpisodes: input.input.activeEpisodes || [],
     episodeConcepts: input.input.episodeConcepts || [],
   });
   if (!lifecycle.compatible) return reject("LIFECYCLE_INCOMPATIBLE", "lifecycle", true);
 
-  const relatedMentionIds = claim.kind === "relationship" ? [claim.objectRef] : claim.kind === "event" ? claim.participants.map((item) => item.entityRef) : [];
+  const relatedMentionIds = governedClaim.kind === "relationship" ? [governedClaim.objectRef]
+    : governedClaim.kind === "event" ? governedClaim.participants.map((item) => item.entityRef) : [];
   const resolvedEntities = uniqueEntities([
     ...(subject.id && subject.sourceMentionId && (subject.type === "owner" || subject.type === "pet")
       ? [{ entityType: subject.type, entityId: subject.id, sourceMentionId: subject.sourceMentionId, confidence: subject.confidence } satisfies ResolvedEntity]
       : []),
     ...relatedMentionIds.map((id) => input.entities.resolvedEntitiesByMention.get(id)),
   ].filter((item): item is ResolvedEntity => Boolean(item)));
-  if (claim.kind === "relationship" && !input.entities.subjectsByMention.has(claim.objectRef)) {
-    return reject(input.entities.failuresByMention.get(claim.objectRef) || "ENTITY_UNRESOLVED", "entity", true);
+  if (governedClaim.kind === "relationship" && !input.entities.subjectsByMention.has(governedClaim.objectRef)) {
+    return reject(input.entities.failuresByMention.get(governedClaim.objectRef) || "ENTITY_UNRESOLVED", "entity", true);
   }
-  const operationType = operationForClaim(claim);
-  const correctionTargetResolved = claim.kind !== "correction" || Boolean(resolveCorrectionTarget(claim, input.evidence.frame.claims, input.input.previousClaimTargets || {}));
+  const operationType = operationForClaim(governedClaim);
+  const correctionTargetResolved = governedClaim.kind !== "correction" || Boolean(resolveCorrectionTarget(governedClaim, input.evidence.frame.claims, input.input.previousClaimTargets || {}));
   if (!correctionTargetResolved) return reject("CORRECTION_TARGET_UNRESOLVED", "permission", true);
   const governedConfidence = Math.min(claim.uncertainty.confidence, subject.confidence);
-  const durability = claim.kind === "assertion" ? claim.durability : "unknown";
+  const durability = governedClaim.kind === "assertion" ? governedClaim.durability : "unknown";
   const persistence = decidePersistenceV2({
-    subjectType: subject.type, claimKind: claim.kind, operation: operationType, durability, temporal,
-    lifecycleRole: lifecycle.role, governedConfidence, modality: claim.modality,
+    subjectType: subject.type, claimKind: governedClaim.kind, operation: operationType, durability, temporal,
+    lifecycleRole: lifecycle.role, governedConfidence, modality: governedClaim.modality,
     correctionTargetResolved, safetyFloor: input.safetyFloor,
   });
   return {
@@ -146,10 +152,10 @@ function governOneClaim(input: {
     conceptVersion: concept.version,
     conceptResolutionStatus: concept.status,
     conceptAuthority: concept.authority,
-    claimKind: claim.kind,
+    claimKind: governedClaim.kind,
     operationType,
-    structuredValue: structuredValue(claim),
-    unit: claim.kind === "assertion" ? claim.unit : null,
+    structuredValue: structuredValue(governedClaim),
+    unit: governedClaim.kind === "assertion" ? governedClaim.unit : null,
     durability,
     lifecycleRole: lifecycle.role,
     lifecycleTransition: lifecycle.transition,
@@ -161,8 +167,40 @@ function governOneClaim(input: {
     persistencePolicyReasons: persistence.reasons,
     persistencePermission: "shadow_only",
     provenanceClassification: "ask_v2_shadow",
-    governanceMetadata: { conceptSource: concept.source, lifecycleReason: lifecycle.reason, persistenceReasons: persistence.reasons },
+    governanceMetadata: {
+      conceptSource: concept.source,
+      declaredClaimKind: claim.kind,
+      structuralClaimKind: governedClaim.kind,
+      claimKindAuthority: kind.authority,
+      lifecycleReason: lifecycle.reason,
+      persistenceReasons: persistence.reasons,
+    },
     safetyFloorMetadata: input.safetyFloor,
+  };
+}
+
+function preferenceHolderSupported(
+  claim: ProposedSemanticClaim,
+  frame: ProposedSemanticFrame,
+  evidence: Array<{ quote: string }>,
+) {
+  if (claim.kind !== "assertion") return false;
+  if (/\b(?:i|me|my|mine)\b/i.test(evidence.map((item) => item.quote).join(" "))) return true;
+  const subjectMention = claim.subjectRef ? frame.mentions.find((mention) => mention.localId === claim.subjectRef) : null;
+  return subjectMention?.coarseType === "animal";
+}
+
+function materializeGovernedStructure(
+  claim: ProposedSemanticClaim,
+  normalization: ClaimKindNormalization,
+): ProposedSemanticClaim {
+  if (normalization.structuralKind !== "preference" || claim.kind !== "assertion") return claim;
+  return {
+    ...claim,
+    kind: "preference",
+    preference: claim.polarity === "negated" ? "avoid" : "prefer",
+    object: { concept: claim.predicate, value: Array.isArray(claim.value) ? claim.value[0] ?? null : claim.value },
+    constraints: [],
   };
 }
 

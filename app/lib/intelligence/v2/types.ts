@@ -163,6 +163,8 @@ export type ServerOwnedClaimAuthority = {
 export type GovernedConceptIdentity = {
   key: string;
   version: string;
+  conceptKind?: "symptom" | "safety" | "nutrition" | "medication" | "preference" | "profile" | "relationship" | "care_fact";
+  lifecycleCapable?: boolean;
 };
 
 export type GovernedEpisodeConceptIdentity = GovernedConceptIdentity & {

@@ -10,6 +10,8 @@ export type V2ConceptNormalization = {
   status: "provisional" | "canonical";
   authority: "provisional_normalizer" | "governed_registry";
   source: "predicate" | "transition_target";
+  conceptKind: GovernedConceptIdentity["conceptKind"] | null;
+  lifecycleCapable: boolean | null;
 };
 
 export function resolveClaimConceptV2(
@@ -27,5 +29,7 @@ export function resolveClaimConceptV2(
     status: canonical ? "canonical" : "provisional",
     authority: canonical ? "governed_registry" : "provisional_normalizer",
     source: claim.kind === "state_transition" ? "transition_target" : "predicate",
+    conceptKind: canonical?.conceptKind || null,
+    lifecycleCapable: canonical ? canonical.lifecycleCapable === true : null,
   };
 }
