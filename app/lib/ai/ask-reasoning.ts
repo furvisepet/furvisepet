@@ -36,6 +36,7 @@ import type { CanonicalEventProposal, IntelligenceCareAction, IntelligenceLearni
 import { emptyProposedSemanticFrame, extractProposedSemanticFrame } from "../intelligence/semantic-frame/extract-frame.ts";
 import { proposedSemanticFrameJsonSchema } from "../intelligence/semantic-frame/schema.ts";
 import type { ProposedSemanticFrame } from "../intelligence/semantic-frame/types.ts";
+import { recoverOwnerPreferenceFrame, type OwnerPreferenceRecoveryContext } from "../intelligence/semantic-frame/recover-owner-preference.ts";
 import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-governance.ts";
 
 export type AskContextSourceType =
@@ -107,6 +108,7 @@ export type AskReasoningResult = {
   /** Diagnostic-only Phase 1 output. It never authorizes production persistence. */
   semanticFrame: ProposedSemanticFrame;
   semanticFrameValid: boolean;
+  semanticFrameRecovery: { applied: boolean; reason: "CLAIM_SUBJECT_REF_UNKNOWN" | null };
   intelligenceMetadata: {
     confidence: "low" | "medium" | "high";
     usedPetContext: boolean;
@@ -146,6 +148,7 @@ export type GenerateAskReasoningInput = BuildContextInput & {
   client?: AskReasoningOpenAiClient;
   locale: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
+  semanticFrameRecovery?: Omit<OwnerPreferenceRecoveryContext, "sourceMessage">;
 };
 
 type AskReasoningOpenAiClient = {
@@ -431,7 +434,9 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   }
   const context = buildAskContext(input);
   const request = buildProviderRequest(context.promptContext);
-  const parseOutput = (rawText: string) => parseUnifiedResponse(rawText, context.records);
+  const parseOutput = (rawText: string) => parseUnifiedResponse(rawText, context.records, input.semanticFrameRecovery
+    ? { ...input.semanticFrameRecovery, sourceMessage: input.question }
+    : undefined);
   const cooldown = getAskProviderCooldown(models.primary);
   if (cooldown.active) {
     throw new AskPipelineError("primary_provider_failed", "Ask provider is cooling down.", {
@@ -623,6 +628,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     semanticEvents: parsed.semanticEvents,
     semanticFrame: parsed.semanticFrame,
     semanticFrameValid: parsed.semanticFrameValid,
+    semanticFrameRecovery: parsed.semanticFrameRecovery,
     intelligenceMetadata: parsed.intelligenceMetadata,
   };
 }
@@ -710,7 +716,11 @@ export async function generateStructuredFeatureResponse<T>({
 
 type ParsedUnifiedResponse = Omit<AskReasoningResult, "answer" | "referencedRecords" | "model"> & { answer: string };
 
-export function parseUnifiedResponse(outputText: string, records: AskContextRecord[]): ParsedUnifiedResponse {
+export function parseUnifiedResponse(
+  outputText: string,
+  records: AskContextRecord[],
+  recoveryContext?: OwnerPreferenceRecoveryContext,
+): ParsedUnifiedResponse {
   const value = JSON.parse(outputText) as Partial<ParsedUnifiedResponse>;
   const intelligenceSafety = normalizeIntelligenceSafety(value?.intelligenceSafety);
   if (!value || typeof value.answer !== "string" || !safetyLevels.includes(value.safetyLevel as never) ||
@@ -728,7 +738,11 @@ export function parseUnifiedResponse(outputText: string, records: AskContextReco
   if (!answer) throw new Error("Ask provider returned an empty answer.");
   const relevantContextIds = [...new Set(value.relevantContextIds.filter((id): id is string => typeof id === "string" && allowedIds.has(id)))].slice(0, 8);
   const referencedTypes = new Set(relevantContextIds.map((id) => records.find((record) => record.id === id)?.sourceType).filter(Boolean));
-  const semanticFrame = extractProposedSemanticFrame(value.semanticFrame);
+  const extractedSemanticFrame = extractProposedSemanticFrame(value.semanticFrame);
+  const recovery = extractedSemanticFrame || !recoveryContext
+    ? null
+    : recoverOwnerPreferenceFrame(value.semanticFrame, recoveryContext);
+  const semanticFrame = extractedSemanticFrame || recovery?.frame || null;
   return {
     answer,
     safetyLevel: value.safetyLevel as ParsedUnifiedResponse["safetyLevel"],
@@ -762,6 +776,7 @@ export function parseUnifiedResponse(outputText: string, records: AskContextReco
     })),
     semanticFrame: semanticFrame || emptyProposedSemanticFrame(),
     semanticFrameValid: Boolean(semanticFrame),
+    semanticFrameRecovery: { applied: Boolean(recovery), reason: recovery?.reason || null },
     intelligenceMetadata: {
       confidence: "high",
       usedPetContext: referencedTypes.has("profile") || records.some((record) => record.sourceType === "profile"),

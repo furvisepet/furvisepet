@@ -13,6 +13,8 @@ import {
   getAskModelConfiguration,
 } from "../app/lib/ai/ask-reasoning.ts";
 import { buildRecentAskUpdates } from "../app/lib/ask-safety-context.ts";
+import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts/registry-policy.ts";
+import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
 const now = new Date("2026-07-27T20:00:00Z");
 
@@ -92,6 +94,41 @@ test("normal questions use one strict structured provider request and no planner
   assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
   assert.doesNotMatch(client.requests[0].text.format.name, /planner/i);
   assert.equal(result.answer.summary, unified().answer);
+});
+
+test("the unified parser applies only authorized owner-preference frame recovery", async () => {
+  const question = "I prefer shopping at Chewy.";
+  const semanticFrame = {
+    schemaVersion: SEMANTIC_FRAME_SCHEMA_VERSION, frameLocalId: "frame_1",
+    discourseActs: [{ kind: "statement", confidence: 0.99 }],
+    mentions: [{
+      localId: "organization_1", surface: "Chewy", coarseType: "organization",
+      attributes: { species: null, lifeStage: null, ownership: "unknown" },
+      evidence: [{ surfaceText: "Chewy" }], confidence: 0.98,
+    }],
+    references: [],
+    claims: [{
+      localId: "claim_1", kind: "preference", subjectRef: "owner_1",
+      predicate: { label: "shopping preference", definition: null, aliases: [], parentLabels: [], relatedLabels: [] },
+      polarity: "affirmed", modality: "asserted",
+      temporal: { occurredAt: null, validFrom: null, validTo: null, surfaceText: null, precision: "unknown" },
+      uncertainty: { confidence: 0.97, reasons: [] }, evidence: [{ surfaceText: question }], persistenceHint: "owner_memory",
+      preference: "prefer",
+      object: { concept: { label: "retailer", definition: null, aliases: [], parentLabels: [], relatedLabels: [] }, value: "Chewy" },
+      constraints: [],
+    }],
+    uncertainty: { needsClarification: false, clarificationQuestion: null, reasons: [] },
+  };
+  const preferredRetailer = attachRegistryConceptPolicy({
+    key: "preferred_retailer", version: "furvise.core.v1", conceptKind: "preference", lifecycleCapable: false,
+  });
+  const result = await generateContextAwareAskResponse({
+    ...input({ question }), client: mockClient([unified({ semanticFrame })]),
+    semanticFrameRecovery: { ownerIdentityVerified: true, canonicalConcepts: [preferredRetailer], safetyLevel: "routine" },
+  });
+  assert.equal(result.semanticFrameValid, true);
+  assert.deepEqual(result.semanticFrameRecovery, { applied: true, reason: "CLAIM_SUBJECT_REF_UNKNOWN" });
+  assert.equal(result.semanticFrame.claims[0].subjectRef, null);
 });
 
 test("one primary and optional fallback model replace planner and responder configuration", () => {
