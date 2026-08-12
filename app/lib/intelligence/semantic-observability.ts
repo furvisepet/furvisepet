@@ -16,7 +16,7 @@ import type { SemanticConceptRecord } from "./concepts/retrieve-candidates.ts";
 import type { EffectiveRecoveryAssessment } from "./recovery-governance.ts";
 import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
 import { observeGovernedSemanticTurnV2, type V2ShadowObservation } from "./v2/observability.ts";
-import type { GovernedSemanticTurn } from "./v2/types.ts";
+import type { GovernedConceptIdentity, GovernedSemanticTurn, SafetyFloorMetadata } from "./v2/types.ts";
 
 export type SemanticTracePersistence = {
   status: "not_attempted" | "persisted" | "skipped" | "failed";
@@ -115,6 +115,7 @@ export type SemanticTrace = {
 export type ShadowSemanticAnalysis = {
   frame: ProposedSemanticFrame;
   trace: SemanticTrace;
+  v2Turn: GovernedSemanticTurn;
 };
 
 export function buildShadowSemanticAnalysis(input: {
@@ -132,6 +133,8 @@ export function buildShadowSemanticAnalysis(input: {
   selectedPetId: string;
   sourceMessageId: string;
   recoveryAssessments?: EffectiveRecoveryAssessment[];
+  canonicalConcepts?: GovernedConceptIdentity[];
+  safetyFloor?: Omit<SafetyFloorMetadata, "policyVersion">;
 }): ShadowSemanticAnalysis {
   const grounding = groundSemanticFrameEvidence(input.frame, input.message);
   const frame = grounding.frame;
@@ -206,6 +209,8 @@ export function buildShadowSemanticAnalysis(input: {
       pets: input.eligiblePets,
       conversationTurns: input.conversationTurns,
       activeEpisodes: input.activeEpisodes,
+      canonicalConcepts: input.canonicalConcepts,
+      safetyFloor: input.safetyFloor,
     });
   } catch {
     // Phase 1 shadow evaluation must never affect the legacy production answer.
@@ -227,6 +232,7 @@ export function buildShadowSemanticAnalysis(input: {
 
   return {
     frame,
+    v2Turn,
     trace: {
       traceId: input.requestId,
       frameStatus,

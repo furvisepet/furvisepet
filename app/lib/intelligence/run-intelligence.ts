@@ -15,6 +15,7 @@ import { resolveRecoverySubject } from "./episodes/resolve-recovery-subject.ts";
 import { routePersistenceDestinations } from "./persistence-destination.ts";
 import { governCanonicalEvents, learningFromSemanticEvent } from "./semantic-events.ts";
 import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } from "./semantic-observability.ts";
+import type { GovernedConceptIdentity, GovernedSemanticTurn } from "./v2/types.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -28,6 +29,7 @@ export type FurviseIntelligenceResult = {
   governance: GovernanceResult;
   answerValidation: Omit<AnswerValidationResult, "response">;
   semanticTrace: SemanticTrace;
+  v2GovernedTurn: GovernedSemanticTurn;
 };
 
 export async function runFurviseIntelligence({
@@ -36,12 +38,14 @@ export async function runFurviseIntelligence({
   sourceMessageId,
   onProviderEvent,
   subjectConfidence = 1,
+  canonicalConcepts = [],
 }: {
   context: FurviseLiveContext;
   requestId: string;
   sourceMessageId: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
   subjectConfidence?: number;
+  canonicalConcepts?: GovernedConceptIdentity[];
 }): Promise<FurviseIntelligenceResult> {
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
@@ -163,6 +167,12 @@ export async function runFurviseIntelligence({
     recoveryAssessments: semanticGovernance.recoveryAssessments,
     selectedPetId: context.pet.id,
     sourceMessageId,
+    canonicalConcepts,
+    safetyFloor: {
+      level: safety.level === "urgent" || safety.level === "emergency" ? "urgent"
+        : safety.level === "monitor" ? "caution" : "routine",
+      reasonCodes: safety.activeConcernIds.length ? ["active_concern"] : [],
+    },
   });
   logSemanticTrace(shadow.trace);
   return {
@@ -177,6 +187,7 @@ export async function runFurviseIntelligence({
     governance,
     answerValidation: { valid: answerValidation.valid, repairs: answerValidation.repairs, errors: answerValidation.errors },
     semanticTrace: shadow.trace,
+    v2GovernedTurn: shadow.v2Turn,
   };
 }
 
