@@ -72,7 +72,7 @@ export function selectPhase3LowRiskTurn(input: {
 function hasMatchingLegacyLearning(claim: GovernedSemanticClaim, learnings: IntelligenceLearning[], selectedPetId: string) {
   return learnings.some((learning) => {
     if (!["create", "confirm", "update"].includes(learning.action)) return false;
-    if (normalizeConceptLabel(learning.factKey) !== claim.conceptKey) return false;
+    if (normalizeConceptLabel(learning.factKey) !== (claim.canonicalConceptKey || claim.conceptKey)) return false;
     if (learning.subjectType !== claim.subject.type) return false;
     const legacySubjectId = learning.subjectType === "owner" ? claim.subject.id : learning.subjectId || selectedPetId;
     return legacySubjectId === claim.subject.id;

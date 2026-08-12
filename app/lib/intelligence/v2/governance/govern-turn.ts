@@ -91,8 +91,12 @@ function governOneClaim(input: {
   if (evidenceFailure) return reject(evidenceFailure, "evidence");
   if (claim.uncertainty.confidence < V2_MINIMUM_CLAIM_CONFIDENCE) return reject("CLAIM_LOW_CONFIDENCE", "confidence");
   const groundedEvidence = input.evidence.groundedByClaim.get(claim.localId) || [];
-  const concept = resolveClaimConceptV2(claim, input.input.canonicalConcepts);
+  const concept = resolveClaimConceptV2(claim, input.input.canonicalConcepts, {
+    frame: input.evidence.frame,
+    groundedEvidence,
+  });
   if (!concept) return reject("CONCEPT_INVALID", "concept");
+  if (concept.resolutionMethod === "ambiguous") return reject("CONCEPT_AMBIGUOUS", "concept", true);
   const kind = normalizeClaimKind(claim, {
     conceptKind: concept.conceptKind,
     preferenceHolderSupported: preferenceHolderSupported(claim, input.evidence.frame, groundedEvidence),
@@ -169,6 +173,8 @@ function governOneClaim(input: {
     provenanceClassification: "ask_v2_shadow",
     governanceMetadata: {
       conceptSource: concept.source,
+      conceptResolutionMethod: concept.resolutionMethod,
+      conceptCandidateKeys: concept.candidateKeys,
       declaredClaimKind: claim.kind,
       structuralClaimKind: governedClaim.kind,
       claimKindAuthority: kind.authority,

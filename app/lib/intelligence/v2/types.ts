@@ -113,6 +113,7 @@ export type V2RejectionReason =
   | "ENTITY_NOT_OWNED"
   | "REFERENCE_AMBIGUOUS"
   | "REFERENCE_UNRESOLVED"
+  | "CONCEPT_AMBIGUOUS"
   | "CONCEPT_INVALID"
   | "CLAIM_LOW_CONFIDENCE"
   | "TEMPORAL_INVALID"
@@ -165,6 +166,8 @@ export type GovernedConceptIdentity = {
   version: string;
   conceptKind?: "symptom" | "safety" | "nutrition" | "medication" | "preference" | "profile" | "relationship" | "care_fact";
   lifecycleCapable?: boolean;
+  semanticRole?: "retailer_preference" | "food_preference" | "weight_measurement" | "caregiver_relationship" | "strict_medical";
+  selectionAuthority?: "semantic_signature" | "exact_only";
 };
 
 export type GovernedEpisodeConceptIdentity = GovernedConceptIdentity & {
