@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { decidePhase3LowRiskClaim, selectPhase3LowRiskTurn } from "../app/lib/intelligence/v2/phase3/cutover-policy.ts";
 import { executePhase3WriteFailOpen, phase3AllowsLowRiskWrite, phase3AllowsShadowRead } from "../app/lib/intelligence/v2/phase3/execution.ts";
@@ -152,11 +153,59 @@ test("production integration remains legacy-authoritative, service-only, and ide
   assert.doesNotMatch(route, /persist_governed_semantic_turn_v2/);
 });
 
-test("no client module imports the server-only Phase 3 runtime or service secret", () => {
-  const files = execFileSync("rg", ["-l", "^['\"]use client['\"]", "app", "-g", "*.ts", "-g", "*.tsx"], { encoding: "utf8" })
-    .trim().split(/\r?\n/).filter(Boolean);
-  for (const file of files) {
-    const source = readFileSync(file, "utf8");
-    assert.doesNotMatch(source, /v2\/phase3\/runtime|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY/);
+const skippedSourceDirectories = new Set([
+  ".git",
+  ".next",
+  ".turbo",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules",
+]);
+
+function listTypeScriptSourceFiles(rootDirectory) {
+  const files = [];
+
+  function visit(directory) {
+    const entries = readdirSync(directory, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (!skippedSourceDirectories.has(entry.name)) {
+          visit(join(directory, entry.name));
+        }
+        continue;
+      }
+
+      if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))) {
+        files.push(join(directory, entry.name));
+      }
+    }
   }
+
+  visit(rootDirectory);
+  return files.sort((left, right) => left.localeCompare(right));
+}
+
+test("no client module imports the server-only Phase 3 runtime or service secret", () => {
+  const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+  const appRoot = join(projectRoot, "app");
+  const forbiddenServerDependency = /v2[\\/]phase3[\\/]runtime|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY/;
+  const clientDirective = /^\uFEFF?\s*["']use client["'];?/;
+
+  const violations = listTypeScriptSourceFiles(appRoot)
+    .filter((file) => {
+      const source = readFileSync(file, "utf8");
+      return clientDirective.test(source) && forbiddenServerDependency.test(source);
+    })
+    .map((file) => relative(projectRoot, file).replaceAll("\\", "/"));
+
+  assert.equal(
+    violations.length,
+    0,
+    `Client modules must not reference the Phase 3 server runtime or service secrets. Violations:\n${violations
+      .map((file) => `- ${file}`)
+      .join("\n")}`,
+  );
 });
