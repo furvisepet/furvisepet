@@ -73,6 +73,11 @@ import { claimIdempotentOperation } from "../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
 import { resolveAuthoritativeTurnSubject } from "../../lib/intelligence/entities/resolve-turn-subject";
+import {
+  persistAskV2Phase3LowRisk,
+  prepareAskV2Phase3,
+  type AskV2Phase3Runtime,
+} from "../../lib/intelligence/v2/phase3/runtime";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
@@ -122,7 +127,7 @@ export async function POST(request: Request) {
     return askFailure("UNKNOWN_ERROR", "Furvise could not start that answer. Please try again.", 500, {}, "authentication");
   }
   if ("response" in context) return context.response;
-  const { capabilities, supabase, usage, userId } = context;
+  const { accessToken, capabilities, supabase, usage, userId } = context;
 
   let rawBody: unknown;
   try {
@@ -232,6 +237,13 @@ export async function POST(request: Request) {
     return askFailure("DATABASE_ERROR", "Furvise could not load the latest saved details. Please try again.", 503, {}, "context_loading");
   }
 
+  let phase3Runtime = await prepareAskV2Phase3({
+    accessToken,
+    context: liveContext,
+    requestId,
+    verifiedUserId: userId,
+  });
+
   let turnPetId = petId;
   let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
   let contextUsed = turnView.contextUsed;
@@ -331,6 +343,12 @@ export async function POST(request: Request) {
           supabase,
           userId,
         });
+        phase3Runtime = await prepareAskV2Phase3({
+          accessToken,
+          context: liveContext,
+          requestId,
+          verifiedUserId: userId,
+        });
       }
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
@@ -352,6 +370,7 @@ export async function POST(request: Request) {
             sourceMessageId: preparedRequest.userMessageId,
             onProviderEvent,
             subjectConfidence: subjectResolution.confidence,
+            canonicalConcepts: phase3Runtime.canonicalConcepts,
           });
           logValidatedIntelligence(intelligenceResult, requestId);
           return intelligenceResult.reasoning;
@@ -420,10 +439,12 @@ export async function POST(request: Request) {
       contextUsed,
       handledWithoutAi: false,
       intelligenceResult,
+      phase3Runtime,
       petId: turnPetId,
       preparedRequest,
       requestId,
       response: plannedResponse,
+      sourceMessage: question,
       saveMetadata: buildAskSaveMetadata(plannedGate, { cannotAnswerFromSavedData: true, intent: "general_pet_question", question, usedSavedFactsCount: 0 }),
       safetyLevel: "normal",
       shoppingSuppressed: false,
@@ -454,11 +475,13 @@ export async function POST(request: Request) {
     contextUsed,
     handledWithoutAi: orchestration.handledWithoutAi,
     intelligenceResult,
+    phase3Runtime,
     preconfirmedCarePersistence: confirmedExistingCarePersistence,
     petId: turnPetId,
     preparedRequest,
     requestId,
     response: conversationResponse,
+    sourceMessage: question,
     saveMetadata: buildAskSaveMetadata(conversationResponse, { intent: reasoning?.userIntent || orchestration.intent, question }),
     safetyLevel,
     shoppingSuppressed: reasoning ? reasoning.shoppingSuppressed : safetyLevel === "urgent",
@@ -762,11 +785,13 @@ async function persistAssistantAnswer({
   contextUsed,
   handledWithoutAi,
   intelligenceResult = null,
+  phase3Runtime,
   preconfirmedCarePersistence = null,
   petId,
   preparedRequest,
   requestId,
   response,
+  sourceMessage,
   saveMetadata,
   safetyLevel,
   shoppingSuppressed,
@@ -781,11 +806,13 @@ async function persistAssistantAnswer({
   contextUsed: unknown;
   handledWithoutAi: boolean;
   intelligenceResult?: FurviseIntelligenceResult | null;
+  phase3Runtime: AskV2Phase3Runtime;
   preconfirmedCarePersistence?: CarePersistenceResult | null;
   petId: string;
   preparedRequest: PreparedAskRequest;
   requestId: string;
   response: CompletedAskResponse;
+  sourceMessage: string;
   saveMetadata: unknown;
   safetyLevel?: "normal" | "monitor" | "urgent";
   shoppingSuppressed?: boolean;
@@ -939,6 +966,17 @@ async function persistAssistantAnswer({
     semanticTrace = withSemanticPersistenceOutcome(semanticTrace, { status: "skipped", errorCode: null, careEntryCount: 0, memoryCount: 0 });
   }
   if (semanticTrace) logSemanticTrace(semanticTrace);
+
+  await persistAskV2Phase3LowRisk({
+    runtime: phase3Runtime,
+    turn: intelligenceResult?.v2GovernedTurn || null,
+    legacyLearnings: intelligenceResult?.acceptedLearnings || [],
+    legacyPersistence: intelligencePersistence,
+    requestId,
+    selectedPetId: petId,
+    sourceMessage,
+    verifiedUserId: userId,
+  });
 
   let nextUsage = usage;
   let creditsUsed = 0;
@@ -1370,6 +1408,7 @@ async function loadAskRequestContext(request: Request): Promise<
   | {
       planId: PlanId;
       capabilities: EffectiveEntitlements["capabilities"];
+      accessToken: string;
       supabase: SupabaseClient;
       usage: AiCreditStatus;
       userId: string;
@@ -1421,7 +1460,7 @@ async function loadAskRequestContext(request: Request): Promise<
       }
     } else throw error;
   }
-  return { capabilities: entitlements.capabilities, planId, supabase, usage, userId: userData.user.id };
+  return { accessToken: token, capabilities: entitlements.capabilities, planId, supabase, usage, userId: userData.user.id };
 }
 
 function resolveAskLocale(bodyLocale: unknown, acceptLanguage: string | null) {

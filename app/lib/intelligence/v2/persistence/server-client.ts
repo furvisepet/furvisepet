@@ -2,7 +2,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { verifyV2PersistenceUser } from "./server-identity-core.ts";
 
-/** Phase 1 only: this is intentionally not wired into production Ask. */
+/** Server-only Phase 1/3 boundary: independently verifies the bearer user before using service authority. */
 export async function createV2ShadowPersistenceBoundary(accessToken: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
