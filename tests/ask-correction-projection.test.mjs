@@ -14,7 +14,7 @@ const ownerId = "bd23dda6-b423-443a-9081-89b47955ca39";
 const correction = "Actually, Milo doesn't like chicken. He prefers salmon.";
 
 const learning = (overrides = {}) => ({
-  subjectType: "pet", subjectId: miloId, category: "preference", factKey: "foodavoidance",
+  subjectType: "pet", subjectId: miloId, category: "preference", factKey: "foodavoid",
   factValue: "chicken", canonicalConceptKey: null, sourceExcerpt: "Milo doesn't like chicken", ...overrides,
 });
 const stored = (id, overrides = {}) => ({
@@ -25,12 +25,23 @@ test("heterogeneous legacy food preferences normalize to one deterministic targe
   const shapes = [
     stored("prose"),
     stored("likes", { factKey: "likesfood", factValue: "chicken" }),
+    stored("compact-live", { factKey: "foodprefer", factValue: "chicken" }),
     stored("compact", { factKey: "foodpreference", factValue: "chicken" }),
     stored("canonical", { factKey: "food_preference_chicken", factValue: { preference: "prefer", value: "chicken", conceptKey: "food_preference" } }),
   ].map((row) => normalizeKnownPreferenceMemory({ ...row, petName: "Milo" }));
   assert.equal(shapes.every(Boolean), true);
   assert.equal(new Set(shapes.map(preferenceTargetIdentity)).size, 1);
   assert.deepEqual(new Set(shapes.map((item) => item.polarity)), new Set(["prefer"]));
+});
+
+test("live and historical compact avoidance aliases share one negative semantic identity", () => {
+  const shapes = [
+    learning({ factKey: "foodavoid" }),
+    learning({ factKey: "foodavoidance" }),
+  ].map((row) => normalizeKnownPreferenceMemory(row));
+  assert.equal(shapes.every(Boolean), true);
+  assert.equal(new Set(shapes.map(preferenceTargetIdentity)).size, 1);
+  assert.deepEqual(new Set(shapes.map((item) => item.polarity)), new Set(["avoid"]));
 });
 
 test("correction supersedes only Milo's positive chicken representations", () => {
@@ -41,6 +52,7 @@ test("correction supersedes only Milo's positive chicken representations", () =>
   const existing = [
     stored("milo-prose"),
     stored("milo-likes", { factKey: "likesfood", factValue: "chicken" }),
+    stored("milo-compact-live", { factKey: "foodprefer", factValue: "chicken" }),
     stored("milo-compact", { factKey: "foodpreference", factValue: "chicken" }),
     stored("milo-qualified", { factKey: "food_preference_chicken", factValue: { preference: "prefer", value: "chicken", conceptKey: "food_preference" } }),
     stored("milo-governed", { factKey: "model-food-label", canonicalConceptKey: "food_preference", factValue: { preference: "prefer", value: "chicken", conceptKey: "food_preference" } }),
@@ -48,7 +60,7 @@ test("correction supersedes only Milo's positive chicken representations", () =>
     stored("luna-chicken", { subjectId: lunaId, factKey: "likesfood", factValue: "chicken" }),
   ];
   assert.deepEqual(planPreferenceSupersession(current, existing), [
-    "milo-prose", "milo-likes", "milo-compact", "milo-qualified", "milo-governed",
+    "milo-prose", "milo-likes", "milo-compact-live", "milo-compact", "milo-qualified", "milo-governed",
   ]);
   assert.deepEqual(planPreferenceSupersession(current, existing), planPreferenceSupersession(current, existing));
 });
@@ -78,18 +90,26 @@ test("exact production sequence projects one negative chicken and one positive s
 
   const afterRows = [
     ...initial,
-    memory("turn-2-avoid", {
-      fact_key: "foodavoidance", fact_value: "chicken", source_excerpt: "Milo doesn't like chicken",
+    memory("turn-2-avoid-live", {
+      fact_key: "foodavoid", fact_value: "chicken", source_excerpt: "Milo doesn't like chicken",
       last_confirmed_at: "2026-08-12T00:00:00Z",
     }),
-    memory("turn-2-salmon-compact", {
-      fact_key: "foodpreference", fact_value: "salmon", source_excerpt: "He prefers salmon",
+    memory("turn-2-avoidance-compat", {
+      fact_key: "foodavoidance", fact_value: "chicken", source_excerpt: "Milo doesn't like chicken",
       last_confirmed_at: "2026-08-12T00:00:01Z",
+    }),
+    memory("turn-2-salmon-live", {
+      fact_key: "foodprefer", fact_value: "salmon", source_excerpt: "He prefers salmon",
+      last_confirmed_at: "2026-08-12T00:00:02Z",
+    }),
+    memory("turn-2-salmon-compat", {
+      fact_key: "foodpreference", fact_value: "salmon", source_excerpt: "He prefers salmon",
+      last_confirmed_at: "2026-08-12T00:00:03Z",
     }),
     memory("turn-2-salmon-canonical", {
       fact_key: "food_preference_salmon",
       fact_value: { preference: "prefer", value: "salmon", conceptKey: "food_preference" },
-      source_excerpt: "He prefers salmon", last_confirmed_at: "2026-08-12T00:00:02Z",
+      source_excerpt: "He prefers salmon", last_confirmed_at: "2026-08-12T00:00:04Z",
     }),
   ];
   const after = buildRememberedDetails({ petName: "Milo", now: new Date("2026-08-12T20:00:00Z"), canonical: afterRows });
