@@ -1,6 +1,7 @@
 import type { FurviseMemoryRow } from "./intelligence/types.ts";
 import { calculateMemoryFreshness, type FreshnessStatus } from "./intelligence/memory-freshness/calculate-memory-freshness.ts";
 import type { DogMemoryRow } from "./supabase.ts";
+import { normalizeKnownPreferenceMemory, preferenceTargetIdentity } from "./intelligence/preference-semantics.ts";
 
 export type RememberedDetail = {
   id: string;
@@ -55,7 +56,7 @@ export function buildRememberedDetails({
   const seenSemantics = new Set(projectedCanonical.map((memory) => semanticIdentity(memory, petName)).filter(Boolean));
   const compatible = legacy.flatMap((memory) => {
     const fact = memory.text.replace(/\s+/g, " ").trim();
-    const semantics = semanticIdentityFromText(fact, petName);
+    const semantics = semanticIdentityFromText(fact, petName, memory.dog_profile_id);
     if (!fact || hiddenCategories.has((memory.type || "").toLowerCase().trim()) || seen.has(normalizeText(fact))
       || Boolean(semantics && seenSemantics.has(semantics))) return [];
     seen.add(normalizeText(fact));
@@ -130,7 +131,7 @@ function projectEffectiveCanonicalMemories(memories: FurviseMemoryRow[], petName
     if (identity) seen.add(identity);
     if (semantics && isExplicitCorrection(memory.source_excerpt || "")) {
       for (const replaced of explicitlyReplacedFoodObjects(memory.source_excerpt || "", petName)) {
-        replacedIdentities.add(`${projectedSubject(memory, petName)}:food_preference:${normalizeText(replaced)}`);
+        replacedIdentities.add(preferenceTargetIdentity({ ...semantics, object: normalizeText(replaced) }));
       }
     }
     return true;
@@ -147,31 +148,29 @@ function projectedSubject(memory: FurviseMemoryRow, petName: string): "pet" | "o
 
 function semanticIdentity(memory: FurviseMemoryRow, petName: string) {
   const food = foodPreferenceSemantics(memory, petName);
-  if (food) return `${projectedSubject(memory, petName)}:food_preference:${normalizeText(food.object)}`;
+  if (food) return preferenceTargetIdentity(food);
   const key = compact(memory.fact_key);
   if (sleepingArrangement(key)) return `${projectedSubject(memory, petName)}:sleeping_arrangement`;
   return `${projectedSubject(memory, petName)}:${key}:${normalizeText(factValueText(memory.fact_value))}`;
 }
 
-function semanticIdentityFromText(value: string, petName: string) {
-  const pattern = new RegExp(`^${escapeRegex(petName)}\\s+(?:likes?|prefers?|dislikes?|avoids?)\\s+(.+?)[.!]?$`, "i");
-  const match = pattern.exec(value.trim());
-  return match ? `pet:food_preference:${normalizeText(match[1])}` : null;
+function semanticIdentityFromText(value: string, petName: string, petId: string) {
+  const semantic = normalizeKnownPreferenceMemory({
+    subjectType: "pet", subjectId: petId, factKey: "food_preference", factValue: value, petName,
+  });
+  return semantic ? preferenceTargetIdentity(semantic) : null;
 }
 
 function foodPreferenceSemantics(memory: FurviseMemoryRow, petName: string) {
-  const key = compact(memory.fact_key);
-  if (!/(?:foodpreference|likesfood|dislikesfood|petfoodpreference)/.test(key)) return null;
-  const raw = factValueText(memory.fact_value).replace(/[.!]+$/, "").trim();
-  const subject = escapeRegex(petName);
-  const extracted = new RegExp(`^(?:${subject}\\s+)?(?:likes?|prefers?|dislikes?|avoids?)\\s+`, "i").test(raw)
-    ? raw.replace(new RegExp(`^(?:${subject}\\s+)?(?:likes?|prefers?|dislikes?|avoids?)\\s+`, "i"), "")
-    : raw;
-  const structured = memory.fact_value && typeof memory.fact_value === "object"
-    ? memory.fact_value as Record<string, unknown> : null;
-  const polarity = structured?.preference === "avoid" || /(?:dislike|avoid)/.test(key) || /\b(?:doesn't like|does not like|dislikes?|avoids?)\b/i.test(raw)
-    ? "avoid" as const : "prefer" as const;
-  return { object: extracted || "that food", polarity };
+  const subject = projectedSubject(memory, petName);
+  if (!subject) return null;
+  return normalizeKnownPreferenceMemory({
+    subjectType: subject,
+    subjectId: subject === "pet" ? memory.pet_id || `legacy-name:${compact(petName)}` : null,
+    factKey: memory.fact_key,
+    factValue: memory.fact_value,
+    petName,
+  });
 }
 
 function sleepingArrangement(key: string) {
