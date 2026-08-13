@@ -36,7 +36,7 @@ export function normalizeKnownPreferenceMemory(input: PreferenceMemoryShape): No
   const object = normalizeObject(parsed.object);
   if (!object) return null;
   const polarity = structured.polarity
-    ?? (key === "dislikesfood" || key === "foodavoidance" || parsed.polarity === "avoid" ? "avoid" : "prefer");
+    ?? (key === "dislikesfood" || key === "foodavoid" || key === "foodavoidance" || parsed.polarity === "avoid" ? "avoid" : "prefer");
   return {
     subjectType: input.subjectType,
     subjectId: input.subjectId,
@@ -79,7 +79,9 @@ function isKnownFoodPreferenceKey(key: string, canonical: string) {
   return canonical === "food_preference"
     || key === "likesfood"
     || key === "dislikesfood"
+    || key === "foodprefer"
     || key === "foodpreference"
+    || key === "foodavoid"
     || key === "foodavoidance"
     || key === "food_preference"
     || key.startsWith("food_preference_")
