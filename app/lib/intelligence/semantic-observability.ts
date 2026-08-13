@@ -53,6 +53,14 @@ export type SemanticTrace = {
   traceId: string;
   frameStatus: "valid" | "invalid";
   frameRecovery: SemanticFrameRecoveryTelemetry;
+  subjectIntegrity: {
+    agrees: boolean;
+    authoritativePetIds: string[];
+    legacyPetIds: string[];
+    responsePetIds: string[];
+    v2PetIds: string[];
+    reasonCodes: string[];
+  };
   schemaVersion: string;
   modelVersion: string;
   sourceMessageId: string;
@@ -137,6 +145,8 @@ export function buildShadowSemanticAnalysis(input: {
   recoveryAssessments?: EffectiveRecoveryAssessment[];
   canonicalConcepts?: GovernedConceptIdentity[];
   safetyFloor?: Omit<SafetyFloorMetadata, "policyVersion">;
+  governedV2Turn?: GovernedSemanticTurn;
+  authoritativePetIds?: string[];
 }): ShadowSemanticAnalysis {
   const grounding = groundSemanticFrameEvidence(input.frame, input.message);
   const frame = grounding.frame;
@@ -203,7 +213,7 @@ export function buildShadowSemanticAnalysis(input: {
   let v2ErrorCode: SemanticTrace["v2"]["errorCode"] = null;
   let v2Turn: GovernedSemanticTurn;
   try {
-    v2Turn = governSemanticTurnV2({
+    v2Turn = input.governedV2Turn || governSemanticTurnV2({
       frame: input.frame,
       sourceMessage: input.message,
       sourceMessageId: input.sourceMessageId,
@@ -227,6 +237,23 @@ export function buildShadowSemanticAnalysis(input: {
     };
   }
   const v2Observation = observeGovernedSemanticTurnV2(v2Turn);
+  const authoritativePetIds = unique(input.authoritativePetIds || [input.selectedPetId]);
+  const legacyPetIds = unique([
+    ...input.acceptedLearnings.filter((item) => item.subjectType === "pet").map((item) => item.subjectId || input.selectedPetId),
+    ...input.acceptedSemanticEvents.filter((item) => item.event.subject.type === "pet").map((item) => item.event.subject.id || input.selectedPetId),
+    ...(input.acceptedCareActions.length ? [input.selectedPetId] : []),
+  ]);
+  const v2PetIds = unique(v2Turn.acceptedClaims
+    .filter((claim) => claim.subject.type === "pet" && claim.subject.id)
+    .map((claim) => claim.subject.id!));
+  const answerText = JSON.stringify(input.reasoning.answer);
+  const responsePetIds = unique(input.eligiblePets.filter((pet) => pet.name
+    && new RegExp(`\\b${escapeRegex(pet.name)}\\b`, "i").test(answerText)).map((pet) => pet.id));
+  const subjectIntegrityReasons = [
+    ...(legacyPetIds.some((id) => !authoritativePetIds.includes(id)) ? ["LEGACY_SUBJECT_DISAGREEMENT"] : []),
+    ...(v2PetIds.some((id) => !authoritativePetIds.includes(id)) ? ["V2_SUBJECT_DISAGREEMENT"] : []),
+    ...(responsePetIds.some((id) => !authoritativePetIds.includes(id)) ? ["RESPONSE_SUBJECT_DISAGREEMENT"] : []),
+  ];
   const legacyLifecycleRoles = input.acceptedSemanticEvents.map((item) => legacyTransitionRole(item.event.transition));
   const v2LifecycleRoles = v2Turn.acceptedClaims.map((claim) => claim.lifecycleRole).filter((role): role is NonNullable<typeof role> => Boolean(role));
   const legacyPersistenceEligible = productionDestinations.length > 0;
@@ -240,6 +267,11 @@ export function buildShadowSemanticAnalysis(input: {
       frameStatus,
       frameRecovery: input.reasoning.semanticFrameRecovery || {
         applied: false, reason: "NOT_ATTEMPTED_FRAME_VALID", validationReason: null,
+      },
+      subjectIntegrity: {
+        agrees: subjectIntegrityReasons.length === 0,
+        authoritativePetIds, legacyPetIds, responsePetIds, v2PetIds,
+        reasonCodes: subjectIntegrityReasons,
       },
       schemaVersion: frame.schemaVersion,
       modelVersion: input.reasoning.model,
@@ -506,4 +538,5 @@ function legacyTransitionRole(transition: GovernedCanonicalEvent["event"]["trans
   return "unknown";
 }
 function unique<T>(items: T[]) { return [...new Set(items)]; }
+function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 function isReasonCode(value: SemanticReasonCode | null): value is SemanticReasonCode { return Boolean(value); }

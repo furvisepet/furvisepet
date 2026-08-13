@@ -38,7 +38,7 @@ function resolve(message, frame, pets = [luna, mani], recentConversation = []) {
 
 test("explicit unique names select an owned per-turn subject independently of the selected pet", () => {
   const maniResult = resolve("Mani is vomiting", subjectFrame("Mani is vomiting", "Mani", {}, "vomiting"));
-  assert.deepEqual(maniResult, { status: "resolved", petId: mani.id, reasonCode: null, requiresClarification: false, explicitSubject: true, confidence: 0.99 });
+  assert.deepEqual(maniResult, { status: "resolved", petId: mani.id, petIds: [mani.id], reasonCode: null, requiresClarification: false, explicitSubject: true, confidence: 0.99 });
 
   const lunaResult = resolveAuthoritativeTurnSubject({
     frame: subjectFrame("Luna is limping", "Luna", {}, "limping"), message: "Luna is limping", ownerId: "owner-1",
@@ -61,6 +61,13 @@ test("multiple compatible owned pets fail closed with clarification", () => {
   assert.equal(result.requiresClarification, true);
 });
 
+test("an explicit species with no owned match never falls back to the selected pet", () => {
+  const result = resolve("my cat is vomiting", subjectFrame("my cat is vomiting", "my cat", { species: "cat", ownership: "owner" }, "vomiting"), [luna]);
+  assert.equal(result.status, "unresolved");
+  assert.equal(result.petId, null);
+  assert.equal(result.requiresClarification, true);
+});
+
 test("pronouns require discourse evidence and do not invent another pet", () => {
   const frame = subjectFrame("she is tired", "she", {}, "fatigue");
   const noAntecedent = resolve("she is tired", frame);
@@ -74,12 +81,47 @@ test("pronouns require discourse evidence and do not invent another pet", () => 
 test("casual conversation keeps selected pet as context without creating an alternate binding", () => {
   const frame = { ...subjectFrame("good morning", "good", {}, "greeting"), mentions: [], claims: [] };
   const result = resolve("good morning", frame);
-  assert.deepEqual(result, { status: "contextual", petId: luna.id, reasonCode: null, requiresClarification: false, explicitSubject: false, confidence: 0.84 });
+  assert.deepEqual(result, { status: "contextual", petId: luna.id, petIds: [luna.id], reasonCode: null, requiresClarification: false, explicitSubject: false, confidence: 0.84 });
 });
 
 test("cross-user collisions and deleted pets are never candidates", () => {
   const frame = subjectFrame("Maple is vomiting", "Maple", {}, "vomiting");
   const result = resolve("Maple is vomiting", frame, [luna, mani]);
+  assert.equal(result.petId, null);
+  assert.equal(result.requiresClarification, true);
+});
+
+test("an explicit owned species resolves even if the model omitted the animal mention", () => {
+  const empty = {
+    schemaVersion: SEMANTIC_FRAME_SCHEMA_VERSION, frameLocalId: "frame_1",
+    discourseActs: [{ kind: "statement", confidence: 0.99 }], mentions: [], references: [], claims: [],
+    uncertainty: { needsClarification: false, clarificationQuestion: null, reasons: [] },
+  };
+  const result = resolve("My cat is vomiting.", empty);
+  assert.equal(result.petId, mani.id);
+  assert.equal(result.explicitSubject, true);
+});
+
+test("two named owned pets retain independent claim subjects while a selected third pet remains context only", () => {
+  const milo = { ...luna, id: "pet-milo", name: "Milo" };
+  const selected = { ...luna, id: "pet-selected", name: "Luna" };
+  const message = "Milo likes salmon and Mani likes chicken.";
+  const frame = multiPreferenceFrame(message, milo, mani, "salmon", "chicken");
+  const result = resolveAuthoritativeTurnSubject({
+    frame, message, ownerId: "owner-1", pets: [selected, milo, mani], recentConversation: [], selectedPetId: selected.id,
+  });
+  assert.equal(result.status, "multi_subject");
+  assert.deepEqual(new Set(result.petIds), new Set([milo.id, mani.id]));
+  assert.equal(result.petIds.includes(selected.id), false);
+});
+
+test("a partially unresolved multi-pet turn fails closed instead of using the selected pet", () => {
+  const milo = { ...luna, id: "pet-milo", name: "Milo" };
+  const message = "Milo likes salmon and Unknown likes chicken.";
+  const frame = multiPreferenceFrame(message, milo, { ...mani, name: "Unknown", id: "unknown" }, "salmon", "chicken");
+  const result = resolveAuthoritativeTurnSubject({
+    frame, message, ownerId: "owner-1", pets: [luna, milo, mani], recentConversation: [], selectedPetId: luna.id,
+  });
   assert.equal(result.petId, null);
   assert.equal(result.requiresClarification, true);
 });
@@ -94,4 +136,23 @@ test("Ask keeps conversation binding separate while using the resolved turn pet 
 
 function concept(label) {
   return { label, definition: null, aliases: [], parentLabels: [], relatedLabels: [] };
+}
+
+function multiPreferenceFrame(message, firstPet, secondPet, firstFood, secondFood) {
+  const mentions = [firstPet, secondPet].map((pet, index) => ({
+    localId: `animal_${index + 1}`, surface: pet.name, coarseType: "animal", confidence: 0.99,
+    attributes: { species: pet.species, lifeStage: null, ownership: "owner" }, evidence: [{ surfaceText: pet.name }],
+  }));
+  const claims = [[firstFood, 0], [secondFood, 1]].map(([food, index]) => ({
+    localId: `claim_${index + 1}`, kind: "preference", subjectRef: `animal_${index + 1}`,
+    predicate: concept("food preference"), polarity: "affirmed", modality: "asserted",
+    temporal: { occurredAt: null, validFrom: null, validTo: null, surfaceText: null, precision: "unknown" },
+    uncertainty: { confidence: 0.98, reasons: [] }, evidence: [{ surfaceText: `${index === 0 ? firstPet.name : secondPet.name} likes ${food}` }],
+    persistenceHint: "pet_memory", preference: "prefer", object: { concept: concept("food"), value: food }, constraints: [],
+  }));
+  return {
+    schemaVersion: SEMANTIC_FRAME_SCHEMA_VERSION, frameLocalId: "frame_1",
+    discourseActs: [{ kind: "statement", confidence: 0.99 }], mentions, references: [], claims,
+    uncertainty: { needsClarification: false, clarificationQuestion: null, reasons: [] },
+  };
 }

@@ -72,6 +72,49 @@ test("legacy nonmedical memory remains available when no canonical equivalent ex
   assert.equal(buildRememberedDetails({ canonical: [], legacy, petName: "Maple", now }).pet[0].fact, "Maple likes an evening walk");
 });
 
+test("corrected food preferences project only effective knowledge without hiding unrelated routines", () => {
+  const details = buildRememberedDetails({ canonical: [
+    memory({ id: "old-chicken", fact_key: "likesfood", fact_value: "chicken", last_confirmed_at: "2026-07-20T00:00:00.000Z" }),
+    memory({ id: "chicken-dislike", fact_key: "food_preference_chicken", fact_value: { preference: "avoid", value: "chicken", conceptKey: "food_preference" }, source_excerpt: "Actually, Milo doesn't like chicken.", last_confirmed_at: "2026-07-27T20:00:00.000Z" }),
+    memory({ id: "salmon", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon", conceptKey: "food_preference" }, source_excerpt: "He prefers salmon.", last_confirmed_at: "2026-07-27T19:59:59.000Z" }),
+    memory({ id: "crate", category: "routine", fact_key: "sleepingarrangement", fact_value: "crate at night", last_confirmed_at: "2026-07-19T00:00:00.000Z" }),
+  ], petName: "Milo", now });
+  assert.deepEqual(new Set(details.pet.map((item) => item.fact)), new Set([
+    "Milo dislikes chicken.",
+    "Milo prefers salmon.",
+    "Milo sleeps in a crate at night.",
+  ]));
+  assert.equal(details.pet.some((item) => /likesfood|dislikesfood|sleepingarrangement/i.test(item.fact)), false);
+});
+
+test("explicit replacement suppresses only the replaced preference target", () => {
+  const details = buildRememberedDetails({ canonical: [
+    memory({ id: "chicken", fact_key: "food_preference_chicken", fact_value: { preference: "prefer", value: "chicken" }, last_confirmed_at: "2026-07-20T00:00:00.000Z" }),
+    memory({ id: "beef", fact_key: "food_preference_beef", fact_value: { preference: "prefer", value: "beef" }, last_confirmed_at: "2026-07-21T00:00:00.000Z" }),
+    memory({ id: "salmon", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon" }, source_excerpt: "Actually, Milo prefers salmon instead of chicken.", last_confirmed_at: "2026-07-27T00:00:00.000Z" }),
+  ], petName: "Milo", now });
+  assert.deepEqual(new Set(details.pet.map((item) => item.fact)), new Set(["Milo prefers salmon.", "Milo prefers beef."]));
+});
+
+test("repeated equivalent assertions collapse to one active remembered detail", () => {
+  const details = buildRememberedDetails({ canonical: [
+    memory({ id: "older", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon" }, last_confirmed_at: "2026-07-20T00:00:00.000Z" }),
+    memory({ id: "newer", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon" }, last_confirmed_at: "2026-07-27T00:00:00.000Z" }),
+  ], petName: "Milo", now });
+  assert.deepEqual(details.pet.map((item) => item.fact), ["Milo prefers salmon."]);
+});
+
+test("legacy malformed owner pet-food keys project to the named pet and never leak internal keys", () => {
+  const details = buildRememberedDetails({ canonical: [
+    memory({ id: "milo-food", pet_id: null, subject_type: "owner", fact_key: "petfoodpreferencemilo", fact_value: "salmon" }),
+    memory({ id: "mani-food", pet_id: null, subject_type: "owner", fact_key: "petfoodpreferencemani", fact_value: "chicken" }),
+    memory({ id: "chewy", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "preferred_retailer", fact_value: "Chewy" }),
+  ], petName: "Milo", now });
+  assert.deepEqual(details.pet.map((item) => item.fact), ["Milo prefers salmon."]);
+  assert.deepEqual(details.owner.map((item) => item.fact), ["You usually shop at Chewy"]);
+  assert.equal(details.all.some((item) => /petfoodpreference/i.test(item.fact)), false);
+});
+
 test("Remembered Details and profile summary query furvise_memories and use the shared adapter", async () => {
   const [supabase, page, profile] = await Promise.all([
     readFile(new URL("../app/lib/supabase.ts", import.meta.url), "utf8"),

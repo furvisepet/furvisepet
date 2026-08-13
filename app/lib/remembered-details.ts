@@ -33,13 +33,16 @@ export function buildRememberedDetails({
   now?: Date;
   petName: string;
 }): RememberedDetails {
-  const current = canonical.flatMap((memory) => {
+  const projectedCanonical = projectEffectiveCanonicalMemories(canonical, petName, now);
+  const current = projectedCanonical.flatMap((memory) => {
     if (!isVisibleCanonicalMemory(memory, now)) return [];
     const freshness = calculateMemoryFreshness(memory, now);
+    const subject = projectedSubject(memory, petName);
+    if (!subject) return [];
     return [{
       id: memory.id,
       source: "canonical" as const,
-      subject: memory.subject_type,
+      subject,
       fact: formatCanonicalMemory(memory, petName),
       editableValue: factValueText(memory.fact_value),
       category: formatCategory(memory.category),
@@ -49,9 +52,12 @@ export function buildRememberedDetails({
     }];
   });
   const seen = new Set(current.map((memory) => normalizeText(memory.fact)));
+  const seenSemantics = new Set(projectedCanonical.map((memory) => semanticIdentity(memory, petName)).filter(Boolean));
   const compatible = legacy.flatMap((memory) => {
     const fact = memory.text.replace(/\s+/g, " ").trim();
-    if (!fact || hiddenCategories.has((memory.type || "").toLowerCase().trim()) || seen.has(normalizeText(fact))) return [];
+    const semantics = semanticIdentityFromText(fact, petName);
+    if (!fact || hiddenCategories.has((memory.type || "").toLowerCase().trim()) || seen.has(normalizeText(fact))
+      || Boolean(semantics && seenSemantics.has(semantics))) return [];
     seen.add(normalizeText(fact));
     return [{
       id: memory.id,
@@ -78,16 +84,18 @@ export function isVisibleCanonicalMemory(memory: FurviseMemoryRow, now = new Dat
 
 export function formatCanonicalMemory(memory: FurviseMemoryRow, petName: string) {
   const value = factValueText(memory.fact_value);
-  const key = memory.fact_key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const key = compact(memory.fact_key);
   if (key === "prefersdentalchewtexture") return `${petName} prefers ${value.replace(/^softer\b/i, "soft")}`;
   if (key === "preferredstore" || key === "preferredretailer") return `You usually shop at ${value}`;
   if (key === "productbudgetpreference" || key === "budgetpreference") {
     const clearer = value.replace(/unless there is a much better option/i, "unless there is a clearly better option");
     return `You prefer products ${clearer}`;
   }
-  const label = humanizeKey(memory.fact_key);
-  if (memory.subject_type === "owner") return `You: ${label} ${value}`.trim();
-  return `${petName}: ${label} ${value}`.trim();
+  const food = foodPreferenceSemantics(memory, petName);
+  if (food) return `${petName} ${food.polarity === "avoid" ? "dislikes" : "prefers"} ${food.object}.`;
+  if (sleepingArrangement(key)) return `${petName} sleeps ${sleepingPhrase(value)}.`;
+  if (memory.subject_type === "owner") return `You shared this preference: ${sentenceValue(value)}`;
+  return `${petName}: ${sentenceValue(value)}`;
 }
 
 function factValueText(value: unknown) {
@@ -102,13 +110,95 @@ function factValueText(value: unknown) {
   return "a remembered detail";
 }
 
-function humanizeKey(value: string) {
-  return value.replace(/[_-]+/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\s+/g, " ").trim().toLowerCase();
-}
-
 function formatCategory(value: string) {
   const category = value.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
   return category ? category[0].toUpperCase() + category.slice(1) : "Detail";
 }
 
 function normalizeText(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+
+function projectEffectiveCanonicalMemories(memories: FurviseMemoryRow[], petName: string, now: Date) {
+  const ordered = memories.filter((memory) => isVisibleCanonicalMemory(memory, now))
+    .sort((left, right) => Date.parse(right.last_confirmed_at) - Date.parse(left.last_confirmed_at));
+  const seen = new Set<string>();
+  const replacedIdentities = new Set<string>();
+  return ordered.filter((memory) => {
+    const identity = semanticIdentity(memory, petName);
+    const semantics = foodPreferenceSemantics(memory, petName);
+    if (identity && seen.has(identity)) return false;
+    if (identity && semantics?.polarity === "prefer" && replacedIdentities.has(identity)) return false;
+    if (identity) seen.add(identity);
+    if (semantics && isExplicitCorrection(memory.source_excerpt || "")) {
+      for (const replaced of explicitlyReplacedFoodObjects(memory.source_excerpt || "", petName)) {
+        replacedIdentities.add(`${projectedSubject(memory, petName)}:food_preference:${normalizeText(replaced)}`);
+      }
+    }
+    return true;
+  });
+}
+
+function projectedSubject(memory: FurviseMemoryRow, petName: string): "pet" | "owner" | null {
+  if (memory.subject_type === "pet") return memory.pet_id ? "pet" : null;
+  const key = compact(memory.fact_key);
+  if (!key.startsWith("petfoodpreference")) return "owner";
+  const petKey = compact(petName);
+  return petKey && key.includes(petKey) ? "pet" : null;
+}
+
+function semanticIdentity(memory: FurviseMemoryRow, petName: string) {
+  const food = foodPreferenceSemantics(memory, petName);
+  if (food) return `${projectedSubject(memory, petName)}:food_preference:${normalizeText(food.object)}`;
+  const key = compact(memory.fact_key);
+  if (sleepingArrangement(key)) return `${projectedSubject(memory, petName)}:sleeping_arrangement`;
+  return `${projectedSubject(memory, petName)}:${key}:${normalizeText(factValueText(memory.fact_value))}`;
+}
+
+function semanticIdentityFromText(value: string, petName: string) {
+  const pattern = new RegExp(`^${escapeRegex(petName)}\\s+(?:likes?|prefers?|dislikes?|avoids?)\\s+(.+?)[.!]?$`, "i");
+  const match = pattern.exec(value.trim());
+  return match ? `pet:food_preference:${normalizeText(match[1])}` : null;
+}
+
+function foodPreferenceSemantics(memory: FurviseMemoryRow, petName: string) {
+  const key = compact(memory.fact_key);
+  if (!/(?:foodpreference|likesfood|dislikesfood|petfoodpreference)/.test(key)) return null;
+  const raw = factValueText(memory.fact_value).replace(/[.!]+$/, "").trim();
+  const subject = escapeRegex(petName);
+  const extracted = new RegExp(`^(?:${subject}\\s+)?(?:likes?|prefers?|dislikes?|avoids?)\\s+`, "i").test(raw)
+    ? raw.replace(new RegExp(`^(?:${subject}\\s+)?(?:likes?|prefers?|dislikes?|avoids?)\\s+`, "i"), "")
+    : raw;
+  const structured = memory.fact_value && typeof memory.fact_value === "object"
+    ? memory.fact_value as Record<string, unknown> : null;
+  const polarity = structured?.preference === "avoid" || /(?:dislike|avoid)/.test(key) || /\b(?:doesn't like|does not like|dislikes?|avoids?)\b/i.test(raw)
+    ? "avoid" as const : "prefer" as const;
+  return { object: extracted || "that food", polarity };
+}
+
+function sleepingArrangement(key: string) {
+  return key.includes("sleepingarrangement") || key.includes("sleeparrangement");
+}
+
+function sleepingPhrase(value: string) {
+  const clean = value.replace(/[.!]+$/, "").trim();
+  if (/^(?:in|on|at|under|near)\b/i.test(clean)) return clean;
+  if (/^(?:a|an|the)\b/i.test(clean)) return `in ${clean}`;
+  return `in ${/^[aeiou]/i.test(clean) ? "an" : "a"} ${clean}`;
+}
+
+function sentenceValue(value: string) {
+  const clean = value.replace(/[.!]+$/, "").trim();
+  return `${clean || "a remembered detail"}.`;
+}
+
+function compact(value: string) { return value.toLowerCase().replace(/[^a-z0-9]/g, ""); }
+function isExplicitCorrection(value: string) { return /\b(?:actually|instead|correction|not anymore|no longer)\b/i.test(value); }
+function explicitlyReplacedFoodObjects(value: string, petName: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const subject = `(?:${escapeRegex(petName)}|he|she|they|my pet)`;
+  const patterns = [
+    new RegExp(`${subject}\\s+(?:doesn't|does not|no longer)\\s+like\\s+([^,.!?;]+)`, "ig"),
+    /instead\s+of\s+([^,.!?;]+)/ig,
+  ];
+  return patterns.flatMap((pattern) => [...normalized.matchAll(pattern)].map((match) => match[1].trim()));
+}
+function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

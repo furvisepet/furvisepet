@@ -31,6 +31,7 @@ export function routeSemanticEventDestinations(event: CanonicalEvent): SemanticP
 export function routePersistenceDestinations(input: {
   message: string;
   petId: string;
+  authorizedPetIds?: readonly string[];
   learnings: IntelligenceLearning[];
   careActions: IntelligenceCareAction[];
 }) {
@@ -40,6 +41,21 @@ export function routePersistenceDestinations(input: {
   const budgetPreference = /\bprefer\w*\s+products?\s+under\s+\$(\d+(?:\.\d{1,2})?)/i.exec(message);
   const medicationLifecycle = medicationUpdate(message);
   const vagueMedication = /\b(?:medication|medicine|tablet|capsule)\b/i.test(message) && !medicationLifecycle;
+
+  if ((input.authorizedPetIds?.length || 1) > 1) {
+    const independentlyGovernedPreferences = input.learnings.filter((learning) =>
+      /preference/i.test(`${learning.category} ${learning.canonicalConceptKey || ""}`)
+      && (learning.subjectType === "owner" || Boolean(learning.subjectId && input.authorizedPetIds!.includes(learning.subjectId))));
+    const decisions: PersistenceDestinationDecision[] = [];
+    if (independentlyGovernedPreferences.some((item) => item.subjectType === "pet")) {
+      decisions.push({ destination: "pet_memory", reason: "independent_multi_pet_preferences", confidence: 0.99, requiresConfirmation: false });
+    }
+    if (independentlyGovernedPreferences.some((item) => item.subjectType === "owner")) {
+      decisions.push({ destination: "owner_memory", reason: "independent_owner_preference", confidence: 0.99, requiresConfirmation: false });
+    }
+    if (!decisions.length) decisions.push({ destination: "none", reason: "multi_subject_non_preference_fail_closed", confidence: 1, requiresConfirmation: true });
+    return { decisions, learnings: independentlyGovernedPreferences, careActions: [] };
+  }
 
   if (vagueMedication) return {
     decisions: [{ destination: "none", reason: "unnamed_medication_requires_clarification", confidence: 1, requiresConfirmation: true }] satisfies PersistenceDestinationDecision[],
@@ -58,10 +74,11 @@ export function routePersistenceDestinations(input: {
     return { decisions: [{ destination: "care_event", reason: `explicit_medication_${medicationLifecycle.operation}`, confidence: 0.99, requiresConfirmation: false }] satisfies PersistenceDestinationDecision[], learnings: [], careActions: [action] };
   }
   if (petPreference) {
-    const learning = canonicalPetPreference(message, input.petId) || input.learnings.find((item) => item.subjectType === "pet");
+    const canonical = (input.authorizedPetIds?.length || 1) > 1 ? null : canonicalPetPreference(message, input.petId);
+    const learnings = canonical ? [canonical] : input.learnings.filter((item) => item.subjectType === "pet");
     return {
       decisions: [{ destination: "pet_memory", reason: "explicit_durable_pet_preference", confidence: 0.99, requiresConfirmation: false }] satisfies PersistenceDestinationDecision[],
-      learnings: learning ? [learning] : [], careActions: [],
+      learnings, careActions: [],
     };
   }
   if (retailerPreference) {

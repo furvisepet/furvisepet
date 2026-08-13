@@ -77,6 +77,7 @@ export type IntelligenceLearning = {
   subjectId: string | null;
   category: string;
   factKey: string;
+  canonicalConceptKey?: string | null;
   factValue: unknown;
   confidence: number;
   importance: "low" | "medium" | "high";
@@ -143,7 +144,7 @@ export type FurviseLiveContext = {
   conversationId: string | null;
   pet: DogProfileRow;
   /** All authenticated-owner pets eligible for shadow entity resolution. */
-  eligiblePets: Array<Pick<DogProfileRow, "id" | "name" | "species" | "age_value" | "age_unit">>;
+  eligiblePets: DogProfileRow[];
   owner: { userId: string; profile: UserProfileRow | null };
   careEntries: CareEntryRow[];
   selectedCareEntries: CareEntryRow[];

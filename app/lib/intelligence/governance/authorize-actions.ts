@@ -2,11 +2,11 @@ import type { IntelligenceCareAction, IntelligenceLearning } from "../types.ts";
 import type { GovernanceDecision, GovernanceResult, ProfileChangeProposal, StateEffectProposal } from "./types.ts";
 
 const protectedFields = new Set(["identity", "species", "sex", "birthdate", "allergy", "weight", "medication", "diagnosis"]);
-export function authorizeProposedActions(input: { message: string; petId: string; careActions: IntelligenceCareAction[]; memories: IntelligenceLearning[]; stateEffects?: StateEffectProposal[]; profileChanges?: ProfileChangeProposal[] }): GovernanceResult {
+export function authorizeProposedActions(input: { message: string; petId: string; authorizedPetIds?: readonly string[]; careActions: IntelligenceCareAction[]; memories: IntelligenceLearning[]; stateEffects?: StateEffectProposal[]; profileChanges?: ProfileChangeProposal[] }): GovernanceResult {
   const explicit = normalize(input.message);
   return {
     careActions: dedupe(input.careActions, (action) => `${action.action}:${action.category}:${action.relatedRecordId || ""}:${normalize(action.title)}`).map((action) => decideCare(action, explicit)),
-    memories: dedupe(input.memories, (memory) => `${memory.subjectType}:${memory.subjectId || ""}:${memory.factKey}:${JSON.stringify(memory.factValue)}`).map((memory) => decideMemory(memory, explicit, input.petId)),
+    memories: dedupe(input.memories, (memory) => `${memory.subjectType}:${memory.subjectId || ""}:${memory.factKey}:${JSON.stringify(memory.factValue)}`).map((memory) => decideMemory(memory, explicit, input.authorizedPetIds || [input.petId])),
     stateEffects: (input.stateEffects || []).map((effect) => evidenceContains(explicit, effect.sourceExcerpt) && effect.confidence >= 0.9
       ? accepted(effect) : rejected(effect, effect.confidence < 0.9 ? "low_confidence" : "unsupported_evidence")),
     profileChanges: (input.profileChanges || []).map((change) => {
@@ -22,8 +22,9 @@ function decideCare(action: IntelligenceCareAction, message: string): Governance
   if (!evidenceContains(message, action.details) && !evidenceContains(message, action.title)) return rejected(action, "unsupported_evidence");
   return accepted(action);
 }
-function decideMemory(memory: IntelligenceLearning, message: string, petId: string): GovernanceDecision<IntelligenceLearning> {
-  if (memory.subjectType === "pet" && memory.subjectId && memory.subjectId !== petId) return rejected(memory, "wrong_pet");
+function decideMemory(memory: IntelligenceLearning, message: string, authorizedPetIds: readonly string[]): GovernanceDecision<IntelligenceLearning> {
+  if (memory.subjectType === "pet" && memory.subjectId && !authorizedPetIds.includes(memory.subjectId)) return rejected(memory, "wrong_pet");
+  if (memory.subjectType === "pet" && !memory.subjectId && authorizedPetIds.length !== 1) return rejected(memory, "wrong_pet");
   if (memory.confidence < 0.8) return rejected(memory, "low_confidence");
   if (!evidenceContains(message, memory.sourceExcerpt)) return rejected(memory, "unsupported_evidence");
   if (memory.category === "diagnosis") return rejected(memory, "unsupported_diagnosis");
