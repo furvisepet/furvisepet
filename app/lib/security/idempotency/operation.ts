@@ -32,6 +32,7 @@ export async function claimIdempotentOperation(input: ClaimIdempotencyInput): Pr
   if (!claim.owner_token) return { response: idempotencyErrorResponse("IDEMPOTENCY_UNAVAILABLE", requestId, 1) };
 
   const operation: IdempotencyOperation = {
+    claimOutcome: claim.claim_outcome as "new" | "retry",
     id: claim.operation_id, key: key.key, operationType: input.operationType, ownerToken: claim.owner_token, payloadHash, supabase: input.supabase, userId: input.userId,
     abandon: async (errorCode) => { try { await abandonStoredOperation({ errorCode, key: key.key, operationType: input.operationType, ownerToken: claim.owner_token!, userId: input.userId }); } catch { /* The lease prevents immediate duplicate execution. */ } },
     execute: async (callback) => {

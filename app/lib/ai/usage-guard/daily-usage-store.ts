@@ -13,7 +13,7 @@ end
 local calls = tonumber(redis.call('GET', KEYS[1]) or '0')
 local cost = tonumber(redis.call('GET', KEYS[2]) or '0')
 local operationCalls = tonumber(redis.call('GET', KEYS[5]) or '0')
-if operationCalls + 1 > tonumber(ARGV[7]) then return {0, 0, calls, cost, 3} end
+if operationCalls + 1 > tonumber(ARGV[7]) then redis.call('EXPIRE', KEYS[5], ARGV[8]); return {0, 0, calls, cost, 3} end
 if calls + 1 > tonumber(ARGV[1]) then return {0, 0, calls, cost, 1} end
 if cost + tonumber(ARGV[3]) > tonumber(ARGV[2]) then return {0, 0, calls, cost, 2} end
 calls = redis.call('INCR', KEYS[1])
@@ -21,7 +21,8 @@ cost = redis.call('INCRBY', KEYS[2], ARGV[3])
 redis.call('INCR', KEYS[3])
 redis.call('INCR', KEYS[5])
 redis.call('HSET', KEYS[4], 'day', ARGV[4], 'cost', ARGV[3], 'state', 'reserved', 'feature', ARGV[6])
-for i=1,5 do redis.call('EXPIRE', KEYS[i], ARGV[5]) end
+for i=1,4 do redis.call('EXPIRE', KEYS[i], ARGV[5]) end
+redis.call('EXPIRE', KEYS[5], ARGV[8])
 return {1, 0, calls, cost, 0}
 `;
 
@@ -69,9 +70,9 @@ export class RedisAiGuardStore implements AiGuardStore {
   }
   async completeOperation(input: { key: string; ttlSeconds: number }) { await this.updateOperation(input.key, "completed", input.ttlSeconds); }
   async failOperation(input: { key: string; ttlSeconds: number }) { await this.updateOperation(input.key, "failed", input.ttlSeconds); }
-  async reserveCall(input: { callId: string; callLimit: number; costLimitMicrodollars: number; day: string; feature: string; maximumOperationCalls: number; operationId: string; reservedCostMicrodollars: number; ttlSeconds: number }) {
+  async reserveCall(input: { callId: string; callLimit: number; costLimitMicrodollars: number; day: string; feature: string; maximumOperationCalls: number; operationCallTtlSeconds: number; operationId: string; reservedCostMicrodollars: number; ttlSeconds: number }) {
     const keys = dailyKeys(input.day, input.feature, input.callId, input.operationId);
-    const result = await this.redis.eval<string[], number[]>(RESERVE_SCRIPT, keys, [String(input.callLimit), String(input.costLimitMicrodollars), String(input.reservedCostMicrodollars), input.day, String(input.ttlSeconds), input.feature, String(input.maximumOperationCalls)]);
+    const result = await this.redis.eval<string[], number[]>(RESERVE_SCRIPT, keys, [String(input.callLimit), String(input.costLimitMicrodollars), String(input.reservedCostMicrodollars), input.day, String(input.ttlSeconds), input.feature, String(input.maximumOperationCalls), String(input.operationCallTtlSeconds)]);
     const snapshot = { calls: Number(result[2]), costMicrodollars: Number(result[3]) };
     if (result[0] === 1) return { allowed: true as const, reused: result[1] === 1, snapshot };
     const reason = result[4] === 1 ? "daily_call_limit" as const

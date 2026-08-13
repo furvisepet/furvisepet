@@ -17,7 +17,7 @@ export class MemoryAiGuardTestStore implements AiGuardStore {
   }
   async completeOperation(input: { key: string }) { const item = this.operations.get(input.key); if (item) item.state = "completed"; }
   async failOperation(input: { key: string }) { const item = this.operations.get(input.key); if (item && item.state !== "completed") item.state = "failed"; }
-  async reserveCall(input: { callId: string; callLimit: number; costLimitMicrodollars: number; day: string; feature: string; maximumOperationCalls: number; operationId: string; reservedCostMicrodollars: number }) {
+  async reserveCall(input: { callId: string; callLimit: number; costLimitMicrodollars: number; day: string; feature: string; maximumOperationCalls: number; operationCallTtlSeconds: number; operationId: string; reservedCostMicrodollars: number }) {
     const existing = this.calls.get(input.callId);
     const snapshot = this.snapshots.get(input.day) || { calls: 0, costMicrodollars: 0 };
     if (existing) return { allowed: true as const, reused: true, snapshot: { ...snapshot } };
