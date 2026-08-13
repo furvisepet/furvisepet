@@ -30,6 +30,8 @@ export type ClassifiedTurn = {
 };
 
 const resolvedPattern = /\b(fine now|normal again|back to normal|returned to normal|breathing normally(?: now| again)?|breathing is normal|it stopped|has stopped|resolved|gone away|no more deep breaths?|no longer breathing (?:hard|deeply)|doing better now|settled now)\b/i;
+const explicitCessationPattern = /\b(?:has(?:\s+not|n't)\s+[\p{L}\p{N}'-]+\s+again|no\s+(?:more|further)\s+[\p{L}\p{N}'-]+|(?:stopped|ceased)\s+[\p{L}\p{N}'-]+)\b/iu;
+const restoredBaselinePattern = /\b(?:seems?|appears?|is|are|acting|behaving)\s+(?:completely\s+|fully\s+)?(?:normal|usual|fine|well|okay|ok)(?:\s+(?:again|now))?\b/i;
 const improvedPattern = /\b(she is good|he is good|they are good|is good now|seems good|appears well|doing well|feels better|seems better|resting normally|calm now)\b/i;
 const returnPattern = /\b(came back|is back|started again|returned|happening again|worse again|recurred)\b/i;
 const worseningPattern = /\b(getting worse|worsening|much worse|open[- ]mouth breathing|collapsed?|gums? (?:look |are )?(?:blue|pale)|cannot breathe|can't breathe|unable to breathe|unconscious)\b/i;
@@ -66,13 +68,21 @@ export function classifyActiveConcernMessage(message: string, hasActiveConcern =
   const normalized = message.trim().replace(/\s+/g, " ");
   if (!hasActiveConcern || !normalized) return "unrelated";
   if (worseningPattern.test(normalized)) return "worsening";
-  if (resolvedPattern.test(normalized)) return "resolved";
+  if (resolvedPattern.test(normalized) || explicitTerminalRecovery(normalized)) return "resolved";
   if (improvedPattern.test(normalized)) return "improved";
   if (returnPattern.test(normalized)) return "recurrence";
   if (stillActivePattern.test(normalized)) return "still_active";
   if (/^(?:hi|hello|hey|yo|thanks|thank you|okay|ok)[!.\s]*$/i.test(normalized)) return "unrelated";
   if (/\?|\b(what|when|where|why|how|should|could|can|is|are|do|does|will)\b/i.test(normalized) && !concernLanguagePattern.test(normalized)) return "unrelated";
   return "unclear";
+}
+
+function explicitTerminalRecovery(message: string) {
+  if (!explicitCessationPattern.test(message)) return false;
+  const noRecurrenceMatch = /\bhas(?:\s+not|n't)\s+([\p{L}\p{N}'-]+)\s+again\b/iu.exec(message);
+  const noRecurrence = Boolean(noRecurrenceMatch && !/^(?:better|improved|recovered|resolved|stopped|normal)$/i.test(noRecurrenceMatch[1]));
+  const boundedNoMore = /\bno\s+(?:more|further)\s+[\p{L}\p{N}'-]+(?:\s+(?:since|after|for)\b|[.!?]|$)/iu.test(message);
+  return restoredBaselinePattern.test(message) || noRecurrence || boundedNoMore;
 }
 
 export function isDeterministicTurn(turn: ClassifiedTurn, hasActiveConcern: boolean) {

@@ -72,7 +72,7 @@ export async function runFurviseIntelligence({
       })),
     ],
     productFeedback: context.productFeedback,
-    profiles: [context.pet],
+    profiles: context.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
     question: context.currentMessage,
     recentUpdates: buildRecentAskUpdates(context.selectedCareEntries),
     recentlyResolvedConcerns: context.recentlyResolvedConcerns,
@@ -109,6 +109,7 @@ export async function runFurviseIntelligence({
     activeConcernIds: safety.activeConcernIds,
   });
   const modelGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
+    && safety.concernMessageState === "resolved"
     && reasoning.intelligenceSafety.level === "recently_resolved"
     && !["worsening", "recurrence", "still_active"].includes(safety.concernMessageState)
     && proposedResolutionPolicy.accepted.some((action) => action.action === "resolve_concern");
@@ -286,13 +287,14 @@ function buildClearResolutionAction(
   context: FurviseLiveContext,
   safety: ReturnType<typeof resolveSafetyState>,
 ): AskReasoningResult["careActions"][number] | null {
-  if (safety.level !== "recently_resolved" || !["improved", "resolved"].includes(safety.concernMessageState)) return null;
+  if (safety.level !== "recently_resolved" || safety.concernMessageState !== "resolved") return null;
   const subject = resolveRecoverySubject({
     message: context.currentMessage,
     recentConversation: context.conversationTurns.slice(-6).map((turn) => turn.text),
     activeEpisodes: context.activeEpisodes,
     activeConcerns: context.activeConcerns,
   });
+  if (!subject.concernId) return null;
   return {
     action: "resolve_concern",
     category: "symptom",

@@ -34,9 +34,12 @@ export async function persistIntelligenceLearnings({
     ...learning,
     normalizedValue: normalizeMemoryValue(learning.factValue),
   }));
+  const resolutionAction = careActions.find((action) => action.action === "resolve_concern" && Boolean(action.relatedRecordId));
   const semanticEvent = semanticEvents.find((item) => item.destinations.some((destination) =>
     destination === "care_event" || destination === "episode_current_state" || destination === "state_only"));
-  const carePersistence = semanticEvent
+  const carePersistence = resolutionAction
+    ? await persistCanonicalCareAction({ action: resolutionAction, petId, sourceMessageId, supabase, userId })
+    : semanticEvent
     ? await persistCanonicalSemanticEvent({ event: semanticEvent, petId, sourceMessageId, supabase, userId })
     : careActions[0]
       ? await persistCanonicalCareAction({ action: careActions[0], petId, sourceMessageId, supabase, userId })

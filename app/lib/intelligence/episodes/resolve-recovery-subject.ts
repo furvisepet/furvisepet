@@ -21,13 +21,13 @@ export function resolveRecoverySubject(input: {
   const recentTopic = explicitTopic || [...(input.recentConversation || [])].reverse().map((text) => RECOVERY_TOPICS.find((topic) => topic.pattern.test(text))).find(Boolean);
   const scoredEpisodes = input.activeEpisodes
     .filter((episode) => episode.episode_type === "symptom")
-    .map((episode) => ({ episode, score: scoreCandidate(episode.normalized_key, episode.title, recentTopic) }))
+    .map((episode) => ({ episode, score: scoreCandidate(episode.normalized_key, episode.title, recentTopic, input.message) }))
     .filter((candidate) => candidate.score > 0)
     .sort((left, right) => right.score - left.score || Date.parse(right.episode.last_event_at) - Date.parse(left.episode.last_event_at));
   const episode = scoredEpisodes[0]?.episode || null;
   const topic = recentTopic || topicForCandidate(episode?.normalized_key, episode?.title);
   const concerns = input.activeConcerns
-    .map((concern) => ({ concern, score: scoreCandidate(concern.normalized_key, concern.title, topic) }))
+    .map((concern) => ({ concern, score: scoreCandidate(concern.normalized_key, concern.title, topic, input.message) }))
     .filter((candidate) => candidate.score > 0)
     .sort((left, right) => right.score - left.score);
   const concern = concerns[0]?.concern || null;
@@ -40,16 +40,26 @@ export function resolveRecoverySubject(input: {
   };
 }
 
-function scoreCandidate(key = "", title = "", topic?: Topic) {
-  if (!topic) return 0;
+function scoreCandidate(key = "", title = "", topic?: Topic, message = "") {
   const normalized = `${key} ${title}`.toLowerCase();
-  if (key === topic.key) return 100;
-  if (topic.key === "breathing" && /breath|pant/.test(normalized)) return 80;
-  if (topic.key === "ear_scratching" && /ear|scratch|head shak/.test(normalized)) return 80;
-  if (topic.key === "appetite_reduced" && /appetite|eating|food intake/.test(normalized)) return 80;
-  return 0;
+  if (topic) {
+    if (key === topic.key) return 100;
+    if (topic.key === "breathing" && /breath|pant/.test(normalized)) return 80;
+    if (topic.key === "ear_scratching" && /ear|scratch|head shak/.test(normalized)) return 80;
+    if (topic.key === "appetite_reduced" && /appetite|eating|food intake/.test(normalized)) return 80;
+  }
+  const candidateTokens = semanticTokens(`${key} ${title}`);
+  const messageTokens = semanticTokens(message);
+  const overlap = candidateTokens.filter((token) => messageTokens.includes(token)).length;
+  return overlap ? 90 + Math.round(9 * overlap / Math.max(1, candidateTokens.length)) : 0;
 }
 
 function topicForCandidate(key = "", title = "") {
   return RECOVERY_TOPICS.find((topic) => key === topic.key || topic.pattern.test(`${key} ${title}`));
+}
+
+function semanticTokens(value: string) {
+  return [...new Set(value.normalize("NFKC").toLowerCase().match(/[a-z0-9]{4,}/g) || [])]
+    .map((token) => token.replace(/(?:ied|ing|ed|es|s)$/i, (suffix) => suffix === "ied" ? "y" : ""))
+    .filter((token) => token.length >= 3 && !["active", "concern", "episode", "moderate", "symptom", "update"].includes(token));
 }
