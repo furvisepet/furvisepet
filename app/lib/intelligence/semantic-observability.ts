@@ -7,6 +7,7 @@ import { resolveShadowReferences } from "./entities/resolve-references.ts";
 import type { SemanticReasonCode } from "./entities/policy.ts";
 import type { GovernedCanonicalEvent, IntelligenceCareAction, IntelligenceLearning, SemanticPersistenceDestination } from "./types.ts";
 import type { ProposedSemanticClaim, ProposedSemanticFrame, SemanticClaimKind, SemanticPersistenceHint } from "./semantic-frame/types.ts";
+import type { SemanticFrameRecoveryTelemetry } from "./semantic-frame/recover-owner-preference.ts";
 import { groundSemanticFrameEvidence, type EvidenceGroundingFailureReason } from "./semantic-frame/ground-evidence.ts";
 import { normalizeClaimKind } from "./semantic-frame/normalize-claim-kind.ts";
 import { validateSemanticFrameEvidence } from "./semantic-frame/validate-evidence.ts";
@@ -51,7 +52,7 @@ export type SemanticComparisonMetrics = {
 export type SemanticTrace = {
   traceId: string;
   frameStatus: "valid" | "invalid";
-  frameRecovery: { applied: boolean; reason: "CLAIM_SUBJECT_REF_UNKNOWN" | null };
+  frameRecovery: SemanticFrameRecoveryTelemetry;
   schemaVersion: string;
   modelVersion: string;
   sourceMessageId: string;
@@ -237,7 +238,9 @@ export function buildShadowSemanticAnalysis(input: {
     trace: {
       traceId: input.requestId,
       frameStatus,
-      frameRecovery: input.reasoning.semanticFrameRecovery || { applied: false, reason: null },
+      frameRecovery: input.reasoning.semanticFrameRecovery || {
+        applied: false, reason: "NOT_ATTEMPTED_FRAME_VALID", validationReason: null,
+      },
       schemaVersion: frame.schemaVersion,
       modelVersion: input.reasoning.model,
       sourceMessageId: input.sourceMessageId,

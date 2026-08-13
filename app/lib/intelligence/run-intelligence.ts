@@ -79,8 +79,6 @@ export async function runFurviseIntelligence({
     semanticFrameRecovery: {
       ownerIdentityVerified: Boolean(context.owner.userId),
       canonicalConcepts,
-      safetyLevel: safety.level === "urgent" || safety.level === "emergency" ? "urgent"
-        : safety.level === "monitor" ? "caution" : "routine",
     },
   });
   const semanticGovernance = governCanonicalEvents({

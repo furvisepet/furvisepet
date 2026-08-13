@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { extractProposedSemanticFrame } from "../app/lib/intelligence/semantic-frame/extract-frame.ts";
+import { extractProposedSemanticFrame, validateProposedSemanticFrame } from "../app/lib/intelligence/semantic-frame/extract-frame.ts";
 import { recoverOwnerPreferenceFrame } from "../app/lib/intelligence/semantic-frame/recover-owner-preference.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts/registry-policy.ts";
@@ -63,13 +63,21 @@ function govern(message, semanticFrame) {
   });
 }
 
+function recover(proposed, context) {
+  const validation = validateProposedSemanticFrame(proposed);
+  assert.ok(validation.candidate);
+  assert.ok(validation.reason);
+  return recoverOwnerPreferenceFrame(validation.candidate, validation.reason, context);
+}
+
 test("a simple first-person owner preference recovers one valid canonical governed claim", () => {
   const message = "I prefer shopping at Chewy.";
   const proposed = frame(message, preferenceClaim(message));
   assert.equal(extractProposedSemanticFrame(proposed), null, "dangling owner_1 must remain invalid at the strict parser");
-  const recovery = recoverOwnerPreferenceFrame(proposed, recoveryContext(message));
-  assert.ok(recovery);
-  assert.equal(recovery.reason, "CLAIM_SUBJECT_REF_UNKNOWN");
+  const recovery = recover(proposed, recoveryContext(message));
+  assert.equal(recovery.telemetry.reason, "RECOVERED_OWNER_PREFERENCE");
+  assert.equal(recovery.telemetry.validationReason, "CLAIM_SUBJECT_REF_UNKNOWN");
+  assert.ok(recovery.frame);
   assert.equal(recovery.frame.claims[0].subjectRef, null);
   const governed = govern(message, recovery.frame);
   assert.equal(governed.rejectedClaims.length, 0);
@@ -83,8 +91,8 @@ test("a simple first-person owner preference recovers one valid canonical govern
 test("equivalent preference and durable assertion model shapes recover through governed concept authority", () => {
   const message = "I prefer shopping at Chewy.";
   for (const claim of [preferenceClaim(message), assertionClaim(message)]) {
-    const recovery = recoverOwnerPreferenceFrame(frame(message, claim), recoveryContext(message));
-    assert.ok(recovery);
+    const recovery = recover(frame(message, claim), recoveryContext(message));
+    assert.ok(recovery.frame);
     const governed = govern(message, recovery.frame);
     assert.equal(governed.acceptedClaims[0].claimKind, "preference");
     assert.equal(governed.acceptedClaims[0].structuredValue.object.value, "Chewy");
@@ -96,10 +104,10 @@ test("equivalent preference and durable assertion model shapes recover through g
 test("malformed preference payloads and non-exact evidence remain invalid", () => {
   const message = "I prefer shopping at Chewy.";
   const malformed = frame(message, { ...preferenceClaim(message), object: null });
-  assert.equal(recoverOwnerPreferenceFrame(malformed, recoveryContext(message)), null);
+  assert.equal(recover(malformed, recoveryContext(message)).frame, null);
   const paraphrased = frame(message, { ...preferenceClaim(message), evidence: [{ surfaceText: "I like Chewy" }] });
-  assert.equal(recoverOwnerPreferenceFrame(paraphrased, recoveryContext(message)), null);
-  assert.equal(recoverOwnerPreferenceFrame(frame(message, preferenceClaim(message)), recoveryContext(message, { ownerIdentityVerified: false })), null);
+  assert.equal(recover(paraphrased, recoveryContext(message)).frame, null);
+  assert.equal(recover(frame(message, preferenceClaim(message)), recoveryContext(message, { ownerIdentityVerified: false })).frame, null);
 });
 
 test("an unrelated organization assertion cannot recover as an owner preference", () => {
@@ -109,13 +117,13 @@ test("an unrelated organization assertion cannot recover as an owner preference"
     value: "warehouses", unit: null, durability: "durable",
   };
   const proposed = frame(message, claim, [organizationMention(message, "Acme")]);
-  assert.equal(recoverOwnerPreferenceFrame(proposed, recoveryContext(message)), null);
+  assert.equal(recover(proposed, recoveryContext(message)).frame, null);
 
   const reportedMessage = "I heard Acme prefers wholesale orders.";
   const reported = frame(reportedMessage, {
     ...commonClaim(reportedMessage), object: { concept: concept("ordering preference"), value: "wholesale" }, constraints: [],
   }, [organizationMention(reportedMessage, "Acme")]);
-  assert.equal(recoverOwnerPreferenceFrame(reported, recoveryContext(reportedMessage)), null);
+  assert.equal(recover(reported, recoveryContext(reportedMessage)).frame, null);
 });
 
 test("medical and lifecycle malformed frames remain fail closed", () => {
@@ -128,14 +136,14 @@ test("medical and lifecycle malformed frames remain fail closed", () => {
     attributes: { species: null, lifeStage: null, ownership: "owner" },
     evidence: [{ surfaceText: "Luna" }], confidence: 0.98,
   }]);
-  assert.equal(recoverOwnerPreferenceFrame(medical, recoveryContext(medicalMessage, { safetyLevel: "urgent" })), null);
+  assert.equal(recover(medical, recoveryContext(medicalMessage, { safetyLevel: "urgent" })).frame, null);
 
   const lifecycleMessage = "I found Luna.";
   const lifecycle = frame(lifecycleMessage, {
     ...commonClaim(lifecycleMessage, "state_transition"), transition: "resolved", fromState: "missing",
     toState: "home", targetConcept: concept("missing pet"), persistenceHint: "current_state",
   }, []);
-  assert.equal(recoverOwnerPreferenceFrame(lifecycle, recoveryContext(lifecycleMessage)), null);
+  assert.equal(recover(lifecycle, recoveryContext(lifecycleMessage)).frame, null);
 });
 
 test("Good morning remains a valid frame with zero governed claims", () => {
@@ -147,6 +155,6 @@ test("Good morning remains a valid frame with zero governed claims", () => {
   };
   const parsed = extractProposedSemanticFrame(greeting);
   assert.ok(parsed);
-  assert.equal(recoverOwnerPreferenceFrame(greeting, recoveryContext(message)), null);
+  assert.equal(validateProposedSemanticFrame(greeting).reason, null);
   assert.equal(govern(message, parsed).acceptedClaims.length, 0);
 });

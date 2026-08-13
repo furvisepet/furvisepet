@@ -3,6 +3,39 @@ import { SEMANTIC_FRAME_SCHEMA_VERSION, type ProposedSemanticFrame } from "./typ
 const localIdPattern = /^[a-z][a-z0-9_]{0,39}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export type SemanticFrameValidationReason =
+  | "NO_CANDIDATE"
+  | "CLAIM_SUBJECT_REF_UNKNOWN"
+  | "NON_RECOVERABLE_VALIDATION_ERROR";
+
+export type ProposedSemanticFrameValidation = {
+  candidate: Record<string, unknown> | null;
+  frame: ProposedSemanticFrame | null;
+  reason: SemanticFrameValidationReason | null;
+};
+
+/**
+ * Retains a parsed provider candidate long enough to distinguish the one
+ * referential-integrity defect eligible for recovery. The strict validator
+ * remains the authority: the diagnostic repair must make the candidate fully
+ * valid, which proves there was no second validation defect.
+ */
+export function validateProposedSemanticFrame(value: unknown): ProposedSemanticFrameValidation {
+  const candidate = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+  if (!candidate) return { candidate: null, frame: null, reason: "NO_CANDIDATE" };
+
+  const frame = extractProposedSemanticFrame(candidate);
+  if (frame) return { candidate, frame, reason: null };
+
+  const repaired = repairSoleDanglingSubjectRef(candidate);
+  if (repaired && extractProposedSemanticFrame(repaired)) {
+    return { candidate, frame: null, reason: "CLAIM_SUBJECT_REF_UNKNOWN" };
+  }
+  return { candidate, frame: null, reason: "NON_RECOVERABLE_VALIDATION_ERROR" };
+}
+
 export function extractProposedSemanticFrame(value: unknown): ProposedSemanticFrame | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const frame = value as ProposedSemanticFrame;
@@ -90,4 +123,24 @@ function validClaimShape(value: unknown) {
     return Boolean(target && (target.predicate === null || validConcept(target.predicate)) && ["replace", "retract", "negate", "forget", "confirm"].includes(String(claim.operation)));
   }
   return false;
+}
+
+function repairSoleDanglingSubjectRef(candidate: Record<string, unknown>) {
+  if (!Array.isArray(candidate.claims) || !Array.isArray(candidate.mentions)) return null;
+  const mentionIds = new Set(candidate.mentions.flatMap((mention) => {
+    if (!mention || typeof mention !== "object") return [];
+    const localId = (mention as Record<string, unknown>).localId;
+    return typeof localId === "string" ? [localId] : [];
+  }));
+  const danglingIndexes = candidate.claims.flatMap((claim, index) => {
+    if (!claim || typeof claim !== "object") return [];
+    const subjectRef = (claim as Record<string, unknown>).subjectRef;
+    return typeof subjectRef === "string" && !mentionIds.has(subjectRef) ? [index] : [];
+  });
+  if (danglingIndexes.length !== 1) return null;
+  const repaired = structuredClone(candidate);
+  const claim = (repaired.claims as unknown[])[danglingIndexes[0]];
+  if (!claim || typeof claim !== "object") return null;
+  (claim as Record<string, unknown>).subjectRef = null;
+  return repaired;
 }

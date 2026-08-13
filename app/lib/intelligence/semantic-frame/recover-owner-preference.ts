@@ -1,11 +1,24 @@
 import { groundSemanticFrameEvidence } from "./ground-evidence.ts";
-import { extractProposedSemanticFrame } from "./extract-frame.ts";
+import { extractProposedSemanticFrame, type SemanticFrameValidationReason } from "./extract-frame.ts";
 import { normalizeClaimKind } from "./normalize-claim-kind.ts";
 import type { ProposedSemanticFrame } from "./types.ts";
 import { resolveClaimConceptV2 } from "../v2/concepts/normalize.ts";
 import type { GovernedConceptIdentity } from "../v2/types.ts";
 
-export const OWNER_PREFERENCE_RECOVERY_REASON = "CLAIM_SUBJECT_REF_UNKNOWN" as const;
+export type SemanticFrameRecoveryReason =
+  | "NOT_ATTEMPTED_FRAME_VALID"
+  | "NOT_ATTEMPTED_NO_CANDIDATE"
+  | "NOT_ATTEMPTED_RECOVERY_DISABLED"
+  | "NOT_ATTEMPTED_NON_RECOVERABLE_VALIDATION_ERROR"
+  | "RECOVERY_PRECONDITION_FAILED"
+  | "RECOVERY_REVALIDATION_FAILED"
+  | "RECOVERED_OWNER_PREFERENCE";
+
+export type SemanticFrameRecoveryTelemetry = {
+  applied: boolean;
+  reason: SemanticFrameRecoveryReason;
+  validationReason: SemanticFrameValidationReason | null;
+};
 
 export type OwnerPreferenceRecoveryContext = {
   sourceMessage: string;
@@ -15,8 +28,8 @@ export type OwnerPreferenceRecoveryContext = {
 };
 
 export type OwnerPreferenceRecovery = {
-  frame: ProposedSemanticFrame;
-  reason: typeof OWNER_PREFERENCE_RECOVERY_REASON;
+  frame: ProposedSemanticFrame | null;
+  telemetry: SemanticFrameRecoveryTelemetry;
 };
 
 /**
@@ -25,55 +38,66 @@ export type OwnerPreferenceRecovery = {
  * emitting the corresponding mention. Subject identity remains server-owned.
  */
 export function recoverOwnerPreferenceFrame(
-  value: unknown,
+  candidate: Record<string, unknown>,
+  validationReason: SemanticFrameValidationReason,
   context: OwnerPreferenceRecoveryContext,
-): OwnerPreferenceRecovery | null {
-  if (!context.ownerIdentityVerified || context.safetyLevel !== "routine") return null;
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+): OwnerPreferenceRecovery {
+  const failed = (reason: SemanticFrameRecoveryReason): OwnerPreferenceRecovery => ({
+    frame: null,
+    telemetry: { applied: false, reason, validationReason },
+  });
+  if (validationReason !== "CLAIM_SUBJECT_REF_UNKNOWN") {
+    return failed("NOT_ATTEMPTED_NON_RECOVERABLE_VALIDATION_ERROR");
+  }
+  if (!context.ownerIdentityVerified || context.safetyLevel !== "routine") {
+    return failed("RECOVERY_PRECONDITION_FAILED");
+  }
 
-  const candidate = value as Record<string, unknown>;
-  if (!Array.isArray(candidate.claims) || candidate.claims.length !== 1) return null;
-  if (!Array.isArray(candidate.mentions) || !Array.isArray(candidate.references)) return null;
+  if (!Array.isArray(candidate.claims) || candidate.claims.length !== 1) return failed("RECOVERY_PRECONDITION_FAILED");
+  if (!Array.isArray(candidate.mentions) || !Array.isArray(candidate.references)) return failed("RECOVERY_PRECONDITION_FAILED");
   const uncertainty = candidate.uncertainty as Record<string, unknown> | null;
-  if (!uncertainty || uncertainty.needsClarification !== false) return null;
+  if (!uncertainty || uncertainty.needsClarification !== false) return failed("RECOVERY_PRECONDITION_FAILED");
 
   const claim = candidate.claims[0] as Record<string, unknown> | null;
-  if (!claim || !["assertion", "preference"].includes(String(claim.kind))) return null;
-  if (claim.persistenceHint !== "owner_memory" || claim.modality !== "asserted") return null;
-  if (typeof claim.subjectRef !== "string") return null;
+  if (!claim || !["assertion", "preference"].includes(String(claim.kind))) return failed("RECOVERY_PRECONDITION_FAILED");
+  if (claim.persistenceHint !== "owner_memory" || claim.modality !== "asserted") return failed("RECOVERY_PRECONDITION_FAILED");
+  if (typeof claim.subjectRef !== "string") return failed("RECOVERY_PRECONDITION_FAILED");
   const mentionIds = new Set(candidate.mentions.flatMap((mention) => {
     if (!mention || typeof mention !== "object") return [];
     const localId = (mention as Record<string, unknown>).localId;
     return typeof localId === "string" ? [localId] : [];
   }));
-  if (mentionIds.has(claim.subjectRef)) return null;
+  if (mentionIds.has(claim.subjectRef)) return failed("RECOVERY_PRECONDITION_FAILED");
 
   const repaired = structuredClone(candidate);
   (repaired.claims as Array<Record<string, unknown>>)[0].subjectRef = null;
   const frame = extractProposedSemanticFrame(repaired);
-  if (!frame) return null;
+  if (!frame) return failed("RECOVERY_REVALIDATION_FAILED");
 
   const grounding = groundSemanticFrameEvidence(frame, context.sourceMessage);
-  if (grounding.failures.length || grounding.totalEvidence === 0 || grounding.exactEvidence !== grounding.totalEvidence) return null;
+  if (grounding.failures.length || grounding.totalEvidence === 0 || grounding.exactEvidence !== grounding.totalEvidence) return failed("RECOVERY_PRECONDITION_FAILED");
   const groundedClaim = grounding.frame.claims[0];
   const groundedEvidence = grounding.frame.claims[0].evidence.flatMap((item) =>
     "alignment" in item ? [item] : []);
   const evidenceText = groundedEvidence.map((item) => item.quote).join(" ");
-  if (!explicitFirstPersonPreferenceHolder(evidenceText)) return null;
+  if (!explicitFirstPersonPreferenceHolder(evidenceText)) return failed("RECOVERY_PRECONDITION_FAILED");
   if (grounding.frame.mentions.some((mention) =>
-    mention.coarseType === "person" && mention.attributes.ownership !== "owner")) return null;
+    mention.coarseType === "person" && mention.attributes.ownership !== "owner")) return failed("RECOVERY_PRECONDITION_FAILED");
 
   const concept = resolveClaimConceptV2(groundedClaim, context.canonicalConcepts, {
     frame: grounding.frame,
     groundedEvidence,
   });
-  if (!concept || concept.status !== "canonical" || concept.conceptKind !== "preference" || concept.lifecycleCapable !== false) return null;
+  if (!concept || concept.status !== "canonical" || concept.conceptKind !== "preference" || concept.lifecycleCapable !== false) return failed("RECOVERY_PRECONDITION_FAILED");
   const authority = context.canonicalConcepts.find((item) => item.key === concept.canonicalKey);
-  if (authority?.semanticRole !== "retailer_preference") return null;
+  if (authority?.semanticRole !== "retailer_preference") return failed("RECOVERY_PRECONDITION_FAILED");
   const kind = normalizeClaimKind(groundedClaim, { conceptKind: concept.conceptKind, preferenceHolderSupported: true });
-  if (!kind.consistent || kind.structuralKind !== "preference") return null;
+  if (!kind.consistent || kind.structuralKind !== "preference") return failed("RECOVERY_PRECONDITION_FAILED");
 
-  return { frame, reason: OWNER_PREFERENCE_RECOVERY_REASON };
+  return {
+    frame,
+    telemetry: { applied: true, reason: "RECOVERED_OWNER_PREFERENCE", validationReason },
+  };
 }
 
 function explicitFirstPersonPreferenceHolder(value: string) {

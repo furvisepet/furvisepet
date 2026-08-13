@@ -98,6 +98,11 @@ test("normal questions use one strict structured provider request and no planner
 
 test("the unified parser applies only authorized owner-preference frame recovery", async () => {
   const question = "I prefer shopping at Chewy.";
+  const concerns = [{
+    id: "concern-vomiting", user_id: "user-1", pet_profile_id: "pet-mani", title: "Vomiting",
+    normalized_key: "vomiting", status: "active", severity: "urgent", source_care_entry_id: "vomiting",
+    opened_at: "2026-07-27T18:00:00Z", updated_at: "2026-07-27T18:00:00Z", resolved_at: null, resolution_note: null,
+  }];
   const semanticFrame = {
     schemaVersion: SEMANTIC_FRAME_SCHEMA_VERSION, frameLocalId: "frame_1",
     discourseActs: [{ kind: "statement", confidence: 0.99 }],
@@ -123,11 +128,13 @@ test("the unified parser applies only authorized owner-preference frame recovery
     key: "preferred_retailer", version: "furvise.core.v1", conceptKind: "preference", lifecycleCapable: false,
   });
   const result = await generateContextAwareAskResponse({
-    ...input({ question }), client: mockClient([unified({ semanticFrame })]),
-    semanticFrameRecovery: { ownerIdentityVerified: true, canonicalConcepts: [preferredRetailer], safetyLevel: "routine" },
+    ...input({ question, concerns }), client: mockClient([unified({ semanticFrame })]),
+    semanticFrameRecovery: { ownerIdentityVerified: true, canonicalConcepts: [preferredRetailer] },
   });
   assert.equal(result.semanticFrameValid, true);
-  assert.deepEqual(result.semanticFrameRecovery, { applied: true, reason: "CLAIM_SUBJECT_REF_UNKNOWN" });
+  assert.deepEqual(result.semanticFrameRecovery, {
+    applied: true, reason: "RECOVERED_OWNER_PREFERENCE", validationReason: "CLAIM_SUBJECT_REF_UNKNOWN",
+  });
   assert.equal(result.semanticFrame.claims[0].subjectRef, null);
 });
 
