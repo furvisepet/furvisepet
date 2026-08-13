@@ -33,10 +33,14 @@ import {
   messageUnderstandingJsonSchema,
 } from "../intelligence/schemas.ts";
 import type { CanonicalEventProposal, IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "../intelligence/types.ts";
-import { emptyProposedSemanticFrame, extractProposedSemanticFrame } from "../intelligence/semantic-frame/extract-frame.ts";
+import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "../intelligence/semantic-frame/extract-frame.ts";
 import { proposedSemanticFrameJsonSchema } from "../intelligence/semantic-frame/schema.ts";
 import type { ProposedSemanticFrame } from "../intelligence/semantic-frame/types.ts";
-import { recoverOwnerPreferenceFrame, type OwnerPreferenceRecoveryContext } from "../intelligence/semantic-frame/recover-owner-preference.ts";
+import {
+  recoverOwnerPreferenceFrame,
+  type OwnerPreferenceRecoveryContext,
+  type SemanticFrameRecoveryTelemetry,
+} from "../intelligence/semantic-frame/recover-owner-preference.ts";
 import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-governance.ts";
 
 export type AskContextSourceType =
@@ -108,7 +112,7 @@ export type AskReasoningResult = {
   /** Diagnostic-only Phase 1 output. It never authorizes production persistence. */
   semanticFrame: ProposedSemanticFrame;
   semanticFrameValid: boolean;
-  semanticFrameRecovery: { applied: boolean; reason: "CLAIM_SUBJECT_REF_UNKNOWN" | null };
+  semanticFrameRecovery: SemanticFrameRecoveryTelemetry;
   intelligenceMetadata: {
     confidence: "low" | "medium" | "high";
     usedPetContext: boolean;
@@ -148,7 +152,7 @@ export type GenerateAskReasoningInput = BuildContextInput & {
   client?: AskReasoningOpenAiClient;
   locale: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
-  semanticFrameRecovery?: Omit<OwnerPreferenceRecoveryContext, "sourceMessage">;
+  semanticFrameRecovery?: Omit<OwnerPreferenceRecoveryContext, "sourceMessage" | "safetyLevel">;
 };
 
 type AskReasoningOpenAiClient = {
@@ -435,7 +439,12 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const context = buildAskContext(input);
   const request = buildProviderRequest(context.promptContext);
   const parseOutput = (rawText: string) => parseUnifiedResponse(rawText, context.records, input.semanticFrameRecovery
-    ? { ...input.semanticFrameRecovery, sourceMessage: input.question }
+    ? {
+      ...input.semanticFrameRecovery,
+      sourceMessage: input.question,
+      safetyLevel: context.minimumSafetyLevel === "normal" ? "routine"
+        : context.minimumSafetyLevel === "monitor" ? "caution" : "urgent",
+    }
     : undefined);
   const cooldown = getAskProviderCooldown(models.primary);
   if (cooldown.active) {
@@ -738,11 +747,26 @@ export function parseUnifiedResponse(
   if (!answer) throw new Error("Ask provider returned an empty answer.");
   const relevantContextIds = [...new Set(value.relevantContextIds.filter((id): id is string => typeof id === "string" && allowedIds.has(id)))].slice(0, 8);
   const referencedTypes = new Set(relevantContextIds.map((id) => records.find((record) => record.id === id)?.sourceType).filter(Boolean));
-  const extractedSemanticFrame = extractProposedSemanticFrame(value.semanticFrame);
-  const recovery = extractedSemanticFrame || !recoveryContext
-    ? null
-    : recoverOwnerPreferenceFrame(value.semanticFrame, recoveryContext);
-  const semanticFrame = extractedSemanticFrame || recovery?.frame || null;
+  const frameValidation = validateProposedSemanticFrame(value.semanticFrame);
+  let frameRecovery: SemanticFrameRecoveryTelemetry;
+  let semanticFrame = frameValidation.frame;
+  if (semanticFrame) {
+    frameRecovery = { applied: false, reason: "NOT_ATTEMPTED_FRAME_VALID", validationReason: null };
+  } else if (!frameValidation.candidate) {
+    frameRecovery = { applied: false, reason: "NOT_ATTEMPTED_NO_CANDIDATE", validationReason: frameValidation.reason };
+  } else if (frameValidation.reason !== "CLAIM_SUBJECT_REF_UNKNOWN") {
+    frameRecovery = {
+      applied: false,
+      reason: "NOT_ATTEMPTED_NON_RECOVERABLE_VALIDATION_ERROR",
+      validationReason: frameValidation.reason,
+    };
+  } else if (!recoveryContext) {
+    frameRecovery = { applied: false, reason: "NOT_ATTEMPTED_RECOVERY_DISABLED", validationReason: frameValidation.reason };
+  } else {
+    const recovery = recoverOwnerPreferenceFrame(frameValidation.candidate, frameValidation.reason!, recoveryContext);
+    semanticFrame = recovery.frame;
+    frameRecovery = recovery.telemetry;
+  }
   return {
     answer,
     safetyLevel: value.safetyLevel as ParsedUnifiedResponse["safetyLevel"],
@@ -776,7 +800,7 @@ export function parseUnifiedResponse(
     })),
     semanticFrame: semanticFrame || emptyProposedSemanticFrame(),
     semanticFrameValid: Boolean(semanticFrame),
-    semanticFrameRecovery: { applied: Boolean(recovery), reason: recovery?.reason || null },
+    semanticFrameRecovery: frameRecovery,
     intelligenceMetadata: {
       confidence: "high",
       usedPetContext: referencedTypes.has("profile") || records.some((record) => record.sourceType === "profile"),

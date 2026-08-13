@@ -209,7 +209,9 @@ test("shadow trace is privacy-limited, machine-queryable, and compares interpret
     }],
   });
   assert.equal(analysis.trace.traceId, "trace-stable");
-  assert.deepEqual(analysis.trace.frameRecovery, { applied: false, reason: null });
+  assert.deepEqual(analysis.trace.frameRecovery, {
+    applied: false, reason: "NOT_ATTEMPTED_FRAME_VALID", validationReason: null,
+  });
   assert.deepEqual(analysis.trace.claimKinds, ["event"]);
   assert.equal(analysis.trace.mentionSurfaces[0].redactedSurface, "[PET_NAME]");
   assert.equal(JSON.stringify(analysis.trace).includes("Luna ran away"), false);
