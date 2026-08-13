@@ -26,6 +26,7 @@ export type ClaimIdempotencyInput = {
 };
 
 export type IdempotencyOperation = {
+  claimOutcome: "new" | "retry";
   id: string;
   key: string;
   operationType: string;

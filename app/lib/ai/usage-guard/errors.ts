@@ -4,9 +4,10 @@ export type AiAdmissionErrorCode = "AI_DAILY_CAP_REACHED" | "AI_FEATURE_UNAVAILA
 
 export class AiAdmissionError extends Error {
   readonly code: AiAdmissionErrorCode;
+  readonly reason: string;
   readonly status: number;
-  constructor(code: AiAdmissionErrorCode, message: string, status = 503) {
-    super(message); this.name = "AiAdmissionError"; this.code = code; this.status = status;
+  constructor(code: AiAdmissionErrorCode, reason: string, status = 503) {
+    super(reason); this.name = "AiAdmissionError"; this.code = code; this.reason = reason; this.status = status;
   }
 }
 

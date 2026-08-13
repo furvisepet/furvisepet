@@ -82,6 +82,7 @@ import {
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
+const askGuardOperationTtlSeconds = 90 * 24 * 60 * 60;
 
 type AskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
 
@@ -293,7 +294,9 @@ export async function POST(request: Request) {
       });
     }
     orchestration = await withTimeout(runAdmittedAiOperation({
+      executionPhase: idempotency.operation.claimOutcome === "new" ? "initial" : "retry",
       feature: "ask", intendedModel: model,
+      operationTtlSeconds: askGuardOperationTtlSeconds,
       payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId, userId,
     }, async () => {
       if (usage.ledgerMode === "development_missing_migration") {
@@ -400,11 +403,27 @@ export async function POST(request: Request) {
     logAskStage("Ask generation finalized", { creditFinalState, creditReservationId: requestId, providerCallCount, requestId, retryReuse });
     if (rateGateRef.current) await rateGateRef.current.release();
     if (error instanceof RateLimitRejection) return error.response;
-    if (error instanceof AiAdmissionError) return aiAdmissionErrorResponse(error, requestId);
+    if (error instanceof AiAdmissionError) {
+      if (providerCallCount === 0) logAskPreProvider503({
+        creditReservationState: creditFinalState,
+        error,
+        idempotencyState: idempotency.operation.claimOutcome,
+        providerCallAttempted: false,
+        requestId,
+      });
+      return aiAdmissionErrorResponse(error, requestId);
+    }
     if (error instanceof AiCreditLimitError) {
       return askFailure("RATE_LIMITED", "You have used this month's AI credits. Your pet profiles, history, saved details, and non-AI tools are still available.", 429, { usage }, "credit_limit");
     }
     if (error instanceof AiCreditLedgerError) {
+      if (providerCallCount === 0) logAskPreProvider503({
+        creditReservationState: creditFinalState,
+        error,
+        idempotencyState: idempotency.operation.claimOutcome,
+        providerCallAttempted: false,
+        requestId,
+      });
       logAskServerError(error.stage, error, { conversationId: preparedRequest.conversationId, petId, requestId, userId }, 503);
       return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503);
     }
@@ -419,6 +438,13 @@ export async function POST(request: Request) {
         { retryable: true, ...(retryAfterMs ? { retryAfterSeconds: Math.ceil(retryAfterMs / 1000) } : {}) },
       );
     }
+    if (providerCallCount === 0) logAskPreProvider503({
+      creditReservationState: creditFinalState,
+      error,
+      idempotencyState: idempotency.operation.claimOutcome,
+      providerCallAttempted: false,
+      requestId,
+    });
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503);
   }
 
@@ -1393,6 +1419,40 @@ function logAskProviderEvent(event: AskProviderEvent, context: { conversationId:
   };
   if (event.outcome === "failed") console.warn("[Ask provider] stage failed", payload);
   else console.info("[Ask provider] stage", payload);
+}
+
+type AskPreProvider503Reason = "AI_ADMISSION_DENIED" | "CREDIT_RESERVATION_FAILED" | "IDEMPOTENCY_FAILED_STATE_REPLAY" | "PRE_PROVIDER_VALIDATION_FAILED" | "PROVIDER_CONFIG_UNAVAILABLE" | "UNKNOWN_PRE_PROVIDER_FAILURE";
+
+function logAskPreProvider503(input: {
+  creditReservationState: string;
+  error: unknown;
+  idempotencyState: "new" | "retry";
+  providerCallAttempted: boolean;
+  requestId: string;
+}) {
+  const internalReason = input.error instanceof AiAdmissionError ? input.error.reason
+    : input.error instanceof AiCreditLedgerError ? input.error.stage
+    : input.error instanceof AskPipelineError ? input.error.stage : "unknown";
+  const configReasons = new Set(["daily_guard_not_configured", "global_disabled", "guard_store_unavailable", "identity_secret_unavailable", "unknown_model_pricing"]);
+  const reason: AskPreProvider503Reason = input.error instanceof AiCreditLedgerError ? "CREDIT_RESERVATION_FAILED"
+    : internalReason === "operation_call_limit" && input.idempotencyState === "retry" ? "IDEMPOTENCY_FAILED_STATE_REPLAY"
+    : configReasons.has(internalReason) ? "PROVIDER_CONFIG_UNAVAILABLE"
+    : input.error instanceof AskPipelineError && input.error.stage === "configuration_failed" ? "PROVIDER_CONFIG_UNAVAILABLE"
+    : input.error instanceof AskPipelineError ? "PRE_PROVIDER_VALIDATION_FAILED"
+    : input.error instanceof AiAdmissionError ? "AI_ADMISSION_DENIED" : "UNKNOWN_PRE_PROVIDER_FAILURE";
+  console.warn("[Ask API] pre-provider 503", {
+    creditReservationDisposition: input.creditReservationState === "completed" ? "reused"
+      : input.creditReservationState === "released" ? "released"
+      : input.creditReservationState === "reserved" && input.idempotencyState === "retry" ? "recreated"
+      : input.creditReservationState === "reserved" ? "created" : "not_attempted",
+    creditReservationState: input.creditReservationState,
+    executionDisposition: input.idempotencyState === "retry" ? "reentered" : "new",
+    guardReason: internalReason,
+    idempotencyState: input.idempotencyState,
+    preProvider503Reason: reason,
+    providerCallAttempted: input.providerCallAttempted,
+    requestId: input.requestId,
+  });
 }
 
 function isProviderRateLimit(error: AskPipelineError) {

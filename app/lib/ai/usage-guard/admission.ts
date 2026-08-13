@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { getRateLimitBackendConfig } from "../../security/rate-limit/config";
 import { fingerprintRateLimitPayload } from "../../security/rate-limit/keys";
 import { OPENAI_ANALYSIS_MODEL } from "../config";
@@ -11,12 +11,14 @@ import { AiAdmissionError } from "./errors";
 import { getAiFeaturePolicy } from "./features";
 import { logAiGuardEvent } from "./logging";
 import { noopAiGuardMetrics } from "./metrics";
+import { deriveAiGuardOperationId } from "./operation-identity";
 import type { AiCallReservation, AiGuardFeature, AiGuardMetrics, AiGuardStore, ProviderUsage } from "./types";
 import { runWithAiAdmission } from "./context";
 
 export async function admitAiOperation(input: {
+  executionPhase?: "initial" | "retry";
   env?: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel?: string; metrics?: AiGuardMetrics;
-  now?: Date; payload: unknown; requestId: string; store?: AiGuardStore; userId: string;
+  now?: Date; operationTtlSeconds?: number; payload: unknown; requestId: string; store?: AiGuardStore; userId: string;
 }) {
   const startedAt = Date.now();
   const env = input.env || process.env;
@@ -42,18 +44,19 @@ export async function admitAiOperation(input: {
 
   const secret = backend.hashSecret || (input.store ? "usage-guard-test-secret-at-least-32-characters" : "");
   if (secret.length < 32) return deny("AI_TEMPORARILY_UNAVAILABLE", "identity_secret_unavailable");
-  const operationId = createHmac("sha256", secret).update(`${input.userId}:${input.requestId}`).digest("hex");
+  const operationId = deriveAiGuardOperationId({ executionPhase: input.executionPhase, requestId: input.requestId, secret, userId: input.userId });
   const operationKey = `furvise:ai:v1:operation:${operationId}`;
+  const operationTtlSeconds = input.operationTtlSeconds || config.operationTtlSeconds;
   const fingerprint = fingerprintRateLimitPayload({ feature: input.feature, payload: input.payload });
   let operationState;
-  try { operationState = await store.admitOperation({ fingerprint, key: operationKey, ttlSeconds: config.operationTtlSeconds }); }
+  try { operationState = await store.admitOperation({ fingerprint, key: operationKey, ttlSeconds: operationTtlSeconds }); }
   catch { return deny("AI_TEMPORARILY_UNAVAILABLE", "operation_store_unavailable"); }
   if (operationState === "conflict") return deny("AI_OPERATION_CONFLICT", "operation_payload_conflict", 409);
   if (operationState === "completed") return deny("AI_PROVIDER_BUDGET_EXHAUSTED", "completed_operation_replay_required", 409);
 
-  const admission = new AiOperationAdmission({ config, env, feature: input.feature, intendedModel, metrics: input.metrics || noopAiGuardMetrics, now: input.now || new Date(), operationId, operationKey, policy, requestId: input.requestId, store });
+  const admission = new AiOperationAdmission({ config, env, feature: input.feature, intendedModel, metrics: input.metrics || noopAiGuardMetrics, now: input.now || new Date(), operationId, operationKey, operationTtlSeconds, policy, requestId: input.requestId, store });
   try { await admission.reserveNextCall(intendedModel); }
-  catch (error) { await store.failOperation({ key: operationKey, ttlSeconds: config.operationTtlSeconds }).catch(() => {}); throw error; }
+  catch (error) { await store.failOperation({ key: operationKey, ttlSeconds: operationTtlSeconds }).catch(() => {}); throw error; }
   logAiGuardEvent("operation admitted", { allowed: true, emergencyDisabled: false, feature: input.feature, model: intendedModel, operationId, requestId: input.requestId });
   await safeMetric(input.metrics || noopAiGuardMetrics, { allowed: true, durationMs: Date.now() - startedAt, feature: input.feature, reason: "admitted" });
   return admission;
@@ -70,14 +73,15 @@ export class AiOperationAdmission {
   private readonly now: Date;
   readonly operationId: string;
   private readonly operationKey: string;
+  private readonly operationTtlSeconds: number;
   private readonly policy: ReturnType<typeof getAiFeaturePolicy>;
   readonly requestId: string;
   private readonly store: AiGuardStore;
 
-  constructor(input: { config: ReturnType<typeof getAiGuardConfig>; env: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel: string; metrics: AiGuardMetrics; now: Date; operationId: string; operationKey: string; policy: ReturnType<typeof getAiFeaturePolicy>; requestId: string; store: AiGuardStore }) {
+  constructor(input: { config: ReturnType<typeof getAiGuardConfig>; env: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel: string; metrics: AiGuardMetrics; now: Date; operationId: string; operationKey: string; operationTtlSeconds: number; policy: ReturnType<typeof getAiFeaturePolicy>; requestId: string; store: AiGuardStore }) {
     Object.assign(this, input);
     this.config = input.config; this.env = input.env; this.feature = input.feature; this.intendedModel = input.intendedModel;
-    this.metrics = input.metrics; this.now = input.now; this.operationId = input.operationId; this.operationKey = input.operationKey;
+    this.metrics = input.metrics; this.now = input.now; this.operationId = input.operationId; this.operationKey = input.operationKey; this.operationTtlSeconds = input.operationTtlSeconds;
     this.policy = input.policy; this.requestId = input.requestId; this.store = input.store;
   }
 
@@ -121,8 +125,8 @@ export class AiOperationAdmission {
     logAiGuardEvent("user credit state", { allowed: state !== "limit_reached", feature: this.feature, model: this.intendedModel, operationId: this.operationId, requestId: this.requestId, userCreditState: state });
   }
 
-  async complete() { await this.releaseQueued(); await this.store.completeOperation({ key: this.operationKey, ttlSeconds: this.config.operationTtlSeconds }); }
-  async fail(error?: unknown) { await this.releaseQueued(); await this.store.failOperation({ key: this.operationKey, ttlSeconds: this.config.operationTtlSeconds }).catch(() => {}); if (error) logAiGuardEvent("operation failed", { allowed: false, denialReason: "operation_failed", feature: this.feature, operationId: this.operationId, requestId: this.requestId, safeErrorClass: error instanceof Error ? error.name : "UnknownError" }); }
+  async complete() { await this.releaseQueued(); await this.store.completeOperation({ key: this.operationKey, ttlSeconds: this.operationTtlSeconds }); }
+  async fail(error?: unknown) { await this.releaseQueued(); await this.store.failOperation({ key: this.operationKey, ttlSeconds: this.operationTtlSeconds }).catch(() => {}); if (error) logAiGuardEvent("operation failed", { allowed: false, denialReason: error instanceof AiAdmissionError ? error.reason : "operation_failed", feature: this.feature, operationId: this.operationId, requestId: this.requestId, safeErrorClass: error instanceof Error ? error.name : "UnknownError" }); }
   async release() { await this.releaseQueued(); }
 
   async reserveNextCall(model: string) {
@@ -133,7 +137,7 @@ export class AiOperationAdmission {
     const callId = `${this.operationId}:${randomUUID()}`;
     let result;
     try {
-      result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: this.policy.maximumProviderCalls, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
+      result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: this.policy.maximumProviderCalls, operationCallTtlSeconds: this.operationTtlSeconds, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
     } catch { throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "daily_guard_store_unavailable"); }
     if (!result.allowed) {
       if (result.reason === "operation_call_limit") throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", result.reason);
