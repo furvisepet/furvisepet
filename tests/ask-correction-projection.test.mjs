@@ -14,7 +14,7 @@ const ownerId = "bd23dda6-b423-443a-9081-89b47955ca39";
 const correction = "Actually, Milo doesn't like chicken. He prefers salmon.";
 
 const learning = (overrides = {}) => ({
-  subjectType: "pet", subjectId: miloId, category: "preference", factKey: "dislikesfood",
+  subjectType: "pet", subjectId: miloId, category: "preference", factKey: "foodavoidance",
   factValue: "chicken", canonicalConceptKey: null, sourceExcerpt: "Milo doesn't like chicken", ...overrides,
 });
 const stored = (id, overrides = {}) => ({
@@ -25,6 +25,7 @@ test("heterogeneous legacy food preferences normalize to one deterministic targe
   const shapes = [
     stored("prose"),
     stored("likes", { factKey: "likesfood", factValue: "chicken" }),
+    stored("compact", { factKey: "foodpreference", factValue: "chicken" }),
     stored("canonical", { factKey: "food_preference_chicken", factValue: { preference: "prefer", value: "chicken", conceptKey: "food_preference" } }),
   ].map((row) => normalizeKnownPreferenceMemory({ ...row, petName: "Milo" }));
   assert.equal(shapes.every(Boolean), true);
@@ -40,10 +41,15 @@ test("correction supersedes only Milo's positive chicken representations", () =>
   const existing = [
     stored("milo-prose"),
     stored("milo-likes", { factKey: "likesfood", factValue: "chicken" }),
+    stored("milo-compact", { factKey: "foodpreference", factValue: "chicken" }),
+    stored("milo-qualified", { factKey: "food_preference_chicken", factValue: { preference: "prefer", value: "chicken", conceptKey: "food_preference" } }),
+    stored("milo-governed", { factKey: "model-food-label", canonicalConceptKey: "food_preference", factValue: { preference: "prefer", value: "chicken", conceptKey: "food_preference" } }),
     stored("milo-beef", { factKey: "likesfood", factValue: "beef" }),
     stored("luna-chicken", { subjectId: lunaId, factKey: "likesfood", factValue: "chicken" }),
   ];
-  assert.deepEqual(planPreferenceSupersession(current, existing), ["milo-prose", "milo-likes"]);
+  assert.deepEqual(planPreferenceSupersession(current, existing), [
+    "milo-prose", "milo-likes", "milo-compact", "milo-qualified", "milo-governed",
+  ]);
   assert.deepEqual(planPreferenceSupersession(current, existing), planPreferenceSupersession(current, existing));
 });
 
@@ -57,6 +63,38 @@ test("Remembered Details hides an active stale prose row behind the effective co
   assert.deepEqual(new Set(details.pet.map((item) => item.fact)), new Set([
     "Milo dislikes chicken.", "Milo prefers salmon.", "Milo prefers beef.",
   ]));
+});
+
+test("exact production sequence projects one negative chicken and one positive salmon detail", () => {
+  const initial = [
+    memory("turn-1-chicken", {
+      fact_key: "food_preference_chicken",
+      fact_value: { preference: "prefer", value: "chicken", conceptKey: "food_preference" },
+      last_confirmed_at: "2026-08-11T00:00:00Z",
+    }),
+  ];
+  const before = buildRememberedDetails({ petName: "Milo", now: new Date("2026-08-12T20:00:00Z"), canonical: initial });
+  assert.deepEqual(before.pet.map((item) => item.fact), ["Milo prefers chicken."]);
+
+  const afterRows = [
+    ...initial,
+    memory("turn-2-avoid", {
+      fact_key: "foodavoidance", fact_value: "chicken", source_excerpt: "Milo doesn't like chicken",
+      last_confirmed_at: "2026-08-12T00:00:00Z",
+    }),
+    memory("turn-2-salmon-compact", {
+      fact_key: "foodpreference", fact_value: "salmon", source_excerpt: "He prefers salmon",
+      last_confirmed_at: "2026-08-12T00:00:01Z",
+    }),
+    memory("turn-2-salmon-canonical", {
+      fact_key: "food_preference_salmon",
+      fact_value: { preference: "prefer", value: "salmon", conceptKey: "food_preference" },
+      source_excerpt: "He prefers salmon", last_confirmed_at: "2026-08-12T00:00:02Z",
+    }),
+  ];
+  const after = buildRememberedDetails({ petName: "Milo", now: new Date("2026-08-12T20:00:00Z"), canonical: afterRows });
+  assert.deepEqual(new Set(after.pet.map((item) => item.fact)), new Set(["Milo dislikes chicken.", "Milo prefers salmon."]));
+  assert.equal(after.pet.length, 2);
 });
 
 test("one governed correction turn projects both independently grounded preference facts", () => {
