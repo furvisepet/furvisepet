@@ -104,6 +104,13 @@ test("repeated equivalent assertions collapse to one active remembered detail", 
   assert.deepEqual(details.pet.map((item) => item.fact), ["Milo prefers salmon."]);
 });
 
+test("pet-local food preferences remain isolated in Remembered Details", () => {
+  const milo = memory({ id: "milo-salmon", pet_id: "pet-milo", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon" } });
+  const luna = memory({ id: "luna-chicken", pet_id: "pet-luna", fact_key: "food_preference_chicken", fact_value: { preference: "prefer", value: "chicken" } });
+  assert.deepEqual(buildRememberedDetails({ canonical: [milo], petName: "Milo", now }).pet.map((item) => item.fact), ["Milo prefers salmon."]);
+  assert.deepEqual(buildRememberedDetails({ canonical: [luna], petName: "Luna", now }).pet.map((item) => item.fact), ["Luna prefers chicken."]);
+});
+
 test("legacy malformed owner pet-food keys project to the named pet and never leak internal keys", () => {
   const details = buildRememberedDetails({ canonical: [
     memory({ id: "milo-food", pet_id: null, subject_type: "owner", fact_key: "petfoodpreferencemilo", fact_value: "salmon" }),

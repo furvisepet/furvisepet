@@ -38,7 +38,7 @@ export function resolveAuthoritativeTurnSubject({
       return failed("unresolved", "ENTITY_NO_MATCH");
     }
     if (explicitNames.length === 1) return resolved(explicitNames[0].id, 0.99);
-    if (!supportsIndependentMultiPetClaims(frame, explicitNames.map((pet) => pet.id))) {
+    if (!supportsIndependentMultiPetClaims(frame, message, explicitNames.map((pet) => pet.id))) {
       return failed("ambiguous", "ENTITY_AMBIGUOUS");
     }
     return {
@@ -133,17 +133,20 @@ function explicitOwnedSpecies(message: string) {
   return match ? normalize(match[1]) : null;
 }
 
-function supportsIndependentMultiPetClaims(frame: ProposedSemanticFrame, namedPetIds: string[]) {
-  if (namedPetIds.length < 2 || frame.uncertainty.needsClarification || !frame.claims.length) return false;
-  const animalMentions = frame.mentions.filter((mention) => mention.coarseType === "animal");
-  const usedSubjects = new Set(frame.claims.map((claim) => claim.subjectRef).filter(Boolean));
+function supportsIndependentMultiPetClaims(frame: ProposedSemanticFrame, message: string, namedPetIds: string[]) {
+  if (namedPetIds.length < 2 || !frame.claims.length) return false;
+  const grounded = groundSemanticFrameEvidence(frame, message).frame;
+  const evidence = validateSemanticFrameEvidence(grounded, message);
+  if (evidence.invalidClaimIds.length || evidence.invalidMentionIds.length) return false;
+  const animalMentions = grounded.mentions.filter((mention) => mention.coarseType === "animal");
+  const usedSubjects = new Set(grounded.claims.map((claim) => claim.subjectRef).filter(Boolean));
   const independentlyNamedSubjects = animalMentions.filter((mention) => usedSubjects.has(mention.localId)
-    && frame.claims.some((claim) => claim.subjectRef === mention.localId
-      && (claim.kind === "preference" || (claim.kind === "assertion" && claim.durability !== "temporary"))
-      && claim.persistenceHint === "pet_memory"));
-  return independentlyNamedSubjects.length >= namedPetIds.length
-    && frame.claims.every((claim) => claim.kind === "preference"
-      || (claim.kind === "assertion" && claim.durability !== "temporary" && claim.persistenceHint === "pet_memory"));
+    && grounded.claims.some((claim) => claim.subjectRef === mention.localId
+      && claim.uncertainty.confidence >= 0.8
+      && (claim.kind === "preference" || (claim.kind === "assertion" && claim.durability !== "temporary"))));
+  return new Set(independentlyNamedSubjects.map((mention) => normalize(mention.surface))).size >= namedPetIds.length
+    && grounded.claims.every((claim) => claim.kind === "preference"
+      || (claim.kind === "assertion" && claim.durability !== "temporary"));
 }
 
 function normalize(value: string) {

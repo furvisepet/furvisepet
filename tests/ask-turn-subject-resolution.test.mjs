@@ -115,6 +115,21 @@ test("two named owned pets retain independent claim subjects while a selected th
   assert.equal(result.petIds.includes(selected.id), false);
 });
 
+test("two owned pets remain independently resolvable when the model marks the turn ambiguous or mislabels persistence", () => {
+  const milo = { ...luna, id: "pet-milo", name: "Milo" };
+  const message = "Milo likes salmon but Luna likes chicken.";
+  const frame = multiPreferenceFrame(message, milo, luna, "salmon", "chicken");
+  frame.uncertainty = { needsClarification: true, clarificationQuestion: "Which pet?", reasons: ["model_uncertain"] };
+  frame.claims = frame.claims.map((claim) => ({ ...claim, persistenceHint: "none" }));
+  const result = resolveAuthoritativeTurnSubject({
+    frame, message, ownerId: "owner-1", pets: [mani, milo, luna], recentConversation: [], selectedPetId: mani.id,
+  });
+  assert.deepEqual(result, {
+    status: "multi_subject", petId: milo.id, petIds: [milo.id, luna.id], reasonCode: null,
+    requiresClarification: false, explicitSubject: true, confidence: 0.99,
+  });
+});
+
 test("a partially unresolved multi-pet turn fails closed instead of using the selected pet", () => {
   const milo = { ...luna, id: "pet-milo", name: "Milo" };
   const message = "Milo likes salmon and Unknown likes chicken.";

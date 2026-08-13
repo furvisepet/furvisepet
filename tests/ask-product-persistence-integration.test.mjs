@@ -33,6 +33,26 @@ test("multi-pet preference routing never synthesizes a selected-pet combined mem
   assert.deepEqual(result.careActions, []);
 });
 
+test("two owned pet preferences partition into pet-local persistence inputs", () => {
+  const miloId = "951316a7-545d-4cf7-ac2e-82196d4d3ac6";
+  const lunaId = "b9ab9905-2788-485c-b908-0ac0c5582792";
+  const learnings = [
+    { subjectType: "pet", subjectId: miloId, category: "preference", factKey: "food_preference_salmon", factValue: "salmon", confidence: 0.98, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "Milo likes salmon" },
+    { subjectType: "pet", subjectId: lunaId, category: "preference", factKey: "food_preference_chicken", factValue: "chicken", confidence: 0.98, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "Luna likes chicken" },
+  ];
+  const result = routePersistenceDestinations({
+    message: "Milo likes salmon but Luna likes chicken.", petId,
+    authorizedPetIds: [miloId, lunaId], learnings, careActions: [],
+  });
+  assert.deepEqual(result.learnings.map(({ subjectId, factValue }) => ({ subjectId, factValue })), [
+    { subjectId: miloId, factValue: "salmon" },
+    { subjectId: lunaId, factValue: "chicken" },
+  ]);
+  const persistence = readFileSync(new URL("../app/lib/intelligence/persist-learnings.ts", import.meta.url), "utf8");
+  assert.match(persistence, /groupLearningsByPersistencePet\(normalizedLearnings, petId\)/);
+  assert.match(persistence, /p_pet_id: targetPetId/);
+});
+
 test("owner retailer and budget preferences route to owner memory only", () => {
   for (const message of ["I usually shop at Costco because it is close to me.", "I prefer products under $30 unless there is a much better option."]) {
     const result = routePersistenceDestinations({ message, petId, learnings: [], careActions: [proposedCare] });

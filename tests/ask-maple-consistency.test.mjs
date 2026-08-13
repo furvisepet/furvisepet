@@ -4,6 +4,7 @@ import test from "node:test";
 import { deduplicateLegacyRetriedMessages, getPersistenceNotices } from "../app/lib/ask-conversations.ts";
 import { resolveRecoverySubject } from "../app/lib/intelligence/episodes/resolve-recovery-subject.ts";
 import { classifyCareEvent } from "../app/lib/intelligence/concern-chronology.ts";
+import { classifyActiveConcernMessage } from "../app/lib/ai/turn-classifier.ts";
 import { reducePetState } from "../app/lib/intelligence/pet-state/reduce-events.ts";
 
 const failed = { id: "failed", request_id: "request-a", role: "user", user_text: "Same update", created_at: "2026-07-28T00:00:00Z" };
@@ -51,6 +52,37 @@ test("breathing recovery retains deterministic title", () => {
 test("unknown recovery uses a neutral title without resolving an unrelated episode", () => {
   const result = resolveRecoverySubject({ message: "Everything seems better now", activeEpisodes: [episode({ episode_type: "food_transition", title: "Started a new food" })], activeConcerns: [concern()] });
   assert.deepEqual({ concernId: result.concernId, episodeId: result.episodeId, title: result.title }, { concernId: null, episodeId: null, title: "Symptom improved" });
+});
+
+test("explicit no-recurrence recovery resolves the matching vomiting concern and no unrelated concern", () => {
+  const vomitingEpisode = episode({ id: "vomiting-episode", normalized_key: "vomiting", title: "Vomiting" });
+  const vomitingConcern = concern({ id: "vomiting-concern", normalized_key: "vomiting", title: "Vomiting" });
+  const crateConcern = concern({ id: "crate-concern", normalized_key: "sleeping_arrangement", title: "Crate routine" });
+  const message = "Milo hasn't vomited again and seems normal now.";
+  assert.equal(classifyActiveConcernMessage(message, true), "resolved");
+  const result = resolveRecoverySubject({
+    message, activeEpisodes: [vomitingEpisode], activeConcerns: [vomitingConcern, crateConcern],
+  });
+  assert.equal(result.episodeId, vomitingEpisode.id);
+  assert.equal(result.concernId, vomitingConcern.id);
+  assert.notEqual(result.concernId, crateConcern.id);
+});
+
+test("terminal recovery classification is conservative for weak or recurring symptoms", () => {
+  for (const message of ["He seems a little better.", "Maybe he's okay.", "He only vomited once more.", "He hasn't improved again."]) {
+    assert.notEqual(classifyActiveConcernMessage(message, true), "resolved");
+  }
+  for (const message of ["He stopped vomiting and is acting normal.", "No more vomiting since this morning."]) {
+    assert.equal(classifyActiveConcernMessage(message, true), "resolved");
+  }
+});
+
+test("resolved care action takes precedence over a non-terminal semantic event during persistence", () => {
+  const source = readFileSync(new URL("../app/lib/intelligence/persist-learnings.ts", import.meta.url), "utf8");
+  const resolutionIndex = source.indexOf("const resolutionAction");
+  const persistenceIndex = source.indexOf("const carePersistence", resolutionIndex);
+  assert.ok(resolutionIndex >= 0 && persistenceIndex > resolutionIndex);
+  assert.match(source.slice(persistenceIndex, source.indexOf("const persistenceRows", persistenceIndex)), /resolutionAction[\s\S]*persistCanonicalCareAction[\s\S]*semanticEvent/);
 });
 
 test("history classifies urgent, recovery, and recurrence proportionally", () => {
