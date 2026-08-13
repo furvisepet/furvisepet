@@ -64,6 +64,8 @@ function inferClaimSignature(
     : null;
   const firstPerson = /\b(?:i|me|my|mine)\b/i.test(evidence);
   const preferenceShape = claim.kind === "preference";
+  const explicitPreferenceAssertion = claim.kind === "assertion"
+    && /\b(?:likes?|prefers?|doesn't like|does not like|dislikes?|avoids?)\b/i.test(evidence);
   const externalValueMention = context.frame.mentions.some((mention) =>
     ["organization", "place", "product"].includes(mention.coarseType)
     && context.groundedEvidence.some((span) => span.quote.includes(mention.surface)));
@@ -76,7 +78,7 @@ function inferClaimSignature(
   const petHolder = subjectMention?.coarseType === "animal";
   const roles = new Set<NonNullable<GovernedConceptIdentity["semanticRole"]>>();
   if (firstPerson && externalValueMention && (preferenceShape || claim.kind === "assertion")) roles.add("retailer_preference");
-  if (preferenceShape && petHolder) roles.add("food_preference");
+  if ((preferenceShape || explicitPreferenceAssertion) && petHolder) roles.add("food_preference");
   if (weightMeasurement && petHolder) roles.add("weight_measurement");
   if (relationshipShape) roles.add("caregiver_relationship");
   return { roles };

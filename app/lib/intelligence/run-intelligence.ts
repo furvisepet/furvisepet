@@ -18,6 +18,7 @@ import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } fro
 import type { GovernedConceptIdentity, GovernedSemanticTurn } from "./v2/types.ts";
 import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
 import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/legacy-memory.ts";
+import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -179,11 +180,11 @@ export async function runFurviseIntelligence({
     learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
   });
   const acceptedCareActions = routedPersistence.careActions;
-  const projectedSourceExcerpts = new Set(projectedPreferences.map((item) => normalizeExcerpt(item.sourceExcerpt)));
+  const projectedPreferenceIdentities = new Set(projectedPreferences.map(learningPreferenceIdentity).filter(Boolean));
   const acceptedLearnings = dedupeLearnings([
     ...routedPersistence.learnings.filter((item) =>
       !(multiPetTurn && isPreferenceLearning(item))
-      && (!projectedSourceExcerpts.has(normalizeExcerpt(item.sourceExcerpt)) || !isPreferenceLearning(item))),
+      && (!projectedPreferenceIdentities.has(learningPreferenceIdentity(item)) || !isPreferenceLearning(item))),
     ...projectedPreferences,
   ]);
   // Presentation-only reconciliation happens after persistence governance and routing.
@@ -237,12 +238,16 @@ function dedupeLearnings<T extends { subjectType: string; subjectId: string | nu
   return items.filter((item) => { const key = `${item.subjectType}:${item.subjectId || ""}:${item.factKey}`; if (seen.has(key)) return false; seen.add(key); return true; });
 }
 
-function normalizeExcerpt(value: string) {
-  return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
 function isPreferenceLearning(learning: AskReasoningResult["learnings"][number]) {
   return /prefer|shopping|food/i.test(`${learning.category} ${learning.factKey}`);
+}
+
+function learningPreferenceIdentity(learning: AskReasoningResult["learnings"][number]) {
+  const semantic = normalizeKnownPreferenceMemory({
+    subjectType: learning.subjectType, subjectId: learning.subjectId, factKey: learning.factKey,
+    factValue: learning.factValue, canonicalConceptKey: learning.canonicalConceptKey,
+  });
+  return semantic ? preferenceSemanticIdentity(semantic) : "";
 }
 
 function currentStateMemories(context: FurviseLiveContext) {

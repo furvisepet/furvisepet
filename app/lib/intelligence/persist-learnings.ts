@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeMemoryValue } from "./memory-policy";
 import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, IntelligenceLearning, IntelligencePersistenceSummary } from "./types";
 import { logIntelligenceError } from "./logging";
+import { normalizeKnownPreferenceMemory, planPreferenceSupersession } from "./preference-semantics";
 
 export class IntelligencePersistenceError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -195,18 +196,23 @@ async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageI
   supabase: SupabaseClient;
   userId: string;
 }) {
-  const replacements = learnings.filter((learning) => learning.subjectType === "pet"
-    && learning.subjectId
-    && learning.canonicalConceptKey
-    && preferenceOperation(learning.factValue) === "prefer"
-    && /\b(?:actually|instead|correction|no longer|not anymore)\b/i.test(learning.sourceExcerpt));
-  for (const replacement of replacements) {
-    const replacedValues = explicitlyReplacedPreferenceValues(replacement.sourceExcerpt);
-    if (!replacedValues.length) continue;
+  const correctionPetIds = new Set<string>();
+  for (const learning of learnings) {
+    if (learning.subjectType !== "pet" || !learning.subjectId) continue;
+    const semantic = normalizeKnownPreferenceMemory({
+      subjectType: learning.subjectType, subjectId: learning.subjectId, factKey: learning.factKey,
+      factValue: learning.factValue, canonicalConceptKey: learning.canonicalConceptKey,
+    });
+    if (!semantic) continue;
+    if (semantic.polarity === "avoid" || /\b(?:actually|instead|correction|no longer|not anymore)\b/i.test(learning.sourceExcerpt)) {
+      correctionPetIds.add(learning.subjectId);
+    }
+  }
+  for (const targetPetId of correctionPetIds) {
     const { data, error } = await supabase.from("furvise_memories")
       .select("id,fact_key,fact_value,source_id")
       .eq("user_id", userId)
-      .eq("pet_id", replacement.subjectId!)
+      .eq("pet_id", targetPetId)
       .eq("subject_type", "pet")
       .eq("status", "active")
       .neq("source_id", sourceMessageId)
@@ -215,9 +221,15 @@ async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageI
       logIntelligenceError("corrected_preference_projection", error, { sourceMessageIdPresent: true, petIdPresent: true });
       continue;
     }
+    const supersededIds = new Set(planPreferenceSupersession(
+      learnings.map((learning) => ({ ...learning, petName: null })),
+      (data || []).map((row) => ({
+        id: String(row.id), subjectType: "pet" as const, subjectId: targetPetId,
+        factKey: String(row.fact_key), factValue: row.fact_value,
+      })),
+    ));
     for (const row of data || []) {
-      if (!samePreferenceConcept(String(row.fact_key), replacement.canonicalConceptKey!)) continue;
-      if (!replacedValues.includes(normalizeComparable(preferenceValue(row.fact_value)))) continue;
+      if (!supersededIds.has(String(row.id))) continue;
       const { error: suppressError } = await supabase.rpc("manage_furvise_memory", {
         p_memory_id: row.id, p_action: "forget", p_fact_value: null,
       });
@@ -226,38 +238,6 @@ async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageI
       });
     }
   }
-}
-
-function preferenceOperation(value: unknown) {
-  return value && typeof value === "object" && (value as Record<string, unknown>).preference === "avoid" ? "avoid" : "prefer";
-}
-
-function samePreferenceConcept(factKey: string, canonicalConceptKey: string) {
-  const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
-  const fact = compact(factKey);
-  const concept = compact(canonicalConceptKey);
-  if (fact.startsWith(concept)) return true;
-  return concept.includes("foodpreference") && /(?:foodpreference|likesfood|dislikesfood)/.test(fact);
-}
-
-function explicitlyReplacedPreferenceValues(value: string) {
-  const patterns = [
-    /(?:doesn't|does not|no longer)\s+like\s+([^,.!?;]+)/ig,
-    /instead\s+of\s+([^,.!?;]+)/ig,
-  ];
-  return patterns.flatMap((pattern) => [...value.matchAll(pattern)].map((match) => normalizeComparable(match[1])));
-}
-
-function normalizeComparable(value: string) {
-  return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function preferenceValue(value: unknown) {
-  if (typeof value === "string") return value;
-  if (value && typeof value === "object" && typeof (value as Record<string, unknown>).value === "string") {
-    return (value as Record<string, unknown>).value as string;
-  }
-  return "";
 }
 
 function normalizeFactKey(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }
