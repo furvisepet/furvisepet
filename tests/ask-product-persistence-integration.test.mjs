@@ -17,6 +17,22 @@ test("pet preference routes to pet memory only", () => {
   assert.equal(result.careActions.length, 0);
 });
 
+test("multi-pet preference routing never synthesizes a selected-pet combined memory", () => {
+  const miloId = "951316a7-545d-4cf7-ac2e-82196d4d3ac6";
+  const maniId = "b9ab9905-2788-485c-b908-0ac0c5582792";
+  const learnings = [
+    { subjectType: "pet", subjectId: miloId, category: "preference", factKey: "food_preference_salmon", factValue: "salmon", confidence: 0.98, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "Milo likes salmon" },
+    { subjectType: "pet", subjectId: maniId, category: "preference", factKey: "food_preference_chicken", factValue: "chicken", confidence: 0.98, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "Mani likes chicken" },
+  ];
+  const result = routePersistenceDestinations({
+    message: "Milo likes salmon and Mani likes chicken.", petId,
+    authorizedPetIds: [miloId, maniId], learnings, careActions: [proposedCare],
+  });
+  assert.deepEqual(result.learnings.map((learning) => learning.subjectId), [miloId, maniId]);
+  assert.equal(result.learnings.some((learning) => learning.subjectId === petId), false);
+  assert.deepEqual(result.careActions, []);
+});
+
 test("owner retailer and budget preferences route to owner memory only", () => {
   for (const message of ["I usually shop at Costco because it is close to me.", "I prefer products under $30 unless there is a much better option."]) {
     const result = routePersistenceDestinations({ message, petId, learnings: [], careActions: [proposedCare] });

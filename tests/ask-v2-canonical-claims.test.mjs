@@ -9,6 +9,7 @@ import { selectPhase3LowRiskTurn } from "../app/lib/intelligence/v2/phase3/cutov
 import { planV2ProjectionRebuild, V2_PROJECTION_VERSIONS } from "../app/lib/intelligence/v2/projections/contracts.ts";
 import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts/registry-policy.ts";
 import { buildShadowSemanticAnalysis } from "../app/lib/intelligence/semantic-observability.ts";
+import { projectGovernedPreferencesToLegacyMemories } from "../app/lib/intelligence/v2/projections/legacy-memory.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
 const ownerId = "10000000-0000-4000-8000-000000000001";
@@ -79,6 +80,57 @@ test("v2 resolves independent claims in a multi-pet turn", () => {
   ]));
   assert.equal(result.acceptedClaims.length, 2);
   assert.deepEqual(result.acceptedClaims.map((claim) => claim.subject.id), [pets[0].id, pets[1].id]);
+});
+
+test("multi-pet food preferences remain claim-local through governance and legacy projection", () => {
+  const message = "Milo likes salmon and Luna likes chicken.";
+  const result = govern(message, frame([
+    mention("milo", "Milo", "animal"), mention("luna", "Luna", "animal"),
+  ], [
+    preference("claim_milo", "milo", "food preference", "Milo likes salmon", "salmon", "pet_memory"),
+    preference("claim_luna", "luna", "food preference", "Luna likes chicken", "chicken", "pet_memory"),
+  ]), {
+    canonicalConcepts: [registryConcept("food_preference", "preference")],
+  });
+  const projected = projectGovernedPreferencesToLegacyMemories(result);
+  assert.equal(result.rejectedClaims.length, 0);
+  assert.deepEqual(result.acceptedClaims.map((claim) => claim.subject.id), [pets[1].id, pets[0].id]);
+  assert.deepEqual(result.acceptedClaims.map((claim) => claim.groundedEvidence[0].quote), ["Milo likes salmon", "Luna likes chicken"]);
+  assert.deepEqual(projected.map((learning) => learning.subjectId), [pets[1].id, pets[0].id]);
+  assert.equal(projected.some((learning) => learning.subjectId === pets[2].id), false);
+  assert.deepEqual(projected.map((learning) => learning.canonicalConceptKey), ["food_preference", "food_preference"]);
+});
+
+test("preference deduplication never merges distinct pet subjects or distinct food objects", () => {
+  const sameFood = govern("Milo likes salmon and Luna likes salmon.", frame([
+    mention("milo", "Milo", "animal"), mention("luna", "Luna", "animal"),
+  ], [
+    preference("milo_salmon", "milo", "food preference", "Milo likes salmon", "salmon", "pet_memory"),
+    preference("luna_salmon", "luna", "food preference", "Luna likes salmon", "salmon", "pet_memory"),
+  ]), { canonicalConcepts: [registryConcept("food_preference", "preference")] });
+  const twoFoods = govern("Milo likes salmon and chicken.", frame([mention("milo", "Milo", "animal")], [
+    preference("milo_salmon", "milo", "food preference", "Milo likes salmon", "salmon", "pet_memory"),
+    preference("milo_chicken", "milo", "food preference", "chicken", "chicken", "pet_memory"),
+  ]), { canonicalConcepts: [registryConcept("food_preference", "preference")] });
+  assert.equal(projectGovernedPreferencesToLegacyMemories(sameFood).length, 2);
+  assert.equal(projectGovernedPreferencesToLegacyMemories(twoFoods).length, 2);
+  assert.notEqual(
+    projectGovernedPreferencesToLegacyMemories(twoFoods)[0].factKey,
+    projectGovernedPreferencesToLegacyMemories(twoFoods)[1].factKey,
+  );
+});
+
+test("an unresolved named pet claim is rejected and never rebound to a selected pet", () => {
+  const message = "Milo likes salmon and Mani likes chicken.";
+  const result = govern(message, frame([
+    mention("milo", "Milo", "animal"), mention("mani", "Mani", "animal"),
+  ], [
+    preference("milo_food", "milo", "food preference", "Milo likes salmon", "salmon", "pet_memory"),
+    preference("mani_food", "mani", "food preference", "Mani likes chicken", "chicken", "pet_memory"),
+  ]), { canonicalConcepts: [registryConcept("food_preference", "preference")] });
+  assert.deepEqual(result.acceptedClaims.map((claim) => claim.subject.id), [pets[1].id]);
+  assert.equal(result.rejectedClaims.length, 1);
+  assert.equal(projectGovernedPreferencesToLegacyMemories(result).some((learning) => learning.subjectId === pets[0].id), false);
 });
 
 test("v2 supports owner preferences, pet preferences, and external relationships", () => {
@@ -483,6 +535,8 @@ test("shadow observability compares legacy and v2 without retaining message reas
   assert.equal(analysis.trace.v2.observation.governedClaimCount, 1);
   assert.equal(analysis.trace.v2.observation.lifecycle[0].role, "opening");
   assert.equal(analysis.trace.v2.legacyComparison.claimCountDelta, 1);
+  assert.equal(analysis.trace.subjectIntegrity.agrees, false);
+  assert.deepEqual(analysis.trace.subjectIntegrity.reasonCodes, ["V2_SUBJECT_DISAGREEMENT"]);
   assert.equal(JSON.stringify(analysis.trace.v2).includes(message), false);
   assert.equal(JSON.stringify(analysis.trace.v2).toLowerCase().includes("chain-of-thought"), false);
 });

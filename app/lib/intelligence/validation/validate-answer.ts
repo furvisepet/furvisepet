@@ -2,7 +2,12 @@ import type { AskReasoningResult } from "../../ai/ask-reasoning.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 
 export type AnswerValidationResult = { response: AskReasoningResult; valid: boolean; repairs: string[]; errors: string[] };
-export function validateGeneratedAnswer(result: AskReasoningResult, context: FurviseLiveContext, canonicalSafety: IntelligenceSafetyLevel): AnswerValidationResult {
+export function validateGeneratedAnswer(
+  result: AskReasoningResult,
+  context: FurviseLiveContext,
+  canonicalSafety: IntelligenceSafetyLevel,
+  authoritativePetIds: readonly string[] = [context.pet.id],
+): AnswerValidationResult {
   const repairs: string[] = []; const errors: string[] = [];
   const response = structuredClone(result);
   let text = response.answer.summary;
@@ -23,6 +28,11 @@ export function validateGeneratedAnswer(result: AskReasoningResult, context: Fur
   if (unrelatedResolved && /groom|brush|coat|fur|bath|nail/i.test(context.currentMessage) && /breath|breathing/i.test(text))
     replace(/[^.]*\bbreath(?:ing)?\b[^.]*\.?/gi, "", "removed_irrelevant_resolved_warning");
   response.answer.summary = text.replace(/\s+/g, " ").trim();
+  const answerText = JSON.stringify(response.answer);
+  const unauthorizedPetNamed = (context.eligiblePets || []).some((pet) => pet.name
+    && !authoritativePetIds.includes(pet.id)
+    && new RegExp(`\\b${escapeRegex(pet.name)}\\b`, "i").test(answerText));
+  if (unauthorizedPetNamed) errors.push("response_subject_disagreement");
   if (canonicalSafety === "urgent" || canonicalSafety === "emergency") { response.safetyLevel = "urgent"; response.shoppingSuppressed = true; }
   else if (canonicalSafety === "recently_resolved") {
     const reconciled = response.answer.summary.replace(/^Contact an emergency veterinarian now\.\s*/i, "");
@@ -41,3 +51,5 @@ export function validateGeneratedAnswer(result: AskReasoningResult, context: Fur
   if (/\b(?:I saved|I added|stack trace|requestId)\b/i.test(response.answer.summary)) errors.push("unsafe_content_remaining");
   return { response, valid: errors.length === 0, repairs: [...new Set(repairs)], errors };
 }
+
+function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

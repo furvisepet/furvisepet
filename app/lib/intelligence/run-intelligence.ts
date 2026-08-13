@@ -16,6 +16,8 @@ import { routePersistenceDestinations } from "./persistence-destination.ts";
 import { governCanonicalEvents, learningFromSemanticEvent } from "./semantic-events.ts";
 import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } from "./semantic-observability.ts";
 import type { GovernedConceptIdentity, GovernedSemanticTurn } from "./v2/types.ts";
+import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
+import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/legacy-memory.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -39,6 +41,7 @@ export async function runFurviseIntelligence({
   onProviderEvent,
   subjectConfidence = 1,
   canonicalConcepts = [],
+  authoritativePetIds = [context.pet.id],
 }: {
   context: FurviseLiveContext;
   requestId: string;
@@ -46,6 +49,7 @@ export async function runFurviseIntelligence({
   onProviderEvent?: (event: AskProviderEvent) => void;
   subjectConfidence?: number;
   canonicalConcepts?: GovernedConceptIdentity[];
+  authoritativePetIds?: string[];
 }): Promise<FurviseIntelligenceResult> {
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
@@ -81,8 +85,9 @@ export async function runFurviseIntelligence({
       canonicalConcepts,
     },
   });
+  const multiPetTurn = authoritativePetIds.length > 1;
   const semanticGovernance = governCanonicalEvents({
-    proposals: reasoning.semanticEvents,
+    proposals: multiPetTurn ? [] : reasoning.semanticEvents,
     message: context.currentMessage,
     resolvedPetSubject: { id: context.pet.id, name: context.pet.name },
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
@@ -130,7 +135,7 @@ export async function runFurviseIntelligence({
 
   const memoryExtractionEnabled = isAiMemoryExtractionEnabled();
   const learningPolicy = memoryExtractionEnabled
-    ? evaluateLearningPolicy(reasoning.learnings, context.currentMessage, context.pet.id)
+    ? evaluateLearningPolicy(reasoning.learnings, context.currentMessage, authoritativePetIds)
     : { accepted: [], rejected: reasoning.learnings.map((learning) => ({ learning, reason: "global_memory_extraction_disabled" })) };
   const carePolicy = modelGroundedResolution ? proposedResolutionPolicy : evaluateCareActionPolicy({
     actions: reasoning.careActions, currentMessage: context.currentMessage,
@@ -138,22 +143,52 @@ export async function runFurviseIntelligence({
     activeConcernIds: safety.activeConcernIds,
   });
   const deterministicStateAction = buildClearResolutionAction(context, safety) || buildRecurrenceAction(context, safety);
-  const proposedCareActions = deterministicStateAction ? [deterministicStateAction] : carePolicy.accepted;
-  const governance = authorizeProposedActions({ message: context.currentMessage, petId: context.pet.id, careActions: proposedCareActions, memories: learningPolicy.accepted });
+  const proposedCareActions = multiPetTurn ? [] : deterministicStateAction ? [deterministicStateAction] : carePolicy.accepted;
+  const governance = authorizeProposedActions({
+    message: context.currentMessage, petId: context.pet.id, authorizedPetIds: authoritativePetIds,
+    careActions: proposedCareActions, memories: learningPolicy.accepted,
+  });
   const governedCareActions = governance.careActions.filter((decision) => decision.decision === "accepted").map((decision) => decision.proposal);
   const governedLearnings = governance.memories.filter((decision) => decision.decision === "accepted").map((decision) => decision.proposal);
   const semanticLearnings = semanticGovernance.accepted.map(learningFromSemanticEvent).filter((item): item is NonNullable<typeof item> => Boolean(item));
+  let governedV2Turn: GovernedSemanticTurn | null = null;
+  try {
+    governedV2Turn = governSemanticTurnV2({
+      frame: reasoning.semanticFrame,
+      sourceMessage: context.currentMessage,
+      sourceMessageId,
+      ownerId: context.owner.userId,
+      pets: context.eligiblePets,
+      conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
+      activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
+      canonicalConcepts,
+      safetyFloor: {
+        level: reasoning.safetyLevel === "normal" ? "routine" : reasoning.safetyLevel === "monitor" ? "caution" : "urgent",
+        reasonCodes: reasoning.safetyLevel === "normal" ? [] : ["current_turn_safety"],
+      },
+    });
+  } catch {
+    // V2 reconciliation is fail-open; legacy generation and governance remain authoritative.
+  }
+  const projectedPreferences = governedV2Turn ? projectGovernedPreferencesToLegacyMemories(governedV2Turn) : [];
   const routedPersistence = routePersistenceDestinations({
     message: context.currentMessage,
     petId: context.pet.id,
+    authorizedPetIds: authoritativePetIds,
     careActions: governedCareActions,
     learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
   });
   const acceptedCareActions = routedPersistence.careActions;
-  const acceptedLearnings = routedPersistence.learnings;
+  const projectedSourceExcerpts = new Set(projectedPreferences.map((item) => normalizeExcerpt(item.sourceExcerpt)));
+  const acceptedLearnings = dedupeLearnings([
+    ...routedPersistence.learnings.filter((item) =>
+      !(multiPetTurn && isPreferenceLearning(item))
+      && (!projectedSourceExcerpts.has(normalizeExcerpt(item.sourceExcerpt)) || !isPreferenceLearning(item))),
+    ...projectedPreferences,
+  ]);
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
-  const answerValidation = validateGeneratedAnswer(reasoning, context, reasoning.intelligenceSafety.level);
+  const answerValidation = validateGeneratedAnswer(reasoning, context, reasoning.intelligenceSafety.level, authoritativePetIds);
   if (!answerValidation.valid) throw new Error(`FURVISE_ANSWER_VALIDATION_FAILED:${answerValidation.errors.join(",")}`);
   Object.assign(reasoning, answerValidation.response);
   const shadow = buildShadowSemanticAnalysis({
@@ -177,6 +212,8 @@ export async function runFurviseIntelligence({
         : safety.level === "monitor" ? "caution" : "routine",
       reasonCodes: safety.activeConcernIds.length ? ["active_concern"] : [],
     },
+    authoritativePetIds,
+    ...(governedV2Turn ? { governedV2Turn } : {}),
   });
   logSemanticTrace(shadow.trace);
   return {
@@ -198,6 +235,14 @@ export async function runFurviseIntelligence({
 function dedupeLearnings<T extends { subjectType: string; subjectId: string | null; factKey: string }>(items: T[]) {
   const seen = new Set<string>();
   return items.filter((item) => { const key = `${item.subjectType}:${item.subjectId || ""}:${item.factKey}`; if (seen.has(key)) return false; seen.add(key); return true; });
+}
+
+function normalizeExcerpt(value: string) {
+  return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function isPreferenceLearning(learning: AskReasoningResult["learnings"][number]) {
+  return /prefer|shopping|food/i.test(`${learning.category} ${learning.factKey}`);
 }
 
 function currentStateMemories(context: FurviseLiveContext) {

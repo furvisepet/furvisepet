@@ -24,6 +24,16 @@ test("ambiguous protected profile change is deferred", () => {
 test("explicit low risk preference is accepted", () => assert.equal(authorizeProposedActions({ message: "Mani likes the brush", petId: "pet", careActions: [], memories: [memory()] }).memories[0].decision, "accepted"));
 test("duplicate proposals are deduplicated", () => assert.equal(authorizeProposedActions({ message: "Mani breathing is normal", petId: "pet", careActions: [care(), care()], memories: [] }).careActions.length, 1));
 test("wrong pet memory is rejected", () => assert.equal(authorizeProposedActions({ message: "likes the brush", petId: "pet", careActions: [], memories: [memory({ subjectId: "other" })] }).memories[0].reason, "wrong_pet"));
+test("response subject validation rejects an owned pet outside the authoritative subject set", () => {
+  const liveContext = { ...context("My cat is vomiting"), eligiblePets: [
+    { id: "pet", name: "Mani" }, { id: "dog", name: "Milo" },
+  ] };
+  const invalid = validateGeneratedAnswer(reasoning("Urgent guidance for Milo."), liveContext, "urgent", ["pet"]);
+  assert.equal(invalid.valid, false);
+  assert.deepEqual(invalid.errors, ["response_subject_disagreement"]);
+  const explicitMulti = validateGeneratedAnswer(reasoning("Milo prefers salmon and Mani prefers chicken."), liveContext, "routine", ["pet", "dog"]);
+  assert.equal(explicitMulti.valid, true);
+});
 test("answer validator removes persistence claims diagnostics and em dashes", () => {
   const result = validateGeneratedAnswer(reasoning("I saved that. requestId was internal — okay."), context("save it"), "routine");
   assert.doesNotMatch(result.response.answer.summary, /saved|requestId|—/i); assert.ok(result.repairs.length >= 2);

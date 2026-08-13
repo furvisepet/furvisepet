@@ -75,7 +75,7 @@ export async function runFeatureIntelligence<T>({
   const proposedCareActions = Array.isArray(raw.careActions) ? raw.careActions.filter(isIntelligenceCareAction) : [];
   const memoryExtractionEnabled = isAiMemoryExtractionEnabled();
   const learningPolicy = mode.persistencePolicy.allowMemories && memoryExtractionEnabled
-    ? evaluateLearningPolicy(proposedLearnings, context.currentMessage, context.pet.id)
+    ? evaluateLearningPolicy(proposedLearnings, context.currentMessage, [context.pet.id])
     : { accepted: [], rejected: proposedLearnings.map((learning) => ({ learning, reason: memoryExtractionEnabled ? "feature_memory_disabled" : "global_memory_extraction_disabled" })) };
   const carePolicy = mode.persistencePolicy.allowCareActions
     ? evaluateCareActionPolicy({

@@ -325,6 +325,7 @@ export async function POST(request: Request) {
         requestId,
         resolutionStatus: subjectResolution.status,
         resolvedAlternatePet: Boolean(subjectResolution.petId && subjectResolution.petId !== petId),
+        subjectCount: subjectResolution.petIds.length,
       });
       if (subjectResolution.requiresClarification || !subjectResolution.petId) {
         intelligenceResult = null;
@@ -358,7 +359,10 @@ export async function POST(request: Request) {
       });
       if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
 
-      const generationInput = buildTurnGenerationInput({ locale, onProviderEvent, question, requestId, turnSemanticFrame: subjectFrame, turnView, liveContext });
+      const generationInput = buildTurnGenerationInput({
+        authoritativePetIds: subjectResolution.petIds,
+        locale, onProviderEvent, question, requestId, turnSemanticFrame: subjectFrame, turnView, liveContext,
+      });
       return await orchestrateAskTurn({
         concerns: turnView.concerns,
         generationInput,
@@ -371,6 +375,7 @@ export async function POST(request: Request) {
             sourceMessageId: preparedRequest.userMessageId,
             onProviderEvent,
             subjectConfidence: subjectResolution.confidence,
+            authoritativePetIds: subjectResolution.petIds,
             canonicalConcepts: phase3Runtime.canonicalConcepts,
           });
           logValidatedIntelligence(intelligenceResult, requestId);
@@ -565,7 +570,8 @@ function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requ
   };
 }
 
-function buildTurnGenerationInput({ locale, liveContext, onProviderEvent, question, requestId, turnSemanticFrame, turnView }: {
+function buildTurnGenerationInput({ authoritativePetIds, locale, liveContext, onProviderEvent, question, requestId, turnSemanticFrame, turnView }: {
+  authoritativePetIds: string[];
   locale: string;
   liveContext: FurviseLiveContext;
   onProviderEvent: (event: AskProviderEvent) => void;
@@ -585,7 +591,7 @@ function buildTurnGenerationInput({ locale, liveContext, onProviderEvent, questi
     locale,
     memories: turnView.memories,
     productFeedback: turnView.feedback,
-    profiles: [liveContext.pet],
+    profiles: liveContext.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
     question,
     recentlyResolvedConcerns: turnView.recentlyResolvedConcerns,
     recentUpdates: turnView.recentUpdates,

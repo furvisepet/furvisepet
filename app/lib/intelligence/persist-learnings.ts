@@ -40,33 +40,39 @@ export async function persistIntelligenceLearnings({
     : careActions[0]
       ? await persistCanonicalCareAction({ action: careActions[0], petId, sourceMessageId, supabase, userId })
     : skippedCarePersistence();
-  let row: Record<string, unknown> | null = null;
+  const persistenceRows: Record<string, unknown>[] = [];
   if (normalizedLearnings.length) {
-    const { data, error } = await supabase.rpc("persist_furvise_intelligence", {
-      p_care_actions: [],
-      p_learnings: normalizedLearnings,
-      p_pet_id: petId,
-      p_source_message_id: sourceMessageId,
-    });
-    if (error && !careActions.length && !semanticEvent) throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
-    if (error) {
-      logIntelligenceError("memory_persistence_after_care", error, {
-        sourceMessageIdPresent: Boolean(sourceMessageId), petIdPresent: Boolean(petId),
+    for (const [targetPetId, group] of groupLearningsByPersistencePet(normalizedLearnings, petId)) {
+      const { data, error } = await supabase.rpc("persist_furvise_intelligence", {
+        p_care_actions: [],
+        p_learnings: group,
+        p_pet_id: targetPetId,
+        p_source_message_id: sourceMessageId,
       });
-    } else {
-      row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+      if (error && !careActions.length && !semanticEvent) throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
+      if (error) {
+        logIntelligenceError("memory_persistence_after_care", error, {
+          sourceMessageIdPresent: Boolean(sourceMessageId), petIdPresent: Boolean(targetPetId),
+        });
+      } else {
+        const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+        if (row) persistenceRows.push(row);
+      }
     }
+    await suppressExplicitlyReplacedPreferences({
+      learnings: normalizedLearnings, sourceMessageId, supabase, userId,
+    });
   }
   const memoryIds = normalizedLearnings.length
-    ? await findConfirmedMemoryIds({ learnings: normalizedLearnings, petId, supabase, userId })
+    ? await findConfirmedMemoryIds({ learnings: normalizedLearnings, supabase, userId })
     : [];
   const persistedCareEntryId = carePersistence.careEntryIds[0] || null;
   const persistedConcernId = carePersistence.concernIds[0] || null;
   return {
     careEntriesCreated: carePersistence.status === "persisted" && !carePersistence.alreadyPersisted ? carePersistence.careEntryIds.length : 0,
     concernsResolved: carePersistence.status === "persisted" && carePersistence.concernIds.length > 0 && careActions[0]?.action === "resolve_concern" ? 1 : 0,
-    memoriesCreated: numberValue(row?.memories_created),
-    memoriesSuperseded: numberValue(row?.memories_superseded),
+    memoriesCreated: persistenceRows.reduce((total, row) => total + numberValue(row.memories_created), 0),
+    memoriesSuperseded: persistenceRows.reduce((total, row) => total + numberValue(row.memories_superseded), 0),
     memoryIds,
     rejectedLearnings: 0,
     careActionPresent: carePersistence.status === "persisted" && carePersistence.careEntryIds.length > 0,
@@ -154,9 +160,8 @@ export async function persistFeatureIntelligenceLearnings({
   };
 }
 
-async function findConfirmedMemoryIds({ learnings, petId, supabase, userId }: {
+async function findConfirmedMemoryIds({ learnings, supabase, userId }: {
   learnings: Array<IntelligenceLearning & { normalizedValue: string }>;
-  petId: string;
   supabase: SupabaseClient;
   userId: string;
 }) {
@@ -169,9 +174,90 @@ async function findConfirmedMemoryIds({ learnings, petId, supabase, userId }: {
   return (data || []).filter((row) => learnings.some((learning) =>
     row.fact_key === normalizeFactKey(learning.factKey)
       && row.subject_type === learning.subjectType
-      && row.pet_id === (learning.subjectType === "pet" ? petId : null)
+      && row.pet_id === (learning.subjectType === "pet" ? learning.subjectId : null)
       && row.normalized_value === learning.normalizedValue
   )).map((row) => row.id);
+}
+
+function groupLearningsByPersistencePet<T extends IntelligenceLearning>(learnings: T[], fallbackPetId: string) {
+  const groups = new Map<string, T[]>();
+  for (const learning of learnings) {
+    const targetPetId = learning.subjectType === "pet" ? learning.subjectId : fallbackPetId;
+    if (!targetPetId) continue;
+    groups.set(targetPetId, [...(groups.get(targetPetId) || []), learning]);
+  }
+  return [...groups.entries()];
+}
+
+async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageId, supabase, userId }: {
+  learnings: Array<IntelligenceLearning & { normalizedValue: string }>;
+  sourceMessageId: string;
+  supabase: SupabaseClient;
+  userId: string;
+}) {
+  const replacements = learnings.filter((learning) => learning.subjectType === "pet"
+    && learning.subjectId
+    && learning.canonicalConceptKey
+    && preferenceOperation(learning.factValue) === "prefer"
+    && /\b(?:actually|instead|correction|no longer|not anymore)\b/i.test(learning.sourceExcerpt));
+  for (const replacement of replacements) {
+    const replacedValues = explicitlyReplacedPreferenceValues(replacement.sourceExcerpt);
+    if (!replacedValues.length) continue;
+    const { data, error } = await supabase.from("furvise_memories")
+      .select("id,fact_key,fact_value,source_id")
+      .eq("user_id", userId)
+      .eq("pet_id", replacement.subjectId!)
+      .eq("subject_type", "pet")
+      .eq("status", "active")
+      .neq("source_id", sourceMessageId)
+      .limit(40);
+    if (error) {
+      logIntelligenceError("corrected_preference_projection", error, { sourceMessageIdPresent: true, petIdPresent: true });
+      continue;
+    }
+    for (const row of data || []) {
+      if (!samePreferenceConcept(String(row.fact_key), replacement.canonicalConceptKey!)) continue;
+      if (!replacedValues.includes(normalizeComparable(preferenceValue(row.fact_value)))) continue;
+      const { error: suppressError } = await supabase.rpc("manage_furvise_memory", {
+        p_memory_id: row.id, p_action: "forget", p_fact_value: null,
+      });
+      if (suppressError) logIntelligenceError("corrected_preference_suppression", suppressError, {
+        sourceMessageIdPresent: true, petIdPresent: true,
+      });
+    }
+  }
+}
+
+function preferenceOperation(value: unknown) {
+  return value && typeof value === "object" && (value as Record<string, unknown>).preference === "avoid" ? "avoid" : "prefer";
+}
+
+function samePreferenceConcept(factKey: string, canonicalConceptKey: string) {
+  const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const fact = compact(factKey);
+  const concept = compact(canonicalConceptKey);
+  if (fact.startsWith(concept)) return true;
+  return concept.includes("foodpreference") && /(?:foodpreference|likesfood|dislikesfood)/.test(fact);
+}
+
+function explicitlyReplacedPreferenceValues(value: string) {
+  const patterns = [
+    /(?:doesn't|does not|no longer)\s+like\s+([^,.!?;]+)/ig,
+    /instead\s+of\s+([^,.!?;]+)/ig,
+  ];
+  return patterns.flatMap((pattern) => [...value.matchAll(pattern)].map((match) => normalizeComparable(match[1])));
+}
+
+function normalizeComparable(value: string) {
+  return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function preferenceValue(value: unknown) {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof (value as Record<string, unknown>).value === "string") {
+    return (value as Record<string, unknown>).value as string;
+  }
+  return "";
 }
 
 function normalizeFactKey(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }
