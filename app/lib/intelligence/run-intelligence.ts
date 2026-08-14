@@ -13,7 +13,7 @@ import { authorizeProposedActions, type GovernanceResult } from "./governance/in
 import { validateGeneratedAnswer, type AnswerValidationResult } from "./validation/index.ts";
 import { resolveRecoverySubject } from "./episodes/resolve-recovery-subject.ts";
 import { routePersistenceDestinations } from "./persistence-destination.ts";
-import { governCanonicalEvents, learningFromSemanticEvent } from "./semantic-events.ts";
+import { governCanonicalEvents, governCanonicalEventsForOwnedPets, learningFromSemanticEvent } from "./semantic-events.ts";
 import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } from "./semantic-observability.ts";
 import type { GovernedConceptIdentity, GovernedSemanticTurn } from "./v2/types.ts";
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
@@ -90,10 +90,9 @@ export async function runFurviseIntelligence({
     },
   });
   const multiPetTurn = authoritativePetIds.length > 1;
-  const semanticGovernance = governCanonicalEvents({
-    proposals: multiPetTurn ? [] : reasoning.semanticEvents,
+  const semanticGovernanceInput = {
+    proposals: reasoning.semanticEvents,
     message: context.currentMessage,
-    resolvedPetSubject: { id: context.pet.id, name: context.pet.name },
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
     recoveryAssessment: {
       status: reasoning.messageUnderstanding.recoveryStatus,
@@ -102,7 +101,16 @@ export async function runFurviseIntelligence({
     },
     allowTerminalResolution: allowsAcceptedRecoverySafetyReconciliation(safety),
     subjectConfidence,
-  });
+  };
+  const semanticGovernance = multiPetTurn
+    ? governCanonicalEventsForOwnedPets({
+      ...semanticGovernanceInput,
+      pets: context.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
+    })
+    : governCanonicalEvents({
+      ...semanticGovernanceInput,
+      resolvedPetSubject: { id: context.pet.id, name: context.pet.name },
+    });
 
   const proposedResolutionPolicy = evaluateCareActionPolicy({
     actions: reasoning.careActions,

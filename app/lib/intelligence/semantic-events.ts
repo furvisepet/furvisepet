@@ -10,6 +10,38 @@ export type SemanticEventGovernance = {
   recoveryAssessments: EffectiveRecoveryAssessment[];
 };
 
+export function governCanonicalEventsForOwnedPets(input: Omit<Parameters<typeof governCanonicalEvents>[0], "resolvedPetSubject"> & {
+  pets: Array<{ id: string; name: string | null }>;
+}): SemanticEventGovernance {
+  const accepted: GovernedCanonicalEvent[] = [];
+  const rejected: SemanticEventGovernance["rejected"] = [];
+  const recoveryAssessments: EffectiveRecoveryAssessment[] = [];
+  const ownedNames = new Map<string, { id: string; name: string | null }>(input.pets.flatMap((pet) => {
+    const name = normalize(pet.name || "");
+    return name ? [[name, pet] as const] : [];
+  }));
+
+  for (const proposal of input.proposals) {
+    const pet = proposal.subject.type === "pet" && proposal.subject.name
+      ? ownedNames.get(normalize(proposal.subject.name))
+      : null;
+    if (!pet) {
+      rejected.push({ proposal, reason: proposal.subject.type === "pet" ? "wrong_pet" : "ambiguous_subject" });
+      continue;
+    }
+    const result = governCanonicalEvents({
+      ...input,
+      proposals: [proposal],
+      resolvedPetSubject: pet,
+      activeEpisodes: input.activeEpisodes.filter((episode) => episode.pet_profile_id === pet.id),
+    });
+    accepted.push(...result.accepted);
+    rejected.push(...result.rejected);
+    recoveryAssessments.push(...result.recoveryAssessments);
+  }
+  return { accepted, rejected, recoveryAssessments };
+}
+
 const MUTATING = new Set(["resolved", "corrected"]);
 const NEEDS_ACTIVE = new Set(["continued", "improved", "worsened", "resolved"]);
 

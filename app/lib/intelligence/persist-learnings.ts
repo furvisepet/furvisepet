@@ -6,6 +6,7 @@ import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAct
 import { logIntelligenceError } from "./logging";
 import { historicalPreferenceTargetIdentity, normalizeKnownPreferenceMemory, planPreferenceSupersession, preferenceTargetIdentity } from "./preference-semantics";
 import { groupLearningsByPersistencePet } from "./persistence-partition";
+import { oneSemanticEventPerPet, persistSemanticEventRpc } from "./semantic-event-persistence";
 
 export class IntelligencePersistenceError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -36,12 +37,13 @@ export async function persistIntelligenceLearnings({
     normalizedValue: normalizeMemoryValue(learning.factValue),
   }));
   const resolutionAction = careActions.find((action) => action.action === "resolve_concern" && Boolean(action.relatedRecordId));
-  const semanticEvent = semanticEvents.find((item) => item.destinations.some((destination) =>
+  const persistableSemanticEvents = semanticEvents.filter((item) => item.destinations.some((destination) =>
     destination === "care_event" || destination === "episode_current_state" || destination === "state_only"));
+  const semanticEvent = persistableSemanticEvents[0];
   const carePersistence = resolutionAction
     ? await persistCanonicalCareAction({ action: resolutionAction, petId, sourceMessageId, supabase, userId })
-    : semanticEvent
-    ? await persistCanonicalSemanticEvent({ event: semanticEvent, petId, sourceMessageId, supabase, userId })
+    : semanticEvent && persistableSemanticEvents.length
+    ? await persistCanonicalSemanticEvents({ events: persistableSemanticEvents, petId, sourceMessageId, supabase, userId })
     : careActions[0]
       ? await persistCanonicalCareAction({ action: careActions[0], petId, sourceMessageId, supabase, userId })
     : skippedCarePersistence();
@@ -99,26 +101,13 @@ async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, su
   userId: string;
 }): Promise<CarePersistenceResult> {
   const proposal = event.event;
-  const { data, error } = await supabase.rpc("persist_furvise_semantic_event", {
-    p_event: {
-      subject: { type: proposal.subject.type, name: proposal.subject.name },
-      domain: proposal.domain,
-      topic: proposal.normalizedTopic,
-      eventTitle: proposal.eventTitle,
-      transition: proposal.transition,
-      state: proposal.state,
-      temporal: proposal.temporal,
-      importance: proposal.importance,
-      confidence: proposal.confidence,
-      sourceExcerpt: proposal.sourceExcerpt,
-    },
-    p_pet_id: petId,
-    p_source_message_id: sourceMessageId,
-    p_user_id: userId,
+  const targetPetId = proposal.subject.id || petId;
+  const { data, error } = await persistSemanticEventRpc({
+    event, fallbackPetId: petId, sourceMessageId, supabase, userId,
   });
   if (error) {
     logIntelligenceError("semantic_event_persistence", error, {
-      sourceMessageIdPresent: Boolean(sourceMessageId), petIdPresent: Boolean(petId),
+      sourceMessageIdPresent: Boolean(sourceMessageId), petIdPresent: Boolean(targetPetId),
       domain: proposal.domain, transition: proposal.transition,
     });
     return { status: "failed", careEntryIds: [], concernIds: [], errorCode: "SEMANTIC_EVENT_PERSISTENCE_FAILED", currentSafetyState: null, alreadyPersisted: false };
@@ -131,6 +120,39 @@ async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, su
   return { status: "persisted", careEntryIds: [entryId], concernIds: [], errorCode: null,
     currentSafetyState: proposal.state === "resolved" ? "recently_resolved" : proposal.importance === "urgent" ? "urgent" : "routine",
     alreadyPersisted: row.already_persisted === true };
+}
+
+async function persistCanonicalSemanticEvents(input: {
+  events: GovernedCanonicalEvent[];
+  petId: string;
+  sourceMessageId: string;
+  supabase: SupabaseClient;
+  userId: string;
+}): Promise<CarePersistenceResult> {
+  const results: CarePersistenceResult[] = [];
+  for (const event of oneSemanticEventPerPet(input.events, input.petId)) {
+    results.push(await persistCanonicalSemanticEvent({ ...input, event }));
+  }
+  if (results.some((result) => result.status === "failed")) {
+    return {
+      status: "failed",
+      careEntryIds: results.flatMap((result) => result.careEntryIds),
+      concernIds: results.flatMap((result) => result.concernIds),
+      errorCode: results.find((result) => result.errorCode)?.errorCode || "SEMANTIC_EVENT_PERSISTENCE_FAILED",
+      currentSafetyState: null,
+      alreadyPersisted: results.every((result) => result.alreadyPersisted),
+    };
+  }
+  return {
+    status: results.length ? "persisted" : "skipped",
+    careEntryIds: results.flatMap((result) => result.careEntryIds),
+    concernIds: results.flatMap((result) => result.concernIds),
+    errorCode: null,
+    currentSafetyState: results.some((result) => result.currentSafetyState === "urgent") ? "urgent"
+      : results.some((result) => result.currentSafetyState === "recently_resolved") ? "recently_resolved"
+      : results.some((result) => result.currentSafetyState === "routine") ? "routine" : null,
+    alreadyPersisted: results.length > 0 && results.every((result) => result.alreadyPersisted),
+  };
 }
 
 export async function persistFeatureIntelligenceLearnings({
