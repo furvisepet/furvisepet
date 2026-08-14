@@ -34,6 +34,7 @@ export function governCanonicalEventsForOwnedPets(input: Omit<Parameters<typeof 
       proposals: [proposal],
       resolvedPetSubject: pet,
       activeEpisodes: input.activeEpisodes.filter((episode) => episode.pet_profile_id === pet.id),
+      contextualBaselineRequiresEpisode: true,
     });
     accepted.push(...result.accepted);
     rejected.push(...result.rejected);
@@ -90,6 +91,7 @@ export function governCanonicalEvents(input: {
   };
   allowTerminalResolution?: boolean;
   subjectConfidence?: number;
+  contextualBaselineRequiresEpisode?: boolean;
 }): SemanticEventGovernance {
   const resolvedPetSubject = input.resolvedPetSubject || input.pet;
   if (!resolvedPetSubject) return { accepted: [], rejected: input.proposals.map((proposal) => ({ proposal, reason: "ambiguous_subject" })), recoveryAssessments: [] };
@@ -101,6 +103,17 @@ export function governCanonicalEvents(input: {
     const compatible = input.activeEpisodes.map((episode) => ({ episode, score: compatibilityScore(rawProposal.domain, proposedTopic, episode) }))
       .filter((candidate) => candidate.score >= 0.72)
       .sort((left, right) => right.score - left.score || Date.parse(right.episode.last_event_at) - Date.parse(left.episode.last_event_at));
+    if (input.contextualBaselineRequiresEpisode && isContextOnlyBaselineEvidence(rawProposal)) {
+      if (!["confirmed", "improved", "resolved"].includes(rawProposal.transition)) {
+        rejected.push({ proposal: rawProposal, reason: "invalid_transition" }); continue;
+      }
+      if (compatible.length === 0) {
+        rejected.push({ proposal: rawProposal, reason: "no_compatible_active_episode" }); continue;
+      }
+      if (compatible.length > 1 && compatible[0].score === compatible[1].score) {
+        rejected.push({ proposal: rawProposal, reason: "ambiguous_episode" }); continue;
+      }
+    }
     const recoveryGovernance = deriveEffectiveRecoveryAssessment({
       proposal: rawProposal,
       proposals: input.proposals,
@@ -218,6 +231,18 @@ function evidenceContains(message: string, excerpt: string) {
   return words.length > 0 && words.filter((word) => full.includes(word)).length >= Math.min(2, words.length);
 }
 function normalize(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+
+function isContextOnlyBaselineEvidence(proposal: CanonicalEventProposal) {
+  const evidence = normalize(proposal.sourceExcerpt);
+  const subjectName = normalize(proposal.subject.name || "");
+  const subjectIndex = subjectName ? evidence.lastIndexOf(subjectName) : -1;
+  let subjectClause = subjectIndex >= 0 ? evidence.slice(subjectIndex + subjectName.length).trim() : evidence;
+  subjectClause = subjectClause.split(/\b(?:but|while|whereas)\b/)[0]?.trim() || "";
+  subjectClause = subjectClause.replace(/^(?:he|she|they|it)\s+/, "");
+  return /^(?:is|seems|looks|appears)\s+(?:fine|ok|okay|normal)(?:\s+(?:again|now|today))?$/.test(subjectClause)
+    || /^(?:is\s+)?acting\s+normal(?:\s+(?:again|now|today))?$/.test(subjectClause)
+    || /^(?:is|s)\s+back\s+to\s+normal(?:\s+(?:again|now|today))?$/.test(subjectClause);
+}
 
 function episodeSemanticTopic(domain: string, episode: CareEpisode) {
   const summaryTopic = typeof episode.summary?.semanticTopic === "string" ? episode.summary.semanticTopic : "";
