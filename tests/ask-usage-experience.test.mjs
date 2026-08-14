@@ -10,8 +10,9 @@ test("Ask usage notice stays hidden until the allowance is exhausted", () => {
   assert.doesNotMatch(notice, /AI credits included each month/);
   assert.doesNotMatch(notice, /AI credit\$\{usage\.remaining === 1 \? "" : "s"\} left this month/);
   assert.match(notice, /if \(usage\.remaining === 0\)[\s\S]*return null/);
-  assert.match(notice, /You have used this month&apos;s AI credits\./);
-  for (const label of ["Upgrade plan", "View care history", "Update pet details", "Prepare vet brief"]) assert.match(notice, new RegExp(label));
+  assert.match(notice, /You&apos;ve used the/);
+  assert.match(notice, /Share the full picture in each Ask/);
+  for (const label of ["Upgrade to Plus", "View care history", "Update pet details", "Prepare vet brief"]) assert.match(notice, new RegExp(label));
   assert.doesNotMatch(notice, /warning|danger|alert/i);
 });
 

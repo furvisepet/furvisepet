@@ -16,9 +16,9 @@ begin
 end;
 $$;
 
-insert into auth.users(id, aud, role, email, encrypted_password, created_at, updated_at) values
-  ('11000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 's1-one@example.test', '', now(), now()),
-  ('22000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 's1-two@example.test', '', now(), now());
+insert into auth.users(id, aud, role, email, encrypted_password, created_at, updated_at, email_confirmed_at) values
+  ('11000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 's1-one@example.test', '', now(), now(), now()),
+  ('22000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated', 's1-two@example.test', '', now(), now(), now());
 insert into public.dog_profiles(id, user_id, name, species) values
   ('11000000-0000-4000-8000-000000000011', '11000000-0000-4000-8000-000000000001', 'S1 one', 'dog'),
   ('22000000-0000-4000-8000-000000000022', '22000000-0000-4000-8000-000000000002', 'S1 two', 'dog');

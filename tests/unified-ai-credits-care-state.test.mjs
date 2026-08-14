@@ -128,14 +128,16 @@ test("development fallback recognizes only a proven missing usage table", () => 
   assert.equal(isMissingAiUsageTableError(missing), true);
   assert.equal(isMissingAiUsageTableError(permission), false);
   assert.equal(isMissingAiUsageTableError(unrelated), false);
-  assert.deepEqual(buildDevelopmentAiCreditFallback("free"), {
+  const fallback = buildDevelopmentAiCreditFallback("free");
+  assert.deepEqual(fallback, {
     allowed: true,
     count: 0,
     ledgerMode: "development_missing_migration",
-    limit: 50,
-    monthKey: buildDevelopmentAiCreditFallback("free").monthKey,
+    limit: 8,
+    monthKey: fallback.monthKey,
     planId: "free",
-    remaining: 50,
+    remaining: 8,
+    resetAt: fallback.resetAt,
   });
   assert.deepEqual(getAiCreditLedgerDiagnostic(permission), {
     code: "42501",

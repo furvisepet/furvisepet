@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordActiveAiUserCreditState } from "./usage-guard/context.ts";
 import { getPlanCapabilities, type PlanId } from "../billing/plan-limits.ts";
+import { getAskAllowance } from "../billing/launch-plans.ts";
 
 export const AI_USAGE_EVENTS_TABLE = "ai_usage_events";
 
@@ -15,12 +16,16 @@ export type AiFeature =
 
 export type AiCreditStatus = {
   allowed: boolean;
+  billingPlan?: PlanId;
+  cancelAtPeriodEnd?: boolean;
   count: number;
   ledgerMode?: "database" | "development_missing_migration";
   limit: number;
   monthKey: string;
   planId: PlanId;
   remaining: number;
+  resetAt?: string;
+  subscriptionStatus?: string;
 };
 
 export type AiCreditReservation = {
@@ -34,6 +39,18 @@ type LedgerRpcRow = {
   event_status?: string;
   credits_used?: number;
   remaining?: number;
+};
+
+type AskAllowanceRpcRow = {
+  allowance?: number;
+  billing_plan?: string;
+  cancel_at_period_end?: boolean;
+  effective_plan?: string;
+  period_end?: string;
+  period_start?: string;
+  remaining?: number;
+  subscription_status?: string;
+  used?: number;
 };
 
 type SupabaseErrorDetails = {
@@ -78,20 +95,49 @@ export async function getMonthlyAiUsage({
 }
 
 export async function getRemainingAiCredits({
+  feature,
   monthlyAiCredits,
   planId = "free",
   supabase,
   userId,
 }: {
+  feature?: AiFeature;
   monthlyAiCredits?: number;
   planId?: PlanId;
   supabase: SupabaseClient;
   userId: string;
 }): Promise<AiCreditStatus> {
+  if (feature === "ask") return getAskAllowanceStatus({ supabase });
   const limit = getMonthlyAiAllowance(userId, planId, monthlyAiCredits);
   const count = await getMonthlyAiUsage({ supabase, userId });
   const remaining = Math.max(0, limit - count);
   return { allowed: remaining > 0, count, ledgerMode: "database", limit, monthKey: getAiMonthKey(), planId, remaining };
+}
+
+export async function getAskAllowanceStatus({ supabase }: { supabase: SupabaseClient }): Promise<AiCreditStatus> {
+  const { data, error } = await supabase.rpc("get_my_ask_allowance_status");
+  if (error) throw new AiCreditLedgerError("usage_read_failed", error, "get_my_ask_allowance_status", "rpc");
+  const row = (Array.isArray(data) ? data[0] : data) as AskAllowanceRpcRow | null;
+  const planId = row?.effective_plan === "plus" ? "plus" : row?.effective_plan === "free" ? "free" : null;
+  const limit = positiveInteger(row?.allowance) ? row.allowance : null;
+  const count = nonNegativeInteger(row?.used) ? row.used : null;
+  const remaining = nonNegativeInteger(row?.remaining) ? row.remaining : null;
+  if (!planId || limit === null || count === null || remaining === null || typeof row?.period_start !== "string" || typeof row.period_end !== "string") {
+    throw new AiCreditLedgerError("usage_read_failed", new Error("INVALID_ASK_ALLOWANCE_RESPONSE"), "get_my_ask_allowance_status", "rpc");
+  }
+  return {
+    allowed: remaining > 0,
+    billingPlan: row.billing_plan === "plus" ? "plus" : "free",
+    cancelAtPeriodEnd: row.cancel_at_period_end === true,
+    count,
+    ledgerMode: "database",
+    limit,
+    monthKey: row.period_start,
+    planId,
+    remaining,
+    resetAt: row.period_end,
+    subscriptionStatus: typeof row.subscription_status === "string" ? row.subscription_status : "none",
+  };
 }
 
 export async function reserveAiCredit({
@@ -177,6 +223,10 @@ export function getAiCreditLedgerDiagnostic(error: unknown) {
 
 export function isMissingAiUsageTableError(error: unknown) {
   const diagnostic = getAiCreditLedgerDiagnostic(error);
+  if (diagnostic.resource === "get_my_ask_allowance_status" && diagnostic.operation === "rpc") {
+    const rpcText = `${diagnostic.message} ${diagnostic.details} ${diagnostic.hint}`.toLowerCase();
+    return ["42883", "PGRST202"].includes(diagnostic.code) && rpcText.includes("get_my_ask_allowance_status");
+  }
   if (diagnostic.resource !== AI_USAGE_EVENTS_TABLE || diagnostic.operation !== "select") return false;
   const text = `${diagnostic.message} ${diagnostic.details} ${diagnostic.hint}`.toLowerCase();
   return (diagnostic.code === "42P01" || diagnostic.code === "PGRST205") &&
@@ -184,15 +234,27 @@ export function isMissingAiUsageTableError(error: unknown) {
 }
 
 export function buildDevelopmentAiCreditFallback(planId: PlanId): AiCreditStatus {
+  const limit = getAskAllowance(planId);
+  const now = new Date();
+  const resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString();
   return {
     allowed: true,
     count: 0,
     ledgerMode: "development_missing_migration",
-    limit: 50,
+    limit,
     monthKey: getAiMonthKey(),
     planId,
-    remaining: 50,
+    remaining: limit,
+    resetAt,
   };
+}
+
+function positiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function nonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 export class AiCreditLimitReachedError extends Error {
@@ -233,7 +295,7 @@ export async function runWithAiCredit<T>({
         await completeAiCredit({ requestId, supabase });
       }
     }
-    const usage = await getRemainingAiCredits({ monthlyAiCredits, planId, supabase, userId });
+    const usage = await getRemainingAiCredits({ feature, monthlyAiCredits, planId, supabase, userId });
     return { creditsUsed: reservation.status === "completed" ? 0 : 1, usage, value };
   } catch (error) {
     if (reservation.status === "reserved") {

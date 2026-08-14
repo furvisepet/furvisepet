@@ -122,7 +122,7 @@ test("plan capabilities define generous free and future plus limits", () => {
   assert.equal(free.dashboard, true);
   assert.equal(free.curatedProducts, true);
   assert.equal(free.aiCreditsMonthlyLimit, 50);
-  assert.equal(free.askFurviseMonthlyLimit, 50);
+  assert.equal(free.askFurviseMonthlyLimit, 8);
   assert.equal(free.productsAiMonthlyLimit, 50);
   assert.equal(free.shopSearchMonthlyLimit, 50);
   assert.equal(free.productQuestionMonthlyLimit, 50);
@@ -130,7 +130,7 @@ test("plan capabilities define generous free and future plus limits", () => {
   assert.equal(free.vetPrepExports, false);
   assert.equal(free.liveProductResearch, false);
   assert.equal(plus.aiCreditsMonthlyLimit, 500);
-  assert.equal(plus.askFurviseMonthlyLimit, 500);
+  assert.equal(plus.askFurviseMonthlyLimit, 55);
   assert.equal(plus.productsAiMonthlyLimit, 500);
   assert.equal(plus.longHistoryPatternDetection, true);
   assert.equal(plus.vetPrepExports, true);
@@ -163,9 +163,9 @@ test("pet limit gates new pets but never edits existing pets", () => {
   assert.match(early.softNotice || "", /1 pet/);
 });
 
-test("legacy Ask usage gate mirrors the shared 50-credit allowance during compatibility", () => {
-  assert.equal(evaluateAskUsageLimit({ monthlyCount: 49, planId: "free", earlyAccessUnlocked: false }).allowed, true);
-  const blocked = evaluateAskUsageLimit({ monthlyCount: 50, planId: "free", earlyAccessUnlocked: false });
+test("legacy Ask usage UI mirrors the launch Free allowance during compatibility", () => {
+  assert.equal(evaluateAskUsageLimit({ monthlyCount: 7, planId: "free", earlyAccessUnlocked: false }).allowed, true);
+  const blocked = evaluateAskUsageLimit({ monthlyCount: 8, planId: "free", earlyAccessUnlocked: false });
   assert.equal(blocked.hardBlocked, true);
   assert.equal(blocked.remaining, 0);
   const early = evaluateAskUsageLimit({ monthlyCount: 30, planId: "free", earlyAccessUnlocked: true });
@@ -186,7 +186,7 @@ test("legacy product usage gate mirrors the shared 50-credit allowance during co
 test("Ask usage reads current month, increments successful answers, and resets by month key", async () => {
   const supabase = createUsageSupabase([
     { user_id: "user-1", month_key: "2026-06", count: 20 },
-    { user_id: "user-1", month_key: "2026-07", count: 49 },
+    { user_id: "user-1", month_key: "2026-07", count: 7 },
   ]);
 
   assert.equal(getAskUsageMonthKey(new Date("2026-07-13T12:00:00Z")), "2026-07");
@@ -198,7 +198,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     supabase,
     userId: "user-1",
   });
-  assert.equal(status.count, 49);
+  assert.equal(status.count, 7);
   assert.equal(status.remaining, 1);
 
   await incrementAskUsage({ monthKey: "2026-07", previousCount: status.count, supabase, userId: "user-1" });
@@ -210,7 +210,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     supabase,
     userId: "user-1",
   });
-  assert.equal(after.count, 50);
+  assert.equal(after.count, 8);
   assert.equal(after.allowed, false);
 
   const reset = await getAskUsageStatus({
@@ -222,7 +222,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     userId: "user-1",
   });
   assert.equal(reset.count, 0);
-  assert.equal(reset.remaining, 50);
+  assert.equal(reset.remaining, 8);
 });
 
 test("Ask usage treats a missing monthly row as zero for new users", async () => {
@@ -337,8 +337,8 @@ test("Ask usage read errors log Supabase details and early access falls back saf
   }
 });
 
-test("legacy Ask usage still hard gates at the shared allowance while compatibility remains", async () => {
-  const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 50 }]);
+test("legacy Ask usage still hard gates at the launch allowance while compatibility remains", async () => {
+  const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 8 }]);
   const status = await getAskUsageStatus({
     earlyAccessUnlocked: false,
     monthlyLimit: getPlanCapabilities("free").askFurviseMonthlyLimit,

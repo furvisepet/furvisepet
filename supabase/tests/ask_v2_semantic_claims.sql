@@ -78,7 +78,7 @@ declare
         'subject_id', '51000000-0000-4000-8000-000000000011',
         'resolved_entities', jsonb_build_array(jsonb_build_object('entity_type', 'pet', 'entity_id', '51000000-0000-4000-8000-000000000011')),
         'claim_kind', 'event', 'concept_key', 'limping', 'canonical_concept_key', 'limping',
-        'concept_resolution_status', 'canonical', 'concept_authority', 'governed_registry', 'concept_version', 'concept.v1',
+        'concept_resolution_status', 'canonical', 'concept_authority', 'governed_registry', 'concept_version', 'furvise.core.v1',
         'predicate', jsonb_build_object('label', 'limping'), 'structured_value', jsonb_build_object('state', 'active'),
         'polarity', 'affirmed', 'modality', 'asserted', 'durability', 'ongoing',
         'temporal_precision', 'unknown', 'grounded_evidence', jsonb_build_array(jsonb_build_object('start', 0, 'end', 15, 'excerpt', 'Luna is limping')),
