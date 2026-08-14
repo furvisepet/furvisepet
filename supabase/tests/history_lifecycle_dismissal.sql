@@ -77,7 +77,10 @@ do $$
 declare
   v_result record;
   v_entry_count integer;
+  v_other_pet_status text;
 begin
+  select status into strict v_other_pet_status from public.pet_care_episodes
+  where id = '41000000-0000-4000-8000-000000000102';
   select * into v_result from public.remove_my_care_entry('41000000-0000-4000-8000-000000000110', true);
   if not exists(select 1 from public.pet_care_entries where id = v_result.entry_id and deleted_at is not null) then
     raise exception 'inactive historical entry was not tombstoned';
@@ -128,7 +131,7 @@ begin
   if not v_result.already_tombstoned or not v_result.lifecycle_dismissed then
     raise exception 'repeated dismissal was not idempotent';
   end if;
-  if not exists(select 1 from public.pet_care_episodes where id = '41000000-0000-4000-8000-000000000102' and status = 'monitoring') then
+  if not exists(select 1 from public.pet_care_episodes where id = '41000000-0000-4000-8000-000000000102' and status = v_other_pet_status) then
     raise exception 'dismissal crossed into another owned pet';
   end if;
 

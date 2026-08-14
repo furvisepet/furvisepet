@@ -15,10 +15,20 @@ begin
   insert into auth.users (id, aud, role, email, encrypted_password, raw_app_meta_data, created_at, updated_at, email_confirmed_at)
   values
     (v_free_user, 'authenticated', 'authenticated', 'entitlement-free@example.test', '', '{}'::jsonb, now(), now(), now()),
-    (v_plus_user, 'authenticated', 'authenticated', 'entitlement-plus@example.test', '', '{"plan":"plus"}'::jsonb, now(), now(), now()),
+    (v_plus_user, 'authenticated', 'authenticated', 'entitlement-plus@example.test', '', '{}'::jsonb, now(), now(), now()),
     (v_qa_user, 'authenticated', 'authenticated', 'entitlement-qa@example.test', '', '{}'::jsonb, now(), now(), now()),
     (v_other_user, 'authenticated', 'authenticated', 'entitlement-other@example.test', '', '{}'::jsonb, now(), now(), now())
   on conflict (id) do update set raw_app_meta_data = excluded.raw_app_meta_data, email_confirmed_at = excluded.email_confirmed_at;
+
+  insert into public.billing_accounts (
+    user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_currency, checkout_price_id,
+    plan, subscription_status, current_period_start, current_period_end
+  ) values (
+    v_plus_user, 'cus_entitlement_plus', 'sub_entitlement_plus', 'price_entitlement_plus', 'usd', 'price_entitlement_plus',
+    'plus', 'active', now() - interval '1 day', now() + interval '29 days'
+  ) on conflict (user_id) do update set
+    plan = excluded.plan, subscription_status = excluded.subscription_status,
+    current_period_start = excluded.current_period_start, current_period_end = excluded.current_period_end;
 
   if has_table_privilege('authenticated', 'public.account_access_grants', 'select')
     or has_table_privilege('authenticated', 'public.account_access_grants', 'insert')
@@ -93,9 +103,10 @@ begin
   end;
   if not v_rejected then raise exception 'free pet limit was not enforced'; end if;
 
-  insert into public.ai_usage_events (user_id, request_id, feature, credits_used, status, period_start, completed_at)
-  select v_free_user, gen_random_uuid(), 'ask', 1, 'completed', date_trunc('month', timezone('utc', now()))::date, now()
-  from generate_series(1, 50);
+  insert into public.ai_usage_events (user_id, request_id, feature, credits_used, status, period_start, allowance_period_key, completed_at)
+  select v_free_user, gen_random_uuid(), 'ask', 1, 'completed', date_trunc('month', timezone('utc', now()))::date,
+    'free:' || to_char(timezone('utc', now()), 'YYYY-MM'), now()
+  from generate_series(1, 8);
   select * into strict v_credit from public.reserve_ai_credit(v_request, 'ask', 1000000);
   if v_credit.reservation_status <> 'limit_reached' or v_credit.remaining <> 0 then
     raise exception 'authenticated caller inflated its allowance: %', row_to_json(v_credit);

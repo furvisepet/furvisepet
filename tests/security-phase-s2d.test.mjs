@@ -281,7 +281,7 @@ test("every current API mutation route is inventoried behind a direct or canonic
     "app/api/shop/interpret-query/route.ts", "app/api/shop/product-question/route.ts",
   ]);
   const authenticated = new Set([
-    "app/api/account/delete/route.ts", "app/api/account/export/route.ts", "app/api/account/product-country/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/care-entries/route.ts",
+    "app/api/account/delete/route.ts", "app/api/account/export/route.ts", "app/api/account/product-country/route.ts", "app/api/billing/checkout/route.ts", "app/api/billing/portal/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/care-entries/route.ts",
     "app/api/legacy-memories/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts",
   ]);
   const conversations = new Set([
@@ -295,7 +295,8 @@ test("every current API mutation route is inventoried behind a direct or canonic
     "app/api/auth/login/route.ts", "app/api/auth/oauth/route.ts", "app/api/auth/recovery/continue/route.ts", "app/api/auth/recovery/route.ts",
     "app/api/auth/resend/route.ts", "app/api/auth/signup/route.ts", "app/api/auth/update-password/route.ts",
   ]);
-  const inventoried = [...direct, ...authenticated, ...conversations, ...vetBriefs, ...petProfiles, ...publicAuth].sort();
+  const signedWebhooks = new Set(["app/api/billing/webhook/route.ts"]);
+  const inventoried = [...direct, ...authenticated, ...conversations, ...vetBriefs, ...petProfiles, ...publicAuth, ...signedWebhooks].sort();
   assert.deepEqual(mutationRoutes, inventoried);
   for (const route of direct) assert.match(read(route), /validateSensitiveRequestOriginResponse/, route);
   for (const route of authenticated) assert.match(read(route), /getAuthenticatedApiContext/, route);
@@ -303,6 +304,10 @@ test("every current API mutation route is inventoried behind a direct or canonic
   for (const route of vetBriefs) assert.match(read(route), /getVetBriefRequestContext/, route);
   for (const route of petProfiles) assert.match(read(route), /saveProfile/, route);
   for (const route of publicAuth) assert.match(read(route), /validatePublicAuthOrigin/, route);
+  for (const route of signedWebhooks) {
+    assert.match(read(route), /stripe-signature/, route);
+    assert.match(read(route), /constructEvent\(rawBody, signature, getStripeWebhookSecret\(\)\)/, route);
+  }
   assert.match(read("app/lib/pet-profile-api-server.ts"), /getAuthenticatedApiContext/);
 });
 

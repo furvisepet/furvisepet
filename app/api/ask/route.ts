@@ -1024,7 +1024,7 @@ async function persistAssistantAnswer({
       } catch {
         await completeAiCredit({ requestId, supabase });
       }
-      nextUsage = await getRemainingAiCredits({ monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId });
+      nextUsage = await getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId });
       creditsUsed = 1;
       logAskStage("AI credit completed", { creditFinalState: "completed", creditReservationId: requestId, requestId });
     } catch (error) {
@@ -1537,6 +1537,7 @@ async function loadAskRequestContext(request: Request): Promise<
   let usage: AiCreditStatus;
   try {
     usage = await getRemainingAiCredits({
+      feature: "ask",
       planId,
       monthlyAiCredits: entitlements.limits.monthlyAiCredits,
       supabase,

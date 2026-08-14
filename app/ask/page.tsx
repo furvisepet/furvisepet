@@ -82,7 +82,7 @@ type AskSaveMetadata = {
 };
 type ContextUsed = { petName: string | null; usedSources: string[] };
 type CarePersistence = { status: "persisted" | "suggested" | "skipped" | "failed"; careEntryIds: string[]; concernIds: string[]; errorCode: string | null; memoryIds?: string[]; profileUpdated?: boolean };
-type AskUsageStatus = { allowed: boolean; count: number; limit: number; remaining: number };
+type AskUsageStatus = { allowed: boolean; count: number; limit: number; planId: "free" | "plus"; remaining: number; resetAt?: string };
 type SuggestionUiStatus = "idle" | "saving" | "applied" | "already_applied" | "failed" | "dismissed";
 type StateSuggestion = {
   id: string;
@@ -536,7 +536,7 @@ function AskPageContent() {
                   ? <UserMessage key={message.id} text={message.text} />
                   : <FurviseMessage key={message.id} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} />)}
                 {requestActive ? <Thinking petName={petName} /> : null}
-                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.question, "composer", failedRequest)} retryAfterSeconds={failedRequest.retryAfterSeconds} /> : null}
+                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.question, "composer", failedRequest)} planId={usage?.planId} retryAfterSeconds={failedRequest.retryAfterSeconds} /> : null}
                 <div aria-hidden="true" ref={conversationEndRef} />
               </div>
               {latestAnswer && latestAnswer.response.urgency !== "urgent" ? <SuggestedQuestions onSelect={(suggestion) => selectSuggestion(suggestion, "response_suggestion")} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
@@ -650,7 +650,7 @@ function Composer({ disabled, hasThread, inputRef, loading, onChange, onSubmit, 
 
 function Thinking({ petName }: { petName: string }) { return <div className="flex items-center gap-3 py-3 text-sm text-[var(--pw-muted)]" role="status"><BrandMark showName={false} size={24} /><span>{`Furvise is reviewing ${petName}'s saved details...`}</span></div>; }
 
-function AskFailureState({ code, onEdit, onRetry, retryAfterSeconds }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void; retryAfterSeconds?: number }) {
+function AskFailureState({ code, onEdit, onRetry, planId, retryAfterSeconds }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void; planId?: "free" | "plus"; retryAfterSeconds?: number }) {
   const presentation = getAskErrorPresentation(code, retryAfterSeconds);
   const message = code === "UNKNOWN_ERROR"
     ? FURVISE_ANSWER_UNAVAILABLE_MESSAGE
@@ -663,6 +663,7 @@ function AskFailureState({ code, onEdit, onRetry, retryAfterSeconds }: { code: A
     {presentation.recommendedAction !== "wait" ? <div className="mt-3 flex flex-wrap gap-2">
       {presentation.recommendedAction === "sign_in" ? <Link className={secondaryButton} href="/login?next=%2Fask">Sign in</Link> : null}
       {presentation.recommendedAction === "saved_data" ? <><Link className={secondaryButton} href="/pets">Back to pets</Link><Link className={quietButton} href="/care-log">View history</Link></> : null}
+      {code === "AI_CREDITS_EXHAUSTED" && planId === "free" ? <Link className={secondaryButton} href="/account#plans">Upgrade to Plus</Link> : null}
       {presentation.retryable ? <button className={secondaryButton} onClick={onRetry} type="button">Try again</button> : null}
       {presentation.recommendedAction === "edit" || presentation.retryable ? <button className={quietButton} onClick={onEdit} type="button">Edit question</button> : null}
     </div> : null}

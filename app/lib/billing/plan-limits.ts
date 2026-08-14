@@ -25,13 +25,15 @@ export type PlanCapabilities = PlanLimits & {
 
 export const FREE_PLAN_ID: PlanId = "free";
 export const PLUS_PLAN_ID: PlanId = "plus";
+export const FREE_ASK_ALLOWANCE = 8;
+export const PLUS_ASK_ALLOWANCE = 55;
 
 export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
   free: {
     id: "free",
     label: "Free plan",
     aiCreditsMonthlyLimit: 50,
-    askFurviseMonthlyLimit: 50,
+    askFurviseMonthlyLimit: FREE_ASK_ALLOWANCE,
     careLog: "unlimited",
     curatedProducts: true,
     dashboard: true,
@@ -48,7 +50,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {
     id: "plus",
     label: "Furvise Plus",
     aiCreditsMonthlyLimit: 500,
-    askFurviseMonthlyLimit: 500,
+    askFurviseMonthlyLimit: PLUS_ASK_ALLOWANCE,
     careLog: "unlimited",
     curatedProducts: true,
     dashboard: true,
