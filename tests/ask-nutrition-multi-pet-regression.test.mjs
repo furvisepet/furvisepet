@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolveAuthoritativeTurnSubject } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
+import { getPersistenceNotices } from "../app/lib/ask-conversations.ts";
 import { governCanonicalEvents, governCanonicalEventsForOwnedPets } from "../app/lib/intelligence/semantic-events.ts";
 import { oneSemanticEventPerPet, persistSemanticEventRpc, temporalForSemanticPersistence } from "../app/lib/intelligence/semantic-event-persistence.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
@@ -48,7 +49,7 @@ test("only explicitly supported current-day wording drops an unsupported model i
   assert.equal(temporalForSemanticPersistence({ occurredAt: "2026-08-12T09:30:00Z", explicitTime: "Wednesday at 9:30" }).occurredAt, "2026-08-12T09:30:00Z");
 });
 
-test("mixed named-pet context does not block Milo's grounded symptom", () => {
+test("Milo has diarrhea but Coco is fine. persists only Milo's grounded symptom", async () => {
   const message = "Milo has diarrhea but Coco is fine.";
   const frame = frameFor(message, [
     claim("milo", "Milo", "diarrhea", "temporary"),
@@ -59,11 +60,70 @@ test("mixed named-pet context does not block Milo's grounded symptom", () => {
   assert.deepEqual(resolution.petIds, [milo.id, coco.id]);
 
   const governed = governCanonicalEventsForOwnedPets({
-    proposals: [event({ subject: { type: "pet", name: "Milo" }, topic: "diarrhea", eventTitle: "Diarrhea observed", sourceExcerpt: "Milo has diarrhea" })],
+    proposals: [
+      event({ subject: { type: "pet", name: "Milo" }, topic: "diarrhea", eventTitle: "Diarrhea observed", sourceExcerpt: "Milo has diarrhea" }),
+      event({
+        subject: { type: "pet", name: "Coco" }, topic: "diarrhea", eventTitle: "Coco is fine",
+        transition: "confirmed", state: "historical", sourceExcerpt: "Coco is fine",
+      }),
+    ],
     message, pets: [milo, coco], activeEpisodes: [], subjectConfidence: 0.99,
   });
   assert.equal(governed.accepted.length, 1);
   assert.equal(governed.accepted[0].event.subject.id, milo.id);
+  assert.equal(governed.rejected.length, 1);
+  assert.equal(governed.rejected[0].proposal.subject.name, "Coco");
+  assert.equal(governed.rejected[0].reason, "no_compatible_active_episode");
+
+  const calls = [];
+  const careEntryIds = [];
+  for (const governedEvent of oneSemanticEventPerPet(governed.accepted, milo.id)) {
+    const result = await persistSemanticEventRpc({
+      event: governedEvent, fallbackPetId: milo.id, sourceMessageId: "mixed-message", userId: "owner-1",
+      supabase: { rpc: async (name, args) => {
+        calls.push({ name, args });
+        return { data: [{ persistence_status: "persisted", care_entry_id: `care-${args.p_pet_id}` }], error: null };
+      } },
+    });
+    careEntryIds.push(result.data[0].care_entry_id);
+  }
+  const carePersistence = { status: "persisted", careEntryIds, concernIds: [], errorCode: null };
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].args.p_pet_id, milo.id);
+  assert.deepEqual(careEntryIds, [`care-${milo.id}`]);
+  assert.equal(Boolean(careEntryIds.length), true);
+  assert.deepEqual(getPersistenceNotices({ carePersistence }).map((notice) => notice.label), ["Added to care history"]);
+});
+
+test("a mixed-turn Coco recovery remains valid only with Coco's compatible active episode", () => {
+  const message = "Milo has diarrhea but Coco hasn't vomited again and is acting normal now.";
+  const cocoVomiting = {
+    id: "episode-coco-vomiting", pet_profile_id: coco.id, normalized_key: "health_vomiting",
+    episode_type: "symptom", title: "Vomiting", severity: "routine", status: "active",
+    sequence_number: 1, recurrence_of: null, started_at: "2026-08-14T08:00:00Z",
+    last_event_at: "2026-08-14T08:00:00Z", resolved_at: null, linked_concern_id: "concern-coco-vomiting",
+    summary: { semanticDomain: "health", semanticTopic: "vomiting" },
+  };
+  const governed = governCanonicalEventsForOwnedPets({
+    proposals: [event({
+      subject: { type: "pet", name: "Coco" }, topic: "vomiting", eventTitle: "Vomiting improved",
+      transition: "improved", state: "monitoring", sourceExcerpt: "Coco hasn't vomited again and is acting normal now",
+    })],
+    message, pets: [milo, coco], activeEpisodes: [cocoVomiting], subjectConfidence: 0.99,
+    allowTerminalResolution: true,
+    recoveryAssessment: {
+      status: "terminal", confidence: 0.99,
+      evidence: {
+        outcome: "symptom_absent", surfaceText: "Coco hasn't vomited again and is acting normal now",
+        targetConcept: "vomiting", confidence: 0.99,
+      },
+    },
+  });
+  assert.equal(governed.rejected.length, 0);
+  assert.equal(governed.accepted.length, 1);
+  assert.equal(governed.accepted[0].event.subject.id, coco.id);
+  assert.equal(governed.accepted[0].event.transition, "resolved");
+  assert.equal(governed.accepted[0].event.references.episodeId, cocoVomiting.id);
 });
 
 test("Milo is vomiting and Coco is limping. resolves and persists both event-kind medical observations per pet", async () => {
