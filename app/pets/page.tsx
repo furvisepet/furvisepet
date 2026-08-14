@@ -21,6 +21,7 @@ import { clearActivePetId } from "../lib/active-pet";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import { formatCareEntryTimestamp, formatCareNotePreview } from "../lib/care-log.mjs";
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
+import { useAppDataVersion } from "../lib/navigation/app-data-freshness";
 import type { AskConversationSummary } from "../lib/ask-conversations";
 import {
   deleteDogProfileForUser,
@@ -33,6 +34,7 @@ import {
 } from "../lib/supabase";
 
 export default function PetsPage() {
+  const appDataVersion = useAppDataVersion();
   const { status: authStatus, user } = useRequireConfirmedSupabaseAuth();
   const [profiles, setProfiles] = useState<DogProfileWithMemories[]>([]);
   const [entries, setEntries] = useState<CareEntryWithPetName[]>([]);
@@ -63,7 +65,7 @@ export default function PetsPage() {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [authStatus, user]);
+  }, [appDataVersion, authStatus, user]);
 
   async function deleteProfile(profile: DogProfileWithMemories) {
     if (!window.confirm(`Delete ${formatPetDisplayName(profile.name)}'s profile? This cannot be undone.`)) return;

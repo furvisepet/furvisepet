@@ -33,7 +33,7 @@ export function normalizeKnownPreferenceMemory(input: PreferenceMemoryShape): No
   const raw = structured.value ?? (typeof input.factValue === "string" ? input.factValue : null);
   if (raw === null) return null;
   const parsed = parseKnownFoodPreferenceValue(String(raw), input.petName || null);
-  const object = normalizeObject(parsed.object);
+  const object = normalizePreferenceObject(parsed.object, key);
   if (!object) return null;
   const polarity = structured.polarity
     ?? (key === "dislikesfood" || key === "foodavoid" || key === "foodavoidance" || parsed.polarity === "avoid" ? "avoid" : "prefer");
@@ -54,12 +54,21 @@ export function preferenceSemanticIdentity(semantic: NormalizedPreferenceSemanti
   return `${preferenceTargetIdentity(semantic)}:${semantic.polarity}`;
 }
 
+export function historicalPreferenceTargetIdentity(input: PreferenceMemoryShape) {
+  if (normalizeKey(input.factKey) !== "previouspreferredfood" || input.subjectType !== "pet" || !input.subjectId) return null;
+  const raw = objectValue(input.factValue).value ?? (typeof input.factValue === "string" ? input.factValue : null);
+  const object = raw === null ? "" : normalizeObject(String(raw));
+  return object ? preferenceTargetIdentity({ subjectType: "pet", subjectId: input.subjectId, role: "food_preference", object, polarity: "prefer" }) : null;
+}
+
 export function planPreferenceSupersession(
   learnings: readonly PreferenceLearningShape[],
   stored: readonly StoredPreferenceShape[],
 ) {
   const targets = new Set<string>();
   for (const learning of learnings) {
+    const historicalTarget = historicalPreferenceTargetIdentity(learning);
+    if (historicalTarget) targets.add(historicalTarget);
     const semantic = normalizeKnownPreferenceMemory(learning);
     if (!semantic || semantic.subjectType !== "pet" || !semantic.subjectId) continue;
     if (semantic.polarity === "avoid") targets.add(preferenceTargetIdentity(semantic));
@@ -84,7 +93,11 @@ function isKnownFoodPreferenceKey(key: string, canonical: string) {
     || key === "foodavoid"
     || key === "foodavoidance"
     || key === "food_preference"
+    || key === "preferredfood"
+    || key === "treatpreference"
+    || key === "treat_preference"
     || key.startsWith("food_preference_")
+    || key.startsWith("treat_preference_")
     || key.startsWith("petfoodpreference");
 }
 
@@ -99,7 +112,7 @@ function objectValue(value: unknown): { value: string | null; polarity: Preferen
 
 function parseKnownFoodPreferenceValue(value: string, petName: string | null) {
   const clean = value.normalize("NFKC").replace(/\s+/g, " ").replace(/[.!]+$/, "").trim();
-  const subject = petName ? escapeRegex(petName) : "[\\p{L}\\p{N}'-]+";
+  const subject = petName ? `(?:${escapeRegex(petName)}|he|she|they|it)` : "[\\p{L}\\p{N}'-]+";
   const match = new RegExp(`^(?:${subject}\\s+)?(doesn't like|does not like|dislikes?|avoids?|likes?|prefers?)\\s+(.+)$`, "iu").exec(clean);
   if (!match) return { object: clean, polarity: null as PreferencePolarity | null };
   return {
@@ -112,10 +125,18 @@ function normalizeObject(value: string) {
   return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function normalizePreferenceObject(value: string, key: string) {
+  const normalized = normalizeObject(value).replace(/\s+anymore$/, "").trim();
+  return /^treat_?preference(?:_|$)/.test(key)
+    ? normalized.replace(/\s+(?:(?:dog|cat)\s+)?treats?$/, "").trim()
+    : normalized;
+}
+
 function explicitlyReplacedPreferenceValues(value: string) {
   const patterns = [
     /(?:doesn't|does not|no longer)\s+like\s+([^,.!?;]+)/ig,
     /instead\s+of\s+([^,.!?;]+)/ig,
+    /used\s+to\s+(?:like|prefer)\s+([^,.!?;]+?)(?:\s+but\s+now\b|[.!?]|$)/ig,
   ];
   return patterns.flatMap((pattern) => [...value.matchAll(pattern)].map((match) => normalizeObject(match[1])));
 }

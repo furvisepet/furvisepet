@@ -1,7 +1,7 @@
 import type { FurviseMemoryRow } from "./intelligence/types.ts";
 import { calculateMemoryFreshness, type FreshnessStatus } from "./intelligence/memory-freshness/calculate-memory-freshness.ts";
 import type { DogMemoryRow } from "./supabase.ts";
-import { normalizeKnownPreferenceMemory, preferenceTargetIdentity } from "./intelligence/preference-semantics.ts";
+import { historicalPreferenceTargetIdentity, normalizeKnownPreferenceMemory, preferenceTargetIdentity } from "./intelligence/preference-semantics.ts";
 
 export type RememberedDetail = {
   id: string;
@@ -86,8 +86,10 @@ export function isVisibleCanonicalMemory(memory: FurviseMemoryRow, now = new Dat
 export function formatCanonicalMemory(memory: FurviseMemoryRow, petName: string) {
   const value = factValueText(memory.fact_value);
   const key = compact(memory.fact_key);
+  const ownerPreference = ownerPreferenceSemantics(memory);
+  if (ownerPreference?.role === "retailer") return `You usually shop at ${ownerPreference.value}.`;
+  if (ownerPreference?.role === "monthly_pet_supply_budget") return `Your pet-supply budget is $${ownerPreference.value}/month.`;
   if (key === "prefersdentalchewtexture") return `${petName} prefers ${value.replace(/^softer\b/i, "soft")}`;
-  if (key === "preferredstore" || key === "preferredretailer") return `You usually shop at ${value}`;
   if (key === "productbudgetpreference" || key === "budgetpreference") {
     const clearer = value.replace(/unless there is a much better option/i, "unless there is a clearly better option");
     return `You prefer products ${clearer}`;
@@ -104,8 +106,15 @@ function factValueText(value: unknown) {
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
-    for (const key of ["text", "value", "name", "preference"]) {
-      if (typeof record[key] === "string") return record[key].trim();
+    const object = record.object;
+    if (object && typeof object === "object") {
+      const objectRecord = object as Record<string, unknown>;
+      for (const key of ["text", "value", "name", "amount"]) {
+        if (typeof objectRecord[key] === "string" || typeof objectRecord[key] === "number") return String(objectRecord[key]).trim();
+      }
+    }
+    for (const key of ["text", "value", "name", "amount", "preference"]) {
+      if (typeof record[key] === "string" || typeof record[key] === "number") return String(record[key]).trim();
     }
   }
   return "a remembered detail";
@@ -119,10 +128,13 @@ function formatCategory(value: string) {
 function normalizeText(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 
 function projectEffectiveCanonicalMemories(memories: FurviseMemoryRow[], petName: string, now: Date) {
-  const ordered = memories.filter((memory) => isVisibleCanonicalMemory(memory, now))
+  const visible = memories.filter((memory) => isVisibleCanonicalMemory(memory, now));
+  const replacedIdentities = new Set(visible.map((memory) => historicalPreferenceTargetIdentity({
+    subjectType: memory.subject_type, subjectId: memory.pet_id, factKey: memory.fact_key, factValue: memory.fact_value,
+  })).filter((identity): identity is string => Boolean(identity)));
+  const ordered = visible.filter((memory) => !isHistoricalOnlyMemory(memory))
     .sort((left, right) => Date.parse(right.last_confirmed_at) - Date.parse(left.last_confirmed_at));
   const seen = new Set<string>();
-  const replacedIdentities = new Set<string>();
   return ordered.filter((memory) => {
     const identity = semanticIdentity(memory, petName);
     const semantics = foodPreferenceSemantics(memory, petName);
@@ -147,6 +159,8 @@ function projectedSubject(memory: FurviseMemoryRow, petName: string): "pet" | "o
 }
 
 function semanticIdentity(memory: FurviseMemoryRow, petName: string) {
+  const ownerPreference = ownerPreferenceSemantics(memory);
+  if (ownerPreference) return `owner:${ownerPreference.role}`;
   const food = foodPreferenceSemantics(memory, petName);
   if (food) return preferenceTargetIdentity(food);
   const key = compact(memory.fact_key);
@@ -190,14 +204,34 @@ function sentenceValue(value: string) {
 }
 
 function compact(value: string) { return value.toLowerCase().replace(/[^a-z0-9]/g, ""); }
-function isExplicitCorrection(value: string) { return /\b(?:actually|instead|correction|not anymore|no longer)\b/i.test(value); }
+function isExplicitCorrection(value: string) { return /\b(?:actually|instead|correction|not anymore|no longer|used to)\b/i.test(value); }
 function explicitlyReplacedFoodObjects(value: string, petName: string) {
   const normalized = value.replace(/\s+/g, " ").trim();
   const subject = `(?:${escapeRegex(petName)}|he|she|they|my pet)`;
   const patterns = [
     new RegExp(`${subject}\\s+(?:doesn't|does not|no longer)\\s+like\\s+([^,.!?;]+)`, "ig"),
     /instead\s+of\s+([^,.!?;]+)/ig,
+    /used\s+to\s+(?:like|prefer)\s+([^,.!?;]+?)(?:\s+but\s+now\b|[.!?]|$)/ig,
   ];
   return patterns.flatMap((pattern) => [...normalized.matchAll(pattern)].map((match) => match[1].trim()));
+}
+function isHistoricalOnlyMemory(memory: FurviseMemoryRow) {
+  return compact(memory.fact_key) === "previouspreferredfood";
+}
+
+function ownerPreferenceSemantics(memory: FurviseMemoryRow): { role: "retailer" | "monthly_pet_supply_budget"; value: string } | null {
+  if (memory.subject_type !== "owner") return null;
+  const key = compact(memory.fact_key);
+  const raw = factValueText(memory.fact_value).replace(/[.!]+$/, "").trim();
+  if (["preferredstore", "preferredretailer", "petfoodstorepreference"].includes(key)) {
+    const retailer = /\b(?:shop|buy)(?:s|ping|ing)?(?:\s+pet\s+food)?\s+(?:at|from)\s+([\p{L}\p{N}&'-]+)/iu.exec(raw)?.[1]
+      || (/^(?!prefer$)[\p{L}\p{N}&'-]+$/iu.test(raw) ? raw : "");
+    return retailer ? { role: "retailer", value: retailer } : null;
+  }
+  if (["productbudgetpreference", "budgetpreference", "monthlypetsupplyspendinglimit", "petsuppliesmonthlybudgetlimit"].includes(key)) {
+    const amount = /(?:\$\s*)?(\d+(?:\.\d{1,2})?)/.exec(raw)?.[1];
+    return amount ? { role: "monthly_pet_supply_budget", value: amount.replace(/\.00$/, "") } : null;
+  }
+  return null;
 }
 function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

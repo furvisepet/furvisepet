@@ -37,15 +37,24 @@ export function routePersistenceDestinations(input: {
 }) {
   const message = input.message.trim();
   const petPreference = /\b(refuses?|dislikes?|likes?|prefers?)\b/i.test(message) && /\b(chews?|treats?|textures?|baths?|groom\w*|food)\b/i.test(message);
-  const retailerPreference = /\b(?:usually\s+)?shop(?:s|ping)?\s+(?:at|from)\s+([A-Z][\w&'-]*)/i.exec(message);
-  const budgetPreference = /\bprefer\w*\s+products?\s+under\s+\$(\d+(?:\.\d{1,2})?)/i.exec(message);
+  const retailerPreference = /\b(?:(?:usually\s+)?shop(?:s|ping)?|(?:usually\s+)?buy(?:s|ing)?(?:\s+pet\s+food)?)\s+(?:at|from)\s+([A-Z][\w&'-]*)/i.exec(message);
+  const budgetPreference = /(?:\bprefer\w*\s+products?\s+under|\b(?:do\s+not|don't)\s+want\s+to\s+spend\s+more\s+than)\s+\$(\d+(?:\.\d{1,2})?)/i.exec(message);
   const medicationLifecycle = medicationUpdate(message);
   const vagueMedication = /\b(?:medication|medicine|tablet|capsule)\b/i.test(message) && !medicationLifecycle;
+  const authorizedPetIds = input.authorizedPetIds;
 
-  if ((input.authorizedPetIds?.length || 1) > 1) {
+  if (authorizedPetIds && input.learnings.some((learning) => learning.subjectType === "pet"
+    && (!learning.subjectId || !authorizedPetIds.includes(learning.subjectId)))) {
+    return {
+      decisions: [{ destination: "none", reason: "multi_subject_contains_unauthorized_pet", confidence: 1, requiresConfirmation: true }] satisfies PersistenceDestinationDecision[],
+      learnings: [], careActions: [],
+    };
+  }
+
+  if ((authorizedPetIds?.length || 1) > 1) {
     const independentlyGovernedPreferences = input.learnings.filter((learning) =>
       /preference/i.test(`${learning.category} ${learning.canonicalConceptKey || ""}`)
-      && (learning.subjectType === "owner" || Boolean(learning.subjectId && input.authorizedPetIds!.includes(learning.subjectId))));
+      && (learning.subjectType === "owner" || Boolean(learning.subjectId && authorizedPetIds!.includes(learning.subjectId))));
     const decisions: PersistenceDestinationDecision[] = [];
     if (independentlyGovernedPreferences.some((item) => item.subjectType === "pet")) {
       decisions.push({ destination: "pet_memory", reason: "independent_multi_pet_preferences", confidence: 0.99, requiresConfirmation: false });
@@ -90,7 +99,7 @@ export function routePersistenceDestinations(input: {
   if (budgetPreference) {
     return {
       decisions: [{ destination: "owner_memory", reason: "explicit_owner_budget_preference", confidence: 0.99, requiresConfirmation: false }] satisfies PersistenceDestinationDecision[],
-      learnings: [ownerLearning("product_budget_preference", `under $${budgetPreference[1]} unless there is a much better option`, message)], careActions: [],
+      learnings: [ownerLearning("monthly_pet_supply_spending_limit", budgetPreference[1], message)], careActions: [],
     };
   }
 

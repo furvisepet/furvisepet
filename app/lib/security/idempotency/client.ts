@@ -41,7 +41,7 @@ async function isCanonicalCompletion(response: Response) {
   if (response.status >= 500 || response.status === 429) return false;
   if (response.status !== 409) return true;
   const payload = await response.clone().json().catch(() => null) as { code?: unknown } | null;
-  return payload?.code !== "REQUEST_IN_PROGRESS";
+  return payload?.code !== "REQUEST_IN_PROGRESS" && payload?.code !== "AI_REQUEST_ALREADY_ACTIVE";
 }
 
 function safeScope(scope: string) {

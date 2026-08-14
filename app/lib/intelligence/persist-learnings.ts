@@ -4,7 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeMemoryValue } from "./memory-policy";
 import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, IntelligenceLearning, IntelligencePersistenceSummary } from "./types";
 import { logIntelligenceError } from "./logging";
-import { normalizeKnownPreferenceMemory, planPreferenceSupersession } from "./preference-semantics";
+import { historicalPreferenceTargetIdentity, normalizeKnownPreferenceMemory, planPreferenceSupersession, preferenceTargetIdentity } from "./preference-semantics";
+import { groupLearningsByPersistencePet } from "./persistence-partition";
 
 export class IntelligencePersistenceError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -63,9 +64,12 @@ export async function persistIntelligenceLearnings({
         if (row) persistenceRows.push(row);
       }
     }
-    await suppressExplicitlyReplacedPreferences({
+    const crossRepresentationSuperseded = await suppressExplicitlyReplacedPreferences({
       learnings: normalizedLearnings, sourceMessageId, supabase, userId,
     });
+    if (crossRepresentationSuperseded > 0) {
+      persistenceRows.push({ memories_superseded: crossRepresentationSuperseded });
+    }
   }
   const memoryIds = normalizedLearnings.length
     ? await findConfirmedMemoryIds({ learnings: normalizedLearnings, supabase, userId })
@@ -183,16 +187,6 @@ async function findConfirmedMemoryIds({ learnings, supabase, userId }: {
   )).map((row) => row.id);
 }
 
-function groupLearningsByPersistencePet<T extends IntelligenceLearning>(learnings: T[], fallbackPetId: string) {
-  const groups = new Map<string, T[]>();
-  for (const learning of learnings) {
-    const targetPetId = learning.subjectType === "pet" ? learning.subjectId : fallbackPetId;
-    if (!targetPetId) continue;
-    groups.set(targetPetId, [...(groups.get(targetPetId) || []), learning]);
-  }
-  return [...groups.entries()];
-}
-
 async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageId, supabase, userId }: {
   learnings: Array<IntelligenceLearning & { normalizedValue: string }>;
   sourceMessageId: string;
@@ -202,6 +196,10 @@ async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageI
   const correctionPetIds = new Set<string>();
   for (const learning of learnings) {
     if (learning.subjectType !== "pet" || !learning.subjectId) continue;
+    if (historicalPreferenceTargetIdentity(learning)) {
+      correctionPetIds.add(learning.subjectId);
+      continue;
+    }
     const semantic = normalizeKnownPreferenceMemory({
       subjectType: learning.subjectType, subjectId: learning.subjectId, factKey: learning.factKey,
       factValue: learning.factValue, canonicalConceptKey: learning.canonicalConceptKey,
@@ -211,7 +209,28 @@ async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageI
       correctionPetIds.add(learning.subjectId);
     }
   }
+  let supersededCount = 0;
   for (const targetPetId of correctionPetIds) {
+    const { data: successorRows, error: successorError } = await supabase.from("furvise_memories")
+      .select("id,fact_key,fact_value")
+      .eq("user_id", userId)
+      .eq("pet_id", targetPetId)
+      .eq("subject_type", "pet")
+      .eq("status", "active")
+      .eq("source_id", sourceMessageId)
+      .limit(20);
+    if (successorError) {
+      logIntelligenceError("corrected_preference_successor", successorError, { sourceMessageIdPresent: true, petIdPresent: true });
+      continue;
+    }
+    const successors = (successorRows || []).flatMap((row) => {
+      const semantic = normalizeKnownPreferenceMemory({
+        subjectType: "pet", subjectId: targetPetId, factKey: String(row.fact_key),
+        factValue: row.fact_value,
+      });
+      return semantic ? [{ id: String(row.id), semantic }] : [];
+    });
+    if (!successors.length) continue;
     const { data, error } = await supabase.from("furvise_memories")
       .select("id,fact_key,fact_value,source_id")
       .eq("user_id", userId)
@@ -233,14 +252,22 @@ async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageI
     ));
     for (const row of data || []) {
       if (!supersededIds.has(String(row.id))) continue;
-      const { error: suppressError } = await supabase.rpc("manage_furvise_memory", {
-        p_memory_id: row.id, p_action: "forget", p_fact_value: null,
+      const priorSemantic = normalizeKnownPreferenceMemory({
+        subjectType: "pet", subjectId: targetPetId, factKey: String(row.fact_key), factValue: row.fact_value,
       });
+      const successor = successors.find((item) => priorSemantic && preferenceTargetIdentity(item.semantic) === preferenceTargetIdentity(priorSemantic))
+        || successors.find((item) => item.semantic.polarity === "prefer")
+        || successors[0];
+      const { data: suppressedRows, error: suppressError } = await supabase.from("furvise_memories")
+        .update({ status: "superseded", superseded_by: successor.id, updated_at: new Date().toISOString() })
+        .eq("id", row.id).eq("user_id", userId).eq("status", "active").select("id");
       if (suppressError) logIntelligenceError("corrected_preference_suppression", suppressError, {
         sourceMessageIdPresent: true, petIdPresent: true,
       });
+      else supersededCount += suppressedRows?.length || 0;
     }
   }
+  return supersededCount;
 }
 
 function normalizeFactKey(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }

@@ -47,14 +47,14 @@ test("visual layers cannot intercept taps and interactive content owns hit testi
 
 test("each dock route uses one standard Link click with immediate pressed feedback", () => {
   assert.match(bottomDock, /MOBILE_NAV_ITEMS\.map[\s\S]*<Link[\s\S]*touch-manipulation[\s\S]*active:bg-\[var\(--surface-hover\)\][\s\S]*href=\{item\.href\}/);
-  assert.doesNotMatch(bottomDock, /onTouchStart|onPointerDown|preventDefault|stopPropagation|router\.push/);
-  assert.doesNotMatch(bottomDock, /onClick=/);
+  assert.doesNotMatch(bottomDock, /onTouchStart|onPointerDown|stopPropagation|router\.push/);
+  assert.match(bottomDock, /onClick=\{guardAppNavigation\}/);
 });
 
 test("scroll, resize, and route state cannot move or disable the dock", () => {
   assert.match(bottomDock, /data-state="stable"[\s\S]*h-\[var\(--mobile-nav-expanded-height\)\]/);
   assert.doesNotMatch(header, /addEventListener\("scroll"|expandAfterIdle|mobileNavigationState|pointer-events-none[^"]*mobile-liquid-glass-content/);
-  assert.doesNotMatch(bottomDock, /translate|transition-\[height|transition-\[width|disabled=/);
+  assert.doesNotMatch(bottomDock, /translate|transition-\[height|transition-\[width|\sdisabled=/);
   assert.doesNotMatch(liquidGlassHook, /pathname|lifecycleKey|route_change/);
   assert.match(liquidGlassHook, /\}, \[enabled, glassRef, rootRef\]\);/);
 });

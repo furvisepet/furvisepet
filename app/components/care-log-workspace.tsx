@@ -29,10 +29,12 @@ import {
   resolveCareLogInitialPetId,
 } from "../lib/care-log.mjs";
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
+import { useAppDataVersion } from "../lib/navigation/app-data-freshness";
 
 type Props = { petProfileId?: string; scope: "global" | "pet" };
 
 export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
+  const appDataVersion = useAppDataVersion();
   const searchParams = useSearchParams();
   const configError = getSupabaseConfigError();
   const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
@@ -79,7 +81,7 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
     return () => {
       active = false;
     };
-  }, [authStatus, authUser, configError, isPetScope, petProfileId]);
+  }, [appDataVersion, authStatus, authUser, configError, isPetScope, petProfileId]);
 
   const activeOverlayOpen = overlayOpen || searchParams.get("new") === "1";
   const activeViewingEntry =

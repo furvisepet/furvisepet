@@ -16,6 +16,7 @@ import { routePersistenceDestinations } from "./persistence-destination.ts";
 import { governCanonicalEvents, learningFromSemanticEvent } from "./semantic-events.ts";
 import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } from "./semantic-observability.ts";
 import type { GovernedConceptIdentity, GovernedSemanticTurn } from "./v2/types.ts";
+import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
 import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/legacy-memory.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
@@ -43,6 +44,7 @@ export async function runFurviseIntelligence({
   subjectConfidence = 1,
   canonicalConcepts = [],
   authoritativePetIds = [context.pet.id],
+  authoritativeSemanticFrame,
 }: {
   context: FurviseLiveContext;
   requestId: string;
@@ -51,6 +53,7 @@ export async function runFurviseIntelligence({
   subjectConfidence?: number;
   canonicalConcepts?: GovernedConceptIdentity[];
   authoritativePetIds?: string[];
+  authoritativeSemanticFrame?: ProposedSemanticFrame;
 }): Promise<FurviseIntelligenceResult> {
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
@@ -156,7 +159,7 @@ export async function runFurviseIntelligence({
   let governedV2Turn: GovernedSemanticTurn | null = null;
   try {
     governedV2Turn = governSemanticTurnV2({
-      frame: reasoning.semanticFrame,
+      frame: authoritativeSemanticFrame || reasoning.semanticFrame,
       sourceMessage: context.currentMessage,
       sourceMessageId,
       ownerId: context.owner.userId,
