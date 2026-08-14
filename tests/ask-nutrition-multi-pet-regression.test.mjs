@@ -89,18 +89,28 @@ test("Milo is vomiting and Coco is limping. resolves and persists both event-kin
   assert.deepEqual(perPetEvents.map((item) => item.event.subject.id), [milo.id, coco.id]);
 
   const calls = [];
+  const persistenceResults = [];
   for (const governedEvent of perPetEvents) {
-    await persistSemanticEventRpc({
-      event: governedEvent, fallbackPetId: milo.id, sourceMessageId: "message-1", userId: "owner-1",
+    persistenceResults.push(await persistSemanticEventRpc({
+      event: governedEvent, fallbackPetId: milo.id, sourceMessageId: "shared-source-message", userId: "owner-1",
       supabase: { rpc: async (name, args) => {
         calls.push({ name, args });
         return { data: [{ persistence_status: "persisted", care_entry_id: `care-${args.p_pet_id}` }], error: null };
       } },
-    });
+    }));
   }
   assert.equal(calls.length, 2);
   assert.deepEqual(calls.map((item) => item.args.p_pet_id), [milo.id, coco.id]);
   assert.ok(calls.every((item) => item.name === "persist_furvise_semantic_event"));
+  assert.ok(calls.every((item) => item.args.p_source_message_id === "shared-source-message"));
+  assert.deepEqual(persistenceResults.map((result) => result.error), [null, null]);
+  assert.deepEqual(
+    persistenceResults.map((result) => result.data[0]),
+    [
+      { persistence_status: "persisted", care_entry_id: `care-${milo.id}` },
+      { persistence_status: "persisted", care_entry_id: `care-${coco.id}` },
+    ],
+  );
 });
 
 test("an unknown explicit pet fails the entire mixed turn closed", () => {
@@ -128,14 +138,61 @@ test("a genuinely ambiguous pronoun beside a named pet still clarifies", () => {
 
 test("multi-pet care idempotency is scoped by target pet and safe database errors remain diagnosable", () => {
   const migration = readFileSync(new URL("../supabase/migrations/20260813010000_allow_one_ask_care_event_per_pet.sql", import.meta.url), "utf8");
+  const retryRouting = readFileSync(new URL("../supabase/migrations/20260728120000_fix_ask_retry_episode_consistency.sql", import.meta.url), "utf8");
+  const destinationRouting = readFileSync(new URL("../supabase/migrations/20260728123000_fix_persistence_destinations_and_medication_state.sql", import.meta.url), "utf8");
+  const medicationWrapper = destinationRouting.slice(
+    destinationRouting.indexOf("create function public.persist_furvise_care_event("),
+    destinationRouting.indexOf("create function public.refresh_pet_current_medications("),
+  );
+  const conflictRewriteList = migration.match(/foreach v_procedure in array array\[([\s\S]*?)\]\s*loop/)?.[1] || "";
+  assert.match(retryRouting, /on conflict \(user_id, intelligence_source_message_id\)/);
+  assert.match(destinationRouting, /rename to persist_furvise_care_event_before_destination_routing/);
+  assert.doesNotMatch(medicationWrapper, /on conflict \(user_id, intelligence_source_message_id\)/);
+  assert.match(medicationWrapper, /where user_id=p_user_id and intelligence_source_message_id=p_source_message_id limit 1 for update/);
   assert.match(migration, /user_id, pet_profile_id, intelligence_source_message_id/);
-  assert.match(migration, /persist_furvise_intelligence/);
-  assert.match(migration, /persist_furvise_care_event_with_concern/);
+  assert.match(conflictRewriteList, /persist_furvise_intelligence/);
+  assert.match(conflictRewriteList, /persist_furvise_care_event_with_concern/);
+  assert.match(conflictRewriteList, /persist_furvise_care_event_before_destination_routing/);
+  assert.doesNotMatch(conflictRewriteList, /'public\.persist_furvise_care_event\(uuid,uuid,uuid,jsonb,uuid\)'/);
   assert.match(migration, /ASK_CARE_IDEMPOTENCY_GUARD_UNEXPECTED/);
+  assert.match(migration, /v_old_lookup_count <> v_expected_old_lookup_count/);
+  assert.match(migration, /v_expected_new_lookup_count := regexp_count\(v_definition, v_new_entry_lookup_pattern\) \+ v_expected_old_lookup_count/);
+  assert.match(migration, /v_new_lookup_count <> v_expected_new_lookup_count/);
+  assert.doesNotMatch(migration, /v_new_lookup_count <> v_expected_old_lookup_count/);
+  assert.match(migration, /v_procedure := 'public\.persist_furvise_care_event\(uuid,uuid,uuid,jsonb,uuid\)'::regprocedure/);
+  assert.match(migration, /if regexp_count\(v_definition, v_old_conflict_pattern\) <> 0 then/);
+  assert.match(migration, /where user_id=p_user_id and pet_profile_id=p_pet_id and intelligence_source_message_id=p_source_message_id/);
+  assert.match(migration, /drop index if exists public\.pet_care_entries_intelligence_source_unique/);
+  assert.ok(
+    migration.indexOf("pet_care_entries_intelligence_source_pet_unique")
+      < migration.indexOf("drop index if exists public.pet_care_entries_intelligence_source_unique"),
+  );
+
+  const oldLookup = "where entry_row.user_id = p_user_id and entry_row.intelligence_source_message_id = p_source_message_id";
+  const newLookup = "where entry_row.user_id = p_user_id and entry_row.pet_profile_id = p_pet_id and entry_row.intelligence_source_message_id = p_source_message_id";
+  const withConcernBefore = `${newLookup}; ${oldLookup};`;
+  const withConcernExpectedFinal = occurrences(withConcernBefore, newLookup) + occurrences(withConcernBefore, oldLookup);
+  const withConcernAfter = withConcernBefore.replaceAll(oldLookup, newLookup);
+  assert.equal(occurrences(withConcernBefore, oldLookup), 1);
+  assert.equal(occurrences(withConcernBefore, newLookup), 1);
+  assert.equal(occurrences(withConcernAfter, oldLookup), 0);
+  assert.equal(occurrences(withConcernAfter, newLookup), 2);
+  assert.equal(occurrences(withConcernAfter, newLookup), withConcernExpectedFinal);
+
+  const beforeDestinationBefore = `${oldLookup};`;
+  const beforeDestinationExpectedFinal = occurrences(beforeDestinationBefore, newLookup) + occurrences(beforeDestinationBefore, oldLookup);
+  const beforeDestinationAfter = beforeDestinationBefore.replaceAll(oldLookup, newLookup);
+  assert.equal(occurrences(beforeDestinationAfter, oldLookup), 0);
+  assert.equal(occurrences(beforeDestinationAfter, newLookup), 1);
+  assert.equal(occurrences(beforeDestinationAfter, newLookup), beforeDestinationExpectedFinal);
   const logging = readFileSync(new URL("../app/lib/security/logging.ts", import.meta.url), "utf8");
   assert.match(logging, /errorIdentifier: safeDatabaseIdentifier/);
   assert.match(logging, /sqlState: typeof value\?\.code/);
 });
+
+function occurrences(value, target) {
+  return value.split(target).length - 1;
+}
 
 function resolve(frame, message, pets) {
   return resolveAuthoritativeTurnSubject({
