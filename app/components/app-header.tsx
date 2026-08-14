@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import {
   getActiveMobileNavigationTab,
@@ -12,6 +13,7 @@ import {
   shouldShowMobileNavigation,
 } from "../lib/navigation/mobile-navigation";
 import { useMobileLiquidGlass } from "../lib/navigation/use-mobile-liquid-glass";
+import { isAskRequestActive, useAskRequestActive } from "../lib/navigation/ask-request-activity";
 import { getBrowserSupabase } from "../lib/supabase";
 import { BrandMark } from "./brand-mark";
 import { appPageContainer, PrimaryButton, TextAction } from "./product-primitives";
@@ -96,6 +98,7 @@ export function AppHeader({
   homepageActions,
 }: AppHeaderProps) {
   const pathname = usePathname();
+  const askRequestActive = useAskRequestActive();
   const [localAuthState, setLocalAuthState] = useState<HeaderAuthState>(authState ?? "anonymous");
   const menuRef = useRef<HTMLDetailsElement>(null);
   const mobileMoreRef = useRef<HTMLDivElement>(null);
@@ -141,6 +144,11 @@ export function AppHeader({
     if (menuRef.current) menuRef.current.open = false;
   }
 
+  function guardAppNavigation(event: ReactMouseEvent<HTMLAnchorElement>) {
+    if (!isAskRequestActive()) return;
+    event.preventDefault();
+  }
+
   function closeMobileMore(restoreFocus = false) {
     setMobileMoreOpen(false);
     if (restoreFocus) requestAnimationFrame(() => mobileMoreButtonRef.current?.focus());
@@ -171,7 +179,7 @@ export function AppHeader({
       <header className={`${sticky ? "sticky top-0 z-[var(--z-sticky-controls)]" : ""} border-b border-[var(--border-subtle)] bg-[var(--pw-header-surface)] shadow-[var(--shadow-header)]`} data-ui="app-header">
         <div className={`${appPageContainer} flex min-h-[calc(4.25rem+env(safe-area-inset-top,0px))] items-center justify-between gap-4 pt-[env(safe-area-inset-top,0px)] lg:grid lg:min-h-[4.25rem] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4 lg:pt-0`} data-ui="header-optical-row">
           <div className="flex min-w-0 items-center lg:justify-self-start" data-ui="desktop-brand-zone">
-            <Link aria-label="Furvise home" className="flex min-h-11 shrink-0 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2" href={brandHref}>
+            <Link aria-disabled={askRequestActive || undefined} aria-label="Furvise home" className="flex min-h-11 shrink-0 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2" href={brandHref} onClick={guardAppNavigation}>
               {brandMark ?? <span className="inline-flex items-center [--brand-mark-size:2rem] lg:[--brand-mark-size:3.125rem]"><BrandMark priority size={32} /></span>}
             </Link>
           </div>
@@ -186,6 +194,8 @@ export function AppHeader({
                     data-active-indicator={isActive(item.href) ? "background" : undefined}
                     href={item.href}
                     key={item.href}
+                    onClick={guardAppNavigation}
+                    aria-disabled={askRequestActive || undefined}
                   >
                     {item.label}
                   </Link>
@@ -214,7 +224,7 @@ export function AppHeader({
                 </button>
                 {mobileMoreOpen ? (
                   <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[var(--z-popover)] w-64 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" data-ui="mobile-more-menu" id={mobileMoreMenuId} role="menu">
-                    <Link className="touch-manipulation flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)]" href="/shop" onClick={() => closeMobileMore()} role="menuitem">Products</Link>
+                    <Link aria-disabled={askRequestActive || undefined} className="touch-manipulation flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)]" href="/shop" onClick={(event) => { guardAppNavigation(event); if (!event.defaultPrevented) closeMobileMore(); }} role="menuitem">Products</Link>
                     {accountMenuItems.map((item) => item.type === "link" ? (
                       <Link className="touch-manipulation flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)]" href={item.href} key={item.label} onClick={() => closeMobileMore()} role="menuitem">{item.label}</Link>
                     ) : item.type === "label" ? (
@@ -258,6 +268,8 @@ export function AppHeader({
         </div>
       </header>
 
+      {askRequestActive ? <p className="border-b border-[var(--line)] bg-[var(--surface-supportive)] px-4 py-1.5 text-center text-xs font-medium text-[var(--text-secondary)]" role="status">Furvise is answering. Navigation will be available when it finishes.</p> : null}
+
       {showMobileNavigation ? (
         <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state="stable" data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
           <span aria-hidden="true" className="mobile-liquid-glass-scene" />
@@ -266,7 +278,7 @@ export function AppHeader({
             {MOBILE_NAV_ITEMS.map((item) => {
               const active = activeMobileTab === item.tab;
               return (
-                <Link aria-current={active ? "page" : undefined} aria-label={item.label} className={`touch-manipulation flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--surface-hover)] ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href}>
+                <Link aria-current={active ? "page" : undefined} aria-disabled={askRequestActive || undefined} aria-label={item.label} className={`touch-manipulation flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] px-1 text-[0.6875rem] leading-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--surface-hover)] ${active ? "font-semibold text-[var(--selected-navigation-foreground)]" : "font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--selected-navigation-foreground)]"}`} data-active-indicator={active ? "icon-capsule" : undefined} href={item.href} key={item.href} onClick={guardAppNavigation}>
                   <span className={`inline-flex h-10 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-pill)] transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none ${active ? "bg-[var(--selected-navigation-background)]" : ""}`}>
                     <NavigationIcon asset={item.asset} />
                   </span>

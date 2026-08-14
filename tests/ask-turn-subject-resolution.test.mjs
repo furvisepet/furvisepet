@@ -130,6 +130,26 @@ test("two owned pets remain independently resolvable when the model marks the tu
   });
 });
 
+test("three named owned pets retain all independently grounded subjects", () => {
+  const milo = { ...luna, id: "pet-milo", name: "Milo" };
+  const coco = { ...luna, id: "pet-coco", name: "Coco" };
+  const message = "Milo likes turkey, Luna likes tuna, and Coco likes lamb.";
+  const frame = multiPreferenceFrame(message, milo, luna, "turkey", "tuna");
+  frame.mentions.push({
+    localId: "animal_3", surface: "Coco", coarseType: "animal", confidence: 0.99,
+    attributes: { species: coco.species, lifeStage: null, ownership: "owner" }, evidence: [{ surfaceText: "Coco" }],
+  });
+  frame.claims.push({
+    localId: "claim_3", kind: "preference", subjectRef: "animal_3", predicate: concept("food preference"),
+    polarity: "affirmed", modality: "asserted", temporal: { occurredAt: null, validFrom: null, validTo: null, surfaceText: null, precision: "unknown" },
+    uncertainty: { confidence: 0.98, reasons: [] }, evidence: [{ surfaceText: "Coco likes lamb" }], persistenceHint: "pet_memory",
+    preference: "prefer", object: { concept: concept("food"), value: "lamb" }, constraints: [],
+  });
+  const result = resolveAuthoritativeTurnSubject({ frame, message, ownerId: "owner-1", pets: [milo, luna, coco], recentConversation: [], selectedPetId: luna.id });
+  assert.deepEqual(result.petIds, [milo.id, luna.id, coco.id]);
+  assert.equal(result.status, "multi_subject");
+});
+
 test("a partially unresolved multi-pet turn fails closed instead of using the selected pet", () => {
   const milo = { ...luna, id: "pet-milo", name: "Milo" };
   const message = "Milo likes salmon and Unknown likes chicken.";
@@ -145,6 +165,7 @@ test("Ask keeps conversation binding separate while using the resolved turn pet 
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
   assert.match(route, /conversationPetId: petId[\s\S]*petId: turnPetId/);
   assert.match(route, /persistAssistantAnswer\(\{[\s\S]*petId: turnPetId/);
+  assert.match(route, /authoritativeSemanticFrame: subjectFrame/);
   assert.match(route, /resolveAuthoritativeTurnSubject/);
   assert.match(route, /requiresClarification[\s\S]*buildSubjectClarificationOrchestration/);
 });

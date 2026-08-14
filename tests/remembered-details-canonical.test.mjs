@@ -29,8 +29,22 @@ test("active owner memories are grouped as Your preferences and not pet facts", 
     memory({ id: "costco", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "preferredstore", fact_value: "Costco" }),
     memory({ id: "budget", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "productbudgetpreference", fact_value: "under $30 unless there is a much better option" }),
   ], petName: "Maple", now });
-  assert.deepEqual(details.owner.map((item) => item.fact), ["You usually shop at Costco", "You prefer products under $30 unless there is a clearly better option"]);
+  assert.deepEqual(details.owner.map((item) => item.fact), ["You usually shop at Costco.", "Your pet-supply budget is $30/month."]);
   assert.equal(details.pet.length, 0);
+});
+
+test("owner compatibility rows collapse to one human retailer and budget item", () => {
+  const details = buildRememberedDetails({ canonical: [
+    memory({ id: "chewy-canonical", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "preferred_retailer", fact_value: { preference: "prefer", object: { value: "Chewy" } }, last_confirmed_at: "2026-07-27T20:00:03.000Z" }),
+    memory({ id: "chewy-compat", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "pet_food_store_preference", fact_value: "I usually buy pet food at Chewy.", last_confirmed_at: "2026-07-27T20:00:02.000Z" }),
+    memory({ id: "budget-canonical", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "monthly_pet_supply_spending_limit", fact_value: { preference: "prefer", object: { value: 80 } }, last_confirmed_at: "2026-07-27T20:00:01.000Z" }),
+    memory({ id: "budget-compat", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "petsuppliesmonthlybudgetlimit", fact_value: 80, last_confirmed_at: "2026-07-27T20:00:00.000Z" }),
+  ], petName: "Maple", now });
+  assert.deepEqual(details.owner.map((item) => item.fact).sort(), [
+    "You usually shop at Chewy.",
+    "Your pet-supply budget is $80/month.",
+  ].sort());
+  assert.equal(details.owner.some((item) => /shared this preference: (?:prefer|80)/i.test(item.fact)), false);
 });
 
 test("automatic approval does not require a manual-save source", () => {
@@ -118,7 +132,7 @@ test("legacy malformed owner pet-food keys project to the named pet and never le
     memory({ id: "chewy", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "preferred_retailer", fact_value: "Chewy" }),
   ], petName: "Milo", now });
   assert.deepEqual(details.pet.map((item) => item.fact), ["Milo prefers salmon."]);
-  assert.deepEqual(details.owner.map((item) => item.fact), ["You usually shop at Chewy"]);
+  assert.deepEqual(details.owner.map((item) => item.fact), ["You usually shop at Chewy."]);
   assert.equal(details.all.some((item) => /petfoodpreference/i.test(item.fact)), false);
 });
 

@@ -26,6 +26,7 @@ import { formatCareNotePreview, toLocalDateTimeInputValue } from "../lib/care-lo
 import { getFinishProfileItemsFromRow } from "../lib/finish-profile";
 import { readPhotoFile, saveLocalPhoto } from "../lib/local-pet-media";
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
+import { useAppDataVersion } from "../lib/navigation/app-data-freshness";
 import {
   buildTodayEntryDraft,
   buildTodayRecentEntries,
@@ -44,6 +45,7 @@ import {
 } from "../lib/supabase";
 
 export default function TodayPage() {
+  const appDataVersion = useAppDataVersion();
   const configError = getSupabaseConfigError();
   const { status: authStatus, user } = useRequireConfirmedSupabaseAuth();
   const [profiles, setProfiles] = useState<DogProfileWithMemories[]>([]);
@@ -92,7 +94,7 @@ export default function TodayPage() {
         if (active) setHistoryLoading(false);
       });
     return () => { active = false; };
-  }, [authStatus, configError, user]);
+  }, [appDataVersion, authStatus, configError, user]);
 
   const selectedProfile = profiles.find((profile) => profile.id === selectedPetId) ?? profiles[0] ?? null;
   const petName = selectedProfile ? formatPetDisplayName(selectedProfile.name) : "your pet";

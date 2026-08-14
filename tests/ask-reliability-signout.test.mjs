@@ -7,6 +7,7 @@ import { clearAskClientState } from "../app/lib/ask-conversations.ts";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const page = read("app/ask/page.tsx");
 const route = read("app/api/ask/route.ts");
+const errorUx = read("app/lib/ask-client-errors.ts");
 const conversationRoute = read("app/api/ask/conversations/[id]/route.ts");
 const conversationListRoute = read("app/api/ask/conversations/route.ts");
 const migration = read("supabase/migrations/20260727010000_add_ask_request_idempotency.sql");
@@ -37,7 +38,7 @@ test("failure preserves the visible user message and retry reuses its request ID
   assert.match(askFunction, /if \(!retry\) setThread/);
   assert.match(askFunction, /requestId = retry\?\.requestId \|\| getOrCreateClientMutationKey/);
   assert.match(askFunction, /requestPayload = retry\?\.payload \|\| buildAskRequestPayload/);
-  assert.match(askFunction, /setFailedRequest\(\{ code, payload: requestPayload, requestId, scope, userMessageId \}\)/);
+  assert.match(askFunction, /setFailedRequest\(\{ code: failure\.code, payload: requestPayload, requestId, retryAfterSeconds: failure\.retryAfterSeconds, scope, userMessageId \}\)/);
   assert.match(page, /clearClientMutationKey\(failedRequest\.scope, failedRequest\.requestId\)/);
   assert.doesNotMatch(askFunction, /current\.filter\(\(message\) => message\.id !== userMessageId\)/);
   assert.match(page, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
@@ -50,7 +51,8 @@ test("provider rate limits release the one reservation and return a stable recov
   assert.match(route, /isProviderRateLimit\(error\)/);
   assert.match(route, /"AI_RATE_LIMITED"/);
   assert.match(route, /Furvise is receiving a lot of questions right now\. Your message is saved, and no AI credit was used\. Try again in a moment\./);
-  assert.match(page, /code === "AI_RATE_LIMITED"/);
+  assert.match(errorUx, /"AI_RATE_LIMITED"/);
+  assert.match(errorUx, /Your question has been saved\. Try again in a moment\./);
 });
 
 test("Recent conversations excludes threads that have no assistant answer", () => {

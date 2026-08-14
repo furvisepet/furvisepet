@@ -10,8 +10,10 @@ import { formatPetDisplayName } from "../../../lib/petwise";
 import { buildRememberedDetails, type RememberedDetail } from "../../../lib/remembered-details";
 import { getBrowserSupabase, loadCanonicalRememberedDetailsForUser, loadDogProfileWithMemoriesForUser, type CanonicalRememberedDetailsRows, type DogProfileWithMemories } from "../../../lib/supabase";
 import { idempotentClientFetch } from "../../../lib/security/idempotency/client";
+import { useAppDataVersion } from "../../../lib/navigation/app-data-freshness";
 
 export default function RememberedDetailsPage() {
+  const appDataVersion = useAppDataVersion();
   const params = useParams<{ id: string }>();
   const { status, user } = useRequireConfirmedSupabaseAuth();
   const [profile, setProfile] = useState<DogProfileWithMemories | null>(null);
@@ -46,7 +48,7 @@ export default function RememberedDetailsPage() {
     }).catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : "Remembered details could not be loaded."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [fetchDetails, status, user]);
+  }, [appDataVersion, fetchDetails, status, user]);
 
   const name = profile ? formatPetDisplayName(profile.name) : "your pet";
   const details = useMemo(() => buildRememberedDetails({ canonical: rows.canonical, legacy: rows.legacy, petName: name }), [name, rows]);

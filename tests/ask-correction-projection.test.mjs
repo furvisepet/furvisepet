@@ -34,6 +34,15 @@ test("heterogeneous legacy food preferences normalize to one deterministic targe
   assert.deepEqual(new Set(shapes.map((item) => item.polarity)), new Set(["prefer"]));
 });
 
+test("food and treat representations for the same object share one exact semantic target", () => {
+  const shapes = [
+    stored("treat-prose", { factKey: "treat_preference", factValue: "Milo likes beef treats." }),
+    stored("food-canonical", { factKey: "food_preference_beef", factValue: { preference: "prefer", value: "beef" } }),
+  ].map((row) => normalizeKnownPreferenceMemory({ ...row, petName: "Milo" }));
+  assert.equal(shapes.every(Boolean), true);
+  assert.equal(new Set(shapes.map(preferenceTargetIdentity)).size, 1);
+});
+
 test("live and historical compact avoidance aliases share one negative semantic identity", () => {
   const shapes = [
     learning({ factKey: "foodavoid" }),
@@ -56,13 +65,23 @@ test("correction supersedes only Milo's positive chicken representations", () =>
     stored("milo-compact", { factKey: "foodpreference", factValue: "chicken" }),
     stored("milo-qualified", { factKey: "food_preference_chicken", factValue: { preference: "prefer", value: "chicken", conceptKey: "food_preference" } }),
     stored("milo-governed", { factKey: "model-food-label", canonicalConceptKey: "food_preference", factValue: { preference: "prefer", value: "chicken", conceptKey: "food_preference" } }),
+    stored("milo-treat", { factKey: "treat_preference", factValue: "Milo likes chicken treats." }),
     stored("milo-beef", { factKey: "likesfood", factValue: "beef" }),
     stored("luna-chicken", { subjectId: lunaId, factKey: "likesfood", factValue: "chicken" }),
   ];
   assert.deepEqual(planPreferenceSupersession(current, existing), [
-    "milo-prose", "milo-likes", "milo-compact-live", "milo-compact", "milo-qualified", "milo-governed",
+    "milo-prose", "milo-likes", "milo-compact-live", "milo-compact", "milo-qualified", "milo-governed", "milo-treat",
   ]);
   assert.deepEqual(planPreferenceSupersession(current, existing), planPreferenceSupersession(current, existing));
+});
+
+test("previous preferred food is a historical replacement marker for persistence", () => {
+  const current = [
+    learning({ factKey: "previouspreferredfood", factValue: "salmon", subjectId: lunaId, sourceExcerpt: "Luna used to like salmon" }),
+    learning({ factKey: "food_preference_tuna", factValue: { preference: "prefer", value: "tuna" }, subjectId: lunaId, sourceExcerpt: "now she prefers tuna" }),
+  ];
+  const existing = [stored("luna-salmon", { subjectId: lunaId, factKey: "food_preference_salmon", factValue: "salmon" })];
+  assert.deepEqual(planPreferenceSupersession(current, existing), ["luna-salmon"]);
 });
 
 test("Remembered Details hides an active stale prose row behind the effective correction", () => {
@@ -115,6 +134,35 @@ test("exact production sequence projects one negative chicken and one positive s
   const after = buildRememberedDetails({ petName: "Milo", now: new Date("2026-08-12T20:00:00Z"), canonical: afterRows });
   assert.deepEqual(new Set(after.pet.map((item) => item.fact)), new Set(["Milo dislikes chicken.", "Milo prefers salmon."]));
   assert.equal(after.pet.length, 2);
+});
+
+test("beef treat correction projects negative beef and human-readable turkey only", () => {
+  const details = buildRememberedDetails({ petName: "Milo", now: new Date("2026-08-12T20:00:00Z"), canonical: [
+    memory("old-beef-treat", {
+      fact_key: "treat_preference", fact_value: "Milo likes beef treats.",
+      last_confirmed_at: "2026-08-11T00:00:00Z",
+    }),
+    memory("beef-avoid", {
+      fact_key: "food_preference_beef", fact_value: { preference: "avoid", value: "beef" },
+      source_excerpt: "Milo doesn't like beef anymore", last_confirmed_at: "2026-08-12T00:00:00Z",
+    }),
+    memory("turkey", {
+      fact_key: "food_preference_turkey", fact_value: "He prefers turkey",
+      source_excerpt: "He prefers turkey", last_confirmed_at: "2026-08-12T00:00:01Z",
+    }),
+  ] });
+  assert.deepEqual(details.pet.map((item) => item.fact).sort(), ["Milo dislikes beef.", "Milo prefers turkey."].sort());
+  assert.equal(details.pet.some((item) => /prefers he prefers|prefers beef/i.test(item.fact)), false);
+});
+
+test("used-to replacement keeps salmon historical and projects tuna as current", () => {
+  const details = buildRememberedDetails({ petName: "Luna", now: new Date("2026-08-12T20:00:00Z"), canonical: [
+    memory("old-salmon", { pet_id: lunaId, fact_key: "food_preference_salmon", fact_value: "salmon", last_confirmed_at: "2026-08-11T00:00:00Z" }),
+    memory("previous-salmon", { pet_id: lunaId, fact_key: "previouspreferredfood", fact_value: "salmon", source_excerpt: "Luna used to like salmon", last_confirmed_at: "2026-08-12T00:00:00Z" }),
+    memory("preferred-tuna", { pet_id: lunaId, fact_key: "preferredfood", fact_value: "tuna", source_excerpt: "now she prefers tuna", last_confirmed_at: "2026-08-12T00:00:01Z" }),
+    memory("canonical-tuna", { pet_id: lunaId, fact_key: "food_preference_tuna", fact_value: { preference: "prefer", value: "tuna" }, source_excerpt: "Luna used to like salmon but now she prefers tuna", last_confirmed_at: "2026-08-12T00:00:02Z" }),
+  ] });
+  assert.deepEqual(details.pet.map((item) => item.fact), ["Luna prefers tuna."]);
 });
 
 test("one governed correction turn projects both independently grounded preference facts", () => {

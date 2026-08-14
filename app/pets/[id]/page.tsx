@@ -26,6 +26,7 @@ import {
   type PetProfileOverviewModel,
 } from "../../lib/pet-profile";
 import { formatSpecies, formatPetDisplayName } from "../../lib/petwise";
+import { useAppDataVersion } from "../../lib/navigation/app-data-freshness";
 import {
   deleteDogProfileForUser,
   getCurrentUser,
@@ -48,6 +49,7 @@ import { buildRememberedDetails, type RememberedDetails } from "../../lib/rememb
 type LoadState = "loading" | "ready" | "error";
 
 export default function PetProfilePage() {
+  const appDataVersion = useAppDataVersion();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -107,7 +109,7 @@ export default function PetProfilePage() {
     return () => {
       active = false;
     };
-  }, [authStatus, authUser, configError, params.id]);
+  }, [appDataVersion, authStatus, authUser, configError, params.id]);
 
   const storedGuidance = useMemo(() => readStoredGuidanceSnapshot(), []);
   const guidanceResult =

@@ -38,6 +38,9 @@ import {
   type DogProfileWithMemories,
 } from "../lib/supabase";
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
+import { markAppDataChanged } from "../lib/navigation/app-data-freshness";
+import { setAskRequestActive } from "../lib/navigation/ask-request-activity";
+import { getAskErrorPresentation, type AskFailureCode } from "../lib/ask-client-errors";
 
 const emptyStarters = [
   "What should I track before {pet}'s next vet visit?",
@@ -96,7 +99,6 @@ type StateSuggestion = {
 type ConversationMessage =
   | { id: string; role: "user"; text: string; requestId?: string | null; failed?: boolean }
   | { id: string; role: "furvise"; response: StructuredResponse; saveMetadata: AskSaveMetadata | null; contextUsed: ContextUsed | null; handledWithoutAi?: boolean; creditsUsed?: number; suggestion?: StateSuggestion | null; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null };
-type AskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR" | "NETWORK_ERROR";
 type AskRequestPhase = "idle" | "submitting" | "receiving" | "completed" | "failed" | "retrying";
 type FailedAskRequest = {
   code: AskFailureCode;
@@ -104,6 +106,7 @@ type FailedAskRequest = {
   requestId: string;
   scope: string;
   userMessageId: string;
+  retryAfterSeconds?: number;
 };
 
 export default function AskPage() {
@@ -212,6 +215,7 @@ function AskPageContent() {
   }
 
   async function openConversation(id: string, known = conversations) {
+    if (askRequestActiveRef.current) return;
     saveCurrentDraft();
     setError("");
     setStatus("");
@@ -261,6 +265,7 @@ function AskPageContent() {
   }
 
   function switchPet(petId: string) {
+    if (askRequestActiveRef.current) return;
     saveCurrentDraft();
     setSelectedPet(petId);
     if (typeof window !== "undefined") {
@@ -278,11 +283,13 @@ function AskPageContent() {
   }
 
   function requestNewQuestion() {
+    if (askRequestActiveRef.current) return;
     if (question.trim()) setPendingNewQuestion(true);
     else startNewQuestion();
   }
 
   function startNewQuestion() {
+    if (askRequestActiveRef.current) return;
     if (selectedPet && typeof window !== "undefined") window.localStorage.removeItem(getDraftKey(activeConversationId, selectedPet));
     setQuestion("");
     setThread([]);
@@ -318,6 +325,7 @@ function AskPageContent() {
     });
     const userMessageId = retry?.userMessageId || createMessageId("user");
     askRequestActiveRef.current = true;
+    setAskRequestActive(true);
     setRequestPhase(retry ? "retrying" : "submitting");
     setFailedRequest(null);
     setError("");
@@ -337,10 +345,11 @@ function AskPageContent() {
       setQuestion("");
       const result = await request;
       setRequestPhase("receiving");
-      const payload = await result.json().catch(() => null) as { assistantMessageId?: string; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null; code?: AskFailureCode; contextUsed?: ContextUsed | null; conversationId?: string; creditsUsed?: number; handledWithoutAi?: boolean; message?: string; persistence?: { saved?: boolean; warning?: string }; response?: unknown; saveMetadata?: AskSaveMetadata | null; success?: boolean; suggestion?: StateSuggestion | null; usage?: AskUsageStatus | null; userMessageId?: string } | null;
+      const payload = await result.json().catch(() => null) as { assistantMessageId?: string; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null; code?: AskFailureCode; contextUsed?: ContextUsed | null; conversationId?: string; creditsUsed?: number; dataChanged?: boolean; handledWithoutAi?: boolean; message?: string; persistence?: { saved?: boolean; warning?: string }; response?: unknown; retryAfterSeconds?: number; saveMetadata?: AskSaveMetadata | null; success?: boolean; suggestion?: StateSuggestion | null; usage?: AskUsageStatus | null; userMessageId?: string } | null;
       const parsed = parseAskConversationResponse(payload?.response) as StructuredResponse | null;
       if (payload?.usage) setUsage(payload.usage);
-      if (!result.ok || !payload?.success || !parsed || !payload.conversationId) throw new AskRequestError(payload?.code || "UNKNOWN_ERROR", payload?.message);
+      if (!result.ok || !payload?.success || !parsed || !payload.conversationId) throw new AskRequestError(payload?.code || "UNKNOWN_ERROR", payload?.message, payload?.retryAfterSeconds);
+      if (payload.dataChanged) markAppDataChanged();
 
       const confirmedCarePersistence = payload.carePersistence?.status === "persisted" && Boolean(payload.carePersistence.careEntryIds.length);
       const assistantMessage = { automaticSaveConfirmation: confirmedCarePersistence ? "Added to care history" : null, carePersistence: payload.carePersistence || null, contextUsed: payload.contextUsed || null, creditsUsed: payload.creditsUsed || 0, handledWithoutAi: Boolean(payload.handledWithoutAi), id: payload.assistantMessageId || createMessageId("furvise"), response: parsed, role: "furvise" as const, saveMetadata: payload.saveMetadata || null, suggestion: payload.suggestion || null };
@@ -361,12 +370,13 @@ function AskPageContent() {
       if (parsed.clarificationQuestion) trackAskEvent("clarification_requested", { answerType: parsed.answerType });
       if (parsed.saveSuggestions?.length) trackAskEvent("memory_save_suggested", { answerType: parsed.answerType });
     } catch (askError) {
-      const code = getAskFailureCode(askError);
-      setFailedRequest({ code, payload: requestPayload, requestId, scope, userMessageId });
+      const failure = getAskFailure(askError);
+      setFailedRequest({ code: failure.code, payload: requestPayload, requestId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId });
       setRequestPhase("failed");
       trackAskEvent("answer_failed", { source });
     } finally {
       askRequestActiveRef.current = false;
+      setAskRequestActive(false);
     }
   }
 
@@ -428,6 +438,7 @@ function AskPageContent() {
     try {
       const entry = buildGuidanceCareEntry(saveTarget.response, { ...saveTarget.saveMetadata, saveDetail: saveDraft.trim() });
       const result = await createCareEntryUnlessDuplicate({ category: entry.category as CareEntryCategory, note: entry.note, occurredAt: toLocalDateTimeInputValue(), petProfileId: activeProfile.id, severity: null, title: entry.title });
+      if (result.action === "created") markAppDataChanged();
       setSaveTargetId(null);
       setStatus(result.action === "duplicate" ? "This detail is already in History." : `Saved to ${petName}'s care history.`);
       trackAskEvent("memory_saved", { answerType: saveTarget.response.answerType });
@@ -472,6 +483,7 @@ function AskPageContent() {
         return;
       }
       const applyStatus = payload.status === "already_applied" ? "already_applied" : "applied";
+      markAppDataChanged();
       setThread((current) => updateMessageSuggestion(current, messageId, suggestion.id, {
         ...(payload.suggestion || {}),
         applyStatus,
@@ -497,9 +509,9 @@ function AskPageContent() {
       <header>
         <PageHeader
           actions={<nav aria-label="Conversation actions" className="flex flex-wrap gap-2">
-            {activeConversationId ? <button aria-label="Rename current conversation" className={quietButton} onClick={() => { const target = conversations.find((item) => item.id === activeConversationId); if (target) { setRenameTarget(target); setRenameDraft(target.title); } }} title="Rename conversation" type="button">Rename</button> : null}
-            <button className={secondaryButton} onClick={() => setHistoryOpen(true)} type="button">Recent conversations</button>
-            {activeConversationId || thread.length ? <button className={secondaryButton} onClick={requestNewQuestion} type="button">New question</button> : null}
+            {activeConversationId ? <button aria-label="Rename current conversation" className={quietButton} disabled={requestActive} onClick={() => { const target = conversations.find((item) => item.id === activeConversationId); if (target) { setRenameTarget(target); setRenameDraft(target.title); } }} title="Rename conversation" type="button">Rename</button> : null}
+            <button className={secondaryButton} disabled={requestActive} onClick={() => setHistoryOpen(true)} type="button">Recent conversations</button>
+            {activeConversationId || thread.length ? <button className={secondaryButton} disabled={requestActive} onClick={requestNewQuestion} type="button">New question</button> : null}
           </nav>}
           supportingText="Ask about changes, routines, products, or an upcoming vet visit."
           title={activeConversationId ? activeTitle : `Ask about ${petName}`}
@@ -515,7 +527,7 @@ function AskPageContent() {
 
       {!loading && profiles.length ? (
         <div className="mt-7 min-w-0">
-          <CompactPetSelector activeProfile={activeProfile} onChange={switchPet} profiles={profiles} selectedPet={selectedPet} />
+          <CompactPetSelector activeProfile={activeProfile} disabled={requestActive} onChange={switchPet} profiles={profiles} selectedPet={selectedPet} />
           <main className="min-w-0">
             <section aria-label="Conversation with Furvise" className={`flex w-full flex-col ${thread.length || requestActive ? "min-h-[66vh]" : ""}`}>
               <div aria-live="polite" className="flex-1 space-y-8">
@@ -524,7 +536,7 @@ function AskPageContent() {
                   ? <UserMessage key={message.id} text={message.text} />
                   : <FurviseMessage key={message.id} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} />)}
                 {requestActive ? <Thinking petName={petName} /> : null}
-                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.question, "composer", failedRequest)} /> : null}
+                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.question, "composer", failedRequest)} retryAfterSeconds={failedRequest.retryAfterSeconds} /> : null}
                 <div aria-hidden="true" ref={conversationEndRef} />
               </div>
               {latestAnswer && latestAnswer.response.urgency !== "urgent" ? <SuggestedQuestions onSelect={(suggestion) => selectSuggestion(suggestion, "response_suggestion")} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
@@ -638,24 +650,28 @@ function Composer({ disabled, hasThread, inputRef, loading, onChange, onSubmit, 
 
 function Thinking({ petName }: { petName: string }) { return <div className="flex items-center gap-3 py-3 text-sm text-[var(--pw-muted)]" role="status"><BrandMark showName={false} size={24} /><span>{`Furvise is reviewing ${petName}'s saved details...`}</span></div>; }
 
-function AskFailureState({ code, onEdit, onRetry }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void }) {
-  const message = code === "AUTH_REQUIRED"
-    ? "Your session expired. Sign in again to continue."
-    : code === "RATE_LIMITED"
-      ? "You have used this month's AI credits. Your pet profiles, history, saved details, and non-AI tools are still available."
-      : code === "AI_RATE_LIMITED"
-        ? "Furvise is receiving a lot of questions right now. Your message is saved, and no AI credit was used. Try again in a moment."
-      : code === "NETWORK_ERROR"
-        ? "Furvise could not connect. Check your connection and try again."
-        : code === "PET_NOT_FOUND"
-          ? "That pet is no longer available. Choose another pet and try again."
-        : FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
-  return <div className="max-w-xl rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] px-4 py-3 text-sm text-[var(--text-secondary)]" role="alert"><p>{message}</p><div className="mt-2 flex flex-wrap gap-2">{code === "AUTH_REQUIRED" ? <Link className={secondaryButton} href="/login?next=%2Fask">Sign in</Link> : <button className={secondaryButton} onClick={onRetry} type="button">Try again</button>}<button className={quietButton} onClick={onEdit} type="button">Edit question</button></div></div>;
+function AskFailureState({ code, onEdit, onRetry, retryAfterSeconds }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void; retryAfterSeconds?: number }) {
+  const presentation = getAskErrorPresentation(code, retryAfterSeconds);
+  const message = code === "UNKNOWN_ERROR"
+    ? FURVISE_ANSWER_UNAVAILABLE_MESSAGE
+    : code === "AI_RATE_LIMITED"
+      ? `${presentation.message} No AI credit was used.`
+      : presentation.message;
+  return <div className="max-w-xl rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] px-4 py-4 text-sm text-[var(--text-secondary)]" role="alert">
+    <h2 className="font-semibold text-[var(--text-primary)]">{presentation.title}</h2>
+    <p className="mt-1 leading-6">{message}</p>
+    {presentation.recommendedAction !== "wait" ? <div className="mt-3 flex flex-wrap gap-2">
+      {presentation.recommendedAction === "sign_in" ? <Link className={secondaryButton} href="/login?next=%2Fask">Sign in</Link> : null}
+      {presentation.recommendedAction === "saved_data" ? <><Link className={secondaryButton} href="/pets">Back to pets</Link><Link className={quietButton} href="/care-log">View history</Link></> : null}
+      {presentation.retryable ? <button className={secondaryButton} onClick={onRetry} type="button">Try again</button> : null}
+      {presentation.recommendedAction === "edit" || presentation.retryable ? <button className={quietButton} onClick={onEdit} type="button">Edit question</button> : null}
+    </div> : null}
+  </div>;
 }
 
-function CompactPetSelector({ activeProfile, onChange, profiles, selectedPet }: { activeProfile: DogProfileWithMemories | null; onChange: (id: string) => void; profiles: DogProfileWithMemories[]; selectedPet: string }) {
+function CompactPetSelector({ activeProfile, disabled, onChange, profiles, selectedPet }: { activeProfile: DogProfileWithMemories | null; disabled: boolean; onChange: (id: string) => void; profiles: DogProfileWithMemories[]; selectedPet: string }) {
   if (!activeProfile) return null;
-  return <div className="mb-4 flex flex-wrap items-center gap-3 border-y border-[var(--line)] py-3"><label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="ask-pet-select">Asking about</label><select className="min-h-10 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-interactive)] px-3 text-sm font-semibold text-[var(--text-primary)]" id="ask-pet-select" onChange={(event) => onChange(event.target.value)} value={selectedPet}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{formatPetDisplayName(profile.name)}</option>)}</select><span className="text-sm text-[var(--text-tertiary)]">{formatSpecies(activeProfile.species)}{formatAge(activeProfile) ? ` · ${formatAge(activeProfile)}` : ""}</span></div>;
+  return <div className="mb-4 flex flex-wrap items-center gap-3 border-y border-[var(--line)] py-3"><label className="text-sm font-medium text-[var(--text-secondary)]" htmlFor="ask-pet-select">Asking about</label><select className="min-h-10 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-interactive)] px-3 text-sm font-semibold text-[var(--text-primary)]" disabled={disabled} id="ask-pet-select" onChange={(event) => onChange(event.target.value)} value={selectedPet}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{formatPetDisplayName(profile.name)}</option>)}</select><span className="text-sm text-[var(--text-tertiary)]">{formatSpecies(activeProfile.species)}{formatAge(activeProfile) ? ` · ${formatAge(activeProfile)}` : ""}</span></div>;
 }
 
 function RecentConversations({ conversations, error, onClose, onDelete, onOpen, onRename, onRetry }: { conversations: AskConversationSummary[]; error: string; onClose: () => void; onDelete: (item: AskConversationSummary) => void; onOpen: (id: string) => void; onRename: (item: AskConversationSummary) => void; onRetry: () => void }) {
@@ -716,9 +732,9 @@ function readStoredActivePetId() { try { return typeof window === "undefined" ? 
 function persistActivePetId(petId: string) { try { if (typeof window !== "undefined") setActivePetId(window.localStorage, petId); } catch { /* Selection remains valid for this mounted Ask session. */ } }
 function readDraft(key: string) { try { return typeof window === "undefined" ? "" : window.localStorage.getItem(key) || ""; } catch { return ""; } }
 function createMessageId(role: string) { return `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
-class AskRequestError extends Error { constructor(public code: AskFailureCode, message = "") { super(message); } }
+class AskRequestError extends Error { constructor(public code: AskFailureCode, message = "", public retryAfterSeconds?: number) { super(message); } }
 class SuggestionApplyError extends Error { constructor(public code: string, message = "") { super(message); this.name = "SuggestionApplyError"; } }
-function getAskFailureCode(error: unknown): AskFailureCode { if (error instanceof AskRequestError) return error.code; if (error instanceof TypeError || (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError"))) return "NETWORK_ERROR"; return "UNKNOWN_ERROR"; }
+function getAskFailure(error: unknown): { code: AskFailureCode; retryAfterSeconds?: number } { if (error instanceof AskRequestError) return { code: error.code, retryAfterSeconds: error.retryAfterSeconds }; if (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError")) return { code: "REQUEST_TIMEOUT" }; if (error instanceof TypeError) return { code: "NETWORK_ERROR" }; return { code: "UNKNOWN_ERROR" }; }
 function logAskCareSaveFailure(error: unknown) { if (process.env.NODE_ENV === "production") return; const databaseError = error as { code?: string; message?: string }; console.warn("[Furvise ask] care entry save failed", { errorCode: databaseError?.code || "", errorMessage: databaseError?.message || "" }); }
 async function getAskAuthToken() { const client = getBrowserSupabase(); const { data } = client ? await client.auth.getSession() : { data: { session: null } }; return data.session?.access_token || ""; }
 async function suggestionJson(url: string, init: RequestInit = {}) {

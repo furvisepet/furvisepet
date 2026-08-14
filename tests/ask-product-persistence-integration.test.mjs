@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getPersistenceNotices } from "../app/lib/ask-conversations.ts";
 import { routePersistenceDestinations } from "../app/lib/intelligence/persistence-destination.ts";
+import { groupLearningsByPersistencePet } from "../app/lib/intelligence/persistence-partition.ts";
 import { reducePetState } from "../app/lib/intelligence/pet-state/reduce-events.ts";
 import { resolveProductSafety } from "../app/lib/intelligence/product-safety.ts";
 
@@ -53,14 +54,59 @@ test("two owned pet preferences partition into pet-local persistence inputs", ()
   assert.match(persistence, /p_pet_id: targetPetId/);
 });
 
+test("three owned pet preferences remain complete and pet-scoped without a combined History action", () => {
+  const ids = {
+    Milo: "951316a7-545d-4cf7-ac2e-82196d4d3ac6",
+    Luna: "b9ab9905-2788-485c-b908-0ac0c5582792",
+    Coco: "cd7fc9bf-eeb2-43b4-89ed-5b047f933b81",
+  };
+  const learnings = [["Milo", "turkey"], ["Luna", "tuna"], ["Coco", "lamb"]].map(([name, food]) => ({
+    subjectType: "pet", subjectId: ids[name], category: "preference", factKey: `food_preference_${food}`,
+    factValue: food, confidence: 0.98, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: `${name} likes ${food}`,
+  }));
+  const result = routePersistenceDestinations({
+    message: "Milo likes turkey, Luna likes tuna, and Coco likes lamb.", petId,
+    authorizedPetIds: Object.values(ids), learnings, careActions: [proposedCare],
+  });
+  assert.deepEqual(result.learnings.map(({ subjectId, factValue }) => ({ subjectId, factValue })), [
+    { subjectId: ids.Milo, factValue: "turkey" },
+    { subjectId: ids.Luna, factValue: "tuna" },
+    { subjectId: ids.Coco, factValue: "lamb" },
+  ]);
+  assert.deepEqual(result.careActions, []);
+  assert.equal(result.learnings.some((item) => item.subjectId === petId), false);
+  assert.deepEqual(groupLearningsByPersistencePet(result.learnings, petId).map(([targetPetId, group]) => [targetPetId, group[0].factValue]), [
+    [ids.Milo, "turkey"], [ids.Luna, "tuna"], [ids.Coco, "lamb"],
+  ]);
+});
+
+test("an unauthorized pet makes multi-pet preference routing fail closed", () => {
+  const miloId = "951316a7-545d-4cf7-ac2e-82196d4d3ac6";
+  const maxId = "8b8fd19d-d7bc-4b4e-a1b6-c30c5801a893";
+  const learnings = [
+    { subjectType: "pet", subjectId: miloId, category: "preference", factKey: "food_preference_turkey", factValue: "turkey", confidence: 0.98, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "Milo likes turkey" },
+    { subjectType: "pet", subjectId: maxId, category: "preference", factKey: "food_preference_beef", factValue: "beef", confidence: 0.98, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "Max likes beef" },
+  ];
+  const result = routePersistenceDestinations({ message: "Milo likes turkey but Max likes beef.", petId, authorizedPetIds: [miloId], learnings, careActions: [] });
+  assert.deepEqual(result.learnings, []);
+  assert.deepEqual(result.careActions, []);
+});
+
 test("owner retailer and budget preferences route to owner memory only", () => {
-  for (const message of ["I usually shop at Costco because it is close to me.", "I prefer products under $30 unless there is a much better option."]) {
+  for (const message of [
+    "I usually shop at Costco because it is close to me.",
+    "I prefer products under $30 unless there is a much better option.",
+    "I usually buy pet food at Chewy.",
+    "I don't want to spend more than $80 a month on pet supplies.",
+  ]) {
     const result = routePersistenceDestinations({ message, petId, learnings: [], careActions: [proposedCare] });
     assert.equal(result.decisions[0].destination, "owner_memory");
     assert.equal(result.learnings[0].subjectType, "owner");
     assert.equal(result.learnings[0].subjectId, null);
     assert.equal(result.careActions.length, 0);
   }
+  const budget = routePersistenceDestinations({ message: "I don't want to spend more than $80 a month on pet supplies.", petId, learnings: [], careActions: [] });
+  assert.deepEqual({ key: budget.learnings[0].factKey, value: budget.learnings[0].factValue }, { key: "monthly_pet_supply_spending_limit", value: "80" });
 });
 
 test("unnamed medication creates no durable action or invented medication", () => {

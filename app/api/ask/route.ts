@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
 import {
   buildPetMemoryContext,
   type PetMemoryContext,
@@ -84,7 +85,7 @@ const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
 const askGuardOperationTtlSeconds = 90 * 24 * 60 * 60;
 
-type AskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
+type AskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
 
 type ConversationMessage =
   | { id: string; role: "user"; text: string }
@@ -379,6 +380,7 @@ export async function POST(request: Request) {
             onProviderEvent,
             subjectConfidence: subjectResolution.confidence,
             authoritativePetIds: subjectResolution.petIds,
+            authoritativeSemanticFrame: subjectFrame,
             canonicalConcepts: phase3Runtime.canonicalConcepts,
           });
           logValidatedIntelligence(intelligenceResult, requestId);
@@ -414,7 +416,7 @@ export async function POST(request: Request) {
       return aiAdmissionErrorResponse(error, requestId);
     }
     if (error instanceof AiCreditLimitError) {
-      return askFailure("RATE_LIMITED", "You have used this month's AI credits. Your pet profiles, history, saved details, and non-AI tools are still available.", 429, { usage }, "credit_limit");
+      return askFailure("AI_CREDITS_EXHAUSTED", "Your Ask plan allowance has been reached. Your saved information remains available.", 429, { usage }, "credit_limit");
     }
     if (error instanceof AiCreditLedgerError) {
       if (providerCallCount === 0) logAskPreProvider503({
@@ -1050,6 +1052,12 @@ async function persistAssistantAnswer({
   const { error: responseUpdateError } = await supabase.from("ask_conversation_messages")
     .update({ care_persistence: carePersistence, response_data: canonicalResponse }).eq("id", assistantMessage.id).eq("user_id", userId);
   if (responseUpdateError) logAskServerError("response_state_reconciliation", responseUpdateError, { conversationId, requestId }, 200);
+  if (didPersistEffectiveState(intelligencePersistence, carePersistence)) {
+    revalidateAskStateViews([
+      petId,
+      ...(intelligenceResult?.acceptedLearnings.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []) || []),
+    ]);
+  }
   return successfulAnswerResponse({
     assistantMessageId: assistantMessage.id,
     concern,
@@ -1207,6 +1215,7 @@ function successfulAnswerResponse({
     conversationId,
     creditsUsed,
     handledWithoutAi,
+    dataChanged: didPersistEffectiveState(intelligencePersistence, carePersistence),
     automaticSaveConfirmation: carePersistence.status === "persisted" && carePersistence.careEntryIds.length > 0 ? "Added to care history" : persistedLearningConfirmation(intelligencePersistence),
     carePersistence,
     intelligencePersistence: {
@@ -1236,6 +1245,27 @@ function successfulAnswerResponse({
     userMessageId,
     usage,
   });
+}
+
+function didPersistEffectiveState(intelligencePersistence: IntelligencePersistenceSummary | null, carePersistence: CarePersistenceResult) {
+  return Boolean(
+    intelligencePersistence?.memoriesCreated
+    || intelligencePersistence?.memoriesSuperseded
+    || intelligencePersistence?.memoryIds.length
+    || intelligencePersistence?.concernsResolved
+    || carePersistence.status === "persisted" && (carePersistence.careEntryIds.length || carePersistence.concernIds.length)
+  );
+}
+
+function revalidateAskStateViews(petIds: string[]) {
+  for (const path of ["/dashboard", "/today", "/pets", "/care-log"]) revalidatePath(path);
+  for (const petId of new Set(petIds.filter(Boolean))) {
+    revalidatePath(`/pets/${petId}`);
+    revalidatePath(`/pets/${petId}/care`);
+    revalidatePath(`/pets/${petId}/memories`);
+    revalidatePath(`/dogs/${petId}/care`);
+    revalidatePath(`/dogs/${petId}/memories`);
+  }
 }
 
 function textPayloadValue(value: unknown) {

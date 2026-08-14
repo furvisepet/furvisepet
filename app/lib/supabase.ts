@@ -25,6 +25,7 @@ import {
 } from "./care-log.mjs";
 import type { PetConcern } from "./ai/concern-engine";
 import type { FurviseMemoryRow } from "./intelligence/types";
+import { projectEffectiveCareHistory, type HistoryProjectionMemory } from "./effective-history.ts";
 import { idempotentClientFetch } from "./security/idempotency/client.ts";
 
 export const PROFILE_ID_STORAGE_KEY = "petwise:dog-profile-id";
@@ -447,7 +448,7 @@ export async function listCareEntriesForPet(
     .returns<CareEntryRow[]>();
 
   if (error) throw normalizeCareDatabaseError(error, "care entries");
-  return data || [];
+  return projectEffectiveHistoryForUser(data || [], user.id, supabase);
 }
 
 export async function listActiveConcernsForPet(petProfileId: string, deps: CareLogHelperDeps = {}) {
@@ -484,7 +485,8 @@ export async function listRecentCareEntries(limit: number, deps: CareLogHelperDe
   if (error) throw normalizeCareDatabaseError(error, "care entries");
   if (!entries || entries.length === 0) return [];
 
-  const petIds = Array.from(new Set(entries.map((entry) => entry.pet_profile_id)));
+  const effectiveEntries = await projectEffectiveHistoryForUser(entries, user.id, supabase);
+  const petIds = Array.from(new Set(effectiveEntries.map((entry) => entry.pet_profile_id)));
   const { data: pets, error: petsError } = await supabase
     .from("dog_profiles")
     .select("id, name")
@@ -495,10 +497,20 @@ export async function listRecentCareEntries(limit: number, deps: CareLogHelperDe
   if (petsError) throw friendlyDatabaseError(petsError, "saved pets");
 
   const petNameById = new Map((pets || []).map((pet) => [pet.id, pet.name]));
-  return entries.map((entry) => ({
+  return effectiveEntries.map((entry) => ({
     ...entry,
     pet_name: petNameById.get(entry.pet_profile_id) || "Unknown pet",
   }));
+}
+
+async function projectEffectiveHistoryForUser<T extends CareEntryRow>(entries: T[], userId: string, supabase: SupabaseClient) {
+  const sourceIds = [...new Set(entries.flatMap((entry) => entry.intelligence_source_message_id ? [entry.intelligence_source_message_id] : []))];
+  if (!sourceIds.length) return entries;
+  const { data, error } = await supabase.from("furvise_memories")
+    .select("id,pet_id,subject_type,category,fact_key,fact_value,status,source_id")
+    .eq("user_id", userId).in("source_id", sourceIds).returns<HistoryProjectionMemory[]>();
+  if (error) throw friendlyDatabaseError(error, "effective care history");
+  return projectEffectiveCareHistory(entries, data || []);
 }
 
 export async function createCareEntry(input: CareEntryInput, deps: CareLogHelperDeps = {}) {
