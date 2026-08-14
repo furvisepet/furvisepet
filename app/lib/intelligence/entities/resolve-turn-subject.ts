@@ -37,6 +37,9 @@ export function resolveAuthoritativeTurnSubject({
     if (claimedNamedSubjects.some((surface) => !pets.some((pet) => normalize(pet.name || "") === surface))) {
       return failed("unresolved", "ENTITY_NO_MATCH");
     }
+    if (hasUnnamedAnimalClaimSubject(frame, pets)) {
+      return failed("ambiguous", "ENTITY_AMBIGUOUS");
+    }
     if (explicitNames.length === 1) return resolved(explicitNames[0].id, 0.99);
     if (!supportsIndependentMultiPetClaims(frame, message, explicitNames.map((pet) => pet.id))) {
       return failed("ambiguous", "ENTITY_AMBIGUOUS");
@@ -143,10 +146,30 @@ function supportsIndependentMultiPetClaims(frame: ProposedSemanticFrame, message
   const independentlyNamedSubjects = animalMentions.filter((mention) => usedSubjects.has(mention.localId)
     && grounded.claims.some((claim) => claim.subjectRef === mention.localId
       && claim.uncertainty.confidence >= 0.8
-      && (claim.kind === "preference" || (claim.kind === "assertion" && claim.durability !== "temporary"))));
+      && (claim.kind === "preference" || claim.kind === "assertion")));
   return new Set(independentlyNamedSubjects.map((mention) => normalize(mention.surface))).size >= namedPetIds.length
-    && grounded.claims.every((claim) => claim.kind === "preference"
-      || (claim.kind === "assertion" && claim.durability !== "temporary"));
+    && !hasContradictoryNamedClaims(grounded);
+}
+
+function hasUnnamedAnimalClaimSubject(frame: ProposedSemanticFrame, pets: EligibleSemanticPet[]) {
+  const subjectRefs = new Set(frame.claims.map((claim) => claim.subjectRef).filter(Boolean));
+  const ownedNames = new Set(pets.map((pet) => normalize(pet.name || "")).filter(Boolean));
+  return frame.mentions.some((mention) => mention.coarseType === "animal" && subjectRefs.has(mention.localId)
+    && !ownedNames.has(normalize(mention.surface)));
+}
+
+function hasContradictoryNamedClaims(frame: ProposedSemanticFrame) {
+  const polarities = new Map<string, Set<string>>();
+  for (const claim of frame.claims) {
+    if (!claim.subjectRef || (claim.kind !== "assertion" && claim.kind !== "preference")) continue;
+    const predicate = normalize(claim.predicate.label || "");
+    if (!predicate) continue;
+    const key = `${claim.subjectRef}:${predicate}`;
+    const values = polarities.get(key) || new Set<string>();
+    values.add(claim.polarity);
+    polarities.set(key, values);
+  }
+  return [...polarities.values()].some((values) => values.size > 1);
 }
 
 function normalize(value: string) {

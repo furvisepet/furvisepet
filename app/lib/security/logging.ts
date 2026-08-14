@@ -10,9 +10,14 @@ export function redactLogContext(context: Record<string, unknown>) {
 }
 
 export function safeErrorForLog(error: unknown) {
-  const value = error as { code?: unknown; name?: unknown; status?: unknown } | null;
+  const value = error as { code?: unknown; message?: unknown; name?: unknown; status?: unknown } | null;
+  const safeDatabaseIdentifier = typeof value?.message === "string" && /^[A-Z][A-Z0-9_]{2,79}$/.test(value.message)
+    ? value.message
+    : "";
   return {
     errorCode: typeof value?.code === "string" ? value.code.slice(0, 80) : "",
+    errorIdentifier: safeDatabaseIdentifier,
+    sqlState: typeof value?.code === "string" && /^[A-Z0-9]{5}$/.test(value.code) ? value.code : "",
     errorName: typeof value?.name === "string" ? value.name.slice(0, 80) : error instanceof Error ? error.name.slice(0, 80) : "UnknownError",
     errorStatus: typeof value?.status === "number" ? value.status : null,
   };
