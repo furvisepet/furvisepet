@@ -66,14 +66,16 @@ test("mixed named-pet context does not block Milo's grounded symptom", () => {
   assert.equal(governed.accepted[0].event.subject.id, milo.id);
 });
 
-test("two owned pets' medical observations are governed independently", () => {
+test("Milo is vomiting and Coco is limping. resolves and persists both event-kind medical observations per pet", async () => {
   const message = "Milo is vomiting and Coco is limping.";
   const frame = frameFor(message, [
-    claim("milo", "Milo", "vomiting", "temporary"),
-    claim("coco", "Coco", "limping", "temporary"),
+    claim("milo", "Milo", "vomiting", "temporary", "event"),
+    claim("coco", "Coco", "limping", "temporary", "event"),
   ]);
   const resolution = resolve(frame, message, [milo, coco]);
   assert.equal(resolution.requiresClarification, false);
+  assert.equal(resolution.status, "multi_subject");
+  assert.deepEqual(resolution.petIds, [milo.id, coco.id]);
 
   const governed = governCanonicalEventsForOwnedPets({
     proposals: [
@@ -83,7 +85,22 @@ test("two owned pets' medical observations are governed independently", () => {
     message, pets: [milo, coco], activeEpisodes: [], subjectConfidence: 0.99,
   });
   assert.deepEqual(governed.accepted.map((item) => item.event.subject.id), [milo.id, coco.id]);
-  assert.deepEqual(oneSemanticEventPerPet(governed.accepted, milo.id).map((item) => item.event.subject.id), [milo.id, coco.id]);
+  const perPetEvents = oneSemanticEventPerPet(governed.accepted, milo.id);
+  assert.deepEqual(perPetEvents.map((item) => item.event.subject.id), [milo.id, coco.id]);
+
+  const calls = [];
+  for (const governedEvent of perPetEvents) {
+    await persistSemanticEventRpc({
+      event: governedEvent, fallbackPetId: milo.id, sourceMessageId: "message-1", userId: "owner-1",
+      supabase: { rpc: async (name, args) => {
+        calls.push({ name, args });
+        return { data: [{ persistence_status: "persisted", care_entry_id: `care-${args.p_pet_id}` }], error: null };
+      } },
+    });
+  }
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.map((item) => item.args.p_pet_id), [milo.id, coco.id]);
+  assert.ok(calls.every((item) => item.name === "persist_furvise_semantic_event"));
 });
 
 test("an unknown explicit pet fails the entire mixed turn closed", () => {
@@ -137,18 +154,21 @@ function frameFor(message, inputs) {
     })),
     references: [],
     claims: inputs.map((input, index) => ({
-      localId: `claim_${index + 1}`, kind: "assertion", subjectRef: input.ref,
+      localId: `claim_${index + 1}`, kind: input.kind, subjectRef: input.ref,
       predicate: concept(input.predicate), polarity: "affirmed", modality: "asserted",
       temporal: { occurredAt: null, validFrom: null, validTo: null, surfaceText: null, precision: "unknown" },
       uncertainty: { confidence: 0.98, reasons: [] }, evidence: [{ surfaceText: message }],
-      persistenceHint: "current_state", value: true, unit: null, durability: input.durability,
+      persistenceHint: "current_state",
+      ...(input.kind === "event"
+        ? { participants: [{ role: "subject", entityRef: input.ref }], lifecycle: { phase: "observed", boundedInMessage: true, resultingState: "active" } }
+        : { value: true, unit: null, durability: input.durability }),
     })),
     uncertainty: { needsClarification: false, clarificationQuestion: null, reasons: [] },
   };
 }
 
-function claim(ref, surface, predicate, durability) {
-  return { ref, surface, predicate, durability };
+function claim(ref, surface, predicate, durability, kind = "assertion") {
+  return { ref, surface, predicate, durability, kind };
 }
 
 function concept(label) {

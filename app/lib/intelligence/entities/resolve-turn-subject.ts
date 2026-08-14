@@ -146,7 +146,7 @@ function supportsIndependentMultiPetClaims(frame: ProposedSemanticFrame, message
   const independentlyNamedSubjects = animalMentions.filter((mention) => usedSubjects.has(mention.localId)
     && grounded.claims.some((claim) => claim.subjectRef === mention.localId
       && claim.uncertainty.confidence >= 0.8
-      && (claim.kind === "preference" || claim.kind === "assertion")));
+      && (claim.kind === "preference" || claim.kind === "assertion" || claim.kind === "event")));
   return new Set(independentlyNamedSubjects.map((mention) => normalize(mention.surface))).size >= namedPetIds.length
     && !hasContradictoryNamedClaims(grounded);
 }
