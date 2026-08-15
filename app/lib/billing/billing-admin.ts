@@ -75,6 +75,46 @@ export async function applyStripeSubscriptionProjection(admin: SupabaseClient, p
   return typeof data === "string" ? data : "processed";
 }
 
+export async function recordBillingDeletionTombstones({
+  admin,
+  customerId,
+  idempotencyKey,
+  subscriptions,
+  userId,
+}: {
+  admin: SupabaseClient;
+  customerId: string;
+  idempotencyKey: string;
+  subscriptions: Array<{ status: "canceled" | "incomplete_expired"; subscriptionId: string }>;
+  userId: string;
+}) {
+  if (!subscriptions.length) return;
+  const { error } = await admin.rpc("record_billing_deletion_tombstones", {
+    p_idempotency_key: idempotencyKey,
+    p_stripe_customer_id: customerId,
+    p_stripe_subscription_ids: subscriptions.map((subscription) => subscription.subscriptionId),
+    p_terminal_statuses: subscriptions.map((subscription) => subscription.status),
+    p_user_id: userId,
+  });
+  if (error) throw new BillingProjectionError("BILLING_DELETION_TOMBSTONE_WRITE_FAILED", error);
+}
+
+export async function hasBillingDeletionTombstone(admin: SupabaseClient, {
+  customerId,
+  subscriptionId,
+  userId,
+}: {
+  customerId: string;
+  subscriptionId: string;
+  userId: string;
+}) {
+  const { data, error } = await admin.from("billing_deletion_tombstones").select("stripe_subscription_id")
+    .eq("user_id", userId).eq("stripe_customer_id", customerId).eq("stripe_subscription_id", subscriptionId)
+    .limit(1).maybeSingle<{ stripe_subscription_id: string }>();
+  if (error) throw new BillingProjectionError("BILLING_DELETION_TOMBSTONE_READ_FAILED", error);
+  return Boolean(data);
+}
+
 export class BillingProjectionError extends Error {
   constructor(public code: string, public cause: unknown) {
     super(code);

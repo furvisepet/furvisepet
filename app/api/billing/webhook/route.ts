@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { revalidatePath } from "next/cache";
-import { applyStripeSubscriptionProjection } from "../../../lib/billing/billing-admin";
+import { applyStripeSubscriptionProjection, hasBillingDeletionTombstone } from "../../../lib/billing/billing-admin";
 import { buildStripeSubscriptionProjection, stripeObjectId } from "../../../lib/billing/stripe-projection";
 import { getStripeServerClient, getStripeWebhookSecret } from "../../../lib/billing/stripe-server";
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
@@ -23,13 +23,21 @@ export async function POST(request: Request) {
     const subscription = await subscriptionForEvent(event);
     if (!subscription) return Response.json({ received: true });
     const projection = buildStripeSubscriptionProjection({ env: process.env, event, subscription });
+    const admin = createOperationsAdminClient();
+    if (await hasBillingDeletionTombstone(admin, {
+      customerId: projection.customerId,
+      subscriptionId: projection.subscriptionId,
+      userId: projection.userId,
+    })) {
+      return Response.json({ outcome: "deleted_account_reconciled", received: true });
+    }
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.client_reference_id !== projection.userId || session.metadata?.furvise_user_id !== projection.userId) {
         throw new Error("STRIPE_CHECKOUT_USER_ASSOCIATION_INVALID");
       }
     }
-    const outcome = await applyStripeSubscriptionProjection(createOperationsAdminClient(), projection);
+    const outcome = await applyStripeSubscriptionProjection(admin, projection);
     revalidatePath("/account");
     revalidatePath("/ask");
     return Response.json({ outcome, received: true });

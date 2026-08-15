@@ -49,8 +49,10 @@ import {
 import { resolveEffectiveEntitlements, type EffectiveEntitlements } from "../../lib/billing/entitlements";
 import { deriveConversationTitle } from "../../lib/ask-conversations";
 import {
+  buildImmediateEmergencyGuidance,
   buildRecentAskUpdates,
   concernKeyToAskTags,
+  detectImmediateAskEmergency,
   evaluateAskSafetyContext,
   formatConcernTag,
 } from "../../lib/ask-safety-context";
@@ -122,15 +124,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  let context: Awaited<ReturnType<typeof loadAskRequestContext>>;
+  let authentication: Awaited<ReturnType<typeof loadAskAuthenticationContext>>;
   try {
-    context = await loadAskRequestContext(request);
+    authentication = await loadAskAuthenticationContext(request);
   } catch (error) {
     logAskServerError("authentication", error, {}, 500);
     return askFailure("UNKNOWN_ERROR", "Furvise could not start that answer. Please try again.", 500, {}, "authentication");
   }
-  if ("response" in context) return context.response;
-  const { accessToken, capabilities, supabase, usage, userId } = context;
+  if ("response" in authentication) return authentication.response;
+  const { accessToken, supabase, userId } = authentication;
 
   let rawBody: unknown;
   try {
@@ -159,6 +161,37 @@ export async function POST(request: Request) {
   const locale = resolveAskLocale(body?.locale, request.headers.get("accept-language"));
   logAskStage("authentication succeeded", { requestId });
 
+  if (!question || question.length > 1200 || !requestId) {
+    return askFailure("INVALID_MESSAGE", "Choose a pet and enter a message before asking Furvise.", 400, {}, "request_validation");
+  }
+
+  const immediateEmergency = detectImmediateAskEmergency(question);
+  if (immediateEmergency) {
+    const response = buildAskConversationResponse(buildImmediateEmergencyGuidance(immediateEmergency), {
+      intent: "general_pet_question",
+      missingUsefulDetails: [],
+      urgent: true,
+      usedContextSummary: [],
+    });
+    if (!response) return askFailure("UNKNOWN_ERROR", "Contact an emergency veterinarian or clinic now.", 500, {}, "emergency_preflight");
+    logAskStage("provider-independent emergency preflight handled", { emergencyTags: immediateEmergency.tags, requestId });
+    return standaloneEmergencyResponse({
+      contextUsed: { petName: null, usedSources: [] },
+      requestId,
+      response,
+    });
+  }
+
+  let context: Awaited<ReturnType<typeof loadAskEntitlementContext>>;
+  try {
+    context = await loadAskEntitlementContext(authentication);
+  } catch (error) {
+    logAskServerError("entitlement_lookup", error, { requestId, userId }, 503);
+    return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "entitlement_lookup");
+  }
+  if ("response" in context) return context.response;
+  const { capabilities, usage } = context;
+
   if (!petId || (petId !== "all" && !isSecurityUuid(petId)) || (conversationId && !isSecurityUuid(conversationId))) {
     return askFailure("INVALID_MESSAGE", "Choose a pet before asking Furvise.", 400, {}, "request_validation");
   }
@@ -177,9 +210,6 @@ export async function POST(request: Request) {
   }
   logAskStage("pet ownership succeeded", { requestId });
 
-  if (!question || question.length > 1200 || !requestId) {
-    return askFailure("INVALID_MESSAGE", "Choose a pet and enter a message before asking Furvise.", 400, {}, "request_validation");
-  }
   if (body?.previousResponse && !previousResponse) {
     return askFailure("INVALID_MESSAGE", "The follow-up context is no longer available. Ask a new question.", 400, {}, "request_validation");
   }
@@ -1247,6 +1277,34 @@ function successfulAnswerResponse({
   });
 }
 
+function standaloneEmergencyResponse({
+  contextUsed,
+  requestId,
+  response,
+}: {
+  contextUsed: unknown;
+  requestId: string;
+  response: CompletedAskResponse;
+}) {
+  logAskStage("standalone emergency response serialized", { requestId });
+  return Response.json({
+    answer: response.directAnswer,
+    concern: null,
+    contextUsed,
+    creditsUsed: 0,
+    handledWithoutAi: true,
+    dataChanged: false,
+    carePersistence: { status: "skipped", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false },
+    persistence: { saved: false, warning: "Emergency guidance was not saved to history." },
+    persistenceMode: "none",
+    proposedHistoryUpdate: null,
+    response,
+    safety: { level: "urgent", shoppingSuppressed: true },
+    saveMetadata: { answerType: "urgent_guidance", persistenceEligible: false, reason: "deterministic_emergency_preflight" },
+    success: true,
+  });
+}
+
 function didPersistEffectiveState(intelligencePersistence: IntelligencePersistenceSummary | null, carePersistence: CarePersistenceResult) {
   return Boolean(
     intelligencePersistence?.memoriesCreated
@@ -1513,6 +1571,15 @@ async function loadAskRequestContext(request: Request): Promise<
       userId: string;
     }
 > {
+  const authentication = await loadAskAuthenticationContext(request);
+  if ("response" in authentication) return authentication;
+  return loadAskEntitlementContext(authentication);
+}
+
+async function loadAskAuthenticationContext(request: Request): Promise<
+  | { response: Response }
+  | { accessToken: string; supabase: SupabaseClient; userId: string }
+> {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return { response: askFailure("AUTH_REQUIRED", "Your session expired. Sign in again to continue.", 401, {}, "authentication") };
 
@@ -1532,6 +1599,25 @@ async function loadAskRequestContext(request: Request): Promise<
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
 
+  return { accessToken: token, supabase, userId: userData.user.id };
+}
+
+async function loadAskEntitlementContext(authentication: {
+  accessToken: string;
+  supabase: SupabaseClient;
+  userId: string;
+}): Promise<
+  | { response: Response }
+  | {
+      planId: PlanId;
+      capabilities: EffectiveEntitlements["capabilities"];
+      accessToken: string;
+      supabase: SupabaseClient;
+      usage: AiCreditStatus;
+      userId: string;
+    }
+> {
+  const { accessToken, supabase, userId } = authentication;
   const entitlements = await resolveEffectiveEntitlements(supabase);
   const planId = entitlements.effectivePlan;
   let usage: AiCreditStatus;
@@ -1541,11 +1627,11 @@ async function loadAskRequestContext(request: Request): Promise<
       planId,
       monthlyAiCredits: entitlements.limits.monthlyAiCredits,
       supabase,
-      userId: userData.user.id,
+      userId,
     });
   } catch (error) {
     if (error instanceof AiCreditLedgerError) {
-      logAskServerError("usage_lookup", error, { userId: userData.user.id }, 503);
+      logAskServerError("usage_lookup", error, { userId }, 503);
       if (process.env.NODE_ENV === "development" && isMissingAiUsageTableError(error)) {
         console.warn("[Ask API] unified AI credit migration is missing; using an in-memory development allowance without persistence", {
           migration: "20260727020000_add_unified_ai_credits_and_care_state.sql",
@@ -1560,7 +1646,7 @@ async function loadAskRequestContext(request: Request): Promise<
       }
     } else throw error;
   }
-  return { accessToken: token, capabilities: entitlements.capabilities, planId, supabase, usage, userId: userData.user.id };
+  return { accessToken, capabilities: entitlements.capabilities, planId, supabase, usage, userId };
 }
 
 function resolveAskLocale(bodyLocale: unknown, acceptLanguage: string | null) {

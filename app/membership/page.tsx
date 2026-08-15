@@ -147,7 +147,7 @@ export default function MembershipPage() {
               title="Free"
             >
               <p className="text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">8 Ask per month</p>
-              <FeatureList items={["One pet", "Care history and tracking", "Curated product browsing"]} />
+              <FeatureList items={["One pet", "Care history and tracking", "The same Furvise reasoning and safety standards"]} />
               {!isInternalQa && !isPlus ? <SecondaryButton className="mt-auto w-full" disabled type="button">Current plan</SecondaryButton> : null}
             </PlanCard>
 
@@ -165,10 +165,8 @@ export default function MembershipPage() {
               <FeatureList items={[
                 "55 thoughtful Ask messages every month",
                 "Up to 10 pets",
-                "Live product research",
-                "Longer-history pattern detection",
-                "Vet prep exports",
-                "Premium product functionality",
+                "Care history and tracking",
+                "The same Furvise reasoning and safety standards",
               ]} />
               {!isInternalQa ? (
                 <PrimaryButton
@@ -187,7 +185,7 @@ export default function MembershipPage() {
           </section>
 
           <Comparison />
-          <p className="mb-12 mt-6 text-center text-sm leading-6 text-[var(--text-secondary)]">Free and Plus use the same Furvise reasoning and safety standards. Plus adds room and product capabilities, not a different quality of care guidance.</p>
+          <p className="mb-12 mt-6 text-center text-sm leading-6 text-[var(--text-secondary)]">Free and Plus use the same Furvise reasoning and safety standards. Plus adds room for more pets and Ask messages, not a different quality of care guidance.</p>
         </>
       )}
     </AppPage>
@@ -253,10 +251,8 @@ function Comparison() {
   const rows = [
     ["Ask allowance", `${FREE_ASK_ALLOWANCE} / month`, `${PLUS_ASK_ALLOWANCE} / month`],
     ["Pets", "1", "Up to 10"],
-    ["Live product research", "Not included", "Included"],
-    ["Longer-history patterns", "Not included", "Included"],
-    ["Vet prep exports", "Not included", "Included"],
-    ["Premium product functionality", "Not included", "Included"],
+    ["Care history and tracking", "Included", "Included"],
+    ["Reasoning and safety standards", "Same Furvise quality", "Same Furvise quality"],
   ];
   return (
     <section className="mt-12 pb-4">

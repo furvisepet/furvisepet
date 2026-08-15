@@ -352,7 +352,8 @@ function AskPageContent() {
       const payload = await result.json().catch(() => null) as { assistantMessageId?: string; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null; code?: AskFailureCode; contextUsed?: ContextUsed | null; conversationId?: string; creditsUsed?: number; dataChanged?: boolean; handledWithoutAi?: boolean; message?: string; persistence?: { saved?: boolean; warning?: string }; response?: unknown; retryAfterSeconds?: number; saveMetadata?: AskSaveMetadata | null; success?: boolean; suggestion?: StateSuggestion | null; usage?: AskUsageStatus | null; userMessageId?: string } | null;
       const parsed = parseAskConversationResponse(payload?.response) as StructuredResponse | null;
       if (payload?.usage) setUsage(payload.usage);
-      if (!result.ok || !payload?.success || !parsed || !payload.conversationId) throw new AskRequestError(payload?.code || "UNKNOWN_ERROR", payload?.message, payload?.retryAfterSeconds);
+      const standaloneEmergency = Boolean(payload?.handledWithoutAi && payload.persistence?.saved === false && parsed?.urgency === "urgent");
+      if (!result.ok || !payload?.success || !parsed || (!payload.conversationId && !standaloneEmergency)) throw new AskRequestError(payload?.code || "UNKNOWN_ERROR", payload?.message, payload?.retryAfterSeconds);
       if (payload.dataChanged) markAppDataChanged();
 
       const confirmedCarePersistence = payload.carePersistence?.status === "persisted" && Boolean(payload.carePersistence.careEntryIds.length);
@@ -361,13 +362,13 @@ function AskPageContent() {
         const withoutExistingAssistant = current.filter((message) => message.id !== assistantMessage.id);
         return [...withoutExistingAssistant.map((message) => message.id === userMessageId && payload.userMessageId ? { ...message, id: payload.userMessageId } : message), assistantMessage];
       });
-      if (!conversationIdAtSubmit) {
+      if (!conversationIdAtSubmit && payload.conversationId) {
         setActiveConversationId(payload.conversationId);
         if (typeof window !== "undefined") replaceAskLocation({ conversationId: payload.conversationId });
         setActiveTitle(deriveConversationTitle(prompt, petName));
         trackAskEvent("conversation_started", { source });
       }
-      await refreshConversations().catch(() => undefined);
+      if (!standaloneEmergency) await refreshConversations().catch(() => undefined);
       setPersistenceWarning(payload.persistence?.saved === false ? payload.persistence.warning || "This answer could not be saved to conversation history." : "");
       setRequestPhase("completed");
       if (parsed.urgency === "urgent") trackAskEvent("urgent_guidance_shown", { answerType: parsed.answerType });

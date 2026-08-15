@@ -12,6 +12,10 @@ export type AskConcernTag =
   | "toxin_exposure"
   | "rapidly_worsening";
 
+export type ImmediateAskEmergency = {
+  tags: Array<"breathing_difficulty" | "collapse" | "seizure" | "severe_bleeding">;
+};
+
 export type RecentAskUpdate = {
   id: string;
   active: boolean | null;
@@ -30,15 +34,29 @@ type ConcernConcept = { normalized_key: string };
 
 const concernPatterns: Array<{ tag: AskConcernTag; pattern: RegExp }> = [
   { tag: "breathing_difficulty", pattern: /\b(short(?:ness|age) of breath|trouble breathing|difficulty breathing|difficult breathing|labou?red breathing|open[- ]mouth breathing|breathing (?:hard|heavily|fast)|deep breaths?|gasping|cannot breathe|can't breathe)\b/i },
-  { tag: "collapse", pattern: /\b(collapse[ds]?|unconscious|fainted|nonresponsive)\b/i },
+  { tag: "collapse", pattern: /\b(collapse[ds]?|unconscious|fainted|(?:non|un)responsive)\b/i },
   { tag: "seizure", pattern: /\b(seizure|seizing|convulsion)\b/i },
-  { tag: "severe_bleeding", pattern: /\b(severe bleeding|bleeding heavily|bleeding (?:will not|won't) stop|blood in (?:vomit|stool))\b/i },
+  { tag: "severe_bleeding", pattern: /\b(severe bleeding|uncontrolled bleeding|bleeding heavily|bleeding (?:will not|won't) stop|blood in (?:vomit|stool))\b/i },
   { tag: "repeated_vomiting", pattern: /\b(repeated vomiting|keeps vomiting|vomiting repeatedly|unable to keep water down|cannot keep water down|can't keep water down)\b/i },
   { tag: "inability_to_urinate", pattern: /\b(cannot urinate|can't urinate|unable to urinate|straining to pee|blocked urine)\b/i },
   { tag: "extreme_lethargy", pattern: /\b(extreme lethargy|severe weakness|barely moving|cannot stand|can't stand|unusually tired|very tired)\b/i },
   { tag: "toxin_exposure", pattern: /\b(toxin|toxic|poison(?:ing)?|antifreeze|rat poison|ate (?:chocolate|grapes|raisins))\b/i },
   { tag: "rapidly_worsening", pattern: /\b(rapidly worsening|worsening quickly|getting worse fast|deteriorating rapidly)\b/i },
 ];
+
+const immediateEmergencyPatterns: Array<{
+  tag: ImmediateAskEmergency["tags"][number];
+  pattern: RegExp;
+}> = [
+  { tag: "breathing_difficulty", pattern: /\b((?:cannot|can't|unable to) breathe|gasping|open[- ]mouth breathing|severe (?:trouble|difficulty) breathing|struggling to breathe)\b/i },
+  { tag: "collapse", pattern: /\b(collapsed?|unconscious|(?:non|un)responsive|won't wake up|will not wake up)\b/i },
+  { tag: "seizure", pattern: /\b(active seizure|actively seizing|seizing (?:right )?now|having (?:a |an )?seizure|in (?:a |an )?seizure|seizure (?:right )?now|won't stop seizing|will not stop seizing|convulsing)\b/i },
+  { tag: "severe_bleeding", pattern: /\b(severe bleeding|uncontrolled bleeding|bleeding heavily|bleeding (?:will not|won't) stop)\b/i },
+];
+
+const generalEmergencyDiscussionPattern = /^(?:what (?:is|are|causes?) (?:a |an )?(?:seizure|collapse|breathing difficulty|severe bleeding)|what does (?:seizure|collapse|unresponsive|cannot breathe|severe bleeding) mean|(?:can|could) (?:dogs|cats|pets|animals) (?:(?:have|experience) (?:seizures?|collapse|breathing difficulty|severe bleeding)|collapse(?: from .+)?|become unresponsive(?: from .+)?)|tell me about (?:seizures?|collapse|breathing difficulty|severe bleeding)|definition of (?:seizure|collapse|breathing difficulty|severe bleeding))\??$/i;
+const explicitNonPetSubjectPattern = /\b(i am|i'm|i cannot|i can't|myself|a person|someone|human|child|baby)\b/i;
+const explicitPetSubjectPattern = /\b(dog|cat|pet|puppy|kitten|animal|my (?:boy|girl)|one of (?:my|our|the) (?:pets|dogs|cats))\b/i;
 
 const generalResolutionPattern = /\b(returned to normal|back to normal|normal again|everything seems normal|(?:is|are|was|were) (?:good|fine) now|symptoms? (?:resolved|stopped|are gone|went away)|no longer happening|fully recovered)\b/i;
 
@@ -153,6 +171,45 @@ export function concernKeyToAskTags(key: string, title = ""): AskConcernTag[] {
 
 export function detectAskConcernTags(value: string): AskConcernTag[] {
   return concernPatterns.filter(({ pattern }) => pattern.test(value)).map(({ tag }) => tag);
+}
+
+export function detectImmediateAskEmergency(value: string): ImmediateAskEmergency | null {
+  const message = value.trim().replace(/\s+/g, " ");
+  if (!message || generalEmergencyDiscussionPattern.test(message)) return null;
+  if (explicitNonPetSubjectPattern.test(message) && !explicitPetSubjectPattern.test(message)) return null;
+  const tags = immediateEmergencyPatterns
+    .filter(({ pattern, tag }) => pattern.test(message) && !hasImmediateEmergencyResolution(message, tag))
+    .map(({ tag }) => tag);
+  return tags.length ? { tags: [...new Set(tags)] } : null;
+}
+
+export function buildImmediateEmergencyGuidance(emergency: ImmediateAskEmergency) {
+  const classSpecificActions: Partial<Record<ImmediateAskEmergency["tags"][number], string>> = {
+    breathing_difficulty: "Keep handling and exertion to a minimum while arranging transport.",
+    collapse: "Keep the pet still and move them only as needed to reach care safely.",
+    seizure: "Keep the pet away from stairs and hard objects. Do not restrain them or put anything in their mouth.",
+    severe_bleeding: "If it is safe, hold steady pressure with a clean cloth while you travel to care.",
+  };
+  return {
+    title: "Get emergency veterinary help now",
+    summary: "Contact an emergency veterinarian or clinic now. Do not wait for Furvise to identify the pet or analyze the symptoms further.",
+    sections: [{
+      heading: "What to do now",
+      items: [
+        "Have someone call the clinic while you leave, if possible, and follow the clinic's instructions.",
+        ...emergency.tags.map((tag) => classSpecificActions[tag]).filter((item): item is string => Boolean(item)),
+        "Do not give food, medicine, or home remedies unless a veterinarian tells you to.",
+      ],
+    }],
+    safetyNote: "Furvise cannot diagnose an emergency. If your regular clinic is unavailable, contact the nearest emergency veterinary clinic.",
+  };
+}
+
+function hasImmediateEmergencyResolution(message: string, tag: ImmediateAskEmergency["tags"][number]) {
+  if (tag === "breathing_difficulty") return /\b(breathing (?:normally|is normal)|can breathe normally|no longer (?:gasping|struggling to breathe))\b/i.test(message);
+  if (tag === "collapse") return /\b(responsive again|conscious again|woke up|back to normal|fully recovered)\b/i.test(message);
+  if (tag === "seizure") return /\b(no longer seizing|not seizing|seizure (?:has )?stopped|stopped seizing)\b/i.test(message);
+  return /\b(no longer bleeding|not bleeding|bleeding (?:has )?stopped|stopped bleeding)\b/i.test(message);
 }
 
 export function formatConcernTag(tag: AskConcernTag) {
