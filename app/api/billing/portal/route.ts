@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const gate = await claimIdempotentOperation({
     leaseSeconds: 60,
     operationType: "billing.portal.create",
-    payload: { destination: "account" },
+    payload: { destination: "membership" },
     request,
     retention: "financial",
     supabase: context.supabase,
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       if (!applicationOrigin) return billingError("BILLING_ORIGIN_INVALID", "Furvise could not open billing settings.", 403);
       const session = await getStripeServerClient().billingPortal.sessions.create({
         customer: account.stripe_customer_id,
-        return_url: `${applicationOrigin}/account#plans`,
+        return_url: `${applicationOrigin}/membership`,
       }, { idempotencyKey: `furvise_portal_${gate.operation.key}` });
       return Response.json({ url: session.url }, { headers: PRIVATE_CACHE_HEADERS });
     } catch (error) {

@@ -30,8 +30,6 @@ export default function AccountPage() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [billingBusy, setBillingBusy] = useState<"checkout" | "portal" | "refresh" | null>(null);
-  const [checkoutPending, setCheckoutPending] = useState(false);
   const [entitlements, setEntitlements] = useState<{
     accessRole: "consumer" | "internal_qa";
     billingPlan: "free" | "plus";
@@ -39,12 +37,9 @@ export default function AccountPage() {
   } | null>(null);
   const [askUsage, setAskUsage] = useState<{
     billingPlan?: "free" | "plus";
-    cancelAtPeriodEnd?: boolean;
     limit: number;
     planId: "free" | "plus";
     remaining: number;
-    resetAt?: string;
-    subscriptionStatus?: string;
   } | null>(null);
 
   const loadEntitlements = useCallback(async () => {
@@ -58,7 +53,6 @@ export default function AccountPage() {
     }
     setEntitlements(entitlementPayload.entitlements);
     setAskUsage(entitlementPayload.askUsage);
-    if (entitlementPayload.entitlements.billingPlan === "plus") setCheckoutPending(false);
   }, []);
 
   useEffect(() => {
@@ -78,7 +72,6 @@ export default function AccountPage() {
         setProfile(detectedRow);
         setSelectedCountry(detectedRow?.country || "CA");
         await loadEntitlements();
-        setCheckoutPending(new URLSearchParams(window.location.search).get("checkout") === "success");
       } catch (loadError) {
         if (active) {
           setError(loadError instanceof Error ? loadError.message : "Furvise could not load account settings.");
@@ -126,34 +119,6 @@ export default function AccountPage() {
     const redirectTo = buildOAuthCallbackUrl(window.location.origin, "/account");
     const { error: linkError } = await client.auth.linkIdentity({ provider: "google", options: { redirectTo } });
     if (linkError) setError("Furvise could not connect Google. Sign in with your existing method and try again.");
-  }
-
-  async function openBilling(destination: "checkout" | "portal") {
-    setBillingBusy(destination); setError(""); setMessage("");
-    try {
-      const response = await idempotentClientFetch(`/api/billing/${destination}`, {
-        headers: await authorizationHeaders(),
-        method: "POST",
-      }, `billing-${destination}`);
-      const body = await response.json().catch(() => null) as { error?: string; url?: string } | null;
-      if (!response.ok || !body?.url) throw new Error(body?.error || "Billing is temporarily unavailable.");
-      window.location.assign(body.url);
-    } catch (billingError) {
-      setError(billingError instanceof Error ? billingError.message : "Billing is temporarily unavailable.");
-      setBillingBusy(null);
-    }
-  }
-
-  async function refreshBilling() {
-    setBillingBusy("refresh"); setError("");
-    try {
-      await loadEntitlements();
-      setMessage("Billing status refreshed.");
-    } catch (billingError) {
-      setError(billingError instanceof Error ? billingError.message : "Billing status could not be refreshed.");
-    } finally {
-      setBillingBusy(null);
-    }
   }
 
   async function exportAccountData() {
@@ -234,44 +199,17 @@ export default function AccountPage() {
         <p className="mt-2 leading-7 text-[var(--pw-muted)]">Connect a provider only after signing in to this Furvise account. Furvise never merges accounts from an unverified email.</p>
         <PrimaryButton className="mt-4 w-full sm:w-auto" disabled={connectedProviders.includes("google")} onClick={() => void connectGoogle()} type="button">{connectedProviders.includes("google") ? "Google connected" : "Connect Google"}</PrimaryButton>
       </section> : null}
-      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6" id="plans">
-        <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Plan</h2>
+      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
+        <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Membership</h2>
         <p className="mt-2 font-semibold text-[var(--pw-text)]">
-          {entitlements?.accessRole === "internal_qa" ? "Internal testing access" : entitlements?.billingPlan === "plus" ? "Furvise Plus" : "Free"}
-        </p>
-        <p className="mt-2 leading-7 text-[var(--pw-muted)]">
           {entitlements?.accessRole === "internal_qa"
-            ? "Paid feature entitlements and expanded testing quotas are enabled without changing billing."
+            ? `Internal testing access · ${askUsage?.limit?.toLocaleString() || "Expanded"} Ask/month`
             : entitlements?.billingPlan === "plus"
-              ? `55 Ask per month. ${askUsage?.remaining ?? "Loading"} remaining in this billing period.`
-              : `8 Ask per month. ${askUsage?.remaining ?? "Loading"} remaining in this monthly allowance.`}
+              ? `Furvise Plus · ${askUsage?.limit || 55} Ask/month`
+              : `Furvise Free · ${askUsage?.limit || 8} Ask/month`}
         </p>
-        {askUsage?.resetAt ? <p className="mt-2 text-sm text-[var(--pw-subtle)]">{entitlements?.billingPlan === "plus" ? "Renews" : "Resets"} {formatBillingDate(askUsage.resetAt)}.</p> : null}
-        {askUsage?.cancelAtPeriodEnd && entitlements?.billingPlan === "plus" ? (
-          <p className="mt-2 text-sm font-semibold text-[var(--pw-text)]">Your cancellation is scheduled. Plus remains available through {formatBillingDate(askUsage.resetAt)}.</p>
-        ) : null}
-        {checkoutPending && entitlements?.billingPlan !== "plus" ? (
-          <div className="mt-4 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-4" role="status">
-            <p className="font-semibold text-[var(--pw-text)]">We&apos;re confirming your Furvise Plus subscription.</p>
-            <p className="mt-1 text-sm text-[var(--pw-muted)]">Checkout is complete. Access will update after Stripe confirms the subscription.</p>
-            <PrimaryButton className="mt-3 w-full sm:w-auto" disabled={billingBusy !== null} loading={billingBusy === "refresh"} onClick={() => void refreshBilling()} type="button">Refresh status</PrimaryButton>
-          </div>
-        ) : null}
-        {entitlements?.accessRole !== "internal_qa" ? (
-          <PrimaryButton
-            className="mt-5 w-full sm:w-auto"
-            disabled={loading || billingBusy !== null}
-            loading={billingBusy === (entitlements?.billingPlan === "plus" ? "portal" : "checkout")}
-            onClick={() => void openBilling(entitlements?.billingPlan === "plus" ? "portal" : "checkout")}
-            type="button"
-          >
-            {entitlements?.billingPlan === "plus" ? "Manage billing" : "Upgrade to Plus"}
-          </PrimaryButton>
-        ) : null}
-        {entitlements?.billingPlan !== "plus" && entitlements?.accessRole !== "internal_qa" ? (
-          <p className="mt-3 text-sm text-[var(--pw-muted)]">Furvise Plus is CA$5.49/month in Canada or US$5.49/month in the United States. Monthly only; cancel anytime.</p>
-        ) : null}
-        <p className="mt-3 text-sm text-[var(--pw-muted)]">Share the full picture in each Ask for more personalized answers and a more useful pet history.</p>
+        <p className="mt-2 leading-7 text-[var(--pw-muted)]">View your Ask allowance, compare plans, or manage billing in one place.</p>
+        <TextAction className="mt-3" href="/membership">View membership</TextAction>
       </section>
       <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
         <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Security</h2>
@@ -302,13 +240,6 @@ function Status({ text }: { text: string }) {
       {text}
     </div>
   );
-}
-
-function formatBillingDate(value?: string) {
-  if (!value) return "the next allowance period";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "the next allowance period";
-  return new Intl.DateTimeFormat("en", { day: "numeric", month: "long", timeZone: "UTC", year: "numeric" }).format(date);
 }
 
 async function authorizationHeaders() {

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       if (!applicationOrigin) return billingError("BILLING_ORIGIN_INVALID", "Furvise could not open secure checkout.", 403);
       const session = await stripe.checkout.sessions.create({
         billing_address_collection: "required",
-        cancel_url: `${applicationOrigin}/account?checkout=cancelled#plans`,
+        cancel_url: `${applicationOrigin}/membership?checkout=cancelled`,
         client_reference_id: context.userId,
         customer: customerId,
         integration_identifier: checkoutIntegrationIdentifier(),
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         metadata: { furvise_user_id: context.userId },
         mode: "subscription",
         subscription_data: { metadata: { furvise_user_id: context.userId } },
-        success_url: `${applicationOrigin}/account?checkout=success#plans`,
+        success_url: `${applicationOrigin}/membership?checkout=success`,
       }, { idempotencyKey: `furvise_checkout_${gate.operation.key}` });
       if (!session.url) throw new Error("STRIPE_CHECKOUT_URL_MISSING");
       return Response.json({ url: session.url }, { headers: PRIVATE_CACHE_HEADERS });
