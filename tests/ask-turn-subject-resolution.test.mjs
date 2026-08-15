@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolveAuthoritativeTurnSubject } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
+import { evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
+import { governCanonicalEvents } from "../app/lib/intelligence/semantic-events.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
+import { governSemanticTurnV2 } from "../app/lib/intelligence/v2/governance/govern-turn.ts";
 
 const luna = { id: "pet-luna", name: "Luna", species: "dog", age_value: 5, age_unit: "years" };
 const mani = { id: "pet-mani", name: "Mani", species: "cat", age_value: 4, age_unit: "years" };
@@ -54,6 +57,27 @@ test("a unique owned species excludes an incompatible selected pet", () => {
   assert.notEqual(result.petId, luna.id);
 });
 
+test("a selected same-species pet disambiguates an explicit species reference", () => {
+  for (const surface of ["my cat", "the cat"]) {
+    const message = `${surface} is restless`;
+    const result = resolveAuthoritativeTurnSubject({
+      frame: subjectFrame(message, surface, { species: "cat", ownership: "owner" }, "restless"),
+      message, ownerId: "owner-1", pets: [luna, mani, poppy], recentConversation: [], selectedPetId: mani.id,
+    });
+    assert.equal(result.status, "resolved");
+    assert.equal(result.petId, mani.id);
+    assert.equal(result.requiresClarification, false);
+  }
+});
+
+test("an explicit pet name remains authoritative over selected context", () => {
+  const result = resolveAuthoritativeTurnSubject({
+    frame: subjectFrame("Poppy is restless", "Poppy", { species: "cat", ownership: "owner" }, "restless"),
+    message: "Poppy is restless", ownerId: "owner-1", pets: [luna, mani, poppy], recentConversation: [], selectedPetId: mani.id,
+  });
+  assert.equal(result.petId, poppy.id);
+});
+
 test("multiple compatible owned pets fail closed with clarification", () => {
   const result = resolve("my cat is vomiting", subjectFrame("my cat is vomiting", "my cat", { species: "cat", ownership: "owner" }, "vomiting"), [luna, mani, poppy]);
   assert.equal(result.status, "ambiguous");
@@ -100,6 +124,50 @@ test("an explicit owned species resolves even if the model omitted the animal me
   const result = resolve("My cat is vomiting.", empty);
   assert.equal(result.petId, mani.id);
   assert.equal(result.explicitSubject, true);
+});
+
+test("My cat is gay resolves Mani without authorizing a durable identity claim", () => {
+  const message = "My cat is gay";
+  const frame = subjectFrame(message, "My cat", { species: "cat", ownership: "owner" }, "sexual orientation");
+  frame.claims[0] = {
+    ...frame.claims[0],
+    value: "gay",
+    durability: "durable",
+    persistenceHint: "pet_memory",
+  };
+  const subject = resolveAuthoritativeTurnSubject({
+    frame, message, ownerId: "owner-1", pets: [luna, mani, poppy], recentConversation: [], selectedPetId: mani.id,
+  });
+  assert.equal(subject.petId, mani.id);
+  assert.equal(subject.requiresClarification, false);
+
+  const learning = {
+    subjectType: "pet", subjectId: mani.id, category: "identity", factKey: "sexual_orientation", factValue: "gay",
+    confidence: 0.99, importance: "medium", durability: "durable", action: "create", sourceExcerpt: message,
+  };
+  const learningDecision = evaluateLearningPolicy([learning], message, [mani.id]);
+  assert.equal(learningDecision.accepted.length, 0);
+  assert.equal(learningDecision.rejected[0].reason, "unsupported_pet_identity_claim");
+
+  const eventDecision = governCanonicalEvents({
+    proposals: [{
+      subject: { type: "pet", name: mani.name }, domain: "profile", topic: "sexual_orientation", eventTitle: "Pet identity",
+      transition: "confirmed", state: "historical", temporal: { occurredAt: null, explicitTime: null }, importance: "routine",
+      confidence: 0.99, sourceExcerpt: message,
+    }],
+    message, resolvedPetSubject: mani, activeEpisodes: [],
+  });
+  assert.equal(eventDecision.accepted.length, 0);
+  assert.equal(eventDecision.rejected[0].reason, "unsupported_pet_identity");
+
+  const governed = governSemanticTurnV2({
+    frame, sourceMessage: message, sourceMessageId: "message-1", ownerId: "owner-1", pets: [mani], activeEpisodes: [],
+  });
+  assert.equal(governed.acceptedClaims.length, 1);
+  assert.equal(governed.acceptedClaims[0].subject.id, mani.id);
+  assert.equal(governed.acceptedClaims[0].persistenceEligible, false);
+  assert.equal(governed.acceptedClaims[0].persistenceDestination, "none");
+  assert.deepEqual(governed.acceptedClaims[0].persistencePolicyReasons, ["unsupported_pet_identity_claim"]);
 });
 
 test("two named owned pets retain independent claim subjects while a selected third pet remains context only", () => {

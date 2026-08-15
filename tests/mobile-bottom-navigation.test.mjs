@@ -83,8 +83,8 @@ test("one persistent root-owned authenticated chrome survives application route 
 });
 
 test("scrolling cannot move or temporarily disable the interactive dock", () => {
-  assert.match(mobileNavigation, /data-state="stable"/);
-  assert.match(mobileNavigation, /h-\[var\(--mobile-nav-expanded-height\)\]/);
+  assert.match(mobileNavigation, /data-state=\{askCompactNavigation \? "ask-compact" : "stable"\}/);
+  assert.match(mobileNavigation, /askCompactNavigation \? "h-\[var\(--mobile-nav-compact-height\)\] p-1" : "h-\[var\(--mobile-nav-expanded-height\)\] p-1\.5"/);
   assert.doesNotMatch(header, /addEventListener\("scroll"|readScrollPosition|expandAfterIdle|mobileNavigationState/);
   assert.doesNotMatch(mobileNavigation, /translate|transition-\[height|transition-\[width/);
 });
@@ -102,7 +102,7 @@ test("the glass dock uses semantic color roles and reserves safe page space", ()
   assert.match(css, /\.mobile-liquid-glass-scene::before/);
   assert.match(mobileNavigation, /pb-\[var\(--mobile-nav-safe-area\)\]/);
   assert.doesNotMatch(mobileNavigation, /#[0-9a-f]{3,8}|(?:bg|text|border|ring)-(?:white|black|red|green|blue|orange|amber|stone|gray)-/i);
-  assert.match(read("app/globals.css"), /--mobile-nav-expanded-height: 5\.75rem;[\s\S]*--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-expanded-height\)/);
+  assert.match(read("app/globals.css"), /--mobile-nav-expanded-height: 5\.75rem;[\s\S]*--mobile-nav-compact-height: 3\.5rem;[\s\S]*--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-expanded-height\)/);
 });
 
 test("persistent navigation icons are low-priority and do not remount by pathname", () => {

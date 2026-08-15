@@ -52,7 +52,7 @@ test("each dock route uses one standard Link click with immediate pressed feedba
 });
 
 test("scroll, resize, and route state cannot move or disable the dock", () => {
-  assert.match(bottomDock, /data-state="stable"[\s\S]*h-\[var\(--mobile-nav-expanded-height\)\]/);
+  assert.match(bottomDock, /data-state=\{askCompactNavigation \? "ask-compact" : "stable"\}[\s\S]*h-\[var\(--mobile-nav-expanded-height\)\]/);
   assert.doesNotMatch(header, /addEventListener\("scroll"|expandAfterIdle|mobileNavigationState|pointer-events-none[^"]*mobile-liquid-glass-content/);
   assert.doesNotMatch(bottomDock, /translate|transition-\[height|transition-\[width|\sdisabled=/);
   assert.doesNotMatch(liquidGlassHook, /pathname|lifecycleKey|route_change/);

@@ -134,6 +134,7 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --mobile-nav-height: 4.25rem;
   --mobile-nav-expanded-height: 5.75rem;
+  --mobile-nav-compact-height: 3.5rem;
   --mobile-nav-safe-area: env(safe-area-inset-bottom, 0px);
   --mobile-sticky-gap: var(--space-3);
   --mobile-nav-clearance: calc(
@@ -405,6 +406,14 @@ body {
   z-index: var(--z-sticky-controls);
 }
 
+.app-sticky-composer[data-ask-composer-focused="true"] {
+  bottom: calc(
+    var(--mobile-nav-compact-height) +
+    var(--mobile-nav-safe-area) +
+    var(--mobile-sticky-gap)
+  );
+}
+
 .homepage-display {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 700;
@@ -486,6 +495,10 @@ textarea:disabled {
   }
 
   .app-sticky-composer {
+    bottom: var(--space-3);
+  }
+
+  .app-sticky-composer[data-ask-composer-focused="true"] {
     bottom: var(--space-3);
   }
 }

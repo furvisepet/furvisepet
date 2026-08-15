@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppPage } from "../components/app-page";
 import { PageHeader, PrimaryButton, SecondaryButton } from "../components/product-primitives";
@@ -9,6 +10,7 @@ import type { BillingPresentation } from "../lib/billing/billing-presentation";
 import type { EffectiveEntitlements } from "../lib/billing/entitlement-types";
 import { FREE_ASK_ALLOWANCE, PLUS_ASK_ALLOWANCE } from "../lib/billing/launch-plans";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
+import { canUseSameSiteNavigationHistory } from "../lib/navigation/safe-back";
 import { getBrowserSupabase } from "../lib/supabase";
 
 type AskUsage = {
@@ -28,6 +30,7 @@ type MembershipPayload = {
 };
 
 export default function MembershipPage() {
+  const router = useRouter();
   const { status: authStatus } = useRequireConfirmedSupabaseAuth();
   const [membership, setMembership] = useState<MembershipPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,8 +91,24 @@ export default function MembershipPage() {
   const isPlus = membership?.entitlements.billingPlan === "plus";
   const confirming = checkoutState === "success" && !isPlus && !isInternalQa;
 
+  function goBack() {
+    if (canUseSameSiteNavigationHistory({
+      currentOrigin: window.location.origin,
+      currentPathname: window.location.pathname,
+      historyLength: window.history.length,
+      referrer: document.referrer,
+    })) {
+      router.back();
+      return;
+    }
+    router.push("/account");
+  }
+
   return (
     <AppPage shell="reading">
+      <SecondaryButton className="mb-5 w-fit px-3" onClick={goBack} type="button">
+        <span aria-hidden="true">←</span> Back
+      </SecondaryButton>
       <PageHeader
         supportingText="Choose the plan that gives you the right amount of room to ask, track, and care for your pets."
         title="Membership"
@@ -242,7 +261,18 @@ function Comparison() {
   return (
     <section className="mt-12 pb-4">
       <h2 className="text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">Compare plans</h2>
-      <div className="mt-5 overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] shadow-[var(--shadow-surface-1)]">
+      <div className="mt-5 grid gap-3 sm:hidden" data-ui="mobile-membership-comparison">
+        {rows.map(([feature, free, plus]) => (
+          <article className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-4 shadow-[var(--shadow-surface-1)]" key={feature}>
+            <h3 className="font-bold text-[var(--text-primary)]">{feature}</h3>
+            <dl className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 text-sm leading-6">
+              <div className="min-w-0"><dt className="font-semibold text-[var(--text-secondary)]">Free</dt><dd className="mt-1 break-words text-[var(--text-secondary)]">{free}</dd></div>
+              <div className="min-w-0"><dt className="font-semibold text-[var(--deep-forest)]">Furvise Plus</dt><dd className="mt-1 break-words font-semibold text-[var(--deep-forest)]">{plus}</dd></div>
+            </dl>
+          </article>
+        ))}
+      </div>
+      <div className="mt-5 hidden overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] shadow-[var(--shadow-surface-1)] sm:block" data-ui="desktop-membership-comparison">
         <table className="w-full min-w-[620px] border-collapse text-left text-sm">
           <thead><tr className="border-b border-[var(--border-subtle)]"><th className="p-4 font-semibold text-[var(--text-secondary)]">Feature</th><th className="p-4 text-base font-bold text-[var(--text-primary)]">Free</th><th className="p-4 text-base font-bold text-[var(--text-primary)]">Furvise Plus</th></tr></thead>
           <tbody>{rows.map(([feature, free, plus]) => <tr className="border-b border-[var(--border-subtle)] last:border-0" key={feature}><th className="p-4 font-semibold text-[var(--text-primary)]">{feature}</th><td className="p-4 text-[var(--text-secondary)]">{free}</td><td className="p-4 font-semibold text-[var(--deep-forest)]">{plus}</td></tr>)}</tbody>

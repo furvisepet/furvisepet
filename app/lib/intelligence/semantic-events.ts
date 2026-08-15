@@ -2,8 +2,9 @@ import type { CareEpisode } from "./episodes/types.ts";
 import type { CanonicalEvent, CanonicalEventProposal, GovernedCanonicalEvent, IntelligenceLearning, SemanticPersistenceDestination } from "./types.ts";
 import { routeSemanticEventDestinations } from "./persistence-destination.ts";
 import { deriveEffectiveRecoveryAssessment, EFFECTIVE_RECOVERY_RESOLUTION_THRESHOLD, type EffectiveRecoveryAssessment } from "./recovery-governance.ts";
+import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 
-export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode";
+export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "unsupported_pet_identity" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode";
 export type SemanticEventGovernance = {
   accepted: GovernedCanonicalEvent[];
   rejected: Array<{ proposal: CanonicalEventProposal; reason: SemanticEventRejectionReason }>;
@@ -172,6 +173,9 @@ export function learningFromSemanticEvent(item: GovernedCanonicalEvent): Intelli
 }
 
 function validateProposal(proposal: CanonicalEventProposal, message: string, pet: { id: string; name: string | null }, governedRecovery = false): SemanticEventRejectionReason | null {
+  if (proposal.subject.type === "pet" && containsUnsupportedPetIdentitySemantics(
+    proposal.topic, proposal.eventTitle, proposal.sourceExcerpt,
+  )) return "unsupported_pet_identity";
   const threshold = governedRecovery && proposal.transition === "resolved"
     ? EFFECTIVE_RECOVERY_RESOLUTION_THRESHOLD
     : MUTATING.has(proposal.transition) ? 0.95 : proposal.state === "active" || proposal.state === "resolved" ? 0.9 : 0.85;

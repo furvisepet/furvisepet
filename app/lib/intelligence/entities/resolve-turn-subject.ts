@@ -54,6 +54,8 @@ export function resolveAuthoritativeTurnSubject({
   if (explicitSpecies) {
     const matching = pets.filter((pet) => normalize(pet.species || "") === explicitSpecies);
     if (matching.length === 1) return resolved(matching[0].id, 0.98);
+    const selectedMatch = matching.find((pet) => pet.id === selectedPetId);
+    if (selectedMatch) return resolved(selectedMatch.id, 0.96);
     return failed(matching.length > 1 ? "ambiguous" : "unresolved", matching.length > 1 ? "ENTITY_AMBIGUOUS" : "ENTITY_NO_MATCH");
   }
 
@@ -132,7 +134,7 @@ function explicitlyNamedClaimSubjects(frame: ProposedSemanticFrame) {
 }
 
 function explicitOwnedSpecies(message: string) {
-  const match = /\b(?:my|our)\s+(cat|dog)\b/i.exec(message.normalize("NFKC"));
+  const match = /\b(?:my|our|the)\s+(cat|dog)\b/i.exec(message.normalize("NFKC"));
   return match ? normalize(match[1]) : null;
 }
 
