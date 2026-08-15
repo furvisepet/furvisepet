@@ -172,7 +172,10 @@ test("billing endpoints keep price and currency selection server/Stripe-owned an
   assert.match(checkout, /subscription_data: \{ metadata: \{ furvise_user_id: context\.userId \} \}/);
   assert.match(checkout, /integration_identifier:/);
   assert.doesNotMatch(checkout, /payment_method_types/);
+  assert.match(checkout, /success_url: `\$\{applicationOrigin\}\/membership\?checkout=success`/);
+  assert.match(checkout, /cancel_url: `\$\{applicationOrigin\}\/membership\?checkout=cancelled`/);
   assert.match(portal, /account\.stripe_customer_id/);
+  assert.match(portal, /return_url: `\$\{applicationOrigin\}\/membership`/);
   assert.match(webhook, /const rawBody = await request\.text\(\)/);
   assert.match(webhook, /constructEvent\(rawBody, signature, getStripeWebhookSecret\(\)\)/);
   assert.doesNotMatch(webhook, /request\.json\(/);

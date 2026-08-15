@@ -5,6 +5,7 @@ const PRIVATE_ROUTE_PREFIXES = [
   "/dashboard",
   "/dogs",
   "/history",
+  "/membership",
   "/onboarding",
   "/pets",
   "/products",

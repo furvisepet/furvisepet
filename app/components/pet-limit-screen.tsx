@@ -31,7 +31,7 @@ export function PetLimitScreen({ access }: { access: PetCreationAccess }) {
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           <PrimaryButton href="/pets">Back to pets</PrimaryButton>
-          <SecondaryButton href="/account#plans">See plan options</SecondaryButton>
+          <SecondaryButton href="/membership">See plan options</SecondaryButton>
         </div>
       </section>
     </AppPage>

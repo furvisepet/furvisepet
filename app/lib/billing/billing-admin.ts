@@ -26,6 +26,16 @@ export async function getBillingAccountForUser(admin: SupabaseClient, userId: st
   return data;
 }
 
+export async function getProjectedBillingCurrencyForUser(admin: SupabaseClient, userId: string) {
+  const { data, error } = await admin
+    .from("billing_accounts")
+    .select("stripe_currency")
+    .eq("user_id", userId)
+    .maybeSingle<{ stripe_currency: string | null }>();
+  if (error) throw new BillingProjectionError("BILLING_CURRENCY_READ_FAILED", error);
+  return data?.stripe_currency || null;
+}
+
 export async function registerBillingCustomer({
   admin,
   customerId,

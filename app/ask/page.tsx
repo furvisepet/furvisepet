@@ -663,7 +663,7 @@ function AskFailureState({ code, onEdit, onRetry, planId, retryAfterSeconds }: {
     {presentation.recommendedAction !== "wait" ? <div className="mt-3 flex flex-wrap gap-2">
       {presentation.recommendedAction === "sign_in" ? <Link className={secondaryButton} href="/login?next=%2Fask">Sign in</Link> : null}
       {presentation.recommendedAction === "saved_data" ? <><Link className={secondaryButton} href="/pets">Back to pets</Link><Link className={quietButton} href="/care-log">View history</Link></> : null}
-      {code === "AI_CREDITS_EXHAUSTED" && planId === "free" ? <Link className={secondaryButton} href="/account#plans">Upgrade to Plus</Link> : null}
+      {code === "AI_CREDITS_EXHAUSTED" && planId === "free" ? <Link className={secondaryButton} href="/membership">Upgrade to Plus</Link> : null}
       {presentation.retryable ? <button className={secondaryButton} onClick={onRetry} type="button">Try again</button> : null}
       {presentation.recommendedAction === "edit" || presentation.retryable ? <button className={quietButton} onClick={onEdit} type="button">Edit question</button> : null}
     </div> : null}

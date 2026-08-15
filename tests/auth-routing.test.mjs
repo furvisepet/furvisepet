@@ -120,6 +120,7 @@ test("protected pages redirect signed-out users to login with current path next"
     "app/pets/[id]/page.tsx",
     "app/shop/page.tsx",
     "app/account/page.tsx",
+    "app/membership/page.tsx",
   ]) {
     const source = read(path);
     assert.match(source, /useRequireConfirmedSupabaseAuth\(\)/, path);
