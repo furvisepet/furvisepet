@@ -19,8 +19,10 @@ export function decidePersistenceV2(input: {
   modality: "asserted" | "reported" | "suspected" | "hypothetical";
   correctionTargetResolved: boolean;
   safetyFloor: SafetyFloorMetadata;
+  unsupportedPetIdentity: boolean;
 }): V2PersistenceDecision {
   if (input.governedConfidence < 0.8) return denied("below_governed_confidence_floor");
+  if (input.subjectType === "pet" && input.unsupportedPetIdentity) return denied("unsupported_pet_identity_claim");
   if (input.modality === "hypothetical" || input.modality === "suspected") return denied("non_assertive_modality");
   if (input.subjectType === "unknown" || input.subjectType === "organization" || input.subjectType === "product" || input.subjectType === "place") {
     return denied("unsupported_subject_type");

@@ -22,6 +22,7 @@ import { resolveV2ClaimSubject, resolveV2Entities } from "./entities.ts";
 import { normalizeTemporalSemanticsV2 } from "./temporal.ts";
 import { decidePersistenceV2 } from "./persistence.ts";
 import { deduplicateGovernedClaims } from "./deduplicate.ts";
+import { containsUnsupportedPetIdentitySemantics } from "../../pet-identity-persistence-policy.ts";
 
 export const V2_GOVERNANCE_POLICY_VERSION = "ask_v2.governance.shadow.v1" as const;
 export const V2_MINIMUM_CLAIM_CONFIDENCE = 0.8;
@@ -155,6 +156,9 @@ function governOneClaim(input: {
     subjectType: subject.type, claimKind: governedClaim.kind, operation: operationType, durability, temporal,
     lifecycleRole: lifecycle.role, governedConfidence, modality: governedClaim.modality,
     correctionTargetResolved, safetyFloor: input.safetyFloor,
+    unsupportedPetIdentity: containsUnsupportedPetIdentitySemantics(
+      concept.key, concept.canonicalKey, governedClaim.predicate.label, structuredValue(governedClaim), groundedEvidence,
+    ),
   });
   return {
     sourceLocalClaimKey: claim.localId,

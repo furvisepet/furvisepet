@@ -1,4 +1,5 @@
 import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "./types";
+import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 
 const forbiddenOwnerCategories = /(?:age|race|religion|politic|medical_condition|disability|sexual|ethnicity)/i;
 const diagnosisPattern = /\b(diagnos(?:e|is)|has allergies|has an infection|is sick|definitely has)\b/i;
@@ -36,6 +37,7 @@ export function evaluateCareActionPolicy({
   for (const action of actions.slice(0, 3)) {
     let reason = "";
     if (action.action === "none") reason = "no_action";
+    else if (containsUnsupportedPetIdentitySemantics(currentMessage, action.category, action.title, action.details)) reason = "unsupported_pet_identity_claim";
     else if (action.confidence < 0.9) reason = "confidence_below_automatic_threshold";
     else if (action.action === "update_profile") reason = "profile_updates_require_explicit_editing";
     else if (!understanding.userIsProvidingUpdate && !understanding.userIsResolvingConcern && !understanding.userIsCorrectingPriorInformation) reason = "message_is_not_an_explicit_care_update";
@@ -56,6 +58,9 @@ function rejectLearningReason(learning: IntelligenceLearning, currentMessage: st
   if (!learning.factKey.trim() || learning.factValue === null || learning.factValue === undefined) return "empty_fact";
   if (learning.subjectType === "pet" && learning.subjectId && !authorizedPetIds.includes(learning.subjectId)) return "wrong_pet";
   if (learning.subjectType === "pet" && !learning.subjectId && authorizedPetIds.length !== 1) return "ambiguous_pet";
+  if (learning.subjectType === "pet" && containsUnsupportedPetIdentitySemantics(
+    learning.category, learning.factKey, learning.factValue, learning.sourceExcerpt,
+  )) return "unsupported_pet_identity_claim";
   if (learning.subjectType === "owner" && forbiddenOwnerCategories.test(`${learning.category} ${learning.factKey}`)) return "sensitive_owner_inference";
   if (diagnosisPattern.test(`${learning.category} ${learning.factKey} ${stringify(learning.factValue)}`)) return "diagnosis_is_not_memory";
   if (!learning.sourceExcerpt.trim() || !normalized(currentMessage).includes(normalized(learning.sourceExcerpt))) return "source_excerpt_not_explicit";

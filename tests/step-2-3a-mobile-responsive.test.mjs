@@ -61,7 +61,7 @@ test("mobile navigation order and labels remain stable during scrolling", () => 
   }
   assert.match(header, /text-\[0\.6875rem\]/);
   assert.match(header, /data-active-indicator=\{active \? "icon-capsule"/);
-  assert.match(header, /<span className="block whitespace-nowrap">\{item\.label\}<\/span>/);
+  assert.match(header, /<span className=\{askCompactNavigation \? "sr-only" : "block whitespace-nowrap"\}>\{item\.label\}<\/span>/);
   assert.doesNotMatch(header, /mobileNavigationState|hideLabel|addEventListener\("scroll"/);
 });
 

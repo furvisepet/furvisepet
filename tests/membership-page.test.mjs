@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 import { resolveBillingPresentationForMarket } from "../app/lib/billing/billing-presentation.ts";
+import { canUseSameSiteNavigationHistory } from "../app/lib/navigation/safe-back.ts";
 
 const read = (path) => readFileSync(path, "utf8");
 const page = read("app/membership/page.tsx");
@@ -20,6 +22,21 @@ test("Membership is a private Furvise page with the supplied plan artwork", () =
   assert.match(page, /image="\/images\/paywall_free\.png"/);
   assert.match(page, /image="\/images\/paywall_paid\.png"/);
   assert.match(page, /import Image from "next\/image"/);
+  for (const asset of ["public/images/paywall_free.png", "public/images/paywall_paid.png"]) {
+    assert.equal(existsSync(asset), true, `${asset} exists`);
+    assert.doesNotThrow(() => execFileSync("git", ["ls-files", "--error-unmatch", asset], { stdio: "pipe" }), `${asset} is deployment-tracked`);
+  }
+});
+
+test("Membership Back uses only usable same-site history and otherwise falls back to Account", () => {
+  assert.match(page, />←<\/span> Back/);
+  assert.match(page, /canUseSameSiteNavigationHistory\(\{/);
+  assert.match(page, /router\.back\(\)/);
+  assert.match(page, /router\.push\("\/account"\)/);
+  assert.doesNotMatch(page, /searchParams.*(?:return|redirect|next)|router\.(?:push|replace)\([^)]*searchParams/);
+  assert.equal(canUseSameSiteNavigationHistory({ currentOrigin: "https://furvise.com", currentPathname: "/membership", historyLength: 2, referrer: "https://furvise.com/account" }), true);
+  assert.equal(canUseSameSiteNavigationHistory({ currentOrigin: "https://furvise.com", currentPathname: "/membership", historyLength: 2, referrer: "https://example.com/sale" }), false);
+  assert.equal(canUseSameSiteNavigationHistory({ currentOrigin: "https://furvise.com", currentPathname: "/membership", historyLength: 1, referrer: "" }), false);
 });
 
 test("Free and Plus show canonical Ask allowances and remaining usage without new accounting", () => {
@@ -44,12 +61,9 @@ test("Membership billing actions preserve checkout, portal, confirmation, and ca
   assert.match(page, /Consumer billing actions are hidden for internal testing access/);
 });
 
-test("Account contains only a compact Membership summary and link", () => {
-  assert.match(account, />Membership<\/h2>/);
-  assert.match(account, /Furvise Free · \$\{askUsage\?\.limit \|\| 8\} Ask\/month/);
-  assert.match(account, /Furvise Plus · \$\{askUsage\?\.limit \|\| 55\} Ask\/month/);
-  assert.match(account, /href="\/membership">View membership/);
-  assert.doesNotMatch(account, /id="plans"|openBilling\(|Manage billing|Upgrade to Plus|CA\$5\.49|US\$5\.49/);
+test("Account contains no Membership or paywall presentation", () => {
+  assert.doesNotMatch(account, />Membership<\/h2>|href="\/membership"|\/api\/account\/entitlements/);
+  assert.doesNotMatch(account, /askUsage|entitlements|id="plans"|openBilling\(|Manage billing|Upgrade to Plus|CA\$5\.49|US\$5\.49/);
 });
 
 test("localized billing presentation shows exactly one supported market price", () => {
@@ -125,6 +139,15 @@ test("Membership is available from the account menu and quota recovery links", (
   assert.match(read("app/components/ask-usage-notice.tsx"), /href="\/membership">Upgrade to Plus/);
   assert.match(read("app/components/pet-limit-screen.tsx"), /href="\/membership">See plan options/);
   assert.match(read("app/ask/page.tsx"), /href="\/membership">Upgrade to Plus/);
+});
+
+test("plan comparison is stacked on mobile and tabular without clipping on larger screens", () => {
+  assert.match(page, /data-ui="mobile-membership-comparison"/);
+  assert.match(page, /mt-5 grid gap-3 sm:hidden/);
+  assert.match(page, /grid-cols-\[minmax\(0,1fr\)_minmax\(0,1fr\)\]/);
+  assert.match(page, /data-ui="desktop-membership-comparison"/);
+  assert.match(page, /hidden overflow-hidden[\s\S]*sm:block/);
+  assert.doesNotMatch(page, /overflow-x-auto/);
 });
 
 test("Membership is protected and intentionally non-indexable", () => {

@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 import { AppPage } from "../components/app-page";
+import { useAskComposerFocus } from "../lib/navigation/ask-composer-focus";
 import { AskUsageNotice } from "../components/ask-usage-notice";
 import { BrandMark } from "../components/brand-mark";
 import { PageHeader, PrimaryButton } from "../components/product-primitives";
@@ -114,6 +115,7 @@ export default function AskPage() {
 }
 
 function AskPageContent() {
+  const { composerFocused, setComposerFocused } = useAskComposerFocus();
   const searchParams = useSearchParams();
   const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
   const [profiles, setProfiles] = useState<DogProfileWithMemories[]>([]);
@@ -142,6 +144,8 @@ function AskPageContent() {
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const askRequestActiveRef = useRef(false);
+
+  useEffect(() => () => setComposerFocused(false), [setComposerFocused]);
 
   useEffect(() => {
     if (authStatus !== "signedIn" || !authUser) return;
@@ -540,8 +544,8 @@ function AskPageContent() {
                 <div aria-hidden="true" ref={conversationEndRef} />
               </div>
               {latestAnswer && latestAnswer.response.urgency !== "urgent" ? <SuggestedQuestions onSelect={(suggestion) => selectSuggestion(suggestion, "response_suggestion")} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
-              <div className={`app-sticky-composer sticky ${hasThread ? "lg:sticky" : "lg:relative"} mt-4 bg-[var(--surface-page)] pt-1`} data-ui="ask-composer-region">
-                <Composer disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onChange={setQuestion} onSubmit={submit} petName={petName} value={question} />
+              <div className={`app-sticky-composer sticky ${hasThread ? "lg:sticky" : "lg:relative"} mt-4 bg-[var(--surface-page)] pt-1`} data-ask-composer-focused={composerFocused} data-ui="ask-composer-region">
+                <Composer disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onBlur={() => setComposerFocused(false)} onChange={setQuestion} onFocus={() => setComposerFocused(true)} onSubmit={submit} petName={petName} value={question} />
                 <p className="mt-2 text-center text-xs leading-5 text-[var(--pw-subtle)]">Furvise organizes care information and does not replace a veterinarian.</p>
               </div>
             </section>
@@ -636,7 +640,7 @@ function SuggestedQuestions({ onSelect, suggestions }: { onSelect: (suggestion: 
   return <div aria-label="Suggested follow-up questions" className="mt-7 flex snap-x gap-2 overflow-x-auto pb-2 sm:flex-wrap">{suggestions.slice(0, 3).map((suggestion) => <button className={`${suggestionButton} min-w-[15rem] snap-start sm:min-w-0`} key={suggestion} onClick={() => onSelect(suggestion)} type="button">{suggestion}</button>)}</div>;
 }
 
-function Composer({ disabled, hasThread, inputRef, loading, onChange, onSubmit, petName, value }: { disabled: boolean; hasThread: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>; loading: boolean; onChange: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; petName: string; value: string }) {
+function Composer({ disabled, hasThread, inputRef, loading, onBlur, onChange, onFocus, onSubmit, petName, value }: { disabled: boolean; hasThread: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>; loading: boolean; onBlur: () => void; onChange: (value: string) => void; onFocus: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; petName: string; value: string }) {
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
   }
@@ -644,7 +648,7 @@ function Composer({ disabled, hasThread, inputRef, loading, onChange, onSubmit, 
   const canSend = Boolean(value.trim()) && !disabled;
   return <form className="rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-primary)] p-3 shadow-[var(--shadow-surface-2)]" onSubmit={onSubmit}>
     <div className="mb-2 flex items-center justify-between gap-3 px-1"><span className="text-xs font-semibold text-[var(--pw-primary)]">{petName}</span><span className="hidden text-xs text-[var(--pw-subtle)] sm:inline">Enter to send · Shift + Enter for a new line</span></div>
-    <div className="flex items-end gap-2"><textarea aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onChange={(event) => onChange(event.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label="Send question" className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">Ask</PrimaryButton></div>
+    <div className="flex items-end gap-2"><textarea aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onFocus={onFocus} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label="Send question" className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">Ask</PrimaryButton></div>
   </form>;
 }
 

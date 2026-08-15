@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AppPage } from "../components/app-page";
 import { accountInputClass } from "../components/account-access";
 import { PageHeader, PrimaryButton, TextAction } from "../components/product-primitives";
@@ -30,31 +30,6 @@ export default function AccountPage() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [entitlements, setEntitlements] = useState<{
-    accessRole: "consumer" | "internal_qa";
-    billingPlan: "free" | "plus";
-    effectivePlan: "free" | "plus";
-  } | null>(null);
-  const [askUsage, setAskUsage] = useState<{
-    billingPlan?: "free" | "plus";
-    limit: number;
-    planId: "free" | "plus";
-    remaining: number;
-  } | null>(null);
-
-  const loadEntitlements = useCallback(async () => {
-    const entitlementResponse = await fetch("/api/account/entitlements", { cache: "no-store", headers: await authorizationHeaders() });
-    const entitlementPayload = await entitlementResponse.json().catch(() => null) as {
-      askUsage?: typeof askUsage;
-      entitlements?: typeof entitlements;
-    } | null;
-    if (!entitlementResponse.ok || !entitlementPayload?.entitlements || !entitlementPayload.askUsage) {
-      throw new Error("Furvise could not verify account access.");
-    }
-    setEntitlements(entitlementPayload.entitlements);
-    setAskUsage(entitlementPayload.askUsage);
-  }, []);
-
   useEffect(() => {
     if (authStatus !== "signedIn" || !authUser) return;
     let active = true;
@@ -71,7 +46,6 @@ export default function AccountPage() {
         if (!active) return;
         setProfile(detectedRow);
         setSelectedCountry(detectedRow?.country || "CA");
-        await loadEntitlements();
       } catch (loadError) {
         if (active) {
           setError(loadError instanceof Error ? loadError.message : "Furvise could not load account settings.");
@@ -85,7 +59,7 @@ export default function AccountPage() {
     return () => {
       active = false;
     };
-  }, [authStatus, authUser, loadEntitlements]);
+  }, [authStatus, authUser]);
 
   const sourceLabel = useMemo(
     () => getAccountCountrySourceLabel(profile?.country_source),
@@ -199,18 +173,6 @@ export default function AccountPage() {
         <p className="mt-2 leading-7 text-[var(--pw-muted)]">Connect a provider only after signing in to this Furvise account. Furvise never merges accounts from an unverified email.</p>
         <PrimaryButton className="mt-4 w-full sm:w-auto" disabled={connectedProviders.includes("google")} onClick={() => void connectGoogle()} type="button">{connectedProviders.includes("google") ? "Google connected" : "Connect Google"}</PrimaryButton>
       </section> : null}
-      <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
-        <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Membership</h2>
-        <p className="mt-2 font-semibold text-[var(--pw-text)]">
-          {entitlements?.accessRole === "internal_qa"
-            ? `Internal testing access · ${askUsage?.limit?.toLocaleString() || "Expanded"} Ask/month`
-            : entitlements?.billingPlan === "plus"
-              ? `Furvise Plus · ${askUsage?.limit || 55} Ask/month`
-              : `Furvise Free · ${askUsage?.limit || 8} Ask/month`}
-        </p>
-        <p className="mt-2 leading-7 text-[var(--pw-muted)]">View your Ask allowance, compare plans, or manage billing in one place.</p>
-        <TextAction className="mt-3" href="/membership">View membership</TextAction>
-      </section>
       <section className="mt-6 max-w-2xl overflow-hidden rounded-3xl border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6">
         <h2 className="text-lg font-semibold text-[var(--pw-heading)]">Security</h2>
         <p className="mt-2 leading-7 text-[var(--pw-muted)]">Change your sign-in password or use the verified reset-email option if you have forgotten it.</p>

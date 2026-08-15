@@ -74,7 +74,7 @@ test("navigation images use bounded object-contain rendering without artwork-dam
   assert.match(header, /width=\{48\}/);
   assert.match(header, /grid-cols-5/);
   assert.match(header, /min-h-11 min-w-0/);
-  assert.match(header, /inline-flex h-10 w-12[^"]*overflow-hidden/);
+  assert.match(header, /inline-flex shrink-0[^"]*overflow-hidden[\s\S]*askCompactNavigation \? "h-8 w-10" : "h-10 w-12"/);
   assert.match(header, /alt=""[\s\S]*aria-hidden="true"/);
   assert.doesNotMatch(header, /(?:filter|opacity|mask|object-cover)/);
 });
