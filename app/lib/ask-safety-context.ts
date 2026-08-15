@@ -174,7 +174,7 @@ export function detectAskConcernTags(value: string): AskConcernTag[] {
 }
 
 export function detectImmediateAskEmergency(value: string): ImmediateAskEmergency | null {
-  const message = value.trim().replace(/\s+/g, " ");
+  const message = value.trim().replace(/\s+/g, " ").replace(/\bcant\b/gi, "cannot");
   if (!message || generalEmergencyDiscussionPattern.test(message)) return null;
   if (explicitNonPetSubjectPattern.test(message) && !explicitPetSubjectPattern.test(message)) return null;
   const tags = immediateEmergencyPatterns
