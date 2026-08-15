@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-server";
+import { terminateStripeBillingForAccountDeletion } from "../../../lib/billing/account-deletion";
+import { getBillingAccountForUser, recordBillingDeletionTombstones } from "../../../lib/billing/billing-admin";
+import { getStripeServerClient } from "../../../lib/billing/stripe-server";
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
 import { emitOperationalEvent } from "../../../lib/operations/events";
 import { buildSupportReference } from "../../../lib/operations/support-reference";
@@ -24,12 +27,33 @@ export async function POST(request: Request) {
     const admin = createOperationsAdminClient();
     emitOperationalEvent({ actorId: context.userId, eventType: "account_deletion_started", operationId: key.key, requestId, route: "/api/account/delete", severity: "high" });
     const payloadHash = createHash("sha256").update(`account-delete:v1:${context.userId}:DELETE`).digest("hex");
+    try {
+      const billingAccount = await getBillingAccountForUser(admin, context.userId);
+      const termination = billingAccount ? await terminateStripeBillingForAccountDeletion({
+        account: billingAccount,
+        idempotencyKey: key.key,
+        stripe: getStripeServerClient(),
+        userId: context.userId,
+      }) : { customerId: null, subscriptions: [] };
+      if (termination.customerId) {
+        await recordBillingDeletionTombstones({
+          admin,
+          customerId: termination.customerId,
+          idempotencyKey: key.key,
+          subscriptions: termination.subscriptions,
+          userId: context.userId,
+        });
+      }
+    } catch {
+      emitOperationalEvent({ actorId: context.userId, errorCode: "BILLING_TERMINATION_FAILED", eventType: "account_deletion_failed", operationId: key.key, requestId, route: "/api/account/delete", severity: "critical" });
+      return safeError("BILLING_TERMINATION_FAILED", "Furvise could not safely end billing. Your account was not deleted. Try again or contact support.", requestId, 503);
+    }
     const { data, error } = await admin.rpc("prepare_account_deletion", { p_idempotency_key: key.key, p_payload_hash: payloadHash, p_user_id: context.userId });
-    if (error || !Array.isArray(data) || !data[0]) return deletionFailure(admin, context.userId, key.key, requestId, "APPLICATION_DELETE_FAILED");
+    if (error || !Array.isArray(data) || !data[0]) return recoverableDeletionFailure(requestId, "APPLICATION_DELETE_FAILED", context.userId, key.key);
     if (data[0].outcome === "conflict") return safeError("IDEMPOTENCY_CONFLICT", "This deletion request conflicts with an earlier request.", requestId, 409);
     if (data[0].deletion_status === "completed") return Response.json({ deleted: true, requestId }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
     const { error: authError } = await admin.auth.admin.deleteUser(context.userId, false);
-    if (authError) return deletionFailure(admin, context.userId, key.key, requestId, "AUTH_DELETE_FAILED");
+    if (authError) return irreversibleDeletionFailure(admin, context.userId, key.key, requestId, "AUTH_DELETE_FAILED");
     const { error: markError } = await admin.rpc("mark_account_deletion_result", { p_completed: true, p_error_code: null, p_idempotency_key: key.key, p_user_id: context.userId });
     emitOperationalEvent({ actorId: context.userId, errorCode: markError ? "DELETION_LEDGER_UPDATE_FAILED" : undefined, eventType: markError ? "account_deletion_failed" : "account_deletion_completed", operationId: key.key, requestId, route: "/api/account/delete", severity: markError ? "critical" : "high" });
     return Response.json({ deleted: true, requestId }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
@@ -38,7 +62,12 @@ export async function POST(request: Request) {
   }
 }
 
-async function deletionFailure(admin: ReturnType<typeof createOperationsAdminClient>, userId: string, key: string, requestId: string, code: string) {
+function recoverableDeletionFailure(requestId: string, code: string, userId: string, operationId: string) {
+  emitOperationalEvent({ actorId: userId, errorCode: code, eventType: "account_deletion_failed", operationId, requestId, route: "/api/account/delete", severity: "high" });
+  return safeError("ACCOUNT_DELETION_RETRY_REQUIRED", "Your account was not deleted. Try again in a moment.", requestId, 503);
+}
+
+async function irreversibleDeletionFailure(admin: ReturnType<typeof createOperationsAdminClient>, userId: string, key: string, requestId: string, code: string) {
   try { await admin.rpc("mark_account_deletion_result", { p_completed: false, p_error_code: code, p_idempotency_key: key, p_user_id: userId }); } catch { /* Reconciliation event remains critical. */ }
   await admin.auth.admin.updateUserById(userId, { ban_duration: "876000h" }).catch(() => null);
   emitOperationalEvent({ actorId: userId, errorCode: code, eventType: "account_deletion_failed", requestId, route: "/api/account/delete", severity: "critical" });

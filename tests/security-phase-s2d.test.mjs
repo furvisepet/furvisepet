@@ -317,7 +317,9 @@ test("origin denial precedes rate limiting, AI credits, provider calls, and muta
     const validation = source.lastIndexOf("validateSensitiveRequestOriginResponse(request)");
     assert.ok(validation > -1, path);
     const routeStart = source.indexOf("export async function POST");
-    const contextLoad = source.indexOf("RequestContext(request)", routeStart);
+    const contextLoad = path === "app/api/ask/route.ts"
+      ? source.indexOf("loadAskAuthenticationContext(request)", routeStart)
+      : source.indexOf("RequestContext(request)", routeStart);
     const rateLimit = source.indexOf("requireRateLimitedRequest", routeStart);
     const admission = source.indexOf("runAdmittedAiOperation", routeStart);
     assert.ok(contextLoad > routeStart && contextLoad < rateLimit, `${path}: context before rate limit`);
