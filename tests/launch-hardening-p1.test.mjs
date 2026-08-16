@@ -84,8 +84,11 @@ test("Products is a no-request Coming Soon presentation while retaining the rout
   assert.match(page, /comingsoon_bg\.jpg/);
   assert.match(page, /data-ui="products-coming-soon-hero"/);
   assert.match(page, /Coming soon/);
-  assert.match(page, /A smarter way to choose[\s\S]*for your pet\./);
+  assert.match(page, /A smarter way to choose for your pet\./);
   assert.match(page, /Recommendations that understand the pet, not just the product\./);
-  assert.match(page, /h-\[360px\][\s\S]*sm:absolute sm:inset-0 sm:h-full/);
+  assert.match(page, /w-dvw/);
+  assert.match(page, /min-h-\[calc\(100svh-4\.25rem-var\(--mobile-nav-clearance\)\)\]/);
+  assert.match(page, /<Image[\s\S]*fill[\s\S]*sizes="100vw"/);
+  assert.doesNotMatch(page, /rounded-\[var\(--radius-xl\)\]|shadow-\[var\(--shadow-surface-2\)\]|h-\[360px\]/);
   assert.doesNotMatch(page, /fetch\(|\/api\/shop|useEffect|search|waitlist|release date|<form|<button/i);
 });

@@ -41,9 +41,11 @@ test("authenticated shell aliases no longer create separate standard and wide wi
 
 test("mobile navigation clearance remains owned by the shared app page", () => {
   assert.match(appPage, /<main className="app-mobile-nav-clearance/);
-  for (const source of [today, pets, history, ask, products]) {
+  for (const source of [today, pets, history, ask]) {
     assert.doesNotMatch(source, /mobile-nav-clearance|mobile-nav-height|mobile-nav-safe-area/);
   }
+  assert.match(products, /var\(--mobile-nav-clearance\)/);
+  assert.doesNotMatch(products, /--mobile-nav-(?:clearance|height|safe-area)\s*:/);
 });
 
 test("Ask keyboard helper uses the intended middle dot without an encoding artifact", () => {

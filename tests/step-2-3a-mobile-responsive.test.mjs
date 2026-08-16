@@ -19,8 +19,9 @@ test("mobile type scale stays compact and restores the approved desktop title si
   assert.match(primitives, /leading-\[1\.08\][\s\S]*md:text-\[2\.625rem\]/);
   assert.match(primitives, /supportingText[\s\S]*text-base[\s\S]*sm:text-lg/);
   assert.match(css, /body[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.5;/);
-  assert.match(products, /text-\[clamp\(2\.65rem,10vw,3\.5rem\)\][\s\S]*sm:text-\[clamp\(3\.25rem,5\.5vw,4\.75rem\)\]/);
-  assert.match(products, /h-\[360px\][\s\S]*sm:absolute sm:inset-0 sm:h-full/);
+  assert.match(products, /text-\[clamp\(2\.15rem,9\.5vw,2\.75rem\)\][\s\S]*lg:text-\[clamp\(3\.5rem,4\.5vw,4\.5rem\)\]/);
+  assert.match(products, /min-h-\[calc\(100svh-4\.25rem-var\(--mobile-nav-clearance\)\)\]/);
+  assert.match(products, /scale-\[1\.25\][\s\S]*object-contain object-bottom[\s\S]*lg:scale-100 lg:object-cover/);
 });
 
 test("mobile header has a compact safe-area-aware height and responsive approved logo sizing", () => {
