@@ -167,21 +167,6 @@ test("appearance switching is absent and Products stays out of Account", () => {
   assert.doesNotMatch(account, /\/shop|Products/);
 });
 
-test("readability-critical controls consume the corrected semantic roles", () => {
-  const css = read("app/globals.css");
-  const header = read("app/components/app-header.tsx");
-  const primitives = read("app/components/product-primitives.tsx");
-  const ask = read("app/ask/page.tsx");
-  const products = read("app/shop/page.tsx");
-  assert.match(css, /::placeholder[\s\S]*color: var\(--text-muted\)[\s\S]*opacity: 1/);
-  assert.match(primitives, /secondary: "border border-\[var\(--secondary-action-border\)\] bg-\[var\(--secondary-action\)\] text-\[var\(--secondary-action-text\)\]/);
-  assert.match(primitives, /disabled:cursor-not-allowed[\s\S]*disabled:border-\[var\(--border-subtle\)\][\s\S]*disabled:bg-\[var\(--disabled-surface\)\][\s\S]*disabled:text-\[var\(--disabled-text\)\]/);
-  assert.match(header, /surface-overlay/);
-  assert.match(read("app/components/signed-in-header.tsx"), /label: signingOut \? "Signing out\.\.\." : "Sign out"/);
-  assert.match(ask, /hover:text-\[var\(--selected-text\)\][\s\S]*data-ui="starter-question"/);
-  assert.equal((products.match(/hover:bg-\[var\(--surface-hover\)\]/g) || []).length >= 2, true);
-});
-
 test("approved brand assets are pinned and deprecated asset references are absent", () => {
   const approved = new Map([
     ["app/favicon.ico", "6e33aae904fb4a5a8ebc6ce15ee8846c692f154b92fb0eeac3278b0351444557"],

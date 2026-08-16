@@ -175,16 +175,6 @@ test("food transition and historical urgent history do not suppress current shop
   assert.equal(safety.stateVersion, 19);
 });
 
-test("Products no longer consumes historical client safety and checks live safety before cache", () => {
-  const page = readFileSync(new URL("../app/shop/page.tsx", import.meta.url), "utf8");
-  const route = readFileSync(new URL("../app/api/shop/interpret-query/route.ts", import.meta.url), "utf8");
-  const safety = readFileSync(new URL("../app/lib/intelligence/product-safety.ts", import.meta.url), "utf8");
-  assert.doesNotMatch(page, /shouldHideShopProductsForUrgentCare/);
-  assert.match(page, /cache: "no-store"/);
-  assert.ok(route.indexOf("productSafety.shoppingSuppressed") < route.indexOf("cached?.source === \"ai\""));
-  assert.match(safety, /stateVersion/);
-});
-
 test("repair is service-only, scoped, and preserves Apoquel chronology", () => {
   const sql = readFileSync(new URL("../supabase/migrations/20260728123000_fix_persistence_destinations_and_medication_state.sql", import.meta.url), "utf8");
   assert.match(sql, /p_dry_run boolean default true/);

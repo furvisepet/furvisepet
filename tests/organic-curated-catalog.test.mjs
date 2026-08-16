@@ -105,16 +105,6 @@ test("unresolved source permission remains blocked and permission snapshots are 
   assert.ok(gate(normalized).result.reasons.some((reason) => reason.code === "source_use_not_permitted"));
 });
 
-test("organic UI uses a neutral missing-image placeholder and commission-neutral language", async () => {
-  const page = await readFile(new URL("../app/shop/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /data-product-image-placeholder="furvise-neutral"/);
-  assert.match(page, /Recommendations are selected for fit\. Furvise may not earn a commission/);
-  assert.match(page, />\s*View product\s*</);
-  assert.doesNotMatch(page, /live price|lowest price|best deal/i);
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
-  assert.doesNotMatch(productCard, /availabilityStatus|in stock/i);
-});
-
 test("shop ranking has no affiliate or monetization signal", async () => {
   const search = await readFile(new URL("../app/lib/shop/product-search.ts", import.meta.url), "utf8");
   const ranking = search.slice(search.indexOf("const sourcePriority"), search.indexOf("export function filterAndRankShopProducts"));

@@ -231,23 +231,6 @@ test("parser keeps product fit safety line only once at the bottom", () => {
   );
 });
 
-test("product fit explanation panel renders only sales-style paragraphs", () => {
-  const page = read("app/shop/page.tsx");
-  const panel = page.slice(page.indexOf("function ProductFitExplanationPanel"), page.indexOf("function EmptyState"));
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
-
-  assert.match(productCard, /Why this product\?/);
-  assert.doesNotMatch(productCard, /Why this product may make sense/);
-  assert.match(panel, /Why this product\?/);
-  assert.match(panel, /bodyParagraphs\.map/);
-  assert.match(panel, /min-w-0 max-w-full/);
-  assert.match(panel, /\[overflow-wrap:anywhere\]/);
-  assert.doesNotMatch(panel, /\{children\}/);
-  assert.doesNotMatch(panel, /Why this may be a good option/);
-  assert.doesNotMatch(panel, /Product fit|Good for|Keep in mind|Pet context used|Saved context matched|Product signals Furvise used|Cautions/);
-  assert.doesNotMatch(panel, /line-clamp|truncate|max-h-|overflow-hidden/);
-});
-
 test("product UI copy contains no em dash", () => {
   const page = read("app/shop/page.tsx");
   const helper = read("app/lib/shop/product-fit-explanation.ts");

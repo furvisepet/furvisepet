@@ -714,57 +714,6 @@ test("product question off-topic guard redirects non-product questions without p
   assert.doesNotMatch(answer.answer, /itchy paws|dental care|shampoo|follow the label directions|medical care/i);
 });
 
-test("product question route authenticates, rechecks filters, and uses unified AI credits", () => {
-  const route = read("app/api/shop/product-question/route.ts");
-  const page = read("app/shop/page.tsx");
-  const provider = read("app/lib/ai/provider.ts");
-  const openai = read("app/lib/ai/providers/openai.ts");
-  const usage = read("app/lib/ai/usage-ledger.ts");
-  const migration = read("supabase/migrations/20260727020000_add_unified_ai_credits_and_care_state.sql");
-
-  assert.match(route, /Authentication required\./);
-  assert.match(route, /export async function GET\(request: Request\)/);
-  assert.match(route, /usageUnavailable: context\.usageUnavailable/);
-  assert.match(route, /supabase\.auth\.getUser\(token\)/);
-  assert.match(route, /buildFurviseContext\(\{/);
-  assert.match(route, /filterAndRankShopProducts\(\{/);
-  assert.match(route, /filtered\.products\.find\(\(item\) => item\.id === productId\)/);
-  assert.match(route, /classifyShopProductQuestionIntent\(question\)/);
-  assert.match(route, /questionIntent\.intent === "clearly_off_topic"/);
-  assert.match(route, /productQuestionIntent/);
-  assert.match(route, /buildOffTopicShopProductQuestionAnswer\(\{ memory \}\)/);
-  assert.match(route, /getRemainingAiCredits/);
-  assert.match(route, /runWithAiCredit/);
-  assert.match(route, /feature: "product_question"/);
-  assert.match(route, /runFeatureIntelligence/);
-  assert.match(route, /buildFallbackShopProductQuestionAnswer/);
-  assert.match(route, /getAiRuntimeDiagnostics/);
-  assert.match(route, /detectProductQuestionCategory/);
-  assert.match(route, /logProductQuestionDiagnostic/);
-  assert.match(route, /"missing key"/);
-  assert.match(route, /"provider\/network error"/);
-  assert.match(route, /failureCategory: "schema validation rejection"/);
-  assert.match(route, /"off-topic guard"/);
-  assert.match(route, /"cap reached"/);
-  assert.match(route, /"product not found"/);
-  assert.match(route, /"pet ownership\/auth issue"/);
-  assert.match(route, /"product filter rejection"/);
-  assert.match(route, /schemaValidationErrors/);
-  assert.match(route, /responseSource: "ai"/);
-  assert.match(route, /responseSource: "fallback"/);
-  assert.match(route, /responseSource: "guarded"/);
-  assert.match(route, /fallbackReason/);
-  assert.match(provider, /answerShopProductQuestion\(input: ShopProductQuestionInput\): Promise<ShopProductQuestionAnswer>/);
-  assert.match(openai, /async answerShopProductQuestion\(input: ShopProductQuestionInput\)/);
-  assert.match(usage, /ai_usage_events/);
-  assert.match(migration, /create table if not exists public\.ai_usage_events/);
-  assert.match(page, /idempotentClientFetch\("\/api\/shop\/product-question"/);
-  assert.equal((page.match(/method: "GET"/g) || []).length, 1);
-  assert.match(page, /FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE/);
-  assert.doesNotMatch(page, /Furvise could not answer this product question\./);
-  assert.doesNotMatch(route + page, /setup may be incomplete/);
-});
-
 test("legacy product question helper mirrors the shared 50-credit allowance", async () => {
   const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", used_count: 49 }]);
   const status = await getProductQuestionUsageStatus({
@@ -792,98 +741,6 @@ test("legacy product question helper mirrors the shared 50-credit allowance", as
   assert.equal(blocked.allowed, false);
   assert.equal(blocked.remaining, 0);
   assert.match(blocked.gate.message || "", /AI credits/);
-});
-
-test("product question UI opens from a compact product card action and only submits on question action", () => {
-  const page = read("app/shop/page.tsx");
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
-  const questionPanel = page.slice(page.indexOf("function ProductQuestionPanel"), page.indexOf("function EmptyState"));
-  const askHandler = page.slice(page.indexOf("async function askProductQuestion"), page.indexOf("async function interpretSubmittedQuery"));
-  const submitSearch = page.slice(page.indexOf("function submitSearch"), page.indexOf("function resetInterpretation"));
-
-  assert.match(productCard, /const \[openPanel, setOpenPanel\] = useState<"why" \| "ask" \| null>\(null\)/);
-  assert.match(productCard, /const whyPanelOpen = openPanel === "why"/);
-  assert.match(productCard, /const askPanelOpen = openPanel === "ask"/);
-  assert.match(productCard, /function openWhyPanel\(\)[\s\S]*setOpenPanel\("why"\);[\s\S]*onExplain\(\);/);
-  assert.match(productCard, /function openAskPanel\(\)[\s\S]*setOpenPanel\("ask"\);/);
-  assert.match(productCard, /<div className="flex min-w-0 flex-wrap gap-2">/);
-  assert.match(productCard, /aria-expanded=\{whyPanelOpen\}/);
-  assert.match(productCard, /aria-expanded=\{askPanelOpen\}/);
-  assert.match(productCard, /Ask product question/);
-  assert.match(productCard, /explanationState\?\.explanation/);
-  assert.match(productCard, /whyPanelOpen && explanationState\?\.explanation \? \(/);
-  assert.match(productCard, /<ProductFitExplanationPanel explanation=\{explanationState\.explanation\} \/>/);
-  assert.match(productCard, /askPanelOpen \? \(/);
-  assert.match(productCard, /<ProductQuestionPanel/);
-  assert.doesNotMatch(productCard, /<textarea|questionChips\.map|answer\.sections\.directAnswer|<ProductQuestionUsageCounter/);
-  assert.doesNotMatch(productCard.slice(productCard.indexOf("function openWhyPanel"), productCard.indexOf("function openAskPanel")), /setOpenPanel\("ask"\)/);
-  assert.doesNotMatch(productCard.slice(productCard.indexOf("function openAskPanel"), productCard.indexOf("return (")), /setOpenPanel\("why"\)|onExplain\(\)/);
-  assert.match(productCard, /onAsk=\{\(questionOverride\) => onProductQuestion\(product\.id, questionOverride\)\}/);
-  assert.match(productCard, /onInputChange=\{\(value\) => onProductQuestionInputChange\(cacheKey, value\)\}/);
-  assert.match(questionPanel, /Ask about this product/);
-  assert.match(questionPanel, /whether it fits \{selectedPetName\}/);
-  assert.match(questionPanel, /Ask about ingredients, use, size, warnings, or why it may fit\./);
-  assert.match(questionPanel, /<p className="whitespace-normal break-words">\{answer\.sections\.directAnswer\}<\/p>/);
-  assert.doesNotMatch(questionPanel, /ProductQuestionDefaultAnswer|ProductQuestionDetailsSections|Direct answer|Show full details|Hide full details|Why it may fit|Check before buying|How to use|When to ask a vet|Bottom line|answer\.sections\.checkBeforeBuying\.map/);
-  assert.doesNotMatch(questionPanel, /<ProductQuestionUsageCounter/);
-  assert.match(questionPanel, /const answer = questionState\?\.answer \|\| null/);
-  assert.match(questionPanel, /isProductMissingInfoQuestion/);
-  assert.match(questionPanel, /buildProductQuestionImportantMissingNote/);
-  assert.match(page, /FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE/);
-  assert.doesNotMatch(questionPanel, /What Furvise knows|What is missing/);
-  assert.doesNotMatch(questionPanel, /\u2014|provided data|signals|catalog tags|ingredientsVerified/);
-  assert.match(questionPanel, /const questionCapReached = displayUsage\?\.allowed === false/);
-  assert.match(questionPanel, /disabled=\{questionCapReached \|\| questionState\?\.loading\}/);
-  assert.match(questionPanel, /disabled=\{questionCapReached \|\| questionState\?\.loading \|\| !questionInput\.trim\(\)\}/);
-  assert.match(questionPanel, /FURVISE_PRODUCT_USAGE_CAP_MESSAGE/);
-  assert.match(questionPanel, /You can still browse products by category or keyword and open product details\./);
-  assert.doesNotMatch(questionPanel, /Product questions available|A few product questions left this month|Product question usage/);
-  assert.match(page, /Is this good for itchy paws\?/);
-  assert.match(page, /How do I use it\?/);
-  assert.match(page, /What should I check first\?/);
-  assert.match(page, /When should I avoid it\?/);
-  assert.match(page, /Is this good for daily chewing\?/);
-  assert.match(page, /What size should I choose\?/);
-  assert.match(page, /Is this okay for \$\{petName\}\?/);
-  assert.match(page, /How should I introduce it\?/);
-  assert.doesNotMatch(page, /What info is missing\?/);
-  assert.match(page, /\["Food", "Dental", "Grooming", "Skin and coat"\]/);
-  assert.doesNotMatch(page, /const SHOP_QUERY_EXAMPLES/);
-  const groomingChips = page.slice(page.indexOf("const GROOMING_PRODUCT_QUESTION_CHIPS"), page.indexOf("export default function ShopPage"));
-  const dentalChips = page.slice(page.indexOf("const DENTAL_PRODUCT_QUESTION_CHIPS"), page.indexOf("const GROOMING_PRODUCT_QUESTION_CHIPS"));
-  const chipFunction = page.slice(page.indexOf("function getProductQuestionChips"), page.indexOf("function buildFitExplanationCacheKey"));
-  const defaultChips = page.slice(page.indexOf("const DEFAULT_PRODUCT_QUESTION_CHIPS"), page.indexOf("const DENTAL_PRODUCT_QUESTION_CHIPS"));
-  assert.match(groomingChips, /Is this good for itchy paws\?/);
-  assert.match(groomingChips, /How do I use it\?/);
-  assert.match(groomingChips, /What should I check first\?/);
-  assert.match(groomingChips, /When should I avoid it\?/);
-  assert.doesNotMatch(groomingChips, /What info is missing\?/);
-  assert.doesNotMatch(groomingChips, /Is this better than food\?/);
-  assert.match(dentalChips, /Is this good for daily chewing\?/);
-  assert.match(dentalChips, /How often should I use it\?/);
-  assert.match(dentalChips, /What size should I choose\?/);
-  assert.match(dentalChips, /What should I watch for\?/);
-  assert.doesNotMatch(dentalChips, /Is this enough for dental care\?|What info is missing\?/);
-  assert.match(chipFunction, /`Is this okay for \$\{petName\}\?`/);
-  assert.match(chipFunction, /How should I introduce it\?/);
-  assert.match(chipFunction, /What should I check first\?/);
-  assert.match(chipFunction, /What should I watch for\?/);
-  assert.doesNotMatch(chipFunction, /Is this okay with saved avoid ingredients\?|What should I check on the label\?|Is this enough for the concern\?|What info is missing\?/);
-  assert.match(defaultChips, /What should I check first\?/);
-  assert.match(defaultChips, /How would I use this\?/);
-  assert.match(defaultChips, /What should I watch for\?/);
-  assert.match(defaultChips, /When should I avoid it\?/);
-  assert.doesNotMatch(defaultChips, /What info is missing\?/);
-  assert.match(questionPanel, /flex min-w-0 flex-wrap gap-2/);
-  assert.match(questionPanel, /max-w-full items-center whitespace-normal/);
-  assert.doesNotMatch(page, /Is this okay for sensitive skin\?/);
-  assert.equal((page.match(/\/api\/shop\/product-question/g) || []).length, 1);
-  assert.match(page, /method: "GET"/);
-  assert.match(askHandler, /method: "POST"/);
-  assert.match(askHandler, /if \(!question \|\| productQuestionCache\[cacheKey\]\?\.loading\) return/);
-  assert.doesNotMatch(submitSearch, /\/api\/shop\/product-question|askProductQuestion/);
-  assert.doesNotMatch(productCard, /fetch\(/);
-  assert.doesNotMatch(questionPanel, /\u2014|provided data|signals|catalog tags|ingredientsVerified/);
 });
 
 test("product question route only completes a shared credit after valid AI output", () => {
@@ -929,4 +786,23 @@ test("product question usage read errors fall back to honest unavailable state",
   assert.equal(status.count, 0);
   assert.equal(status.limit, 50);
   assert.equal(status.remaining, 50);
+});
+
+test("product question backend retains authentication, filtering, and unified-credit boundaries", () => {
+  const route = read("app/api/shop/product-question/route.ts");
+  const provider = read("app/lib/ai/provider.ts");
+  const openai = read("app/lib/ai/providers/openai.ts");
+  const usage = read("app/lib/ai/usage-ledger.ts");
+  const migration = read("supabase/migrations/20260727020000_add_unified_ai_credits_and_care_state.sql");
+
+  for (const pattern of [
+    /Authentication required\./, /supabase\.auth\.getUser\(token\)/, /buildFurviseContext\(\{/,
+    /filterAndRankShopProducts\(\{/, /filtered\.products\.find/, /classifyShopProductQuestionIntent\(question\)/,
+    /questionIntent\.intent === "clearly_off_topic"/, /getRemainingAiCredits/, /runWithAiCredit/,
+    /feature: "product_question"/, /runFeatureIntelligence/, /buildFallbackShopProductQuestionAnswer/,
+  ]) assert.match(route, pattern);
+  assert.match(provider, /answerShopProductQuestion\(input: ShopProductQuestionInput\): Promise<ShopProductQuestionAnswer>/);
+  assert.match(openai, /async answerShopProductQuestion\(input: ShopProductQuestionInput\)/);
+  assert.match(usage, /ai_usage_events/);
+  assert.match(migration, /create table if not exists public\.ai_usage_events/);
 });

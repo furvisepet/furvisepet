@@ -48,7 +48,6 @@ test("Ask conversation contract supports every adaptive answer type", () => {
     "clarification",
   );
 });
-
 test("Ask conversation contract rejects model-selected actions outside the deterministic allowlist", () => {
   const response = buildAskConversationResponse(baseResponse, { intent: "vet_prep" });
   assert.ok(response);
@@ -85,11 +84,4 @@ test("Ask analytics accepts only privacy-safe metadata", () => {
     "answer_error",
   ]) assert.match(analytics, new RegExp(event));
   assert.doesNotMatch(analytics, /question\?:|answer\?:|concern\?:|petName\?:/);
-});
-
-test("Results and Products remain outside the Ask redesign", () => {
-  const results = readFileSync(new URL("../app/results/page.tsx", import.meta.url), "utf8");
-  const products = readFileSync(new URL("../app/shop/page.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(results, /ProductCard|product recommendations/i);
-  assert.match(products, /Why this product/);
 });

@@ -56,9 +56,22 @@ function scrubSentryEvent<T>(event: T, hint?: SentryHintShape): T {
     logentry: undefined,
     message: undefined,
     request: undefined,
-    tags: undefined,
+    tags: scrubOperationalTags(input.tags),
     user: undefined,
   };
+}
+
+const OPERATIONAL_TAG_KEYS = new Set(["errorCode", "eventType", "feature", "operationId", "requestId", "route", "severity"]);
+
+function scrubOperationalTags(tags: unknown) {
+  if (!tags || typeof tags !== "object" || Array.isArray(tags)) return undefined;
+  const output: Record<string, string> = {};
+  for (const [key, value] of Object.entries(tags)) {
+    if (!OPERATIONAL_TAG_KEYS.has(key) || typeof value !== "string") continue;
+    const sanitized = value.replace(/[^A-Za-z0-9_./:-]/g, "").slice(0, 160);
+    if (sanitized) output[key] = sanitized;
+  }
+  return Object.keys(output).length ? output : undefined;
 }
 
 function scrubException(exception: SentryEventShape["exception"]) {

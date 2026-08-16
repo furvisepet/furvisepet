@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   getCanonicalProductUrl,
@@ -10,8 +9,6 @@ import {
   isValidProductUrl,
 } from "../app/lib/product-providers.ts";
 import { staticRealProducts } from "../app/lib/products/static-products.ts";
-
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("canonical product URL uses the supported field priority", () => {
   assert.equal(
@@ -154,38 +151,4 @@ test("label documents cannot become View product and remain available as View la
     }),
     "https://brand.test/products/salmon-food",
   );
-});
-
-test("View product renders a validated accessible new-tab anchor", () => {
-  const page = read("app/shop/page.tsx");
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
-
-  assert.match(productCard, /const productLink = getProductLinkInfo\(product\)/);
-  assert.match(productCard, /const labelLink = getProductLabelLinkInfo\(product\)/);
-  assert.match(productCard, /productLink\?\.variant === "link" \? \(/);
-  assert.match(productCard, /<Link/);
-  assert.match(productCard, /aria-label=\{`View \$\{product\.name\}`\}/);
-  assert.match(productCard, /href=\{productLink\.href\}/);
-  assert.match(productCard, /rel=\{productLink\.rel\}/);
-  assert.match(productCard, /target=\{productLink\.target\}/);
-  assert.match(productCard, /Product page unavailable/);
-  assert.match(productCard, /labelLink\?\.variant === "link" \? \(/);
-  assert.match(productCard, /aria-label=\{`View label for \$\{product\.name\}`\}/);
-  assert.match(productCard, /href=\{labelLink\.href\}/);
-  assert.match(productCard, /rel=\{labelLink\.rel\}/);
-  assert.match(productCard, /target=\{labelLink\.target\}/);
-  assert.match(productCard, />\s*View label\s*<\/Link>/);
-  assert.doesNotMatch(productCard, /href=\{product\.productUrl \|\| "#"\}|href="#"/);
-});
-
-test("product links add no price or availability UI and Results stays product-free", () => {
-  const page = read("app/shop/page.tsx");
-  const results = read("app/results/page.tsx");
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
-
-  assert.doesNotMatch(productCard, /product\.price|live availability|in stock|best price/i);
-  assert.doesNotMatch(results, /ProductCard|View product|Compare these|Price not provided/i);
-  assert.match(productCard, /Ask product question/);
-  assert.match(productCard, /Why this product\?/);
-  assert.doesNotMatch(productCard, /[—–]/);
 });

@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { emitOperationalEvent } from "../../lib/operations/events";
 import {
   buildPetMemoryContext,
   type PetMemoryContext,
@@ -1459,9 +1460,17 @@ function logAskStage(message: string, context: Record<string, unknown>) {
 }
 
 function logAskServerError(stage: string, error: unknown, context: Record<string, unknown>, httpStatus: number) {
-  if (process.env.NODE_ENV === "production") return;
   const databaseDiagnostic = getAiCreditLedgerDiagnostic(error);
   const databaseError = error as { code?: string; details?: string; hint?: string; message?: string } | null;
+  const requestId = typeof context.requestId === "string" ? context.requestId : crypto.randomUUID();
+  if (httpStatus >= 500 || /persistence|reconciliation|credit_(?:completion|release)/.test(stage)) {
+    emitOperationalEvent({
+      errorCode: safeAskOperationalCode(databaseDiagnostic.code || databaseError?.code || stage),
+      eventType: "application_error", feature: "ask", operationId: requestId,
+      requestId, route: "/api/ask", severity: "high",
+    });
+  }
+  if (process.env.NODE_ENV === "production") return;
   console.warn("[Ask API] request failed", {
     databaseCode: databaseDiagnostic.code || databaseError?.code || "",
     databaseDetails: databaseDiagnostic.details || databaseError?.details || "",
@@ -1469,7 +1478,7 @@ function logAskServerError(stage: string, error: unknown, context: Record<string
     databaseMessage: databaseDiagnostic.message || databaseError?.message || "",
     httpStatus,
     operation: databaseDiagnostic.operation,
-    requestId: typeof context.requestId === "string" ? context.requestId : "",
+    requestId,
     resource: databaseDiagnostic.resource,
     safeErrorCode: databaseDiagnostic.code || databaseError?.code || "",
     safeErrorMessage: databaseDiagnostic.message || databaseError?.message || (error instanceof Error ? error.message : "Unknown error"),
@@ -1505,8 +1514,20 @@ function logAskProviderEvent(event: AskProviderEvent, context: { conversationId:
     timedOut: Boolean(event.timedOut),
     validationDetails: event.validationDetails || null,
   };
-  if (event.outcome === "failed") console.warn("[Ask provider] stage failed", payload);
+  if (event.outcome === "failed") {
+    emitOperationalEvent({
+      errorCode: safeAskOperationalCode(event.providerErrorCode || event.stage), eventType: "provider_failure",
+      feature: "ask", operationId: context.requestId, requestId: context.requestId,
+      route: "/api/ask", severity: "high",
+    });
+    console.warn("[Ask provider] stage failed", payload);
+  }
   else console.info("[Ask provider] stage", payload);
+}
+
+function safeAskOperationalCode(value: string) {
+  const normalized = value.toUpperCase().replace(/[^A-Z0-9_]/g, "_").slice(0, 120);
+  return normalized || "ASK_FAILURE";
 }
 
 type AskPreProvider503Reason = "AI_ADMISSION_DENIED" | "CREDIT_RESERVATION_FAILED" | "IDEMPOTENCY_FAILED_STATE_REPLAY" | "PRE_PROVIDER_VALIDATION_FAILED" | "PROVIDER_CONFIG_UNAVAILABLE" | "UNKNOWN_PRE_PROVIDER_FAILURE";

@@ -3,9 +3,9 @@ import { Redis } from "@upstash/redis";
 import { createOperationsAdminClient } from "../../lib/operations/admin-client";
 import { emitOperationalEvent } from "../../lib/operations/events";
 import { validateProductionConfiguration } from "../../lib/operations/production-config";
+import { requiredSchemaIsReady } from "../../lib/operations/readiness";
 
 export const dynamic = "force-dynamic";
-const EXPECTED_MIGRATION = "20260730032000";
 
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
@@ -16,10 +16,19 @@ export async function GET(request: Request) {
   const components: Record<string, "ready" | "unavailable" | "misconfigured"> = { application: "ready", configuration: config.ready ? "ready" : "misconfigured", database: "unavailable", migrations: "unavailable", redis: "unavailable" };
   try {
     const admin = createOperationsAdminClient();
-    const { data, error } = await admin.rpc("furvise_readiness_snapshot").abortSignal(AbortSignal.timeout(1_000));
+    const signal = AbortSignal.timeout(1_000);
+    const [{ data, error }, billingAccounts, deletionTombstones] = await Promise.all([
+      admin.rpc("furvise_readiness_snapshot").abortSignal(signal),
+      admin.from("billing_accounts").select("user_id,stripe_customer_id,stripe_subscription_id,plan,subscription_status").limit(1).abortSignal(signal),
+      admin.from("billing_deletion_tombstones").select("user_id,stripe_customer_id,stripe_subscription_id,operation_id").limit(1).abortSignal(signal),
+    ]);
     if (!error && Array.isArray(data) && data[0]) {
       components.database = "ready";
-      components.migrations = data[0].latest_migration === EXPECTED_MIGRATION ? "ready" : "misconfigured";
+      components.migrations = requiredSchemaIsReady({
+        billingAccountsError: billingAccounts.error,
+        deletionTombstonesError: deletionTombstones.error,
+        latestMigration: data[0].latest_migration,
+      }) ? "ready" : "misconfigured";
       if (components.migrations !== "ready") emitOperationalEvent({ errorCode: "MIGRATION_MISMATCH", eventType: "migration_mismatch", requestId, route: "/api/readiness", severity: "critical" });
     }
   } catch { /* Safe state remains unavailable. */ }

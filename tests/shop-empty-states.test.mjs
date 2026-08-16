@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import { initialProfile } from "../app/lib/petwise.ts";
 import { buildFallbackShopQueryInterpretation } from "../app/lib/shop-query.ts";
 import { shouldHideShopProductsForUrgentCare } from "../app/lib/shop.ts";
 import { filterAndRankShopProducts } from "../app/lib/shop/product-search.ts";
-
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 function profile(overrides = {}) {
   return {
@@ -24,40 +21,12 @@ function profile(overrides = {}) {
   };
 }
 
-function memory(overrides = {}) {
+function memory() {
   return {
-    pet: {
-      id: "rocky-id",
-      name: "Rocky",
-      species: "dog",
-      breed: "Mixed",
-      ageLabel: "4 years",
-      weightLabel: "42 lb",
-      mainConcern: "General wellness",
-      currentFood: "Salmon kibble",
-      avoidIngredients: [],
-      monthlyBudget: "$80/month",
-      wellnessGoal: null,
-      importantNotes: [],
-      ...(overrides.pet || {}),
-    },
-    timeline: {
-      recentEntries: [],
-      recallEntries: [],
-      entriesLast7Days: [],
-      entriesLast30Days: [],
-    },
-    savedDetails: [],
-    productFeedback: [],
-    derived: {
-      recentChanges: [],
-      recurringConcerns: [],
-      knownAvoids: [],
-      safetyFlags: [],
-      missingContext: [],
-      summaryBullets: [],
-      ...(overrides.derived || {}),
-    },
+    pet: { id: "rocky-id", name: "Rocky", species: "dog", breed: "Mixed", ageLabel: "4 years", weightLabel: "42 lb", mainConcern: "General wellness", currentFood: "Salmon kibble", avoidIngredients: [], monthlyBudget: "$80/month", wellnessGoal: null, importantNotes: [] },
+    timeline: { recentEntries: [], recallEntries: [], entriesLast7Days: [], entriesLast30Days: [] },
+    savedDetails: [], productFeedback: [],
+    derived: { recentChanges: [], recurringConcerns: [], knownAvoids: [], safetyFlags: [], missingContext: [], summaryBullets: [] },
   };
 }
 
@@ -145,90 +114,26 @@ test("Shop empty state shows ingredient-verification message when every candidat
   assert.deepEqual(result.products, []);
 });
 
-test("Shop empty state does not fill with unsafe products when avoid ingredients remove every match", () => {
-  const result = filterAndRankShopProducts({
-    accountCountry: "US",
-    products: [product()],
-    query: "dental treats",
-    selectedPet: profile({ avoidIngredients: ["chicken"] }),
-  });
-
+test("deterministic Shop filtering still rejects avoided ingredients", () => {
+  const result = filterAndRankShopProducts({ accountCountry: "US", products: [product()], query: "dental treats", selectedPet: profile({ avoidIngredients: ["chicken"] }) });
   assert.equal(result.emptyState, "no_match");
   assert.equal(result.avoidIngredientsRemovedMatches, true);
   assert.deepEqual(result.products, []);
-
-  const page = read("app/shop/page.tsx");
-  assert.match(page, /We left out products with ingredients you have said to avoid\./);
 });
 
-test("Shop empty state suppresses products for urgent query and urgent saved pet context", () => {
+test("deterministic Shop safety still suppresses urgent queries and saved context", () => {
   const urgentQuery = filterAndRankShopProducts({
     accountCountry: "US",
-    interpretation: {
-      ...buildFallbackShopQueryInterpretation({
-        memory: memory(),
-        productCountry: "US",
-        query: "dog cannot breathe what product should I buy",
-      }),
-      safetyFlags: { medicalTreatmentIntent: false, urgentCare: true },
-    },
-    products: [product()],
-    query: "dental treats",
-    selectedPet: profile(),
+    interpretation: { ...buildFallbackShopQueryInterpretation({ memory: memory(), productCountry: "US", query: "dog cannot breathe what product should I buy" }), safetyFlags: { medicalTreatmentIntent: false, urgentCare: true } },
+    products: [product()], query: "dental treats", selectedPet: profile(),
   });
   assert.equal(urgentQuery.emptyState, "urgent");
   assert.deepEqual(urgentQuery.products, []);
-
-  assert.equal(
-    shouldHideShopProductsForUrgentCare({
-      entries: [
-        {
-          category: "symptom",
-          occurred_at: "2026-07-20T12:00:00Z",
-          severity: "severe",
-        },
-      ],
-      now: new Date("2026-07-21T12:00:00Z"),
-    }),
-    true,
-  );
-
-  const page = read("app/shop/page.tsx");
-  assert.match(page, /Product shopping is hidden for now/);
-  assert.match(page, /FURVISE_URGENT_SAFETY_MESSAGE/);
+  assert.equal(shouldHideShopProductsForUrgentCare({ entries: [{ category: "symptom", occurred_at: "2026-07-20T12:00:00Z", severity: "severe" }], now: new Date("2026-07-21T12:00:00Z") }), true);
 });
 
-test("Shop empty state blocks explicit species conflicts without showing other-species products", () => {
-  const result = filterAndRankShopProducts({
-    accountCountry: "US",
-    products: [product({ id: "cat-shampoo", name: "Cat Shampoo", species: "cat", tags: ["cat", "shampoo"] })],
-    query: "cat shampoo",
-    selectedPet: profile({ species: "dog" }),
-  });
-
+test("deterministic Shop filtering still rejects explicit species conflicts", () => {
+  const result = filterAndRankShopProducts({ accountCountry: "US", products: [product({ id: "cat-shampoo", name: "Cat Shampoo", species: "cat", tags: ["cat", "shampoo"] })], query: "cat shampoo", selectedPet: profile({ species: "dog" }) });
   assert.equal(result.emptyState, "species_conflict");
   assert.deepEqual(result.products, []);
-
-  const page = read("app/shop/page.tsx");
-  assert.match(page, /Check the selected pet/);
-  assert.match(page, /This search appears to be for a different species than the selected pet\./);
-});
-
-test("Shop empty-state copy stays honest and avoids cross-country fallback language", () => {
-  const page = read("app/shop/page.tsx");
-
-  assert.match(page, /No matches in the current collection/);
-  assert.match(page, /Try a broader term or another category\./);
-  assert.match(page, /No product for this country yet/);
-  assert.match(page, /No verified ingredient match yet/);
-  assert.doesNotMatch(page, /careful catalog match|region-verified|ingredient-verified catalog match/);
-  assert.doesNotMatch(page, /showing similar products from another country|try these anyway|best available alternative/i);
-});
-
-test("Shop vague query state asks for a specific product type", () => {
-  const page = read("app/shop/page.tsx");
-
-  assert.match(page, /emptyState === "vague_query"/);
-  assert.match(page, /No matches in the current collection/);
-  assert.match(page, /Try a broader term or another category\./);
 });

@@ -176,7 +176,8 @@ test("billing endpoints keep price and currency selection server/Stripe-owned an
   assert.match(checkout, /cancel_url: `\$\{applicationOrigin\}\/membership\?checkout=cancelled`/);
   assert.match(portal, /account\.stripe_customer_id/);
   assert.match(portal, /return_url: `\$\{applicationOrigin\}\/membership`/);
-  assert.match(webhook, /const rawBody = await request\.text\(\)/);
+  assert.match(webhook, /readBoundedRawBody\(request, STRIPE_WEBHOOK_BODY_LIMIT\)/);
+  assert.match(webhook, /status: 413/);
   assert.match(webhook, /constructEvent\(rawBody, signature, getStripeWebhookSecret\(\)\)/);
   assert.doesNotMatch(webhook, /request\.json\(/);
 });
