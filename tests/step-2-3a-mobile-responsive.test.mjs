@@ -19,9 +19,11 @@ test("mobile type scale stays compact and restores the approved desktop title si
   assert.match(primitives, /leading-\[1\.08\][\s\S]*md:text-\[2\.625rem\]/);
   assert.match(primitives, /supportingText[\s\S]*text-base[\s\S]*sm:text-lg/);
   assert.match(css, /body[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.5;/);
-  assert.match(products, /text-\[clamp\(2\.15rem,9\.5vw,2\.75rem\)\][\s\S]*lg:text-\[clamp\(3\.5rem,4\.5vw,4\.5rem\)\]/);
+  assert.match(products, /text-\[clamp\(1\.9rem,8\.3vw,2\.4rem\)\][\s\S]*lg:text-\[clamp\(3\.5rem,4\.5vw,4\.5rem\)\]/);
   assert.match(products, /min-h-\[calc\(100svh-4\.25rem-var\(--mobile-nav-clearance\)\)\]/);
-  assert.match(products, /scale-\[1\.25\][\s\S]*object-contain object-bottom[\s\S]*lg:scale-100 lg:object-cover/);
+  assert.match(products, /translate-y-4 scale-\[1\.25\][\s\S]*object-contain object-bottom[\s\S]*lg:translate-y-0 lg:scale-100 lg:object-cover/);
+  assert.match(products, /max-w-\[15rem\][\s\S]*flex-wrap[\s\S]*lg:max-w-none/);
+  assert.equal((products.match(/whitespace-nowrap/g) ?? []).length, 3);
 });
 
 test("mobile header has a compact safe-area-aware height and responsive approved logo sizing", () => {

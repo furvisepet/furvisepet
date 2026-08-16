@@ -18,7 +18,7 @@ export default function ShopPage() {
       >
         <Image
           alt=""
-          className="origin-bottom-right scale-[1.25] object-contain object-bottom lg:scale-100 lg:object-cover lg:object-center"
+          className="origin-bottom-right translate-y-4 scale-[1.25] object-contain object-bottom lg:translate-y-0 lg:scale-100 lg:object-cover lg:object-center"
           fill
           priority
           sizes="100vw"
@@ -32,7 +32,7 @@ export default function ShopPage() {
               Coming soon
             </p>
             <h1
-              className="mt-3 text-[clamp(2.15rem,9.5vw,2.75rem)] font-bold leading-[1.02] tracking-[-0.04em] text-[var(--text-primary)] lg:mt-5 lg:text-[clamp(3.5rem,4.5vw,4.5rem)] lg:leading-[0.98]"
+              className="mt-3 text-[clamp(1.9rem,8.3vw,2.4rem)] font-bold leading-[1.02] tracking-[-0.04em] text-[var(--text-primary)] lg:mt-5 lg:text-[clamp(3.5rem,4.5vw,4.5rem)] lg:leading-[0.98]"
               id="products-coming-soon-title"
             >
               A smarter way to choose for your pet.
@@ -43,8 +43,10 @@ export default function ShopPage() {
             <p className="mt-4 text-[0.95rem] font-semibold leading-6 text-[var(--text-primary)] lg:mt-5 lg:max-w-[480px] lg:text-lg lg:leading-7 xl:max-w-[520px]">
               Recommendations that understand the pet, not just the product.
             </p>
-            <p className="mt-5 text-[0.8rem] font-semibold leading-5 tracking-[0.01em] text-[var(--text-secondary)] lg:mt-6 lg:text-sm">
-              Personalized picks <span aria-hidden="true" className="mx-1 text-[var(--accent-sage)]">·</span> Better comparisons <span aria-hidden="true" className="mx-1 text-[var(--accent-sage)]">·</span> Smarter fit
+            <p aria-label="Personalized picks · Better comparisons · Smarter fit" className="mt-5 flex max-w-[15rem] flex-wrap gap-x-1.5 gap-y-0.5 text-[0.8rem] font-semibold leading-5 tracking-[0.01em] text-[var(--text-secondary)] lg:mt-6 lg:max-w-none lg:text-sm">
+              <span aria-hidden="true" className="whitespace-nowrap">Personalized picks</span>
+              <span aria-hidden="true" className="whitespace-nowrap"><span className="mr-1 text-[var(--accent-sage)]">·</span>Better comparisons</span>
+              <span aria-hidden="true" className="whitespace-nowrap"><span className="mr-1 text-[var(--accent-sage)]">·</span>Smarter fit</span>
             </p>
           </div>
         </div>
