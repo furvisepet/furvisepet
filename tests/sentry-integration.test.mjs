@@ -84,6 +84,11 @@ test("Sentry automatic collection, Replay, logs, breadcrumbs, attachments and se
   assert.equal(event.exception.values[0].stacktrace.frames[0].vars, undefined);
   assert.deepEqual(SENTRY_PRIVACY_OPTIONS.beforeSendSpan({ data: { body: "private" }, description: "private query", op: "http" }), { data: {}, description: undefined, op: "http" });
 
+  const operational = SENTRY_PRIVACY_OPTIONS.beforeSend({
+    tags: { errorCode: "WEBHOOK_PROCESSING_FAILED", email: "owner@example.test", requestId: "request-123", route: "/api/billing/webhook", severity: "critical" },
+  });
+  assert.deepEqual(operational.tags, { errorCode: "WEBHOOK_PROCESSING_FAILED", requestId: "request-123", route: "/api/billing/webhook", severity: "critical" });
+
   const source = sentryConfigs.map(read).join("\n") + read("app/lib/operations/sentry-privacy.ts");
   assert.doesNotMatch(source, /replayIntegration|replaysSessionSampleRate|replaysOnErrorSampleRate|enableLogs:\s*true/);
 });

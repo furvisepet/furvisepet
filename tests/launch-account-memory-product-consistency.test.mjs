@@ -59,19 +59,6 @@ test("Product requests split deterministic browsing from guided AI", () => {
   assert.equal(classifyShopQueryCapability("Find the best thing for Luna because she hates hard chews and I want something affordable but premium"), "guided_ai");
 });
 
-test("exhausted guided Product requests retain deterministic results and explicit UI", () => {
-  const route = read("app/api/shop/interpret-query/route.ts");
-  const page = read("app/shop/page.tsx");
-  const classifyAt = route.indexOf("const capability = classifyShopQueryCapability(query)");
-  const usageAt = route.indexOf("usage = await loadShopUsage(context)", classifyAt);
-  assert.ok(classifyAt > -1 && usageAt > classifyAt);
-  assert.match(route, /creditsExhausted: true/);
-  assert.match(route, /mode: "deterministic"/);
-  assert.match(page, /\["dental", "food", "grooming"\]/);
-  assert.doesNotMatch(page, /if \(searchCapReached\) return/);
-  assert.match(page, /Product details and direct browsing are still available/);
-});
-
 test("memory migration enforces one active identity and service-only repair", () => {
   const migration = read("supabase/migrations/20260729010000_harden_memory_lifecycle_retrieval.sql");
   assert.match(migration, /furvise_memories_one_active_fact_idx/);

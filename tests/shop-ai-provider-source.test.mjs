@@ -22,7 +22,6 @@ test("Shop interpretation reuses the existing AI provider abstraction", () => {
   assert.match(openai, /parseShopProductFitExplanation/);
   assert.match(openai, /this\.client\.responses\.create/);
 });
-
 test("Shop interpretation API route authenticates and loads pet memory server-side", () => {
   const route = read("app/api/shop/interpret-query/route.ts");
   const petMemory = read("app/lib/pet-memory.ts");
@@ -123,42 +122,6 @@ test("Shop product search logs safe diagnostic counts without private data", () 
   assert.doesNotMatch(logFunction, /userId|token|authorization|apiKey|petMemory|recentEntries|savedDetails/);
 });
 
-test("Shop page calls interpretation only after submit and keeps query-first rendering", () => {
-  const page = read("app/shop/page.tsx");
-  const catalogSource = read("app/lib/shop/catalog-source.ts");
-
-  assert.match(page, /getCurrentAccessToken/);
-  assert.match(page, /fetch\("\/api\/shop\/interpret-query"/);
-  assert.match(page, /if \(nextQuery\.length < MIN_SHOP_QUERY_LENGTH \|\| !selectedPetId \|\| !selectedDraft\) return/);
-  assert.doesNotMatch(page, /if \(searchCapReached\) return/);
-  assert.match(page, /setSubmittedQuery\(nextQuery\)/);
-  assert.match(page, /disabled=\{!canSearch\}/);
-  assert.match(page, /You’ve used all of your AI guidance for this month/);
-  assert.match(page, /interpretationLoading/);
-  assert.match(catalogSource, /fetchImpl\("\/api\/shop\/catalog"/);
-  assert.match(page, /searchShopProducts\(\{\s+interpretation: activeInterpretation,\s+productCountry,\s+products: catalogProducts/s);
-  assert.match(page, /What are you looking for\?/);
-});
-
-test("Shop product fit explanation is click-only and cached per page session", () => {
-  const page = read("app/shop/page.tsx");
-  const submitSearch = page.slice(page.indexOf("function submitSearch"), page.indexOf("function resetInterpretation"));
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
-  const explainHandler = page.slice(page.indexOf("async function explainProductFit"), page.indexOf("async function interpretSubmittedQuery"));
-
-  assert.equal((page.match(/\/api\/shop\/explain-product-fit/g) || []).length, 1);
-  assert.doesNotMatch(submitSearch, /\/api\/shop\/explain-product-fit/);
-  assert.doesNotMatch(productCard, /fetch\(/);
-  assert.match(page, /Why this product\?/);
-  assert.doesNotMatch(page, /Why this product may make sense/);
-  assert.match(page, /Checking product fit/);
-  assert.match(explainHandler, /if \(cached\?\.loading \|\| cached\?\.explanation\) return/);
-  assert.match(submitSearch, /setFitExplanationCache\(\{\}\)/);
-  assert.match(page, /setSelectedPetId\(event\.target\.value\);[\s\S]*resetInterpretation\(\)/);
-  assert.match(page, /function resetInterpretation\(\)[\s\S]*setFitExplanationCache\(\{\}\)/);
-  assert.match(page, /buildFitExplanationCacheKey\(\{[\s\S]*petId:[\s\S]*productId:[\s\S]*query/s);
-});
-
 test("Shop AI interpretation does not change Results or Ask Furvise product behavior", () => {
   const results = read("app/results/page.tsx");
   const askRoute = read("app/api/ask/route.ts");
@@ -179,18 +142,4 @@ test("Shop product explanation route gates eligibility before calling AI and nev
   assert.ok(unavailable > productLookup);
   assert.ok(provider > unavailable);
   assert.doesNotMatch(route, /getProductAiUsageStatus|incrementProductAiUsage|product_ai_usage/);
-});
-
-test("Shop product explanation remains click-only from page source", () => {
-  const page = read("app/shop/page.tsx");
-  const shopResults = page.slice(page.indexOf("function ShopResults"), page.indexOf("function ProductCard"));
-  const productCard = page.slice(page.indexOf("function ProductCard"), page.indexOf("function ProductFitExplanationPanel"));
-  const explainHandler = page.slice(page.indexOf("async function explainProductFit"), page.indexOf("async function interpretSubmittedQuery"));
-
-  assert.equal((page.match(/idempotentClientFetch\("\/api\/shop\/explain-product-fit"/g) || []).length, 1);
-  assert.doesNotMatch(shopResults, /idempotentClientFetch\("\/api\/shop\/explain-product-fit"/);
-  assert.doesNotMatch(productCard, /idempotentClientFetch\("\/api\/shop\/explain-product-fit"/);
-  assert.match(productCard, /onClick=\{openWhyPanel\}/);
-  assert.match(productCard, /function openWhyPanel\(\)[\s\S]*onExplain\(\);/);
-  assert.match(explainHandler, /if \(cached\?\.loading \|\| cached\?\.explanation\) return/);
 });

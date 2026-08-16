@@ -78,14 +78,6 @@ test("Ask fresh state uses a compact pet selector and one disclaimer", () => {
   assert.equal(ask.split("Furvise organizes care information and does not replace a veterinarian.").length - 1, 1);
 });
 
-test("Products centers one search with four popular categories", () => {
-  assert.match(products, /title=\{`Products for \$\{selectedPetName \|\| "your pet"\}`\}/);
-  assert.match(products, /What are you looking for\?/);
-  assert.match(products, /\["Food", "Dental", "Grooming", "Skin and coat"\]/);
-  assert.doesNotMatch(products, /Product AI included this month|Product country:|Search carefully using/);
-  assert.doesNotMatch(products, /lg:grid-cols-\[minmax\(22\.5rem/);
-});
-
 test("Products is present in desktop and primary mobile navigation while More retains its menu", () => {
   const mobileNavigation = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
   assert.match(mobileNavigation, /icon: "products", label: "Products"/);

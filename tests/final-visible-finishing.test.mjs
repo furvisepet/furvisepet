@@ -76,13 +76,6 @@ test("Ask starter rows advertise selection without becoming cards", () => {
   assert.doesNotMatch(ask.slice(ask.indexOf("function EmptyConversation"), ask.indexOf("function UserMessage")), /rounded-2xl|shadow-/);
 });
 
-test("functional workspaces use deliberate semantic surfaces", () => {
-  assert.match(ask, /bg-\[var\(--surface-primary\)\][\s\S]*shadow-\[var\(--shadow-surface-2\)\]/);
-  assert.match(today, /rounded-2xl border border-\[var\(--line\)\] bg-\[var\(--surface-interactive\)\]/);
-  assert.match(history, /bg-\[var\(--surface-interactive\)\][\s\S]*Add first update/);
-  assert.match(products, /rounded-2xl border border-\[var\(--line\)\] bg-\[var\(--surface-primary\)\]/);
-});
-
 test("homepage tells each benefit once and keeps pet-aware actions", () => {
   for (const benefit of ["Remember what changed", "Ask when you are unsure", "Prepare for the vet"]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);

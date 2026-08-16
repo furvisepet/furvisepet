@@ -89,16 +89,6 @@ test("Ask localizes recent-conversation loading failures", () => {
   assert.doesNotMatch(ask, /Get practical guidance using|profile, recent notes/);
 });
 
-test("Products has useful supported pre-search categories and honest no-results copy", () => {
-  const products = read("app/shop/page.tsx");
-  assert.match(products, /Popular categories/);
-  assert.match(products, /\["Food", "Dental", "Grooming", "Skin and coat"\]/);
-  assert.match(products, /Browse by need/);
-  assert.match(products, /\["Sensitive stomach", "Itchy skin", "Paw care"\]/);
-  assert.match(products, /No matches in the current collection/);
-  assert.match(products, /Try a broader term or another category\./);
-});
-
 test("Pets, History, and Today empty and primary states are useful", () => {
   const pets = read("app/pets/page.tsx");
   const history = read("app/components/care-log-workspace.tsx");

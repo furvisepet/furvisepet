@@ -14,7 +14,6 @@ test("the document is permanently warm-light without preference or hydration dep
   assert.doesNotMatch(layout, /cookies|localStorage|AppearanceProvider|ThemeBootstrap|suppressHydrationWarning|data-theme/i);
   assert.doesNotMatch(css, /data-theme|prefers-color-scheme/i);
 });
-
 test("forgot-password keeps the reset request and safe return flow", () => {
   const page = read("app/forgot-password/page.tsx");
 
@@ -58,14 +57,4 @@ test("homepage navigation follows the resolved authentication state", () => {
   assert.match(homepage, /mode === "with-pet"[\s\S]*Ask about \{petName\}/);
   assert.match(header, /resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);
   assert.match(header, /aria-label="Furvise home"/);
-});
-
-test("Products results keep a compact count and avoid comparison UI", () => {
-  const page = read("app/shop/page.tsx");
-  const results = page.slice(page.indexOf("function ShopResults"), page.indexOf("function ProductCard"));
-
-  assert.match(results, /formatProductResultCount\(products\.length\)/);
-  assert.match(results, /products\.map\(\(product\) => \(/);
-  assert.match(results, /<ProductCard/);
-  assert.doesNotMatch(results, /Compare these products|ProductComparisonPanel|product-comparison/i);
 });

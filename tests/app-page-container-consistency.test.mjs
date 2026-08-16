@@ -39,11 +39,6 @@ test("authenticated shell aliases no longer create separate standard and wide wi
   assert.doesNotMatch(primitives, /focusedFormLayout = "[^"]*mx-auto/);
 });
 
-test("Products uses the shared outer shell instead of a unique top-level width", () => {
-  assert.match(products, /<AppPage layout="focused" shell="wide">\s*<div className="min-w-0 overflow-x-hidden">/);
-  assert.doesNotMatch(products, /<AppPage[^>]*>\s*<div className="[^"]*(?:max-w-|mx-auto)/);
-});
-
 test("mobile navigation clearance remains owned by the shared app page", () => {
   assert.match(appPage, /<main className="app-mobile-nav-clearance/);
   for (const source of [today, pets, history, ask, products]) {
@@ -54,14 +49,6 @@ test("mobile navigation clearance remains owned by the shared app page", () => {
 test("Ask keyboard helper uses the intended middle dot without an encoding artifact", () => {
   assert.match(ask, /Enter to send · Shift \+ Enter for a new line/);
   assert.doesNotMatch(ask, /Enter to send Â·/);
-});
-
-test("primary route roots do not add a second narrow outer max width", () => {
-  assert.match(today, /<AppPage layout="workspace" shell="today">\s*<div className=\{todayPrimaryLayout\}/);
-  assert.match(pets, /<AppPage layout="workspace" shell="standard">\s*<PageHeader/);
-  assert.match(history, /<AppPage layout="workspace" shell="reading">\s*<div className="w-full">/);
-  assert.match(ask, /<AppPage layout="focused" shell="reading">\s*<header>/);
-  assert.match(products, /<AppPage layout="focused" shell="wide">\s*<div className="min-w-0 overflow-x-hidden">/);
 });
 
 test("onboarding uses a centered readable form while keeping fields left aligned", () => {

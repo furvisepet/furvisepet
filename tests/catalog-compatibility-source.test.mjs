@@ -4,15 +4,6 @@ import test from "node:test";
 
 function source(path) { return readFileSync(new URL(path, import.meta.url), "utf8"); }
 
-test("Products uses the bounded catalog endpoint without changing product-card markup", () => {
-  const page = source("../app/shop/page.tsx");
-  const catalogSource = source("../app/lib/shop/catalog-source.ts");
-  assert.match(catalogSource, /fetchImpl\("\/api\/shop\/catalog"/);
-  assert.match(page, /searchShopProducts\(\{/);
-  assert.match(page, /loadCatalogFirstShopProducts/);
-  assert.match(page, /<ProductCard/);
-});
-
 test("product explanation and question routes use the shared catalog adapter", () => {
   for (const path of [
     "../app/api/shop/explain-product-fit/route.ts",

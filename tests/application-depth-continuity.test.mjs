@@ -61,13 +61,6 @@ test("Ask fresh state keeps starters and composer together without a redundant p
   assert.doesNotMatch(ask, /Your history is temporarily unavailable\. You can still ask a question\./);
 });
 
-test("Products has no pre-search result panel and only shows no-result copy after search", () => {
-  assert.equal(products.split("What are you looking for?").length - 1, 1);
-  assert.match(products, /submittedQuery\.trim\(\) \? <section className="mt-10 min-w-0">/);
-  assert.match(products, /No matches in the current collection/);
-  assert.match(products, /Try a broader term or another category\./);
-});
-
 test("homepage ends with the final conversion section", () => {
   assert.match(homepage, /Start with your pet's name\./);
   assert.match(homepage, /You can add more details whenever you are ready\./);

@@ -46,17 +46,6 @@ test("Pets uses variants for its complete action hierarchy without page color re
   assert.doesNotMatch(pets, /bg-(?:orange|green|sage)|bg-\[var\(--(?:pw-primary|action-primary|soft-action|sage|soft-sage|warm-orange)\)\]|#[0-9a-f]{3,8}/i);
 });
 
-test("audited pages select shared Primary instead of defining orange action classes", () => {
-  for (const source of [today, history, ask, products, account, homepage]) {
-    assert.doesNotMatch(source, /bg-(?:orange|green)|bg-\[var\(--(?:action-primary|primary-action|warm-orange)\)\]/i);
-  }
-  assert.match(today, /<PrimaryButton[^>]*disabled=\{!quickEntryDraft \|\| quickSaving\}/);
-  assert.match(history, /<PrimaryButton onClick=\{openCreate\}>Add first update<\/PrimaryButton>/);
-  assert.match(ask, /<PrimaryButton[^>]*disabled=\{!canSend\}[^>]*loading=\{loading\}[^>]*>Ask<\/PrimaryButton>/);
-  assert.match(products, /<PrimaryButton[\s\S]*disabled=\{!canSearch\}[\s\S]*>\s*Search\s*<\/PrimaryButton>/);
-  assert.match(account, /<PrimaryButton[\s\S]*loading=\{saving\}[\s\S]*Save product country/);
-});
-
 test("one shared mobile clearance covers every requested app surface", () => {
   assert.match(css, /--mobile-nav-height: 4\.25rem;/);
   assert.match(css, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\);/);

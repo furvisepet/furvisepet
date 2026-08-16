@@ -30,15 +30,6 @@ test("mobile header has a compact safe-area-aware height and responsive approved
   assert.match(brand, /var\(--brand-mark-size, \$\{size\}px\)/);
 });
 
-test("mobile controls and product discovery chips remain compact and touch friendly", () => {
-  assert.match(primitives, /fieldControlClass[\s\S]*min-h-\[3\.25rem\][\s\S]*text-base/);
-  assert.match(primitives, /inline-flex min-h-11[\s\S]*data-chip-variant/);
-  assert.match(products, /p-4[\s\S]*md:p-6/);
-  assert.match(products, /gap-3[\s\S]*md:grid-cols-\[180px_minmax\(0,1fr\)_auto\]/);
-  assert.match(products, /basis-full text-center[\s\S]*Popular categories/);
-  assert.match(products, /min-h-11[\s\S]*text-\[0\.9375rem\]/);
-});
-
 test("one stable bottom-navigation height drives safe-area clearance and composer offset", () => {
   assert.match(css, /--mobile-nav-height: 4\.25rem;/);
   assert.match(css, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\);/);

@@ -4,18 +4,24 @@ import { applyStripeSubscriptionProjection, hasBillingDeletionTombstone } from "
 import { buildStripeSubscriptionProjection, stripeObjectId } from "../../../lib/billing/stripe-projection";
 import { getStripeServerClient, getStripeWebhookSecret } from "../../../lib/billing/stripe-server";
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
+import { emitOperationalEvent } from "../../../lib/operations/events";
+import { readBoundedRawBody, RawBodyTooLargeError, STRIPE_WEBHOOK_BODY_LIMIT } from "../../../lib/security/bounded-raw-body";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const requestId = crypto.randomUUID();
   const signature = request.headers.get("stripe-signature");
   if (!signature) return Response.json({ error: "Invalid webhook signature." }, { status: 400 });
 
   let event: Stripe.Event;
   try {
-    const rawBody = await request.text();
+    const rawBody = await readBoundedRawBody(request, STRIPE_WEBHOOK_BODY_LIMIT);
     event = getStripeServerClient().webhooks.constructEvent(rawBody, signature, getStripeWebhookSecret());
-  } catch {
+  } catch (error) {
+    if (error instanceof RawBodyTooLargeError) {
+      return Response.json({ error: "Webhook payload is too large." }, { status: 413 });
+    }
     return Response.json({ error: "Invalid webhook signature." }, { status: 400 });
   }
 
@@ -42,12 +48,21 @@ export async function POST(request: Request) {
     revalidatePath("/ask");
     return Response.json({ outcome, received: true });
   } catch (error) {
+    emitOperationalEvent({
+      errorCode: safeWebhookErrorCode(error), eventType: "application_error", feature: "billing",
+      operationId: event.id, requestId, route: "/api/billing/webhook", severity: "critical",
+    });
     console.error("[Furvise billing] webhook projection failed", {
       errorName: error instanceof Error ? error.name : "UnknownError",
       eventType: event.type,
     });
     return Response.json({ error: "Webhook processing failed." }, { status: 500 });
   }
+}
+
+function safeWebhookErrorCode(error: unknown) {
+  const candidate = error instanceof Error ? error.message : "WEBHOOK_PROCESSING_FAILED";
+  return /^[A-Z][A-Z0-9_]{2,119}$/.test(candidate) ? candidate : "WEBHOOK_PROCESSING_FAILED";
 }
 
 async function subscriptionForEvent(event: Stripe.Event) {

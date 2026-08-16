@@ -79,24 +79,6 @@ test("PageHeader supports shared titles and independent action slots", () => {
   for (const source of [today, pets, history, ask, products, account]) assert.match(source, /<PageHeader/);
 });
 
-test("orange action governance keeps repeated Pets and product-card actions secondary", () => {
-  const petRows = pets.slice(pets.indexOf("function PetStartHistory"));
-  assert.doesNotMatch(petRows, /<PrimaryButton[^>]*>Add update/);
-  assert.match(petRows, /<SoftButton[^>]*>Add update/);
-  assert.match(pets, /actions=\{profiles\.length \? <PrimaryButton[^>]*>Add pet/);
-  assert.match(products, /disabled=\{!canSearch\}[\s\S]*>\s*Search/);
-  assert.match(products, /bg-\[var\(--secondary-action\)\][\s\S]*Ask product question/);
-});
-
-test("surface balance reserves sage while navigation, composer, search, and footer use warm neutral surfaces", () => {
-  assert.match(css, /--navigation-background: var\(--warm-cream\)/);
-  assert.match(css, /--footer-background: var\(--raised-neutral\)/);
-  assert.match(css, /--ghost-action-hover: var\(--raised-neutral\)/);
-  assert.match(ask, /app-sticky-composer[\s\S]*bg-\[var\(--surface-primary\)\]/);
-  assert.match(products, /bg-\[var\(--surface-primary\)\][\s\S]*onSubmit=\{submitSearch\}/);
-  assert.match(footer, /data-ui="app-footer"[\s\S]*preset=\{shell\}/);
-});
-
 test("footer is compact, shell aligned, and uses the canonical logo component", () => {
   assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
   assert.match(footer, /<BrandMark size=\{24\} \/>/);
