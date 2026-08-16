@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const [{ data, error }, billingAccounts, deletionTombstones] = await Promise.all([
       admin.rpc("furvise_readiness_snapshot").abortSignal(signal),
       admin.from("billing_accounts").select("user_id,stripe_customer_id,stripe_subscription_id,plan,subscription_status").limit(1).abortSignal(signal),
-      admin.from("billing_deletion_tombstones").select("user_id,stripe_customer_id,stripe_subscription_id,operation_id").limit(1).abortSignal(signal),
+      admin.from("billing_deletion_tombstones").select("user_id,stripe_customer_id,stripe_subscription_id,deletion_idempotency_key").limit(1).abortSignal(signal),
     ]);
     if (!error && Array.isArray(data) && data[0]) {
       components.database = "ready";
