@@ -16,6 +16,36 @@ export type TerminatedBillingSubscription = {
   subscriptionId: string;
 };
 
+export async function prepareBillingForAccountDeletion({
+  account,
+  idempotencyKey,
+  recordTombstones,
+  stripe,
+  userId,
+}: {
+  account: BillingAccountRow | null;
+  idempotencyKey: string;
+  recordTombstones: (termination: {
+    customerId: string;
+    idempotencyKey: string;
+    subscriptions: TerminatedBillingSubscription[];
+    userId: string;
+  }) => Promise<void>;
+  stripe: StripeDeletionClient;
+  userId: string;
+}) {
+  const termination = await terminateStripeBillingForAccountDeletion({ account, idempotencyKey, stripe, userId });
+  if (termination.customerId) {
+    await recordTombstones({
+      customerId: termination.customerId,
+      idempotencyKey,
+      subscriptions: termination.subscriptions,
+      userId,
+    });
+  }
+  return termination;
+}
+
 export async function terminateStripeBillingForAccountDeletion({
   account,
   idempotencyKey,

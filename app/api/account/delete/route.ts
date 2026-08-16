@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getAuthenticatedApiContext } from "../../../lib/authenticated-api-server";
-import { terminateStripeBillingForAccountDeletion } from "../../../lib/billing/account-deletion";
+import { prepareBillingForAccountDeletion } from "../../../lib/billing/account-deletion";
 import { getBillingAccountForUser, recordBillingDeletionTombstones } from "../../../lib/billing/billing-admin";
 import { getStripeServerClient } from "../../../lib/billing/stripe-server";
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
@@ -29,18 +29,12 @@ export async function POST(request: Request) {
     const payloadHash = createHash("sha256").update(`account-delete:v1:${context.userId}:DELETE`).digest("hex");
     try {
       const billingAccount = await getBillingAccountForUser(admin, context.userId);
-      const termination = billingAccount ? await terminateStripeBillingForAccountDeletion({
-        account: billingAccount,
-        idempotencyKey: key.key,
-        stripe: getStripeServerClient(),
-        userId: context.userId,
-      }) : { customerId: null, subscriptions: [] };
-      if (termination.customerId) {
-        await recordBillingDeletionTombstones({
-          admin,
-          customerId: termination.customerId,
+      if (billingAccount) {
+        await prepareBillingForAccountDeletion({
+          account: billingAccount,
           idempotencyKey: key.key,
-          subscriptions: termination.subscriptions,
+          recordTombstones: (termination) => recordBillingDeletionTombstones({ admin, ...termination }),
+          stripe: getStripeServerClient(),
           userId: context.userId,
         });
       }
