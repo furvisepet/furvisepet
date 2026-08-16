@@ -7,7 +7,10 @@ import { readBoundedRawBody, RawBodyTooLargeError, STRIPE_WEBHOOK_BODY_LIMIT } f
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("readiness accepts the current core schema and fails closed for missing deletion reconciliation", () => {
+test("readiness accepts the real tombstone schema and fails closed for a missing required column", () => {
+  const route = source("app/api/readiness/route.ts");
+  assert.match(route, /billing_deletion_tombstones"\)\.select\("user_id,stripe_customer_id,stripe_subscription_id,deletion_idempotency_key"\)/);
+  assert.doesNotMatch(route, /billing_deletion_tombstones"\)\.select\([^\n]*operation_id/);
   assert.equal(requiredSchemaIsReady({ billingAccountsError: null, deletionTombstonesError: null, latestMigration: REQUIRED_CORE_MIGRATION }), true);
   assert.equal(requiredSchemaIsReady({ billingAccountsError: null, deletionTombstonesError: new Error("missing"), latestMigration: REQUIRED_CORE_MIGRATION }), false);
   assert.equal(requiredSchemaIsReady({ billingAccountsError: null, deletionTombstonesError: null, latestMigration: "20260815075551" }), false);
