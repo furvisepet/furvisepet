@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { terminateStripeBillingForAccountDeletion } from "../app/lib/billing/account-deletion.ts";
+import { prepareBillingForAccountDeletion, terminateStripeBillingForAccountDeletion } from "../app/lib/billing/account-deletion.ts";
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const deletionRoute = source("app/api/account/delete/route.ts");
 const migration = source("supabase/migrations/20260815075551_safe_account_deletion_billing_reconciliation.sql");
+const opaqueSecretFix = source("supabase/migrations/20260816044940_allow_opaque_secret_billing_deletion_tombstones.sql");
 const webhook = source("app/api/billing/webhook/route.ts");
 
 const userId = "11111111-1111-4111-8111-111111111111";
@@ -57,6 +58,22 @@ test("active Plus is canceled immediately and verified terminal", async () => {
   assert.deepEqual(result.subscriptions, [{ status: "canceled", subscriptionId: "sub_owner" }]);
 });
 
+test("cancellation succeeds and the verified terminal mapping is recorded", async () => {
+  const stripe = stripeState([subscription()]);
+  const recorded = [];
+  await prepareBillingForAccountDeletion({
+    account,
+    idempotencyKey: crypto.randomUUID(),
+    recordTombstones: async (termination) => recorded.push(termination),
+    stripe: stripe.client,
+    userId,
+  });
+  assert.deepEqual(stripe.canceled, ["sub_owner"]);
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].customerId, "cus_owner");
+  assert.deepEqual(recorded[0].subscriptions, [{ status: "canceled", subscriptionId: "sub_owner" }]);
+});
+
 test("cancel-at-period-end Plus is still terminated before deletion", async () => {
   const stripe = stripeState([subscription({ cancel_at_period_end: true })]);
   await terminateStripeBillingForAccountDeletion({ account: { ...account, cancel_at_period_end: true }, idempotencyKey: crypto.randomUUID(), stripe: stripe.client, userId });
@@ -77,6 +94,67 @@ test("repeated deletion is idempotent after Stripe termination", async () => {
   await terminateStripeBillingForAccountDeletion({ account, idempotencyKey: crypto.randomUUID(), stripe: stripe.client, userId });
   assert.deepEqual(stripe.canceled, ["sub_owner"]);
   assert.match(migration, /on conflict \(stripe_subscription_id\) do update/);
+});
+
+test("tombstone failure after cancellation retries from projected free and canceled state without duplicate cancellation", async () => {
+  const stripe = stripeState([subscription()]);
+  const tombstones = new Map();
+  let recordAttempts = 0;
+  const recordTombstones = async ({ subscriptions }) => {
+    recordAttempts += 1;
+    if (recordAttempts === 1) throw new Error("simulated tombstone write failure");
+    for (const item of subscriptions) tombstones.set(item.subscriptionId, item.status);
+  };
+  const idempotencyKey = crypto.randomUUID();
+
+  await assert.rejects(prepareBillingForAccountDeletion({
+    account,
+    idempotencyKey,
+    recordTombstones,
+    stripe: stripe.client,
+    userId,
+  }), /simulated tombstone write failure/);
+  assert.deepEqual(stripe.canceled, ["sub_owner"]);
+  assert.equal(tombstones.size, 0);
+
+  const projectedCanceledAccount = {
+    ...account,
+    cancel_at_period_end: false,
+    plan: "free",
+    subscription_status: "canceled",
+  };
+  await prepareBillingForAccountDeletion({
+    account: projectedCanceledAccount,
+    idempotencyKey,
+    recordTombstones,
+    stripe: stripe.client,
+    userId,
+  });
+  assert.deepEqual(stripe.canceled, ["sub_owner"]);
+  assert.equal(recordAttempts, 2);
+  assert.equal(tombstones.get("sub_owner"), "canceled");
+});
+
+test("an already-canceled Stripe subscription is terminal on retry and is not canceled again", async () => {
+  const stripe = stripeState([subscription({ status: "canceled" })]);
+  const recorded = [];
+  await prepareBillingForAccountDeletion({
+    account: { ...account, plan: "free", subscription_status: "canceled" },
+    idempotencyKey: crypto.randomUUID(),
+    recordTombstones: async (termination) => recorded.push(termination),
+    stripe: stripe.client,
+    userId,
+  });
+  assert.deepEqual(stripe.canceled, []);
+  assert.deepEqual(recorded[0].subscriptions, [{ status: "canceled", subscriptionId: "sub_owner" }]);
+});
+
+test("opaque secret authorization relies on service-role EXECUTE grants instead of legacy JWT claims", () => {
+  assert.doesNotMatch(opaqueSecretFix, /request\.jwt\.claim\.role|auth\.role\(\)/);
+  assert.match(opaqueSecretFix, /revoke all on function public\.record_billing_deletion_tombstones\([^)]+\) from public, anon, authenticated/);
+  assert.match(opaqueSecretFix, /grant execute on function public\.record_billing_deletion_tombstones\([^)]+\) to service_role/);
+  assert.match(opaqueSecretFix, /where user_id = p_user_id and stripe_customer_id = p_stripe_customer_id/);
+  assert.match(opaqueSecretFix, /BILLING_TOMBSTONE_OWNER_MISMATCH/);
 });
 
 test("Stripe success plus local cleanup failure remains retryable with mapping retained", () => {
