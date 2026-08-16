@@ -81,8 +81,11 @@ test("critical operational failures are durable with safe correlation tags", () 
 test("Products is a no-request Coming Soon presentation while retaining the route shell", () => {
   const page = source("app/shop/page.tsx");
   assert.match(page, /<AppPage layout="focused" shell="wide">/);
-  assert.match(page, /title="Products"/);
+  assert.match(page, /comingsoon_bg\.jpg/);
+  assert.match(page, /data-ui="products-coming-soon-hero"/);
   assert.match(page, /Coming soon/);
-  assert.match(page, /Smarter picks for your pet are coming\./);
-  assert.doesNotMatch(page, /fetch\(|\/api\/shop|useEffect|search|waitlist|release date/i);
+  assert.match(page, /A smarter way to choose[\s\S]*for your pet\./);
+  assert.match(page, /Recommendations that understand the pet, not just the product\./);
+  assert.match(page, /h-\[360px\][\s\S]*sm:absolute sm:inset-0 sm:h-full/);
+  assert.doesNotMatch(page, /fetch\(|\/api\/shop|useEffect|search|waitlist|release date|<form|<button/i);
 });

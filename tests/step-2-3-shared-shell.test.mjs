@@ -76,7 +76,8 @@ test("PageHeader supports shared titles and independent action slots", () => {
   assert.match(primitives, /primaryAction\?: ReactNode/);
   assert.match(primitives, /secondaryAction\?: ReactNode/);
   assert.match(primitives, /data-ui="page-header-actions"/);
-  for (const source of [today, pets, history, ask, products, account]) assert.match(source, /<PageHeader/);
+  for (const source of [today, pets, history, ask, account]) assert.match(source, /<PageHeader/);
+  assert.match(products, /aria-labelledby="products-coming-soon-title"[\s\S]*<h1[\s\S]*id="products-coming-soon-title"/);
 });
 
 test("footer is compact, shell aligned, and uses the canonical logo component", () => {
