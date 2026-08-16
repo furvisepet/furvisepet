@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 
-import comingSoonBackground from "../../public/images/products_page/comingsoon_bg.jpg";
 import { AppPage } from "../components/app-page";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 
@@ -49,7 +48,7 @@ export default function ShopPage() {
               fill
               priority
               sizes="(max-width: 639px) 100vw, 1180px"
-              src={comingSoonBackground}
+              src="/images/products_page/comingsoon_bg.jpg"
             />
           </div>
         </section>
