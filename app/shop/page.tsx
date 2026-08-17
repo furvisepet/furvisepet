@@ -1,9 +1,19 @@
 "use client";
 
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 
 import { AppPage } from "../components/app-page";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
+
+const {
+  props: { srcSet: desktopArtworkSrcSet },
+} = getImageProps({
+  alt: "",
+  height: 800,
+  sizes: "100vw",
+  src: "/images/products_page/comingsoon_bg.jpg",
+  width: 1200,
+});
 
 export default function ShopPage() {
   const { status: authStatus } = useRequireConfirmedSupabaseAuth();
@@ -16,16 +26,18 @@ export default function ShopPage() {
         className="relative left-1/2 -mt-8 min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] w-dvw -translate-x-1/2 overflow-hidden bg-[var(--surface-primary)] sm:-mt-12 lg:-mt-14 lg:min-h-[calc(100svh-7.25rem)]"
         data-ui="products-coming-soon-hero"
       >
-        <Image
-          alt=""
-          className="pointer-events-none absolute bottom-[-1.5rem] right-[-15vw] h-auto w-[145vw] max-w-none [mask-image:var(--products-coming-soon-artwork-mask)] [-webkit-mask-image:var(--products-coming-soon-artwork-mask)] sm:bottom-[-2rem] sm:right-[-6vw] sm:w-[120vw] lg:inset-0 lg:h-full lg:w-full lg:max-w-full lg:object-cover lg:object-center lg:[mask-image:none] lg:[-webkit-mask-image:none]"
-          data-ui="products-coming-soon-artwork"
-          height={800}
-          priority
-          sizes="(max-width: 639px) 145vw, (max-width: 1023px) 120vw, 100vw"
-          src="/images/products_page/comingsoon_bg.jpg"
-          width={1200}
-        />
+        <picture className="pointer-events-none absolute inset-0" data-ui="products-coming-soon-artwork">
+          <source media="(min-width: 1024px)" srcSet={desktopArtworkSrcSet} />
+          <Image
+            alt=""
+            className="object-cover object-center translate-y-[3%] scale-[1.02] lg:translate-y-0 lg:scale-100"
+            fetchPriority="high"
+            fill
+            sizes="100vw"
+            src="/images/products_page/products_mobile.jpg"
+          />
+        </picture>
+        <div aria-hidden="true" className="pointer-events-none absolute -left-16 -top-16 z-[1] h-[68%] w-[88%] rounded-full bg-[color-mix(in_srgb,var(--surface-primary)_92%,transparent)] blur-3xl lg:hidden" />
 
         <div className="relative z-10 flex min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] items-start px-6 pb-6 pt-8 sm:px-10 sm:pt-10 lg:min-h-[calc(100svh-7.25rem)] lg:items-center lg:px-[clamp(4rem,10vw,10rem)] lg:py-16">
           <div className="max-w-[360px] lg:max-w-[520px] xl:max-w-[580px]">
