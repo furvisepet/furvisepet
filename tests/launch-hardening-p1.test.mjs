@@ -76,10 +76,10 @@ test("Products is a no-request Coming Soon presentation while retaining the rout
   assert.match(page, /data-ui="products-coming-soon-hero"/);
   assert.match(page, /Products coming soon/);
   assert.match(page, /w-dvw/);
-  assert.match(page, /min-h-\[calc\(100svh-4\.25rem\)\]/);
+  assert.match(page, /h-\[calc\(100svh-4\.25rem\)\]/);
   assert.match(
     page,
-    /mb-\[calc\(var\(--mobile-nav-clearance\)\*-1\)\]/
+    /-mb-\[var\(--mobile-nav-clearance\)\]/
   );
   assert.match(page, /getImageProps\([\s\S]*products_mobile\.png/);
   assert.match(page, /getImageProps\([\s\S]*products_desktop\.png/);
