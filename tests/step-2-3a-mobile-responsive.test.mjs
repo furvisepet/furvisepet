@@ -21,7 +21,11 @@ test("mobile type scale stays compact and restores the approved desktop title si
   assert.match(css, /body[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.5;/);
   assert.match(products, /text-\[clamp\(1\.9rem,8\.3vw,2\.4rem\)\][\s\S]*lg:text-\[clamp\(3\.5rem,4\.5vw,4\.5rem\)\]/);
   assert.match(products, /min-h-\[calc\(100svh-4\.25rem-var\(--mobile-nav-clearance\)\)\]/);
-  assert.match(products, /translate-y-4 scale-\[1\.25\][\s\S]*object-contain object-bottom[\s\S]*lg:translate-y-0 lg:scale-100 lg:object-cover/);
+  assert.match(products, /bg-\[var\(--surface-primary\)\]/);
+  assert.match(products, /bottom-\[-1\.5rem\][\s\S]*right-\[-15vw\][\s\S]*w-\[145vw\][\s\S]*sm:w-\[120vw\]/);
+  assert.match(css, /--products-coming-soon-artwork-mask: linear-gradient\(to bottom, transparent 0%, var\(--deep-forest\) 22%, var\(--deep-forest\) 100%\)/);
+  assert.match(products, /mask-image:var\(--products-coming-soon-artwork-mask\)[\s\S]*lg:\[mask-image:none\]/);
+  assert.match(products, /lg:inset-0 lg:h-full lg:w-full[\s\S]*lg:object-cover lg:object-center/);
   assert.match(products, /max-w-\[15rem\][\s\S]*flex-wrap[\s\S]*lg:max-w-none/);
   assert.equal((products.match(/whitespace-nowrap/g) ?? []).length, 3);
 });

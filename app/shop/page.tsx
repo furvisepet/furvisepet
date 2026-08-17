@@ -18,13 +18,14 @@ export default function ShopPage() {
       >
         <Image
           alt=""
-          className="origin-bottom-right translate-y-4 scale-[1.25] object-contain object-bottom lg:translate-y-0 lg:scale-100 lg:object-cover lg:object-center"
-          fill
+          className="pointer-events-none absolute bottom-[-1.5rem] right-[-15vw] h-auto w-[145vw] max-w-none [mask-image:var(--products-coming-soon-artwork-mask)] [-webkit-mask-image:var(--products-coming-soon-artwork-mask)] sm:bottom-[-2rem] sm:right-[-6vw] sm:w-[120vw] lg:inset-0 lg:h-full lg:w-full lg:max-w-full lg:object-cover lg:object-center lg:[mask-image:none] lg:[-webkit-mask-image:none]"
+          data-ui="products-coming-soon-artwork"
+          height={800}
           priority
-          sizes="100vw"
+          sizes="(max-width: 639px) 145vw, (max-width: 1023px) 120vw, 100vw"
           src="/images/products_page/comingsoon_bg.jpg"
+          width={1200}
         />
-        <div aria-hidden="true" className="pointer-events-none absolute -inset-x-8 -top-8 h-[62%] bg-[color-mix(in_srgb,var(--surface-primary)_92%,transparent)] blur-2xl lg:hidden" />
 
         <div className="relative z-10 flex min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] items-start px-6 pb-6 pt-8 sm:px-10 sm:pt-10 lg:min-h-[calc(100svh-7.25rem)] lg:items-center lg:px-[clamp(4rem,10vw,10rem)] lg:py-16">
           <div className="max-w-[360px] lg:max-w-[520px] xl:max-w-[580px]">
