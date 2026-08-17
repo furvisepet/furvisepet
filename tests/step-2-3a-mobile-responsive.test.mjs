@@ -22,10 +22,9 @@ test("mobile type scale stays compact and restores the approved desktop title si
   assert.match(products, /text-\[clamp\(1\.9rem,8\.3vw,2\.4rem\)\][\s\S]*lg:text-\[clamp\(3\.5rem,4\.5vw,4\.5rem\)\]/);
   assert.match(products, /min-h-\[calc\(100svh-4\.25rem-var\(--mobile-nav-clearance\)\)\]/);
   assert.match(products, /bg-\[var\(--surface-primary\)\]/);
-  assert.match(products, /bottom-\[-1\.5rem\][\s\S]*right-\[-15vw\][\s\S]*w-\[145vw\][\s\S]*sm:w-\[120vw\]/);
-  assert.match(css, /--products-coming-soon-artwork-mask: linear-gradient\(to bottom, transparent 0%, var\(--deep-forest\) 22%, var\(--deep-forest\) 100%\)/);
-  assert.match(products, /mask-image:var\(--products-coming-soon-artwork-mask\)[\s\S]*lg:\[mask-image:none\]/);
-  assert.match(products, /lg:inset-0 lg:h-full lg:w-full[\s\S]*lg:object-cover lg:object-center/);
+  assert.match(products, /<picture[\s\S]*absolute inset-0[\s\S]*<source media="\(min-width: 1024px\)"[\s\S]*products_mobile\.jpg[\s\S]*<\/picture>/);
+  assert.match(products, /object-cover object-center translate-y-\[3%\] scale-\[1\.02\][\s\S]*lg:translate-y-0 lg:scale-100/);
+  assert.match(products, /h-\[68%\] w-\[88%\][\s\S]*blur-3xl lg:hidden/);
   assert.match(products, /max-w-\[15rem\][\s\S]*flex-wrap[\s\S]*lg:max-w-none/);
   assert.equal((products.match(/whitespace-nowrap/g) ?? []).length, 3);
 });

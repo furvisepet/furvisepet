@@ -89,8 +89,9 @@ test("Products is a no-request Coming Soon presentation while retaining the rout
   assert.match(page, /w-dvw/);
   assert.match(page, /min-h-\[calc\(100svh-4\.25rem-var\(--mobile-nav-clearance\)\)\]/);
   assert.match(page, /data-ui="products-coming-soon-artwork"/);
-  assert.match(page, /<Image[\s\S]*height=\{800\}[\s\S]*sizes="\(max-width: 639px\) 145vw, \(max-width: 1023px\) 120vw, 100vw"[\s\S]*width=\{1200\}/);
-  assert.doesNotMatch(page, /<Image[\s\S]*\sfill(?:\s|\n)/);
+  assert.match(page, /getImageProps\([\s\S]*comingsoon_bg\.jpg[\s\S]*<source media="\(min-width: 1024px\)" srcSet=\{desktopArtworkSrcSet\}/);
+  assert.match(page, /<Image[\s\S]*fetchPriority="high"[\s\S]*fill[\s\S]*sizes="100vw"[\s\S]*products_mobile\.jpg/);
+  assert.doesNotMatch(page, /\bpriority\b|preload/);
   assert.doesNotMatch(page, /rounded-\[var\(--radius-xl\)\]|shadow-\[var\(--shadow-surface-2\)\]|h-\[360px\]/);
   assert.doesNotMatch(page, /fetch\(|\/api\/shop|useEffect|search|waitlist|release date|<form|<button/i);
 });
