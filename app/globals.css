@@ -137,6 +137,7 @@
   --mobile-nav-compact-height: 3.5rem;
   --mobile-nav-safe-area: env(safe-area-inset-bottom, 0px);
   --mobile-sticky-gap: var(--space-3);
+  --products-coming-soon-artwork-mask: linear-gradient(to bottom, transparent 0%, var(--deep-forest) 22%, var(--deep-forest) 100%);
   --mobile-nav-clearance: calc(
     max(var(--mobile-nav-height), var(--mobile-nav-expanded-height)) +
     var(--mobile-nav-safe-area) +
