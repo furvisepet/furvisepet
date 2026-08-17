@@ -48,11 +48,15 @@ test("Products uses dedicated full-bleed responsive artwork", () => {
   );
   assert.match(
     products,
-    /h-\[calc\(100svh-4\.25rem\)\]/
+    /fixed inset-x-0 bottom-0 top-\[4\.25rem\]/
   );
   assert.match(
     products,
-    /-mb-\[var\(--mobile-nav-clearance\)\]/
+    /lg:top-\[7\.25rem\]/
+  );
+  assert.match(
+    products,
+    /overflow-hidden/
   );
   assert.match(
     products,

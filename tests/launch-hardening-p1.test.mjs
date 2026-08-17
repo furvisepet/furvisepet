@@ -75,11 +75,17 @@ test("Products is a no-request Coming Soon presentation while retaining the rout
   assert.match(page, /products_desktop\.png/);
   assert.match(page, /data-ui="products-coming-soon-hero"/);
   assert.match(page, /Products coming soon/);
-  assert.match(page, /w-dvw/);
-  assert.match(page, /h-\[calc\(100svh-4\.25rem\)\]/);
   assert.match(
     page,
-    /-mb-\[var\(--mobile-nav-clearance\)\]/
+    /fixed inset-x-0 bottom-0 top-\[4\.25rem\]/
+  );
+  assert.match(
+    page,
+    /lg:top-\[7\.25rem\]/
+  );
+  assert.match(
+    page,
+    /overflow-hidden/
   );
   assert.match(page, /getImageProps\([\s\S]*products_mobile\.png/);
   assert.match(page, /getImageProps\([\s\S]*products_desktop\.png/);
