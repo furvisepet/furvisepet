@@ -52,7 +52,7 @@ test("Products uses dedicated full-bleed responsive artwork", () => {
   );
   assert.match(
     products,
-    /lg:top-\[7\.25rem\]/
+    /lg:top-\[4\.25rem\]/
   );
   assert.match(
     products,

@@ -81,7 +81,7 @@ test("Products is a no-request Coming Soon presentation while retaining the rout
   );
   assert.match(
     page,
-    /lg:top-\[7\.25rem\]/
+    /lg:top-\[4\.25rem\]/
   );
   assert.match(
     page,

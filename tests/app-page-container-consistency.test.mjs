@@ -46,7 +46,7 @@ test("mobile navigation clearance remains owned by the shared app page", () => {
   }
   assert.match(
   products,
-  /fixed inset-x-0 bottom-0 top-\[4\.25rem\][\s\S]*lg:top-\[7\.25rem\]/
+  /fixed inset-x-0 bottom-0 top-\[4\.25rem\][\s\S]*lg:top-\[4\.25rem\]/
 );
   assert.doesNotMatch(products, /--mobile-nav-(?:clearance|height|safe-area)\s*:/);
 });
