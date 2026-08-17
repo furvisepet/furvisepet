@@ -1,23 +1,36 @@
 "use client";
 
-import Image, { getImageProps } from "next/image";
+import { getImageProps } from "next/image";
 
 import { AppPage } from "../components/app-page";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 
-const {
-  props: { srcSet: desktopArtworkSrcSet },
-} = getImageProps({
-  alt: "",
-  height: 800,
-  sizes: "100vw",
-  src: "/images/products_page/comingsoon_bg.jpg",
-  width: 1200,
-});
-
 export default function ShopPage() {
   const { status: authStatus } = useRequireConfirmedSupabaseAuth();
-  if (authStatus !== "signedIn") return <AppPage layout="focused" shell="wide">{null}</AppPage>;
+
+  if (authStatus !== "signedIn") {
+    return (
+      <AppPage layout="focused" shell="wide">
+        {null}
+      </AppPage>
+    );
+  }
+
+  const mobileImage = getImageProps({
+    alt: "",
+    src: "/images/products_page/products_mobile.png",
+    width: 1080,
+    height: 1920,
+    sizes: "100vw",
+  }).props;
+
+  const desktopImage = getImageProps({
+    alt: "",
+    src: "/images/products_page/products_desktop.png",
+    width: 1792,
+    height: 1024,
+    sizes: "100vw",
+  }).props;
 
   return (
     <AppPage layout="focused" shell="wide">
@@ -26,40 +39,44 @@ export default function ShopPage() {
         className="relative left-1/2 -mt-8 min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] w-dvw -translate-x-1/2 overflow-hidden bg-[var(--surface-primary)] sm:-mt-12 lg:-mt-14 lg:min-h-[calc(100svh-7.25rem)]"
         data-ui="products-coming-soon-hero"
       >
-        <picture className="pointer-events-none absolute inset-0" data-ui="products-coming-soon-artwork">
-          <source media="(min-width: 1024px)" srcSet={desktopArtworkSrcSet} />
-          <Image
+        <picture className="absolute inset-0">
+          <source
+            media="(min-width: 1024px)"
+            srcSet={desktopImage.srcSet}
+            sizes={desktopImage.sizes}
+          />
+
+          <img
+            {...mobileImage}
             alt=""
-            className="object-cover object-center translate-y-[3%] scale-[1.02] lg:translate-y-0 lg:scale-100"
-            fetchPriority="high"
-            fill
-            sizes="100vw"
-            src="/images/products_page/products_mobile.jpg"
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover object-center"
           />
         </picture>
-        <div aria-hidden="true" className="pointer-events-none absolute -left-16 -top-16 z-[1] h-[68%] w-[88%] rounded-full bg-[color-mix(in_srgb,var(--surface-primary)_92%,transparent)] blur-3xl lg:hidden" />
 
-        <div className="relative z-10 flex min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] items-start px-6 pb-6 pt-8 sm:px-10 sm:pt-10 lg:min-h-[calc(100svh-7.25rem)] lg:items-center lg:px-[clamp(4rem,10vw,10rem)] lg:py-16">
-          <div className="max-w-[360px] lg:max-w-[520px] xl:max-w-[580px]">
-            <p className="inline-flex min-h-7 items-center rounded-full border border-[color-mix(in_srgb,var(--text-primary)_18%,transparent)] bg-[color-mix(in_srgb,var(--surface-primary)_76%,transparent)] px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-[var(--text-primary)] backdrop-blur-sm">
-              Coming soon
-            </p>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[34%] bg-gradient-to-b from-[var(--surface-primary)] to-transparent opacity-75 lg:hidden"
+        />
+
+        <div className="relative z-10 flex min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] items-start px-5 pt-6 sm:px-8 sm:pt-8 lg:min-h-[calc(100svh-7.25rem)] lg:items-end lg:px-[clamp(3rem,7vw,8rem)] lg:pb-14">
+          <div className="max-w-[330px] rounded-[1.35rem] bg-[color-mix(in_srgb,var(--surface-primary)_82%,transparent)] p-4 shadow-[var(--shadow-surface-1)] backdrop-blur-md sm:max-w-[360px] sm:p-5 lg:max-w-[520px] lg:rounded-[1.6rem] lg:p-7">
             <h1
-              className="mt-3 text-[clamp(1.9rem,8.3vw,2.4rem)] font-bold leading-[1.02] tracking-[-0.04em] text-[var(--text-primary)] lg:mt-5 lg:text-[clamp(3.5rem,4.5vw,4.5rem)] lg:leading-[0.98]"
               id="products-coming-soon-title"
+              className="text-[1.55rem] font-bold leading-[1.05] tracking-[-0.035em] text-[var(--text-primary)] sm:text-[1.8rem] lg:text-[2.5rem]"
             >
               A smarter way to choose for your pet.
             </h1>
-            <p className="mt-4 text-[0.95rem] leading-6 text-[var(--text-secondary)] lg:mt-6 lg:max-w-[500px] lg:text-lg lg:leading-8 xl:max-w-[560px]">
-              Furvise is building personalized product intelligence around your pet&rsquo;s needs, routines, preferences, and care history.
+
+            <p className="mt-3 text-[0.88rem] leading-5 text-[var(--text-secondary)] sm:text-[0.95rem] sm:leading-6 lg:mt-4 lg:text-base lg:leading-7">
+              Furvise is building a better way to find products that actually
+              make sense for your pet.
             </p>
-            <p className="mt-4 text-[0.95rem] font-semibold leading-6 text-[var(--text-primary)] lg:mt-5 lg:max-w-[480px] lg:text-lg lg:leading-7 xl:max-w-[520px]">
-              Recommendations that understand the pet, not just the product.
-            </p>
-            <p aria-label="Personalized picks · Better comparisons · Smarter fit" className="mt-5 flex max-w-[15rem] flex-wrap gap-x-1.5 gap-y-0.5 text-[0.8rem] font-semibold leading-5 tracking-[0.01em] text-[var(--text-secondary)] lg:mt-6 lg:max-w-none lg:text-sm">
-              <span aria-hidden="true" className="whitespace-nowrap">Personalized picks</span>
-              <span aria-hidden="true" className="whitespace-nowrap"><span className="mr-1 text-[var(--accent-sage)]">·</span>Better comparisons</span>
-              <span aria-hidden="true" className="whitespace-nowrap"><span className="mr-1 text-[var(--accent-sage)]">·</span>Smarter fit</span>
+
+            <p className="mt-3 text-[0.8rem] font-medium leading-5 text-[var(--text-secondary)] sm:text-[0.88rem] lg:mt-4 lg:text-[0.95rem] lg:leading-6">
+              Personalized picks, smarter comparisons, and recommendations
+              shaped around your pet&apos;s needs, preferences, sensitivities,
+              and care history.
             </p>
           </div>
         </div>
