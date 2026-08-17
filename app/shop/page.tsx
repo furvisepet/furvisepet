@@ -37,7 +37,7 @@ export default function ShopPage() {
       <AppPage layout="focused" shell="wide">
         <section
           aria-labelledby="products-coming-soon-title"
-          className="fixed inset-x-0 bottom-0 top-[4.25rem] overflow-hidden bg-[var(--surface-primary)] lg:top-[7.25rem]"
+          className="fixed inset-x-0 bottom-0 top-[4.25rem] overflow-hidden bg-[var(--surface-primary)] lg:top-[4.25rem]"
           data-ui="products-coming-soon-hero"
         >
           <h1 id="products-coming-soon-title" className="sr-only">
