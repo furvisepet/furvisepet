@@ -36,7 +36,7 @@ export default function ShopPage() {
     <AppPage layout="focused" shell="wide">
       <section
         aria-labelledby="products-coming-soon-title"
-        className="relative left-1/2 -mt-8 min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] w-dvw -translate-x-1/2 overflow-hidden bg-[#f6f1d9] sm:-mt-12 lg:-mt-14 lg:min-h-[calc(100svh-7.25rem)]"
+        className="relative left-1/2 -mt-8 min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] w-dvw -translate-x-1/2 overflow-hidden bg-[var(--surface-primary)] sm:-mt-12 lg:-mt-14 lg:min-h-[calc(100svh-7.25rem)]"
         data-ui="products-coming-soon-hero"
       >
         <picture className="absolute inset-0">
@@ -56,11 +56,11 @@ export default function ShopPage() {
 
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[34%] bg-gradient-to-b from-[rgba(255,253,247,0.78)] via-[rgba(255,253,247,0.34)] to-transparent lg:hidden"
+          className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[34%] bg-gradient-to-b from-[var(--surface-primary)] to-transparent opacity-75 lg:hidden"
         />
 
         <div className="relative z-10 flex min-h-[calc(100svh-4.25rem-var(--mobile-nav-clearance))] items-start px-5 pt-6 sm:px-8 sm:pt-8 lg:min-h-[calc(100svh-7.25rem)] lg:items-end lg:px-[clamp(3rem,7vw,8rem)] lg:pb-14">
-          <div className="max-w-[330px] rounded-[1.35rem] bg-[rgba(255,253,247,0.76)] p-4 shadow-[0_8px_32px_rgba(18,63,39,0.08)] backdrop-blur-md sm:max-w-[360px] sm:p-5 lg:max-w-[520px] lg:rounded-[1.6rem] lg:bg-[rgba(255,253,247,0.82)] lg:p-7">
+          <div className="max-w-[330px] rounded-[1.35rem] bg-[color-mix(in_srgb,var(--surface-primary)_82%,transparent)] p-4 shadow-[var(--shadow-surface-1)] backdrop-blur-md sm:max-w-[360px] sm:p-5 lg:max-w-[520px] lg:rounded-[1.6rem] lg:p-7">
             <h1
               id="products-coming-soon-title"
               className="text-[1.55rem] font-bold leading-[1.05] tracking-[-0.035em] text-[var(--text-primary)] sm:text-[1.8rem] lg:text-[2.5rem]"

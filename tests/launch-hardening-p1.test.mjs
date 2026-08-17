@@ -80,18 +80,44 @@ test("critical operational failures are durable with safe correlation tags", () 
 
 test("Products is a no-request Coming Soon presentation while retaining the route shell", () => {
   const page = source("app/shop/page.tsx");
+
   assert.match(page, /<AppPage layout="focused" shell="wide">/);
-  assert.match(page, /comingsoon_bg\.jpg/);
+
+  assert.match(page, /products_mobile\.png/);
+  assert.match(page, /products_desktop\.png/);
+  assert.doesNotMatch(page, /comingsoon_bg\.jpg/);
+  assert.doesNotMatch(page, /products_mobile\.jpg/);
+
   assert.match(page, /data-ui="products-coming-soon-hero"/);
-  assert.match(page, /Coming soon/);
   assert.match(page, /A smarter way to choose for your pet\./);
-  assert.match(page, /Recommendations that understand the pet, not just the product\./);
+  assert.match(page, /Furvise is building a better way to find products that actually/);
+  assert.match(page, /Personalized picks, smarter comparisons, and recommendations/);
+
   assert.match(page, /w-dvw/);
-  assert.match(page, /min-h-\[calc\(100svh-4\.25rem-var\(--mobile-nav-clearance\)\)\]/);
-  assert.match(page, /data-ui="products-coming-soon-artwork"/);
-  assert.match(page, /getImageProps\([\s\S]*comingsoon_bg\.jpg[\s\S]*<source media="\(min-width: 1024px\)" srcSet=\{desktopArtworkSrcSet\}/);
-  assert.match(page, /<Image[\s\S]*fetchPriority="high"[\s\S]*fill[\s\S]*sizes="100vw"[\s\S]*products_mobile\.jpg/);
-  assert.doesNotMatch(page, /\bpriority\b|preload/);
-  assert.doesNotMatch(page, /rounded-\[var\(--radius-xl\)\]|shadow-\[var\(--shadow-surface-2\)\]|h-\[360px\]/);
-  assert.doesNotMatch(page, /fetch\(|\/api\/shop|useEffect|search|waitlist|release date|<form|<button/i);
+  assert.match(
+    page,
+    /min-h-\[calc\(100svh-4\.25rem-var\(--mobile-nav-clearance\)\)\]/
+  );
+
+  assert.match(page, /getImageProps\([\s\S]*products_mobile\.png/);
+  assert.match(page, /getImageProps\([\s\S]*products_desktop\.png/);
+
+  assert.match(
+    page,
+    /<picture className="absolute inset-0">[\s\S]*<source[\s\S]*media="\(min-width: 1024px\)"[\s\S]*srcSet=\{desktopImage\.srcSet\}[\s\S]*<img[\s\S]*\{\.\.\.mobileImage\}[\s\S]*<\/picture>/
+  );
+
+  assert.match(page, /object-cover object-center/);
+
+  assert.doesNotMatch(page, /\bpriority\b|preload|fetchPriority/);
+
+  assert.doesNotMatch(
+    page,
+    /rounded-\[var\(--radius-xl\)\]|shadow-\[var\(--shadow-surface-2\)\]|h-\[360px\]/
+  );
+
+  assert.doesNotMatch(
+    page,
+    /fetch\(|\/api\/shop|useEffect|search|waitlist|release date|<form|<button/i
+  );
 });
