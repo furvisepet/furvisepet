@@ -13,6 +13,7 @@ import {
   buildUnavailableConfirmedLossAction,
   classifyCurrentPetLoss,
   ensureConfirmedLossAction,
+  resolveProviderIndependentLossSubject,
   resolvePetLossContext,
 } from "../app/lib/ai/pet-loss.ts";
 import {
@@ -45,7 +46,12 @@ test("confirmed loss variants are recognized while uncertainty, hypotheticals, m
   for (const report of [
     "Coco died last night.",
     "Rocky passed away peacefully.",
+    "Rocky passd away peacefully.",
+    "She passed on today.",
     "The veterinarian euthanized Maple today.",
+    "The veterinarian euthanised Maple today.",
+    "We put her to sleep today.",
+    "She didn't make it.",
     "He was killed in an accident.",
   ]) assert.equal(classifyCurrentPetLoss(report), "confirmed_current", report);
 
@@ -61,6 +67,42 @@ test("confirmed loss variants are recognized while uncertainty, hypotheticals, m
     "I thought she died, but she is alive.",
     "Actually, she is alive and doing well.",
   ]) assert.notEqual(classifyCurrentPetLoss(report), "confirmed_current", report);
+});
+
+test("provider-independent loss subject resolution is strict for names, species, pronouns, and outside animals", () => {
+  const mani = { id: "pet-mani", name: "Mani", species: "cat", lifecycle_status: "active" };
+  const coco = { id: "pet-coco", name: "Coco", species: "cat", lifecycle_status: "active" };
+  const rex = { id: "pet-rex", name: "Rex", species: "dog", lifecycle_status: "active" };
+
+  assert.deepEqual(resolveProviderIndependentLossSubject({ message: "my cat passed away", pets: [mani], selectedPetId: mani.id }), {
+    kind: "resolved", petId: mani.id, petName: "Mani", lifecycleStatus: "active",
+  });
+  assert.deepEqual(resolveProviderIndependentLossSubject({ message: "Coco died", pets: [mani, coco], selectedPetId: mani.id }), {
+    kind: "resolved", petId: coco.id, petName: "Coco", lifecycleStatus: "active",
+  });
+  assert.deepEqual(resolveProviderIndependentLossSubject({ message: "I meant Coco died, not Mani", pets: [mani, coco], selectedPetId: mani.id }), {
+    kind: "resolved", petId: coco.id, petName: "Coco", lifecycleStatus: "active",
+  });
+  assert.equal(resolveProviderIndependentLossSubject({ message: "my cat died", pets: [mani, coco, rex], selectedPetId: mani.id }).kind, "clarification");
+  assert.deepEqual(resolveProviderIndependentLossSubject({ message: "my other cat died", pets: [mani, coco, rex], selectedPetId: mani.id }), {
+    kind: "resolved", petId: coco.id, petName: "Coco", lifecycleStatus: "active",
+  });
+  assert.deepEqual(resolveProviderIndependentLossSubject({ message: "she died today", pets: [mani], selectedPetId: mani.id }), {
+    kind: "resolved", petId: mani.id, petName: "Mani", lifecycleStatus: "active",
+  });
+  assert.equal(resolveProviderIndependentLossSubject({ message: "she died today", pets: [mani, coco], selectedPetId: mani.id }).kind, "clarification");
+  assert.deepEqual(resolveProviderIndependentLossSubject({
+    message: "she died today", pets: [mani, coco], selectedPetId: mani.id,
+    recentConversation: [{ role: "user", text: "Mani has been sleeping more" }],
+  }), { kind: "resolved", petId: mani.id, petName: "Mani", lifecycleStatus: "active" });
+  assert.equal(resolveProviderIndependentLossSubject({ message: "the stray cat died", pets: [mani], selectedPetId: mani.id }).kind, "external_subject");
+});
+
+test("uncertain loss evidence never enters provider-independent lifecycle handling", () => {
+  const pets = [{ id: "pet-mani", name: "Mani", species: "cat", lifecycle_status: "active" }];
+  for (const message of ["I think she died", "maybe she died", "is she dead?", "what if she died?"]) {
+    assert.equal(resolveProviderIndependentLossSubject({ message, pets, selectedPetId: "pet-mani" }), null, message);
+  }
 });
 
 test("a confirmed death builds one standalone history event for post-confirmation persistence", () => {
@@ -291,13 +333,31 @@ test("pending lifecycle deterministic paths run before provider admission and de
   assert.ok(pendingBranch > 0 && pendingBranch < rateAdmission && pendingBranch < providerAdmission);
   assert.match(route, /deferHighImpactLifecyclePersistence = classifyCurrentPetLoss\(question\) === "confirmed_current"[\s\S]*pendingLifecycle\?\.kind === "reported_deceased"/);
   assert.match(route, /if \(!deferHighImpactLifecyclePersistence && intelligenceResult/);
-  assert.match(route, /if \(!deferHighImpactLifecyclePersistence\) \{\s*await persistAskV2Phase3LowRisk/);
+  assert.match(route, /if \(!deferHighImpactLifecyclePersistence && phase3Runtime\) \{\s*await persistAskV2Phase3LowRisk/);
   assert.match(route, /deterministicApplicationActions = \[pendingLifecycle\.action\]/);
   assert.match(route, /cancelledPendingLifecycleAction\(pendingLifecycle\.action\)/);
   assert.doesNotMatch(route, /cancelPendingLifecycleActionReceipts/);
   assert.match(route, /durableLifecycleStatus !== "active" && requiresLivingPet\(question\)/);
   assert.match(route, /buildDurableLifecycleContradictionOrchestration/);
   assert.doesNotMatch(readFileSync(new URL("../app/lib/ai/pet-loss.ts", import.meta.url), "utf8"), /lossContinuationPattern/);
+});
+
+test("confirmed loss is persisted through a zero-provider, zero-credit branch before every AI gate", () => {
+  const lossBranch = route.indexOf('else if (currentLoss === "confirmed_current")');
+  const durableBranch = route.indexOf("else if (durableLifecycleResolution)", lossBranch);
+  const providerBranch = route.indexOf("phase3Runtime = await prepareAskV2Phase3", durableBranch);
+  const lossSlice = route.slice(lossBranch, durableBranch);
+  assert.ok(lossBranch > 0 && durableBranch > lossBranch && providerBranch > durableBranch);
+  for (const forbidden of ["requireRateLimitedRequest", "admitAiOperation", "reserveAiCredit", "extractTurnSubjectFrame", "runFurviseIntelligence"]) {
+    assert.doesNotMatch(lossSlice, new RegExp(forbidden), forbidden);
+  }
+  assert.match(lossSlice, /resolveProviderIndependentLossSubject/);
+  assert.match(lossSlice, /buildConfirmedLossOrchestration/);
+  assert.match(lossSlice, /ensureConfirmedLossAction/);
+  assert.match(lossSlice, /sourceMessageId: preparedRequest\.userMessageId/);
+  assert.match(lossSlice, /deferHighImpactLifecyclePersistence = true/);
+  assert.match(route, /handledWithoutAi: orchestration\.handledWithoutAi/);
+  assert.match(route, /if \(creditReserved\)[\s\S]*completeAiCredit/);
 });
 
 test("confirmation actions remain outside Ask credit accounting and never auto-delete a pet", () => {
@@ -307,6 +367,9 @@ test("confirmation actions remain outside Ask credit accounting and never auto-d
   assert.match(actionRoute, /executeFurviseApplicationAction/);
   assert.match(actionRoute, /action\.sourceMessageId/);
   assert.match(actionRoute, /conversation\.pet_profile_id/);
+  assert.match(actionRoute, /dog_profiles[\s\S]*resolveProviderIndependentLossSubject/);
+  assert.match(actionRoute, /subject\.petId === action\.petId/);
+  assert.match(actionRoute, /action\.input\.target === expectedTarget/);
   assert.match(actionRoute, /isAuthoritativeLifecycleAction/);
   assert.match(actionRoute, /classifyCurrentPetLoss\(sourceText\) === "confirmed_current"/);
   assert.match(actionRoute, /action\.safetyClass !== policy\.safetyClass/);

@@ -4,7 +4,7 @@ import { hasPendingReportedLifecycle } from "./pending-lifecycle.ts";
 
 export type PetLossContext = "none" | "uncertain_current" | "confirmed_current" | "continuation";
 
-const confirmedLossPattern = /\b(?:died|is dead|was killed|passed away|euthanized|was put (?:to sleep|down))\b/i;
+const confirmedLossPattern = /\b(?:died|is dead|was killed|passed (?:away|on)|pass?d away|euthani[sz]ed|was put (?:to sleep|down)|put (?:her|him|them|it) (?:to sleep|down)|did(?:n['’]?t| not) make it)\b/i;
 const uncertaintyPattern = /\b(?:i think|i thought|maybe|may|might|possibly|probably|not (?:completely )?sure|uncertain|could have|what if|if only)\b/i;
 const correctedLossPattern = /\b(?:but|actually|correction)[^.!?]{0,80}\b(?:alive|did not die|didn't die|is not dead|isn't dead)\b/i;
 
@@ -15,6 +15,70 @@ export function classifyCurrentPetLoss(message: string): Exclude<PetLossContext,
   const evidenceWindow = message.slice(Math.max(0, death.index - 80), death.index + death[0].length + 30);
   const questionWithoutStatement = message.trim().endsWith("?") && /^(?:did|has|is|was|could|would|what if)\b/i.test(message.trim());
   return uncertaintyPattern.test(evidenceWindow) || questionWithoutStatement ? "uncertain_current" : "confirmed_current";
+}
+
+export type LossSubjectPet = {
+  id: string;
+  name?: string | null;
+  species?: string | null;
+  lifecycle_status?: string | null;
+};
+
+export type ProviderIndependentLossSubject =
+  | { kind: "resolved"; petId: string; petName: string; lifecycleStatus: string }
+  | { kind: "clarification"; candidateNames: string[] }
+  | { kind: "external_subject" };
+
+/**
+ * Resolves only evidence that is safe enough to bind a high-impact lifecycle
+ * assertion without asking a model. Ambiguity is an explicit result, never an
+ * invitation to fall back to the selected profile.
+ */
+export function resolveProviderIndependentLossSubject(input: {
+  message: string;
+  pets: LossSubjectPet[];
+  recentConversation?: Array<{ role?: string; text: string }>;
+  selectedPetId: string;
+}): ProviderIndependentLossSubject | null {
+  if (classifyCurrentPetLoss(input.message) !== "confirmed_current") return null;
+  if (hasExternalAnimalSubject(input.message)) return { kind: "external_subject" };
+
+  const pets = input.pets.filter((pet) => pet.id && pet.name);
+  const named = pets.filter((pet) => containsWholeTerm(input.message, pet.name || ""));
+  if (named.length === 1) return resolvedLossPet(named[0]);
+  if (named.length > 1) {
+    const reassigned = explicitlyReassignedNamedPet(input.message, named, input.selectedPetId);
+    return reassigned ? resolvedLossPet(reassigned) : clarification(named);
+  }
+
+  const speciesReference = explicitOwnedSpeciesReference(input.message);
+  if (speciesReference) {
+    const compatible = pets.filter((pet) => normalize(pet.species || "") === speciesReference.species);
+    if (speciesReference.other) {
+      const alternatives = compatible.filter((pet) => pet.id !== input.selectedPetId);
+      return alternatives.length === 1 ? resolvedLossPet(alternatives[0]) : clarification(alternatives.length ? alternatives : compatible);
+    }
+    if (compatible.length === 1) return resolvedLossPet(compatible[0]);
+    const contextual = recentlyEstablishedSelectedPet(input.recentConversation || [], pets, input.selectedPetId);
+    if (contextual && compatible.some((pet) => pet.id === contextual.id)) return resolvedLossPet(contextual);
+    return clarification(compatible);
+  }
+
+  if (/\b(?:my|our)\s+pet\b/i.test(input.message)) {
+    if (pets.length === 1) return resolvedLossPet(pets[0]);
+    const contextual = recentlyEstablishedSelectedPet(input.recentConversation || [], pets, input.selectedPetId);
+    return contextual ? resolvedLossPet(contextual) : clarification(pets);
+  }
+
+  const hasPronounSubject = /\b(?:she|he|they|it)\b/i.test(input.message);
+  const implicitEuthanasiaSubject = /\b(?:put (?:her|him|them|it) to sleep|euthani[sz]ed (?:her|him|them|it))\b/i.test(input.message);
+  if (hasPronounSubject || implicitEuthanasiaSubject || pets.length === 1) {
+    if (pets.length === 1) return resolvedLossPet(pets[0]);
+    const contextual = recentlyEstablishedSelectedPet(input.recentConversation || [], pets, input.selectedPetId);
+    return contextual ? resolvedLossPet(contextual) : clarification(pets);
+  }
+
+  return clarification(pets);
 }
 
 export function resolvePetLossContext(input: {
@@ -99,6 +163,61 @@ function confirmedLossActionProposal(message: string): ModelApplicationAction {
 function deathEvidence(message: string) {
   const sentence = message.split(/(?<=[.!?])\s+/).find((part) => confirmedLossPattern.test(part)) || message;
   return sentence.trim().slice(0, 240);
+}
+
+function hasExternalAnimalSubject(message: string) {
+  return /\b(?:stray|feral|wild|outside|neighbou?r(?:'s|’s)?|someone else(?:'s|’s)?|not (?:my|our))\s+(?:cat|dog|animal|pet)\b/i.test(message);
+}
+
+function explicitOwnedSpeciesReference(message: string) {
+  const match = /\b(?:my|our|the)\s+(other\s+)?(cat|dog)\b/i.exec(message.normalize("NFKC"));
+  return match ? { other: Boolean(match[1]), species: normalize(match[2]) } : null;
+}
+
+function explicitlyReassignedNamedPet(message: string, named: LossSubjectPet[], selectedPetId: string) {
+  if (!/\b(?:i meant|not|instead)\b/i.test(message)) return null;
+  const alternatives = named.filter((pet) => pet.id !== selectedPetId);
+  if (alternatives.length !== 1) return null;
+  const selected = named.find((pet) => pet.id === selectedPetId);
+  const selectedNegated = Boolean(selected?.name && new RegExp(`\\bnot\\s+${escapeRegExp(normalize(selected.name))}\\b`, "i").test(normalize(message)));
+  return /\bi meant\b/i.test(message) || selectedNegated ? alternatives[0] : null;
+}
+
+function recentlyEstablishedSelectedPet(
+  recentConversation: Array<{ role?: string; text: string }>,
+  pets: LossSubjectPet[],
+  selectedPetId: string,
+) {
+  const selected = pets.find((pet) => pet.id === selectedPetId);
+  if (!selected?.name) return null;
+  const recentUserTurns = recentConversation.filter((turn) => !turn.role || turn.role === "user").slice(-3);
+  return recentUserTurns.some((turn) => containsWholeTerm(turn.text, selected.name || "")) ? selected : null;
+}
+
+function clarification(pets: LossSubjectPet[]): ProviderIndependentLossSubject {
+  return { kind: "clarification", candidateNames: [...new Set(pets.map((pet) => cleanPetName(pet.name || "")).filter(Boolean))].slice(0, 4) };
+}
+
+function resolvedLossPet(pet: LossSubjectPet): ProviderIndependentLossSubject {
+  return {
+    kind: "resolved",
+    petId: pet.id,
+    petName: cleanPetName(pet.name || "the pet"),
+    lifecycleStatus: pet.lifecycle_status || "active",
+  };
+}
+
+function containsWholeTerm(message: string, term: string) {
+  const normalizedTerm = normalize(term);
+  return Boolean(normalizedTerm && ` ${normalize(message)} `.includes(` ${normalizedTerm} `));
+}
+
+function normalize(value: string) {
+  return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function reportedDeathCause(message: string) {

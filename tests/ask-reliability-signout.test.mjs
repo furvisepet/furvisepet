@@ -38,12 +38,25 @@ test("failure preserves the visible user message and retry reuses its request ID
   assert.match(askFunction, /if \(!retry\) setThread/);
   assert.match(askFunction, /requestId = retry\?\.requestId \|\| getOrCreateClientMutationKey/);
   assert.match(askFunction, /requestPayload = retry\?\.payload \|\| buildAskRequestPayload/);
-  assert.match(askFunction, /setFailedRequest\(\{ code: failure\.code, payload: requestPayload, requestId, retryAfterSeconds: failure\.retryAfterSeconds, scope, userMessageId \}\)/);
+  assert.match(askFunction, /if \(!retry && failedRequest\) clearClientMutationKey\(failedRequest\.scope, failedRequest\.requestId\)/);
+  assert.match(askFunction, /const rotateIdentity = requiresFreshAskRequestId\(failure\.code\)/);
+  assert.match(askFunction, /retryRequestId = rotateIdentity \? getOrCreateClientMutationKey\(scope\) : requestId/);
+  assert.match(askFunction, /setFailedRequest\(\{ code: failure\.code, payload: retryPayload, requestId: retryRequestId/);
   assert.match(page, /clearClientMutationKey\(failedRequest\.scope, failedRequest\.requestId\)/);
   assert.doesNotMatch(askFunction, /current\.filter\(\(message\) => message\.id !== userMessageId\)/);
   assert.match(page, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
   assert.match(page, />Try again</);
   assert.match(page, />Edit question</);
+});
+
+test("a failed turn cannot lend its request identity or edit state to a new composer submission", () => {
+  const askFunction = page.slice(page.indexOf("async function ask("), page.indexOf("function saveCurrentDraft"));
+  const staleClear = askFunction.indexOf("if (!retry && failedRequest) clearClientMutationKey");
+  const identityRead = askFunction.indexOf("const requestId = retry?.requestId || getOrCreateClientMutationKey");
+  assert.ok(staleClear >= 0 && staleClear < identityRead);
+  assert.match(route, /persistedBeforeClaim\.userMessage\.user_text !== question[\s\S]*askFailure\("IDEMPOTENCY_CONFLICT"/);
+  assert.match(errorUx, /if \(code === "INVALID_MESSAGE"\)[\s\S]*Edit this question/);
+  assert.doesNotMatch(errorUx, /\["INVALID_MESSAGE", "AI_OPERATION_CONFLICT"/);
 });
 
 test("provider rate limits release the one reservation and return a stable recoverable error", () => {

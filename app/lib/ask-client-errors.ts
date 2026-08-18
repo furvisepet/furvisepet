@@ -63,8 +63,14 @@ export function getAskErrorPresentation(code: AskFailureCode | string, retryAfte
   );
   if (code === "AUTH_REQUIRED") return state("Sign in to continue", "Your session expired. Sign in again to continue with Ask.", false, "sign_in");
   if (code === "PET_NOT_FOUND") return state("Choose another pet", "That pet is no longer available. Choose another pet before asking again.", false, "edit");
-  if (["INVALID_MESSAGE", "AI_OPERATION_CONFLICT", "IDEMPOTENCY_CONFLICT", "IDEMPOTENCY_KEY_REQUIRED", "IDEMPOTENCY_KEY_INVALID"].includes(code)) {
+  if (code === "INVALID_MESSAGE") {
     return state("Edit this question", "This question could not be submitted as written. Edit it and try again.", false, "edit");
+  }
+  if (["IDEMPOTENCY_CONFLICT", "IDEMPOTENCY_KEY_REQUIRED", "IDEMPOTENCY_KEY_INVALID"].includes(code)) {
+    return state("Furvise couldn't submit that question", "The request identity could not be reused safely. Try again to send this message as a fresh request.", true, "retry");
+  }
+  if (code === "AI_OPERATION_CONFLICT") {
+    return state("Furvise is still finishing another attempt", "Wait a moment, then try this question again.", true, "retry", retryAfter);
   }
   if (code === "NETWORK_ERROR" || code === "REQUEST_TIMEOUT") return state(
     "Furvise couldn't finish that answer",
@@ -74,7 +80,11 @@ export function getAskErrorPresentation(code: AskFailureCode | string, retryAfte
   );
   if (code === "IDEMPOTENCY_UNAVAILABLE") return state("Furvise is temporarily unavailable", "Your question is still here. Try again in a moment.", true, "retry", retryAfter);
   if (code === "DATABASE_ERROR") return state("Furvise is temporarily unavailable", "Your question has been saved. Try again in a moment.", true, "retry");
-  return state("Furvise couldn't answer just now", "Please try again, or edit your question before resubmitting it.", true, "retry");
+  return state("Furvise couldn't answer just now", "Please try again when you're ready.", true, "retry");
+}
+
+export function requiresFreshAskRequestId(code: AskFailureCode | string) {
+  return ["IDEMPOTENCY_CONFLICT", "IDEMPOTENCY_KEY_REQUIRED", "IDEMPOTENCY_KEY_INVALID"].includes(code);
 }
 
 function state(

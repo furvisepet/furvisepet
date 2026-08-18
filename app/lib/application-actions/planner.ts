@@ -1,6 +1,7 @@
 import { getFurviseActionPolicy } from "./policy.ts";
 import type { FurviseApplicationAction, FurviseActionKind, ModelApplicationAction } from "./types.ts";
 import { normalizeSingletonPreferenceKey } from "./memory-scopes.ts";
+import { classifyCurrentPetLoss } from "../ai/pet-loss.ts";
 
 const supportedProfileFields = new Set(["name", "weight", "current_food", "routine_note", "sex", "breed"]);
 const supportedUserPreferences = new Set(["preferred_language", "preferred_units", "communication_style"]);
@@ -47,7 +48,7 @@ function hasServerVerifiedExplicitIntent(proposal: ModelApplicationAction) {
 function validProposalInput(proposal: ModelApplicationAction) {
   if (["pet.delete_permanently", "pet.mark_active", "pet.archive", "care_history.remove"].includes(proposal.kind) && !proposal.explicitIntent) return false;
   if (["care_history.edit", "care_history.remove"].includes(proposal.kind) && proposal.input.target !== "last") return false;
-  if (proposal.kind === "pet.mark_deceased" && (!/\b(?:died|dead|passed away|euthanized)\b/i.test(proposal.evidence) || /\b(?:think|maybe|might|may|not sure|possibly|unknown)\b/i.test(proposal.evidence))) return false;
+  if (proposal.kind === "pet.mark_deceased" && classifyCurrentPetLoss(proposal.evidence) !== "confirmed_current") return false;
   if (proposal.kind === "pet.update_profile") return Boolean(proposal.input.field && proposal.input.value && supportedProfileFields.has(normalizeKey(proposal.input.field)));
   if (proposal.kind === "memory.set_preference") return Boolean(proposal.input.field && proposal.input.value && supportedUserPreferences.has(normalizeSingletonPreferenceKey(proposal.input.field)));
   if (proposal.kind === "memory.forget_preference") return Boolean(proposal.input.field && supportedUserPreferences.has(normalizeSingletonPreferenceKey(proposal.input.field)));
