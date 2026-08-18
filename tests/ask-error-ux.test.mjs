@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { getAskErrorPresentation } from "../app/lib/ask-client-errors.ts";
+import { getAskErrorPresentation, requiresFreshAskRequestId } from "../app/lib/ask-client-errors.ts";
 
 test("daily platform protection is an expected limit with usable saved-data navigation", () => {
   const state = getAskErrorPresentation("AI_DAILY_CAP_REACHED");
@@ -48,6 +48,21 @@ test("permanent validation errors request editing and unknown failures keep a sa
   const unknown = getAskErrorPresentation("UNKNOWN_ERROR");
   assert.equal(unknown.title, "Furvise couldn't answer just now");
   assert.equal(unknown.retryable, true);
+  assert.doesNotMatch(unknown.message, /edit|rewrite/i);
+});
+
+test("Edit this question is exclusive to the current malformed-message contract", () => {
+  for (const code of [
+    "AI_OPERATION_CONFLICT", "IDEMPOTENCY_CONFLICT", "IDEMPOTENCY_KEY_REQUIRED", "IDEMPOTENCY_KEY_INVALID",
+    "AI_UNAVAILABLE", "AI_RATE_LIMITED", "AI_CREDITS_EXHAUSTED", "DATABASE_ERROR", "UNKNOWN_ERROR",
+  ]) {
+    const state = getAskErrorPresentation(code);
+    assert.notEqual(state.title, "Edit this question", code);
+    assert.notEqual(state.recommendedAction, "edit", code);
+  }
+  assert.equal(requiresFreshAskRequestId("IDEMPOTENCY_CONFLICT"), true);
+  assert.equal(requiresFreshAskRequestId("IDEMPOTENCY_KEY_INVALID"), true);
+  assert.equal(requiresFreshAskRequestId("AI_UNAVAILABLE"), false);
 });
 
 test("Ask API preserves public admission codes and distinguishes plan credits", async () => {
@@ -58,4 +73,5 @@ test("Ask API preserves public admission codes and distinguishes plan credits", 
   assert.match(admission, /AI_DAILY_CAP_REACHED/);
   assert.match(admission, /AI_TEMPORARILY_UNAVAILABLE/);
   assert.match(route, /askFailure\("AI_CREDITS_EXHAUSTED"/);
+  assert.match(route, /askFailure\("IDEMPOTENCY_CONFLICT"[\s\S]*different question/);
 });

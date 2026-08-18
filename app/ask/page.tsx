@@ -41,7 +41,7 @@ import {
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
 import { markAppDataChanged } from "../lib/navigation/app-data-freshness";
 import { setAskRequestActive } from "../lib/navigation/ask-request-activity";
-import { getAskErrorPresentation, type AskFailureCode } from "../lib/ask-client-errors";
+import { getAskErrorPresentation, requiresFreshAskRequestId, type AskFailureCode } from "../lib/ask-client-errors";
 import { getAskCareHistoryState } from "../lib/ask-care-history-state";
 import { applySuggestedQuestionDraft, getAskPresentationMode, shouldShowSuggestedQuestions } from "../lib/ask-experience";
 import type { FurviseApplicationAction } from "../lib/application-actions/types";
@@ -288,6 +288,8 @@ function AskPageContent() {
     setActiveConversationId(null);
     setActiveTitle("New question");
     setThread([]);
+    setFailedRequest(null);
+    setRequestPhase("idle");
     setQuestion(readDraft(getDraftKey(null, petId)));
     setError("");
     setPersistenceWarning("");
@@ -307,6 +309,8 @@ function AskPageContent() {
     setQuestion("");
     setThread([]);
     setActiveConversationId(null);
+    setFailedRequest(null);
+    setRequestPhase("idle");
     if (selectedPet && typeof window !== "undefined") replaceAskLocation({ petId: selectedPet });
     setActiveTitle("New question");
     setPendingNewQuestion(false);
@@ -326,6 +330,7 @@ function AskPageContent() {
     if (!prompt || composerUnavailable || askRequestActiveRef.current) return;
     const conversationIdAtSubmit = retry?.payload.conversationId || activeConversationId;
     const scope = retry?.scope || `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`;
+    if (!retry && failedRequest) clearClientMutationKey(failedRequest.scope, failedRequest.requestId);
     const requestId = retry?.requestId || getOrCreateClientMutationKey(scope);
     const requestPayload = retry?.payload || buildAskRequestPayload({
       conversationId: conversationIdAtSubmit,
@@ -385,7 +390,11 @@ function AskPageContent() {
       if (parsed.saveSuggestions?.length) trackAskEvent("memory_save_suggested", { answerType: parsed.answerType });
     } catch (askError) {
       const failure = getAskFailure(askError);
-      setFailedRequest({ code: failure.code, payload: requestPayload, requestId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId });
+      const rotateIdentity = requiresFreshAskRequestId(failure.code);
+      if (rotateIdentity) clearClientMutationKey(scope, requestId);
+      const retryRequestId = rotateIdentity ? getOrCreateClientMutationKey(scope) : requestId;
+      const retryPayload = rotateIdentity ? { ...requestPayload, requestId: retryRequestId } : requestPayload;
+      setFailedRequest({ code: failure.code, payload: retryPayload, requestId: retryRequestId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId });
       setRequestPhase("failed");
       trackAskEvent("answer_failed", { source });
     } finally {

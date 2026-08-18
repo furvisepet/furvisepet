@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { getAuthenticatedApiContext } from "../../../../lib/authenticated-api-server";
 import { executeFurviseApplicationAction, getFurviseActionPolicy, parseStoredApplicationActions, type FurviseApplicationAction } from "../../../../lib/application-actions/index.ts";
-import { classifyCurrentPetLoss } from "../../../../lib/ai/pet-loss.ts";
+import { classifyCurrentPetLoss, resolveProviderIndependentLossSubject, type LossSubjectPet } from "../../../../lib/ai/pet-loss.ts";
 import { isExplicitLifecycleCorrection, reportsDeath } from "../../../../lib/ai/pending-lifecycle.ts";
 import { beginIdempotentRateLimitedOperation } from "../../../../lib/security/idempotency";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
@@ -42,7 +42,16 @@ export async function POST(request: Request, routeContext: RouteContext) {
   if (isLifecycleMutation(action)) {
     const { data: conversation } = await auth.supabase.from("ask_conversations").select("pet_profile_id")
       .eq("id", message.conversation_id).eq("user_id", auth.userId).maybeSingle<{ pet_profile_id: string }>();
-    if (!conversation || !isAuthoritativeLifecycleAction({ action, conversationPetId: conversation.pet_profile_id, sourceMessage })) {
+    const ownedPets = action.kind === "pet.mark_deceased"
+      ? await auth.supabase.from("dog_profiles").select("id,name,species,lifecycle_status").eq("user_id", auth.userId).returns<LossSubjectPet[]>()
+      : { data: [] as LossSubjectPet[], error: null };
+    if (ownedPets.error) return Response.json({ error: "That lifecycle action's subject could not be verified." }, { status: 503 });
+    if (!conversation || !isAuthoritativeLifecycleAction({
+      action,
+      conversationPetId: conversation.pet_profile_id,
+      ownedPets: ownedPets.data || [],
+      sourceMessage,
+    })) {
       return Response.json({ error: "That lifecycle action no longer matches its original request." }, { status: 409 });
     }
     if (action.kind === "pet.mark_deceased") {
@@ -119,10 +128,11 @@ type LifecycleSourceMessage = { id: string; user_text: string | null; request_id
 function isAuthoritativeLifecycleAction(input: {
   action: FurviseApplicationAction;
   conversationPetId: string;
+  ownedPets: LossSubjectPet[];
   sourceMessage: LifecycleSourceMessage;
 }) {
   const { action, sourceMessage } = input;
-  if (action.petId !== input.conversationPetId || action.sourceMessageId && action.sourceMessageId !== sourceMessage.id) return false;
+  if (action.sourceMessageId && action.sourceMessageId !== sourceMessage.id) return false;
   const policy = getFurviseActionPolicy(action.kind);
   if (action.safetyClass !== policy.safetyClass || action.mutationClass !== policy.mutationClass
     || action.confirmationPolicy !== policy.confirmationPolicy || action.authorizationScope !== policy.authorizationScope) return false;
@@ -131,7 +141,20 @@ function isAuthoritativeLifecycleAction(input: {
   if (!Number.isInteger(actionIndex) || actionIndex < 1 || actionIndex > 3) return false;
   const sourceText = sourceMessage.user_text || "";
   if (!sourceText || !normalizeEvidence(sourceText).includes(normalizeEvidence(action.evidence))) return false;
-  if (action.kind === "pet.mark_deceased") return actionIndex === 1 && classifyCurrentPetLoss(sourceText) === "confirmed_current";
+  if (action.kind === "pet.mark_deceased") {
+    const subject = resolveProviderIndependentLossSubject({
+      message: sourceText,
+      pets: input.ownedPets,
+      selectedPetId: input.conversationPetId,
+    });
+    const expectedTarget = action.petId === input.conversationPetId ? "selected" : "specified";
+    return actionIndex === 1
+      && classifyCurrentPetLoss(sourceText) === "confirmed_current"
+      && subject?.kind === "resolved"
+      && subject.petId === action.petId
+      && action.input.target === expectedTarget;
+  }
+  if (action.petId !== input.conversationPetId) return false;
   if (action.kind === "pet.archive") return action.explicitIntent && /\barchiv(?:e|ed|ing)?\b/i.test(sourceText);
   return action.explicitIntent && /\b(?:active|alive|reactivat|correct)\w*\b/i.test(sourceText);
 }
