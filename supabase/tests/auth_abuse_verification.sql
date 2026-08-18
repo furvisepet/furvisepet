@@ -20,7 +20,7 @@ begin
   perform set_config('request.jwt.claim.sub', v_unconfirmed::text, true);
   perform set_config('request.jwt.claim.role', 'authenticated', true);
   begin
-    perform public.reserve_ai_credit(v_request, 'ask', 20);
+    perform public.reserve_ai_credit(v_unconfirmed, v_request, 'ask', repeat('a', 64));
   exception when insufficient_privilege then v_denied := true;
   end;
   if not v_denied then raise exception 'unconfirmed user reserved AI credit'; end if;
@@ -33,7 +33,7 @@ begin
   if v_count <> 1 then raise exception 'workspace bootstrap created % rows', v_count; end if;
 
   perform set_config('request.jwt.claim.sub', v_confirmed::text, true);
-  perform public.reserve_ai_credit(v_request, 'ask', 20);
+  perform public.reserve_ai_credit(v_confirmed, v_request, 'ask', repeat('a', 64));
   select count(*)::integer into v_count from public.ai_usage_events where user_id = v_confirmed and request_id = v_request;
   if v_count <> 1 then raise exception 'confirmed user did not receive one canonical reservation'; end if;
 end;

@@ -90,7 +90,7 @@ export async function POST(request: Request) {
       feature: "safety_followup", intendedModel: getAskModelConfiguration().primary,
       payload: { answers, petId, questions }, requestId, userId: auth.userId,
     }, () => runWithAiCredit<FeatureIntelligenceResult<IntelligenceSafetyFollowup>>({
-      feature: "safety_followup", monthlyAiCredits: auth.monthlyAiCredits, planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
+      feature: "safety_followup", monthlyAiCredits: auth.monthlyAiCredits, payload: { answers, petId, questions }, planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
       generate: async () => runFeatureIntelligence({
         context, feature: "safety_followup", maxOutputTokens: 650,
         featureInput: {

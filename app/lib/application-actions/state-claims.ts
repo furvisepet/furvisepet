@@ -7,6 +7,7 @@ export function containsUnverifiedStateClaim(value: string) {
 
 export function enforceVerifiedStateClaims(value: string, verifiedSuccess: boolean) {
   const clean = value.replace(assistantOffer, " ").replace(/\s+/g, " ").trim();
+  if (!clean) return "I can help with that using the action below.";
   if (verifiedSuccess || !containsUnverifiedStateClaim(clean)) return clean;
   const safe = clean.split(/(?<=[.!?])\s+/).filter((sentence) => !containsUnverifiedStateClaim(sentence)).join(" ").trim();
   return safe || "I can help with that using the action below.";

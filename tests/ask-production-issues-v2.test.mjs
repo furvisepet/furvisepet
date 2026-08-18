@@ -69,7 +69,7 @@ test("daily call and cost ceilings are independent and retain distinct operation
 });
 
 test("global admission happens before user-credit reservation and cap rejection records no completed Ask", () => {
-  const admission = route.indexOf("runAdmittedAiOperation");
+  const admission = route.indexOf("aiAdmission = await admitAiOperation");
   const reservation = route.indexOf("reserveAiCredit", admission);
   assert.ok(admission > -1 && reservation > admission);
   assert.match(route, /if \(error instanceof AiAdmissionError\)[\s\S]*aiAdmissionErrorResponse/);
@@ -145,7 +145,7 @@ test("Vet Brief and Ask context filters exclude known conversational history noi
 
 test("assistant-offer follow-ups normalize to draftable owner-perspective questions", () => {
   assert.equal(normalizeSuggestedQuestion("If you want, I can turn this into a simple vet-visit checklist for Mani."), "Can you turn this into a simple vet-visit checklist for Mani?");
-  assert.equal(normalizeSuggestedQuestion("If there’s a specific symptom you’re worried about, I can tell you exactly what to note for it."), "What should I note about that symptom?");
+  assert.equal(normalizeSuggestedQuestion("If there’s a specific symptom you’re worried about, I can tell you exactly what to note for it."), "Can you tell me exactly what to note for it?");
   assert.equal(normalizeSuggestedQuestion("I can also help you make a one-page timeline from the last few days."), "Can you help me make a one-page timeline from the last few days?");
   for (const value of ["If you want, I can...", "I can also...", "Would you like me to..."]) assert.doesNotMatch(normalizeSuggestedQuestion(value), /^(?:If you want|I can|Would you like me)/i);
 });

@@ -76,12 +76,14 @@ export function buildAskConversationResponse(response, options = {}) {
   const answerType = resolveConversationAnswerType(options.intent, Boolean(options.urgent), parsed);
   const usedContextSummary = cleanStringList(options.usedContextSummary, 4);
   const missingUsefulDetails = cleanStringList(options.missingUsefulDetails, 4);
-  const suggestedQuestions = cleanSuggestedQuestions(options.suggestedQuestions);
   const saveSuggestions = cleanSaveSuggestions(options.saveSuggestions);
   const trackingPlan = cleanTrackingPlan(options.trackingPlan);
   const clarificationQuestion = cleanOptionalText(options.clarificationQuestion, 240);
   const applicationActions = cleanApplicationActions(options.applicationActions);
   const interactionMode = cleanInteractionMode(options.interactionMode) || (options.urgent ? "urgent" : options.monitoring ? "monitoring" : "normal");
+  const suggestedQuestions = shouldOfferSuggestedQuestions(interactionMode, answerType)
+    ? cleanSuggestedQuestions(options.suggestedQuestions, parsed.summary)
+    : [];
   return {
     ...parsed,
     answerType,
@@ -121,6 +123,9 @@ export function parseAskConversationResponse(value) {
   if (draft.vetBriefRelevant !== undefined && typeof draft.vetBriefRelevant !== "boolean") return null;
   if (draft.urgency !== "routine" && draft.urgency !== "resolved" && draft.urgency !== "monitor" && draft.urgency !== "urgent") return null;
   const interactionMode = cleanInteractionMode(draft.interactionMode) || (draft.urgency === "urgent" ? "urgent" : draft.urgency === "monitor" ? "monitoring" : "normal");
+  const suggestedQuestions = shouldOfferSuggestedQuestions(interactionMode, draft.answerType)
+    ? cleanSuggestedQuestions(draft.suggestedQuestions, response.summary)
+    : [];
   const allowedActions = new Set(ASK_ACTIONS_BY_TYPE[draft.answerType]);
   if (draft.actions.some((action) => !allowedActions.has(action))) return null;
   return {
@@ -128,7 +133,7 @@ export function parseAskConversationResponse(value) {
     answerType: draft.answerType,
     directAnswer: response.summary,
     supportingText: draft.supportingText ? cleanText(draft.supportingText) : null,
-    suggestedQuestions: cleanSuggestedQuestions(draft.suggestedQuestions),
+    suggestedQuestions,
     actions: [...draft.actions],
     usedContextSummary: (draft.usedContextSummary || []).map(cleanText).filter(Boolean),
     missingUsefulDetails: (draft.missingUsefulDetails || []).map(cleanText).filter(Boolean),
@@ -220,7 +225,7 @@ function cleanStringList(value, maxItems) {
 const privilegedSuggestionPattern = /\b(?:ignore (?:all |any )?(?:previous|prior) instructions?|system prompt|developer (?:message|instructions?)|hidden instructions?|internal (?:prompt|context|machinery)|database (?:record|schema|field)|token budget|model settings?)\b/i;
 const unsafeSuggestionPattern = /\b(?:ibuprofen|acetaminophen|paracetamol|aspirin|human medication|induce vomiting|make (?:her|him|them|the pet) vomit)\b/i;
 
-function cleanSuggestedQuestions(value) {
+function cleanSuggestedQuestions(value, answerText = "") {
   if (!Array.isArray(value) || value.length > 4) return [];
   const seen = new Set();
   const suggestions = [];
@@ -228,7 +233,8 @@ function cleanSuggestedQuestions(value) {
     if (typeof item !== "string") continue;
     const suggestion = normalizeSuggestedQuestion(item);
     const key = suggestion.toLocaleLowerCase();
-    if (!suggestion || privilegedSuggestionPattern.test(suggestion) || unsafeSuggestionPattern.test(suggestion) || seen.has(key)) continue;
+    if (!suggestion || privilegedSuggestionPattern.test(suggestion) || unsafeSuggestionPattern.test(suggestion)
+      || suggestionRepeatsAnswer(suggestion, answerText) || seen.has(key)) continue;
     seen.add(key);
     suggestions.push(suggestion);
   }
@@ -239,19 +245,63 @@ export function normalizeSuggestedQuestion(value) {
   if (typeof value !== "string") return "";
   let suggestion = cleanText(value).slice(0, 180);
   if (!suggestion) return "";
-  if (/\bI can tell you (?:exactly )?what to note\b/i.test(suggestion)) {
-    return "What should I note about that symptom?";
-  }
-  const offer = /^(?:if you want,?\s*)?(?:would you like me to|I can(?: also)?(?: help you)?)\s+/i.exec(suggestion);
+  suggestion = transformAssistantOfferToUserDraft(suggestion);
+  if (!suggestion || !isDraftableSuggestedQuestion(suggestion)) return "";
+  return /\?$/.test(suggestion)
+    ? suggestion.slice(0, 180)
+    : `${suggestion.replace(/[.!?]+$/, "")}?`.slice(0, 180);
+}
+
+export function isDraftableSuggestedQuestion(value) {
+  const suggestion = cleanText(String(value || ""));
+  if (!suggestion || suggestion.length > 180) return false;
+  if (assistantPerspectiveOfferPattern.test(suggestion) || genericSuggestionPattern.test(suggestion)) return false;
+  if (/^(?:can|could|did|do|does|has|have|how|is|should|what|when|where|which|who|why|will|would)\b/i.test(suggestion)) return true;
+  return /^(?:please\s+)?(?:compare|create|describe|explain|give|help|list|make|prepare|review|show|summari[sz]e|tell|track|walk)\b/i.test(suggestion);
+}
+
+const assistantPerspectiveOfferPattern = /\b(?:if\s+(?:you|the owner)\s+(?:want|would like)|would\s+you\s+like\s+(?:me|furvise)\s+to|(?:i|we|furvise)\s+(?:can|could|will|would|am able to|are able to)|let\s+me)\b/i;
+const genericSuggestionPattern = /^(?:tell me more|continue|anything else|what else|learn more|more details|ask another question)[.!?]*$/i;
+
+function transformAssistantOfferToUserDraft(value) {
+  let suggestion = value;
+  const conditionalOffer = /^(?:[^,]{1,140},\s*)(?=(?:i|we|furvise)\s+(?:can|could|will|would|am able to|are able to))/i.exec(suggestion);
+  if (conditionalOffer) suggestion = suggestion.slice(conditionalOffer[0].length);
+
+  const invitation = /^(?:would\s+you\s+like\s+(?:me|furvise)\s+to|shall\s+i)\s+(.+)$/i.exec(suggestion);
+  if (invitation) suggestion = `Can you ${invitation[1]}`;
+
+  const offer = /^(?:i|we|furvise)\s+(?:can|could|will|would|am able to|are able to)(?:\s+also)?\s+(.+)$/i.exec(suggestion);
   if (offer) {
-    const body = suggestion.slice(offer[0].length).replace(/\byour\b/gi, "my").replace(/\byou\b/gi, "me");
-    suggestion = `Can you ${/help you\b/i.test(offer[0]) ? "help me " : ""}${body}`;
-  } else {
-    suggestion = suggestion.replace(/\byour\b/gi, "my");
+    const body = offer[1]
+      .replace(/^help\s+you\s+(?:to\s+)?/i, "help me ")
+      .replace(/\byour\b/gi, "my")
+      .replace(/\byou\b/gi, "me");
+    suggestion = `Can you ${body}`;
   }
-  if (/^(?:if you|I can|I can also|would you like me)\b/i.test(suggestion)) return "";
-  if (!/^(?:can|could|does|do|has|have|how|is|should|what|when|where|which|why|will|would)\b/i.test(suggestion)) return "";
-  return `${suggestion.replace(/[.!?]+$/, "")}?`.slice(0, 180);
+
+  return suggestion
+    .replace(/\byour\b/gi, "my")
+    .replace(/\b(should|could|would|do|did|have|are)\s+you\b/gi, "$1 I")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function shouldOfferSuggestedQuestions(interactionMode, answerType) {
+  return !["casual", "urgent", "grief", "action_confirmation", "action_success", "action_failure"].includes(interactionMode)
+    && answerType !== "clarification";
+}
+
+function suggestionRepeatsAnswer(suggestion, answerText) {
+  const answer = cleanText(String(answerText || "")).toLowerCase();
+  if (!answer) return false;
+  const normalized = cleanText(suggestion).toLowerCase().replace(/[?!.]+$/, "");
+  if (normalized.length >= 18 && answer.includes(normalized)) return true;
+  const stop = new Set(["about", "after", "again", "anything", "could", "does", "have", "should", "that", "their", "there", "these", "they", "this", "what", "when", "where", "which", "would"]);
+  const tokens = [...new Set(normalized.match(/[a-z0-9]{4,}/g) || [])].filter((token) => !stop.has(token));
+  if (tokens.length < 4) return false;
+  const answerTokens = new Set(answer.match(/[a-z0-9]{4,}/g) || []);
+  return tokens.filter((token) => answerTokens.has(token)).length / tokens.length >= 0.9;
 }
 
 export function hasUrgentSymptomContext(value) {

@@ -226,7 +226,8 @@ test("grief is a distinct non-playful mode and suppresses generic suggestions", 
   assert.equal(getAskPresentationMode(grief, "so what now"), "grief");
   assert.equal(shouldShowSuggestedQuestions(grief, "so what now"), false);
   assert.match(reasoning, /responseMode=grief_support/);
-  assert.match(askPage, /playful && !grief/);
+  assert.match(askPage, /data-ui="furvise-assistant-identity"><BrandMark showName=\{false\} size=\{24\}/);
+  assert.doesNotMatch(askPage, /nav-ask-v1\.webp/);
   assert.match(askPage, /response\.interactionMode === "grief" \|\| lifecycleStatus !== "active" \? \["copy"\]/);
 });
 

@@ -21,6 +21,7 @@ import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
 import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/legacy-memory.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
 import { buildExplicitCareHistoryAction, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
+import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-loss.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -90,6 +91,12 @@ export async function runFurviseIntelligence({
       canonicalConcepts,
     },
   });
+  const lossContext = resolvePetLossContext({
+    message: context.currentMessage,
+    recentConversation: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
+    lifecycleStatus: context.pet.lifecycle_status,
+    petName: context.pet.name,
+  });
   const multiPetTurn = authoritativePetIds.length > 1;
   const semanticGovernanceInput = {
     proposals: reasoning.semanticEvents,
@@ -136,9 +143,18 @@ export async function runFurviseIntelligence({
     shouldOffer: reasoning.proposedHistoryUpdate.shouldOffer,
     userIsResolvingConcern: reasoning.messageUnderstanding.userIsResolvingConcern,
   });
-  reasoning.intelligenceSafety.level = modelGroundedResolution || semanticGroundedResolution
-    ? "recently_resolved"
-    : applySafetyFloor(reasoning.intelligenceSafety.level, safety);
+  reasoning.intelligenceSafety.level = lossContext === "confirmed_current" || lossContext === "continuation"
+    ? "routine"
+    : modelGroundedResolution || semanticGroundedResolution
+      ? "recently_resolved"
+      : applySafetyFloor(reasoning.intelligenceSafety.level, safety);
+  if (lossContext === "confirmed_current" || lossContext === "continuation") {
+    reasoning.responseMode = "grief_support";
+    reasoning.suggestedFollowUps = [];
+    reasoning.shoppingSuppressed = true;
+    reasoning.intelligenceSafety.requiresImmediateAction = false;
+    reasoning.intelligenceSafety.shoppingSuppressed = true;
+  }
   if (safety.shoppingSuppressed) {
     reasoning.shoppingSuppressed = true;
     reasoning.intelligenceSafety.shoppingSuppressed = true;
@@ -203,7 +219,10 @@ export async function runFurviseIntelligence({
     careActions: governedCareActions,
     learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
   });
-  const acceptedCareActions = explicitCareHistoryAction ? [explicitCareHistoryAction] : routedPersistence.careActions;
+  const confirmedLossCareAction = buildConfirmedLossCareAction({ message: context.currentMessage, petName: context.pet.name || "the pet" });
+  const acceptedCareActions = confirmedLossCareAction ? [confirmedLossCareAction]
+    : explicitCareHistoryAction ? [explicitCareHistoryAction] : routedPersistence.careActions;
+  const acceptedSemanticEvents = confirmedLossCareAction ? [] : semanticGovernance.accepted;
   const projectedPreferenceIdentities = new Set(projectedPreferences.map(learningPreferenceIdentity).filter(Boolean));
   const acceptedLearnings = dedupeLearnings([
     ...routedPersistence.learnings.filter((item) =>
@@ -220,7 +239,7 @@ export async function runFurviseIntelligence({
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
     acceptedCareActions,
     acceptedLearnings,
-    acceptedSemanticEvents: semanticGovernance.accepted,
+    acceptedSemanticEvents,
     conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
     eligiblePets: context.eligiblePets,
     frame: reasoning.semanticFrame,
@@ -248,7 +267,7 @@ export async function runFurviseIntelligence({
     acceptedLearnings,
     rejectedLearningCount: learningPolicy.rejected.length,
     acceptedCareActions,
-    acceptedSemanticEvents: semanticGovernance.accepted,
+    acceptedSemanticEvents,
     rejectedCareActionCount: carePolicy.rejected.length,
     governance,
     answerValidation: { valid: answerValidation.valid, repairs: answerValidation.repairs, errors: answerValidation.errors },

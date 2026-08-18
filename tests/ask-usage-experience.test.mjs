@@ -33,7 +33,7 @@ test("failed provider or persistence paths do not consume usage", () => {
   const failedSave = persistence.slice(persistence.indexOf("if (!assistantMessage || messageError)"), persistence.indexOf('logAskStage("assistant message persisted"'));
   assert.match(failedSave, /safeReleaseAiCredit/);
   assert.doesNotMatch(failedSave, /completeAiCredit/);
-  assert.equal(route.match(/await completeAiCredit/g)?.length, 2);
+  assert.equal(route.match(/await completeAiCredit/g)?.length, 3, "two completion attempts plus persisted-answer reconciliation");
 });
 
 test("assistant persistence retries idempotently before returning a retryable failure", () => {

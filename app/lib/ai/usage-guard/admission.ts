@@ -16,7 +16,6 @@ import type { AiCallReservation, AiGuardFeature, AiGuardMetrics, AiGuardStore, P
 import { runWithAiAdmission } from "./context";
 
 export async function admitAiOperation(input: {
-  executionPhase?: "initial" | "retry";
   env?: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel?: string; metrics?: AiGuardMetrics;
   now?: Date; operationTtlSeconds?: number; payload: unknown; requestId: string; store?: AiGuardStore; userId: string;
 }) {
@@ -44,7 +43,7 @@ export async function admitAiOperation(input: {
 
   const secret = backend.hashSecret || (input.store ? "usage-guard-test-secret-at-least-32-characters" : "");
   if (secret.length < 32) return deny("AI_TEMPORARILY_UNAVAILABLE", "identity_secret_unavailable");
-  const operationId = deriveAiGuardOperationId({ executionPhase: input.executionPhase, requestId: input.requestId, secret, userId: input.userId });
+  const operationId = deriveAiGuardOperationId({ feature: input.feature, requestId: input.requestId, secret, userId: input.userId });
   const operationKey = `furvise:ai:v1:operation:${operationId}`;
   const operationTtlSeconds = input.operationTtlSeconds || config.operationTtlSeconds;
   const fingerprint = fingerprintRateLimitPayload({ feature: input.feature, payload: input.payload });

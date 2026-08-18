@@ -25,7 +25,10 @@ begin
     raise exception 'authenticated role has direct authoritative billing privileges';
   end if;
   if has_function_privilege('authenticated', 'public.register_stripe_billing_customer(uuid,text,text)', 'execute')
-    or has_function_privilege('authenticated', 'public.apply_stripe_subscription_projection(uuid,text,text,text,text,boolean,text,timestamptz,timestamptz,boolean,text,text,timestamptz)', 'execute') then
+    or has_function_privilege('authenticated', 'public.apply_stripe_subscription_projection(uuid,text,text,text,text,boolean,text,timestamptz,timestamptz,boolean,text,text,timestamptz)', 'execute')
+    or has_function_privilege('authenticated', 'public.reserve_ai_credit(uuid,uuid,text,text)', 'execute')
+    or has_function_privilege('authenticated', 'public.complete_ai_credit(uuid,uuid,text,text)', 'execute')
+    or has_function_privilege('authenticated', 'public.release_ai_credit(uuid,uuid,text,text)', 'execute') then
     raise exception 'authenticated role can write authoritative Stripe projection';
   end if;
 
@@ -33,15 +36,15 @@ begin
   perform set_config('request.jwt.claim.role', 'authenticated', true);
   for v_count in 1..8 loop
     v_request := ('41000000-0000-4000-8000-' || lpad(v_count::text, 12, '0'))::uuid;
-    select * into strict v_result from public.reserve_ai_credit(v_request, 'ask');
+    select * into strict v_result from public.reserve_ai_credit(v_free_user, v_request, 'ask', repeat('a', 64));
     if v_result.reservation_status <> 'reserved' then raise exception 'Free Ask % did not reserve: %', v_count, row_to_json(v_result); end if;
-    select * into strict v_result from public.complete_ai_credit(v_request);
+    select * into strict v_result from public.complete_ai_credit(v_free_user, v_request, 'ask', repeat('a', 64));
   end loop;
   select * into strict v_status from public.get_my_ask_allowance_status();
   if v_status.allowance <> 8 or v_status.used <> 8 or v_status.remaining <> 0 then
     raise exception 'Free allowance incorrect: %', row_to_json(v_status);
   end if;
-  select * into strict v_result from public.reserve_ai_credit('41000000-0000-4000-8000-000000000009', 'ask');
+  select * into strict v_result from public.reserve_ai_credit(v_free_user, '41000000-0000-4000-8000-000000000009', 'ask', repeat('a', 64));
   if v_result.reservation_status <> 'limit_reached' then raise exception '9th Free Ask was admitted'; end if;
 
   insert into public.billing_accounts (
@@ -54,18 +57,18 @@ begin
   perform set_config('request.jwt.claim.sub', v_plus_user::text, true);
   for v_count in 1..55 loop
     v_request := ('42000000-0000-4000-8000-' || lpad(v_count::text, 12, '0'))::uuid;
-    select * into strict v_result from public.reserve_ai_credit(v_request, 'ask');
+    select * into strict v_result from public.reserve_ai_credit(v_plus_user, v_request, 'ask', repeat('b', 64));
     if v_result.reservation_status <> 'reserved' then raise exception 'Plus Ask % did not reserve: %', v_count, row_to_json(v_result); end if;
-    select * into strict v_result from public.complete_ai_credit(v_request);
+    select * into strict v_result from public.complete_ai_credit(v_plus_user, v_request, 'ask', repeat('b', 64));
   end loop;
   select * into strict v_status from public.get_my_ask_allowance_status();
   if v_status.allowance <> 55 or v_status.used <> 55 or v_status.remaining <> 0 or v_status.billing_plan <> 'plus' then
     raise exception 'Plus allowance incorrect: %', row_to_json(v_status);
   end if;
-  select * into strict v_result from public.reserve_ai_credit('42000000-0000-4000-8000-000000000056', 'ask');
+  select * into strict v_result from public.reserve_ai_credit(v_plus_user, '42000000-0000-4000-8000-000000000056', 'ask', repeat('b', 64));
   if v_result.reservation_status <> 'limit_reached' then raise exception '56th Plus Ask was admitted'; end if;
 
-  select * into strict v_result from public.reserve_ai_credit('42000000-0000-4000-8000-000000000001', 'ask');
+  select * into strict v_result from public.reserve_ai_credit(v_plus_user, '42000000-0000-4000-8000-000000000001', 'ask', repeat('b', 64));
   if v_result.reservation_status <> 'completed' then raise exception 'completed replay was not idempotent'; end if;
   select count(*)::integer into v_count from public.ai_usage_events
   where user_id = v_plus_user and request_id = '42000000-0000-4000-8000-000000000001';
@@ -211,8 +214,8 @@ begin
 
   perform set_config('request.jwt.claim.sub', v_projection_user::text, true);
   perform set_config('request.jwt.claim.role', 'authenticated', true);
-  select * into strict v_result from public.reserve_ai_credit('43000000-0000-4000-8000-000000000101', 'ask');
-  select * into strict v_result from public.complete_ai_credit('43000000-0000-4000-8000-000000000101');
+  select * into strict v_result from public.reserve_ai_credit(v_projection_user, '43000000-0000-4000-8000-000000000101', 'ask', repeat('c', 64));
+  select * into strict v_result from public.complete_ai_credit(v_projection_user, '43000000-0000-4000-8000-000000000101', 'ask', repeat('c', 64));
   if v_result.remaining <> 54 then raise exception 'Plus period did not consume one canonical Ask: %', row_to_json(v_result); end if;
 
   v_event_number := v_event_number + 1;
@@ -271,8 +274,8 @@ begin
   if v_status.billing_plan <> 'free' or v_status.allowance <> 8 or v_status.used <> 0 or v_status.remaining <> 8 then
     raise exception 'Free monthly reset rolled prior usage forward: %', row_to_json(v_status);
   end if;
-  select * into strict v_result from public.reserve_ai_credit('45000000-0000-4000-8000-000000000101', 'ask');
-  select * into strict v_result from public.release_ai_credit('45000000-0000-4000-8000-000000000101');
+  select * into strict v_result from public.reserve_ai_credit(v_reset_user, '45000000-0000-4000-8000-000000000101', 'ask', repeat('d', 64));
+  select * into strict v_result from public.release_ai_credit(v_reset_user, '45000000-0000-4000-8000-000000000101', 'ask', repeat('d', 64));
   select * into strict v_status from public.get_my_ask_allowance_status();
   if v_result.event_status <> 'released' or v_result.credits_used <> 0 or v_status.used <> 0 or v_status.remaining <> 8 then
     raise exception 'released Ask was not returned to the allowance: %, %', row_to_json(v_result), row_to_json(v_status);

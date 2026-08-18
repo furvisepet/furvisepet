@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
 import { recordActiveAiUserCreditState } from "./usage-guard/context.ts";
 import { getPlanCapabilities, type PlanId } from "../billing/plan-limits.ts";
 import { getAskAllowance } from "../billing/launch-plans.ts";
@@ -32,6 +33,11 @@ export type AiCreditReservation = {
   creditsUsed: number;
   remaining: number;
   status: "reserved" | "completed" | "released" | "limit_reached";
+};
+
+export type AiCreditEventState = {
+  payloadHash: string | null;
+  status: "reserved" | "completed" | "released";
 };
 
 type LedgerRpcRow = {
@@ -89,6 +95,7 @@ export async function getMonthlyAiUsage({
     .eq("user_id", userId)
     .eq("period_start", periodStart)
     .eq("status", "completed")
+    .neq("feature", "ask")
     .returns<Array<{ credits_used: number }>>();
   if (error) throw new AiCreditLedgerError("usage_read_failed", error, AI_USAGE_EVENTS_TABLE, "select");
   return (data || []).reduce((total, event) => total + Math.max(0, event.credits_used || 0), 0);
@@ -142,16 +149,23 @@ export async function getAskAllowanceStatus({ supabase }: { supabase: SupabaseCl
 
 export async function reserveAiCredit({
   feature,
+  ledgerClient,
+  payloadHash,
   requestId,
-  supabase,
+  userId,
 }: {
   feature: AiFeature;
+  ledgerClient?: SupabaseClient;
+  payloadHash: string;
   requestId: string;
-  supabase: SupabaseClient;
+  userId: string;
 }): Promise<AiCreditReservation> {
+  const supabase = ledgerClient || await createTrustedLedgerClient();
   const { data, error } = await supabase.rpc("reserve_ai_credit", {
     p_feature: feature,
+    p_payload_hash: payloadHash,
     p_request_id: requestId,
+    p_user_id: userId,
   });
   if (error) throw new AiCreditLedgerError("reservation_failed", error, "reserve_ai_credit", "rpc");
   const result = parseLedgerResult(data, "reservation_status");
@@ -160,35 +174,88 @@ export async function reserveAiCredit({
 }
 
 export async function completeAiCredit({
+  feature,
+  ledgerClient,
+  payloadHash,
   requestId,
-  supabase,
+  userId,
 }: {
+  feature: AiFeature;
+  ledgerClient?: SupabaseClient;
+  payloadHash: string;
   requestId: string;
-  supabase: SupabaseClient;
+  userId: string;
 }) {
+  const supabase = ledgerClient || await createTrustedLedgerClient();
   const { data, error } = await supabase.rpc("complete_ai_credit", {
+    p_feature: feature,
+    p_payload_hash: payloadHash,
     p_request_id: requestId,
+    p_user_id: userId,
   });
   if (error) throw new AiCreditLedgerError("completion_failed", error, "complete_ai_credit", "rpc");
   const result = parseLedgerResult(data, "event_status");
-  recordActiveAiUserCreditState(result.status === "completed" ? "completed" : result.status === "released" ? "released" : "reserved");
+  if (result.status !== "completed") throw new AiCreditLedgerError("completion_failed", new Error("AI_CREDIT_COMPLETION_NOT_COMMITTED"), "complete_ai_credit", "rpc");
+  recordActiveAiUserCreditState("completed");
   return result;
 }
 
 export async function releaseAiCredit({
+  feature,
+  ledgerClient,
+  payloadHash,
   requestId,
-  supabase,
+  userId,
 }: {
+  feature: AiFeature;
+  ledgerClient?: SupabaseClient;
+  payloadHash: string;
   requestId: string;
-  supabase: SupabaseClient;
+  userId: string;
 }) {
+  const supabase = ledgerClient || await createTrustedLedgerClient();
   const { data, error } = await supabase.rpc("release_ai_credit", {
+    p_feature: feature,
+    p_payload_hash: payloadHash,
     p_request_id: requestId,
+    p_user_id: userId,
   });
   if (error) throw new AiCreditLedgerError("release_failed", error, "release_ai_credit", "rpc");
   const result = parseLedgerResult(data, "event_status");
-  recordActiveAiUserCreditState(result.status === "released" ? "released" : result.status === "completed" ? "completed" : "reserved");
+  if (result.status !== "released") throw new AiCreditLedgerError("release_failed", new Error("AI_CREDIT_RELEASE_NOT_COMMITTED"), "release_ai_credit", "rpc");
+  recordActiveAiUserCreditState("released");
   return result;
+}
+
+export async function getAiCreditEventState({
+  feature,
+  payloadHash,
+  requestId,
+  supabase,
+  userId,
+}: {
+  feature: AiFeature;
+  payloadHash: string;
+  requestId: string;
+  supabase: SupabaseClient;
+  userId: string;
+}): Promise<AiCreditEventState | null> {
+  const { data, error } = await supabase
+    .from(AI_USAGE_EVENTS_TABLE)
+    .select("status, payload_hash")
+    .eq("user_id", userId)
+    .eq("feature", feature)
+    .eq("request_id", requestId)
+    .maybeSingle<{ payload_hash: string | null; status: string }>();
+  if (error) throw new AiCreditLedgerError("usage_read_failed", error, AI_USAGE_EVENTS_TABLE, "select");
+  if (!data) return null;
+  if (data.payload_hash && data.payload_hash !== payloadHash) {
+    throw new AiCreditLedgerError("usage_read_failed", new Error("AI_REQUEST_IDENTITY_CONFLICT"), AI_USAGE_EVENTS_TABLE, "select");
+  }
+  if (data.status !== "reserved" && data.status !== "completed" && data.status !== "released") {
+    throw new AiCreditLedgerError("usage_read_failed", new Error("INVALID_AI_CREDIT_STATUS"), AI_USAGE_EVENTS_TABLE, "select");
+  }
+  return { payloadHash: data.payload_hash, status: data.status };
 }
 
 export class AiCreditLedgerError extends Error {
@@ -264,11 +331,24 @@ export class AiCreditLimitReachedError extends Error {
   }
 }
 
+export class AiCreditReplayRequiredError extends Error {
+  constructor(status: "completed" | "released") {
+    super(status === "completed" ? "AI_CREDIT_COMPLETED_REPLAY_REQUIRED" : "AI_CREDIT_RELEASED_NEW_REQUEST_REQUIRED");
+    this.name = "AiCreditReplayRequiredError";
+  }
+}
+
+export function hashAiCreditPayload(feature: AiFeature, payload: unknown) {
+  return createHash("sha256").update(canonicalAiCreditJson({ feature, payload, version: 1 })).digest("hex");
+}
+
 export async function runWithAiCredit<T>({
   beforeComplete,
   feature,
   generate,
   monthlyAiCredits,
+  ledgerClient,
+  payload,
   planId = "free",
   requestId,
   supabase,
@@ -278,28 +358,34 @@ export async function runWithAiCredit<T>({
   feature: AiFeature;
   generate: () => Promise<T>;
   monthlyAiCredits?: number;
+  ledgerClient?: SupabaseClient;
+  payload: unknown;
   planId?: PlanId;
   requestId: string;
   supabase: SupabaseClient;
   userId: string;
 }) {
-  const reservation = await reserveAiCredit({ feature, requestId, supabase });
+  const payloadHash = hashAiCreditPayload(feature, payload);
+  const reservation = await reserveAiCredit({ feature, ledgerClient, payloadHash, requestId, userId });
   if (reservation.status === "limit_reached") throw new AiCreditLimitReachedError();
+  if (reservation.status === "completed" || reservation.status === "released") {
+    throw new AiCreditReplayRequiredError(reservation.status);
+  }
+  let completionAttempted = false;
   try {
     const value = await generate();
     if (beforeComplete) await beforeComplete(value);
-    if (reservation.status !== "completed") {
-      try {
-        await completeAiCredit({ requestId, supabase });
-      } catch {
-        await completeAiCredit({ requestId, supabase });
-      }
+    completionAttempted = true;
+    try {
+      await completeAiCredit({ feature, ledgerClient, payloadHash, requestId, userId });
+    } catch {
+      await completeAiCredit({ feature, ledgerClient, payloadHash, requestId, userId });
     }
     const usage = await getRemainingAiCredits({ feature, monthlyAiCredits, planId, supabase, userId });
-    return { creditsUsed: reservation.status === "completed" ? 0 : 1, usage, value };
+    return { creditsUsed: 1, usage, value };
   } catch (error) {
-    if (reservation.status === "reserved") {
-      try { await releaseAiCredit({ requestId, supabase }); } catch { /* The provider error remains the actionable failure. */ }
+    if (!completionAttempted) {
+      try { await releaseAiCredit({ feature, ledgerClient, payloadHash, requestId, userId }); } catch { /* The provider or persistence error remains the actionable failure. */ }
     }
     throw error;
   }
@@ -308,12 +394,26 @@ export async function runWithAiCredit<T>({
 function parseLedgerResult(data: unknown, statusKey: "reservation_status" | "event_status"): AiCreditReservation {
   const row = (Array.isArray(data) ? data[0] : data) as LedgerRpcRow | null;
   const rawStatus = row?.[statusKey];
-  const status = rawStatus === "completed" || rawStatus === "released" || rawStatus === "limit_reached"
-    ? rawStatus
-    : "reserved";
+  if (rawStatus !== "reserved" && rawStatus !== "completed" && rawStatus !== "released" && rawStatus !== "limit_reached") {
+    throw new AiCreditLedgerError("reservation_failed", new Error("INVALID_AI_CREDIT_RPC_RESPONSE"), statusKey, "rpc");
+  }
+  const status = rawStatus;
   return {
     creditsUsed: typeof row?.credits_used === "number" ? row.credits_used : status === "released" || status === "limit_reached" ? 0 : 1,
     remaining: typeof row?.remaining === "number" ? Math.max(0, row.remaining) : 0,
     status,
   };
+}
+
+async function createTrustedLedgerClient() {
+  const { createAiCreditAdminClient } = await import("./usage-ledger-admin.ts");
+  return createAiCreditAdminClient();
+}
+
+function canonicalAiCreditJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalAiCreditJson).join(",")}]`;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).filter((key) => !["idempotencyKey", "idempotency_key", "requestId"].includes(key)).sort();
+  return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalAiCreditJson(record[key])}`).join(",")}}`;
 }

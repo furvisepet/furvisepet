@@ -52,7 +52,7 @@ test("emergency guidance is calm, action-first, and makes no persistence claim",
 });
 
 test("provider outage cannot intercept a high-confidence emergency", () => {
-  const preflight = route.indexOf("const immediateEmergency = detectImmediateAskEmergency(question)");
+  const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const providerConfiguration = route.indexOf("const model = getAskModelConfiguration().primary", preflight);
   const semanticExtraction = route.indexOf("await extractTurnSubjectFrame", preflight);
   assert.ok(preflight > -1 && preflight < providerConfiguration && preflight < semanticExtraction);
@@ -60,7 +60,7 @@ test("provider outage cannot intercept a high-confidence emergency", () => {
 });
 
 test("allowance-status failure cannot intercept emergency guidance", () => {
-  const preflight = route.indexOf("const immediateEmergency = detectImmediateAskEmergency(question)");
+  const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const entitlementLoad = route.indexOf("await loadAskEntitlementContext(authentication)", preflight);
   const usageLookup = route.indexOf("await getRemainingAiCredits", entitlementLoad);
   assert.ok(preflight > -1 && preflight < entitlementLoad && entitlementLoad < usageLookup);
@@ -70,7 +70,7 @@ test("allowance-status failure cannot intercept emergency guidance", () => {
 });
 
 test("entitlement infrastructure failure cannot intercept emergency guidance", () => {
-  const preflight = route.indexOf("const immediateEmergency = detectImmediateAskEmergency(question)");
+  const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const entitlementLoad = route.indexOf("await loadAskEntitlementContext(authentication)", preflight);
   const entitlementRpc = route.indexOf("await resolveEffectiveEntitlements", entitlementLoad);
   assert.ok(preflight > -1 && preflight < entitlementLoad && entitlementLoad < entitlementRpc);
@@ -78,7 +78,7 @@ test("entitlement infrastructure failure cannot intercept emergency guidance", (
 });
 
 test("malformed or unavailable provider output cannot intercept emergency guidance or consume allowance", () => {
-  const preflight = route.indexOf("const immediateEmergency = detectImmediateAskEmergency(question)");
+  const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const reservation = route.indexOf("await reserveAiCredit", preflight);
   const persistence = route.indexOf("await ensureConversationAndUserMessage", preflight);
   const semanticExtraction = route.indexOf("await extractTurnSubjectFrame", preflight);
@@ -91,10 +91,10 @@ test("malformed or unavailable provider output cannot intercept emergency guidan
 });
 
 test("normal requests still enter entitlement, allowance, and provider admission flow", () => {
-  const preflight = route.indexOf("const immediateEmergency = detectImmediateAskEmergency(question)");
+  const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const entitlementLoad = route.indexOf("await loadAskEntitlementContext(authentication)", preflight);
   const idempotency = route.indexOf("claimIdempotentOperation", entitlementLoad);
-  const admission = route.indexOf("runAdmittedAiOperation", idempotency);
+  const admission = route.indexOf("aiAdmission = await admitAiOperation", idempotency);
   const reservation = route.indexOf("await reserveAiCredit", admission);
   assert.ok(preflight < entitlementLoad && entitlementLoad < idempotency && idempotency < admission && admission < reservation);
 });
@@ -109,7 +109,7 @@ test("zero remaining does not intercept client submission before the authoritati
   assert.ok(clientGuard > -1 && post > clientGuard);
   assert.doesNotMatch(askFunction.slice(0, post), /usage\.(?:allowed|remaining)|AI_CREDITS_EXHAUSTED/);
 
-  const preflight = route.indexOf("const immediateEmergency = detectImmediateAskEmergency(question)");
+  const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const entitlementLoad = route.indexOf("await loadAskEntitlementContext(authentication)", preflight);
   const quotaGate = route.indexOf("if (!usage.allowed) throw new AiCreditLimitError()", entitlementLoad);
   assert.ok(preflight > -1 && preflight < entitlementLoad && entitlementLoad < quotaGate);
@@ -120,7 +120,7 @@ test("zero remaining does not intercept client submission before the authoritati
 
 test("zero remaining normal questions remain blocked by the server quota gate", () => {
   assert.equal(detectImmediateAskEmergency("Should I change Luna's food?"), null);
-  const preflight = route.indexOf("const immediateEmergency = detectImmediateAskEmergency(question)");
+  const preflight = route.indexOf("const immediateEmergency = currentLoss === \"confirmed_current\" ? null : detectImmediateAskEmergency(question)");
   const quotaGate = route.indexOf("if (!usage.allowed) throw new AiCreditLimitError()", preflight);
   const quotaResponse = route.indexOf('askFailure("AI_CREDITS_EXHAUSTED"', quotaGate);
   assert.ok(preflight > -1 && preflight < quotaGate && quotaGate < quotaResponse);

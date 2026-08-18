@@ -106,11 +106,11 @@ test("Ask Furvise route uses context planning before response persistence", () =
   const route = read("app/api/ask/route.ts");
   const contextLoad = route.indexOf("await buildFurviseContext");
   const pipeline = route.indexOf("orchestrateAskTurn", contextLoad);
-  const persistence = route.indexOf("return persistAssistantAnswer", pipeline);
+  const persistence = route.indexOf("persistAssistantAnswer({", pipeline);
 
   assert.ok(contextLoad > -1);
   assert.ok(pipeline > contextLoad);
   assert.ok(persistence > pipeline);
   assert.doesNotMatch(route, /generateGroundedAskAnswer|answerSinglePetMemoryQuestion/);
-  assert.equal(route.match(/await completeAiCredit/g)?.length, 2);
+  assert.equal(route.match(/await completeAiCredit/g)?.length, 3, "two completion attempts plus persisted-answer reconciliation");
 });

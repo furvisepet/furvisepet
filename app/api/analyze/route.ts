@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     });
     const generated = await runAdmittedAiOperation({
       feature: "care_plan", intendedModel: OPENAI_ANALYSIS_MODEL, payload: { memories, profile: validation.profile }, requestId, userId: context.userId,
-    }, () => runWithAiCredit({ feature: "care_plan", monthlyAiCredits: context.monthlyAiCredits, planId: context.planId, requestId, supabase: context.supabase, userId: context.userId, generate: async () => {
+    }, () => runWithAiCredit({ feature: "care_plan", monthlyAiCredits: context.monthlyAiCredits, payload: { memories, profile: validation.profile }, planId: context.planId, requestId, supabase: context.supabase, userId: context.userId, generate: async () => {
         const provider = createAiAnalysisProvider();
         const analysis = await provider.analyzeDogProfile({ profile: validation.profile, memories });
         const validatedAnalysis = parseAnalysis(analysis);

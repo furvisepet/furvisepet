@@ -77,12 +77,14 @@ export async function orchestrateAskTurn({
     : turn.intent === "new_observation"
       ? buildConcernOpeningSuggestion({ message, petName }) || buildObservationSuggestion({ message, petName })
       : null);
-  const suggestion = candidateSuggestion?.type === "history" && !evaluateCareHistorySaveWorthiness({
-    category: typeof candidateSuggestion.payload.category === "string" ? candidateSuggestion.payload.category : undefined,
-    title: typeof candidateSuggestion.payload.title === "string" ? candidateSuggestion.payload.title : candidateSuggestion.title,
-    details: candidateSuggestion.details,
-    sourceMessage: message,
-  }).eligible ? null : candidateSuggestion;
+  const suggestion = aiResult.responseMode === "grief_support"
+    ? null
+    : candidateSuggestion?.type === "history" && !evaluateCareHistorySaveWorthiness({
+      category: typeof candidateSuggestion.payload.category === "string" ? candidateSuggestion.payload.category : undefined,
+      title: typeof candidateSuggestion.payload.title === "string" ? candidateSuggestion.payload.title : candidateSuggestion.title,
+      details: candidateSuggestion.details,
+      sourceMessage: message,
+    }).eligible ? null : candidateSuggestion;
   return {
     aiResult,
     answer: aiResult.answer,

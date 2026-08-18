@@ -69,7 +69,7 @@ export function prepareGovernedCareHistoryEvent(event: GovernedCanonicalEvent): 
   }
   const petName = clean(proposal.subject.name || "the pet");
   const uncertain = /\b(?:i think|maybe|might|may have|possibly|not (?:completely )?sure|uncertain|could have)\b/i.test(proposal.sourceExcerpt);
-  const clause = clean(proposal.sourceExcerpt)
+  let clause = clean(proposal.sourceExcerpt)
     .replace(/^(?:and|but|so|then)\s+/i, "")
     .replace(/^(?:i think|maybe|possibly)\s+/i, "")
     .replace(/\s*,?\s*but\s+i(?:['’]m| am)\s+not\s+(?:completely\s+)?sure\.?$/i, "")
@@ -77,6 +77,7 @@ export function prepareGovernedCareHistoryEvent(event: GovernedCanonicalEvent): 
     .replace(/\bmy\s+(?:cat|dog|pet)\b/gi, petName)
     .replace(/^(?:I|we)\s+(?:noticed|saw|observed|reported)\s+(?:that\s+)?(?:she|he|they|it)\b/i, petName)
     .replace(/^(?:she|he|they|it)\b/i, petName);
+  clause = clause.replace(new RegExp(`\\b${escapeRegExp(petName)}\\b`, "gi"), petName);
   const namesPet = new RegExp(`\\b${escapeRegExp(petName)}\\b`, "i").test(clause);
   const standalone = uncertain
     ? `Owner was uncertain whether ${namesPet ? clause : `${petName} ${clause}`}`

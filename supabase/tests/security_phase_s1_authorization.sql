@@ -34,8 +34,8 @@ insert into public.pet_concerns(id, user_id, pet_profile_id, title, normalized_k
   ('22000000-0000-4000-8000-000000000027', '22000000-0000-4000-8000-000000000002', '22000000-0000-4000-8000-000000000022', 'private concern', 's1-private');
 insert into public.furvise_memories(id, user_id, pet_id, subject_type, category, fact_key, fact_value, normalized_value, confidence, importance, durability, source_type, dedupe_key) values
   ('22000000-0000-4000-8000-000000000028', '22000000-0000-4000-8000-000000000002', '22000000-0000-4000-8000-000000000022', 'pet', 'test', 'private', '{"value":"private"}', 'private', 0.9, 'medium', 'ongoing', 's1_test', 's1-private');
-insert into public.ai_usage_events(id, user_id, request_id, feature, status, period_start) values
-  ('22000000-0000-4000-8000-000000000029', '22000000-0000-4000-8000-000000000002', '22000000-0000-4000-8000-000000000129', 'ask', 'completed', current_date);
+insert into public.ai_usage_events(id, user_id, request_id, feature, status, period_start, completed_at) values
+  ('22000000-0000-4000-8000-000000000029', '22000000-0000-4000-8000-000000000002', '22000000-0000-4000-8000-000000000129', 'ask', 'completed', current_date, now());
 insert into public.ai_update_suggestions(id, user_id, pet_profile_id, type, title, details) values
   ('22000000-0000-4000-8000-000000000030', '22000000-0000-4000-8000-000000000002', '22000000-0000-4000-8000-000000000022', 'memory', 'private suggestion', 'private');
 insert into public.vet_visit_briefs(id, user_id, pet_profile_id, date_range_start, date_range_end, confirmed_title, confirmed_data) values
@@ -72,18 +72,30 @@ begin
 end;
 $$;
 
-select public.reserve_ai_credit('11000000-0000-4000-8000-000000000101', 'ask', 50);
-select public.reserve_ai_credit('11000000-0000-4000-8000-000000000101', 'ask', 50);
-select public.complete_ai_credit('11000000-0000-4000-8000-000000000101', 50);
-select public.complete_ai_credit('11000000-0000-4000-8000-000000000101', 50);
+do $$ begin
+  begin
+    perform public.release_ai_credit(
+      '11000000-0000-4000-8000-000000000001',
+      '11000000-0000-4000-8000-000000000101',
+      'ask', repeat('a', 64)
+    );
+    raise exception 'authenticated client directly invoked AI credit release';
+  exception when insufficient_privilege then null; end;
+end $$;
+
+reset role;
+select public.reserve_ai_credit('11000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000101', 'ask', repeat('a', 64));
+select public.reserve_ai_credit('11000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000101', 'ask', repeat('a', 64));
+select public.complete_ai_credit('11000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000101', 'ask', repeat('a', 64));
+select public.complete_ai_credit('11000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000101', 'ask', repeat('a', 64));
 do $$ begin
   if (select count(*) from public.ai_usage_events where request_id = '11000000-0000-4000-8000-000000000101') <> 1
      or (select credits_used from public.ai_usage_events where request_id = '11000000-0000-4000-8000-000000000101') <> 1
   then raise exception 'duplicate request charged more than once'; end if;
 end $$;
 
-select public.reserve_ai_credit('11000000-0000-4000-8000-000000000102', 'ask', 50);
-select public.release_ai_credit('11000000-0000-4000-8000-000000000102', 50);
+select public.reserve_ai_credit('11000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000102', 'ask', repeat('b', 64));
+select public.release_ai_credit('11000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000102', 'ask', repeat('b', 64));
 do $$ begin
   if not exists(select 1 from public.ai_usage_events where request_id = '11000000-0000-4000-8000-000000000102' and status = 'released' and credits_used = 0)
   then raise exception 'failed request did not release credit'; end if;

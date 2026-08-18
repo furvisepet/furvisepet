@@ -15,12 +15,12 @@ function reservation(operationId, index) {
   };
 }
 
-test("initial and shared retry phases cap one canonical Ask request at six provider calls", async () => {
+test("all retries share one canonical Ask guard identity and three-call budget", async () => {
   const store = new MemoryAiGuardTestStore();
-  const initialId = deriveAiGuardOperationId({ executionPhase: "initial", requestId, secret, userId });
-  const firstRetryId = deriveAiGuardOperationId({ executionPhase: "retry", requestId, secret, userId });
-  const laterRetryId = deriveAiGuardOperationId({ executionPhase: "retry", requestId, secret, userId });
-  assert.notEqual(firstRetryId, initialId);
+  const initialId = deriveAiGuardOperationId({ feature: "ask", requestId, secret, userId });
+  const firstRetryId = deriveAiGuardOperationId({ feature: "ask", requestId, secret, userId });
+  const laterRetryId = deriveAiGuardOperationId({ feature: "ask", requestId, secret, userId });
+  assert.equal(firstRetryId, initialId);
   assert.equal(laterRetryId, firstRetryId, "all retry leases must share one guard identity");
   for (let index = 1; index <= 3; index += 1) {
     const input = reservation(initialId, index);
@@ -31,22 +31,16 @@ test("initial and shared retry phases cap one canonical Ask request at six provi
   const exhaustedInitial = await store.reserveCall(reservation(initialId, 4));
   assert.deepEqual({ allowed: exhaustedInitial.allowed, reason: exhaustedInitial.reason }, { allowed: false, reason: "operation_call_limit" });
 
-  for (let index = 1; index <= 3; index += 1) {
-    const input = reservation(firstRetryId, index);
-    assert.equal((await store.reserveCall(input)).allowed, true, `retry call ${index} must be available`);
-    await store.markCallStarted({ callId: input.callId });
-    await store.reconcileCall({ actualCostMicrodollars: 50, callId: input.callId });
-  }
   const exhaustedSharedRetry = await store.reserveCall(reservation(laterRetryId, 4));
   assert.deepEqual({ allowed: exhaustedSharedRetry.allowed, reason: exhaustedSharedRetry.reason }, { allowed: false, reason: "operation_call_limit" });
-  assert.equal(store.getSnapshot("2026-08-13").calls, 6, "daily accounting remains cumulative across both phases");
+  assert.equal(store.getSnapshot("2026-08-13").calls, 3, "retries cannot reopen provider-call budget");
 });
 
 test("daily limits remain fail-closed independently of the two phase budgets", async () => {
   const store = new MemoryAiGuardTestStore();
-  const initialId = deriveAiGuardOperationId({ executionPhase: "initial", requestId, secret, userId });
+  const initialId = deriveAiGuardOperationId({ feature: "ask", requestId, secret, userId });
   assert.equal((await store.reserveCall({ ...reservation(initialId, 1), callLimit: 1 })).allowed, true);
-  const otherRequestId = deriveAiGuardOperationId({ executionPhase: "initial", requestId: "79b6a0a6-01e0-466c-8b3a-9552c0fa256f", secret, userId });
+  const otherRequestId = deriveAiGuardOperationId({ feature: "ask", requestId: "79b6a0a6-01e0-466c-8b3a-9552c0fa256f", secret, userId });
   const denied = await store.reserveCall({ ...reservation(otherRequestId, 1), callLimit: 1 });
   assert.deepEqual({ allowed: denied.allowed, reason: denied.reason }, { allowed: false, reason: "daily_call_limit" });
 });
@@ -56,7 +50,8 @@ test("Ask keeps canonical dedupe, persistence, credit, and rate-limit identity s
   const client = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
   const idempotencySql = readFileSync(new URL("../supabase/migrations/20260730010000_add_canonical_idempotency_operations.sql", import.meta.url), "utf8");
   const messageSql = readFileSync(new URL("../supabase/migrations/20260727010000_add_ask_request_idempotency.sql", import.meta.url), "utf8");
-  assert.match(route, /executionPhase: idempotency\.operation\.claimOutcome === "new" \? "initial" : "retry"/);
+  assert.doesNotMatch(route, /executionPhase:/);
+  assert.match(route, /operationType: "ask\.submit\.persisted_answer_v2"/);
   assert.match(route, /operationTtlSeconds: askGuardOperationTtlSeconds/);
   assert.doesNotMatch(route, /execution(?:AttemptId|Phase): idempotency\.operation\.ownerToken/);
   assert.match(route, /idempotencyState: idempotency\.operation\.claimOutcome/);
@@ -66,7 +61,7 @@ test("Ask keeps canonical dedupe, persistence, credit, and rate-limit identity s
   assert.match(route, /providerCallAttempted: false/);
   assert.match(route, /creditReservationDisposition/);
   assert.doesNotMatch(route, /pre-provider 503[\s\S]{0,1000}ownerToken/);
-  assert.match(route, /reserveAiCredit\(\{ feature: "ask", requestId, supabase \}\)/);
+  assert.match(route, /reserveAiCredit\(\{ feature: "ask", payloadHash: aiCreditPayloadHash, requestId, userId \}\)/);
   assert.match(route, /request_id: requestId/);
   assert.match(route, /loadPersistedRequest\(\{ petId, requestId, supabase, userId \}\)/);
   assert.match(route, /idempotencyKey: requestId[\s\S]*policy: "ASK_AI"/);
@@ -74,6 +69,31 @@ test("Ask keeps canonical dedupe, persistence, credit, and rate-limit identity s
   assert.match(client, /if \(!retry\) setThread/);
   assert.match(idempotencySql, /status = case when p_retryable then 'failed_retryable'/);
   assert.match(messageSql, /unique index[\s\S]*\(user_id, request_id, role\)/);
+});
+
+test("the Ask guard identity is stable across retries, feature-scoped, and closes only after persistence", () => {
+  const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
+  const otherFeature = deriveAiGuardOperationId({ feature: "vet_brief", requestId, secret, userId });
+  const first = deriveAiGuardOperationId({ feature: "ask", requestId, secret, userId });
+  const second = deriveAiGuardOperationId({ feature: "ask", requestId, secret, userId });
+  assert.notEqual(first, otherFeature);
+  assert.equal(first, second);
+  const persist = route.indexOf("const persistedResponse = await persistAssistantAnswer");
+  const complete = route.indexOf("finalizeAiAdmissionAfterPersistence", persist);
+  assert.ok(persist >= 0 && complete > persist, "provider operation completion must follow durable answer persistence");
+  assert.match(route, /if \(!response\.ok\)[\s\S]*failAiAdmission\([\s\S]*ASK_ANSWER_NOT_PERSISTED/);
+  assert.match(route, /completed response replayed before operation claim/);
+});
+
+test("a post-provider failure remains retryable until a durable answer closes the guard operation", async () => {
+  const store = new MemoryAiGuardTestStore();
+  const key = `furvise:ai:v1:operation:${deriveAiGuardOperationId({ feature: "ask", requestId, secret, userId })}`;
+  const fingerprint = "same-private-payload-fingerprint";
+  assert.equal(await store.admitOperation({ fingerprint, key, ttlSeconds: 3_600 }), "created");
+  await store.failOperation({ key, ttlSeconds: 3_600 });
+  assert.equal(await store.admitOperation({ fingerprint, key, ttlSeconds: 3_600 }), "reused");
+  await store.completeOperation({ key, ttlSeconds: 3_600 });
+  assert.equal(await store.admitOperation({ fingerprint, key, ttlSeconds: 3_600 }), "completed");
 });
 
 test("permanent admission and budget denials remain fail-closed", () => {
