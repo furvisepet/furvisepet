@@ -1,5 +1,6 @@
 import type { CareEntryRow, DogProfileWithMemories } from "./supabase";
 import { formatPetDisplayName } from "./petwise";
+import { isKnownConversationalCareNoise } from "./intelligence/care-history-policy.ts";
 
 export const SERVER_SAFE_GREETING = "Welcome back";
 export const TODAY_EVENT_ACTIONS = [
@@ -77,6 +78,7 @@ export function buildTodayEntryDraft(selected: TodayQuickActionId | null, typedT
 export function buildTodayRecentEntries<T extends CareEntryRow>(entries: T[], profileId: string) {
   return entries
     .filter((entry) => entry.pet_profile_id === profileId)
+    .filter((entry) => !entry.intelligence_source_message_id || !isKnownConversationalCareNoise(`${entry.title || ""} ${entry.note}`))
     .sort((left, right) => new Date(right.occurred_at).getTime() - new Date(left.occurred_at).getTime())
     .slice(0, 3);
 }

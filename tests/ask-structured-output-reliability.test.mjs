@@ -194,7 +194,8 @@ test("the reduced contract bounds ordinary output fields and omits deterministic
 
 test("structured Ask extraction separates point-in-time chronology from memory and current state", () => {
   const reasoning = readFileSync(new URL("../app/lib/ai/ask-reasoning.ts", import.meta.url), "utf8");
-  assert.match(reasoning, /every explicit high-confidence pet care action or occurrence tied to a point in time, emit a semanticEvent/);
+  assert.match(reasoning, /Emit semanticEvents only for occurrences with future care value/);
+  assert.match(reasoning, /Do not emit them for jokes, opinions, greetings, generic questions, normal play, chasing butterflies/);
   assert.match(reasoning, /Chronology and memory are independent destinations/);
   assert.match(reasoning, /state=historical for a completed standalone event/);
   assert.match(reasoning, /active or monitoring only when it creates or changes an ongoing temporary state/);

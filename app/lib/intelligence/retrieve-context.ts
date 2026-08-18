@@ -10,6 +10,7 @@ import type { CareEpisode } from "./episodes/types";
 import type { PetCurrentStateRow } from "./pet-state/types";
 import { selectFreshRelevantMemories } from "./memory-freshness/select-fresh-memories.ts";
 import { removeInactiveMemoryClaimsFromConversation, type InactiveMemoryMarker } from "./memory-lifecycle/filter-conversation";
+import { isKnownConversationalCareNoise, isLongitudinalCareHistoryEntry } from "./care-history-policy.ts";
 
 export class FurviseContextError extends Error {
   constructor(public code: "PET_NOT_FOUND" | "CONVERSATION_NOT_FOUND" | "CONTEXT_UNAVAILABLE", message: string, public cause?: unknown) {
@@ -107,14 +108,22 @@ export async function buildFurviseContext({
     createdAt: message.created_at,
   })).filter((message) => message.text.trim()), inactiveMemories.data || []);
 
+  const longitudinalCareEntries = (care.data || []).filter(isLongitudinalCareHistoryEntry);
+  const longitudinalEpisodes = (episodes.data || []).filter((episode) => !isKnownConversationalCareNoise(
+    `${episode.title || ""} ${episode.normalized_key} ${JSON.stringify(episode.summary || {})}`,
+  ));
+  const longitudinalConcerns = activeConcerns.filter((concern) => !isKnownConversationalCareNoise(`${concern.title} ${concern.normalized_key}`));
+  const longitudinalResolvedConcerns = resolvedConcerns.filter((concern) => !isKnownConversationalCareNoise(`${concern.title} ${concern.normalized_key}`));
+  const longitudinalCurrentState = currentState.data && isKnownConversationalCareNoise(JSON.stringify(currentState.data.state)) ? null : currentState.data;
+
   return finalizeFurviseContext({
     feature, locale, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
-    pet: profile.data, eligiblePets: eligiblePets.data || [profile.data], owner: { userId, profile: owner.data || null }, careEntries: care.data || [],
-    activeConcerns, recentlyResolvedConcerns: resolvedConcerns, legacyPetMemories: legacyMemories.data || [],
-    activeEpisodes: (episodes.data || []).filter((episode) => episode.status === "active"),
-    monitoringEpisodes: (episodes.data || []).filter((episode) => episode.status === "monitoring"),
-    recentlyResolvedEpisodes: (episodes.data || []).filter((episode) => episode.status === "resolved").slice(0, 8),
-    currentState: currentState.data || null,
+    pet: profile.data, eligiblePets: eligiblePets.data || [profile.data], owner: { userId, profile: owner.data || null }, careEntries: longitudinalCareEntries,
+    activeConcerns: longitudinalConcerns, recentlyResolvedConcerns: longitudinalResolvedConcerns, legacyPetMemories: legacyMemories.data || [],
+    activeEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "active"),
+    monitoringEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "monitoring"),
+    recentlyResolvedEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "resolved").slice(0, 8),
+    currentState: longitudinalCurrentState || null,
     memories: selectFreshRelevantMemories((sharedMemories.data || []).filter((memory) => !(
       memory.source_type === "ask_message" && memory.source_id && suppressedSourceMessageIds.has(memory.source_id)
     )), currentMessage, new Date(), mode.contextPolicy.memoryLimit).map((item) => item.memory),

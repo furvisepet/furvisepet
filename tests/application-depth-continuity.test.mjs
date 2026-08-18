@@ -53,7 +53,7 @@ test("empty History hides low-value controls and gives the timeline a first acti
 });
 
 test("Ask fresh state keeps starters and composer together without a redundant primary action", () => {
-  assert.match(ask, /thread\.length \|\| requestActive \? "min-h-\[66vh\]" : ""/);
+  assert.match(ask, /thread\.length \|\| requestActive \? "sm:min-h-\[66vh\]" : ""/);
   assert.match(ask, /activeConversationId \|\| thread\.length \? <button className=\{secondaryButton\}[\s\S]*New question/);
   assert.match(ask, /<EmptyConversation[\s\S]*<Composer/);
   assert.match(ask, /data-ui="starter-question"[\s\S]*focus-visible:ring-2/);

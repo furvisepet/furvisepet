@@ -194,13 +194,32 @@ function cleanSuggestedQuestions(value) {
   const suggestions = [];
   for (const item of value) {
     if (typeof item !== "string") continue;
-    const suggestion = cleanText(item).slice(0, 180);
+    const suggestion = normalizeSuggestedQuestion(item);
     const key = suggestion.toLocaleLowerCase();
     if (!suggestion || privilegedSuggestionPattern.test(suggestion) || unsafeSuggestionPattern.test(suggestion) || seen.has(key)) continue;
     seen.add(key);
     suggestions.push(suggestion);
   }
   return suggestions;
+}
+
+export function normalizeSuggestedQuestion(value) {
+  if (typeof value !== "string") return "";
+  let suggestion = cleanText(value).slice(0, 180);
+  if (!suggestion) return "";
+  if (/\bI can tell you (?:exactly )?what to note\b/i.test(suggestion)) {
+    return "What should I note about that symptom?";
+  }
+  const offer = /^(?:if you want,?\s*)?(?:would you like me to|I can(?: also)?(?: help you)?)\s+/i.exec(suggestion);
+  if (offer) {
+    const body = suggestion.slice(offer[0].length).replace(/\byour\b/gi, "my").replace(/\byou\b/gi, "me");
+    suggestion = `Can you ${/help you\b/i.test(offer[0]) ? "help me " : ""}${body}`;
+  } else {
+    suggestion = suggestion.replace(/\byour\b/gi, "my");
+  }
+  if (/^(?:if you|I can|I can also|would you like me)\b/i.test(suggestion)) return "";
+  if (!/^(?:can|could|does|do|has|have|how|is|should|what|when|where|which|why|will|would)\b/i.test(suggestion)) return "";
+  return `${suggestion.replace(/[.!?]+$/, "")}?`.slice(0, 180);
 }
 
 export function hasUrgentSymptomContext(value) {

@@ -79,6 +79,7 @@ import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/e
 import type { ProposedSemanticFrame } from "../../lib/intelligence/semantic-frame/types";
 import {
   resolveAuthoritativeTurnSubject,
+  resolveClearSelectedPetContinuation,
   resolveExplicitSelectedPetSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
 import {
@@ -349,13 +350,19 @@ export async function POST(request: Request) {
         pets: liveContext.eligiblePets,
         selectedPetId: petId,
       });
-      const subjectFrame = explicitSelectedPet ? undefined : await extractTurnSubjectFrame({
+      const contextualSelectedPet = explicitSelectedPet || resolveClearSelectedPetContinuation({
+        message: question,
+        pets: liveContext.eligiblePets,
+        recentConversation,
+        selectedPetId: petId,
+      });
+      const subjectFrame = contextualSelectedPet ? undefined : await extractTurnSubjectFrame({
         message: question,
         model,
         onProviderEvent,
         recentConversation,
       });
-      const subjectResolution = explicitSelectedPet || resolveAuthoritativeTurnSubject({
+      const subjectResolution = contextualSelectedPet || resolveAuthoritativeTurnSubject({
         frame: subjectFrame!,
         message: question,
         ownerId: userId,
@@ -517,6 +524,7 @@ export async function POST(request: Request) {
       petId: turnPetId,
       preparedRequest,
       requestId,
+      recentCareEntries: liveContext.careEntries,
       response: plannedResponse,
       sourceMessage: question,
       saveMetadata: buildAskSaveMetadata(plannedGate, { cannotAnswerFromSavedData: true, intent: "general_pet_question", question, usedSavedFactsCount: 0 }),
@@ -554,6 +562,7 @@ export async function POST(request: Request) {
     petId: turnPetId,
     preparedRequest,
     requestId,
+    recentCareEntries: liveContext.careEntries,
     response: conversationResponse,
     sourceMessage: question,
     saveMetadata: buildAskSaveMetadata(conversationResponse, { intent: reasoning?.userIntent || orchestration.intent, question }),
@@ -867,6 +876,7 @@ async function persistAssistantAnswer({
   petId,
   preparedRequest,
   requestId,
+  recentCareEntries,
   response,
   sourceMessage,
   saveMetadata,
@@ -888,6 +898,7 @@ async function persistAssistantAnswer({
   petId: string;
   preparedRequest: PreparedAskRequest;
   requestId: string;
+  recentCareEntries: FurviseLiveContext["careEntries"];
   response: CompletedAskResponse;
   sourceMessage: string;
   saveMetadata: unknown;
@@ -981,6 +992,7 @@ async function persistAssistantAnswer({
         semanticEvents: intelligenceResult.acceptedSemanticEvents,
         learnings: intelligenceResult.acceptedLearnings,
         petId,
+        recentCareEntries,
         sourceMessageId: userMessageId,
         supabase,
         userId,

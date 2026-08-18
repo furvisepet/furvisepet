@@ -4,7 +4,7 @@ import OpenAI from "openai";
 import { interpretStructuredProviderResponse } from "../../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../../ai/ask-reasoning.ts";
 import { executeAdmittedProviderCall } from "../../ai/usage-guard/provider-call-budget.ts";
-import { extractProposedSemanticFrame } from "./extract-frame.ts";
+import { validateProposedSemanticFrame } from "./extract-frame.ts";
 import { proposedSemanticFrameJsonSchema } from "./schema.ts";
 import type { ProposedSemanticFrame } from "./types.ts";
 
@@ -27,6 +27,7 @@ const instructions = [
   "Bind first-person preferences and first-person owner facts to the owner mention (I, me, or my). A named organization, retailer, brand, product, or place is the preference value/object, never the owner-subject.",
   "Evidence surfaceText must be copied exactly from the current message. Never invent or paraphrase evidence.",
   "Recent user discourse may establish a reference antecedent, but it is context only and must not be copied into current-message evidence.",
+  "antecedentRefs may contain only mention local IDs that exist in this current frame. Leave antecedentRefs empty when the antecedent exists only in recent discourse.",
 ].join("\n");
 
 export async function extractTurnSubjectFrame({
@@ -69,18 +70,31 @@ export async function extractTurnSubjectFrame({
       model,
       providerInput: input,
     });
+    let validationReason: string | null = null;
     const interpreted = interpretStructuredProviderResponse(response, (raw) => {
-      const parsed = extractProposedSemanticFrame(JSON.parse(raw));
-      if (!parsed) throw new Error("Turn subject frame did not satisfy ProposedSemanticFrame.");
-      return parsed;
+      const validation = validateProposedSemanticFrame(JSON.parse(raw));
+      validationReason = validation.reason;
+      if (!validation.frame) throw new Error(`TURN_SUBJECT_FRAME_${validation.reason || "INVALID"}`);
+      return validation.frame;
     });
     if (interpreted.status !== "completed" || !interpreted.parsed) {
-      throw new AskPipelineError("primary_invalid_output", interpreted.errorMessage || "Turn subject frame was invalid.", {
+      const failure = new AskPipelineError("primary_invalid_output", interpreted.errorMessage || "Turn subject frame was invalid.", {
         elapsedMs: Date.now() - started,
         model,
         providerErrorCode: interpreted.errorCode || "ASK_OUTPUT_INVALID",
         providerErrorType: interpreted.status,
+        validationDetails: validationReason || interpreted.errorMessage || "TURN_SUBJECT_FRAME_INVALID",
+        configuredOutputLimit: TURN_SUBJECT_MAX_OUTPUT_TOKENS,
+        inputTokens: interpreted.usage.inputTokens,
+        outputTokens: interpreted.usage.outputTokens,
+        finishReason: interpreted.finishReason,
+        incompleteReason: interpreted.incompleteReason,
+        outputLimitReached: interpreted.status === "incomplete" && interpreted.incompleteReason === "max_output_tokens",
+        parsingAttempted: interpreted.parsingAttempted,
+        rawOutputLength: interpreted.rawText?.length || 0,
       });
+      onProviderEvent?.({ stage: "primary", outcome: "failed", ...failure.diagnostics });
+      throw failure;
     }
     onProviderEvent?.({
       stage: "primary", outcome: "succeeded", model, elapsedMs: Date.now() - started,

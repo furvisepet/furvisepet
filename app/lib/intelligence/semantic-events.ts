@@ -3,8 +3,9 @@ import type { CanonicalEvent, CanonicalEventProposal, GovernedCanonicalEvent, In
 import { routeSemanticEventDestinations } from "./persistence-destination.ts";
 import { deriveEffectiveRecoveryAssessment, EFFECTIVE_RECOVERY_RESOLUTION_THRESHOLD, type EffectiveRecoveryAssessment } from "./recovery-governance.ts";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
+import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
 
-export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "unsupported_pet_identity" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode";
+export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "unsupported_pet_identity" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode" | "not_save_worthy";
 export type SemanticEventGovernance = {
   accepted: GovernedCanonicalEvent[];
   rejected: Array<{ proposal: CanonicalEventProposal; reason: SemanticEventRejectionReason }>;
@@ -148,6 +149,18 @@ export function governCanonicalEvents(input: {
       subject: { ...proposal.subject, id: proposal.subject.type === "pet" ? resolvedPetSubject.id : null },
       references: { priorEventIds: [], episodeId: episode?.id || null, concernId: episode?.linked_concern_id || null },
     };
+    const saveDecision = evaluateCareHistorySaveWorthiness({
+      domain: event.domain,
+      title: event.eventTitle,
+      details: event.sourceExcerpt,
+      sourceMessage: input.message,
+      transition: event.transition,
+      hasTrackedEpisode: Boolean(episode),
+    });
+    if (!saveDecision.eligible && event.transition !== "preference_set" && event.domain !== "profile") {
+      rejected.push({ proposal, reason: "not_save_worthy" });
+      continue;
+    }
     const destinations = routeSemanticEventDestinations(event);
     accepted.push({ event, destination: primaryDestination(destinations), destinations, ...(recoveryGovernance.candidate ? { recoveryGovernance } : {}) });
   }

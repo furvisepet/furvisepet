@@ -30,6 +30,42 @@ export function resolveExplicitSelectedPetSubject({
   return resolved(selectedPetId, 0.99);
 }
 
+/**
+ * Resolves a narrow pronoun-only continuation without spending a separate
+ * provider call. It deliberately declines mixed pronouns, animal nouns, and
+ * other entity signals so outside animals still go through full resolution.
+ */
+export function resolveClearSelectedPetContinuation({
+  message,
+  pets,
+  recentConversation,
+  selectedPetId,
+}: {
+  message: string;
+  pets: EligibleSemanticPet[];
+  recentConversation: Array<{ role?: string; text: string }>;
+  selectedPetId: string;
+}): AuthoritativeTurnSubjectResolution | null {
+  const normalized = normalize(message);
+  if (!normalized || explicitlyNamedOwnedPets(message, pets).length) return null;
+  const hasFeminine = /\b(?:she|her|hers)\b/i.test(message);
+  const hasMasculine = /\b(?:he|him|his)\b/i.test(message);
+  const hasNeutral = /\b(?:they|them|their|theirs|it|its)\b/i.test(message);
+  if (![hasFeminine, hasMasculine, hasNeutral].some(Boolean) || [hasFeminine, hasMasculine, hasNeutral].filter(Boolean).length > 1) return null;
+  if (/\b(?:cat|dog|kitten|puppy|animal|pet|male|female|outside|stray|neighbor(?:'s)?|another|other)\b/i.test(message)) return null;
+  const selected = pets.find((pet) => pet.id === selectedPetId);
+  if (!selected) return null;
+  const recentUserTurns = recentConversation.filter((turn) => !turn.role || turn.role === "user").slice(-3).reverse();
+  const selectedName = normalize(selected.name || "");
+  const selectedSpecies = normalize(selected.species || "");
+  const recentlySelected = recentUserTurns.some((turn) => {
+    const turnText = normalize(turn.text);
+    if (selectedName && containsWholeTerm(turnText, selectedName)) return true;
+    return Boolean(selectedSpecies && new RegExp(`\\b(?:my|our) ${escapeRegExp(selectedSpecies)}\\b`, "i").test(turnText));
+  });
+  return recentlySelected ? contextual(selectedPetId) : null;
+}
+
 export function resolveAuthoritativeTurnSubject({
   frame,
   message,
@@ -190,4 +226,12 @@ function hasContradictoryNamedClaims(frame: ProposedSemanticFrame) {
 
 function normalize(value: string) {
   return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function containsWholeTerm(value: string, term: string) {
+  return (` ${value} `).includes(` ${term} `);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

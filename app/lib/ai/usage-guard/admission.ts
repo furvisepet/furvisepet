@@ -138,8 +138,34 @@ export class AiOperationAdmission {
     let result;
     try {
       result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: this.policy.maximumProviderCalls, operationCallTtlSeconds: this.operationTtlSeconds, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
-    } catch { throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "daily_guard_store_unavailable"); }
+    } catch {
+      logAiGuardEvent("provider call denied", {
+        allowed: false,
+        callNumber: nextNumber,
+        denialReason: "daily_guard_store_unavailable",
+        feature: this.feature,
+        model,
+        operationId: this.operationId,
+        requestId: this.requestId,
+        reservedCostMicrodollars: reservedCost,
+        safeErrorClass: "AiAdmissionError",
+      });
+      throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "daily_guard_store_unavailable");
+    }
     if (!result.allowed) {
+      logAiGuardEvent("provider call denied", {
+        allowed: false,
+        callNumber: nextNumber,
+        dailyCallCount: result.snapshot.calls,
+        dailyCostMicrodollars: result.snapshot.costMicrodollars,
+        denialReason: result.reason,
+        feature: this.feature,
+        model,
+        operationId: this.operationId,
+        requestId: this.requestId,
+        reservedCostMicrodollars: reservedCost,
+        safeErrorClass: "AiAdmissionError",
+      });
       if (result.reason === "operation_call_limit") throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", result.reason);
       throw new AiAdmissionError("AI_DAILY_CAP_REACHED", result.reason);
     }

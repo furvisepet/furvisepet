@@ -1,5 +1,6 @@
 import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "./types";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
+import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
 
 const forbiddenOwnerCategories = /(?:age|race|religion|politic|medical_condition|disability|sexual|ethnicity)/i;
 const diagnosisPattern = /\b(diagnos(?:e|is)|has allergies|has an infection|is sick|definitely has)\b/i;
@@ -44,6 +45,12 @@ export function evaluateCareActionPolicy({
     else if (!hasSupport(currentMessage, `${action.title} ${action.details}`)) reason = "care_action_not_supported_by_message";
     else if (diagnosisPattern.test(`${action.title} ${action.details}`)) reason = "diagnosis_is_not_persisted";
     else if (dosagePattern.test(action.details) && !dosagePattern.test(currentMessage)) reason = "medication_dosage_not_explicit";
+    else if (!evaluateCareHistorySaveWorthiness({
+      category: action.category,
+      title: action.title,
+      details: action.details,
+      sourceMessage: currentMessage,
+    }).eligible) reason = "insufficient_longitudinal_value";
     else if (action.action === "resolve_concern" && (safetyLevel !== "recently_resolved" || !action.relatedRecordId || !activeConcernIds.includes(action.relatedRecordId))) reason = "concern_resolution_not_sufficiently_grounded";
     if (reason) rejected.push({ action, reason });
     else if (!accepted.some((item) => item.action === "create_entry" || item.action === "resolve_concern")) accepted.push(action);
