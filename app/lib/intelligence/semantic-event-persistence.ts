@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GovernedCanonicalEvent } from "./types";
+import { prepareGovernedCareHistoryEvent } from "./care-history-policy.ts";
 
 export function oneSemanticEventPerPet(events: GovernedCanonicalEvent[], fallbackPetId: string) {
   const byPet = new Map<string, GovernedCanonicalEvent>();
@@ -22,7 +23,7 @@ export function semanticEventRpcArguments({ event, fallbackPetId, sourceMessageI
   sourceMessageId: string;
   userId: string;
 }) {
-  const proposal = event.event;
+  const proposal = prepareGovernedCareHistoryEvent(event).event;
   return {
     p_event: {
       subject: { type: proposal.subject.type, name: proposal.subject.name },

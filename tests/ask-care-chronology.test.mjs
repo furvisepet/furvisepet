@@ -85,7 +85,8 @@ test("historical urgent events do not permanently force urgent state", () => {
 });
 
 test("complete event chronology remains available to profile summaries", () => {
-  assert.match(read("app/lib/intelligence/retrieve-context.ts"), /careEntries: care\.data \|\| \[\]/);
+  assert.match(read("app/lib/intelligence/retrieve-context.ts"), /careEntries: longitudinalCareEntries/);
+  assert.match(read("app/lib/intelligence/retrieve-context.ts"), /isLongitudinalCareHistoryEntry/);
   assert.match(read("app/lib/intelligence/build-context.ts"), /sort\(\(left, right\) => right\.score - left\.score \|\| eventTime\(right\.entry\) - eventTime\(left\.entry\)\)/);
 });
 

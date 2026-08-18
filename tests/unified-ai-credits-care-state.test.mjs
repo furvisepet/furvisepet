@@ -316,6 +316,20 @@ test("casual banter can generate a short reply but cannot create a care-history 
   assert.equal(result.intent, "casual");
   assert.deepEqual(result.answer.sections, []);
   assert.equal(result.suggestion, null);
+
+  const butterfly = await orchestrateAskTurn({
+    concerns: [],
+    generationInput: { ...generationInput, question: "so my cat went outside and literally started chasing butterflies" },
+    message: "so my cat went outside and literally started chasing butterflies",
+    petName: "Mani",
+    generate: async () => generatedResult({
+      answer: { title: "Furvise", summary: "Mani sounds fully locked in on the butterfly hunt.", sections: [], safetyNote: null },
+      proposedHistoryUpdate: { shouldOffer: true, category: "behavior", title: "Mani chased butterflies outside", details: "went outside and literally started chasing butterflies", severity: null, resolvesConcernId: null },
+      safetyLevel: "normal",
+    }),
+  });
+  assert.deepEqual(butterfly.answer.sections, []);
+  assert.equal(butterfly.suggestion, null);
 });
 
 test("resolved concerns reopen when a matching concern returns", () => {

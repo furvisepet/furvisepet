@@ -7,6 +7,7 @@ import {
   type VetBriefConversationMessage,
   type VetBriefDocument,
 } from "./types.ts";
+import { isLongitudinalCareHistoryEntry } from "../intelligence/care-history-policy.ts";
 
 type BuildVetBriefInput = {
   profile: DogProfileRow;
@@ -25,7 +26,8 @@ export function buildVetBriefDraft(input: BuildVetBriefInput) {
   const topicText = `${reasonForVisit} ${conversation.map(getConversationText).join(" ")}`.toLowerCase();
   const rangedEntries = input.careEntries
     .filter((entry) => isWithinDateRange(entry.occurred_at, input.from, input.to))
-    .filter((entry) => !isDeletedOrGeneratedGuidance(entry));
+    .filter((entry) => !isDeletedOrGeneratedGuidance(entry))
+    .filter(isLongitudinalCareHistoryEntry);
   const relevantEntries = rangedEntries.filter((entry) => isRelevantEntry(entry, topicText));
   const relevantMemories = input.memories
     .filter((memory) => isWithinDateRange(memory.created_at, input.from, input.to))

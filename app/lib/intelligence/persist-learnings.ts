@@ -7,6 +7,8 @@ import { logIntelligenceError } from "./logging";
 import { historicalPreferenceTargetIdentity, normalizeKnownPreferenceMemory, planPreferenceSupersession, preferenceTargetIdentity } from "./preference-semantics";
 import { groupLearningsByPersistencePet } from "./persistence-partition";
 import { oneSemanticEventPerPet, persistSemanticEventRpc } from "./semantic-event-persistence";
+import type { CareEntryRow } from "../supabase.ts";
+import { findEquivalentRecentCareEntry, prepareGovernedCareHistoryEvent } from "./care-history-policy.ts";
 
 export class IntelligencePersistenceError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -23,6 +25,7 @@ export async function persistIntelligenceLearnings({
   sourceMessageId,
   supabase,
   userId,
+  recentCareEntries = [],
 }: {
   careActions: IntelligenceCareAction[];
   semanticEvents?: GovernedCanonicalEvent[];
@@ -31,6 +34,7 @@ export async function persistIntelligenceLearnings({
   sourceMessageId: string;
   supabase: SupabaseClient;
   userId: string;
+  recentCareEntries?: CareEntryRow[];
 }): Promise<IntelligencePersistenceSummary> {
   const normalizedLearnings = learnings.map((learning) => ({
     ...learning,
@@ -41,11 +45,11 @@ export async function persistIntelligenceLearnings({
     destination === "care_event" || destination === "episode_current_state" || destination === "state_only"));
   const semanticEvent = persistableSemanticEvents[0];
   const carePersistence = resolutionAction
-    ? await persistCanonicalCareAction({ action: resolutionAction, petId, sourceMessageId, supabase, userId })
+    ? await persistCanonicalCareAction({ action: resolutionAction, petId, sourceMessageId, supabase, userId, recentCareEntries })
     : semanticEvent && persistableSemanticEvents.length
-    ? await persistCanonicalSemanticEvents({ events: persistableSemanticEvents, petId, sourceMessageId, supabase, userId })
+    ? await persistCanonicalSemanticEvents({ events: persistableSemanticEvents, petId, sourceMessageId, supabase, userId, recentCareEntries })
     : careActions[0]
-      ? await persistCanonicalCareAction({ action: careActions[0], petId, sourceMessageId, supabase, userId })
+      ? await persistCanonicalCareAction({ action: careActions[0], petId, sourceMessageId, supabase, userId, recentCareEntries })
     : skippedCarePersistence();
   const persistenceRows: Record<string, unknown>[] = [];
   if (normalizedLearnings.length) {
@@ -93,17 +97,30 @@ export async function persistIntelligenceLearnings({
   };
 }
 
-async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, supabase, userId }: {
+async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, supabase, userId, recentCareEntries }: {
   event: GovernedCanonicalEvent;
   petId: string;
   sourceMessageId: string;
   supabase: SupabaseClient;
   userId: string;
+  recentCareEntries: CareEntryRow[];
 }): Promise<CarePersistenceResult> {
-  const proposal = event.event;
+  const preparedEvent = prepareGovernedCareHistoryEvent(event);
+  const proposal = preparedEvent.event;
   const targetPetId = proposal.subject.id || petId;
+  const equivalent = findEquivalentRecentCareEntry({
+    title: proposal.eventTitle,
+    details: proposal.sourceExcerpt,
+    severity: proposal.importance,
+    transition: proposal.transition,
+    entries: recentCareEntries.filter((entry) => entry.pet_profile_id === targetPetId),
+  });
+  if (equivalent) {
+    return { status: "persisted", careEntryIds: [equivalent.id], concernIds: equivalent.concern_id ? [equivalent.concern_id] : [], errorCode: null,
+      currentSafetyState: proposal.state === "resolved" ? "recently_resolved" : proposal.importance === "urgent" ? "urgent" : "routine", alreadyPersisted: true };
+  }
   const { data, error } = await persistSemanticEventRpc({
-    event, fallbackPetId: petId, sourceMessageId, supabase, userId,
+    event: preparedEvent, fallbackPetId: petId, sourceMessageId, supabase, userId,
   });
   if (error) {
     logIntelligenceError("semantic_event_persistence", error, {
@@ -128,6 +145,7 @@ async function persistCanonicalSemanticEvents(input: {
   sourceMessageId: string;
   supabase: SupabaseClient;
   userId: string;
+  recentCareEntries: CareEntryRow[];
 }): Promise<CarePersistenceResult> {
   const results: CarePersistenceResult[] = [];
   for (const event of oneSemanticEventPerPet(input.events, input.petId)) {
@@ -294,13 +312,24 @@ async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageI
 
 function normalizeFactKey(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }
 
-async function persistCanonicalCareAction({ action, petId, sourceMessageId, supabase, userId }: {
+async function persistCanonicalCareAction({ action, petId, sourceMessageId, supabase, userId, recentCareEntries }: {
   action: IntelligenceCareAction;
   petId: string;
   sourceMessageId: string;
   supabase: SupabaseClient;
   userId: string;
+  recentCareEntries: CareEntryRow[];
 }): Promise<CarePersistenceResult> {
+  const equivalent = findEquivalentRecentCareEntry({
+    title: action.title,
+    details: action.details,
+    severity: action.severity,
+    entries: recentCareEntries.filter((entry) => entry.pet_profile_id === petId),
+  });
+  if (equivalent) {
+    return { status: "persisted", careEntryIds: [equivalent.id], concernIds: equivalent.concern_id ? [equivalent.concern_id] : [], errorCode: null,
+      currentSafetyState: action.action === "resolve_concern" ? "recently_resolved" : action.severity === "urgent" || action.severity === "emergency" ? "urgent" : "routine", alreadyPersisted: true };
+  }
   const { data, error } = await supabase.rpc("persist_furvise_care_event", {
     p_care_action: action,
     p_pet_id: petId,

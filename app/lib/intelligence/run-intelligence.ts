@@ -20,6 +20,7 @@ import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
 import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/legacy-memory.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
+import { buildExplicitCareHistoryAction, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -161,7 +162,18 @@ export async function runFurviseIntelligence({
     message: context.currentMessage, petId: context.pet.id, authorizedPetIds: authoritativePetIds,
     careActions: proposedCareActions, memories: learningPolicy.accepted,
   });
-  const governedCareActions = governance.careActions.filter((decision) => decision.decision === "accepted").map((decision) => decision.proposal);
+  const governedCareActions = governance.careActions
+    .filter((decision) => decision.decision === "accepted")
+    .map((decision) => prepareGovernedCareHistoryAction({
+      action: decision.proposal,
+      petName: context.pet.name,
+      sourceMessage: context.currentMessage,
+    }));
+  const explicitCareHistoryAction = multiPetTurn ? null : buildExplicitCareHistoryAction({
+    currentMessage: context.currentMessage,
+    conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
+    pet: context.pet,
+  });
   const governedLearnings = governance.memories.filter((decision) => decision.decision === "accepted").map((decision) => decision.proposal);
   const semanticLearnings = semanticGovernance.accepted.map(learningFromSemanticEvent).filter((item): item is NonNullable<typeof item> => Boolean(item));
   let governedV2Turn: GovernedSemanticTurn | null = null;
@@ -191,7 +203,7 @@ export async function runFurviseIntelligence({
     careActions: governedCareActions,
     learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
   });
-  const acceptedCareActions = routedPersistence.careActions;
+  const acceptedCareActions = explicitCareHistoryAction ? [explicitCareHistoryAction] : routedPersistence.careActions;
   const projectedPreferenceIdentities = new Set(projectedPreferences.map(learningPreferenceIdentity).filter(Boolean));
   const acceptedLearnings = dedupeLearnings([
     ...routedPersistence.learnings.filter((item) =>

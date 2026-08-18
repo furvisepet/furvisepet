@@ -66,6 +66,13 @@ test("Vet Visit Brief date filtering and relevance exclude unrelated history", (
   assert.doesNotMatch(text, /Scratching after dinner|Long walk|Old cough/);
 });
 
+test("Vet Visit Brief excludes conversational butterfly history even for a general wellness visit", () => {
+  const butterfly = careEntry("butterfly", "behavior", "2026-07-11", "Mani chased butterflies outside", "went outside and literally started chasing butterflies", null);
+  const { document, sourceEntryIds } = buildVetBriefDraft({ profile, careEntries: [butterfly], memories: [], reasonForVisit: "Annual wellness checkup", from: "2026-07-01", to: "2026-07-24", generatedAt: "2026-07-24T12:00:00Z" });
+  assert.deepEqual(sourceEntryIds, []);
+  assert.doesNotMatch(JSON.stringify(document), /butterfl/i);
+});
+
 test("confirmed user edits are preserved and removed items stay removed", () => {
   const { document } = buildVetBriefDraft({ profile, careEntries: entries, memories: [], from: "2026-07-01", to: "2026-07-24", generatedAt: "2026-07-24T12:00:00Z" });
   const edited = parseVetBriefDocument({ ...document, reasonForVisit: "Owner-confirmed wellness review", ownerReportedChanges: [], ownerNotes: "Please discuss travel planning." });

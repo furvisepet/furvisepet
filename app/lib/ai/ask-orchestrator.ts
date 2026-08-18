@@ -3,6 +3,7 @@ import type { PetConcern, PendingUpdateSuggestion } from "./concern-engine.ts";
 import { buildConcernOpeningSuggestion, buildMemorySuggestion, buildObservationSuggestion, buildResolutionSuggestion, getCurrentConcern } from "./concern-engine.ts";
 import { decideWhetherAiGenerationIsNeeded } from "./response-planner.ts";
 import { classifyUserTurn, type TurnIntent } from "./turn-classifier.ts";
+import { evaluateCareHistorySaveWorthiness } from "../intelligence/care-history-policy.ts";
 
 export type AskOrchestratorResult = {
   aiResult: AskReasoningResult | null;
@@ -68,6 +69,17 @@ export async function orchestrateAskTurn({
         },
       }
     : null;
+  const candidateSuggestion = improvementSuggestion || modelSuggestion || (turn.intent === "preference" || turn.intent === "correction"
+    ? buildMemorySuggestion({ message, petName })
+    : turn.intent === "new_observation"
+      ? buildConcernOpeningSuggestion({ message, petName }) || buildObservationSuggestion({ message, petName })
+      : null);
+  const suggestion = candidateSuggestion?.type === "history" && !evaluateCareHistorySaveWorthiness({
+    category: typeof candidateSuggestion.payload.category === "string" ? candidateSuggestion.payload.category : undefined,
+    title: typeof candidateSuggestion.payload.title === "string" ? candidateSuggestion.payload.title : candidateSuggestion.title,
+    details: candidateSuggestion.details,
+    sourceMessage: message,
+  }).eligible ? null : candidateSuggestion;
   return {
     aiResult,
     answer: aiResult.answer,
@@ -75,10 +87,6 @@ export async function orchestrateAskTurn({
     handledWithoutAi: false,
     intent: turn.intent,
     safetyLevel: aiResult.safetyLevel,
-    suggestion: improvementSuggestion || modelSuggestion || (turn.intent === "preference" || turn.intent === "correction"
-      ? buildMemorySuggestion({ message, petName })
-      : turn.intent === "new_observation"
-        ? buildConcernOpeningSuggestion({ message, petName }) || buildObservationSuggestion({ message, petName })
-        : null),
+    suggestion,
   };
 }
