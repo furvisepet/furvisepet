@@ -101,8 +101,15 @@ import {
   buildGriefResponseFallback,
   buildUnavailableConfirmedLossAction,
   classifyCurrentPetLoss,
-  findRecentConfirmedLossMessage,
 } from "../../lib/ai/pet-loss.ts";
+import {
+  derivePendingLifecycleAssertion,
+  requiresLivingPet,
+  resolvePendingLifecycleTurn,
+  type PendingLifecycleAssertion,
+  type PendingLifecycleTurnResolution,
+} from "../../lib/ai/pending-lifecycle.ts";
+import { getPetLifecycleStatus } from "../../lib/pet-lifecycle.ts";
 import { isExplicitCareHistorySaveRequest } from "../../lib/intelligence/care-history-policy.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -113,7 +120,7 @@ type AskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "R
 
 type ConversationMessage =
   | { id: string; role: "user"; text: string }
-  | { id: string; role: "furvise"; response: { directAnswer?: string; summary?: string; clarificationQuestion?: string; trackingPlan?: { observations?: string[] } } | null };
+  | { id: string; role: "furvise"; response: { directAnswer?: string; summary?: string; clarificationQuestion?: string; trackingPlan?: { observations?: string[] }; applicationActions?: FurviseApplicationAction[] } | null };
 type PreparedAskRequest = {
   conversationId: string;
   userMessageId: string;
@@ -321,6 +328,17 @@ export async function POST(request: Request) {
     verifiedUserId: userId,
   });
 
+  const pendingLifecycle = derivePendingLifecycleAssertion({
+    turns: liveContext.conversationTurns,
+    pets: liveContext.eligiblePets,
+  });
+  const pendingLifecycleResolution = pendingLifecycle
+    ? resolvePendingLifecycleTurn({ assertion: pendingLifecycle, message: question, pets: liveContext.eligiblePets })
+    : null;
+  const durableLifecycleStatus = getPetLifecycleStatus(liveContext.pet);
+  const durableLifecycleResolution = durableLifecycleStatus !== "active" && requiresLivingPet(question)
+    ? durableLifecycleStatus
+    : null;
   let turnPetId = petId;
   let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
   let contextUsed = turnView.contextUsed;
@@ -334,6 +352,9 @@ export async function POST(request: Request) {
   let aiAdmissionFinalized = false;
   const rateGateRef: { current: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null } = { current: null };
   let confirmedExistingCarePersistence: CarePersistenceResult | null = null;
+  let deterministicApplicationActions: FurviseApplicationAction[] = [];
+  let deferHighImpactLifecyclePersistence = classifyCurrentPetLoss(question) === "confirmed_current"
+    || pendingLifecycle?.kind === "reported_deceased";
   const onProviderEvent = (event: AskProviderEvent) => {
     if (event.outcome === "started") providerCallCount += 1;
     logAskProviderEvent(event, {
@@ -351,6 +372,33 @@ export async function POST(request: Request) {
       : null;
     if (preconfirmedOrchestration) {
       orchestration = preconfirmedOrchestration;
+    } else if (pendingLifecycle && pendingLifecycleResolution && pendingLifecycleResolution.kind !== "continuation") {
+      orchestration = buildPendingLifecycleOrchestration(pendingLifecycle, pendingLifecycleResolution);
+      if (pendingLifecycleResolution.kind === "contradiction" || pendingLifecycleResolution.kind === "alternate_pet") {
+        deterministicApplicationActions = [pendingLifecycle.action];
+      } else if (pendingLifecycleResolution.kind === "correction") {
+        deterministicApplicationActions = [cancelledPendingLifecycleAction(pendingLifecycle.action)];
+      } else if (pendingLifecycleResolution.kind === "reassigned_death") {
+        turnPetId = pendingLifecycleResolution.petId;
+        const reassignedActions = prepareFurviseApplicationActions({
+          proposals: [{
+            kind: "pet.mark_deceased",
+            input: { field: null, value: null, title: null, detail: null, category: null, target: "specified" },
+            evidence: question.slice(0, 240),
+            explicitIntent: false,
+          }],
+          petId: pendingLifecycleResolution.petId,
+          petName: pendingLifecycleResolution.petName,
+          requestId,
+        }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
+        deterministicApplicationActions = [cancelledPendingLifecycleAction(pendingLifecycle.action), ...reassignedActions];
+        deferHighImpactLifecyclePersistence = true;
+      }
+    } else if (durableLifecycleResolution) {
+      orchestration = buildDurableLifecycleContradictionOrchestration(
+        liveContext.pet.name || "your pet",
+        durableLifecycleResolution,
+      );
     } else {
     rateGateRef.current = await requireRateLimitedRequest({
       idempotencyKey: requestId,
@@ -597,6 +645,7 @@ export async function POST(request: Request) {
     }
   }
   let preparedApplicationActions: FurviseApplicationAction[] = [];
+  if (deterministicApplicationActions.length) preparedApplicationActions = deterministicApplicationActions;
   if (reasoning) {
     try {
       preparedApplicationActions = prepareFurviseApplicationActions({
@@ -604,18 +653,16 @@ export async function POST(request: Request) {
         petId: turnPetId,
         petName: liveContext.pet.name || "your pet",
         requestId,
-      });
+      }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
     } catch (error) {
-      const lossEvidence = classifyCurrentPetLoss(question) === "confirmed_current"
-        ? question
-        : findRecentConfirmedLossMessage(liveContext.conversationTurns);
+      const lossEvidence = classifyCurrentPetLoss(question) === "confirmed_current" ? question : null;
       const unavailableLossAction = buildUnavailableConfirmedLossAction({
         message: lossEvidence || question,
         petId: turnPetId,
         petName: liveContext.pet.name || "your pet",
         requestId,
       });
-      if (unavailableLossAction) preparedApplicationActions = [unavailableLossAction];
+      if (unavailableLossAction) preparedApplicationActions = [{ ...unavailableLossAction, sourceMessageId: preparedRequest.userMessageId }];
       emitOperationalEvent({
         errorCode: "ASK_ACTION_PREPARATION_FAILED",
         eventType: "application_error",
@@ -635,6 +682,10 @@ export async function POST(request: Request) {
       }, 200);
     }
   }
+  if (pendingLifecycle && pendingLifecycleResolution?.kind === "continuation"
+    && !preparedApplicationActions.some((action) => action.kind === pendingLifecycle.action.kind && action.petId === pendingLifecycle.petId)) {
+    preparedApplicationActions = [pendingLifecycle.action, ...preparedApplicationActions].slice(0, 4);
+  }
   let governedAnswer = enforceAnswerStateClaims(orchestration.answer);
   if (reasoning?.responseMode === "grief_support"
     && governedAnswer.summary === "I can help with that using the action below.") {
@@ -646,7 +697,11 @@ export async function POST(request: Request) {
     missingUsefulDetails: [],
     suggestedQuestions: reasoning?.suggestedFollowUps || [],
     applicationActions: preparedApplicationActions,
-    interactionMode: reasoning?.responseMode === "grief_support" ? "grief" : orchestration.intent === "casual" ? "casual" : undefined,
+    interactionMode: reasoning?.responseMode === "grief_support" || pendingLifecycleResolution?.kind === "reassigned_death"
+      ? "grief"
+      : pendingLifecycleResolution?.kind === "contradiction" || pendingLifecycleResolution?.kind === "alternate_pet"
+        ? "action_confirmation"
+        : orchestration.intent === "casual" ? "casual" : undefined,
     recentlyResolved: reasoning?.intelligenceSafety.level === "recently_resolved",
     monitoring: safetyLevel === "monitor",
     urgent: safetyLevel === "urgent",
@@ -671,6 +726,7 @@ export async function POST(request: Request) {
       creditReserved,
       contextUsed,
       handledWithoutAi: orchestration.handledWithoutAi,
+      deferHighImpactLifecyclePersistence,
       historyReviewRequired: orchestration.intent === "new_observation"
         && classifyCurrentPetLoss(question) !== "confirmed_current"
         && !isExplicitCareHistorySaveRequest(question),
@@ -711,7 +767,7 @@ function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requ
     .filter((message) => message.id !== currentSourceMessageId)
     .map((message) => message.role === "user"
       ? { id: message.id, role: "user", text: message.text }
-      : { id: message.id, role: "furvise", response: { directAnswer: message.text } });
+      : { id: message.id, role: "furvise", response: { directAnswer: message.text, applicationActions: message.applicationActions } });
   const entries = liveContext.careEntries;
   const recentUpdates = buildRecentAskUpdates(entries);
   const memories = liveContext.legacyPetMemories;
@@ -725,6 +781,7 @@ function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requ
     recentConversationTurns: conversationMessages.map((message) => ({
       role: message.role,
       text: message.role === "user" ? message.text : message.response?.directAnswer || message.response?.summary || "",
+      ...(message.role === "furvise" ? { applicationActions: message.response?.applicationActions } : {}),
     })),
     recentlyResolvedConcernTags: /\b(breath|tired|energy|symptom|normal|fine|good|worse|returned|again)\b/i.test(question)
       ? recentlyResolvedConcerns.flatMap((concern) => concernKeyToAskTags(concern.normalized_key, concern.title))
@@ -827,6 +884,76 @@ function buildSubjectClarificationOrchestration(message: string) {
     intent: "unknown" as const,
     safetyLevel: urgent ? "urgent" as const : "normal" as const,
     suggestion: null,
+  };
+}
+
+function buildPendingLifecycleOrchestration(
+  assertion: PendingLifecycleAssertion,
+  resolution: PendingLifecycleTurnResolution,
+) {
+  const reportedState = assertion.kind === "reported_deceased" ? "died" : "should be archived";
+  const pendingReport = assertion.kind === "reported_deceased"
+    ? `the pending report that ${assertion.petName} died`
+    : `the pending request to archive ${assertion.petName}`;
+  if (resolution.kind === "correction") {
+    return deterministicLifecycleOrchestration(
+      "Correction recorded",
+      `Thanks for correcting that. ${capitalize(pendingReport)} was cleared. ${assertion.petName}'s profile, history, and memories were not changed by that report.`,
+      "correction",
+    );
+  }
+  if (resolution.kind === "reassigned_death") {
+    return deterministicLifecycleOrchestration(
+      "I'm sorry for your loss",
+      `I'm so sorry. I cleared ${pendingReport} and prepared a separate confirmation for ${resolution.petName}. Nothing was added to either pet's durable history or memory yet.`,
+      "correction",
+    );
+  }
+  if (resolution.kind === "alternate_pet") {
+    return deterministicLifecycleOrchestration(
+      `Let's clarify which pet you mean`,
+      `I understand that you mean ${resolution.petName}. The report that ${assertion.petName} ${reportedState} is still awaiting confirmation. Please ask the care question again with ${resolution.petName}'s name so I don't mix their histories.`,
+      "unknown",
+    );
+  }
+  return deterministicLifecycleOrchestration(
+    "Let's clarify before continuing",
+    `You just told me ${assertion.petName} ${reportedState}, and that report is still awaiting confirmation. Are you asking about another pet, or correcting what you said about ${assertion.petName}?`,
+    "unknown",
+  );
+}
+
+function capitalize(value: string) {
+  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
+}
+
+function deterministicLifecycleOrchestration(title: string, summary: string, intent: "unknown" | "correction") {
+  return {
+    aiResult: null,
+    answer: { title, summary, sections: [], safetyNote: null },
+    concern: null,
+    handledWithoutAi: true,
+    intent,
+    safetyLevel: "normal" as const,
+    suggestion: null,
+  };
+}
+
+function buildDurableLifecycleContradictionOrchestration(petName: string, status: "deceased" | "archived") {
+  const state = status === "deceased" ? "marked as passed away" : "archived";
+  return deterministicLifecycleOrchestration(
+    "Let's clarify which pet you mean",
+    `${petName}'s profile is ${state}, so I won't give active-care advice for ${petName}. Are you asking about another pet, or do you need to correct ${petName}'s lifecycle state?`,
+    "unknown",
+  );
+}
+
+function cancelledPendingLifecycleAction(action: FurviseApplicationAction): FurviseApplicationAction {
+  return {
+    ...action,
+    status: "cancelled",
+    resultMessage: "The reported lifecycle change was corrected.",
+    errorMessage: null,
   };
 }
 
@@ -1007,6 +1134,7 @@ async function persistAssistantAnswer({
   concern = null,
   creditReserved,
   contextUsed,
+  deferHighImpactLifecyclePersistence = false,
   handledWithoutAi,
   historyReviewRequired = false,
   intelligenceResult = null,
@@ -1032,6 +1160,7 @@ async function persistAssistantAnswer({
   creditReserved: boolean;
   contextUsed: unknown;
   handledWithoutAi: boolean;
+  deferHighImpactLifecyclePersistence?: boolean;
   historyReviewRequired?: boolean;
   intelligenceResult?: FurviseIntelligenceResult | null;
   phase3Runtime: AskV2Phase3Runtime;
@@ -1146,8 +1275,9 @@ async function persistAssistantAnswer({
   let intelligencePersistence: IntelligencePersistenceSummary | null = null;
   let intelligencePersistenceWarning = "";
   let semanticTrace = intelligenceResult?.semanticTrace || null;
-  const reviewableSemanticEvent = intelligenceResult?.acceptedSemanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
-  if (intelligenceResult && (intelligenceResult.acceptedLearnings.length || intelligenceResult.acceptedCareActions.length || intelligenceResult.acceptedSemanticEvents.length)) {
+  const reviewableSemanticEvent = deferHighImpactLifecyclePersistence ? null
+    : intelligenceResult?.acceptedSemanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
+  if (!deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.acceptedLearnings.length || intelligenceResult.acceptedCareActions.length || intelligenceResult.acceptedSemanticEvents.length)) {
     try {
       intelligencePersistence = await persistIntelligenceLearnings({
         careActions: historyReviewRequired ? [] : intelligenceResult.acceptedCareActions,
@@ -1216,16 +1346,18 @@ async function persistAssistantAnswer({
     applicationActions = executed;
   }
 
-  await persistAskV2Phase3LowRisk({
-    runtime: phase3Runtime,
-    turn: intelligenceResult?.v2GovernedTurn || null,
-    legacyLearnings: intelligenceResult?.acceptedLearnings || [],
-    legacyPersistence: intelligencePersistence,
-    requestId,
-    selectedPetId: petId,
-    sourceMessage,
-    verifiedUserId: userId,
-  });
+  if (!deferHighImpactLifecyclePersistence) {
+    await persistAskV2Phase3LowRisk({
+      runtime: phase3Runtime,
+      turn: intelligenceResult?.v2GovernedTurn || null,
+      legacyLearnings: intelligenceResult?.acceptedLearnings || [],
+      legacyPersistence: intelligencePersistence,
+      requestId,
+      selectedPetId: petId,
+      sourceMessage,
+      verifiedUserId: userId,
+    });
+  }
 
   const confirmedCarePersistence = preconfirmedCarePersistence || intelligencePersistence?.carePersistence || null;
   const automaticCareAction = confirmedCarePersistence?.status === "persisted"
