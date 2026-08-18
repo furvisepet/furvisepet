@@ -16,6 +16,20 @@ export type AuthoritativeTurnSubjectResolution = {
   confidence: number;
 };
 
+export function resolveExplicitSelectedPetSubject({
+  message,
+  pets,
+  selectedPetId,
+}: {
+  message: string;
+  pets: EligibleSemanticPet[];
+  selectedPetId: string;
+}): AuthoritativeTurnSubjectResolution | null {
+  const explicitNames = explicitlyNamedOwnedPets(message, pets);
+  if (explicitNames.length !== 1 || explicitNames[0].id !== selectedPetId) return null;
+  return resolved(selectedPetId, 0.99);
+}
+
 export function resolveAuthoritativeTurnSubject({
   frame,
   message,

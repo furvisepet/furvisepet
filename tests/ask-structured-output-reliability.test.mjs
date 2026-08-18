@@ -71,6 +71,15 @@ test("Ask uses one canonical 4096-token native strict structured-output request"
   assert.equal(ASK_MAX_OUTPUT_TOKENS, 4096);
   assert.equal(request.max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
   assert.deepEqual(request.text.format, { type: "json_schema", name: "furvise_ask_response", strict: true, schema: askUnifiedJsonSchema });
+  assert.equal("temperature" in request, false);
+});
+
+test("Ask applies model-compatible reasoning controls without client-selectable provider options", async () => {
+  const client = clientWith([{ status: "completed", output_text: JSON.stringify(providerOutput()) }]);
+  await generateContextAwareAskResponse(input(client));
+  assert.deepEqual(client.requests[0].reasoning, { effort: "low" });
+  assert.equal("temperature" in client.requests[0], false);
+  assert.equal("model" in JSON.parse(client.requests[0].input), false);
 });
 
 test("a complete structured result larger than the old 2048-character boundary parses once", async () => {

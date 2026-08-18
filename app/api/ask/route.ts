@@ -77,7 +77,10 @@ import { claimIdempotentOperation } from "../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
 import type { ProposedSemanticFrame } from "../../lib/intelligence/semantic-frame/types";
-import { resolveAuthoritativeTurnSubject } from "../../lib/intelligence/entities/resolve-turn-subject";
+import {
+  resolveAuthoritativeTurnSubject,
+  resolveExplicitSelectedPetSubject,
+} from "../../lib/intelligence/entities/resolve-turn-subject";
 import {
   persistAskV2Phase3LowRisk,
   prepareAskV2Phase3,
@@ -340,18 +343,24 @@ export async function POST(request: Request) {
         creditFinalState = reservation.status;
         logAskStage("AI credit reserved", { creditReservationId: requestId, feature: "ask", requestId, retryReuse, status: reservation.status });
       }
-      const subjectFrame = await extractTurnSubjectFrame({
+      const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
+      const explicitSelectedPet = resolveExplicitSelectedPetSubject({
+        message: question,
+        pets: liveContext.eligiblePets,
+        selectedPetId: petId,
+      });
+      const subjectFrame = explicitSelectedPet ? undefined : await extractTurnSubjectFrame({
         message: question,
         model,
         onProviderEvent,
-        recentConversation: liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId),
+        recentConversation,
       });
-      const subjectResolution = resolveAuthoritativeTurnSubject({
-        frame: subjectFrame,
+      const subjectResolution = explicitSelectedPet || resolveAuthoritativeTurnSubject({
+        frame: subjectFrame!,
         message: question,
         ownerId: userId,
         pets: liveContext.eligiblePets,
-        recentConversation: liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId),
+        recentConversation,
         selectedPetId: petId,
       });
       logAskStage("turn subject resolved", {
@@ -636,7 +645,7 @@ function buildTurnGenerationInput({ authoritativePetIds, locale, liveContext, on
   onProviderEvent: (event: AskProviderEvent) => void;
   question: string;
   requestId: string;
-  turnSemanticFrame: ProposedSemanticFrame;
+  turnSemanticFrame?: ProposedSemanticFrame;
   turnView: ReturnType<typeof deriveAskTurnView>;
 }) {
   return {
@@ -902,23 +911,7 @@ async function persistAssistantAnswer({
   if (sequenceError) {
     logAskServerError("persist_assistant_message", sequenceError, { requestId }, 200);
     if (creditReserved) await safeReleaseAiCredit({ requestId, supabase });
-    return successfulAnswerResponse({
-      concern,
-      creditsUsed: 0,
-      contextUsed,
-      conversationId,
-      handledWithoutAi,
-      persistenceWarning: "This answer could not be saved to conversation history.",
-      requestId,
-      response,
-      saveMetadata,
-      safetyLevel: safetyLevel || (urgent ? "urgent" : "normal"),
-      saved: false,
-      shoppingSuppressed: shoppingSuppressed ?? Boolean(urgent),
-      suggestion: null,
-      usage,
-      userMessageId,
-    });
+    return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persist_assistant_message");
   }
 
   let { data: assistantMessage, error: messageError } = await supabase
@@ -965,23 +958,7 @@ async function persistAssistantAnswer({
     if (!assistantMessage || messageError) {
       logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
       if (creditReserved) await safeReleaseAiCredit({ requestId, supabase });
-      return successfulAnswerResponse({
-        concern,
-        creditsUsed: 0,
-        contextUsed,
-        conversationId,
-        handledWithoutAi,
-        persistenceWarning: "This answer could not be saved to conversation history.",
-        requestId,
-        response,
-        saveMetadata,
-        safetyLevel: safetyLevel || (urgent ? "urgent" : "normal"),
-        saved: false,
-        shoppingSuppressed: shoppingSuppressed ?? Boolean(urgent),
-        suggestion: null,
-        usage,
-        userMessageId,
-      });
+      return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persistence_failed");
     }
     logAskStage("assistant message persisted after idempotent retry", { requestId });
   }

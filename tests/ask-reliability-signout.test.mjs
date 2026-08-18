@@ -81,11 +81,11 @@ test("Ask API verifies pet ownership and persists the user message before genera
   assert.match(route, /askRequestTimeoutMs = 50_000/);
 });
 
-test("a usable answer survives assistant persistence failure", () => {
-  assert.match(route, /persist_assistant_message[\s\S]*successfulAnswerResponse\(\{[\s\S]*persistenceWarning: "This answer could not be saved to conversation history\."[\s\S]*saved: false/);
-  assert.match(route, /persistence: \{[\s\S]*saved,[\s\S]*warning/);
-  assert.match(page, /payload\.persistence\?\.saved === false/);
-  assert.match(page, /persistenceWarning \? <Status/);
+test("assistant persistence failure releases credit and returns a retryable saved-question error", () => {
+  const persistence = route.slice(route.indexOf("async function persistAssistantAnswer"), route.indexOf("async function persistPendingSuggestion"));
+  assert.match(persistence, /persist_assistant_message[\s\S]*safeReleaseAiCredit[\s\S]*askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503/);
+  assert.match(persistence, /persistence_failed[\s\S]*safeReleaseAiCredit[\s\S]*askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503/);
+  assert.doesNotMatch(persistence.slice(0, persistence.indexOf('logAskStage("assistant message persisted"')), /completeAiCredit/);
 });
 
 test("provider diagnostics stay server-side and expose only safe metadata", () => {

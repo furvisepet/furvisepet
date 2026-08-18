@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   AskPipelineError,
   ASK_MAX_OUTPUT_TOKENS,
+  ASK_PROMPT_CONTEXT_CHAR_BUDGET,
   areAskResponsesMateriallyIdentical,
   askUnifiedJsonSchema,
   buildAskContext,
@@ -17,6 +18,7 @@ import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
 const now = new Date("2026-07-27T20:00:00Z");
+const maniProductionQuestion = "Mani has been acting restless since the male cat started coming to our door three days ago. She keeps meowing at the door and seems more interested in getting outside. Yesterday I think she drank some water I had left outside, but I’m not completely sure. Today she ate normally and is acting mostly like herself. Based on what you already know about Mani and what I’ve told you recently, what do you think is relevant here, what should I do today, what should I keep an eye on, and is there anything from her history that changes your advice?";
 
 function profile(overrides = {}) {
   return {
@@ -94,6 +96,42 @@ test("normal questions use one strict structured provider request and no planner
   assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
   assert.doesNotMatch(client.requests[0].text.format.name, /planner/i);
   assert.equal(result.answer.summary, unified().answer);
+});
+
+test("the exact history-aware Mani question fits the supported context budget and completes once", async () => {
+  const answer = "The male cat at the door may be relevant to Mani’s restlessness and door-focused meowing, while the outside-water detail remains uncertain. Keep Mani indoors today, refresh her normal indoor water, offer play away from the door, and watch appetite, drinking, urination, energy, vomiting, diarrhea, and whether the restlessness settles. Her normal eating and mostly normal behavior today are reassuring. The supplied history does not establish another cause, so do not invent one; contact a veterinarian if she stops eating, seems unwell, has urinary trouble, or the behavior persists or escalates.";
+  const client = mockClient([unified({ answer })]);
+  const result = await generateContextAwareAskResponse({
+    ...input({
+      profiles: [profile({ sex: "female" })],
+      question: maniProductionQuestion,
+      conversationTurns: [{ id: "recent-1", role: "user", text: "Mani has been watching the cat outside.", createdAt: "2026-07-27T18:00:00Z" }],
+    }),
+    client,
+  });
+  const providerInput = JSON.parse(client.requests[0].input);
+  assert.equal(client.requests.length, 1);
+  assert.equal(providerInput.currentMessage, maniProductionQuestion);
+  assert.ok(client.requests[0].input.length <= ASK_PROMPT_CONTEXT_CHAR_BUDGET);
+  assert.equal("temperature" in client.requests[0], false);
+  assert.deepEqual(client.requests[0].reasoning, { effort: "low" });
+  assert.match(result.answer.summary, /male cat at the door/i);
+  assert.match(result.answer.summary, /uncertain/i);
+  assert.doesNotMatch(result.answer.summary, /diagnos/i);
+});
+
+test("long Ask context is ranked and truncated deterministically", () => {
+  const careEntries = Array.from({ length: 120 }, (_, index) => care({
+    id: `care-${String(index).padStart(3, "0")}`,
+    note: `Observation ${index} ${"detail ".repeat(200)}`,
+    occurred_at: "2026-07-27T12:00:00Z",
+    created_at: "2026-07-27T12:01:00Z",
+  }));
+  const first = buildAskContext(input({ careEntries, question: maniProductionQuestion }));
+  const second = buildAskContext(input({ careEntries: [...careEntries].reverse(), question: maniProductionQuestion }));
+  assert.ok(JSON.stringify(first.promptContext).length <= ASK_PROMPT_CONTEXT_CHAR_BUDGET);
+  assert.deepEqual(first.records.map((record) => record.id), second.records.map((record) => record.id));
+  assert.ok(first.records.length < careEntries.length);
 });
 
 test("the unified parser applies only authorized owner-preference frame recovery", async () => {
