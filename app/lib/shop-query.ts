@@ -63,7 +63,7 @@ export class ShopQueryInterpretationValidationError extends Error {
   }
 }
 
-export const shopQueryInterpretationSystemPrompt = [
+export const SHOP_QUERY_INTERPRETATION_PROMPT_RULES = [
   "You interpret only a pet owner's shopping query for Furvise.",
   "Your job is only to classify the query and extract explicit constraints.",
   "Use the selected pet's saved profile and care context for context, but do not invent facts.",
@@ -82,6 +82,10 @@ export const shopQueryInterpretationSystemPrompt = [
   "The category must be exactly one of: Itchy skin, Sensitive stomach, Picky eating, Weight management, General wellness, Grooming, Other.",
   "The species must be dog, cat, or unknown. Use explicit query species when present; otherwise use the selected pet species when available.",
   "Country may reflect explicit query country or account product country metadata only. Do not interpret country as product existence.",
+];
+
+export const shopQueryInterpretationSystemPrompt = [
+  ...SHOP_QUERY_INTERPRETATION_PROMPT_RULES,
 ].join("\n");
 
 const shopGroomingSynonymSignalsByTerm: Record<string, string[]> = {

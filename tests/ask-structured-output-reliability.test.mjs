@@ -23,6 +23,7 @@ function profile() {
 function providerOutput(overrides = {}) {
   return {
     answer: "Contact an emergency veterinarian now because Maple's extreme tiredness with abnormal breathing after activity can be serious.",
+    answerSections: [],
     safetyLevel: "urgent",
     suggestedFollowUps: ["Is Maple breathing with an open mouth or using the belly to breathe?"],
     proposedHistoryUpdate: { shouldOffer: true, category: "symptom", title: "Deep breathing after activity", details: "Maple was extremely tired and taking deep breaths after running.", severity: "urgent", resolvesConcernId: null },
@@ -153,6 +154,16 @@ test("repeated malformed completed output stops after one repair", async () => {
   assert.equal(client.requests.length, 2);
 });
 
+test("invalid adaptive sections are rejected and repaired once", async () => {
+  const client = clientWith([
+    { status: "completed", output_text: JSON.stringify(providerOutput({ answerSections: [{ heading: "What to do", items: [] }] })) },
+    { status: "completed", output_text: JSON.stringify(providerOutput({ answerSections: [] })) },
+  ]);
+  const result = await generateContextAwareAskResponse(input(client));
+  assert.deepEqual(result.answer.sections, []);
+  assert.equal(client.requests.length, 2);
+});
+
 test("provider success is emitted only after parsing and schema validation", async () => {
   const events = [];
   const client = clientWith([{ status: "completed", output_text: JSON.stringify(providerOutput()) }]);
@@ -170,6 +181,8 @@ test("urgent output missing explicit escalation is repaired deterministically", 
 
 test("the reduced contract bounds ordinary output fields and omits deterministic metadata", () => {
   assert.equal(askUnifiedJsonSchema.properties.answer.maxLength, 1800);
+  assert.equal(askUnifiedJsonSchema.properties.answerSections.maxItems, 3);
+  assert.equal(askUnifiedJsonSchema.properties.answerSections.items.properties.items.maxItems, 4);
   assert.equal(askUnifiedJsonSchema.properties.suggestedFollowUps.maxItems, 1);
   assert.equal(askUnifiedJsonSchema.properties.learnings.maxItems, 5);
   assert.equal(askUnifiedJsonSchema.properties.careActions.maxItems, 3);

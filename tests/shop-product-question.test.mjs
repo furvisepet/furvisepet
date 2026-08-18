@@ -107,15 +107,16 @@ function memory(overrides = {}) {
 }
 
 test("product question prompt uses a direct, human store-advisor voice", () => {
-  assert.match(shopProductQuestionSystemPrompt, /knowledgeable store advisor/);
+  assert.match(shopProductQuestionSystemPrompt, /knowledgeable Furvise store advisor/);
   assert.match(shopProductQuestionSystemPrompt, /Assume the question is about this product/);
-  assert.match(shopProductQuestionSystemPrompt, /Answer the exact question in the first sentence/);
+  assert.match(shopProductQuestionSystemPrompt, /Answer the person's actual question immediately/);
   assert.match(shopProductQuestionSystemPrompt, /Do not use general internet knowledge/);
   assert.match(shopProductQuestionSystemPrompt, /Never invent ingredients, directions, warnings, size, price, availability/);
   assert.match(shopProductQuestionSystemPrompt, /detail needed for the answer is unavailable/);
   assert.match(shopProductQuestionSystemPrompt, /Return sections for schema compatibility/);
   assert.match(shopProductQuestionSystemPrompt, /make directAnswer the only shopper-facing answer/);
-  assert.match(shopProductQuestionSystemPrompt, /Keep it to one or two short paragraphs/);
+  assert.match(shopProductQuestionSystemPrompt, /Keep a routine product answer under 120 words when practical/);
+  assert.match(shopProductQuestionSystemPrompt, /multi-part or safety-sensitive question needs it for a sound decision/);
   assert.match(shopProductQuestionSystemPrompt, /safetyNote must exactly match the requiredSafetyNote/);
   assert.doesNotMatch(shopProductQuestionSystemPrompt, /provided data|catalog signals|verified fields|ingredientsVerified|If you want, I can/i);
 });

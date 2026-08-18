@@ -38,7 +38,7 @@ function danglingOwnerPreference(message) {
 
 function unifiedRaw(semanticFrame) {
   return JSON.stringify({
-    answer: "Understood.", safetyLevel: "normal", suggestedFollowUps: [],
+    answer: "Understood.", answerSections: [], safetyLevel: "normal", suggestedFollowUps: [],
     proposedHistoryUpdate: {
       shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null,
     },
