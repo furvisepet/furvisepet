@@ -1,3 +1,5 @@
+import { isCasualAskTone } from "../ask-experience.ts";
+
 export type TurnIntent =
   | "question"
   | "new_observation"
@@ -57,6 +59,7 @@ export function classifyUserTurn(message: string, options: { hasActiveConcern?: 
   else if (/\b(vet brief|prepare for (the )?vet|appointment notes?|questions for (the )?vet)\b/i.test(normalizedMessage)) intent = "vet_preparation";
   else if (/\b(product|food brand|buy|shopping|shampoo|treat|supplement|toy)\b/i.test(normalizedMessage) && /\?|\b(which|should|can|is|are|recommend)\b/i.test(normalizedMessage)) intent = "product_question";
   else if (isLowValueAcknowledgement) intent = options.hasActiveConcern ? "status_update" : "casual";
+  else if (isCasualAskTone(normalizedMessage)) intent = "casual";
   else if (/\?$|\b(what|when|where|why|how|should|could|can|is|are|do|does|will)\b/i.test(normalizedMessage)) intent = "question";
   else if (/\b(new|started|changed|vomit|itch|limp|breath|tired|pain|symptom|ate|drank|stool|medication|treatment)\b/i.test(normalizedMessage)) intent = "new_observation";
   else if (/^(hi|hello|hey|good morning|good afternoon|good evening|how are you)\b/i.test(normalizedMessage)) intent = "casual";
@@ -72,6 +75,7 @@ export function classifyActiveConcernMessage(message: string, hasActiveConcern =
   if (improvedPattern.test(normalized)) return "improved";
   if (returnPattern.test(normalized)) return "recurrence";
   if (stillActivePattern.test(normalized)) return "still_active";
+  if (isCasualAskTone(normalized)) return "unrelated";
   if (/^(?:hi|hello|hey|yo|thanks|thank you|okay|ok)[!.\s]*$/i.test(normalized)) return "unrelated";
   if (/\?|\b(what|when|where|why|how|should|could|can|is|are|do|does|will)\b/i.test(normalized) && !concernLanguagePattern.test(normalized)) return "unrelated";
   return "unclear";

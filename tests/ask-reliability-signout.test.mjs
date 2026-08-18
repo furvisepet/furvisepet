@@ -21,7 +21,7 @@ test("Ask blocks empty and duplicate submissions while exposing a visible reques
   assert.match(page, /disabled=\{!canSend\}/);
   assert.match(page, /requestPhase === "submitting"/);
   assert.match(page, /requestPhase === "receiving"/);
-  assert.match(page, /Furvise is reviewing \$\{petName\}'s saved details/);
+  assert.match(page, /Furvise is thinking this through/);
 });
 
 test("Ask sends selected pet context and one idempotent request", () => {

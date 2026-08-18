@@ -53,7 +53,8 @@ test("Ask conversation contract rejects model-selected actions outside the deter
   assert.ok(response);
   assert.equal(parseAskConversationResponse({ ...response, actions: ["delete_history"] }), null);
   assert.equal(parseAskConversationResponse({ ...response, urgency: "maybe" }), null);
-  assert.equal(parseAskConversationResponse({ ...response, suggestedQuestions: ["1", "2", "3", "4"] }), null);
+  assert.ok(parseAskConversationResponse({ ...response, suggestedQuestions: ["1", "2", "3", "4"] }));
+  assert.equal(parseAskConversationResponse({ ...response, suggestedQuestions: ["1", "2", "3", "4", "5"] }), null);
 });
 
 test("Ask workspace keeps one composer, chronological thread, compact pet selection, and one general disclaimer", () => {

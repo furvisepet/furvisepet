@@ -76,7 +76,7 @@ export function buildAskConversationResponse(response, options = {}) {
   const answerType = resolveConversationAnswerType(options.intent, Boolean(options.urgent), parsed);
   const usedContextSummary = cleanStringList(options.usedContextSummary, 4);
   const missingUsefulDetails = cleanStringList(options.missingUsefulDetails, 4);
-  const suggestedQuestions = cleanStringList(options.suggestedQuestions, 3);
+  const suggestedQuestions = cleanSuggestedQuestions(options.suggestedQuestions);
   const saveSuggestions = cleanSaveSuggestions(options.saveSuggestions);
   const trackingPlan = cleanTrackingPlan(options.trackingPlan);
   const clarificationQuestion = cleanOptionalText(options.clarificationQuestion, 240);
@@ -103,7 +103,7 @@ export function parseAskConversationResponse(value) {
   if (!ASK_ANSWER_TYPES.includes(draft.answerType)) return null;
   if (typeof draft.directAnswer !== "string" || cleanText(draft.directAnswer) !== response.summary) return null;
   if (draft.supportingText !== undefined && draft.supportingText !== null && typeof draft.supportingText !== "string") return null;
-  if (draft.suggestedQuestions !== undefined && !isStringArray(draft.suggestedQuestions, 3)) return null;
+  if (draft.suggestedQuestions !== undefined && !isStringArray(draft.suggestedQuestions, 4)) return null;
   if (!isStringArray(draft.actions, 4)) return null;
   if (draft.usedContextSummary !== undefined && !isStringArray(draft.usedContextSummary, 4)) return null;
   if (draft.missingUsefulDetails !== undefined && !isStringArray(draft.missingUsefulDetails, 4)) return null;
@@ -121,7 +121,7 @@ export function parseAskConversationResponse(value) {
     answerType: draft.answerType,
     directAnswer: response.summary,
     supportingText: draft.supportingText ? cleanText(draft.supportingText) : null,
-    suggestedQuestions: (draft.suggestedQuestions || []).map(cleanText).filter(Boolean),
+    suggestedQuestions: cleanSuggestedQuestions(draft.suggestedQuestions),
     actions: [...draft.actions],
     usedContextSummary: (draft.usedContextSummary || []).map(cleanText).filter(Boolean),
     missingUsefulDetails: (draft.missingUsefulDetails || []).map(cleanText).filter(Boolean),
@@ -183,6 +183,24 @@ function cleanTrackingPlan(value) {
 function cleanStringList(value, maxItems) {
   if (!isStringArray(value, maxItems)) return [];
   return value.map(cleanText).filter(Boolean);
+}
+
+const privilegedSuggestionPattern = /\b(?:ignore (?:all |any )?(?:previous|prior) instructions?|system prompt|developer (?:message|instructions?)|hidden instructions?|internal (?:prompt|context|machinery)|database (?:record|schema|field)|token budget|model settings?)\b/i;
+const unsafeSuggestionPattern = /\b(?:ibuprofen|acetaminophen|paracetamol|aspirin|human medication|induce vomiting|make (?:her|him|them|the pet) vomit)\b/i;
+
+function cleanSuggestedQuestions(value) {
+  if (!Array.isArray(value) || value.length > 4) return [];
+  const seen = new Set();
+  const suggestions = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const suggestion = cleanText(item).slice(0, 180);
+    const key = suggestion.toLocaleLowerCase();
+    if (!suggestion || privilegedSuggestionPattern.test(suggestion) || unsafeSuggestionPattern.test(suggestion) || seen.has(key)) continue;
+    seen.add(key);
+    suggestions.push(suggestion);
+  }
+  return suggestions;
 }
 
 export function hasUrgentSymptomContext(value) {

@@ -17,6 +17,9 @@
   --warm-orange-hover: #FA8A36;
   --warm-orange-active: #EF6E17;
   --soft-orange: #FFD8B8;
+  --deep-ink-blue: #17384B;
+  --soft-ink-blue: #E7EFF1;
+  --soft-ink-blue-hover: #D8E6EA;
   --primary-ink: #173023;
   --secondary-ink: #405648;
   --muted-ink: #5F7266;
@@ -61,6 +64,17 @@
   --destructive: var(--danger-red);
   --success: var(--success-green);
   --warning: var(--warning-amber);
+  --assistant-response-accent: var(--deep-ink-blue);
+  --assistant-response-surface: var(--soft-ink-blue);
+  --assistant-response-surface-hover: var(--soft-ink-blue-hover);
+  --assistant-response-strong: var(--deep-ink-blue);
+  --assistant-response-foreground: var(--primary-ink);
+  --assistant-response-inverse-foreground: var(--warm-cream);
+  --assistant-response-border: color-mix(in srgb, var(--deep-ink-blue) 24%, transparent);
+  --suggested-question-surface: var(--warm-cream);
+  --suggested-question-hover: var(--soft-ink-blue);
+  --suggested-question-selected: var(--soft-ink-blue-hover);
+  --suggested-question-foreground: var(--deep-ink-blue);
 
   /* Component-state roles preserve the existing shared architecture. */
   --surface-primary: var(--card-background);

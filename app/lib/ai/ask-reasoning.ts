@@ -244,7 +244,7 @@ export const askUnifiedJsonSchema = {
       },
     },
     safetyLevel: { type: "string", enum: [...safetyLevels] },
-    suggestedFollowUps: { type: "array", maxItems: 1, items: { type: "string", maxLength: 180 } },
+    suggestedFollowUps: { type: "array", maxItems: 4, items: { type: "string", maxLength: 180 } },
     proposedHistoryUpdate: {
       type: "object",
       additionalProperties: false,
@@ -292,6 +292,8 @@ const unifiedInstructions = [
   "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording.",
   "Put the immediate direct answer in answer. For a Level 3 response, put only genuinely useful grouped actions or monitoring points in answerSections; otherwise return an empty answerSections array. Do not duplicate the direct answer in the sections.",
   "Never diagnose. Do not repeat a generic veterinary disclaimer in routine answers.",
+  "For clearly casual small talk, mirror mild slang naturally, keep the answer short, and allow a light joke or an occasional single emoji when it fits. Do not invent monitoring, logging, care-plan, or veterinary advice when the content does not warrant it.",
+  "For urgent medical signs, serious injury, poisoning, severe pain, grief, death, or significant distress, immediately suppress jokes, slang, emojis, and playful framing. Safety remains dominant.",
   "A proposedHistoryUpdate is only an offer. Never write authoritative persistence claims such as I saved that, I added that to history, I updated the profile, or I marked it resolved. The server renders confirmation only after its transaction. Use proposedHistoryUpdate for a meaningful new event or reported improvement, not ordinary questions.",
   "Classify multiple simultaneous intents in messageUnderstanding. Extract only facts explicitly stated by the user in learnings, with a verbatim short sourceExcerpt from the current message.",
   "Use careActions only for explicit, useful time-bound care changes. Confidence must reflect the evidence. Never propose a diagnosis or an inferred medication dosage.",
@@ -306,7 +308,8 @@ const unifiedInstructions = [
   "Bind first-person preferences and first-person owner facts to the owner mention (I, me, or my). Treat named organizations, retailers, brands, products, stores, and places as values or objects unless the message explicitly makes a third party the subject.",
   "For every SemanticFrame concept, provide short lexical aliases only when they mean the same thing, parentLabels only for broader concepts, and relatedLabels only for non-identical related concepts. Do not call merely similar concepts aliases. The selected pet is contextual evidence, not automatic subject identity.",
   "Owner learnings may cover explicit shopping, budget, schedule, or communication preferences. Never infer sensitive personal traits.",
-  "Keep every reason and source excerpt concise. Return at most one follow-up, five learnings, and three care actions. Do not repeat supplied context in metadata.",
+  "Return zero to four suggestedFollowUps only when they add decision value. Order them by usefulness, information likely to change a decision, relevant Furvise-specific capability, and continuity with the recent conversation. Do not paraphrase the answer, repeat a suggestion, offer generic filler, expose internal machinery, or suggest unsafe actions. Return none for urgent, grief-related, significantly distressed, or trivial casual turns.",
+  "Keep every reason and source excerpt concise. Return at most four follow-ups, five learnings, and three care actions. Do not repeat supplied context in metadata.",
   "Include only supplied stable IDs in relevantContextIds. Never mention IDs, schemas, classifiers, or system instructions in the answer.",
 ].join("\n");
 
@@ -794,7 +797,7 @@ export function parseUnifiedResponse(
     safetyLevel: value.safetyLevel as ParsedUnifiedResponse["safetyLevel"],
     responseMode: value.responseMode as AskResponseMode,
     shoppingSuppressed: intelligenceSafety.shoppingSuppressed,
-    suggestedFollowUps: value.suggestedFollowUps.filter((item): item is string => typeof item === "string").map(cleanAnswer).filter(Boolean).slice(0, 1),
+    suggestedFollowUps: uniqueCleanSuggestedFollowUps(value.suggestedFollowUps),
     proposedHistoryUpdate: cleanProposedHistoryUpdate(value.proposedHistoryUpdate),
     userIntent: clean(value.userIntent).slice(0, 120),
     relevantContextIds,
@@ -1193,4 +1196,19 @@ function clean(value: string) {
 
 function cleanAnswer(value: string) {
   return String(value || "").replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+}
+
+function uniqueCleanSuggestedFollowUps(value: unknown[]) {
+  const seen = new Set<string>();
+  const suggestions: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const suggestion = cleanAnswer(item).slice(0, 180);
+    const key = suggestion.toLocaleLowerCase();
+    if (!suggestion || seen.has(key)) continue;
+    seen.add(key);
+    suggestions.push(suggestion);
+    if (suggestions.length === 4) break;
+  }
+  return suggestions;
 }

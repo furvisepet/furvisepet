@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import {
   type FormEvent,
@@ -42,6 +43,7 @@ import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
 import { markAppDataChanged } from "../lib/navigation/app-data-freshness";
 import { setAskRequestActive } from "../lib/navigation/ask-request-activity";
 import { getAskErrorPresentation, type AskFailureCode } from "../lib/ask-client-errors";
+import { applySuggestedQuestionDraft, getAskPresentationMode, shouldShowSuggestedQuestions } from "../lib/ask-experience";
 
 const emptyStarters = [
   "What should I track before {pet}'s next vet visit?",
@@ -453,10 +455,11 @@ function AskPageContent() {
     } finally { setSubmitting(false); }
   }
 
-  function selectSuggestion(suggestion: string, source: "empty_state" | "response_suggestion") {
-    setQuestion(suggestion);
-    if (source === "response_suggestion") trackAskEvent("suggestion_selected", { answerType: latestAnswer?.response.answerType, source });
-    void ask(suggestion, source);
+  function draftSuggestedQuestion(suggestion: string) {
+    applySuggestedQuestionDraft(suggestion, {
+      focusComposer: () => requestAnimationFrame(() => composerRef.current?.focus()),
+      setQuestion,
+    });
   }
 
   function runAction(action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) {
@@ -535,16 +538,16 @@ function AskPageContent() {
           <CompactPetSelector activeProfile={activeProfile} disabled={requestActive} onChange={switchPet} profiles={profiles} selectedPet={selectedPet} />
           <main className="min-w-0">
             <section aria-label="Conversation with Furvise" className={`flex w-full flex-col ${thread.length || requestActive ? "min-h-[66vh]" : ""}`}>
-              <div aria-live="polite" className="flex-1 space-y-8">
-                {!thread.length && !submitting ? <EmptyConversation petName={petName} onSelect={(prompt) => selectSuggestion(prompt, "empty_state")} /> : null}
+              <div aria-live="polite" className="flex-1 space-y-6 sm:space-y-7">
+                {!thread.length && !submitting ? <EmptyConversation petName={petName} onSelect={draftSuggestedQuestion} /> : null}
                 {thread.map((message, index) => message.role === "user"
                   ? <UserMessage key={message.id} text={message.text} />
-                  : <FurviseMessage key={message.id} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} />)}
-                {requestActive ? <Thinking petName={petName} /> : null}
+                  : <FurviseMessage key={message.id} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} userMessage={findPreviousUserMessage(thread, index)} />)}
+                {requestActive ? <Thinking /> : null}
                 {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.question, "composer", failedRequest)} planId={usage?.planId} retryAfterSeconds={failedRequest.retryAfterSeconds} /> : null}
                 <div aria-hidden="true" ref={conversationEndRef} />
               </div>
-              {latestAnswer && latestAnswer.response.urgency !== "urgent" ? <SuggestedQuestions onSelect={(suggestion) => selectSuggestion(suggestion, "response_suggestion")} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
+              {latestAnswer && !requestActive && !failedRequest && shouldShowSuggestedQuestions(latestAnswer.response, findPreviousUserMessage(thread, thread.lastIndexOf(latestAnswer))) ? <SuggestedQuestions currentDraft={question} onSelect={draftSuggestedQuestion} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
               <div className={`app-sticky-composer sticky ${hasThread ? "lg:sticky" : "lg:relative"} mt-4 bg-[var(--surface-page)] pt-1`} data-ask-composer-focused={composerFocused} data-ui="ask-composer-region">
                 <Composer disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onBlur={() => setComposerFocused(false)} onChange={setQuestion} onFocus={() => setComposerFocused(true)} onSubmit={submit} petName={petName} value={question} />
                 <p className="mt-2 text-center text-xs leading-5 text-[var(--pw-subtle)]">Furvise organizes care information and does not replace a veterinarian.</p>
@@ -565,17 +568,18 @@ function AskPageContent() {
 
 function EmptyConversation({ petName, onSelect }: { petName: string; onSelect: (prompt: string) => void }) {
   return <section className="pb-4 pt-7 sm:pt-9">
-    <h2 className="text-2xl font-semibold text-[var(--text-primary)]">What would you like help with?</h2>
-    <p className="mt-3 max-w-2xl leading-7 text-[var(--text-secondary)]">Ask about routines, changes you have noticed, products, or an upcoming vet visit.</p>
-    <div className="mt-6 max-w-3xl border-t border-[var(--line)]">{emptyStarters.map((starter) => { const label = starter.replace("{pet}", petName); return <button className="group flex min-h-14 w-full cursor-pointer items-center justify-between gap-4 border-b border-[var(--line)] px-2 text-left text-sm font-semibold text-[var(--ghost-action-foreground)] transition-colors hover:bg-[var(--selection)] hover:text-[var(--selected-text)] active:bg-[var(--surface-interactive)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--pw-focus-ring)]" data-ui="starter-question" key={starter} onClick={() => onSelect(label)} type="button"><span>{label}</span><span aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5">→</span></button>; })}</div>
+    <div className="flex items-center gap-3"><Image alt="" aria-hidden="true" className="h-12 w-12 object-contain" height={48} src="/images/nav-ask-v1.webp" width={48} /><h2 className="text-2xl font-semibold text-[var(--text-primary)]">What should we figure out?</h2></div>
+    <p className="mt-3 max-w-2xl leading-7 text-[var(--text-secondary)]">Ask about something funny, a change you noticed, a care decision, a product, or an upcoming vet visit.</p>
+    <p className="mt-2 text-sm text-[var(--text-tertiary)]">Choose one to draft it. Nothing is sent until you press Ask.</p>
+    <div className="mt-6 grid max-w-3xl gap-2 sm:grid-cols-2">{emptyStarters.map((starter) => { const label = starter.replace("{pet}", petName); return <button aria-controls="ask-composer" className="group flex min-h-14 w-full cursor-pointer items-center justify-between gap-3 rounded-xl border border-[var(--assistant-response-border)] bg-[var(--suggested-question-surface)] px-4 py-3 text-left text-sm font-semibold leading-5 text-[var(--suggested-question-foreground)] transition-colors hover:bg-[var(--suggested-question-hover)] active:bg-[var(--suggested-question-selected)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" data-ui="starter-question" key={starter} onClick={() => onSelect(label)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{label}</span><span aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5">↘</span></button>; })}</div>
   </section>;
 }
 
 function UserMessage({ text }: { text: string }) {
-  return <article aria-label="You" className="border-b border-[var(--line)] pb-6"><p className="text-sm font-medium text-[var(--text-tertiary)]">You</p><p className="mt-2 whitespace-pre-wrap text-[1.02rem] leading-7 text-[var(--text-primary)]">{text}</p></article>;
+  return <article aria-label="You" className="flex justify-end"><div className="max-w-[88%] rounded-2xl rounded-tr-md border border-[var(--line)] bg-[var(--surface-primary)] px-4 py-3 sm:max-w-[78%]"><p className="text-xs font-semibold text-[var(--text-tertiary)]">You</p><p className="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-[1.02rem] leading-7 text-[var(--text-primary)]">{text}</p></div></article>;
 }
 
-function FurviseMessage({ likelyVetConcern, message, onAction, onSuggestionAction }: { likelyVetConcern: boolean; message: Extract<ConversationMessage, { role: "furvise" }>; onAction: (action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) => void; onSuggestionAction: (suggestion: StateSuggestion, action: "save" | "monitor" | "dismiss" | "edit", details?: string) => Promise<void> }) {
+function FurviseMessage({ likelyVetConcern, message, onAction, onSuggestionAction, userMessage }: { likelyVetConcern: boolean; message: Extract<ConversationMessage, { role: "furvise" }>; onAction: (action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) => void; onSuggestionAction: (suggestion: StateSuggestion, action: "save" | "monitor" | "dismiss" | "edit", details?: string) => Promise<void>; userMessage: string }) {
   const { response } = message;
   const configuredActions: AnswerAction[] = likelyVetConcern && response.urgency !== "urgent" ? ["prepare_vet_note", "copy"] : response.actions;
   const actions = [...new Set(configuredActions)].filter((action) => {
@@ -585,17 +589,23 @@ function FurviseMessage({ likelyVetConcern, message, onAction, onSuggestionActio
   const urgent = response.urgency === "urgent";
   const monitoring = response.urgency === "monitor";
   const resolved = response.urgency === "resolved";
-  return <article className={urgent
+  const presentation = getAskPresentationMode(response, userMessage);
+  const playful = presentation === "casual" || presentation === "resolved";
+  const inverse = presentation === "casual";
+  return <article data-ask-presentation={presentation} className={urgent
     ? "rounded-2xl border border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] p-5 sm:p-6"
-    : monitoring ? "rounded-2xl border border-[var(--pw-warning-border)] bg-[var(--pw-warning-surface)] p-5 sm:p-6"
-      : resolved ? "rounded-2xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] p-5 sm:p-6" : ""}>
-    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--pw-heading)]"><BrandMark showName={false} size={24} /><span>Furvise</span></div>
-    {shouldShowAnswerHeading(response.title) ? <h2 className="text-xl font-semibold leading-8 text-[var(--pw-heading)]">{response.title}</h2> : null}
-    <p className={shouldShowAnswerHeading(response.title) ? "mt-2 text-[1.05rem] leading-8 text-[var(--pw-text)]" : "text-[1.05rem] leading-8 text-[var(--pw-text)]"}>{response.directAnswer}</p>
-    {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
+    : presentation === "casual" ? "w-fit max-w-[92%] rounded-2xl rounded-tl-md bg-[var(--assistant-response-strong)] px-4 py-3 sm:max-w-2xl"
+      : monitoring ? "max-w-3xl rounded-2xl border border-[var(--assistant-response-border)] border-l-4 border-l-[var(--warning)] bg-[var(--assistant-response-surface)] p-5 sm:p-6"
+        : resolved ? "max-w-3xl rounded-2xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] p-5 sm:p-6"
+          : presentation === "complex" ? "max-w-3xl rounded-3xl border border-[var(--assistant-response-border)] bg-[var(--assistant-response-surface)] p-5 sm:p-6"
+            : "max-w-3xl rounded-r-2xl border-l-2 border-l-[var(--assistant-response-accent)] py-1 pl-4"}>
+    <div className={`mb-3 flex items-center gap-2 text-sm font-semibold ${inverse ? "text-[var(--assistant-response-inverse-foreground)]" : "text-[var(--assistant-response-accent)]"}`}>{playful ? <Image alt="" aria-hidden="true" className="h-6 w-6 object-contain" height={24} src="/images/nav-ask-v1.webp" width={24} /> : <BrandMark showName={false} size={24} />}<span>Furvise</span></div>
+    {shouldShowAnswerHeading(response.title) ? <h2 className={`text-xl font-semibold leading-8 ${inverse ? "text-[var(--assistant-response-inverse-foreground)]" : "text-[var(--pw-heading)]"}`}>{response.title}</h2> : null}
+    <p className={`${shouldShowAnswerHeading(response.title) ? "mt-2 " : ""}[overflow-wrap:anywhere] text-[1.05rem] leading-8 ${inverse ? "text-[var(--assistant-response-inverse-foreground)]" : "text-[var(--pw-text)]"}`}>{response.directAnswer}</p>
+    {response.supportingText ? <p className={`mt-3 leading-7 ${inverse ? "text-[var(--assistant-response-inverse-foreground)]" : "text-[var(--pw-muted)]"}`}>{response.supportingText}</p> : null}
     <AdaptiveSections answerType={response.answerType} sections={response.sections} />
-    {actions.length ? <div className="mt-5 flex flex-wrap gap-2">{actions.map((action) => <button className={secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
-    {message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
+    {actions.length ? <div className="mt-5 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
+    {presentation !== "casual" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
     {getPersistenceNotices(message).map((notice) => <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]" data-persistence-notice={notice.type} key={notice.key}>{notice.label}</p>)}
     {message.carePersistence?.status === "failed" ? <p className="mt-3 text-xs font-semibold text-[var(--pw-warning-text)]" role="status">This update could not be added to care history. Ask Furvise to save it to try again.</p> : null}
   </article>;
@@ -613,9 +623,11 @@ function StateUpdateSuggestion({ onAction, suggestion }: { onAction: (suggestion
   }
   if (uiStatus === "dismissed") return null;
   if (uiStatus === "applied" || uiStatus === "already_applied") return <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">{uiStatus === "already_applied" ? "Already added to care history" : "Added to care history"}</p>;
-  return <section aria-label={suggestion.title} className="mt-5 max-w-xl rounded-xl border border-[var(--line)] bg-[var(--surface-supportive)] p-4">
-    <p className="text-sm font-semibold text-[var(--text-primary)]">{suggestion.title}</p>
+  return <section aria-label={suggestion.title} className="mt-5 max-w-xl rounded-xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] p-4" data-ui="care-history-suggestion">
+    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Care history suggestion</p>
+    <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{suggestion.title}</p>
     {editing ? <textarea aria-label="Edit suggested update" className={`${inputClass} mt-3 min-h-24 py-3`} onChange={(event) => setDraft(event.target.value)} value={draft} /> : suggestion.details ? <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{suggestion.details}</p> : null}
+    <p className="mt-2 text-xs text-[var(--text-tertiary)]">Nothing is added until you choose Save.</p>
     {uiStatus === "failed" ? <p className="mt-3 text-sm font-medium text-[var(--pw-warning-text)]" role="status">{suggestion.error || "This improvement could not be saved."}</p> : null}
     <div className="mt-3 flex flex-wrap gap-2">
       {editing ? <button className={secondaryButton} disabled={working || !draft.trim()} onClick={() => act("edit", draft.trim())} type="button">Save edit</button> : <button className={secondaryButton} disabled={working} onClick={() => act("save")} type="button">{working ? "Saving..." : uiStatus === "failed" ? "Try again" : resolution ? "Save improvement" : "Save"}</button>}
@@ -631,14 +643,14 @@ function shouldShowAnswerHeading(title: string) {
 
 function AdaptiveSections({ answerType, sections }: { answerType: AnswerType; sections: StructuredResponse["sections"] }) {
   if (!sections.length) return null;
-  if (answerType === "care_plan") return <div className="mt-5 space-y-5">{sections.map((section) => <section key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ol className="mt-2 list-decimal space-y-3 pl-6 leading-7 text-[var(--pw-text)]">{section.items.map((item, index) => <li className="pl-1" key={`${index}-${item}`}>{item}</li>)}</ol></section>)}</div>;
-  if (answerType === "history_summary") return <div className="mt-5 border-l border-[var(--pw-border-strong)] pl-5">{sections.map((section) => <section className="mb-5 last:mb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-2 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li key={item}>{item}</li>)}</ul></section>)}</div>;
-  return <div className="mt-5 grid gap-5 md:grid-cols-2">{sections.map((section) => <section className="min-w-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-2 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li className="flex gap-3" key={item}><span aria-hidden="true" className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--pw-subtle)]" /><span>{item}</span></li>)}</ul></section>)}</div>;
+  if (answerType === "care_plan") return <div className="mt-5 divide-y divide-[var(--assistant-response-border)] border-t border-[var(--assistant-response-border)]">{sections.map((section) => <section className="py-4 last:pb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ol className="mt-2 list-decimal space-y-3 pl-6 leading-7 text-[var(--pw-text)]">{section.items.map((item, index) => <li className="pl-1" key={`${index}-${item}`}>{item}</li>)}</ol></section>)}</div>;
+  if (answerType === "history_summary") return <div className="mt-5 border-l-2 border-[var(--assistant-response-accent)] pl-5">{sections.map((section) => <section className="mb-5 last:mb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-2 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li key={item}>{item}</li>)}</ul></section>)}</div>;
+  return <div className="mt-5 divide-y divide-[var(--assistant-response-border)] border-t border-[var(--assistant-response-border)]">{sections.map((section) => <section className="min-w-0 py-4 last:pb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-2 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li className="flex gap-3" key={item}><span aria-hidden="true" className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--assistant-response-accent)]" /><span className="min-w-0 [overflow-wrap:anywhere]">{item}</span></li>)}</ul></section>)}</div>;
 }
 
-function SuggestedQuestions({ onSelect, suggestions }: { onSelect: (suggestion: string) => void; suggestions: string[] }) {
+function SuggestedQuestions({ currentDraft, onSelect, suggestions }: { currentDraft: string; onSelect: (suggestion: string) => void; suggestions: string[] }) {
   if (!suggestions.length) return null;
-  return <div aria-label="Suggested follow-up questions" className="mt-7 flex snap-x gap-2 overflow-x-auto pb-2 sm:flex-wrap">{suggestions.slice(0, 3).map((suggestion) => <button className={`${suggestionButton} min-w-[15rem] snap-start sm:min-w-0`} key={suggestion} onClick={() => onSelect(suggestion)} type="button">{suggestion}</button>)}</div>;
+  return <section aria-label="Suggested follow-up questions" className="mt-7 min-w-0" data-ui="suggested-questions"><div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-sm font-semibold text-[var(--assistant-response-accent)]">You could ask</h2><p className="text-xs text-[var(--text-tertiary)]">Tap to draft, then edit or send</p></div><div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">{suggestions.slice(0, 4).map((suggestion) => { const selected = currentDraft.trim() === suggestion.trim(); return <button aria-controls="ask-composer" className={`${suggestionButton} ${selected ? "bg-[var(--suggested-question-selected)]" : "bg-[var(--suggested-question-surface)]"}`} data-selected={selected || undefined} key={suggestion} onClick={() => onSelect(suggestion)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{suggestion}</span><span aria-hidden="true" className="shrink-0">↘</span></button>; })}</div></section>;
 }
 
 function Composer({ disabled, hasThread, inputRef, loading, onBlur, onChange, onFocus, onSubmit, petName, value }: { disabled: boolean; hasThread: boolean; inputRef: React.RefObject<HTMLTextAreaElement | null>; loading: boolean; onBlur: () => void; onChange: (value: string) => void; onFocus: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; petName: string; value: string }) {
@@ -647,13 +659,13 @@ function Composer({ disabled, hasThread, inputRef, loading, onBlur, onChange, on
   }
   const placeholder = hasThread ? `Ask a follow-up about ${petName}\u2026` : `Ask anything about ${petName}\u2026`;
   const canSend = Boolean(value.trim()) && !disabled;
-  return <form className="rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-primary)] p-3 shadow-[var(--shadow-surface-2)]" onSubmit={onSubmit}>
+  return <form className="rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-primary)] p-3 shadow-[var(--shadow-surface-2)]" id="ask-composer" onSubmit={onSubmit}>
     <div className="mb-2 flex items-center justify-between gap-3 px-1"><span className="text-xs font-semibold text-[var(--pw-primary)]">{petName}</span><span className="hidden text-xs text-[var(--pw-subtle)] sm:inline">Enter to send · Shift + Enter for a new line</span></div>
     <div className="flex items-end gap-2"><textarea aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onFocus={onFocus} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label="Send question" className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">Ask</PrimaryButton></div>
   </form>;
 }
 
-function Thinking({ petName }: { petName: string }) { return <div className="flex items-center gap-3 py-3 text-sm text-[var(--pw-muted)]" role="status"><BrandMark showName={false} size={24} /><span>{`Furvise is reviewing ${petName}'s saved details...`}</span></div>; }
+function Thinking() { return <div className="flex items-center gap-3 py-3 text-sm text-[var(--pw-muted)]" role="status"><BrandMark showName={false} size={24} /><span>Furvise is thinking this through...</span></div>; }
 
 function AskFailureState({ code, onEdit, onRetry, planId, retryAfterSeconds }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void; planId?: "free" | "plus"; retryAfterSeconds?: number }) {
   const presentation = getAskErrorPresentation(code, retryAfterSeconds);
@@ -699,6 +711,7 @@ function SaveDialog({ draft, loading, onCancel, onChange, onConfirm, petName }: 
 
 
 function hasLikelyVetConcern(thread: ConversationMessage[], assistantIndex: number) { const answer = thread[assistantIndex]; if (answer?.role !== "furvise" || answer.response.urgency === "urgent") return false; if (answer.response.answerType === "vet_prep") return true; const question = [...thread.slice(0, assistantIndex)].reverse().find((message) => message.role === "user"); return question?.role === "user" && /\b(vet|veterinarian|appointment|visit)\b/i.test(question.text); }
+function findPreviousUserMessage(thread: ConversationMessage[], assistantIndex: number) { const question = [...thread.slice(0, Math.max(0, assistantIndex))].reverse().find((message) => message.role === "user"); return question?.role === "user" ? question.text : ""; }
 function formatAge(profile: DogProfileWithMemories) { return profile.age_value === null || !profile.age_unit ? "" : `${profile.age_value} ${profile.age_unit}`; }
 function formatAction(action: AnswerAction) { return ({ add_to_care_history: "Save to care history", copy: "Copy", prepare_vet_note: "Prepare vet brief", save_key_detail: "Save useful detail", start_tracking: "Start tracking" } as const)[action]; }
 
@@ -777,9 +790,9 @@ async function fetchAskUsage() { try { const token = await getAskAuthToken(); if
 function Status({ action, text, tone = "neutral" }: { action?: { label: string; onClick: () => void }; text: string; tone?: "neutral" | "warn" }) { return <div className={`mx-auto mt-5 flex max-w-[78rem] items-center justify-between gap-3 border-y px-1 py-3 text-sm leading-6 ${tone === "warn" ? "border-[var(--pw-warning-border)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] text-[var(--pw-muted)]"}`} role="status"><span>{text}</span>{action ? <button className={secondaryButton} onClick={action.onClick} type="button">{action.label}</button> : null}</div>; }
 
 const inputClass = "min-h-11 w-full rounded-xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3 text-sm text-[var(--pw-text)] outline-none focus:border-[var(--pw-primary)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
-const suggestionButton = "rounded-xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] px-4 py-3 text-left text-sm font-semibold leading-5 text-[var(--pw-text)] shadow-[0_4px_12px_var(--shadow)] transition hover:border-[var(--pw-primary)] hover:text-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
+const suggestionButton = "flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--assistant-response-border)] px-4 py-3 text-left text-sm font-semibold leading-5 text-[var(--suggested-question-foreground)] transition-colors hover:bg-[var(--suggested-question-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
 const secondaryButton = "inline-flex min-h-10 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-transparent px-3.5 text-sm font-semibold text-[var(--pw-text)] hover:border-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
 const quietButton = "inline-flex min-h-9 items-center rounded-lg px-2 text-xs font-semibold text-[var(--pw-muted)] hover:bg-[var(--pw-card-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
 const modalSecondaryButton = "inline-flex min-h-11 items-center justify-center rounded-full border border-[var(--pw-border-strong)] px-5 text-sm font-semibold text-[var(--pw-text)]";
 const dangerButton = "inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--pw-danger)] px-5 text-sm font-semibold text-[var(--pw-danger-foreground)] hover:bg-[var(--pw-danger-hover)]";
-const sectionHeading = "text-sm font-semibold uppercase tracking-[0.08em] text-[var(--pw-muted)]";
+const sectionHeading = "text-sm font-semibold text-[var(--assistant-response-accent)]";

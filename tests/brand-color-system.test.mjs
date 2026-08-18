@@ -29,6 +29,9 @@ const palette = {
   "warm-orange-hover": "#FA8A36",
   "warm-orange-active": "#EF6E17",
   "soft-orange": "#FFD8B8",
+  "deep-ink-blue": "#17384B",
+  "soft-ink-blue": "#E7EFF1",
+  "soft-ink-blue-hover": "#D8E6EA",
   "primary-ink": "#173023",
   "secondary-ink": "#405648",
   "muted-ink": "#5F7266",
@@ -117,6 +120,9 @@ test("text, button, input, navigation, focus, selection, and disabled pairs meet
     ["focus", palette["focus-orange"], palette["warm-canvas"], 3],
     ["disabled control", palette["disabled-ink"], palette["disabled-neutral"], 4.5],
     ["footer", palette["secondary-ink"], palette["raised-neutral"], 4.5],
+    ["assistant strong", palette["warm-cream"], palette["deep-ink-blue"], 4.5],
+    ["assistant light", palette["primary-ink"], palette["soft-ink-blue"], 4.5],
+    ["suggestion selected", palette["deep-ink-blue"], palette["soft-ink-blue-hover"], 4.5],
   ];
   for (const [label, foreground, background, minimum] of checks) assert.ok(contrast(foreground, background) >= minimum, `${label} contrast is too low`);
   assert.match(read("app/globals.css"), /--input-border: rgba\(18, 63, 39, 0\.55\)/);

@@ -137,6 +137,20 @@ test("simple Ask output remains unsectioned while Level 3 output can use bounded
   assert.ok(askUnifiedJsonSchema.required.includes("answerSections"));
 });
 
+test("contextual suggestions share the answer call and remain bounded and unique", async () => {
+  const suggestions = [
+    "Why is Mani still pacing?",
+    "What should I watch tonight?",
+    "Could this be territorial?",
+    "Does anything in Mani's history matter here?",
+  ];
+  const client = mockClient([unified({ suggestedFollowUps: suggestions })]);
+  const result = await generateContextAwareAskResponse({ ...input({ question: maniProductionQuestion }), client });
+  assert.equal(client.requests.length, 1);
+  assert.deepEqual(result.suggestedFollowUps, suggestions);
+  assert.equal(askUnifiedJsonSchema.properties.suggestedFollowUps.maxItems, 4);
+});
+
 test("long Ask context is ranked and truncated deterministically", () => {
   const careEntries = Array.from({ length: 120 }, (_, index) => care({
     id: `care-${String(index).padStart(3, "0")}`,
