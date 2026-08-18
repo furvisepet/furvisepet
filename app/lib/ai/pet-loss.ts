@@ -1,12 +1,12 @@
 import type { ModelApplicationAction, FurviseApplicationAction } from "../application-actions/types.ts";
 import type { IntelligenceCareAction } from "../intelligence/types.ts";
+import { hasPendingReportedLifecycle } from "./pending-lifecycle.ts";
 
 export type PetLossContext = "none" | "uncertain_current" | "confirmed_current" | "continuation";
 
 const confirmedLossPattern = /\b(?:died|is dead|was killed|passed away|euthanized|was put (?:to sleep|down))\b/i;
 const uncertaintyPattern = /\b(?:i think|i thought|maybe|may|might|possibly|probably|not (?:completely )?sure|uncertain|could have|what if|if only)\b/i;
 const correctedLossPattern = /\b(?:but|actually|correction)[^.!?]{0,80}\b(?:alive|did not die|didn't die|is not dead|isn't dead)\b/i;
-const lossContinuationPattern = /\b(?:so what now|what (?:do i|happens) now|i miss (?:her|him|them)|what happened|summari[sz]e (?:what happened|her history|his history|their history)|delete (?:her|him|them)|keep (?:her|his|their) history|grief|memorial)\b/i;
 
 export function classifyCurrentPetLoss(message: string): Exclude<PetLossContext, "continuation"> {
   const death = confirmedLossPattern.exec(message);
@@ -26,18 +26,7 @@ export function resolvePetLossContext(input: {
   const current = classifyCurrentPetLoss(input.message);
   if (current !== "none") return current;
   if (input.lifecycleStatus === "deceased") return "continuation";
-  const namedPetContinuation = input.petName
-    ? new RegExp(`\\b(?:delete|remove|summari[sz]e|history of)\\s+(?:everything about\\s+)?${escapeRegExp(cleanPetName(input.petName))}\\b`, "i").test(input.message)
-    : false;
-  if (!lossContinuationPattern.test(input.message) && !namedPetContinuation) return "none";
-  const recentConfirmedLoss = [...(input.recentConversation || [])].reverse()
-    .some((turn) => turn.role !== "furvise" && classifyCurrentPetLoss(turn.text) === "confirmed_current");
-  return recentConfirmedLoss ? "continuation" : "none";
-}
-
-export function findRecentConfirmedLossMessage(recentConversation: Array<{ role?: string; text: string }>) {
-  return [...recentConversation].reverse()
-    .find((turn) => turn.role !== "furvise" && classifyCurrentPetLoss(turn.text) === "confirmed_current")?.text || null;
+  return hasPendingReportedLifecycle(input.recentConversation || [], "reported_deceased") ? "continuation" : "none";
 }
 
 export function ensureConfirmedLossAction(
@@ -89,7 +78,7 @@ export function buildUnavailableConfirmedLossAction(input: {
     description: `Keep ${cleanPetName(input.petName)}'s history while stopping future-care experiences.`,
     href: null,
     resultMessage: null,
-    errorMessage: "The lifecycle confirmation could not be prepared. The answer and history update are still available.",
+    errorMessage: "The lifecycle confirmation could not be prepared. The reported loss remains available in this conversation, but no profile, history, or memory was changed.",
   };
 }
 
@@ -125,8 +114,4 @@ function reportedDeathCause(message: string) {
 
 function cleanPetName(value: string) {
   return value.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "the pet";
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { actionCanAutoExecute } from "./policy.ts";
 import type { FurviseActionExecutionResult, FurviseApplicationAction } from "./types.ts";
 import { normalizeSingletonPreferenceKey } from "./memory-scopes.ts";
+import { buildConfirmedLossCareAction } from "../ai/pet-loss.ts";
 
 export async function executeFurviseApplicationAction(input: {
   action: FurviseApplicationAction;
@@ -96,7 +97,7 @@ async function updateProfile({ action, supabase, userId }: Parameters<typeof exe
   return success(action, true, "The pet profile was updated.");
 }
 
-async function updateLifecycle({ action, supabase, userId }: Parameters<typeof executeFurviseApplicationAction>[0], status: "active" | "deceased" | "archived") {
+async function updateLifecycle({ action, sourceMessageId, supabase, userId }: Parameters<typeof executeFurviseApplicationAction>[0], status: "active" | "deceased" | "archived") {
   const now = new Date().toISOString();
   const update = {
     lifecycle_status: status,
@@ -104,10 +105,50 @@ async function updateLifecycle({ action, supabase, userId }: Parameters<typeof e
     ...(status === "deceased" ? { deceased_at: now } : {}),
   };
   const { data, error } = await supabase.from("dog_profiles").update(update)
-    .eq("id", action.petId).eq("user_id", userId).select("id,lifecycle_status,lifecycle_changed_at,deceased_at").maybeSingle<{ id: string; lifecycle_status: string; lifecycle_changed_at: string | null; deceased_at: string | null }>();
+    .eq("id", action.petId).eq("user_id", userId).select("id,name,lifecycle_status,lifecycle_changed_at,deceased_at").maybeSingle<{ id: string; name: string | null; lifecycle_status: string; lifecycle_changed_at: string | null; deceased_at: string | null }>();
   if (error || !data || data.lifecycle_status !== status) return failure(action, "This lifecycle change needs the approved lifecycle schema before it can be saved.");
   if (!data.lifecycle_changed_at || (status === "deceased" && !data.deceased_at)) return failure(action, "This lifecycle change could not be verified.");
+  if (status === "deceased") {
+    const historyRecorded = await persistConfirmedDeathHistory({ action, petName: data.name || "the pet", sourceMessageId, supabase, userId });
+    if (!historyRecorded) {
+      return failure(action, "The profile was marked as passed away, but the confirmed history entry could not be recorded. Retry this action to finish recording it.");
+    }
+  }
   return success(action, true, status === "deceased" ? "The profile was marked as passed away. Its history was preserved." : status === "archived" ? "The pet profile was archived." : "The pet profile was marked active.");
+}
+
+async function persistConfirmedDeathHistory({ action, petName, sourceMessageId, supabase, userId }: {
+  action: FurviseApplicationAction;
+  petName: string;
+  sourceMessageId: string;
+  supabase: SupabaseClient;
+  userId: string;
+}) {
+  const existing = await findConfirmedDeathHistory({ action, sourceMessageId, supabase, userId });
+  if (existing) return true;
+  const careAction = buildConfirmedLossCareAction({ message: action.evidence, petName });
+  if (!careAction) return false;
+  const persisted = await supabase.rpc("persist_furvise_intelligence", {
+    p_pet_id: action.petId,
+    p_source_message_id: sourceMessageId,
+    p_care_actions: [careAction],
+    p_learnings: [],
+  });
+  if (!persisted.error) return Boolean(await findConfirmedDeathHistory({ action, sourceMessageId, supabase, userId }));
+  return Boolean(await findConfirmedDeathHistory({ action, sourceMessageId, supabase, userId }));
+}
+
+async function findConfirmedDeathHistory({ action, sourceMessageId, supabase, userId }: {
+  action: FurviseApplicationAction;
+  sourceMessageId: string;
+  supabase: SupabaseClient;
+  userId: string;
+}) {
+  const { data } = await supabase.from("pet_care_entries").select("id")
+    .eq("user_id", userId).eq("pet_profile_id", action.petId)
+    .eq("intelligence_source_message_id", sourceMessageId)
+    .is("deleted_at", null).limit(1).maybeSingle<{ id: string }>();
+  return data || null;
 }
 
 async function deletePet({ action, supabase, userId }: Parameters<typeof executeFurviseApplicationAction>[0]) {

@@ -63,7 +63,7 @@ export async function runFurviseIntelligence({
     careEntries: context.selectedCareEntries,
     concerns: context.activeConcerns,
     conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
-      id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt,
+      id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt, applicationActions: turn.applicationActions,
     })),
     locale: context.locale,
     memories: [

@@ -134,6 +134,7 @@ export type IntelligenceConversationTurn = {
   role: "user" | "furvise";
   text: string;
   createdAt: string;
+  applicationActions?: import("../application-actions/types.ts").FurviseApplicationAction[];
 };
 
 export type FurviseLiveContext = {

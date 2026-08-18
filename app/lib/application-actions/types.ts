@@ -47,6 +47,7 @@ export type ModelApplicationAction = {
 export type FurviseApplicationAction = ModelApplicationAction & {
   id: string;
   petId: string;
+  sourceMessageId?: string | null;
   safetyClass: FurviseActionSafetyClass;
   mutationClass: FurviseActionMutationClass;
   confirmationPolicy: FurviseActionConfirmationPolicy;

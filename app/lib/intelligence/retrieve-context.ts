@@ -12,6 +12,7 @@ import { selectFreshRelevantMemories } from "./memory-freshness/select-fresh-mem
 import { removeInactiveMemoryClaimsFromConversation, type InactiveMemoryMarker } from "./memory-lifecycle/filter-conversation";
 import { isKnownConversationalCareNoise, isLongitudinalCareHistoryEntry } from "./care-history-policy.ts";
 import { featureRequiresActivePet, getPetLifecycleStatus } from "../pet-lifecycle.ts";
+import { parseStoredApplicationActions } from "../application-actions/contracts.ts";
 
 export class FurviseContextError extends Error {
   constructor(public code: "PET_NOT_FOUND" | "PET_INACTIVE" | "CONVERSATION_NOT_FOUND" | "CONTEXT_UNAVAILABLE", message: string, public cause?: unknown) {
@@ -111,6 +112,7 @@ export async function buildFurviseContext({
     role: message.role,
     text: message.role === "user" ? message.user_text || "" : responseText(message.response_data),
     createdAt: message.created_at,
+    ...(message.role === "furvise" ? { applicationActions: parseStoredApplicationActions(message.response_data?.applicationActions) } : {}),
   })).filter((message) => message.text.trim()), inactiveMemories.data || []);
 
   const longitudinalCareEntries = (care.data || []).filter(isLongitudinalCareHistoryEntry);

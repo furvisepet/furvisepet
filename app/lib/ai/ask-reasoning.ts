@@ -44,7 +44,7 @@ import {
 import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-governance.ts";
 import { modelApplicationActionJsonSchema, parseModelApplicationActions, type ModelApplicationAction } from "../application-actions/index.ts";
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
-import { ensureConfirmedLossAction, findRecentConfirmedLossMessage, resolvePetLossContext } from "./pet-loss.ts";
+import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
 
 export type AskContextSourceType =
   | "profile"
@@ -131,6 +131,7 @@ type ConversationTurn = {
   role: "user" | "furvise";
   text: string;
   createdAt?: string | null;
+  applicationActions?: import("../application-actions/types.ts").FurviseApplicationAction[];
 };
 
 type BuildContextInput = {
@@ -629,7 +630,6 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     lifecycleStatus: profile ? readOptionalString(profile, "lifecycle_status") : null,
     petName: profile?.name,
   });
-  const recentLossEvidence = lossContext === "continuation" ? findRecentConfirmedLossMessage(input.conversationTurns) : null;
   if (lossContext === "confirmed_current" || lossContext === "continuation") {
     parsed.responseMode = "grief_support";
     parsed.safetyLevel = "normal";
@@ -639,11 +639,9 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     parsed.intelligenceSafety.shoppingSuppressed = true;
     parsed.suggestedFollowUps = [];
     parsed.answerSections = [];
-    parsed.applicationActions = ensureConfirmedLossAction(
-      parsed.applicationActions,
-      lossContext === "confirmed_current" ? input.question : recentLossEvidence || "",
-      { exclusive: lossContext === "confirmed_current" },
-    );
+    if (lossContext === "confirmed_current") {
+      parsed.applicationActions = ensureConfirmedLossAction(parsed.applicationActions, input.question, { exclusive: true });
+    }
     parsed.proposedHistoryUpdate = { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null };
   } else if (context.minimumSafetyLevel === "urgent") {
     parsed.safetyLevel = "urgent";

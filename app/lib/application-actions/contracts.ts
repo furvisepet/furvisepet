@@ -58,6 +58,7 @@ export function parseStoredApplicationActions(value: unknown): FurviseApplicatio
     if (!["proposed", "confirmation_required", "succeeded", "failed", "cancelled"].includes(String(draft.status))) return [];
     return [{
       id: draft.id, petId: draft.petId, kind: draft.kind, input, evidence: draft.evidence,
+      sourceMessageId: typeof draft.sourceMessageId === "string" ? draft.sourceMessageId : null,
       explicitIntent: draft.explicitIntent, safetyClass: draft.safetyClass, mutationClass: draft.mutationClass,
       confirmationPolicy: draft.confirmationPolicy, authorizationScope: draft.authorizationScope,
       status: draft.status, label: typeof draft.label === "string" ? draft.label : "Furvise action",

@@ -32,32 +32,48 @@ test("server-owned transition timestamps preserve death provenance on correction
 
 test("Ask lifecycle actions verify server results and never clear deceased provenance on reactivation", async () => {
   const updates = [];
+  const history = [];
   class Query {
-    constructor() { this.value = null; }
+    constructor(table) { this.table = table; this.value = null; this.filters = {}; }
     update(value) { this.value = value; updates.push(value); return this; }
     select() { return this; }
-    eq() { return this; }
+    eq(field, value) { this.filters[field] = value; return this; }
+    is() { return this; }
+    limit() { return this; }
     maybeSingle() {
+      if (this.table === "pet_care_entries") return Promise.resolve({ data: history.find((row) => row.source === this.filters.intelligence_source_message_id) || null, error: null });
       if (!this.value) return Promise.resolve({ data: { id: "pet-mani" }, error: null });
       const status = this.value.lifecycle_status;
       return Promise.resolve({ data: {
-        id: "pet-mani", lifecycle_status: status, lifecycle_changed_at: "2026-08-18T12:00:00Z",
+        id: "pet-mani", name: "Mani", lifecycle_status: status, lifecycle_changed_at: "2026-08-18T12:00:00Z",
         deceased_at: status === "deceased" ? "2026-08-18T12:00:00Z" : "2026-08-18T12:00:00Z",
       }, error: null });
     }
   }
-  const supabase = { from(table) { assert.equal(table, "dog_profiles"); return new Query(); } };
+  const supabase = {
+    from(table) { assert.ok(["dog_profiles", "pet_care_entries"].includes(table)); return new Query(table); },
+    async rpc(name, input) {
+      assert.equal(name, "persist_furvise_intelligence");
+      assert.equal(input.p_learnings.length, 0);
+      assert.equal(input.p_care_actions.length, 1);
+      history.push({ id: "death-history", source: input.p_source_message_id });
+      return { data: [{ care_entries_created: 1 }], error: null };
+    },
+  };
   const makeAction = (kind, evidence) => prepareFurviseApplicationActions({
     petId: "pet-mani", petName: "Mani", requestId: `request-${kind}`,
     proposals: [{ kind, explicitIntent: true, evidence, input: { field: null, value: null, title: null, detail: null, category: null, target: "selected" } }],
   })[0];
   const deceased = await executeFurviseApplicationAction({ action: makeAction("pet.mark_deceased", "Mani died today"), confirmed: true, sourceMessageId: "message-1", supabase, userId: "user-1" });
+  const repeatedDeceased = await executeFurviseApplicationAction({ action: makeAction("pet.mark_deceased", "Mani died today"), confirmed: true, sourceMessageId: "message-1", supabase, userId: "user-1" });
   const active = await executeFurviseApplicationAction({ action: makeAction("pet.mark_active", "Mark Mani active again"), confirmed: true, sourceMessageId: "message-2", supabase, userId: "user-1" });
   assert.equal(deceased.action.status, "succeeded");
+  assert.equal(repeatedDeceased.action.status, "succeeded");
   assert.equal(active.action.status, "succeeded");
+  assert.equal(history.length, 1);
   assert.equal(typeof updates[0].deceased_at, "string");
-  assert.equal(Object.hasOwn(updates[1], "deceased_at"), false);
-  assert.equal(Object.hasOwn(updates[1], "lifecycle_changed_at"), false);
+  assert.equal(Object.hasOwn(updates[2], "deceased_at"), false);
+  assert.equal(Object.hasOwn(updates[2], "lifecycle_changed_at"), false);
 });
 
 test("reactivation is append-only audited with owner-only RLS", () => {

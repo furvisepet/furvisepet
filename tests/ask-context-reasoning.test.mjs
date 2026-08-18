@@ -14,6 +14,8 @@ import {
   getAskModelConfiguration,
 } from "../app/lib/ai/ask-reasoning.ts";
 import { buildRecentAskUpdates } from "../app/lib/ask-safety-context.ts";
+import { ensureConfirmedLossAction } from "../app/lib/ai/pet-loss.ts";
+import { prepareFurviseApplicationActions } from "../app/lib/application-actions/index.ts";
 import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts/registry-policy.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
@@ -367,6 +369,12 @@ test("confirmed pet death deterministically enters grief mode and proposes a con
 });
 
 test("loss-context follow-ups remain grief-aware and do not restart emergency treatment", async () => {
+  const [pendingLossAction] = prepareFurviseApplicationActions({
+    proposals: ensureConfirmedLossAction([], "Mani died after a dog attacked her."),
+    petId: "pet-mani",
+    petName: "Mani",
+    requestId: "request-loss",
+  });
   const client = mockClient([unified({
     answer: "I'm sorry. For now, take the next practical step that feels manageable.",
     responseMode: "practical_guidance",
@@ -379,7 +387,13 @@ test("loss-context follow-ups remain grief-aware and do not restart emergency tr
       question: "so what now",
       conversationTurns: [
         { id: "loss-user", role: "user", text: "Mani died after a dog attacked her.", createdAt: "2026-08-18T10:00:00Z" },
-        { id: "loss-answer", role: "furvise", text: "I'm so sorry.", createdAt: "2026-08-18T10:00:01Z" },
+        {
+          id: "loss-answer",
+          role: "furvise",
+          text: "I'm so sorry.",
+          createdAt: "2026-08-18T10:00:01Z",
+          applicationActions: [{ ...pendingLossAction, sourceMessageId: "loss-user" }],
+        },
       ],
     }),
     client,
@@ -388,7 +402,7 @@ test("loss-context follow-ups remain grief-aware and do not restart emergency tr
   assert.equal(result.safetyLevel, "normal");
   assert.equal(result.shoppingSuppressed, true);
   assert.deepEqual(result.suggestedFollowUps, []);
-  assert.equal(result.applicationActions[0].kind, "pet.mark_deceased");
+  assert.deepEqual(result.applicationActions, []);
   assert.doesNotMatch(result.answer.summary, /emergency treatment|monitor her breathing/i);
 });
 
