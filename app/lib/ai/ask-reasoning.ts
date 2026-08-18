@@ -207,6 +207,7 @@ export class AskPipelineError extends Error {
 
 const responseModes = ["conversational", "practical_guidance", "urgent_safety", "clarification", "vet_preparation"] as const;
 const safetyLevels = ["normal", "monitor", "urgent"] as const;
+export const ASK_PROMPT_CONTEXT_CHAR_BUDGET = 48_000;
 const providerCooldowns = new Map<string, number>();
 const askLearningJsonSchema = {
   ...intelligenceLearningJsonSchema,
@@ -335,7 +336,7 @@ export function buildAskContext(input: BuildContextInput) {
   const now = (input.now || new Date()).getTime();
   const scored = allRecords
     .map((record) => ({ record, score: scoreRecord(record, terms, now) }))
-    .sort((left, right) => right.score - left.score || timestamp(right.record) - timestamp(left.record));
+    .sort((left, right) => right.score - left.score || timestamp(right.record) - timestamp(left.record) || left.record.id.localeCompare(right.record.id));
 
   const profile = scored.filter(({ record }) => record.sourceType === "profile");
   const activeConcerns = historicalSafetyRelevant
@@ -402,9 +403,7 @@ export function buildAskContext(input: BuildContextInput) {
     }).instruction,
   }));
 
-  return {
-    records,
-    promptContext: {
+  const promptContext = enforceAskPromptContextBudget({
       currentMessage: clean(input.question).slice(0, 1200),
       currentTimestamp: (input.now || new Date()).toISOString(),
       locale: input.locale || "en",
@@ -421,9 +420,19 @@ export function buildAskContext(input: BuildContextInput) {
       pets: petReferences,
       contextRecords: records,
       olderUpdateSummary: updateSummary,
-    },
+  });
+  return {
+    records: promptContext.contextRecords,
+    promptContext,
     minimumSafetyLevel,
   };
+}
+
+function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRecord[] }>(promptContext: T): T {
+  const contextRecords = [...promptContext.contextRecords];
+  const budgeted = { ...promptContext, contextRecords };
+  while (contextRecords.length && JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) contextRecords.pop();
+  return budgeted;
 }
 
 export function buildRankedAskContext(input: BuildContextInput) {
@@ -840,7 +849,6 @@ export function areAskResponsesMateriallyIdentical(left: string, right: string) 
 
 export function buildAskProviderRequest(promptContext: object) {
   return {
-    temperature: 0.25,
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
     instructions: unifiedInstructions,
     input: JSON.stringify(promptContext),
@@ -864,7 +872,11 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
   const configuredOutputLimit = typeof request.max_output_tokens === "number" ? request.max_output_tokens : undefined;
   onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit });
   try {
-    const response = await createWithTimeout(client, { ...request, model }, timeoutMs);
+    const response = await createWithTimeout(client, {
+      ...request,
+      ...(supportsReasoningEffort(model) ? { reasoning: { effort: "low" } } : {}),
+      model,
+    }, timeoutMs);
     const result = interpretStructuredProviderResponse(response, parseOutput);
     const diagnostics = {
       configuredOutputLimit,
@@ -905,6 +917,10 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
     onEvent?.({ stage, outcome: "failed", ...failure.diagnostics });
     throw failure;
   }
+}
+
+function supportsReasoningEffort(model: string) {
+  return /^gpt-5(?:\.|-|$)/i.test(model);
 }
 
 function isRepairableStructuredOutput(error: AskPipelineError) {

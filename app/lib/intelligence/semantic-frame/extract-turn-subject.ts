@@ -52,7 +52,7 @@ export async function extractTurnSubjectFrame({
   };
   const request = {
     model,
-    temperature: 0,
+    ...(supportsReasoningEffort(model) ? { reasoning: { effort: "low" } } : {}),
     max_output_tokens: TURN_SUBJECT_MAX_OUTPUT_TOKENS,
     instructions,
     input: JSON.stringify(input),
@@ -100,6 +100,10 @@ export async function extractTurnSubjectFrame({
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function supportsReasoningEffort(model: string) {
+  return /^gpt-5(?:\.|-|$)/i.test(model);
 }
 
 function createClient(apiKey?: string): SubjectFrameClient | null {

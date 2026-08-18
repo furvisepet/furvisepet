@@ -36,8 +36,9 @@ test("failed provider or persistence paths do not consume usage", () => {
   assert.equal(route.match(/await completeAiCredit/g)?.length, 2);
 });
 
-test("assistant persistence retries idempotently before returning an unsaved answer", () => {
+test("assistant persistence retries idempotently before returning a retryable failure", () => {
   assert.match(route, /loadPersistedRequestByConversation/);
   assert.match(route, /assistant message persisted after idempotent retry/);
   assert.match(route, /request_id: requestId/);
+  assert.match(route, /askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, \{\}, "persistence_failed"\)/);
 });
