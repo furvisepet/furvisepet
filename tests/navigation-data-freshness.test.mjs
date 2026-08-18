@@ -8,7 +8,7 @@ test("successful Ask state mutations publish one scoped freshness version", asyn
   const [ask, route, freshness] = await Promise.all([
     text("app/ask/page.tsx"), text("app/api/ask/route.ts"), text("app/lib/navigation/app-data-freshness.ts"),
   ]);
-  assert.match(route, /dataChanged: didPersistEffectiveState/);
+  assert.match(route, /dataChanged: applicationStateChanged \|\| didPersistEffectiveState/);
   assert.match(route, /revalidatePath\(path\)/);
   assert.match(route, /"\/dashboard"[^\]]*"\/pets"[^\]]*"\/care-log"/s);
   const invalidation = route.slice(route.indexOf("function revalidateAskStateViews"), route.indexOf("function textPayloadValue"));

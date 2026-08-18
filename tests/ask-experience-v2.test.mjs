@@ -38,17 +38,19 @@ test("medical danger, grief, and distress suppress playful presentation and sugg
   for (const message of ["She can't breathe.", "Mani died today.", "I'm devastated about Coco's death.", "I'm panicking about this."]) {
     assert.equal(isSeriousAskTone(message), true, message);
     assert.equal(isCasualAskTone(message), false, message);
-    assert.equal(getAskPresentationMode(response(), message), "serious", message);
+    assert.equal(getAskPresentationMode(response(), message), /died|death/i.test(message) ? "grief" : "serious", message);
     assert.equal(shouldShowSuggestedQuestions(response(), message), false, message);
   }
   assert.equal(getAskPresentationMode(response({ answerType: "urgent_guidance", urgency: "urgent" }), "Help"), "serious");
+  assert.equal(getAskPresentationMode(response({ interactionMode: "grief" }), "so what now"), "grief");
 });
 
 test("simple answers stay lightweight while genuinely structured answers use complex presentation", () => {
   assert.equal(getAskPresentationMode(response(), "Can cats eat a tiny piece of plain cooked egg?"), "normal");
   assert.equal(getAskPresentationMode(response({ answerType: "tracking_plan", sections: [{ items: ["Appetite", "Energy"] }] }), "What should I watch?"), "complex");
-  assert.match(page, /presentation === "complex"[\s\S]*assistant-response-surface/);
-  assert.match(page, /border-l-2 border-l-\[var\(--assistant-response-accent\)\] py-1 pl-4/);
+  assert.match(page, /data-ask-semantic/);
+  assert.match(page, /bg-\[var\(--assistant-response-surface\)\][\s\S]*sm:max-w-3xl/);
+  assert.doesNotMatch(page, /presentation === "casual" \? "w-fit[\s\S]*assistant-response-strong/);
 });
 
 test("suggestion selection drafts and focuses without entering submission or usage code", () => {
@@ -113,7 +115,7 @@ test("assistant ink roles are centralized, readable, and orange is not the norma
   assert.match(page, /bg-\[var\(--assistant-response-surface\)\]/);
   assert.doesNotMatch(page, /bg-\[var\(--pw-warning-surface\)\]/);
   assert.match(page, /border-l-\[var\(--warning\)\]/);
-  assert.match(page, /pw-danger-surface/);
+  assert.match(page, /data-ask-semantic=\{grief \? "grief" : urgent \? "urgent"/);
   assert.match(page, /data-selected=\{selected \|\| undefined\}/);
 });
 
@@ -122,7 +124,7 @@ test("Ask prompt permits personality but keeps serious safety dominant", () => {
   assert.match(reasoning, /Do not invent monitoring, logging, care-plan, or veterinary advice/);
   assert.match(reasoning, /urgent medical signs[\s\S]*suppress jokes, slang, emojis, and playful framing/);
   assert.match(page, /const playful = presentation === "casual" \|\| presentation === "resolved"/);
-  assert.match(page, /playful \? <Image[\s\S]*: <BrandMark/);
+  assert.match(page, /playful && !grief \? <Image[\s\S]*: <BrandMark/);
   assert.match(read("app/lib/ai/ask-orchestrator.ts"), /turn\.intent !== "casual" && proposed\.shouldOffer/);
   assert.match(page, /presentation !== "casual" && message\.suggestion/);
 });

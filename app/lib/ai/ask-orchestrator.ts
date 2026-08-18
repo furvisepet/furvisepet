@@ -35,7 +35,9 @@ export async function orchestrateAskTurn({
     return {
       aiResult: null,
       answer: {
-        title: concern?.normalized_key === "breathing" ? `${petName}'s breathing needs urgent attention` : "Urgent care guidance",
+        title: deterministic.safetyLevel === "urgent"
+          ? concern?.normalized_key === "breathing" ? `${petName}'s breathing still needs urgent attention` : "This still needs prompt attention"
+          : "Furvise",
         summary: deterministic.answer,
         sections: [],
         safetyNote: null,
@@ -50,6 +52,7 @@ export async function orchestrateAskTurn({
 
   const aiResult = await generate({ ...generationInput, concernStateHint: turn.concernState });
   const proposed = aiResult.proposedHistoryUpdate;
+  const hasMemoryApplicationAction = (aiResult.applicationActions || []).some((action) => action.kind.startsWith("memory."));
   const improvementSuggestion = concern && (turn.concernState === "improved" || turn.concernState === "resolved")
     ? buildResolutionSuggestion({ concern, message, petName })
     : null;
@@ -69,7 +72,7 @@ export async function orchestrateAskTurn({
         },
       }
     : null;
-  const candidateSuggestion = improvementSuggestion || modelSuggestion || (turn.intent === "preference" || turn.intent === "correction"
+  const candidateSuggestion = improvementSuggestion || modelSuggestion || (!hasMemoryApplicationAction && (turn.intent === "preference" || turn.intent === "correction")
     ? buildMemorySuggestion({ message, petName })
     : turn.intent === "new_observation"
       ? buildConcernOpeningSuggestion({ message, petName }) || buildObservationSuggestion({ message, petName })

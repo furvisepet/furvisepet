@@ -22,8 +22,11 @@ type BuildVetBriefInput = {
 
 export function buildVetBriefDraft(input: BuildVetBriefInput) {
   const conversation = sanitizeConversation(input.conversation || []);
-  const reasonForVisit = cleanVetBriefText(input.reasonForVisit, 1200) || getConversationReason(conversation) || "Not recorded";
-  const topicText = `${reasonForVisit} ${conversation.map(getConversationText).join(" ")}`.toLowerCase();
+  const conversationText = conversation.map(getConversationText).join(" ");
+  const retrospective = (input.profile.lifecycle_status || "active") !== "active" || /\b(?:died|dead|death|passed away|euthanized|grief)\b/i.test(`${input.reasonForVisit || ""} ${conversationText}`);
+  const reasonForVisit = cleanVetBriefText(input.reasonForVisit, 1200)
+    || (retrospective ? "Retrospective care-history summary" : getConversationReason(conversation) || "Not recorded");
+  const topicText = `${reasonForVisit} ${conversationText}`.toLowerCase();
   const rangedEntries = input.careEntries
     .filter((entry) => isWithinDateRange(entry.occurred_at, input.from, input.to))
     .filter((entry) => !isDeletedOrGeneratedGuidance(entry))
@@ -69,7 +72,7 @@ export function buildVetBriefDraft(input: BuildVetBriefInput) {
 
   const document: VetBriefDocument = {
     documentVersion: VET_BRIEF_DOCUMENT_VERSION,
-    title: "Furvise Vet Visit Brief",
+    title: retrospective ? "Furvise Care History Summary" : "Furvise Vet Visit Brief",
     generatedAt,
     dateRange: { from: input.from, to: input.to },
     pet: {
@@ -92,8 +95,8 @@ export function buildVetBriefDraft(input: BuildVetBriefInput) {
       text: `Saved care history shows: ${entryText(entry)}`,
     })),
     reportedPatterns,
-    questionsForVeterinarian: getConversationQuestions(conversation),
-    missingInformation: buildMissingInformation(input.profile, medications),
+    questionsForVeterinarian: retrospective ? [] : getConversationQuestions(conversation),
+    missingInformation: retrospective ? [] : buildMissingInformation(input.profile, medications),
     ownerNotes: "",
     excludedSections: [],
     includePetPhoto: false,

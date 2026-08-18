@@ -6,6 +6,7 @@ import { normalizeProductCountry, resolveProductProviderMode } from "../../../li
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
 import { beginRateLimitedRequest, getRateLimitRequestId } from "../../../lib/security/rate-limit";
 import { attachOrganicProductDestinations, resolveOrganicProductDestinations } from "../../../lib/catalog/organic-destinations";
+import { isActivePet } from "../../../lib/pet-lifecycle";
 
 const MAX_QUERY_LENGTH = 240;
 
@@ -49,6 +50,9 @@ export async function POST(request: Request) {
 
   try {
     const memory = await loadPetMemoryContext({ petId, supabase: context.supabase, userId: context.userId });
+    if (!isActivePet(memory.pet)) {
+      return Response.json({ error: "Product guidance is not available for this retained profile." }, { status: 409 });
+    }
     if (memory.pet.species !== "dog" && memory.pet.species !== "cat") {
       return Response.json({ products: [] });
     }

@@ -11,9 +11,10 @@ import type { PetCurrentStateRow } from "./pet-state/types";
 import { selectFreshRelevantMemories } from "./memory-freshness/select-fresh-memories.ts";
 import { removeInactiveMemoryClaimsFromConversation, type InactiveMemoryMarker } from "./memory-lifecycle/filter-conversation";
 import { isKnownConversationalCareNoise, isLongitudinalCareHistoryEntry } from "./care-history-policy.ts";
+import { featureRequiresActivePet, getPetLifecycleStatus } from "../pet-lifecycle.ts";
 
 export class FurviseContextError extends Error {
-  constructor(public code: "PET_NOT_FOUND" | "CONVERSATION_NOT_FOUND" | "CONTEXT_UNAVAILABLE", message: string, public cause?: unknown) {
+  constructor(public code: "PET_NOT_FOUND" | "PET_INACTIVE" | "CONVERSATION_NOT_FOUND" | "CONTEXT_UNAVAILABLE", message: string, public cause?: unknown) {
     super(message);
     this.name = "FurviseContextError";
   }
@@ -81,6 +82,10 @@ export async function buildFurviseContext({
   ]).catch((error) => { throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", error); });
 
   if (profile.error || !profile.data) throw new FurviseContextError("PET_NOT_FOUND", "That pet is not available.", profile.error);
+  const selectedProfile = profile.data;
+  if (featureRequiresActivePet(feature) && getPetLifecycleStatus(selectedProfile) !== "active") {
+    throw new FurviseContextError("PET_INACTIVE", "Routine product and care-plan guidance is not available for this retained profile.");
+  }
   if (conversationId && (conversation.error || !conversation.data)) throw new FurviseContextError("CONVERSATION_NOT_FOUND", "That conversation is not available for this pet.", conversation.error);
   const queryError = eligiblePets.error || care.error || legacyMemories.error || sharedMemories.error || inactiveMemories.error || feedback.error || owner.error || messages.error || episodes.error || currentState.error;
   if (queryError) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", queryError);
@@ -118,7 +123,9 @@ export async function buildFurviseContext({
 
   return finalizeFurviseContext({
     feature, locale, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
-    pet: profile.data, eligiblePets: eligiblePets.data || [profile.data], owner: { userId, profile: owner.data || null }, careEntries: longitudinalCareEntries,
+    pet: selectedProfile,
+    eligiblePets: (eligiblePets.data || [selectedProfile]).filter((pet) => pet.id === selectedProfile.id || getPetLifecycleStatus(pet) === "active"),
+    owner: { userId, profile: owner.data || null }, careEntries: longitudinalCareEntries,
     activeConcerns: longitudinalConcerns, recentlyResolvedConcerns: longitudinalResolvedConcerns, legacyPetMemories: legacyMemories.data || [],
     activeEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "active"),
     monitoringEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "monitoring"),

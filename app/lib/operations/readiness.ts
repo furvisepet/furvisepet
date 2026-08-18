@@ -1,4 +1,4 @@
-export const REQUIRED_CORE_MIGRATION = "20260816044940";
+export const REQUIRED_CORE_MIGRATION = "20260818084249";
 
 export function requiredSchemaIsReady(input: {
   billingAccountsError: unknown;

@@ -75,6 +75,7 @@ export async function POST(request: Request) {
     memories: legacyMemories, conversation,
     from, to, reasonForVisit,
   });
+  const retrospective = (context.pet.lifecycle_status || "active") !== "active";
   const allowedSourceRecordIds = [...new Set([
     ...baseline.sourceEntryIds,
     ...context.activeConcerns.map((item) => item.id),
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
         context, feature: "vet_brief", maxOutputTokens: 1800,
         featureInput: {
           deterministicDraft: baseline.document,
+          purpose: retrospective ? "retrospective_care_history_summary" : "vet_visit_preparation",
           allowedSourceRecordIds,
           dateRange: { from, to },
           inclusionSettings: existingDocument ? {

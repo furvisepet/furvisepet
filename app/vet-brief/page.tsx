@@ -94,6 +94,7 @@ function VetBriefPageContent() {
   }, [authStatus, existingBriefId, petId, source, conversationId]);
 
   const documentStatus = confirmed ? "Confirmed" : previousVersionId ? "New version in progress" : "Draft";
+  const retrospective = document?.title === "Furvise Care History Summary";
 
   async function refreshRange(event: FormEvent) {
     event.preventDefault();
@@ -175,7 +176,7 @@ function VetBriefPageContent() {
 
   const askReturnHref = documentPetId ? `/ask?pet=${encodeURIComponent(documentPetId)}${conversationId ? `&conversation=${encodeURIComponent(conversationId)}` : ""}` : "/ask";
   return <AppPage layout="focused" width="wide"><div className="w-full pb-36">
-    <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><Link className="text-sm font-semibold text-[var(--pw-primary)]" href={askReturnHref}>Back to Ask</Link><h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-[var(--pw-heading)] sm:text-5xl">Vet brief</h1><p className="mt-3 max-w-3xl leading-7 text-[var(--pw-muted)]">Review the details, confirm the document, then choose how to share it.</p></div><WorkflowDocumentStatus status={documentStatus} /></header>
+    <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><Link className="text-sm font-semibold text-[var(--pw-primary)]" href={askReturnHref}>Back to Ask</Link><h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-[var(--pw-heading)] sm:text-5xl">{retrospective ? "Care history summary" : "Vet brief"}</h1><p className="mt-3 max-w-3xl leading-7 text-[var(--pw-muted)]">{retrospective ? "Review the timeline and records, then choose how to keep or share the summary." : "Review the details, confirm the document, then choose how to share it."}</p></div><WorkflowDocumentStatus status={documentStatus} /></header>
     <VetBriefStages documentStatus={documentStatus} />
     <div aria-label="Choose review or preview" className="mt-5 flex rounded-full border border-[var(--pw-border)] p-1 xl:hidden">{(["review", "preview"] as const).map((item) => <button className={`min-h-10 flex-1 rounded-full px-4 text-sm font-semibold ${mode === item ? "bg-[var(--pw-primary)] text-[var(--pw-primary-foreground)]" : "text-[var(--pw-muted)]"}`} key={item} onClick={() => setMode(item)} type="button">{item === "review" ? "Edit" : "Preview"}</button>)}</div>
     {error ? <Status text={error} tone="warn" /> : null}{status ? <Status text={status} /> : null}

@@ -80,16 +80,20 @@ export function buildAskConversationResponse(response, options = {}) {
   const saveSuggestions = cleanSaveSuggestions(options.saveSuggestions);
   const trackingPlan = cleanTrackingPlan(options.trackingPlan);
   const clarificationQuestion = cleanOptionalText(options.clarificationQuestion, 240);
+  const applicationActions = cleanApplicationActions(options.applicationActions);
+  const interactionMode = cleanInteractionMode(options.interactionMode) || (options.urgent ? "urgent" : options.monitoring ? "monitoring" : "normal");
   return {
     ...parsed,
     answerType,
     directAnswer: parsed.summary,
     actions: [...ASK_ACTIONS_BY_TYPE[answerType]],
     urgency: options.urgent ? "urgent" : options.recentlyResolved ? "resolved" : options.monitoring ? "monitor" : "routine",
+    interactionMode,
     ...(suggestedQuestions.length ? { suggestedQuestions } : {}),
     ...(usedContextSummary.length ? { usedContextSummary } : {}),
     ...(missingUsefulDetails.length ? { missingUsefulDetails } : {}),
     ...(clarificationQuestion ? { clarificationQuestion } : {}),
+    ...(applicationActions.length ? { applicationActions } : {}),
     ...(saveSuggestions.length ? { saveSuggestions } : {}),
     ...(trackingPlan ? { trackingPlan } : {}),
     ...(typeof options.vetBriefRelevant === "boolean" ? { vetBriefRelevant: options.vetBriefRelevant } : {}),
@@ -108,12 +112,15 @@ export function parseAskConversationResponse(value) {
   if (draft.usedContextSummary !== undefined && !isStringArray(draft.usedContextSummary, 4)) return null;
   if (draft.missingUsefulDetails !== undefined && !isStringArray(draft.missingUsefulDetails, 4)) return null;
   if (draft.clarificationQuestion !== undefined && !cleanOptionalText(draft.clarificationQuestion, 240)) return null;
+  const applicationActions = cleanApplicationActions(draft.applicationActions);
+  if (draft.applicationActions !== undefined && (!Array.isArray(draft.applicationActions) || applicationActions.length !== draft.applicationActions.length)) return null;
   const saveSuggestions = cleanSaveSuggestions(draft.saveSuggestions);
   if (draft.saveSuggestions !== undefined && saveSuggestions.length !== draft.saveSuggestions.length) return null;
   const trackingPlan = cleanTrackingPlan(draft.trackingPlan);
   if (draft.trackingPlan !== undefined && !trackingPlan) return null;
   if (draft.vetBriefRelevant !== undefined && typeof draft.vetBriefRelevant !== "boolean") return null;
   if (draft.urgency !== "routine" && draft.urgency !== "resolved" && draft.urgency !== "monitor" && draft.urgency !== "urgent") return null;
+  const interactionMode = cleanInteractionMode(draft.interactionMode) || (draft.urgency === "urgent" ? "urgent" : draft.urgency === "monitor" ? "monitoring" : "normal");
   const allowedActions = new Set(ASK_ACTIONS_BY_TYPE[draft.answerType]);
   if (draft.actions.some((action) => !allowedActions.has(action))) return null;
   return {
@@ -126,11 +133,36 @@ export function parseAskConversationResponse(value) {
     usedContextSummary: (draft.usedContextSummary || []).map(cleanText).filter(Boolean),
     missingUsefulDetails: (draft.missingUsefulDetails || []).map(cleanText).filter(Boolean),
     ...(draft.clarificationQuestion ? { clarificationQuestion: cleanText(draft.clarificationQuestion) } : {}),
+    ...(applicationActions.length ? { applicationActions } : {}),
     ...(saveSuggestions.length ? { saveSuggestions } : {}),
     ...(trackingPlan ? { trackingPlan } : {}),
     ...(typeof draft.vetBriefRelevant === "boolean" ? { vetBriefRelevant: draft.vetBriefRelevant } : {}),
     urgency: draft.urgency,
+    interactionMode,
   };
+}
+
+function cleanInteractionMode(value) {
+  return ["normal", "casual", "complex", "monitoring", "urgent", "grief", "action_confirmation", "action_success", "action_failure"].includes(value) ? value : "";
+}
+
+function cleanApplicationActions(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 4).flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object") return [];
+    if (typeof candidate.id !== "string" || typeof candidate.kind !== "string" || typeof candidate.petId !== "string") return [];
+    if (typeof candidate.label !== "string" || typeof candidate.description !== "string" || !candidate.input || typeof candidate.input !== "object") return [];
+    if (!["READ_ONLY", "LOW_RISK_REVERSIBLE", "CONFIRMATION_REQUIRED", "DESTRUCTIVE"].includes(candidate.safetyClass)) return [];
+    if (!["proposed", "confirmation_required", "succeeded", "failed", "cancelled"].includes(candidate.status)) return [];
+    return [{
+      ...candidate,
+      id: cleanText(candidate.id).slice(0, 160), kind: cleanText(candidate.kind).slice(0, 80), petId: cleanText(candidate.petId).slice(0, 80),
+      label: cleanText(candidate.label).slice(0, 120), description: cleanText(candidate.description).slice(0, 500),
+      href: typeof candidate.href === "string" ? cleanText(candidate.href).slice(0, 500) : null,
+      resultMessage: typeof candidate.resultMessage === "string" ? cleanText(candidate.resultMessage).slice(0, 500) : null,
+      errorMessage: typeof candidate.errorMessage === "string" ? cleanText(candidate.errorMessage).slice(0, 500) : null,
+    }];
+  });
 }
 
 function resolveConversationAnswerType(intent, urgent, response) {

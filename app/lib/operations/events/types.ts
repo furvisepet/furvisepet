@@ -8,7 +8,8 @@ export type OperationalEventType =
   | "password_recovery_authorized" | "password_recovery_completed" | "password_recovery_denied"
   | "account_password_change"
   | "account_deletion_completed" | "account_deletion_failed" | "data_export_started"
-  | "data_export_completed" | "cleanup_failed" | "migration_mismatch";
+  | "data_export_completed" | "cleanup_failed" | "migration_mismatch"
+  | "application_action";
 
 export type OperationalSeverity = "info" | "warning" | "high" | "critical";
 

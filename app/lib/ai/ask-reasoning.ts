@@ -42,6 +42,7 @@ import {
   type SemanticFrameRecoveryTelemetry,
 } from "../intelligence/semantic-frame/recover-owner-preference.ts";
 import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-governance.ts";
+import { modelApplicationActionJsonSchema, parseModelApplicationActions, type ModelApplicationAction } from "../application-actions/index.ts";
 
 export type AskContextSourceType =
   | "profile"
@@ -71,6 +72,7 @@ export type AskResponseMode =
   | "conversational"
   | "practical_guidance"
   | "urgent_safety"
+  | "grief_support"
   | "clarification"
   | "vet_preparation";
 
@@ -96,6 +98,7 @@ export type AskReasoningResult = {
   safetyLevel: "normal" | "monitor" | "urgent";
   shoppingSuppressed: boolean;
   suggestedFollowUps: string[];
+  applicationActions: ModelApplicationAction[];
   proposedHistoryUpdate: ProposedHistoryUpdate;
   responseMode: AskResponseMode;
   model: string;
@@ -205,7 +208,7 @@ export class AskPipelineError extends Error {
   }
 }
 
-const responseModes = ["conversational", "practical_guidance", "urgent_safety", "clarification", "vet_preparation"] as const;
+const responseModes = ["conversational", "practical_guidance", "urgent_safety", "grief_support", "clarification", "vet_preparation"] as const;
 const safetyLevels = ["normal", "monitor", "urgent"] as const;
 export const ASK_PROMPT_CONTEXT_CHAR_BUDGET = 48_000;
 const providerCooldowns = new Map<string, number>();
@@ -228,7 +231,7 @@ export const askUnifiedJsonSchema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "answer", "answerSections", "safetyLevel", "suggestedFollowUps", "proposedHistoryUpdate",
+    "answer", "answerSections", "safetyLevel", "suggestedFollowUps", "applicationActions", "proposedHistoryUpdate",
     "responseMode", "userIntent", "relevantContextIds",
     "messageUnderstanding", "intelligenceSafety", "learnings", "careActions", "semanticEvents", "semanticFrame",
   ],
@@ -245,6 +248,7 @@ export const askUnifiedJsonSchema = {
     },
     safetyLevel: { type: "string", enum: [...safetyLevels] },
     suggestedFollowUps: { type: "array", maxItems: 4, items: { type: "string", maxLength: 180 } },
+    applicationActions: { type: "array", maxItems: 3, items: modelApplicationActionJsonSchema },
     proposedHistoryUpdate: {
       type: "object",
       additionalProperties: false,
@@ -294,6 +298,15 @@ const unifiedInstructions = [
   "Never diagnose. Do not repeat a generic veterinary disclaimer in routine answers.",
   "For clearly casual small talk, mirror mild slang naturally, keep the answer short, and allow a light joke or an occasional single emoji when it fits. Do not invent monitoring, logging, care-plan, or veterinary advice when the content does not warrant it.",
   "For urgent medical signs, serious injury, poisoning, severe pain, grief, death, or significant distress, immediately suppress jokes, slang, emojis, and playful framing. Safety remains dominant.",
+  "Use responseMode=grief_support for a reported death, grief, or a loss-context follow-up. Death is not an urgent-treatment mode for the deceased pet. Keep grief responses compassionate and concise, suppress routine monitoring, product, and future-vet assumptions, and return no generic follow-ups.",
+  "When the user asks Furvise to read, change, remove, prepare, or open application state, emit a typed applicationActions proposal instead of pretending the operation happened. Copy one exact current-message fragment into evidence. Set explicitIntent true only when the user directly requested that operation. Never invent identifiers. The server owns authorization, confirmation, execution, and success copy.",
+  "Application action inputs are semantic, not database-shaped. For pet.update_profile use field=name, weight, current_food, routine_note, sex, or breed and preserve the explicit value. For care-history actions write a standalone title and detail, and use target=last only when the owner clearly refers to the latest entry. Use navigation.open_pet_profile, navigation.open_memories, navigation.open_care_history, navigation.open_vet_brief, or vet_brief.prepare for navigation and preparation requests.",
+  "Use memory.set_preference for singleton USER communication preferences. Normalize language to field=preferred_language, units to preferred_units, and communication style to communication_style. A newer singleton value replaces the older value. Never store these as pet facts. Use memory.forget_preference only for an explicit request to forget one of those fields.",
+  "When one message replaces an old singleton preference with a new value, emit only memory.set_preference for the new value. Do not also emit memory.forget_preference for the same field because replacement supersedes the old value atomically.",
+  "Use pet.mark_deceased for a confidently reported death, but it always requires application confirmation. If death is uncertain, do not propose it. Never convert death into pet deletion. Use pet.delete_permanently only when the user explicitly requests deletion. Use navigation actions for requests to open a Furvise page.",
+  "Use pet.mark_active with confirmation when the owner explicitly corrects a previously recorded death or archive state. Do not infer reactivation from merely discussing a deceased pet in the past tense.",
+  "When supplied profile lifecycle_status is deceased, suppress routine care suggestions, product recommendations, reminders, and assumptions about a future vet visit. Continue supporting history review, retrospective summaries, grief conversation, memorial/archive choices, and explicit deletion. Archived profiles are historical unless the owner explicitly reactivates them elsewhere.",
+  "Derive pet characterizations from supplied concrete observations. Mark personality language as an inference and avoid generic flattering labels such as sweet, low-drama, perfect, or good unless the owner supplied them.",
   "A proposedHistoryUpdate is only an offer. Never write authoritative persistence claims such as I saved that, I added that to history, I updated the profile, or I marked it resolved. The server renders confirmation only after its transaction. Use proposedHistoryUpdate only for future-care-relevant symptoms, sustained changes, treatment outcomes, exposures, veterinary events, or tracked improvement. Do not propose jokes, opinions, normal play, one-off cute behavior, or ordinary questions.",
   "Classify multiple simultaneous intents in messageUnderstanding. Extract only facts explicitly stated by the user in learnings, with a verbatim short sourceExcerpt from the current message.",
   "Use careActions only for explicit, useful time-bound care changes. Confidence must reflect the evidence. Never propose a diagnosis or an inferred medication dosage.",
@@ -465,7 +478,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       safetyLevel: context.minimumSafetyLevel === "normal" ? "routine"
         : context.minimumSafetyLevel === "monitor" ? "caution" : "urgent",
     }
-    : undefined);
+    : undefined, input.question);
   const cooldown = getAskProviderCooldown(models.primary);
   if (cooldown.active) {
     throw new AskPipelineError("primary_provider_failed", "Ask provider is cooling down.", {
@@ -647,6 +660,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     safetyLevel: parsed.safetyLevel,
     shoppingSuppressed: parsed.shoppingSuppressed,
     suggestedFollowUps: parsed.suggestedFollowUps,
+    applicationActions: parsed.applicationActions,
     proposedHistoryUpdate: parsed.proposedHistoryUpdate,
     responseMode: parsed.responseMode,
     model: usedModel,
@@ -752,12 +766,13 @@ export function parseUnifiedResponse(
   outputText: string,
   records: AskContextRecord[],
   recoveryContext?: OwnerPreferenceRecoveryContext,
+  sourceMessage = recoveryContext?.sourceMessage || "",
 ): ParsedUnifiedResponse {
   const value = JSON.parse(outputText) as Partial<ParsedUnifiedResponse>;
   const intelligenceSafety = normalizeIntelligenceSafety(value?.intelligenceSafety);
   if (!value || typeof value.answer !== "string" || !safetyLevels.includes(value.safetyLevel as never) ||
     !responseModes.includes(value.responseMode as never) || !Array.isArray(value.suggestedFollowUps) ||
-    !Array.isArray(value.relevantContextIds) ||
+    !Array.isArray(value.relevantContextIds) || (value.applicationActions !== undefined && !Array.isArray(value.applicationActions)) ||
     typeof value.userIntent !== "string" || !isProposedHistoryUpdate(value.proposedHistoryUpdate) ||
     !isMessageUnderstanding(value.messageUnderstanding) || !intelligenceSafety ||
     !Array.isArray(value.learnings) || !value.learnings.every(isIntelligenceLearning) ||
@@ -798,6 +813,7 @@ export function parseUnifiedResponse(
     responseMode: value.responseMode as AskResponseMode,
     shoppingSuppressed: intelligenceSafety.shoppingSuppressed,
     suggestedFollowUps: uniqueCleanSuggestedFollowUps(value.suggestedFollowUps),
+    applicationActions: parseModelApplicationActions(value.applicationActions || [], sourceMessage),
     proposedHistoryUpdate: cleanProposedHistoryUpdate(value.proposedHistoryUpdate),
     userIntent: clean(value.userIntent).slice(0, 120),
     relevantContextIds,
@@ -1016,6 +1032,7 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
       ["current_food", profile.current_food], ["main_concern", profile.main_concern], ["care_goal", profile.wellness_goal],
       ["avoid_ingredients", profile.avoid_ingredients?.join(", ")], ["monthly_budget", profile.monthly_budget],
       ["sex", readOptionalString(profile, "sex") || readOptionalString(profile, "gender")], ["pronouns", readOptionalString(profile, "pronouns")],
+      ["lifecycle_status", readOptionalString(profile, "lifecycle_status")], ["deceased_at", readOptionalString(profile, "deceased_at")],
     ];
     for (const [kind, value] of facts) {
       if (value === null || value === undefined || String(value).trim() === "") continue;

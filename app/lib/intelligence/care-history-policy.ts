@@ -6,6 +6,7 @@ const conversationalNoisePattern = /\b(?:chasing?|chased)\s+butterfl(?:y|ies)\b|
 const clinicalSignalPattern = /\b(?:appetite|not eating|won't eat|drank?|drinking|thirst|water intake|vomit|vomiting|diarrhea|stool|urine|urinating|elimination|weight|body condition|limp|limping|injur(?:y|ed)|wound|bleed(?:ing)?|pain|letharg(?:y|ic)|cough|sneez|itch|scratch|rash|swelling|breath(?:e|ing)|seizure|collapse|toxin|toxic|poison|exposure|ate|ingested|medication|medicine|supplement|dose|treatment|therapy|vaccine|vaccination|veterinar(?:y|ian)|vet visit|test result|lab result|diagnos|surgery)\b/i;
 const behaviorChangePattern = /\b(?:still|continued?|keeps?|again|recurr(?:ed|ing)?|started?|changed?|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?|since|for\s+(?:the\s+)?(?:last\s+)?\d+\s+(?:hours?|days?|weeks?))\b[\s\S]{0,100}\b(?:pac(?:e|ed|ing)|restless|hiding|aggress(?:ive|ion)|anxious|anxiety|vocal(?:izing)?|meow(?:ing)?|sleep|energy|activity|behavior|routine)\b|\b(?:pac(?:e|ed|ing)|restless|hiding|aggress(?:ive|ion)|anxious|anxiety|vocal(?:izing)?|meow(?:ing)?)\b[\s\S]{0,100}\b(?:still|continued?|keeps?|again|since|started?|changed?|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?)\b/i;
 const dietOrRoutineChangePattern = /\b(?:food|diet|meal|feeding|routine|schedule)\b[\s\S]{0,80}\b(?:started?|stopped?|switched?|changed?|new|more|less|increased?|decreased?)\b|\b(?:started?|stopped?|switched?|changed?)\b[\s\S]{0,80}\b(?:food|diet|meal|feeding|routine|schedule)\b/i;
+const lifecycleEventPattern = /\b(?:died|passed away|death|euthanized|put (?:her|him|them) to sleep)\b/i;
 const genericQuestionPattern = /^(?:can|could|do|does|did|is|are|should|would|what|when|where|why|how|which)\b[\s\S]*\?$/i;
 const meaningfulTransition = new Set<SemanticEventTransition>(["started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed"]);
 
@@ -43,6 +44,7 @@ export function evaluateCareHistorySaveWorthiness(input: {
     return { eligible: true, reason: "tracked_concern_state_change", explicitOverride: false };
   }
   if (clinicalSignalPattern.test(text)) return { eligible: true, reason: "clinical_or_care_signal", explicitOverride: false };
+  if (lifecycleEventPattern.test(text)) return { eligible: true, reason: "pet_lifecycle_event", explicitOverride: false };
   if (behaviorChangePattern.test(text)) return { eligible: true, reason: "sustained_behavior_change", explicitOverride: false };
   if (dietOrRoutineChangePattern.test(text)) return { eligible: true, reason: "material_routine_change", explicitOverride: false };
   if (["medication", "health", "safety", "care", "behavior", "nutrition", "routine"].includes(String(input.domain || "")) && input.transition && meaningfulTransition.has(input.transition)) {
