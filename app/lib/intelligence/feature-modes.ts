@@ -1,6 +1,6 @@
-import { shopQueryInterpretationJsonSchema, shopQueryInterpretationSystemPrompt } from "../shop-query.ts";
-import { shopProductQuestionJsonSchema, shopProductQuestionSystemPrompt } from "../shop/product-question.ts";
-import { shopProductFitExplanationJsonSchema, shopProductFitExplanationSystemPrompt } from "../shop/product-fit-explanation.ts";
+import { SHOP_QUERY_INTERPRETATION_PROMPT_RULES, shopQueryInterpretationJsonSchema } from "../shop-query.ts";
+import { SHOP_PRODUCT_QUESTION_PROMPT_RULES, shopProductQuestionJsonSchema } from "../shop/product-question.ts";
+import { SHOP_PRODUCT_FIT_PROMPT_RULES, shopProductFitExplanationJsonSchema } from "../shop/product-fit-explanation.ts";
 import { intelligenceSafetyFollowupJsonSchema } from "./safety-followup.ts";
 import { intelligenceVetBriefJsonSchema } from "./vet-brief.ts";
 import type { IntelligenceFeature } from "./types.ts";
@@ -32,7 +32,8 @@ const modes = {
   product_question: mode("product_question", "product_question", shopProductQuestionJsonSchema, "furvise_product_question", {
     care: false, memories: true, product: true,
     instructions: [
-      shopProductQuestionSystemPrompt,
+      "You are a knowledgeable Furvise store advisor answering one question about the pet product already on screen.",
+      ...SHOP_PRODUCT_QUESTION_PROMPT_RULES,
       "Answer only about the server-loaded product and selected pet.",
       "Never invent ingredients, availability, warnings, suitability, or veterinary approval.",
       "Treat saved ingredient exclusions as hard constraints.",
@@ -42,7 +43,7 @@ const modes = {
   product_query_interpretation: mode("product_query_interpretation", "product_query", shopQueryInterpretationJsonSchema, "furvise_product_query", {
     care: false, memories: true, product: true,
     instructions: [
-      shopQueryInterpretationSystemPrompt,
+      ...SHOP_QUERY_INTERPRETATION_PROMPT_RULES,
       "Interpret the current shopping query. Do not recommend or invent products and never produce SQL.",
       "The current query overrides older preferences when they conflict.",
       "Keep saved ingredient exclusions as hard constraints unless the user explicitly corrects them.",
@@ -51,7 +52,11 @@ const modes = {
   }),
   product_explanation: mode("product_explanation", "product_explanation", shopProductFitExplanationJsonSchema, "furvise_product_explanation", {
     care: false, memories: false, product: true,
-    instructions: [shopProductFitExplanationSystemPrompt, "Explain only the server-loaded product. Never invent catalog or ingredient facts."],
+    instructions: [
+      "You are a knowledgeable Furvise store advisor explaining one pet product that is already on screen.",
+      ...SHOP_PRODUCT_FIT_PROMPT_RULES,
+      "Explain only the server-loaded product. Never invent catalog or ingredient facts.",
+    ],
   }),
   safety_followup: mode("safety_followup", "safety_followup", intelligenceSafetyFollowupJsonSchema, "furvise_safety_followup", {
     care: true, memories: true,

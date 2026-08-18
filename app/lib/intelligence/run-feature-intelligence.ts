@@ -2,7 +2,7 @@ import "server-only";
 
 import { generateStructuredFeatureResponse, type AskProviderEvent } from "../ai/ask-reasoning";
 import { isAiMemoryExtractionEnabled } from "../ai/usage-guard/config.ts";
-import { FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice";
+import { FURVISE_CORE_PROMPT_RULES, FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice";
 import { getIntelligenceFeatureMode } from "./feature-modes";
 import { logIntelligenceEvent } from "./logging";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "./memory-policy";
@@ -45,6 +45,9 @@ export async function runFeatureIntelligence<T>({
     safetyLevel: safety.level,
   });
   const schema = withIntelligenceLearningsSchema(mode.responseSchema);
+  const voiceRules = feature === "product_query_interpretation" || feature === "vet_brief"
+    ? FURVISE_CORE_PROMPT_RULES
+    : FURVISE_SHARED_PROMPT_RULES;
   const raw = await generateStructuredFeatureResponse<Record<string, unknown>>({
     input: {
       featureInput,
@@ -52,7 +55,7 @@ export async function runFeatureIntelligence<T>({
       authoritativeSafety: safety,
     },
     instructions: [
-      ...FURVISE_SHARED_PROMPT_RULES,
+      ...voiceRules,
       ...mode.promptInstructions,
       "Return only the required structured JSON.",
       "Learning sourceExcerpt must be a short exact excerpt from the current user input.",

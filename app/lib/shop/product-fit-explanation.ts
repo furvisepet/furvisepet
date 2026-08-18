@@ -6,9 +6,7 @@ import type { PetMemoryContext } from "../pet-memory";
 import { getProductSpeciesLabel, type MockProduct } from "../petwise";
 import type { ShopQueryInterpretation } from "../shop-query";
 
-export const shopProductFitExplanationSystemPrompt = [
-  "You are a knowledgeable store advisor explaining one pet product that is already on screen.",
-  ...FURVISE_SHARED_PROMPT_RULES,
+export const SHOP_PRODUCT_FIT_PROMPT_RULES = [
   "Start by saying what the product is, then explain why it relates to the shopping question.",
   "Include one meaningful limitation only when it helps the decision.",
   "Use only the pet, search, and product details in the input. Never add outside product knowledge.",
@@ -22,6 +20,12 @@ export const shopProductFitExplanationSystemPrompt = [
   "When the full ingredient list is unavailable, use one brief label-check sentence only if relevant.",
   "safetyLine must exactly match the provided requiredSafetyLine.",
   "Return only valid JSON matching the schema.",
+];
+
+export const shopProductFitExplanationSystemPrompt = [
+  "You are a knowledgeable Furvise store advisor explaining one pet product that is already on screen.",
+  ...FURVISE_SHARED_PROMPT_RULES,
+  ...SHOP_PRODUCT_FIT_PROMPT_RULES,
 ].join("\n");
 
 export const shopProductFitExplanationJsonSchema = {

@@ -83,12 +83,12 @@ test("product fit explanation schema validates sales-copy fields and exact safet
 });
 
 test("product fit prompt asks for benefit-focused copy without audit wording", () => {
-  assert.match(shopProductFitExplanationSystemPrompt, /knowledgeable store advisor/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /knowledgeable Furvise store advisor/i);
   assert.match(shopProductFitExplanationSystemPrompt, /Start by saying what the product is/i);
   assert.match(shopProductFitExplanationSystemPrompt, /full ingredient list is included/i);
   assert.match(shopProductFitExplanationSystemPrompt, /Never promise suitability/i);
   assert.match(shopProductFitExplanationSystemPrompt, /Do not use bullets, section labels, or reasoning language/i);
-  assert.match(shopProductFitExplanationSystemPrompt, /Do not make follow-up offers/i);
+  assert.match(shopProductFitExplanationSystemPrompt, /Do not end with a generic follow-up offer/i);
   assert.match(shopProductFitExplanationSystemPrompt, /one brief label-check sentence/i);
   assert.doesNotMatch(shopProductFitExplanationSystemPrompt, /ingredientsVerified|provided data|catalog signals|verified fields|If you want, I can/i);
 });

@@ -45,12 +45,9 @@ export type ShopProductQuestionIntentClassification = {
   reason: string;
 };
 
-export const shopProductQuestionSystemPrompt = [
-  "You are a knowledgeable store advisor answering one question about the pet product already on screen.",
-  ...FURVISE_SHARED_PROMPT_RULES,
+export const SHOP_PRODUCT_QUESTION_PROMPT_RULES = [
   "Return strict JSON only.",
   "Assume the question is about this product unless it is clearly unrelated.",
-  "Answer the exact question in the first sentence.",
   "Use only the selected pet, shopping question, label details, and product card details in the input.",
   "Do not use general internet knowledge or memory about the product.",
   "Never invent ingredients, directions, warnings, size, price, availability, or product claims.",
@@ -58,14 +55,19 @@ export const shopProductQuestionSystemPrompt = [
   "Never promise suitability, professional approval, medical benefit, or a certain reaction.",
   "Do not diagnose.",
   "Return sections for schema compatibility, but make directAnswer the only shopper-facing answer.",
-  "Make directAnswer stand alone. Keep it to one or two short paragraphs, under 90 words when possible, and preserve honest uncertainty.",
+  "Make directAnswer stand alone. Keep a routine product answer under 120 words when practical; use additional concise detail only when a multi-part or safety-sensitive question needs it for a sound decision.",
   "Include label details, directions, or broader shopping checks only when they directly answer the question.",
   "Answer broad buyer doubts when they are about the selected product, including taste, size, age, breed, water, symptoms, reactions, comparison, or whether the pet may like it.",
   "Give a useful answer to messy wording instead of rejecting it.",
-  "The answer summary must be 120 words or fewer.",
   "Make directAnswer casual and shopper-friendly.",
   "For category mismatch questions, answer plainly with wording like Yes, as a shampoo or No, this is more for dental care.",
   "safetyNote must exactly match the requiredSafetyNote.",
+];
+
+export const shopProductQuestionSystemPrompt = [
+  "You are a knowledgeable Furvise store advisor answering one question about the pet product already on screen.",
+  ...FURVISE_SHARED_PROMPT_RULES,
+  ...SHOP_PRODUCT_QUESTION_PROMPT_RULES,
 ].join("\n");
 
 export const shopProductQuestionJsonSchema = {

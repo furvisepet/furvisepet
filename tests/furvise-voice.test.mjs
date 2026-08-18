@@ -17,6 +17,8 @@ import {
   FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE,
   FURVISE_PRODUCT_USAGE_CAP_MESSAGE,
   FURVISE_SEARCH_FALLBACK_MESSAGE,
+  FURVISE_CORE_PROMPT_RULES,
+  FURVISE_RESPONSE_DEPTH_RULES,
   FURVISE_SHARED_PROMPT_RULES,
   FURVISE_URGENT_SAFETY_MESSAGE,
   FURVISE_WRITING_PRINCIPLES,
@@ -62,10 +64,12 @@ function memory() {
 }
 
 test("central voice module defines and shares the Furvise writing principles", () => {
-  for (const principle of ["Direct first", "Human", "Pet-aware", "Practical", "Honest", "Compact", "Calm", "No internal machinery", "No unnecessary reports"]) {
+  for (const principle of ["Direct first", "Efficient, not merely short", "Pet-aware", "Context-aware", "Uncertainty-preserving", "Practical", "Relevance-aware", "Calm", "Human", "Structure when useful", "No internal machinery", "No empty follow-up offers", "No generic safety footer spam", "No em dashes"]) {
     assert.ok(FURVISE_WRITING_PRINCIPLES.some((item) => item.startsWith(`${principle}:`)));
   }
-  assert.ok(FURVISE_SHARED_PROMPT_RULES.length >= 8);
+  assert.ok(FURVISE_CORE_PROMPT_RULES.length >= 8);
+  assert.ok(FURVISE_RESPONSE_DEPTH_RULES.length >= 5);
+  assert.ok(FURVISE_SHARED_PROMPT_RULES.length >= 15);
   assert.equal(buildFurviseSafetyLine("Rocky"), "Based on what you've saved about Rocky. Not a substitute for veterinary or professional advice.");
   assert.equal(buildMissingSavedInformationMessage("Rocky"), "You have not saved anything about that for Rocky yet.");
   assert.equal(buildNoSafeProductMatchMessage("Rocky"), "I could not find a product that fits this search, Rocky's details, and your product country.");
@@ -79,16 +83,34 @@ test("central voice module defines and shares the Furvise writing principles", (
   assert.equal(FURVISE_SEARCH_FALLBACK_MESSAGE, "I could not fully understand that search, so I looked through the catalog using the words you typed.");
 });
 
-test("advisor prompts lead directly, stay compact, and hide internal terminology", () => {
+test("advisor prompts lead directly, adapt depth, preserve entities, and hide internal terminology", () => {
   const prompts = [groundedAskSystemPrompt, shopProductQuestionSystemPrompt, shopProductFitExplanationSystemPrompt];
-  assert.match(groundedAskSystemPrompt, /Lead with a direct answer/);
-  assert.match(shopProductQuestionSystemPrompt, /Answer the exact question in the first sentence/);
+  assert.match(groundedAskSystemPrompt, /Answer the person's actual question immediately/);
+  assert.match(shopProductQuestionSystemPrompt, /Answer the person's actual question immediately/);
   assert.match(shopProductFitExplanationSystemPrompt, /Start by saying what the product is/);
-  assert.match(prompts.join("\n"), /Avoid headings, lists, and report-style sections/);
+  assert.match(prompts.join("\n"), /Level 1 is for a simple factual or low-context question/);
+  assert.match(prompts.join("\n"), /Level 3 is for a complex, multi-factor, history-aware/);
+  assert.match(prompts.join("\n"), /Do not map every animal reference to the selected pet/);
+  assert.match(prompts.join("\n"), /remains suspected or uncertain, never confirmed/);
+  assert.match(prompts.join("\n"), /use a short direct opening followed by compact sections or bullets/);
+  assert.doesNotMatch(prompts.join("\n"), /Keep normal answers to one or two short paragraphs|Avoid headings, lists, and report-style sections/);
   assert.doesNotMatch(
     prompts.join("\n"),
     /provided data|provided context|catalog signals|verified fields|ingredientsVerified|Furvise cannot determine|If you want, I can/i,
   );
+});
+
+test("product prompts compose the central voice once and keep product safety local", () => {
+  const centralRule = "Preserve epistemic status exactly";
+  for (const prompt of [shopProductQuestionSystemPrompt, shopProductFitExplanationSystemPrompt]) {
+    assert.equal(prompt.split(centralRule).length - 1, 1);
+    assert.match(prompt, /Never promise suitability|Do not claim the product is ideal/);
+    assert.match(prompt, /Do not diagnose/);
+    assert.doesNotMatch(prompt, /best product|guaranteed suitable|buy now/i);
+  }
+  const featureRunner = readFileSync(new URL("../app/lib/intelligence/run-feature-intelligence.ts", import.meta.url), "utf8");
+  assert.match(featureRunner, /feature === "product_query_interpretation" \|\| feature === "vet_brief"/);
+  assert.match(featureRunner, /\? FURVISE_CORE_PROMPT_RULES\s*: FURVISE_SHARED_PROMPT_RULES/);
 });
 
 test("messy product questions get a useful answer with honest uncertainty", () => {

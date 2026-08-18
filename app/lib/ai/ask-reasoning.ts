@@ -228,12 +228,21 @@ export const askUnifiedJsonSchema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "answer", "safetyLevel", "suggestedFollowUps", "proposedHistoryUpdate",
+    "answer", "answerSections", "safetyLevel", "suggestedFollowUps", "proposedHistoryUpdate",
     "responseMode", "userIntent", "relevantContextIds",
     "messageUnderstanding", "intelligenceSafety", "learnings", "careActions", "semanticEvents", "semanticFrame",
   ],
   properties: {
     answer: { type: "string", minLength: 1, maxLength: 1800 },
+    answerSections: {
+      type: "array", maxItems: 3, items: {
+        type: "object", additionalProperties: false, required: ["heading", "items"],
+        properties: {
+          heading: { type: "string", minLength: 1, maxLength: 80 },
+          items: { type: "array", minItems: 1, maxItems: 4, items: { type: "string", minLength: 1, maxLength: 260 } },
+        },
+      },
+    },
     safetyLevel: { type: "string", enum: [...safetyLevels] },
     suggestedFollowUps: { type: "array", maxItems: 1, items: { type: "string", maxLength: 180 } },
     proposedHistoryUpdate: {
@@ -281,8 +290,7 @@ const unifiedInstructions = [
   "Classify the newest currentMessage before using prior-turn or recently-resolved context. An explicit current report that a condition is present is current/active or recurrent evidence and must outrank an older recovery; never carry recoveryStatus forward from a prior turn.",
   "Set messageUnderstanding.recoveryStatus by meaning, not keywords. Use partial only when the condition remains present but is reduced or getting better. Use terminal only when the owner explicitly reports return to the pet's normal baseline, absence of the prior symptom, or that the problem ended. Use uncertain when the extent is unclear, and none when no recovery is reported. Set recoveryConfidence from the current message and supplied compatible lifecycle context. Independently extract recoveryEvidence: choose return_to_baseline, symptom_absent, or problem_ended only for terminal semantics; partial_improvement when the problem remains; uncertain when hedged or unclear; otherwise none. recoveryEvidence.surfaceText must be one exact contiguous fragment from the current message that supports that outcome, or null for none. Set targetConcept to the specific prior problem the evidence changes, using the supplied active episode topic when compatible, or null when no specific problem is supported. Its confidence must describe only that evidence.",
   "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording.",
-  "For ordinary questions, write a natural answer first. Avoid report templates and headings unless the situation is genuinely complex.",
-  "Keep casual answers under 120 words, urgent answers about 100 to 250 words, and normal guidance about 150 to 350 words.",
+  "Put the immediate direct answer in answer. For a Level 3 response, put only genuinely useful grouped actions or monitoring points in answerSections; otherwise return an empty answerSections array. Do not duplicate the direct answer in the sections.",
   "Never diagnose. Do not repeat a generic veterinary disclaimer in routine answers.",
   "A proposedHistoryUpdate is only an offer. Never write authoritative persistence claims such as I saved that, I added that to history, I updated the profile, or I marked it resolved. The server renders confirmation only after its transaction. Use proposedHistoryUpdate for a meaningful new event or reported improvement, not ordinary questions.",
   "Classify multiple simultaneous intents in messageUnderstanding. Extract only facts explicitly stated by the user in learnings, with a verbatim short sourceExcerpt from the current message.",
@@ -629,7 +637,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       ? "A previous concern may have returned"
       : parsed.responseMode === "urgent_safety" ? urgentSemanticTitle(petName, parsed.semanticEvents, input.question, input.concerns || []) : "Furvise";
   return {
-    answer: { title, summary: answerText, sections: [], safetyNote: null },
+    answer: { title, summary: answerText, sections: parsed.answerSections, safetyNote: null },
     userIntent: parsed.userIntent,
     relevantContextIds: parsed.relevantContextIds,
     referencedRecords: parsed.relevantContextIds.map((id) => context.records.find((record) => record.id === id)).filter((record): record is AskContextRecord => Boolean(record)),
@@ -732,7 +740,10 @@ export async function generateStructuredFeatureResponse<T>({
   return response;
 }
 
-type ParsedUnifiedResponse = Omit<AskReasoningResult, "answer" | "referencedRecords" | "model"> & { answer: string };
+type ParsedUnifiedResponse = Omit<AskReasoningResult, "answer" | "referencedRecords" | "model"> & {
+  answer: string;
+  answerSections: AskReasoningResult["answer"]["sections"];
+};
 
 export function parseUnifiedResponse(
   outputText: string,
@@ -754,6 +765,7 @@ export function parseUnifiedResponse(
   const allowedIds = new Set(records.map((record) => record.id));
   const answer = cleanAnswer(value.answer).slice(0, 1800);
   if (!answer) throw new Error("Ask provider returned an empty answer.");
+  const answerSections = parseAnswerSections(value.answerSections);
   const relevantContextIds = [...new Set(value.relevantContextIds.filter((id): id is string => typeof id === "string" && allowedIds.has(id)))].slice(0, 8);
   const referencedTypes = new Set(relevantContextIds.map((id) => records.find((record) => record.id === id)?.sourceType).filter(Boolean));
   const frameValidation = validateProposedSemanticFrame(value.semanticFrame);
@@ -778,6 +790,7 @@ export function parseUnifiedResponse(
   }
   return {
     answer,
+    answerSections,
     safetyLevel: value.safetyLevel as ParsedUnifiedResponse["safetyLevel"],
     responseMode: value.responseMode as AskResponseMode,
     shoppingSuppressed: intelligenceSafety.shoppingSuppressed,
@@ -817,6 +830,21 @@ export function parseUnifiedResponse(
       usedMemories: referencedTypes.has("remembered_detail"),
     },
   };
+}
+
+function parseAnswerSections(value: unknown): AskReasoningResult["answer"]["sections"] {
+  if (!Array.isArray(value) || value.length > 3) throw new Error("Ask provider returned invalid answer sections.");
+  return value.map((section) => {
+    if (!section || typeof section !== "object") throw new Error("Ask provider returned invalid answer sections.");
+    const candidate = section as { heading?: unknown; items?: unknown };
+    const heading = typeof candidate.heading === "string" ? cleanAnswer(candidate.heading).slice(0, 80) : "";
+    if (!heading || !Array.isArray(candidate.items) || candidate.items.length < 1 || candidate.items.length > 4) {
+      throw new Error("Ask provider returned invalid answer sections.");
+    }
+    const items = candidate.items.map((item) => typeof item === "string" ? cleanAnswer(item).slice(0, 260) : "");
+    if (items.some((item) => !item)) throw new Error("Ask provider returned invalid answer sections.");
+    return { heading, items };
+  });
 }
 
 function normalizeIntelligenceSafety(value: unknown): AskReasoningResult["intelligenceSafety"] | null {

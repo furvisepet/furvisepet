@@ -38,6 +38,22 @@ test("answer validator removes persistence claims diagnostics and em dashes", ()
   const result = validateGeneratedAnswer(reasoning("I saved that. requestId was internal — okay."), context("save it"), "routine");
   assert.doesNotMatch(result.response.answer.summary, /saved|requestId|—/i); assert.ok(result.repairs.length >= 2);
 });
+test("adaptive answer sections receive the same governance repairs as the summary", () => {
+  const result = validateGeneratedAnswer(reasoning("Keep the routine steady.", {
+    answer: {
+      title: "Answer",
+      summary: "Keep the routine steady.",
+      sections: [{
+        heading: "What I saved",
+        items: ["I saved that. requestId was internal — okay.", "She is diagnosed with an infection."],
+      }],
+      safetyNote: null,
+    },
+  }), context("Mani seems restless"), "routine");
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.response.answer.sections, []);
+  assert.doesNotMatch(JSON.stringify(result.response.answer), /I saved|requestId|—|diagnosed with|\bshe\b/i);
+});
 test("unknown pronouns are neutralized and known pronouns are preserved", () => {
   assert.match(validateGeneratedAnswer(reasoning("She likes her brush."), context("grooming"), "routine").response.answer.summary, /Mani/);
   assert.match(validateGeneratedAnswer(reasoning("She likes her brush."), context("grooming", [{ fact_key: "pronouns" }]), "routine").response.answer.summary, /She/);
@@ -61,6 +77,18 @@ test("governed recovery removes only stale unconditional escalation and retains 
   assert.equal(result.response.responseMode, "practical_guidance");
   assert.equal(result.response.shoppingSuppressed, false);
   assert.equal(result.response.intelligenceSafety.requiresImmediateAction, false);
+  assert.ok(result.repairs.includes("removed_stale_emergency_directive"));
+});
+test("governed recovery also removes stale unconditional escalation from adaptive sections", () => {
+  const result = validateGeneratedAnswer(reasoning("That's a good sign.", {
+    answer: {
+      title: "It sounds like Mani is improving",
+      summary: "That's a good sign.",
+      sections: [{ heading: "What to do", items: ["Contact an emergency veterinarian now.", "Watch for symptoms returning."] }],
+      safetyNote: null,
+    },
+  }), context("Mani seems normal now"), "recently_resolved");
+  assert.deepEqual(result.response.answer.sections, [{ heading: "What to do", items: ["Watch for symptoms returning."] }]);
   assert.ok(result.repairs.includes("removed_stale_emergency_directive"));
 });
 test("emergency safety floors retain unconditional immediate escalation", () => {

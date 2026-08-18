@@ -53,6 +53,7 @@ function input(overrides = {}) {
 function unified(overrides = {}) {
   return {
     answer: "Short play sessions are a good starting point for Mani.",
+    answerSections: [],
     safetyLevel: "normal", suggestedFollowUps: [],
     proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null },
     shoppingSuppressed: false, responseMode: "practical_guidance", userIntent: "routine care",
@@ -100,7 +101,11 @@ test("normal questions use one strict structured provider request and no planner
 
 test("the exact history-aware Mani question fits the supported context budget and completes once", async () => {
   const answer = "The male cat at the door may be relevant to Mani’s restlessness and door-focused meowing, while the outside-water detail remains uncertain. Keep Mani indoors today, refresh her normal indoor water, offer play away from the door, and watch appetite, drinking, urination, energy, vomiting, diarrhea, and whether the restlessness settles. Her normal eating and mostly normal behavior today are reassuring. The supplied history does not establish another cause, so do not invent one; contact a veterinarian if she stops eating, seems unwell, has urinary trouble, or the behavior persists or escalates.";
-  const client = mockClient([unified({ answer })]);
+  const answerSections = [
+    { heading: "What to do today", items: ["Keep Mani indoors and refresh her usual indoor water.", "Use play or another calm activity away from the door."] },
+    { heading: "What to watch", items: ["Watch appetite, drinking, urination, energy, vomiting, diarrhea, and whether the restlessness settles."] },
+  ];
+  const client = mockClient([unified({ answer, answerSections })]);
   const result = await generateContextAwareAskResponse({
     ...input({
       profiles: [profile({ sex: "female" })],
@@ -118,6 +123,18 @@ test("the exact history-aware Mani question fits the supported context budget an
   assert.match(result.answer.summary, /male cat at the door/i);
   assert.match(result.answer.summary, /uncertain/i);
   assert.doesNotMatch(result.answer.summary, /diagnos/i);
+  assert.deepEqual(result.answer.sections, answerSections);
+});
+
+test("simple Ask output remains unsectioned while Level 3 output can use bounded structure", async () => {
+  const simple = await generateContextAwareAskResponse({
+    ...input({ question: "Can cats eat a tiny piece of plain cooked egg?" }),
+    client: mockClient([unified({ answer: "A tiny piece of plain, fully cooked egg is generally fine as an occasional treat for most cats." })]),
+  });
+  assert.deepEqual(simple.answer.sections, []);
+  assert.equal(askUnifiedJsonSchema.properties.answerSections.maxItems, 3);
+  assert.equal(askUnifiedJsonSchema.properties.answerSections.items.properties.items.maxItems, 4);
+  assert.ok(askUnifiedJsonSchema.required.includes("answerSections"));
 });
 
 test("long Ask context is ranked and truncated deterministically", () => {
