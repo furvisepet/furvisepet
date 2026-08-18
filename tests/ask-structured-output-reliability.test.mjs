@@ -183,7 +183,7 @@ test("the reduced contract bounds ordinary output fields and omits deterministic
   assert.equal(askUnifiedJsonSchema.properties.answer.maxLength, 1800);
   assert.equal(askUnifiedJsonSchema.properties.answerSections.maxItems, 3);
   assert.equal(askUnifiedJsonSchema.properties.answerSections.items.properties.items.maxItems, 4);
-  assert.equal(askUnifiedJsonSchema.properties.suggestedFollowUps.maxItems, 1);
+  assert.equal(askUnifiedJsonSchema.properties.suggestedFollowUps.maxItems, 4);
   assert.equal(askUnifiedJsonSchema.properties.learnings.maxItems, 5);
   assert.equal(askUnifiedJsonSchema.properties.careActions.maxItems, 3);
   assert.equal(askUnifiedJsonSchema.properties.semanticEvents.maxItems, 4);

@@ -39,8 +39,9 @@ test("Ask persists chronological conversations with owner RLS", () => {
 test("Ask fresh and follow-up states differ and formal print is absent", () => {
   const page = read("app/ask/page.tsx");
   const contract = read("app/lib/ask.mjs");
-  assert.match(page, /What would you like help with\?/);
-  assert.match(page, /Ask about routines, changes you have noticed, products, or an upcoming vet visit\./);
+  assert.match(page, /What should we figure out\?/);
+  assert.match(page, /Ask about something funny, a change you noticed, a care decision, a product, or an upcoming vet visit\./);
+  assert.match(page, /Nothing is sent until you press Ask\./);
   assert.match(page, /Ask anything about \$\{petName\}\\u2026/);
   assert.match(page, /Ask a follow-up about \$\{petName\}\\u2026/);
   assert.match(page, /Prepare vet brief/);

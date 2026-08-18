@@ -274,11 +274,13 @@ test("active concern loading excludes resolved and monitoring rows while recent 
   assert.match(contextBuilder, /loadRecentlyResolvedConcerns[\s\S]*\.eq\("status", "resolved"\)/);
 });
 
-test("only current urgent answers use danger styling and monitoring has a distinct neutral warning surface", () => {
+test("only current urgent answers use danger styling and monitoring uses an assistant surface with a warning accent", () => {
   assert.match(askPage, /response\.urgency === "urgent"/);
   assert.match(askPage, /response\.urgency === "monitor"/);
   assert.match(askPage, /pw-danger-surface/);
-  assert.match(askPage, /pw-warning-surface/);
+  assert.match(askPage, /assistant-response-surface/);
+  assert.match(askPage, /border-l-\[var\(--warning\)\]/);
+  assert.doesNotMatch(askPage, /bg-\[var\(--pw-warning-surface\)\]/);
 });
 
 test("low-value acknowledgements do not require generation", async () => {
@@ -291,6 +293,28 @@ test("low-value acknowledgements do not require generation", async () => {
     generate: async () => { throw new Error("AI should not be called"); },
   });
   assert.equal(result.handledWithoutAi, true);
+  assert.equal(result.suggestion, null);
+});
+
+test("casual banter can generate a short reply but cannot create a care-history suggestion", async () => {
+  let generations = 0;
+  const result = await orchestrateAskTurn({
+    concerns: [],
+    generationInput: { ...generationInput, question: "she is dumb" },
+    message: "she is dumb",
+    petName: "Mani",
+    generate: async () => {
+      generations += 1;
+      return generatedResult({
+        answer: { title: "Furvise", summary: "Mani has made a choice. Was it a good one? Unclear.", sections: [], safetyNote: null },
+        proposedHistoryUpdate: { shouldOffer: true, category: "behavior", title: "Owner joked about Mani", details: "This should be ignored.", severity: null, resolvesConcernId: null },
+        safetyLevel: "normal",
+      });
+    },
+  });
+  assert.equal(generations, 1);
+  assert.equal(result.intent, "casual");
+  assert.deepEqual(result.answer.sections, []);
   assert.equal(result.suggestion, null);
 });
 

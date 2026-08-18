@@ -67,7 +67,7 @@ test("login and warm empty states keep the requested actions", () => {
   assert.match(pets, /Start \{name\}&apos;s care history[\s\S]*Add update[\s\S]*<SecondaryButton[\s\S]*Ask about \{name\}/);
   const starters = ask.slice(ask.indexOf("function EmptyConversation"), ask.indexOf("function UserMessage"));
   assert.match(starters, /data-ui="starter-question"/);
-  assert.match(starters, /cursor-pointer[\s\S]*hover:bg-\[var\(--selection\)\]/);
+  assert.match(starters, /cursor-pointer[\s\S]*hover:bg-\[var\(--suggested-question-hover\)\]/);
 });
 
 test("primary visible source avoids formal mechanics and em dashes", () => {

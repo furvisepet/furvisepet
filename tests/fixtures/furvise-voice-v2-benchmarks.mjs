@@ -31,7 +31,7 @@ export const furviseVoiceV2Benchmarks = [
   benchmark({
     id: "mani-outside-cat-follow-up",
     depth: 2,
-    prompt: "Is he likely why she keeps waiting there?",
+    prompt: "He finally left but she is still pacing.",
     conversation: ["Mani is the selected female cat", "A male cat has been coming to the door"],
     qualityFocus: ["entityContinuity", "contextCorrectness", "naturalness"],
   }),

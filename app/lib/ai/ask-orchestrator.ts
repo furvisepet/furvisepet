@@ -52,7 +52,7 @@ export async function orchestrateAskTurn({
   const improvementSuggestion = concern && (turn.concernState === "improved" || turn.concernState === "resolved")
     ? buildResolutionSuggestion({ concern, message, petName })
     : null;
-  const modelSuggestion: PendingUpdateSuggestion | null = proposed.shouldOffer && proposed.details
+  const modelSuggestion: PendingUpdateSuggestion | null = turn.intent !== "casual" && proposed.shouldOffer && proposed.details
     ? {
         type: proposed.resolvesConcernId ? "concern_resolution" : "history",
         title: proposed.resolvesConcernId ? "Save this improvement" : "Save this update?",

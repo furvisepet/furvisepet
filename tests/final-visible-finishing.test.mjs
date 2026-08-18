@@ -69,10 +69,11 @@ test("shared text actions have minimum targets and visible hover and focus treat
   assert.match(pets, /<TextAction arrow href=\{`\/pets\/\$\{profile\.id\}`\}>Open profile<\/TextAction>/);
 });
 
-test("Ask starter rows advertise selection without becoming cards", () => {
+test("Ask starter drafts advertise selection as compact, unfussy cards", () => {
   assert.match(ask, /data-ui="starter-question"/);
-  assert.match(ask, /min-h-14[\s\S]*cursor-pointer[\s\S]*hover:bg-\[var\(--selection\)\][\s\S]*focus-visible:ring-2/);
+  assert.match(ask, /min-h-14[\s\S]*cursor-pointer[\s\S]*hover:bg-\[var\(--suggested-question-hover\)\][\s\S]*focus-visible:ring-2/);
   assert.match(ask, /group-hover:translate-x-0\.5/);
+  assert.match(ask.slice(ask.indexOf("function EmptyConversation"), ask.indexOf("function UserMessage")), /rounded-xl/);
   assert.doesNotMatch(ask.slice(ask.indexOf("function EmptyConversation"), ask.indexOf("function UserMessage")), /rounded-2xl|shadow-/);
 });
 
