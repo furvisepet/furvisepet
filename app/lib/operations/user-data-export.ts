@@ -9,6 +9,7 @@ const USER_TABLES = [
   ["user_profiles", "accountPreferences"], ["dog_profiles", "pets"], ["pet_care_entries", "careHistory"],
   ["pet_care_episodes", "careEpisodes"], ["pet_current_state", "currentState"], ["pet_concerns", "concerns"],
   ["pet_care_episode_events", "careEpisodeEvents"],
+  ["pet_profile_lifecycle_events", "petLifecycleEvents"],
   ["dog_memories", "legacyMemories"], ["furvise_memories", "memories"], ["ask_conversations", "conversations"],
   ["ask_conversation_messages", "conversationMessages"], ["ai_update_suggestions", "suggestions"],
   ["dog_product_feedback", "productFeedback"], ["vet_visit_briefs", "vetBriefs"],

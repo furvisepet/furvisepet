@@ -23,6 +23,7 @@ export type PetMemoryContext = {
     monthlyBudget: string | null;
     wellnessGoal: string | null;
     importantNotes: string[];
+    lifecycleStatus: "active" | "deceased" | "archived";
   };
   timeline: {
     recentEntries: PetMemoryTimelineEntry[];
@@ -139,6 +140,7 @@ export function buildPetMemoryContext({
         : null,
     wellnessGoal: normalizeNullable(profile.wellness_goal),
     importantNotes: [] as string[],
+    lifecycleStatus: profile.lifecycle_status || "active",
   };
 
   const ownerEntries = careEntries.map(mapCareEntryToTimelineEntry);

@@ -50,6 +50,9 @@ export type DogProfileRow = {
   monthly_budget: number | null;
   sex?: "female" | "male" | "not_sure" | null;
   routine_note?: string | null;
+  lifecycle_status?: "active" | "deceased" | "archived" | null;
+  lifecycle_changed_at?: string | null;
+  deceased_at?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -30,12 +30,13 @@ export function decideWhetherAiGenerationIsNeeded({
     };
   }
   if (turn.isLowValueAcknowledgement && turn.concernState === "unrelated") {
+    const activeUrgent = concern?.severity === "urgent" && ["active", "reopened"].includes(concern.status);
     return {
-      answer: concern
-        ? `Got it. I'll keep ${concern.title.toLowerCase()} in view while it is still being monitored.`
-        : `Got it. I'm here whenever you want to add something about ${petName}.`,
+      answer: activeUrgent
+        ? `Got it. ${concern.title} is still marked as active, so the earlier urgent guidance still applies until the problem has stopped or a veterinarian has taken over.`
+        : "Got it.",
       handledWithoutAi: true,
-      safetyLevel: concern?.severity === "urgent" ? "monitor" : "normal",
+      safetyLevel: activeUrgent ? "urgent" : "normal",
       suggestion: null,
     };
   }

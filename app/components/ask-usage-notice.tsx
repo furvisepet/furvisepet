@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { AiCreditStatus } from "../lib/ai/usage-ledger";
 
-export function AskUsageNotice({ petId, usage }: { petId: string; usage: Pick<AiCreditStatus, "limit" | "planId" | "remaining" | "resetAt"> }) {
+export function AskUsageNotice({ lifecycleStatus = "active", petId, usage }: { lifecycleStatus?: "active" | "deceased" | "archived"; petId: string; usage: Pick<AiCreditStatus, "limit" | "planId" | "remaining" | "resetAt"> }) {
   if (usage.remaining === 0) {
     const encodedPet = encodeURIComponent(petId);
     const resetDate = formatResetDate(usage.resetAt);
@@ -16,7 +16,7 @@ export function AskUsageNotice({ petId, usage }: { petId: string; usage: Pick<Ai
           {usage.planId === "free" ? <Link className={noticeLink} href="/membership">Upgrade to Plus</Link> : null}
           <Link className={noticeLink} href="/care-log">View care history</Link>
           <Link className={noticeLink} href={`/pets/${encodedPet}/edit`}>Update pet details</Link>
-          <Link className={noticeLink} href={`/vet-brief?pet=${encodedPet}&source=ask-limit`}>Prepare vet brief</Link>
+          <Link className={noticeLink} href={`/vet-brief?pet=${encodedPet}&source=ask-limit`}>{lifecycleStatus === "deceased" ? "Prepare care summary" : "Prepare vet brief"}</Link>
         </div>
       </section>
     );

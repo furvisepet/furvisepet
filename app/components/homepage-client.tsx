@@ -6,6 +6,7 @@ import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { formatPetDisplayName } from "../lib/petwise";
 import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib/supabase";
+import { activePetsOnly } from "../lib/pet-lifecycle";
 import { AppHeader } from "./app-header";
 import { AppFooter } from "./app-footer";
 import { PageShell, PrimaryButton, SecondaryButton } from "./product-primitives";
@@ -22,7 +23,7 @@ export function HomepageClient() {
     let active = true;
     loadDogProfilesWithMemories(auth.user)
       .then((profiles) => {
-        if (active) setPetState({ pet: profiles[0] || null, userId: auth.user?.id || "" });
+        if (active) setPetState({ pet: activePetsOnly(profiles)[0] || null, userId: auth.user?.id || "" });
       })
       .catch(() => {
         if (active) setPetState({ pet: null, userId: auth.user?.id || "" });

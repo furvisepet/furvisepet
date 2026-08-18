@@ -29,6 +29,7 @@ import {
   resolveCareLogInitialPetId,
 } from "../lib/care-log.mjs";
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
+import { activePetsOnly, getPetLifecycleStatus, isActivePet } from "../lib/pet-lifecycle";
 import { useAppDataVersion } from "../lib/navigation/app-data-freshness";
 
 type Props = { petProfileId?: string; scope: "global" | "pet" };
@@ -133,6 +134,7 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
     [profiles],
   );
   const targetPet = profiles.find((profile) => profile.id === petProfileId);
+  const activeProfiles = useMemo(() => activePetsOnly(profiles), [profiles]);
   const visibleEntries = useMemo(
     () =>
       entries.filter((entry) => {
@@ -143,11 +145,14 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
     [entries, isPetScope, petProfileId, selectedCategory, selectedPet],
   );
   const displayedEntries = visibleEntries.slice(0, visibleLimit);
+  const formProfiles = editingEntry
+    ? profiles.filter((profile) => isActivePet(profile) || profile.id === editingEntry.pet_profile_id)
+    : activeProfiles;
   const initialPetId = resolveCareLogInitialPetId({
     editingPetId: editingEntry?.pet_profile_id || "",
     isPetScope,
     petProfileId,
-    profiles,
+    profiles: formProfiles,
     selectedPet,
   });
   const briefPetId = isPetScope
@@ -158,9 +163,11 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
         ? profiles[0].id
         : "";
   const selectedProfile = profiles.find((profile) => profile.id === (isPetScope ? petProfileId : selectedPet)) || (profiles.length === 1 ? profiles[0] : null);
+  const canCreateUpdate = isPetScope ? Boolean(targetPet && isActivePet(targetPet)) : activeProfiles.length > 0;
   const emptyHistoryName = selectedProfile ? formatPetDisplayName(selectedProfile.name) : "";
 
   function openCreate() {
+    if (!canCreateUpdate) return;
     setEditingEntry(null);
     setOverlayOpen(true);
   }
@@ -252,8 +259,8 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
       <div className="w-full">
         <PageHeader
           actions={!configError && !error && !loading && profiles.length > 0 ? <>
-            {briefPetId && entries.length ? <SecondaryButton href={`/vet-brief?pet=${encodeURIComponent(briefPetId)}&source=care-history`}>Prepare vet brief</SecondaryButton> : null}
-            {entries.length ? <PrimaryButton className="w-full py-3 sm:w-auto sm:shrink-0" onClick={openCreate} type="button">Add update</PrimaryButton> : null}
+            {briefPetId && entries.length ? <SecondaryButton href={`/vet-brief?pet=${encodeURIComponent(briefPetId)}&source=care-history`}>{selectedProfile && !isActivePet(selectedProfile) ? "Prepare care summary" : "Prepare vet brief"}</SecondaryButton> : null}
+            {entries.length && canCreateUpdate ? <PrimaryButton className="w-full py-3 sm:w-auto sm:shrink-0" onClick={openCreate} type="button">Add update</PrimaryButton> : null}
           </> : null}
           eyebrow={isPetScope ? <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--pw-primary)]" href={`/pets/${petProfileId}?tab=care-history`}>← Open pet profile</Link> : undefined}
           title={isPetScope && targetPet ? `${formatPetDisplayName(targetPet.name)}'s history` : "History"}
@@ -286,9 +293,9 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
           ) : null}
           {entries.length === 0 ? (
             <section className="max-w-[700px] rounded-2xl border border-[var(--line)] bg-[var(--surface-interactive)] px-6 py-9 shadow-[0_8px_24px_var(--shadow)] sm:px-8" aria-labelledby="empty-history-title">
-              <h2 className="text-[1.4rem] font-semibold tracking-[-0.015em] text-[var(--text-primary)]" id="empty-history-title">{emptyHistoryName ? `Start ${emptyHistoryName}'s history` : "Start your pets' history"}</h2>
-              <p className="mt-2 max-w-[580px] text-[1.02rem] leading-7 text-[var(--text-secondary)]">Food changes, routines, symptoms, products, and small observations will appear here in order.</p>
-              <div className="mt-5 flex flex-wrap items-center gap-2"><PrimaryButton onClick={openCreate}>Add first update</PrimaryButton><SecondaryButton href={selectedProfile ? `/ask?pet=${selectedProfile.id}` : "/ask"}>{emptyHistoryName ? `Ask about ${emptyHistoryName}` : "Ask about your pets"}</SecondaryButton></div>
+              <h2 className="text-[1.4rem] font-semibold tracking-[-0.015em] text-[var(--text-primary)]" id="empty-history-title">{selectedProfile && !isActivePet(selectedProfile) ? `${emptyHistoryName}'s history is preserved` : emptyHistoryName ? `Start ${emptyHistoryName}'s history` : "Start your pets' history"}</h2>
+              <p className="mt-2 max-w-[580px] text-[1.02rem] leading-7 text-[var(--text-secondary)]">{selectedProfile && !isActivePet(selectedProfile) ? `This ${getPetLifecycleStatus(selectedProfile)} profile remains available for history review.` : "Food changes, routines, symptoms, products, and small observations will appear here in order."}</p>
+              <div className="mt-5 flex flex-wrap items-center gap-2">{canCreateUpdate ? <PrimaryButton onClick={openCreate}>Add first update</PrimaryButton> : null}<SecondaryButton href={selectedProfile ? `/ask?pet=${selectedProfile.id}` : "/ask"}>{emptyHistoryName ? `Ask about ${emptyHistoryName}` : "Ask about your pets"}</SecondaryButton></div>
             </section>
           ) : visibleEntries.length === 0 ? (
             <EmptyState
@@ -310,7 +317,7 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
       )}
       </div>
 
-      {activeOverlayOpen ? (
+      {activeOverlayOpen && (Boolean(editingEntry) || canCreateUpdate) ? (
         <div className="fixed inset-0 z-[var(--z-dialog)] flex items-end justify-center bg-[var(--pw-overlay)] sm:items-center sm:p-5" role="presentation">
           <section aria-labelledby="update-dialog-title" aria-modal="true" className="max-h-[100dvh] w-full overflow-y-auto bg-[var(--pw-app-background)] p-4 shadow-2xl sm:max-h-[90dvh] sm:max-w-2xl sm:rounded-3xl sm:p-5" ref={dialogRef} role="dialog">
             <div className="mb-3 flex justify-end">
@@ -325,7 +332,7 @@ export function CareLogWorkspace({ petProfileId = "", scope }: Props) {
               onCancel={closeOverlay}
               onSaved={handleSaved}
               onSubmit={saveEntry}
-              pets={profiles}
+              pets={formProfiles}
             />
           </section>
         </div>

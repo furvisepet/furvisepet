@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 
-const METADATA_KEYS = new Set(["allowed", "captchaPresent", "component", "count", "dimension", "disabled", "flow", "outcome", "policy", "replayed", "retryAfterSeconds", "status"]);
+const METADATA_KEYS = new Set(["actionKind", "allowed", "authorization", "captchaPresent", "component", "count", "dimension", "disabled", "flow", "outcome", "policy", "replayed", "retryAfterSeconds", "status"]);
 const SECRET_KEY = /(password|token|cookie|secret|authorization|email|ip|prompt|response|medical|oauth|captcha)/i;
 
 export function allowlistedMetadata(value?: Record<string, unknown>) {

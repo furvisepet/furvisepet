@@ -208,6 +208,7 @@ function ProfileOverview({
   const askHref = `/ask?pet=${profile.id}`;
   const editHref = `/pets/${profile.id}/edit`;
   const shopHref = `/shop?petId=${encodeURIComponent(profile.id)}`;
+  const lifecycleStatus = profile.lifecycle_status || "active";
 
   return (
     <>
@@ -224,6 +225,7 @@ function ProfileOverview({
           </Link>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <StatusPill label={`Updated ${formatShortDate(model.latestUpdateAt)}`} muted />
+            {lifecycleStatus === "deceased" ? <StatusPill label="Passed away" /> : lifecycleStatus === "archived" ? <StatusPill label="Archived" muted /> : null}
           </div>
           <h1 className="mt-3 break-words text-4xl font-semibold tracking-tight text-[var(--pw-heading)] sm:text-5xl">
             {name}
@@ -234,7 +236,7 @@ function ProfileOverview({
 
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row lg:justify-end">
           <PrimaryButton href={askHref}>Ask Furvise</PrimaryButton>
-          <SecondaryButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SecondaryButton>
+          {lifecycleStatus === "active" ? <SecondaryButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SecondaryButton> : null}
           <SecondaryButton href={editHref}>Edit profile</SecondaryButton>
           <details className="relative">
             <summary
@@ -244,7 +246,7 @@ function ProfileOverview({
               <span>More actions</span>
             </summary>
             <div className="absolute right-0 z-[var(--z-popover)] mt-2 w-52 rounded-2xl border border-[var(--pw-border)] bg-[var(--pw-surface)] p-2 shadow-xl shadow-[var(--pw-shadow)]">
-              {model.showProductLink ? (
+              {model.showProductLink && lifecycleStatus === "active" ? (
                 <Link className={menuItemClass} href={shopHref}>
                   Products for {name}
                 </Link>
@@ -262,7 +264,7 @@ function ProfileOverview({
         </div>
       </header>
 
-      {model.recentSevereSymptom ? (
+      {lifecycleStatus === "active" && model.recentSevereSymptom ? (
         <section className="mt-6 rounded-3xl border border-[var(--pw-danger-border)] bg-[var(--pw-danger-surface)] p-5 text-[var(--pw-danger-text)]">
           <p className="text-sm font-semibold uppercase tracking-[0.12em]">Veterinary caution</p>
           <h2 className="mt-2 text-2xl font-semibold">Severe symptom recorded recently</h2>
@@ -279,19 +281,19 @@ function ProfileOverview({
         </section>
       ) : null}
 
-      {concerns.length ? <ActiveConcerns concerns={concerns} /> : null}
+      {lifecycleStatus === "active" && concerns.length ? <ActiveConcerns concerns={concerns} /> : null}
 
       <div className="mt-7 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
         <div className="grid min-w-0 gap-5">
-          <CurrentFocus model={model} />
+          {lifecycleStatus === "active" ? <CurrentFocus model={model} /> : <Section title={lifecycleStatus === "deceased" ? "Preserved profile" : "Archived profile"}><p className="leading-7 text-[var(--text-secondary)]">{lifecycleStatus === "deceased" ? `${name}'s profile and care history remain available for review.` : "This profile is outside routine care workflows but its history remains available."}</p></Section>}
           <RecentUpdates entries={model.recentEntries} petId={profile.id} petName={name} />
         </div>
         <div className="grid min-w-0 content-start gap-5">
-          <FurviseGuidance
+          {lifecycleStatus === "active" ? <FurviseGuidance
             model={model}
             petName={name}
             petId={profile.id}
-          />
+          /> : null}
           <PetDetails
             feedbackCount={feedback.length}
             model={model}

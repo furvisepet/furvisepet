@@ -1,6 +1,7 @@
 export type AskSelectablePet = {
   id: string;
   created_at?: string | null;
+  lifecycle_status?: "active" | "deceased" | "archived" | null;
 };
 
 export function resolveAskPetSelection({
@@ -15,10 +16,12 @@ export function resolveAskPetSelection({
   storedPetId?: string | null;
 }) {
   const validIds = new Set(pets.map((pet) => pet.id));
+  const activePets = pets.filter((pet) => (pet.lifecycle_status || "active") === "active");
+  const activeIds = new Set(activePets.map((pet) => pet.id));
   if (boundConversationPetId && validIds.has(boundConversationPetId)) return boundConversationPetId;
   if (explicitPetId && validIds.has(explicitPetId)) return explicitPetId;
-  if (storedPetId && validIds.has(storedPetId)) return storedPetId;
-  return [...pets].sort((left, right) => stablePetOrder(left, right))[0]?.id || "";
+  if (storedPetId && activeIds.has(storedPetId)) return storedPetId;
+  return [...activePets].sort((left, right) => stablePetOrder(left, right))[0]?.id || "";
 }
 
 function stablePetOrder(left: AskSelectablePet, right: AskSelectablePet) {

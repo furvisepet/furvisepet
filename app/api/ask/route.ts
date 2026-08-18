@@ -87,6 +87,14 @@ import {
   prepareAskV2Phase3,
   type AskV2Phase3Runtime,
 } from "../../lib/intelligence/v2/phase3/runtime";
+import {
+  enforceVerifiedStateClaims,
+  executeFurviseApplicationAction,
+  parseStoredApplicationActions,
+  prepareFurviseApplicationActions,
+  shouldAutoExecuteAction,
+  type FurviseApplicationAction,
+} from "../../lib/application-actions/index.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
@@ -535,11 +543,20 @@ export async function POST(request: Request) {
       userId,
     }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
   }
-  const conversationResponse = buildAskConversationResponse(orchestration.answer, {
+  const preparedApplicationActions = reasoning ? prepareFurviseApplicationActions({
+    proposals: reasoning.applicationActions,
+    petId: turnPetId,
+    petName: liveContext.pet.name || "your pet",
+    requestId,
+  }) : [];
+  const governedAnswer = enforceAnswerStateClaims(orchestration.answer);
+  const conversationResponse = buildAskConversationResponse(governedAnswer, {
     intent: reasoning?.userIntent || orchestration.intent,
     clarificationQuestion: reasoning?.responseMode === "clarification" ? reasoning.suggestedFollowUps[0] || null : null,
     missingUsefulDetails: [],
     suggestedQuestions: reasoning?.suggestedFollowUps || [],
+    applicationActions: preparedApplicationActions,
+    interactionMode: reasoning?.responseMode === "grief_support" ? "grief" : undefined,
     recentlyResolved: reasoning?.intelligenceSafety.level === "recently_resolved",
     monitoring: safetyLevel === "monitor",
     urgent: safetyLevel === "urgent",
@@ -714,6 +731,19 @@ function buildAlreadyPersistedOrchestration(petName: string) {
     intent: "status_update" as const,
     safetyLevel: "monitor" as const,
     suggestion: null,
+  };
+}
+
+function enforceAnswerStateClaims(answer: { title: string; summary: string; sections: { heading: string; items: string[] }[]; safetyNote: string | null }) {
+  return {
+    ...answer,
+    title: enforceVerifiedStateClaims(answer.title, false),
+    summary: enforceVerifiedStateClaims(answer.summary, false),
+    sections: answer.sections.map((section) => ({
+      heading: enforceVerifiedStateClaims(section.heading, false),
+      items: section.items.map((item) => enforceVerifiedStateClaims(item, false)),
+    })),
+    safetyNote: answer.safetyNote ? enforceVerifiedStateClaims(answer.safetyNote, false) : null,
   };
 }
 
@@ -1024,6 +1054,36 @@ async function persistAssistantAnswer({
   }
   if (semanticTrace) logSemanticTrace(semanticTrace);
 
+  let applicationActions = parseStoredApplicationActions((response as { applicationActions?: unknown }).applicationActions);
+  let applicationStateChanged = false;
+  if (applicationActions.length) {
+    const executed: FurviseApplicationAction[] = [];
+    for (const action of applicationActions) {
+      if (!shouldAutoExecuteAction(action)) {
+        executed.push(action);
+        continue;
+      }
+      const execution = await executeFurviseApplicationAction({
+        action, confirmed: false, sourceMessageId: userMessageId, supabase, userId,
+      });
+      applicationStateChanged ||= execution.changed;
+      executed.push(execution.action);
+      emitOperationalEvent({
+        actorId: userId,
+        errorCode: execution.audit.outcome === "failed" ? "ASK_ACTION_FAILED" : undefined,
+        eventType: execution.audit.outcome === "failed" ? "application_error" : "application_action",
+        feature: "ask_application_action",
+        metadata: { actionKind: execution.audit.actionKind, authorization: execution.audit.authorization, outcome: execution.audit.outcome },
+        operationId: action.id,
+        requestId,
+        resourceId: petId,
+        route: "/api/ask",
+        severity: execution.audit.outcome === "failed" ? "warning" : "info",
+      });
+    }
+    applicationActions = executed;
+  }
+
   await persistAskV2Phase3LowRisk({
     runtime: phase3Runtime,
     turn: intelligenceResult?.v2GovernedTurn || null,
@@ -1068,7 +1128,8 @@ async function persistAssistantAnswer({
       : savedSuggestion
         ? { status: "suggested", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: intelligencePersistence?.memoryIds || [] }
         : { status: "skipped", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: intelligencePersistence?.memoryIds || [] };
-  const canonicalResponse = reconcileResponsePersistenceCopy(response, persistenceMode, automaticCareFailure || Boolean(savedSuggestion));
+  const reconciledResponse = reconcileResponsePersistenceCopy(response, persistenceMode, automaticCareFailure || Boolean(savedSuggestion));
+  const canonicalResponse = applicationActions.length ? { ...reconciledResponse, applicationActions } : reconciledResponse;
   const { error: responseUpdateError } = await supabase.from("ask_conversation_messages")
     .update({ care_persistence: carePersistence, response_data: canonicalResponse }).eq("id", assistantMessage.id).eq("user_id", userId);
   if (responseUpdateError) logAskServerError("response_state_reconciliation", responseUpdateError, { conversationId, requestId }, 200);
@@ -1078,8 +1139,10 @@ async function persistAssistantAnswer({
       ...(intelligenceResult?.acceptedLearnings.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []) || []),
     ]);
   }
+  if (applicationStateChanged) revalidateAskStateViews([petId]);
   return successfulAnswerResponse({
     assistantMessageId: assistantMessage.id,
+    applicationStateChanged,
     concern,
     creditsUsed,
     contextUsed,
@@ -1183,6 +1246,7 @@ async function safeReleaseAiCredit({
 
 function successfulAnswerResponse({
   assistantMessageId = "",
+  applicationStateChanged = false,
   concern = null,
   creditsUsed = 0,
   contextUsed,
@@ -1205,6 +1269,7 @@ function successfulAnswerResponse({
   userMessageId,
 }: {
   assistantMessageId?: string;
+  applicationStateChanged?: boolean;
   concern?: PetConcern | null;
   creditsUsed?: number;
   contextUsed: unknown;
@@ -1235,7 +1300,7 @@ function successfulAnswerResponse({
     conversationId,
     creditsUsed,
     handledWithoutAi,
-    dataChanged: didPersistEffectiveState(intelligencePersistence, carePersistence),
+    dataChanged: applicationStateChanged || didPersistEffectiveState(intelligencePersistence, carePersistence),
     automaticSaveConfirmation: carePersistence.status === "persisted" && carePersistence.careEntryIds.length > 0 ? "Added to care history" : persistedLearningConfirmation(intelligencePersistence),
     carePersistence,
     intelligencePersistence: {

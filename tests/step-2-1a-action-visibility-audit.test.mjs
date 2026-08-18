@@ -51,7 +51,8 @@ test("the development visual audit enumerates every requested route and action r
 });
 
 test("all formerly blank pills preserve their intended labels through shared variants", () => {
-  assert.match(history, /<PrimaryButton onClick=\{openCreate\}>Add first update<\/PrimaryButton><SecondaryButton[^>]*>\{emptyHistoryName \? `Ask about \$\{emptyHistoryName\}` : "Ask about your pets"\}<\/SecondaryButton>/);
+  assert.match(history, /canCreateUpdate \? <PrimaryButton onClick=\{openCreate\}>Add first update<\/PrimaryButton> : null/);
+  assert.match(history, /<SecondaryButton[^>]*>\{emptyHistoryName \? `Ask about \$\{emptyHistoryName\}` : "Ask about your pets"\}<\/SecondaryButton>/);
   assert.match(pets, /<SoftButton href=\{`\/care-log\?pet=\$\{profile\.id\}&new=1`\}>Add update<\/SoftButton><SecondaryButton href=\{`\/ask\?pet=\$\{profile\.id\}`\}>Ask about \{name\}<\/SecondaryButton>/);
   assert.ok(pets.split("<SoftButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SoftButton>").length - 1 >= 2);
   assert.match(today, /<SecondaryButton href=\{`\/ask\?pet=\$\{encodeURIComponent\(selectedProfile\.id\)\}`\}>Ask about \{petName\}<\/SecondaryButton>/);

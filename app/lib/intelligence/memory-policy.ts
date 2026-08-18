@@ -1,6 +1,7 @@
 import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "./types";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
+import { canPersistFurviseMemory, getFurviseMemoryDefinition, normalizeSingletonPreferenceKey } from "../application-actions/memory-scopes.ts";
 
 const forbiddenOwnerCategories = /(?:age|race|religion|politic|medical_condition|disability|sexual|ethnicity)/i;
 const diagnosisPattern = /\b(diagnos(?:e|is)|has allergies|has an infection|is sick|definitely has)\b/i;
@@ -10,11 +11,12 @@ export function evaluateLearningPolicy(learnings: IntelligenceLearning[], curren
   const accepted: IntelligenceLearning[] = [];
   const rejected: Array<{ learning: IntelligenceLearning; reason: string }> = [];
   for (const learning of learnings.slice(0, 8)) {
-    const reason = rejectLearningReason(learning, currentMessage, authorizedPetIds);
-    if (reason) rejected.push({ learning, reason });
+    const governedLearning = normalizeLearningScope(learning);
+    const reason = rejectLearningReason(governedLearning, currentMessage, authorizedPetIds);
+    if (reason) rejected.push({ learning: governedLearning, reason });
     else accepted.push({
-      ...learning,
-      subjectId: learning.subjectType === "pet" ? learning.subjectId || authorizedPetIds[0] : null,
+      ...governedLearning,
+      subjectId: governedLearning.subjectType === "pet" ? governedLearning.subjectId || authorizedPetIds[0] : null,
     });
   }
   return { accepted, rejected };
@@ -60,6 +62,7 @@ export function evaluateCareActionPolicy({
 }
 
 function rejectLearningReason(learning: IntelligenceLearning, currentMessage: string, authorizedPetIds: readonly string[]) {
+  if (!canPersistFurviseMemory(learning.factKey)) return "conversation_scope_is_not_durable";
   if (learning.action === "none" || learning.durability === "temporary") return "not_durable";
   if (learning.confidence < 0.85) return "confidence_below_automatic_threshold";
   if (!learning.factKey.trim() || learning.factValue === null || learning.factValue === undefined) return "empty_fact";
@@ -73,6 +76,13 @@ function rejectLearningReason(learning: IntelligenceLearning, currentMessage: st
   if (!learning.sourceExcerpt.trim() || !normalized(currentMessage).includes(normalized(learning.sourceExcerpt))) return "source_excerpt_not_explicit";
   if (/^(?:hello|hi|hey|thanks|thank you|okay|ok)$/i.test(String(learning.factValue).trim())) return "conversational_filler";
   return "";
+}
+
+function normalizeLearningScope(learning: IntelligenceLearning): IntelligenceLearning {
+  const factKey = normalizeSingletonPreferenceKey(learning.factKey);
+  const definition = getFurviseMemoryDefinition(factKey);
+  if (definition.scope !== "USER") return learning;
+  return { ...learning, subjectType: "owner", subjectId: null, factKey, category: "communication_preference", durability: "durable" };
 }
 
 function hasSupport(message: string, proposed: string) {

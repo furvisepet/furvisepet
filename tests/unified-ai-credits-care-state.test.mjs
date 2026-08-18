@@ -277,9 +277,10 @@ test("active concern loading excludes resolved and monitoring rows while recent 
 test("only current urgent answers use danger styling and monitoring uses an assistant surface with a warning accent", () => {
   assert.match(askPage, /response\.urgency === "urgent"/);
   assert.match(askPage, /response\.urgency === "monitor"/);
-  assert.match(askPage, /pw-danger-surface/);
+  assert.match(askPage, /border-l-\[var\(--pw-danger-border\)\]/);
   assert.match(askPage, /assistant-response-surface/);
   assert.match(askPage, /border-l-\[var\(--warning\)\]/);
+  assert.doesNotMatch(askPage, /bg-\[var\(--pw-danger-surface\)\]/);
   assert.doesNotMatch(askPage, /bg-\[var\(--pw-warning-surface\)\]/);
 });
 

@@ -26,6 +26,7 @@ import { formatCareNotePreview, toLocalDateTimeInputValue } from "../lib/care-lo
 import { getFinishProfileItemsFromRow } from "../lib/finish-profile";
 import { readPhotoFile, saveLocalPhoto } from "../lib/local-pet-media";
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
+import { activePetsOnly } from "../lib/pet-lifecycle";
 import { useAppDataVersion } from "../lib/navigation/app-data-freshness";
 import {
   buildTodayEntryDraft,
@@ -49,6 +50,7 @@ export default function TodayPage() {
   const configError = getSupabaseConfigError();
   const { status: authStatus, user } = useRequireConfirmedSupabaseAuth();
   const [profiles, setProfiles] = useState<DogProfileWithMemories[]>([]);
+  const [hasRetainedProfiles, setHasRetainedProfiles] = useState(false);
   const [entries, setEntries] = useState<CareEntryWithPetName[]>([]);
   const [selectedPetId, setSelectedPetId] = useState("");
   const [loading, setLoading] = useState(!configError);
@@ -70,9 +72,11 @@ export default function TodayPage() {
     loadDogProfilesWithMemories(user)
       .then((profileRows) => {
         if (!active) return;
-        setProfiles(profileRows);
+        const activeProfiles = activePetsOnly(profileRows);
+        setProfiles(activeProfiles);
+        setHasRetainedProfiles(activeProfiles.length < profileRows.length);
         const requestedPetId = new URLSearchParams(window.location.search).get("pet") || getActivePetId(window.localStorage);
-        const nextPetId = profileRows.some((profile) => profile.id === requestedPetId) ? requestedPetId : profileRows[0]?.id || "";
+        const nextPetId = activeProfiles.some((profile) => profile.id === requestedPetId) ? requestedPetId : activeProfiles[0]?.id || "";
         setSelectedPetId(nextPetId);
         if (nextPetId) setActivePetId(window.localStorage, nextPetId);
       })
@@ -178,9 +182,9 @@ export default function TodayPage() {
       {!loading && !configError && !error && profiles.length === 0 ? (
         <div className="mt-10">
           <EmptyState
-            action={<PrimaryButton href={NEW_PET_ONBOARDING_PATH}>Add your first pet</PrimaryButton>}
-            description="Create a profile to start keeping everyday changes, questions, and vet notes together."
-            title="Start with your pet"
+            action={hasRetainedProfiles ? <SecondaryButton href="/pets">View retained profiles</SecondaryButton> : <PrimaryButton href={NEW_PET_ONBOARDING_PATH}>Add your first pet</PrimaryButton>}
+            description={hasRetainedProfiles ? "Archived and passed-away profiles remain available from Pets and History." : "Create a profile to start keeping everyday changes, questions, and vet notes together."}
+            title={hasRetainedProfiles ? "No active pets" : "Start with your pet"}
           />
         </div>
       ) : null}
