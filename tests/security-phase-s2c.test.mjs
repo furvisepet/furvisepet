@@ -118,8 +118,9 @@ test("all paid feature routes admit centrally after S2B and before user-credit r
   ];
   for (const route of routes) {
     const source = read(route);
-    assert.ok(source.indexOf("requireRateLimitedRequest") < source.lastIndexOf("runAdmittedAiOperation"), route);
-    assert.ok(source.lastIndexOf("runAdmittedAiOperation") < source.lastIndexOf("runWithAiCredit") || source.includes("reserveAiCredit"), route);
+    const admission = Math.max(source.lastIndexOf("runAdmittedAiOperation"), source.lastIndexOf("aiAdmission = await admitAiOperation"));
+    assert.ok(source.indexOf("requireRateLimitedRequest") < admission, route);
+    assert.ok(admission < source.lastIndexOf("runWithAiCredit") || source.includes("reserveAiCredit"), route);
   }
 });
 

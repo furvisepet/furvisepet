@@ -89,7 +89,10 @@ test("all browser state-changing routes use the central framework", () => {
 test("all paid provider entry routes claim before the provider call", () => {
   for (const route of ["app/api/ask/route.ts", "app/api/analyze/route.ts", "app/api/safety-followup/route.ts", "app/api/shop/interpret-query/route.ts", "app/api/shop/explain-product-fit/route.ts", "app/api/shop/product-question/route.ts", "app/api/vet-briefs/draft/route.ts"]) {
     const body = source(route);
-    assert.ok(body.indexOf("await claimIdempotentOperation") < body.indexOf("runAdmittedAiOperation({"), route);
+    const admission = route === "app/api/ask/route.ts"
+      ? body.indexOf("aiAdmission = await admitAiOperation")
+      : body.indexOf("runAdmittedAiOperation({");
+    assert.ok(body.indexOf("await claimIdempotentOperation") < admission, route);
   }
 });
 

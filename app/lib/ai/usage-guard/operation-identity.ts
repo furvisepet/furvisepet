@@ -1,13 +1,11 @@
 import { createHmac } from "node:crypto";
 
 export function deriveAiGuardOperationId(input: {
-  executionPhase?: "initial" | "retry";
+  feature: string;
   requestId: string;
   secret: string;
   userId: string;
 }) {
-  const identity = input.executionPhase
-    ? `${input.userId}:${input.requestId}:phase:${input.executionPhase}`
-    : `${input.userId}:${input.requestId}`;
+  const identity = `${input.userId}:${input.feature}:${input.requestId}`;
   return createHmac("sha256", input.secret).update(identity).digest("hex");
 }

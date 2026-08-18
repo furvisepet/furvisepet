@@ -125,6 +125,7 @@ export async function POST(request: Request) {
     }, () => runWithAiCredit<FeatureIntelligenceResult<ShopProductFitExplanation>>({
       feature: "product_explanation",
       monthlyAiCredits: context.monthlyAiCredits,
+      payload: { interpretation, petId, productCountry, productId, query },
       planId: context.planId,
       requestId,
       supabase: context.supabase,

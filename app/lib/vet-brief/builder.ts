@@ -23,7 +23,10 @@ type BuildVetBriefInput = {
 export function buildVetBriefDraft(input: BuildVetBriefInput) {
   const conversation = sanitizeConversation(input.conversation || []);
   const conversationText = conversation.map(getConversationText).join(" ");
-  const retrospective = (input.profile.lifecycle_status || "active") !== "active" || /\b(?:died|dead|death|passed away|euthanized|grief)\b/i.test(`${input.reasonForVisit || ""} ${conversationText}`);
+  const recordedConfirmedLoss = input.careEntries.some(isConfirmedLossEntry);
+  const retrospective = (input.profile.lifecycle_status || "active") !== "active"
+    || recordedConfirmedLoss
+    || /\b(?:died|dead|death|passed away|euthanized|grief)\b/i.test(`${input.reasonForVisit || ""} ${conversationText}`);
   const reasonForVisit = cleanVetBriefText(input.reasonForVisit, 1200)
     || (retrospective ? "Retrospective care-history summary" : getConversationReason(conversation) || "Not recorded");
   const topicText = `${reasonForVisit} ${conversationText}`.toLowerCase();
@@ -111,6 +114,7 @@ export function buildVetBriefDraft(input: BuildVetBriefInput) {
 }
 
 function isRelevantEntry(entry: CareEntryRow, topicText: string) {
+  if (isConfirmedLossEntry(entry)) return true;
   if (["symptom", "medication", "vet_visit"].includes(entry.category)) return true;
   if (!topicText.trim() || /\b(routine|wellness|checkup|check-up|annual)\b/.test(topicText)) return true;
   const terms = getTopicTerms(topicText);
@@ -120,6 +124,13 @@ function isRelevantEntry(entry: CareEntryRow, topicText: string) {
   if (entry.category === "grooming" && /\b(skin|itch\w*|scratch\w*|paw|ear|groom\w*|coat|fur)\b/.test(topicText)) return true;
   if (entry.category === "behavior" && /\b(behavior|energy|sleep|mood|activity|pain)\b/.test(topicText)) return true;
   return false;
+}
+
+function isConfirmedLossEntry(entry: Pick<CareEntryRow, "title" | "note">) {
+  const text = `${entry.title || ""} ${entry.note || ""}`;
+  if (/\b(?:possible|possibly|might|may have|uncertain|not sure)\b/i.test(text)) return false;
+  return /\b(?:died|is dead|was killed|passed away|euthanized|was put (?:to sleep|down))\b/i.test(text)
+    && /\bOwner reported\b/i.test(entry.note || "");
 }
 
 function getTopicTerms(value: string) {

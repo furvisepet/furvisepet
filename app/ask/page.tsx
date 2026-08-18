@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import {
   type FormEvent,
@@ -43,6 +42,7 @@ import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
 import { markAppDataChanged } from "../lib/navigation/app-data-freshness";
 import { setAskRequestActive } from "../lib/navigation/ask-request-activity";
 import { getAskErrorPresentation, type AskFailureCode } from "../lib/ask-client-errors";
+import { getAskCareHistoryState } from "../lib/ask-care-history-state";
 import { applySuggestedQuestionDraft, getAskPresentationMode, shouldShowSuggestedQuestions } from "../lib/ask-experience";
 import type { FurviseApplicationAction } from "../lib/application-actions/types";
 import { getPetLifecycleStatus, isActivePet } from "../lib/pet-lifecycle";
@@ -620,11 +620,11 @@ function FurviseMessage({ lifecycleStatus, likelyVetConcern, message, onAction, 
   const monitoring = response.urgency === "monitor";
   const resolved = response.urgency === "resolved";
   const presentation = getAskPresentationMode(response, userMessage);
-  const playful = presentation === "casual" || presentation === "resolved";
   const grief = presentation === "grief";
+  const careHistoryState = getAskCareHistoryState(message);
   const semanticAccent = urgent ? "border-l-[var(--pw-danger-border)]" : monitoring ? "border-l-[var(--warning)]" : grief ? "border-l-[var(--text-tertiary)]" : resolved ? "border-l-[var(--selection-strong)]" : "border-l-[var(--assistant-response-accent)]";
-  return <article data-ask-presentation={presentation} data-ask-semantic={grief ? "grief" : urgent ? "urgent" : monitoring ? "monitoring" : "normal"} className={`max-w-full rounded-2xl border border-[var(--assistant-response-border)] border-l-4 ${semanticAccent} bg-[var(--assistant-response-surface)] p-4 sm:max-w-3xl sm:p-5`}>
-    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--assistant-response-accent)]">{playful && !grief ? <Image alt="" aria-hidden="true" className="h-6 w-6 object-contain" height={24} src="/images/nav-ask-v1.webp" width={24} /> : <BrandMark showName={false} size={24} />}<span>Furvise</span></div>
+  return <article data-ask-presentation={presentation} data-ask-semantic={grief ? "grief" : urgent ? "urgent" : monitoring ? "monitoring" : "normal"} data-care-history-state={careHistoryState} className={`max-w-full rounded-2xl border border-[var(--assistant-response-border)] border-l-4 ${semanticAccent} bg-[var(--assistant-response-surface)] p-4 sm:max-w-3xl sm:p-5`}>
+    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--assistant-response-accent)]" data-ui="furvise-assistant-identity"><BrandMark showName={false} size={24} /><span>Furvise</span></div>
     {shouldShowAnswerHeading(response.title) ? <h2 className="text-xl font-semibold leading-8 text-[var(--pw-heading)]">{response.title}</h2> : null}
     <p className={`${shouldShowAnswerHeading(response.title) ? "mt-2 " : ""}[overflow-wrap:anywhere] text-[1.05rem] leading-8 text-[var(--pw-text)]`}>{response.directAnswer}</p>
     {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
@@ -633,7 +633,7 @@ function FurviseMessage({ lifecycleStatus, likelyVetConcern, message, onAction, 
     {presentation !== "casual" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
     {response.applicationActions?.length ? <ApplicationActions actions={response.applicationActions} onAction={onApplicationAction} /> : null}
     {getPersistenceNotices(message).map((notice) => <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]" data-persistence-notice={notice.type} key={notice.key}>{notice.label}</p>)}
-    {message.carePersistence?.status === "failed" ? <p className="mt-3 text-xs font-semibold text-[var(--pw-warning-text)]" role="status">This update could not be added to care history. Ask Furvise to save it to try again.</p> : null}
+    {careHistoryState === "save_failed" ? <p className="mt-3 text-xs font-semibold text-[var(--pw-warning-text)]" role="status">{message.suggestion ? "This update has not been saved. Review it in the care history card and try again when ready." : "This update could not be saved to care history. Your answer is still available."}</p> : null}
   </article>;
 }
 

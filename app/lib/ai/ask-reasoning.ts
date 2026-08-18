@@ -43,6 +43,8 @@ import {
 } from "../intelligence/semantic-frame/recover-owner-preference.ts";
 import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-governance.ts";
 import { modelApplicationActionJsonSchema, parseModelApplicationActions, type ModelApplicationAction } from "../application-actions/index.ts";
+import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
+import { ensureConfirmedLossAction, findRecentConfirmedLossMessage, resolvePetLossContext } from "./pet-loss.ts";
 
 export type AskContextSourceType =
   | "profile"
@@ -299,6 +301,7 @@ const unifiedInstructions = [
   "For clearly casual small talk, mirror mild slang naturally, keep the answer short, and allow a light joke or an occasional single emoji when it fits. Do not invent monitoring, logging, care-plan, or veterinary advice when the content does not warrant it.",
   "For urgent medical signs, serious injury, poisoning, severe pain, grief, death, or significant distress, immediately suppress jokes, slang, emojis, and playful framing. Safety remains dominant.",
   "Use responseMode=grief_support for a reported death, grief, or a loss-context follow-up. Death is not an urgent-treatment mode for the deceased pet. Keep grief responses compassionate and concise, suppress routine monitoring, product, and future-vet assumptions, and return no generic follow-ups.",
+  "When the owner asks how to observe or distinguish a sign, explain a safe way to check and what the observations mean. Never answer by merely paraphrasing the owner's question back to them.",
   "When the user asks Furvise to read, change, remove, prepare, or open application state, emit a typed applicationActions proposal instead of pretending the operation happened. Copy one exact current-message fragment into evidence. Set explicitIntent true only when the user directly requested that operation. Never invent identifiers. The server owns authorization, confirmation, execution, and success copy.",
   "Application action inputs are semantic, not database-shaped. For pet.update_profile use field=name, weight, current_food, routine_note, sex, or breed and preserve the explicit value. For care-history actions write a standalone title and detail, and use target=last only when the owner clearly refers to the latest entry. Use navigation.open_pet_profile, navigation.open_memories, navigation.open_care_history, navigation.open_vet_brief, or vet_brief.prepare for navigation and preparation requests.",
   "Use memory.set_preference for singleton USER communication preferences. Normalize language to field=preferred_language, units to preferred_units, and communication style to communication_style. A newer singleton value replaces the older value. Never store these as pet facts. Use memory.forget_preference only for an explicit request to forget one of those fields.",
@@ -587,6 +590,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     }
   }
 
+  const profile = input.profiles.length === 1 ? input.profiles[0] : null;
   const previousAssistantText = [...input.conversationTurns].reverse().find((turn) => turn.role === "furvise")?.text || "";
   if (previousAssistantText && areAskResponsesMateriallyIdentical(parsed.answer, previousAssistantText)) {
     if (process.env.NODE_ENV === "development") {
@@ -619,7 +623,29 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     }
   }
 
-  if (context.minimumSafetyLevel === "urgent") {
+  const lossContext = resolvePetLossContext({
+    message: input.question,
+    recentConversation: input.conversationTurns,
+    lifecycleStatus: profile ? readOptionalString(profile, "lifecycle_status") : null,
+    petName: profile?.name,
+  });
+  const recentLossEvidence = lossContext === "continuation" ? findRecentConfirmedLossMessage(input.conversationTurns) : null;
+  if (lossContext === "confirmed_current" || lossContext === "continuation") {
+    parsed.responseMode = "grief_support";
+    parsed.safetyLevel = "normal";
+    parsed.shoppingSuppressed = true;
+    parsed.intelligenceSafety.level = "routine";
+    parsed.intelligenceSafety.requiresImmediateAction = false;
+    parsed.intelligenceSafety.shoppingSuppressed = true;
+    parsed.suggestedFollowUps = [];
+    parsed.answerSections = [];
+    parsed.applicationActions = ensureConfirmedLossAction(
+      parsed.applicationActions,
+      lossContext === "confirmed_current" ? input.question : recentLossEvidence || "",
+      { exclusive: lossContext === "confirmed_current" },
+    );
+    parsed.proposedHistoryUpdate = { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null };
+  } else if (context.minimumSafetyLevel === "urgent") {
     parsed.safetyLevel = "urgent";
     parsed.shoppingSuppressed = true;
     parsed.responseMode = "urgent_safety";
@@ -629,12 +655,11 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       parsed.answer = `Contact an emergency veterinarian now. ${parsed.answer}`.slice(0, 1800);
     }
   }
-  if (context.minimumSafetyLevel === "monitor" && parsed.safetyLevel === "normal") {
+  if (lossContext === "none" && context.minimumSafetyLevel === "monitor" && parsed.safetyLevel === "normal") {
     parsed.safetyLevel = "monitor";
     if (parsed.intelligenceSafety.level === "routine") parsed.intelligenceSafety.level = "monitor";
   }
 
-  const profile = input.profiles.length === 1 ? input.profiles[0] : null;
   let answerText = parsed.answer;
   if (profile) {
     const reference = getPetReferenceGuidance({
@@ -644,6 +669,9 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       sex: readOptionalString(profile, "sex") || readOptionalString(profile, "gender"),
     });
     if (!reference.allowsGenderedPronouns) answerText = removeUnsupportedGenderedPronouns(answerText, profile.name || "your pet");
+  }
+  if (profile && isUselessQuestionEcho(input.question, answerText, profile.name || "your pet")) {
+    answerText = buildObservationAssessmentFallback(input.question, profile.name || "your pet");
   }
   assertNoInternalReasoningLeak(answerText, context.records);
   const petName = profile?.name || "Your pet";

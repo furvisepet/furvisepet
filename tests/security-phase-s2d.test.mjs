@@ -321,7 +321,9 @@ test("origin denial precedes rate limiting, AI credits, provider calls, and muta
       ? source.indexOf("loadAskAuthenticationContext(request)", routeStart)
       : source.indexOf("RequestContext(request)", routeStart);
     const rateLimit = source.indexOf("requireRateLimitedRequest", routeStart);
-    const admission = source.indexOf("runAdmittedAiOperation", routeStart);
+    const admission = path === "app/api/ask/route.ts"
+      ? source.indexOf("aiAdmission = await admitAiOperation", routeStart)
+      : source.indexOf("runAdmittedAiOperation", routeStart);
     assert.ok(contextLoad > routeStart && contextLoad < rateLimit, `${path}: context before rate limit`);
     assert.ok(contextLoad < admission, `${path}: context before admission`);
   }

@@ -1,4 +1,6 @@
 import type { CareEntryRow } from "../supabase.ts";
+import { prepareGovernedCareHistoryEvent } from "../intelligence/care-history-policy.ts";
+import type { GovernedCanonicalEvent } from "../intelligence/types.ts";
 
 export type ConcernStatus = "active" | "monitoring" | "resolved" | "reopened" | "dismissed";
 export type ConcernSeverity = "routine" | "important" | "urgent";
@@ -67,6 +69,28 @@ export function buildObservationSuggestion({ message, petName }: { message: stri
     title: "Save this update?",
     details: `${petName}: ${message.trim()}`,
     payload: { category: "general", note: message.trim(), title: "Care update" },
+  };
+}
+
+export function buildSemanticEventReviewSuggestion({ event }: { event: GovernedCanonicalEvent }): PendingUpdateSuggestion {
+  const proposal = prepareGovernedCareHistoryEvent(event).event;
+  const category = proposal.domain === "health" ? "symptom"
+    : proposal.domain === "nutrition" ? "food"
+      : proposal.domain === "medication" ? "medication"
+        : proposal.domain === "behavior" ? "behavior" : "general";
+  return {
+    type: "history",
+    title: ["improved", "resolved", "corrected"].includes(proposal.transition) ? "Save this improvement" : "Save this update?",
+    details: proposal.sourceExcerpt,
+    payload: {
+      category,
+      note: proposal.sourceExcerpt,
+      severity: proposal.importance === "urgent" ? "severe" : proposal.importance === "important" ? "moderate" : "mild",
+      title: proposal.eventTitle,
+      semanticDomain: proposal.domain,
+      semanticTopic: proposal.normalizedTopic,
+      semanticTransition: proposal.transition,
+    },
   };
 }
 

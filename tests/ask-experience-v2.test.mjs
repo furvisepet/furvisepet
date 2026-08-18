@@ -123,8 +123,9 @@ test("Ask prompt permits personality but keeps serious safety dominant", () => {
   assert.match(reasoning, /For clearly casual small talk[\s\S]*light joke or an occasional single emoji/);
   assert.match(reasoning, /Do not invent monitoring, logging, care-plan, or veterinary advice/);
   assert.match(reasoning, /urgent medical signs[\s\S]*suppress jokes, slang, emojis, and playful framing/);
-  assert.match(page, /const playful = presentation === "casual" \|\| presentation === "resolved"/);
-  assert.match(page, /playful && !grief \? <Image[\s\S]*: <BrandMark/);
+  assert.match(page, /data-ui="furvise-assistant-identity"/);
+  assert.match(page, /data-ui="furvise-assistant-identity"><BrandMark showName=\{false\} size=\{24\}/);
+  assert.doesNotMatch(page, /nav-ask-v1\.webp/);
   assert.match(read("app/lib/ai/ask-orchestrator.ts"), /turn\.intent !== "casual" && proposed\.shouldOffer/);
   assert.match(page, /presentation !== "casual" && message\.suggestion/);
 });

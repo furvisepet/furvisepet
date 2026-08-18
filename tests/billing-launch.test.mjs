@@ -103,6 +103,8 @@ test("multiple provider calls in one canonical Ask reserve and complete one allo
   const result = await runWithAiCredit({
     feature: "ask",
     generate: async () => { providerCalls += 2; return "answer"; },
+    ledgerClient: supabase,
+    payload: { question: "How is my pet?" },
     requestId: "20000000-0000-4000-8000-000000000001",
     supabase,
     userId: "10000000-0000-4000-8000-000000000001",
@@ -117,22 +119,27 @@ test("provider failure releases once and completed replay consumes no new Ask", 
   await assert.rejects(runWithAiCredit({
     feature: "ask",
     generate: async () => { throw new Error("provider failed"); },
+    ledgerClient: failed,
+    payload: { question: "How is my pet?" },
     requestId: "20000000-0000-4000-8000-000000000002",
     supabase: failed,
     userId: "10000000-0000-4000-8000-000000000001",
   }), /provider failed/);
   assert.deepEqual(failed.calls.map((call) => call.name), ["reserve_ai_credit", "release_ai_credit"]);
 
-  const replay = creditClient([reservation("completed", 4), allowanceRow(4, 4)]);
-  const result = await runWithAiCredit({
+  const replay = creditClient([reservation("completed", 4)]);
+  let replayProviderCalls = 0;
+  await assert.rejects(runWithAiCredit({
     feature: "ask",
-    generate: async () => "persisted answer",
+    generate: async () => { replayProviderCalls += 1; return "persisted answer"; },
+    ledgerClient: replay,
+    payload: { question: "How is my pet?" },
     requestId: "20000000-0000-4000-8000-000000000003",
     supabase: replay,
     userId: "10000000-0000-4000-8000-000000000001",
-  });
-  assert.equal(result.creditsUsed, 0);
-  assert.deepEqual(replay.calls.map((call) => call.name), ["reserve_ai_credit", "get_my_ask_allowance_status"]);
+  }), /AI_CREDIT_COMPLETED_REPLAY_REQUIRED/);
+  assert.equal(replayProviderCalls, 0);
+  assert.deepEqual(replay.calls.map((call) => call.name), ["reserve_ai_credit"]);
 });
 
 test("migration extends the canonical ledger and secures authoritative billing state", () => {

@@ -340,6 +340,71 @@ test("casual greetings remain short while retaining the safe structured-output b
   assert.equal(client.requests[0].max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
 });
 
+test("confirmed pet death deterministically enters grief mode and proposes a confirmation action", async () => {
+  const question = "she ran outside and a dog came and bit her neck and she died";
+  const client = mockClient([unified({
+    answer: "I'm so sorry. I can record that Mani passed away.",
+    responseMode: "urgent_safety",
+    safetyLevel: "urgent",
+    shoppingSuppressed: false,
+    suggestedFollowUps: ["What should I watch tonight?"],
+    intelligenceSafety: { level: "urgent", reason: "Dog bite", requiresImmediateAction: true, shoppingSuppressed: false },
+  })]);
+  const result = await generateContextAwareAskResponse({
+    ...input({ profiles: [profile({ lifecycle_status: "active", pronouns: "she/her" })], question }),
+    client,
+  });
+  assert.equal(client.requests.length, 1);
+  assert.equal(result.responseMode, "grief_support");
+  assert.equal(result.safetyLevel, "normal");
+  assert.equal(result.intelligenceSafety.level, "routine");
+  assert.equal(result.intelligenceSafety.requiresImmediateAction, false);
+  assert.equal(result.shoppingSuppressed, true);
+  assert.deepEqual(result.suggestedFollowUps, []);
+  assert.deepEqual(result.answer.sections, []);
+  assert.equal(result.applicationActions.length, 1);
+  assert.equal(result.applicationActions[0].kind, "pet.mark_deceased");
+});
+
+test("loss-context follow-ups remain grief-aware and do not restart emergency treatment", async () => {
+  const client = mockClient([unified({
+    answer: "I'm sorry. For now, take the next practical step that feels manageable.",
+    responseMode: "practical_guidance",
+    safetyLevel: "urgent",
+    suggestedFollowUps: ["What should I monitor?"],
+  })]);
+  const result = await generateContextAwareAskResponse({
+    ...input({
+      profiles: [profile({ lifecycle_status: "active", pronouns: "she/her" })],
+      question: "so what now",
+      conversationTurns: [
+        { id: "loss-user", role: "user", text: "Mani died after a dog attacked her.", createdAt: "2026-08-18T10:00:00Z" },
+        { id: "loss-answer", role: "furvise", text: "I'm so sorry.", createdAt: "2026-08-18T10:00:01Z" },
+      ],
+    }),
+    client,
+  });
+  assert.equal(result.responseMode, "grief_support");
+  assert.equal(result.safetyLevel, "normal");
+  assert.equal(result.shoppingSuppressed, true);
+  assert.deepEqual(result.suggestedFollowUps, []);
+  assert.equal(result.applicationActions[0].kind, "pet.mark_deceased");
+  assert.doesNotMatch(result.answer.summary, /emergency treatment|monitor her breathing/i);
+});
+
+test("an observational assessment question is repaired locally when the model only echoes it", async () => {
+  const question = "Is she putting any weight on it, or is she holding the leg up?";
+  const client = mockClient([unified({ answer: "Is Mani putting any weight on it, or is Mani holding the leg up?" })]);
+  const result = await generateContextAwareAskResponse({
+    ...input({ profiles: [profile({ pronouns: "she/her" })], question }),
+    client,
+  });
+  assert.equal(client.requests.length, 1);
+  assert.match(result.answer.summary, /non-slip surface/i);
+  assert.match(result.answer.summary, /will not bear weight/i);
+  assert.notEqual(result.answer.summary, "Is Mani putting any weight on it, or is Mani holding the leg up?");
+});
+
 test("a token-based 429 retries once with a distinct fallback model and same request context", async () => {
   const previousPrimary = process.env.OPENAI_ASK_MODEL;
   const previousFallback = process.env.OPENAI_ASK_FALLBACK_MODEL;
