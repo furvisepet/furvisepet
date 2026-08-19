@@ -39,12 +39,19 @@ export async function POST(request: Request, routeContext: RouteContext) {
     ? await sourceQuery.eq("id", action.sourceMessageId).maybeSingle<LifecycleSourceMessage>()
     : await sourceQuery.lt("sequence_number", message.sequence_number).order("sequence_number", { ascending: false }).limit(1).maybeSingle<LifecycleSourceMessage>();
   if (!sourceMessage) return Response.json({ error: "The source request for that action is no longer available." }, { status: 409 });
+  const existingTerminal = await findTerminalActionStateAcrossConversation({
+    actionId: action.id,
+    conversationId: message.conversation_id,
+    supabase: auth.supabase,
+    userId: auth.userId,
+  });
+  if (existingTerminal.error) return Response.json({ error: "That action's current state could not be verified." }, { status: 503 });
+  if (existingTerminal.action) return Response.json({ action: existingTerminal.action, changed: false });
   if (isLifecycleMutation(action)) {
     const { data: conversation } = await auth.supabase.from("ask_conversations").select("pet_profile_id")
       .eq("id", message.conversation_id).eq("user_id", auth.userId).maybeSingle<{ pet_profile_id: string }>();
-    const ownedPets = action.kind === "pet.mark_deceased"
-      ? await auth.supabase.from("dog_profiles").select("id,name,species,lifecycle_status").eq("user_id", auth.userId).returns<LossSubjectPet[]>()
-      : { data: [] as LossSubjectPet[], error: null };
+    const ownedPets = await auth.supabase.from("dog_profiles").select("id,name,species,lifecycle_status")
+      .eq("user_id", auth.userId).returns<LossSubjectPet[]>();
     if (ownedPets.error) return Response.json({ error: "That lifecycle action's subject could not be verified." }, { status: 503 });
     if (!conversation || !isAuthoritativeLifecycleAction({
       action,
@@ -142,6 +149,7 @@ function isAuthoritativeLifecycleAction(input: {
   const sourceText = sourceMessage.user_text || "";
   if (!sourceText || !normalizeEvidence(sourceText).includes(normalizeEvidence(action.evidence))) return false;
   if (action.kind === "pet.mark_deceased") {
+    const target = input.ownedPets.find((pet) => pet.id === action.petId);
     const subject = resolveProviderIndependentLossSubject({
       message: sourceText,
       pets: input.ownedPets,
@@ -152,11 +160,18 @@ function isAuthoritativeLifecycleAction(input: {
       && classifyCurrentPetLoss(sourceText) === "confirmed_current"
       && subject?.kind === "resolved"
       && subject.petId === action.petId
+      && (target?.lifecycle_status || "active") === "active"
       && action.input.target === expectedTarget;
   }
   if (action.petId !== input.conversationPetId) return false;
-  if (action.kind === "pet.archive") return action.explicitIntent && /\barchiv(?:e|ed|ing)?\b/i.test(sourceText);
-  return action.explicitIntent && /\b(?:active|alive|reactivat|correct)\w*\b/i.test(sourceText);
+  const target = input.ownedPets.find((pet) => pet.id === action.petId);
+  if (!target) return false;
+  if (action.kind === "pet.archive") {
+    return (target.lifecycle_status || "active") === "active"
+      && action.explicitIntent && /\barchiv(?:e|ed|ing)?\b/i.test(sourceText);
+  }
+  return (target.lifecycle_status === "deceased" || target.lifecycle_status === "archived")
+    && action.explicitIntent && /\b(?:active|alive|reactivat|correct)\w*\b/i.test(sourceText);
 }
 
 async function hasLaterDeathCorrection(input: {

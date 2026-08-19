@@ -23,6 +23,18 @@ export const FURVISE_ACTION_KINDS = [
 ] as const;
 
 export type FurviseActionKind = (typeof FURVISE_ACTION_KINDS)[number];
+
+const persistedActionKinds = new Map<string, FurviseActionKind>(
+  FURVISE_ACTION_KINDS.flatMap((kind) => [[kind, kind], [kind.replaceAll("_", ""), kind]] as const),
+);
+
+/**
+ * Accepts canonical action kinds and the underscore-stripped values written by
+ * the former response text sanitizer. New writes always use the canonical kind.
+ */
+export function parseStoredFurviseActionKind(value: unknown): FurviseActionKind | null {
+  return typeof value === "string" ? persistedActionKinds.get(value) || null : null;
+}
 export type FurviseActionSafetyClass = "READ_ONLY" | "LOW_RISK_REVERSIBLE" | "CONFIRMATION_REQUIRED" | "DESTRUCTIVE";
 export type FurviseActionMutationClass = "read" | "mutation" | "navigation";
 export type FurviseActionConfirmationPolicy = "none" | "explicit_intent" | "always";

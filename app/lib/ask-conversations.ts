@@ -107,12 +107,18 @@ export function deriveConversationTitle(question: string, petName: string) {
   if (/\b(routine|schedule|habit)\b/.test(normalized)) return `Building ${cleanPetName}\u2019s care routine`;
   if (/\b(track|monitor|watch)\b/.test(normalized)) return `Tracking changes for ${cleanPetName}`;
 
-  const concise = question
+  const normalizedQuestion = question.normalize("NFKC").replace(/[“”]/g, "").trim();
+  const pronounLed = /^(?:she|he|they|it)(?:['’]s|\s+(?:is|has|are|have|was|were))?\b/i.test(normalizedQuestion);
+  const concise = normalizedQuestion
+    .replace(/^(?:she|he|it)(?:['’]s|\s+(?:is|has|was))?\s+(?:been\s+)?/i, "")
+    .replace(/^they(?:['’]re|['’]ve|\s+(?:are|have|were))?\s+(?:been\s+)?/i, "")
     .replace(/^(what|when|where|why|how|can|could|should|would|is|are|do|does)\s+/i, "")
+    .replace(/\s+for\s+(?:(?:about|around|like|roughly)\s+)?\d+(?:\.\d+)?\s+(?:seconds?|minutes?|hours?|days?|weeks?).*$/i, "")
     .replace(/[?.!]+$/g, "")
     .trim();
-  const words = concise.split(/\s+/).filter(Boolean).slice(0, 7).join(" ");
+  const words = concise.split(/\s+/).filter(Boolean).slice(0, 6).join(" ");
   if (!words) return `Question about ${cleanPetName}`;
+  if (pronounLed) return `${cleanPetName} ${words.charAt(0).toLowerCase()}${words.slice(1)}`.slice(0, 72);
   return `${words.charAt(0).toUpperCase()}${words.slice(1)}`.slice(0, 72);
 }
 

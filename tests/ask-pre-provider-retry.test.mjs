@@ -45,7 +45,7 @@ test("daily limits remain fail-closed independently of the two phase budgets", a
   assert.deepEqual({ allowed: denied.allowed, reason: denied.reason }, { allowed: false, reason: "daily_call_limit" });
 });
 
-test("Ask keeps canonical dedupe, persistence, credit, and rate-limit identity stable across retry", () => {
+test("Ask keeps canonical dedupe, persistence, and rate-limit identity stable while released credit attempts rotate", () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
   const client = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
   const idempotencySql = readFileSync(new URL("../supabase/migrations/20260730010000_add_canonical_idempotency_operations.sql", import.meta.url), "utf8");
@@ -61,7 +61,8 @@ test("Ask keeps canonical dedupe, persistence, credit, and rate-limit identity s
   assert.match(route, /providerCallAttempted: false/);
   assert.match(route, /creditReservationDisposition/);
   assert.doesNotMatch(route, /pre-provider 503[\s\S]{0,1000}ownerToken/);
-  assert.match(route, /reserveAiCredit\(\{ feature: "ask", payloadHash: aiCreditPayloadHash, requestId, userId \}\)/);
+  assert.match(route, /priorCredit\?\.status === "released"[\s\S]*deriveAskCreditAttemptId/);
+  assert.match(route, /reserveAiCredit\(\{ feature: "ask", payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId \}\)/);
   assert.match(route, /request_id: requestId/);
   assert.match(route, /loadPersistedRequest\(\{ petId, requestId, supabase, userId \}\)/);
   assert.match(route, /idempotencyKey: requestId[\s\S]*policy: "ASK_AI"/);

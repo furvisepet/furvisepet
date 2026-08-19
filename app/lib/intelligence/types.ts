@@ -159,6 +159,7 @@ export type FurviseLiveContext = {
   memories: FurviseMemoryRow[];
   productFeedback: DogProductFeedbackRow[];
   conversationTurns: IntelligenceConversationTurn[];
+  contextRecovery: { unavailableSources: string[] };
 };
 
 export type IntelligencePersistenceSummary = {

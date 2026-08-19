@@ -2,6 +2,7 @@ import {
   FURVISE_URGENT_SAFETY_MESSAGE,
   buildFurviseSafetyLine,
 } from "./furvise-voice.ts";
+import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 
 const URGENT_CONTEXT_PATTERN =
   /\b(trouble breathing|can't breathe|cannot breathe|difficulty breathing|collapse|collapsed|unconscious|seizure|severe bleeding|blood in vomit|bloated abdomen|bloat|suspected toxin|poison|poisoning|ate chocolate|ate grapes|ate raisins|cannot urinate|can't urinate|unable to urinate|repeated vomiting|vomiting repeatedly|rapidly worsening|unable to keep water down|extreme lethargy|severe pain)\b/i;
@@ -155,19 +156,27 @@ function cleanApplicationActions(value) {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 4).flatMap((candidate) => {
     if (!candidate || typeof candidate !== "object") return [];
-    if (typeof candidate.id !== "string" || typeof candidate.kind !== "string" || typeof candidate.petId !== "string") return [];
+    const kind = parseStoredFurviseActionKind(candidate.kind);
+    const id = cleanActionIdentifier(candidate.id, 160);
+    const petId = cleanActionIdentifier(candidate.petId, 80);
+    if (!id || !kind || !petId) return [];
     if (typeof candidate.label !== "string" || typeof candidate.description !== "string" || !candidate.input || typeof candidate.input !== "object") return [];
     if (!["READ_ONLY", "LOW_RISK_REVERSIBLE", "CONFIRMATION_REQUIRED", "DESTRUCTIVE"].includes(candidate.safetyClass)) return [];
     if (!["proposed", "confirmation_required", "succeeded", "failed", "cancelled"].includes(candidate.status)) return [];
     return [{
       ...candidate,
-      id: cleanText(candidate.id).slice(0, 160), kind: cleanText(candidate.kind).slice(0, 80), petId: cleanText(candidate.petId).slice(0, 80),
+      id, kind, petId,
       label: cleanText(candidate.label).slice(0, 120), description: cleanText(candidate.description).slice(0, 500),
       href: typeof candidate.href === "string" ? cleanText(candidate.href).slice(0, 500) : null,
       resultMessage: typeof candidate.resultMessage === "string" ? cleanText(candidate.resultMessage).slice(0, 500) : null,
       errorMessage: typeof candidate.errorMessage === "string" ? cleanText(candidate.errorMessage).slice(0, 500) : null,
     }];
   });
+}
+
+function cleanActionIdentifier(value, maxLength) {
+  if (typeof value !== "string" || value.length < 1 || value.length > maxLength) return "";
+  return /^[A-Za-z0-9.:-]+$/.test(value) ? value : "";
 }
 
 function resolveConversationAnswerType(intent, urgent, response) {

@@ -11,12 +11,13 @@ export function prepareFurviseApplicationActions(input: {
   petId: string;
   petName: string;
   requestId: string;
+  lifecycleStatus?: "active" | "deceased" | "archived";
 }): FurviseApplicationAction[] {
   const replacementPreferences = new Set(input.proposals.filter((proposal) => proposal.kind === "memory.set_preference" && proposal.input.field)
     .map((proposal) => normalizeSingletonPreferenceKey(proposal.input.field!)));
   return input.proposals.flatMap((proposal, index) => {
     if (proposal.kind === "memory.forget_preference" && proposal.input.field && replacementPreferences.has(normalizeSingletonPreferenceKey(proposal.input.field))) return [];
-    if (!validProposalInput(proposal)) return [];
+    if (!validProposalInput(proposal, input.lifecycleStatus)) return [];
     const policy = getFurviseActionPolicy(proposal.kind);
     const presentation = actionPresentation(proposal.kind, input.petId, input.petName, proposal.input);
     const explicitIntent = proposal.explicitIntent && hasServerVerifiedExplicitIntent(proposal);
@@ -45,10 +46,11 @@ function hasServerVerifiedExplicitIntent(proposal: ModelApplicationAction) {
   return proposal.explicitIntent;
 }
 
-function validProposalInput(proposal: ModelApplicationAction) {
+function validProposalInput(proposal: ModelApplicationAction, lifecycleStatus?: "active" | "deceased" | "archived") {
   if (["pet.delete_permanently", "pet.mark_active", "pet.archive", "care_history.remove"].includes(proposal.kind) && !proposal.explicitIntent) return false;
   if (["care_history.edit", "care_history.remove"].includes(proposal.kind) && proposal.input.target !== "last") return false;
   if (proposal.kind === "pet.mark_deceased" && classifyCurrentPetLoss(proposal.evidence) !== "confirmed_current") return false;
+  if (proposal.kind === "pet.mark_active" && lifecycleStatus === "active") return false;
   if (proposal.kind === "pet.update_profile") return Boolean(proposal.input.field && proposal.input.value && supportedProfileFields.has(normalizeKey(proposal.input.field)));
   if (proposal.kind === "memory.set_preference") return Boolean(proposal.input.field && proposal.input.value && supportedUserPreferences.has(normalizeSingletonPreferenceKey(proposal.input.field)));
   if (proposal.kind === "memory.forget_preference") return Boolean(proposal.input.field && supportedUserPreferences.has(normalizeSingletonPreferenceKey(proposal.input.field)));
@@ -74,8 +76,8 @@ function actionPresentation(kind: FurviseActionKind, petId: string, petName: str
     case "navigation.open_vet_brief": return view("Open Vet Briefs", `/vet-briefs?pet=${encoded}`);
     case "vet_brief.prepare": return view("Prepare a care summary", `/vet-brief?pet=${encoded}&source=ask`);
     case "pet.update_profile": return mutation(`Update ${formatField(actionInput.field)}`, `Change ${petName}'s ${formatField(actionInput.field)} to ${actionInput.value || "the requested value"}.`);
-    case "pet.mark_deceased": return mutation(`Mark ${petName} as passed away`, `Keep ${petName}'s history while stopping future-care experiences.`);
-    case "pet.mark_active": return mutation(`Mark ${petName} as active`, `Correct the lifecycle state and restore active-care experiences.`);
+    case "pet.mark_deceased": return mutation(`Mark ${petName} as passed away`, `Keep ${petName}'s history while removing ${petName} from active care.`);
+    case "pet.mark_active": return mutation(`Mark ${petName} as active`, `Return ${petName} to active care while preserving earlier history.`);
     case "pet.archive": return mutation(`Archive ${petName}`, `Hide ${petName} from active care while preserving the profile and history.`);
     case "pet.delete_permanently": return mutation(`Permanently delete ${petName}`, `Delete the profile and linked Furvise data. This cannot be undone.`);
     case "memory.set_preference": return mutation(`Use ${actionInput.value || "this preference"}`, `Replace the current ${formatField(actionInput.field)} preference.`);

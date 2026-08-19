@@ -2,7 +2,9 @@ import type { DogProfileRow } from "../../supabase.ts";
 import type { ProposedEntityMention } from "../semantic-frame/types.ts";
 import { SHADOW_ENTITY_RESOLUTION_POLICY } from "./policy.ts";
 
-export type EligibleSemanticPet = Pick<DogProfileRow, "id" | "name" | "species" | "age_value" | "age_unit">;
+export type EligibleSemanticPet = Pick<DogProfileRow, "id" | "name" | "species" | "age_value" | "age_unit"> & {
+  sex?: DogProfileRow["sex"];
+};
 export type EntityCandidate = {
   entityId: string;
   entityType: "pet" | "owner";

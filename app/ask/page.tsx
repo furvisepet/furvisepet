@@ -374,7 +374,10 @@ function AskPageContent() {
       const assistantMessage = { automaticSaveConfirmation: confirmedCarePersistence ? "Added to care history" : null, carePersistence: payload.carePersistence || null, contextUsed: payload.contextUsed || null, creditsUsed: payload.creditsUsed || 0, handledWithoutAi: Boolean(payload.handledWithoutAi), id: payload.assistantMessageId || createMessageId("furvise"), response: parsed, role: "furvise" as const, saveMetadata: payload.saveMetadata || null, suggestion: payload.suggestion || null };
       setThread((current) => {
         const withoutExistingAssistant = current.filter((message) => message.id !== assistantMessage.id);
-        return [...withoutExistingAssistant.map((message) => message.id === userMessageId && payload.userMessageId ? { ...message, id: payload.userMessageId } : message), assistantMessage];
+        return reconcileThreadApplicationActions([
+          ...withoutExistingAssistant.map((message) => message.id === userMessageId && payload.userMessageId ? { ...message, id: payload.userMessageId } : message),
+          assistantMessage,
+        ]);
       });
       if (!conversationIdAtSubmit && payload.conversationId) {
         setActiveConversationId(payload.conversationId);
@@ -535,16 +538,16 @@ function AskPageContent() {
         body: JSON.stringify({ actionId: action.id, decision }),
       }) as { action?: FurviseApplicationAction; changed?: boolean };
       if (!payload.action) throw new Error("That Furvise action could not be completed.");
-      setThread((current) => current.map((message) => message.id === messageId && message.role === "furvise"
+      setThread((current) => reconcileThreadApplicationActions(current.map((message) => message.role === "furvise"
         ? { ...message, response: { ...message.response, applicationActions: (message.response.applicationActions || []).map((candidate) => candidate.id === action.id ? payload.action! : candidate) } }
-        : message));
+        : message)));
       if (payload.changed) markAppDataChanged();
       if (payload.changed && action.kind === "pet.delete_permanently") window.location.assign("/pets");
     } catch (actionError) {
       const failed = { ...action, status: "failed" as const, errorMessage: actionError instanceof Error ? actionError.message : "That Furvise action could not be completed." };
-      setThread((current) => current.map((message) => message.id === messageId && message.role === "furvise"
+      setThread((current) => reconcileThreadApplicationActions(current.map((message) => message.role === "furvise"
         ? { ...message, response: { ...message.response, applicationActions: (message.response.applicationActions || []).map((candidate) => candidate.id === action.id ? failed : candidate) } }
-        : message));
+        : message)));
     }
   }
 
@@ -788,7 +791,27 @@ function parseConversationDetail(detail: AskConversationDetail): ConversationMes
     if (message.role === "user") messages.push({ failed: message.failed, id: message.id, requestId: message.requestId, role: "user", text: message.text });
     else { const response = parseAskConversationResponse(message.response) as StructuredResponse | null; if (response) { const carePersistence = parseCarePersistence(message.carePersistence); messages.push({ automaticSaveConfirmation: carePersistence?.status === "persisted" && carePersistence.careEntryIds.length ? "Added to care history" : null, carePersistence, contextUsed: parseContextUsed(message.contextUsed), id: message.id, response, role: "furvise", saveMetadata: parseStoredSaveMetadata(message.saveMetadata), suggestion: parseStateSuggestion(message.suggestion) }); } }
   }
-  return messages;
+  return reconcileThreadApplicationActions(messages);
+}
+
+function reconcileThreadApplicationActions(messages: ConversationMessage[]): ConversationMessage[] {
+  const terminal = new Map<string, FurviseApplicationAction>();
+  for (const message of messages) {
+    if (message.role !== "furvise") continue;
+    for (const action of message.response.applicationActions || []) {
+      if (action.status === "succeeded" || action.status === "cancelled") terminal.set(action.id, action);
+    }
+  }
+  if (!terminal.size) return messages;
+  return messages.map((message) => message.role === "furvise"
+    ? {
+        ...message,
+        response: {
+          ...message.response,
+          applicationActions: (message.response.applicationActions || []).map((action) => terminal.get(action.id) || action),
+        },
+      }
+    : message);
 }
 function parseLegacyThread(value: unknown): ConversationMessage[] { if (!Array.isArray(value)) return []; const messages: ConversationMessage[] = []; for (const item of value.slice(-40)) { if (!item || typeof item !== "object") continue; const draft = item as { id?: unknown; role?: unknown; text?: unknown; response?: unknown; saveMetadata?: unknown; contextUsed?: unknown }; if (draft.role === "user" && typeof draft.text === "string") messages.push({ id: typeof draft.id === "string" ? draft.id : createMessageId("user"), role: "user", text: draft.text.slice(0, 1200) }); else if (draft.role === "furvise") { const response = parseAskConversationResponse(draft.response) as StructuredResponse | null; if (response) messages.push({ contextUsed: parseContextUsed(draft.contextUsed), id: typeof draft.id === "string" ? draft.id : createMessageId("furvise"), response, role: "furvise", saveMetadata: parseStoredSaveMetadata(draft.saveMetadata) }); } } return messages; }
 function parseContextUsed(value: unknown): ContextUsed | null { if (!value || typeof value !== "object") return null; const draft = value as { petName?: unknown; usedSources?: unknown }; return { petName: typeof draft.petName === "string" ? draft.petName : null, usedSources: Array.isArray(draft.usedSources) ? draft.usedSources.filter((item): item is string => typeof item === "string").slice(0, 8) : [] }; }

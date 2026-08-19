@@ -13,6 +13,7 @@ import { removeInactiveMemoryClaimsFromConversation, type InactiveMemoryMarker }
 import { isKnownConversationalCareNoise, isLongitudinalCareHistoryEntry } from "./care-history-policy.ts";
 import { featureRequiresActivePet, getPetLifecycleStatus } from "../pet-lifecycle.ts";
 import { parseStoredApplicationActions } from "../application-actions/contracts.ts";
+import { recoverOptionalQuery, recoverOptionalValue } from "./context-recovery.ts";
 
 export class FurviseContextError extends Error {
   constructor(public code: "PET_NOT_FOUND" | "PET_INACTIVE" | "CONVERSATION_NOT_FOUND" | "CONTEXT_UNAVAILABLE", message: string, public cause?: unknown) {
@@ -77,9 +78,8 @@ export async function buildFurviseContext({
     .in("status", ["active", "monitoring", "resolved"]).order("last_event_at", { ascending: false }).limit(20).returns<CareEpisode[]>();
   const currentStateQuery = supabase.from("pet_current_state").select("*").eq("user_id", userId).eq("pet_profile_id", petId).maybeSingle<PetCurrentStateRow>();
 
-  const [conversation, profile, eligiblePets, care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState] = await Promise.all([
-    conversationQuery, profileQuery, eligiblePetsQuery, boundedCareQuery, legacyMemoryQuery, sharedMemoryQuery, inactiveMemoryQuery, feedbackQuery, ownerQuery, messagesQuery,
-    loadActiveConcerns(supabase, userId, petId), loadRecentlyResolvedConcerns(supabase, userId, petId), episodesQuery, currentStateQuery,
+  const [conversation, profile, eligiblePets] = await Promise.all([
+    conversationQuery, profileQuery, eligiblePetsQuery,
   ]).catch((error) => { throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", error); });
 
   if (profile.error || !profile.data) throw new FurviseContextError("PET_NOT_FOUND", "That pet is not available.", profile.error);
@@ -88,12 +88,28 @@ export async function buildFurviseContext({
     throw new FurviseContextError("PET_INACTIVE", "Routine product and care-plan guidance is not available for this retained profile.");
   }
   if (conversationId && (conversation.error || !conversation.data)) throw new FurviseContextError("CONVERSATION_NOT_FOUND", "That conversation is not available for this pet.", conversation.error);
-  const queryError = eligiblePets.error || care.error || legacyMemories.error || sharedMemories.error || inactiveMemories.error || feedback.error || owner.error || messages.error || episodes.error || currentState.error;
-  if (queryError) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", queryError);
+  if (eligiblePets.error) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not verify eligible pets.", eligiblePets.error);
+
+  const [care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState] = await Promise.all([
+    recoverOptionalQuery("care_entries", boundedCareQuery, [] as CareEntryRow[]),
+    recoverOptionalQuery("legacy_memories", legacyMemoryQuery, [] as DogMemoryRow[]),
+    recoverOptionalQuery("furvise_memories", sharedMemoryQuery, [] as FurviseMemoryRow[]),
+    recoverOptionalQuery("inactive_memories", inactiveMemoryQuery, [] as InactiveMemoryMarker[]),
+    recoverOptionalQuery("product_feedback", feedbackQuery, [] as DogProductFeedbackRow[]),
+    recoverOptionalQuery("owner_profile", ownerQuery, null as UserProfileRow | null),
+    recoverOptionalQuery("conversation_messages", messagesQuery, [] as Array<{ id: string; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>),
+    recoverOptionalValue("active_concerns", loadActiveConcerns(supabase, userId, petId), [] as Awaited<ReturnType<typeof loadActiveConcerns>>),
+    recoverOptionalValue("resolved_concerns", loadRecentlyResolvedConcerns(supabase, userId, petId), [] as Awaited<ReturnType<typeof loadRecentlyResolvedConcerns>>),
+    recoverOptionalQuery("care_episodes", episodesQuery, [] as CareEpisode[]),
+    recoverOptionalQuery("current_state", currentStateQuery, null as PetCurrentStateRow | null),
+  ]);
+  const unavailableSources = [care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState]
+    .filter((result) => result.unavailable)
+    .map((result) => result.source);
 
   const candidateSourceMessageIds = [...new Set([
-    ...(messages.data || []).map((message) => message.id),
-    ...(sharedMemories.data || []).flatMap((memory) => memory.source_type === "ask_message" && memory.source_id ? [memory.source_id] : []),
+    ...messages.data.map((message) => message.id),
+    ...sharedMemories.data.flatMap((memory) => memory.source_type === "ask_message" && memory.source_id ? [memory.source_id] : []),
   ])];
   const deletedCareSources = candidateSourceMessageIds.length ? await supabase.from("pet_care_entries")
     .select("id,intelligence_source_message_id,deleted_at")
@@ -105,7 +121,7 @@ export async function buildFurviseContext({
   const deletedCareEntryIds = new Set((deletedCareSources.data || []).filter((row) => row.deleted_at).map((row) => row.id));
   const suppressedSourceMessageIds = new Set((deletedCareSources.data || []).filter((row) => row.deleted_at && row.intelligence_source_message_id).map((row) => row.intelligence_source_message_id!));
 
-  const conversationTurns = removeInactiveMemoryClaimsFromConversation([...(messages.data || [])]
+  const conversationTurns = removeInactiveMemoryClaimsFromConversation([...messages.data]
     .filter((message) => !suppressedSourceMessageIds.has(message.id) && !responseReferencesCareEntry(message.response_data, deletedCareEntryIds))
     .reverse().map((message) => ({
     id: message.id,
@@ -113,30 +129,30 @@ export async function buildFurviseContext({
     text: message.role === "user" ? message.user_text || "" : responseText(message.response_data),
     createdAt: message.created_at,
     ...(message.role === "furvise" ? { applicationActions: parseStoredApplicationActions(message.response_data?.applicationActions) } : {}),
-  })).filter((message) => message.text.trim()), inactiveMemories.data || []);
+  })).filter((message) => message.text.trim()), inactiveMemories.data);
 
-  const longitudinalCareEntries = (care.data || []).filter(isLongitudinalCareHistoryEntry);
-  const longitudinalEpisodes = (episodes.data || []).filter((episode) => !isKnownConversationalCareNoise(
+  const longitudinalCareEntries = care.data.filter(isLongitudinalCareHistoryEntry);
+  const longitudinalEpisodes = episodes.data.filter((episode) => !isKnownConversationalCareNoise(
     `${episode.title || ""} ${episode.normalized_key} ${JSON.stringify(episode.summary || {})}`,
   ));
-  const longitudinalConcerns = activeConcerns.filter((concern) => !isKnownConversationalCareNoise(`${concern.title} ${concern.normalized_key}`));
-  const longitudinalResolvedConcerns = resolvedConcerns.filter((concern) => !isKnownConversationalCareNoise(`${concern.title} ${concern.normalized_key}`));
+  const longitudinalConcerns = activeConcerns.data.filter((concern) => !isKnownConversationalCareNoise(`${concern.title} ${concern.normalized_key}`));
+  const longitudinalResolvedConcerns = resolvedConcerns.data.filter((concern) => !isKnownConversationalCareNoise(`${concern.title} ${concern.normalized_key}`));
   const longitudinalCurrentState = currentState.data && isKnownConversationalCareNoise(JSON.stringify(currentState.data.state)) ? null : currentState.data;
 
   return finalizeFurviseContext({
     feature, locale, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
     pet: selectedProfile,
     eligiblePets: (eligiblePets.data || [selectedProfile]).filter((pet) => pet.id === selectedProfile.id || getPetLifecycleStatus(pet) === "active"),
-    owner: { userId, profile: owner.data || null }, careEntries: longitudinalCareEntries,
-    activeConcerns: longitudinalConcerns, recentlyResolvedConcerns: longitudinalResolvedConcerns, legacyPetMemories: legacyMemories.data || [],
+    owner: { userId, profile: owner.data }, careEntries: longitudinalCareEntries,
+    activeConcerns: longitudinalConcerns, recentlyResolvedConcerns: longitudinalResolvedConcerns, legacyPetMemories: legacyMemories.data,
     activeEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "active"),
     monitoringEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "monitoring"),
     recentlyResolvedEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "resolved").slice(0, 8),
     currentState: longitudinalCurrentState || null,
-    memories: selectFreshRelevantMemories((sharedMemories.data || []).filter((memory) => !(
+    memories: selectFreshRelevantMemories(sharedMemories.data.filter((memory) => !(
       memory.source_type === "ask_message" && memory.source_id && suppressedSourceMessageIds.has(memory.source_id)
     )), currentMessage, new Date(), mode.contextPolicy.memoryLimit).map((item) => item.memory),
-    productFeedback: feedback.data || [], conversationTurns,
+    productFeedback: feedback.data, conversationTurns, contextRecovery: { unavailableSources },
   });
 }
 

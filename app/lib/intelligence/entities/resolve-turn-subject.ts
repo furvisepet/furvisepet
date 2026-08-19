@@ -5,6 +5,11 @@ import { buildRecentPetIds, type EligibleSemanticPet } from "./candidate-retriev
 import { resolveShadowEntities, type ShadowEntityBinding } from "./resolve-entities.ts";
 import { resolveShadowReferences } from "./resolve-references.ts";
 import type { SemanticReasonCode } from "./policy.ts";
+import {
+  buildRecentSubjectState,
+  isExplicitExternalAnimalSurface,
+  resolveRecentPronoun,
+} from "./recent-subject-state.ts";
 
 export type AuthoritativeTurnSubjectResolution = {
   status: "resolved" | "multi_subject" | "contextual" | "ambiguous" | "unresolved";
@@ -14,6 +19,7 @@ export type AuthoritativeTurnSubjectResolution = {
   requiresClarification: boolean;
   explicitSubject: boolean;
   confidence: number;
+  candidatePetIds?: string[];
 };
 
 export function resolveExplicitSelectedPetSubject({
@@ -48,22 +54,23 @@ export function resolveClearSelectedPetContinuation({
 }): AuthoritativeTurnSubjectResolution | null {
   const normalized = normalize(message);
   if (!normalized || explicitlyNamedOwnedPets(message, pets).length) return null;
-  const hasFeminine = /\b(?:she|her|hers)\b/i.test(message);
-  const hasMasculine = /\b(?:he|him|his)\b/i.test(message);
-  const hasNeutral = /\b(?:they|them|their|theirs|it|its)\b/i.test(message);
+  const referentialPronounText = message.replace(
+    /\b(?:is|was|would)\s+it\s+(?:normal|okay|ok|possible|safe|weird|bad|good)\s+(?:that|if|when|for)\b/gi,
+    " ",
+  );
+  const hasFeminine = /\b(?:she|her|hers)\b/i.test(referentialPronounText);
+  const hasMasculine = /\b(?:he|him|his)\b/i.test(referentialPronounText);
+  const hasNeutral = /\b(?:they|them|their|theirs|it|its)\b/i.test(referentialPronounText);
   if (![hasFeminine, hasMasculine, hasNeutral].some(Boolean) || [hasFeminine, hasMasculine, hasNeutral].filter(Boolean).length > 1) return null;
-  if (/\b(?:cat|dog|kitten|puppy|animal|pet|male|female|outside|stray|neighbor(?:'s)?|another|other)\b/i.test(message)) return null;
+  if (/\b(?:cat|dog|kitten|puppy|animal|pet)\b/i.test(message)) return null;
   const selected = pets.find((pet) => pet.id === selectedPetId);
   if (!selected) return null;
-  const recentUserTurns = recentConversation.filter((turn) => !turn.role || turn.role === "user").slice(-3).reverse();
-  const selectedName = normalize(selected.name || "");
-  const selectedSpecies = normalize(selected.species || "");
-  const recentlySelected = recentUserTurns.some((turn) => {
-    const turnText = normalize(turn.text);
-    if (selectedName && containsWholeTerm(turnText, selectedName)) return true;
-    return Boolean(selectedSpecies && new RegExp(`\\b(?:my|our) ${escapeRegExp(selectedSpecies)}\\b`, "i").test(turnText));
-  });
-  return recentlySelected ? contextual(selectedPetId) : null;
+  const state = buildRecentSubjectState({ pets, recentConversation, selectedPetId });
+  const pronoun = hasFeminine ? "she" : hasMasculine ? "he" : "they";
+  const resolution = resolveRecentPronoun(state, pronoun);
+  return resolution.status === "resolved" && resolution.entity.petId
+    ? contextual(resolution.entity.petId, 0.92)
+    : null;
 }
 
 export function resolveAuthoritativeTurnSubject({
@@ -112,6 +119,7 @@ export function resolveAuthoritativeTurnSubject({
   const grounded = groundSemanticFrameEvidence(frame, message).frame;
   const evidence = validateSemanticFrameEvidence(grounded, message);
   const recentPetIds = buildRecentPetIds(pets, recentConversation);
+  const recentSubjectState = buildRecentSubjectState({ pets, recentConversation, selectedPetId });
   const bindings = resolveShadowEntities({ frame: grounded, ownerId, pets, recentPetIds, selectedPetId });
   const references = resolveShadowReferences(grounded, bindings);
   const effective = effectiveBindings(bindings, references);
@@ -124,24 +132,48 @@ export function resolveAuthoritativeTurnSubject({
   if (!subjectRefs.length) return contextual(selectedPetId);
 
   const petIds = new Set<string>();
+  const candidatePetIds = new Set<string>();
   const bindingConfidences: number[] = [];
   let failure: ShadowEntityBinding | null = null;
+  let externalSubjectCount = 0;
   for (const ref of subjectRefs) {
     if (evidence.invalidMentionIds.includes(ref)) return failed("unresolved", "EVIDENCE_UNSUPPORTED");
     const binding = effective.get(ref);
-    if (!binding || binding.status !== "resolved" || binding.entityType !== "pet" || !binding.entityId) {
-      failure ||= binding || null;
+    if (binding?.status === "resolved" && binding.entityType === "pet" && binding.entityId) {
+      petIds.add(binding.entityId);
+      bindingConfidences.push(binding.confidence);
       continue;
     }
-    petIds.add(binding.entityId);
-    bindingConfidences.push(binding.confidence);
+    const mention = grounded.mentions.find((candidate) => candidate.localId === ref);
+    const recent = mention ? resolveRecentPronoun(recentSubjectState, mention.surface) : null;
+    if (recent?.status === "resolved") {
+      if (recent.entity.petId) {
+        petIds.add(recent.entity.petId);
+        bindingConfidences.push(0.92);
+      } else {
+        externalSubjectCount += 1;
+      }
+      continue;
+    }
+    if (mention && isExplicitExternalAnimalSurface(mention.surface)) {
+      externalSubjectCount += 1;
+      continue;
+    }
+    for (const candidatePetId of recent?.candidatePetIds || []) candidatePetIds.add(candidatePetId);
+    for (const candidate of binding?.candidates || []) {
+      if (candidate.entityType === "pet" && candidate.score > 0) candidatePetIds.add(candidate.entityId);
+    }
+    failure ||= binding || null;
   }
-  if (petIds.size > 1) return failed("ambiguous", "ENTITY_AMBIGUOUS");
+  if (petIds.size > 1) return failed("ambiguous", "ENTITY_AMBIGUOUS", [...petIds]);
   if (petIds.size === 1 && !failure) {
     return resolved([...petIds][0], Math.min(...bindingConfidences));
   }
-  if (failure?.status === "ambiguous") return failed("ambiguous", failure.reasonCode || "ENTITY_AMBIGUOUS");
-  return failed("unresolved", failure?.reasonCode || "ENTITY_NO_MATCH");
+  if (externalSubjectCount > 0 && !failure) return contextualExternal(selectedPetId);
+  if (failure?.status === "ambiguous" || candidatePetIds.size > 1) {
+    return failed("ambiguous", failure?.reasonCode || "ENTITY_AMBIGUOUS", [...candidatePetIds]);
+  }
+  return failed("unresolved", failure?.reasonCode || "ENTITY_NO_MATCH", [...candidatePetIds]);
 }
 
 function effectiveBindings(bindings: ShadowEntityBinding[], references: ReturnType<typeof resolveShadowReferences>) {
@@ -156,12 +188,19 @@ function effectiveBindings(bindings: ShadowEntityBinding[], references: ReturnTy
   return result;
 }
 
-function contextual(selectedPetId: string): AuthoritativeTurnSubjectResolution {
-  return { status: "contextual", petId: selectedPetId, petIds: [selectedPetId], reasonCode: null, requiresClarification: false, explicitSubject: false, confidence: 0.84 };
+function contextual(selectedPetId: string, confidence = 0.84): AuthoritativeTurnSubjectResolution {
+  return { status: "contextual", petId: selectedPetId, petIds: [selectedPetId], reasonCode: null, requiresClarification: false, explicitSubject: false, confidence };
 }
 
-function failed(status: "ambiguous" | "unresolved", reasonCode: SemanticReasonCode): AuthoritativeTurnSubjectResolution {
-  return { status, petId: null, petIds: [], reasonCode, requiresClarification: true, explicitSubject: true, confidence: 0 };
+function contextualExternal(selectedPetId: string): AuthoritativeTurnSubjectResolution {
+  return { status: "contextual", petId: selectedPetId, petIds: [], reasonCode: null, requiresClarification: false, explicitSubject: true, confidence: 0.9 };
+}
+
+function failed(status: "ambiguous" | "unresolved", reasonCode: SemanticReasonCode, candidatePetIds: string[] = []): AuthoritativeTurnSubjectResolution {
+  return {
+    status, petId: null, petIds: [], reasonCode, requiresClarification: true, explicitSubject: true, confidence: 0,
+    ...(candidatePetIds.length ? { candidatePetIds: [...new Set(candidatePetIds)] } : {}),
+  };
 }
 
 function resolved(petId: string, confidence: number): AuthoritativeTurnSubjectResolution {
@@ -226,12 +265,4 @@ function hasContradictoryNamedClaims(frame: ProposedSemanticFrame) {
 
 function normalize(value: string) {
   return value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function containsWholeTerm(value: string, term: string) {
-  return (` ${value} `).includes(` ${term} `);
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
