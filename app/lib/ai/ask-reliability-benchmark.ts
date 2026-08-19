@@ -51,6 +51,9 @@ const seeds: Array<Omit<AskBenchmarkScenario, "id">> = [
     "She follows me everywhere, and I do not know what to do without upsetting her.",
     "I feel uncertain because she is affectionate one minute and annoyed the next.",
   ], 0, [1, 1, 1, 1]),
+  scenario(["answer_economy", "simple_follow_up", "multi_turn"], ["Why does she bite when I pet her?", "She only does it at night."], 0, [1, 1]),
+  scenario(["answer_economy", "emotional_practical", "care_history_suppressed"], ["I'm frustrated because she follows me everywhere.", "I feel guilty, but she seems otherwise normal."], 0, [1, 1]),
+  scenario(["answer_economy", "complex_earns_depth", "emergency_complete"], ["Her medication changed and now she will not eat or drink.", "Now she has collapsed and cannot breathe."], 1, [1, 0]),
 ];
 
 const benchmarkPets = {

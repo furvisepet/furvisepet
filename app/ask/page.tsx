@@ -622,13 +622,13 @@ function FurviseMessage({ lifecycleStatus, likelyVetConcern, message, onAction, 
   const grief = messageVariant === "GRIEF";
   const careHistoryState = getAskCareHistoryState(message);
   const semanticAccent = urgent ? "border-l-[var(--pw-danger-border)]" : monitoring ? "border-l-[var(--warning)]" : grief ? "border-l-[var(--text-tertiary)]" : resolved ? "border-l-[var(--selection-strong)]" : "border-l-[var(--assistant-response-accent)]";
-  return <article data-message-variant={messageVariant} data-ask-semantic={grief ? "grief" : urgent ? "urgent" : monitoring ? "monitoring" : "normal"} data-care-history-state={careHistoryState} className={`max-w-full rounded-2xl border border-[var(--assistant-response-border)] border-l-4 ${semanticAccent} bg-[var(--assistant-response-surface)] p-4 sm:max-w-3xl sm:p-5`}>
-    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--assistant-response-accent)]" data-ui="furvise-assistant-identity"><BrandMark showName={false} size={24} /><span>Furvise</span></div>
+  return <article data-message-variant={messageVariant} data-ask-semantic={grief ? "grief" : urgent ? "urgent" : monitoring ? "monitoring" : "normal"} data-care-history-state={careHistoryState} className={`max-w-full rounded-2xl border border-[var(--assistant-response-border)] border-l-4 ${semanticAccent} bg-[var(--assistant-response-surface)] p-3.5 sm:max-w-3xl sm:p-4`}>
+    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--assistant-response-accent)]" data-ui="furvise-assistant-identity"><BrandMark showName={false} size={24} /><span>Furvise</span></div>
     {shouldShowAnswerHeading(response.title) ? <h2 className="text-xl font-semibold leading-8 text-[var(--pw-heading)]">{response.title}</h2> : null}
-    <p className={`${shouldShowAnswerHeading(response.title) ? "mt-2 " : ""}[overflow-wrap:anywhere] text-[1.05rem] leading-8 text-[var(--pw-text)]`}>{response.directAnswer}</p>
+    <p className={`${shouldShowAnswerHeading(response.title) ? "mt-1.5 " : ""}[overflow-wrap:anywhere] text-[1.05rem] leading-7 text-[var(--pw-text)]`}>{response.directAnswer}</p>
     {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
     <AdaptiveSections answerType={response.answerType} sections={response.sections} />
-    {actions.length ? <div className="mt-5 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
+    {actions.length ? <div className="mt-4 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
     {messageVariant !== "CASUAL" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
     {response.applicationActions?.length ? <ApplicationActions actions={response.applicationActions} onAction={onApplicationAction} /> : null}
     {getPersistenceNotices(message).map((notice) => <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]" data-persistence-notice={notice.type} key={notice.key}>{notice.label}</p>)}
@@ -648,13 +648,14 @@ function StateUpdateSuggestion({ onAction, suggestion }: { onAction: (suggestion
   }
   if (uiStatus === "dismissed") return null;
   if (uiStatus === "applied" || uiStatus === "already_applied") return <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]">{uiStatus === "already_applied" ? "Already added to care history" : "Added to care history"}</p>;
-  return <section aria-label={suggestion.title} className="mt-4 max-w-xl rounded-xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] p-3.5 sm:p-4" data-ui="care-history-suggestion">
-    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Care history suggestion</p>
+  return <section aria-label={suggestion.title} className="mt-3 max-w-xl rounded-xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] p-3" data-ui="care-history-suggestion">
+    <span className="sr-only">Care history suggestion</span>
+    <p className="text-xs font-semibold text-[var(--text-tertiary)]">{suggestion.type === "memory" ? "Optional memory" : "Optional care-history save"}</p>
     <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{suggestion.title}</p>
     {editing ? <textarea aria-label="Edit suggested update" className={`${inputClass} mt-3 min-h-24 py-3`} onChange={(event) => setDraft(event.target.value)} value={draft} /> : suggestion.details ? <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{suggestion.details}</p> : null}
-    <p className="mt-2 text-xs text-[var(--text-tertiary)]">Nothing is added until you choose Save.</p>
+    <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">Nothing is added until you choose Save.</p>
     {uiStatus === "failed" ? <p className="mt-3 text-sm font-medium text-[var(--pw-warning-text)]" role="status">{suggestion.error || "This improvement could not be saved."}</p> : null}
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="mt-2.5 flex flex-wrap gap-2">
       {editing ? <button className={secondaryButton} disabled={working || !draft.trim()} onClick={() => act("edit", draft.trim())} type="button">Save edit</button> : <button className={secondaryButton} disabled={working} onClick={() => act("save")} type="button">{working ? "Saving..." : uiStatus === "failed" ? "Try again" : resolution ? "Save improvement" : "Save"}</button>}
       {!resolution && !editing ? <button className={quietButton} disabled={working} onClick={() => setEditing(true)} type="button">Edit</button> : null}
       <button className={quietButton} disabled={working} onClick={() => editing ? setEditing(false) : act("dismiss")} type="button">{editing ? "Cancel" : "Not now"}</button>
@@ -699,9 +700,9 @@ function shouldShowAnswerHeading(title: string) {
 
 function AdaptiveSections({ answerType, sections }: { answerType: AnswerType; sections: StructuredResponse["sections"] }) {
   if (!sections.length) return null;
-  if (answerType === "care_plan") return <div className="mt-4 divide-y divide-[var(--assistant-response-border)] border-t border-[var(--assistant-response-border)]">{sections.map((section) => <section className="py-3 sm:py-4 last:pb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ol className="mt-2 list-decimal space-y-2 pl-6 leading-7 text-[var(--pw-text)] sm:space-y-3">{section.items.map((item, index) => <li className="pl-1" key={`${index}-${item}`}>{item}</li>)}</ol></section>)}</div>;
+  if (answerType === "care_plan") return <div className="mt-3 divide-y divide-[var(--assistant-response-border)] border-t border-[var(--assistant-response-border)]">{sections.map((section) => <section className="py-2.5 sm:py-3 last:pb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ol className="mt-1.5 list-decimal space-y-1.5 pl-6 leading-7 text-[var(--pw-text)] sm:space-y-2">{section.items.map((item, index) => <li className="pl-1" key={`${index}-${item}`}>{item}</li>)}</ol></section>)}</div>;
   if (answerType === "history_summary") return <div className="mt-5 border-l-2 border-[var(--assistant-response-accent)] pl-5">{sections.map((section) => <section className="mb-5 last:mb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-2 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li key={item}>{item}</li>)}</ul></section>)}</div>;
-  return <div className="mt-4 divide-y divide-[var(--assistant-response-border)] border-t border-[var(--assistant-response-border)]">{sections.map((section) => <section className="min-w-0 py-3 sm:py-4 last:pb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-1.5 leading-7 text-[var(--pw-text)] sm:space-y-2">{section.items.map((item) => <li className="flex gap-2.5" key={item}><span aria-hidden="true" className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--assistant-response-accent)]" /><span className="min-w-0 [overflow-wrap:anywhere]">{item}</span></li>)}</ul></section>)}</div>;
+  return <div className="mt-3 divide-y divide-[var(--assistant-response-border)] border-t border-[var(--assistant-response-border)]">{sections.map((section) => <section className="min-w-0 py-2.5 sm:py-3 last:pb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-1.5 space-y-1.5 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li className="flex gap-2.5" key={item}><span aria-hidden="true" className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--assistant-response-accent)]" /><span className="min-w-0 [overflow-wrap:anywhere]">{item}</span></li>)}</ul></section>)}</div>;
 }
 
 function SuggestedQuestions({ currentDraft, onSelect, suggestions }: { currentDraft: string; onSelect: (suggestion: string) => void; suggestions: string[] }) {

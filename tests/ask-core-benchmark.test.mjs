@@ -9,6 +9,8 @@ test("permanent Ask benchmark contains at least 150 multi-turn scenarios", () =>
   const categories = new Set(scenarios.flatMap((item) => item.categories));
   for (const required of ["simple", "complex", "slang", "typos", "multilingual", "multiple_pets", "outside_animal", "emergency", "quota", "grief", "history", "memory", "application_action", "retry", "refresh", "structured_output", "optional_failure"]) assert.ok(categories.has(required), required);
   assert.ok(categories.has("long_form_owner_emotion_with_clear_pet_pronouns"));
+  assert.ok(categories.has("answer_economy"));
+  assert.ok(scenarios.length >= 165);
 });
 
 test("benchmark provider-call and reliability targets pass", () => {

@@ -149,7 +149,7 @@ test("contextual suggestions share the answer call and remain bounded and unique
   const client = mockClient([unified({ suggestedFollowUps: suggestions })]);
   const result = await generateContextAwareAskResponse({ ...input({ question: maniProductionQuestion }), client });
   assert.equal(client.requests.length, 1);
-  assert.deepEqual(result.suggestedFollowUps, suggestions);
+  assert.deepEqual(result.suggestedFollowUps, suggestions.slice(0, 2));
   assert.equal(askUnifiedJsonSchema.properties.suggestedFollowUps.maxItems, 4);
 });
 
