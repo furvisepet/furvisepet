@@ -1,15 +1,24 @@
 import type { CareEntryRow, DogProfileRow } from "../supabase.ts";
-import type { GovernedCanonicalEvent, IntelligenceCareAction, SemanticEventDomain, SemanticEventTransition } from "./types.ts";
+import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, SemanticEventDomain, SemanticEventTransition } from "./types.ts";
 
 const explicitSavePattern = /\b(?:save|log|record|note|add|put)\b[\s\S]{0,80}\b(?:this|that|it|history|care history|timeline)\b|\bcan (?:you|u) (?:save|log|record|note|add)\b/i;
 const conversationalNoisePattern = /\b(?:chasing?|chased)\s+butterfl(?:y|ies)\b|\bbutterfl(?:y|ies)\b|\b(?:is|was|being)\s+(?:dumb|silly|goofy|cute|funny|insane|a menace|a gremlin)(?:\s+af)?\b|\b(?:lol|lmao|haha|hehe)\b|\bnormal\s+play\b|\b(?:played?|playing)\s+(?:normally|with (?:a )?toy)\b|\b(?:more )?interested in (?:going|get(?:ting)?) outside\b/i;
-const clinicalSignalPattern = /\b(?:appetite|not eating|won't eat|has(?:n't| not) eaten|have(?:n't| not) eaten|eaten (?:less|little|much)|drank?|drinking|thirst|water intake|vomit|vomiting|diarrhea|stool|urine|urinating|elimination|weight|body condition|limp|limping|injur(?:y|ed)|wound|bleed(?:ing)?|pain|letharg(?:y|ic)|cough|sneez|itch|scratch|rash|swelling|breath(?:e|ing)|seizure|collapse|toxin|toxic|poison|exposure|ate|ingested|medication|medicine|supplement|dose|treatment|therapy|vaccine|vaccination|veterinar(?:y|ian)|vet visit|test result|lab result|diagnos|surgery)\b/i;
+const clinicalSignalPattern = /\b(?:appetite|not eating|won't eat|has(?:n't| not) eaten|have(?:n't| not) eaten|(?:eat(?:ing)?|eaten) (?:less|little|much)|drank?|drinking|thirst|water intake|vomit\w*|diarrhea|stool|urine|urinating|elimination|weight|body condition|limp|limping|injur(?:y|ed)|wound|bleed(?:ing)?|pain|letharg(?:y|ic)|cough|sneez|itch|scratch|rash|swelling|breath(?:e|ing)|seizure|collapse|toxin|toxic|poison|exposure|ate|ingested|medication|medicine|supplement|dose|treatment|therapy|vaccin\w*|veterinar(?:y|ian)|vet visit|test result|lab result|diagnos|surgery)\b/i;
 const behaviorChangePattern = /\b(?:still|continued?|keeps?|again|recurr(?:ed|ing)?|started?|changed?|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?|since|for\s+(?:the\s+)?(?:last\s+)?\d+\s+(?:hours?|days?|weeks?))\b[\s\S]{0,100}\b(?:pac(?:e|ed|ing)|restless|hiding|aggress(?:ive|ion)|anxious|anxiety|vocal(?:izing)?|meow(?:ing)?|sleep|energy|activity|behavior|routine)\b|\b(?:pac(?:e|ed|ing)|restless|hiding|aggress(?:ive|ion)|anxious|anxiety|vocal(?:izing)?|meow(?:ing)?)\b[\s\S]{0,100}\b(?:still|continued?|keeps?|again|since|started?|changed?|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?)\b/i;
 const dietOrRoutineChangePattern = /\b(?:food|diet|meal|feeding|routine|schedule)\b[\s\S]{0,80}\b(?:started?|stopped?|switched?|changed?|new|more|less|increased?|decreased?)\b|\b(?:started?|stopped?|switched?|changed?)\b[\s\S]{0,80}\b(?:food|diet|meal|feeding|routine|schedule)\b/i;
 const lifecycleEventPattern = /\b(?:died|passed away|death|euthanized|put (?:her|him|them) to sleep)\b/i;
 const ordinarySocialBehaviorPattern = /\b(?:affection|attention|cling|cuddle|follow|greet|lap|play|sleep(?:ing)? (?:on|next to)|toy|mischief|quirk)\w*\b/i;
-const materialBehaviorPattern = /\b(?:aggress|anxious|anxiety|bite|biting|hide|hiding|litter|pace|pacing|restless|self[- ]injur|withdraw)\w*\b/i;
-const longitudinalMarkerPattern = /\b(?:again|continued?|every (?:day|evening|morning|night)|for (?:the )?(?:past|last)\b|keeps?|lately|recurr|several (?:days|weeks)|since|still|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?)\b/i;
+const materialBehaviorPattern = /\b(?:aggress|anxious|anxiety|bite|biting|hide|hiding|litter|pace|pacing|reactiv|restless|self[- ]injur|withdraw)\w*\b/i;
+const explicitBehaviorOnsetPattern = /\b(?:began|first time|just started|new(?:ly)?|never (?:did|done|happened) (?:this|that) before|started|suddenly)\b/i;
+const worseningBehaviorPattern = /\b(?:became|becoming|getting|got|seems?)\s+(?:much\s+)?worse\b|\b(?:became|becoming|getting|got)\s+more\s+[a-z-]+\b|\b(?:increas(?:e|ed|ing)|more (?:frequent|often|severe)|wors(?:e|ened|ening))\b|\b(?:worse|worsening)\b[\s\S]{0,50}\b(?:each|every|week)\b/i;
+const recurrentBehaviorPattern = /\b(?:again|came back|recurr(?:ed|ence|ent|ing)?|returned)\b/i;
+const sustainedBehaviorPattern = /\b(?:for|over|during)\s+(?:the\s+)?(?:(?:past|last)\s+)?(?:\d+|a few|few|several)\s+(?:hours?|days?|weeks?|months?)\b|\bevery\s+(?:day|evening|morning|night|week)\b/i;
+const continuedBehaviorPattern = /\b(?:continued?|still)\b/i;
+const painSensitivityPattern = /\b(?:flinch(?:es|ed|ing)?|pain(?:ful)?|sore|tender|touch[- ]sensitive|sensitive (?:to|when) (?:touch|touched)|hurts? (?:to|when) (?:touch|touched))\b/i;
+const trackingIntentPattern = /\b(?:keep|start|make) (?:a )?(?:log|record|timeline)|\b(?:monitor|track|write down)\b/i;
+const stableBehaviorPattern = /\b(?:always (?:did|does|done|been|happened)|as long as I can remember|normal for (?:her|him|them|it)|usual (?:behavior|habit|pattern))\b/i;
+const safetyEventPattern = /\b(?:escaped?|found|got (?:away|lost)|lost|missing|ran away|run away|stray|toxin|toxic|poison|exposure|injur(?:y|ed)|attack(?:ed)?)\b/i;
+const medicationCoursePattern = /\b(?:started?|stopped?|changed?|increased?|decreased?)\b[\s\S]{0,80}\b(?:dose|giving|medication|medicine|pill|tablet|treatment)\b|\b(?:dose|medication|medicine|pill|tablet|treatment)\b[\s\S]{0,80}\b(?:started?|stopped?|changed?|increased?|decreased?)\b/i;
 const genericQuestionPattern = /^(?:can|could|do|does|did|is|are|should|would|what|when|where|why|how|which)\b[\s\S]*\?$/i;
 const meaningfulTransition = new Set<SemanticEventTransition>(["started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed"]);
 
@@ -47,17 +56,51 @@ export function evaluateCareHistorySaveWorthiness(input: {
   }
   if (clinicalSignalPattern.test(source)) return { eligible: true, reason: "clinical_or_care_signal", explicitOverride: false };
   if (lifecycleEventPattern.test(source)) return { eligible: true, reason: "pet_lifecycle_event", explicitOverride: false };
+  if (dietOrRoutineChangePattern.test(source)) return { eligible: true, reason: "material_routine_change", explicitOverride: false };
+  if (input.domain === "safety" && safetyEventPattern.test(source)) return { eligible: true, reason: "owner_reported_safety_event", explicitOverride: false };
+  if (input.domain === "medication" && medicationCoursePattern.test(source)) return { eligible: true, reason: "owner_reported_medication_change", explicitOverride: false };
+  if (painSensitivityPattern.test(source)) return { eligible: true, reason: "pain_or_touch_sensitivity", explicitOverride: false };
+  if (trackingIntentPattern.test(source) && materialBehaviorPattern.test(source)) {
+    return { eligible: true, reason: "owner_tracking_intent", explicitOverride: false };
+  }
   if (ordinarySocialBehaviorPattern.test(source) && !materialBehaviorPattern.test(source)) {
     return { eligible: false, reason: "ordinary_social_behavior", explicitOverride: false };
   }
-  if (behaviorChangePattern.test(source) && materialBehaviorPattern.test(source) && longitudinalMarkerPattern.test(source)) {
-    return { eligible: true, reason: "sustained_behavior_change", explicitOverride: false };
-  }
-  if (dietOrRoutineChangePattern.test(source)) return { eligible: true, reason: "material_routine_change", explicitOverride: false };
-  if (["medication", "health", "safety", "care", "behavior", "nutrition", "routine"].includes(String(input.domain || "")) && input.transition && meaningfulTransition.has(input.transition)) {
-    return { eligible: true, reason: "material_care_event", explicitOverride: false };
+  if (materialBehaviorPattern.test(source)) {
+    if (stableBehaviorPattern.test(source) && !painSensitivityPattern.test(source)) {
+      return { eligible: false, reason: "stable_behavior_pattern", explicitOverride: false };
+    }
+    if (painSensitivityPattern.test(source)) {
+      return { eligible: true, reason: "behavior_with_pain_sensitivity", explicitOverride: false };
+    }
+    if (explicitBehaviorOnsetPattern.test(source)) {
+      return { eligible: true, reason: "new_behavior_change", explicitOverride: false };
+    }
+    if (worseningBehaviorPattern.test(source)) {
+      return { eligible: true, reason: "worsening_behavior_change", explicitOverride: false };
+    }
+    if (recurrentBehaviorPattern.test(source)) {
+      return { eligible: true, reason: "recurrent_behavior_change", explicitOverride: false };
+    }
+    if (sustainedBehaviorPattern.test(source) || continuedBehaviorPattern.test(source)) {
+      return { eligible: true, reason: "sustained_behavior_change", explicitOverride: false };
+    }
   }
   return { eligible: false, reason: "insufficient_longitudinal_value", explicitOverride: false };
+}
+
+export function resolveAutomaticCareHistoryPresentation(input: {
+  confirmedPersistence: CarePersistenceResult | null;
+  hasSavedSuggestion: boolean;
+  memoryIds?: string[];
+}): CarePersistenceResult {
+  if (input.confirmedPersistence?.status === "persisted" && input.confirmedPersistence.careEntryIds.length > 0) {
+    return input.confirmedPersistence;
+  }
+  if (input.hasSavedSuggestion) {
+    return { status: "suggested", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: input.memoryIds || [] };
+  }
+  return { status: "skipped", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: input.memoryIds || [] };
 }
 
 export function isKnownConversationalCareNoise(value: string) {

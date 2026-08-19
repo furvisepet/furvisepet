@@ -44,12 +44,13 @@ test("existing matching care entries are reused", () => {
   assert.match(migration, /coalesce\(v_suggestion\.care_entry_id, v_entry_id\)/);
 });
 
-test("verified automatic persistence prevents a duplicate suggestion while auxiliary failure keeps review available", () => {
+test("verified automatic persistence prevents a duplicate suggestion while optional failures never surface a broken card", () => {
   assert.match(askRoute, /confirmedCarePersistence\?\.status === "persisted"/);
   assert.match(askRoute, /confirmedCarePersistence\.careEntryIds\.length > 0/);
   assert.match(askRoute, /const reviewSuggestion = !automaticCareAction/);
   assert.match(askRoute, /const semanticReviewSuggestion = reviewableSemanticEvent \? buildSemanticEventReviewSuggestion/);
-  assert.match(askRoute, /\(historyReviewRequired \|\| automaticCareFailure\) && semanticReviewSuggestion/);
+  assert.match(askRoute, /resolveAutomaticCareHistoryPresentation/);
+  assert.doesNotMatch(askRoute, /suggestionFailure\s*\?/);
   assert.match(askRoute, /persistenceMode/);
 });
 
