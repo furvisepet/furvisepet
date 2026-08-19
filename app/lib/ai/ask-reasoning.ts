@@ -9,7 +9,7 @@ import {
   formatConcernTag,
   getPetReferenceGuidance,
   isHistoricalSafetyRelevantToTurn,
-  removeUnsupportedGenderedPronouns,
+  normalizePetVisibleProse,
   type RecentAskUpdate,
 } from "../ask-safety-context.ts";
 import type { PetConcern } from "./concern-engine.ts";
@@ -298,10 +298,11 @@ const unifiedInstructions = [
   "Use activeConcernMessageState as a deterministic hint. Improved or resolved means continue conversationally and offer a saved improvement; still_active, worsening, or recurrence means address current safety first; unclear means interpret the newest message in context.",
   "Classify the newest currentMessage before using prior-turn or recently-resolved context. An explicit current report that a condition is present is current/active or recurrent evidence and must outrank an older recovery; never carry recoveryStatus forward from a prior turn.",
   "Set messageUnderstanding.recoveryStatus by meaning, not keywords. Use partial only when the condition remains present but is reduced or getting better. Use terminal only when the owner explicitly reports return to the pet's normal baseline, absence of the prior symptom, or that the problem ended. Use uncertain when the extent is unclear, and none when no recovery is reported. Set recoveryConfidence from the current message and supplied compatible lifecycle context. Independently extract recoveryEvidence: choose return_to_baseline, symptom_absent, or problem_ended only for terminal semantics; partial_improvement when the problem remains; uncertain when hedged or unclear; otherwise none. recoveryEvidence.surfaceText must be one exact contiguous fragment from the current message that supports that outcome, or null for none. Set targetConcept to the specific prior problem the evidence changes, using the supplied active episode topic when compatible, or null when no specific problem is supported. Its confidence must describe only that evidence.",
-  "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording.",
+  "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording. Use the pet's name once when it establishes the subject or distinguishes animals, then prefer natural pronouns. Never force the name into every sentence or manufacture a possessive form.",
   "Treat the server-authored answerEconomy plan as authoritative. Depth is earned by the reasoning and action guidance needed, never by message length, owner emotion, pronoun count, or the amount of available history.",
-  "For depth 0, answer in one or two natural sentences. For depth 1, usually use 40-120 useful words and no headings. For depth 2, usually use 100-250 useful words with at most two short sections and two to four total bullets. For depth 3, usually use 200-450 useful words with at most four meaningful sections. Depth 4 is safety-led: include every action, escalation sign, and avoidance needed even when that exceeds other budgets.",
-  "Prefer direct answer, immediate useful action, then one important caveat. Use answerSections only for discrete actions or signs, never for decorative structure. Do not repeat the direct answer in sections or restate the same idea under multiple headings.",
+  "For depth 0, answer in one or two natural sentences. For depth 1, usually use 40-120 useful words and no headings. For depth 2, usually use 100-250 useful words with zero or one useful expansion section and up to four total bullets. For depth 3, usually use 200-450 useful words with at most four meaningful sections. Depth 4 is safety-led: include every action, escalation sign, and avoidance needed even when that exceeds other budgets.",
+  "The direct answer owns the core interpretation, the most important recommendation, and a brief emotional acknowledgement when useful. Every answerSection must add a new decision, action, explanation, or safety signal that is absent from the direct answer. Maximum section and bullet budgets are ceilings, not targets. Never restate the direct answer in a section.",
+  "Put prose only in answer. Do not embed hyphen bullets, dot bullets, or numbered-list markers inside answer text. Put genuine list items only in answerSections.items; otherwise write one natural sentence.",
   "When answerEconomy.followUpDeltaOnly is true, respond to the newest detail instead of regenerating the earlier explanation. Briefly acknowledge owner emotion when present, then help; do not turn acknowledgement into a therapy paragraph.",
   "Never diagnose. Do not repeat a generic veterinary disclaimer in routine answers.",
   "For clearly casual small talk, mirror mild slang naturally, keep the answer short, and allow a light joke or an occasional single emoji when it fits. Do not invent monitoring, logging, care-plan, or veterinary advice when the content does not warrant it.",
@@ -671,13 +672,17 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
 
   let answerText = parsed.answer;
   if (profile) {
-    const reference = getPetReferenceGuidance({
+    const petReference = {
       name: profile.name || "your pet",
       species: profile.species,
       pronouns: readOptionalString(profile, "pronouns"),
       sex: readOptionalString(profile, "sex") || readOptionalString(profile, "gender"),
-    });
-    if (!reference.allowsGenderedPronouns) answerText = removeUnsupportedGenderedPronouns(answerText, profile.name || "your pet");
+    };
+    answerText = normalizePetVisibleProse(answerText, petReference);
+    parsed.answerSections = parsed.answerSections.map((section) => ({
+      heading: normalizePetVisibleProse(section.heading, petReference),
+      items: section.items.map((item) => normalizePetVisibleProse(item, petReference)),
+    }));
   }
   if (profile && isUselessQuestionEcho(input.question, answerText, profile.name || "your pet")) {
     answerText = buildObservationAssessmentFallback(input.question, profile.name || "your pet");

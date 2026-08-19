@@ -125,7 +125,10 @@ test("the exact history-aware Mani question fits the supported context budget an
   assert.match(result.answer.summary, /male cat at the door/i);
   assert.match(result.answer.summary, /uncertain/i);
   assert.doesNotMatch(result.answer.summary, /diagnos/i);
-  assert.deepEqual(result.answer.sections, answerSections);
+  assert.deepEqual(result.answer.sections, [
+    { heading: "What to do today", items: ["Use play or another calm activity away from the door."] },
+  ]);
+  assert.doesNotMatch(JSON.stringify(result.answer.sections), /refresh her usual indoor water|Watch appetite, drinking/i);
 });
 
 test("simple Ask output remains unsectioned while Level 3 output can use bounded structure", async () => {

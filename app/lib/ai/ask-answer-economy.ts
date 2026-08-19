@@ -72,15 +72,22 @@ export function planAskAnswerDepth(input: {
 }
 
 export function applyAskAnswerEconomy<T extends AskEconomyAnswer>(answer: T, economy: AskAnswerEconomyPlan, context: { previousAssistantText?: string } = {}): T {
-  if (economy.depth === 4) return { ...answer, sections: dedupeSections(answer.sections, economy.maxSections, economy.maxBullets) };
+  if (economy.depth === 4) {
+    return {
+      ...answer,
+      summary: canonicalizeAnswerProse(answer.summary),
+      sections: normalizeSectionsWithoutSemanticRemoval(answer.sections, economy.maxSections, economy.maxBullets),
+    };
+  }
 
-  let summary = stripFormulaicLead(clean(answer.summary));
+  let summary = stripFormulaicLead(canonicalizeAnswerProse(answer.summary));
   if (economy.followUpDeltaOnly && context.previousAssistantText) {
     summary = removeRepeatedSentences(summary, context.previousAssistantText) || summary;
   }
+  const sectionLimit = economy.depth === 2 ? Math.min(1, economy.maxSections) : economy.maxSections;
   const normalizedSections = economy.maxSections === 0
-    ? dedupeSections(answer.sections, answer.sections.length, economy.depth === 0 ? 1 : 2)
-    : dedupeSections(answer.sections, economy.maxSections, economy.maxBullets);
+    ? dedupeSections(answer.sections, summary, answer.sections.length, economy.depth === 0 ? 1 : 2)
+    : dedupeSections(answer.sections, summary, sectionLimit, economy.maxBullets);
   if (economy.maxSections === 0 && normalizedSections.length) {
     const usefulItems = normalizedSections.flatMap((section) => section.items)
       .filter((item) => !materiallyOverlaps(item, summary))
@@ -94,7 +101,7 @@ export function applyAskAnswerEconomy<T extends AskEconomyAnswer>(answer: T, eco
   };
 }
 
-export function measureAskAnswerEconomy(answer: AskEconomyAnswer) {
+export function measureAskAnswerEconomy(answer: AskEconomyAnswer, options: { petName?: string } = {}) {
   const rendered = [
     answer.summary,
     ...answer.sections.flatMap((section) => [section.heading, ...section.items]),
@@ -105,7 +112,38 @@ export function measureAskAnswerEconomy(answer: AskEconomyAnswer) {
     headings: answer.sections.length,
     bullets: answer.sections.reduce((sum, section) => sum + section.items.length, 0),
     repeatedSemanticContent: countSemanticRepetitions(answer),
+    directSectionSemanticOverlap: directSectionOverlap(answer),
+    repeatedRecommendationRate: countSemanticRepetitions(answer) > 0 ? 1 : 0,
+    pseudoListCount: [answer.summary, ...answer.sections.flatMap((section) => section.items)]
+      .filter(hasEmbeddedListMarkers).length,
+    sectionNoveltyRate: sectionNoveltyRate(answer),
+    malformedPersonalizationCount: options.petName ? countMalformedPetPersonalization(rendered, options.petName) : 0,
+    petNameUseCount: options.petName ? countPetNameUses(rendered, options.petName) : 0,
   };
+}
+
+export function semanticAnswerOverlap(left: string, right: string) {
+  return semanticOverlapScore(left, right);
+}
+
+export function hasEmbeddedListMarkers(value: string) {
+  return listMarkerMatches(String(value || "")).length >= 2;
+}
+
+export function canonicalizeAnswerProse(value: string) {
+  const raw = String(value || "").normalize("NFKC");
+  const markers = listMarkerMatches(raw);
+  if (markers.length < 2) return clean(raw).replace(/^\s*(?:[-+•]|\d+[.)])\s+/, "");
+
+  const prefix = clean(raw.slice(0, markers[0].index)).replace(/[.:;,-]+$/, "");
+  const items = markers.map((marker, index) => clean(raw
+    .slice(marker.index + marker.text.length, markers[index + 1]?.index ?? raw.length))
+    .replace(/[.;]+$/, ""))
+    .filter(Boolean);
+  if (items.length < 2) return clean(raw);
+
+  const lead = prefix || "Useful next steps";
+  return `${lead}: ${joinProseItems(items)}.`;
 }
 
 export function countWords(value: string) {
@@ -116,7 +154,7 @@ function plan(depth: AskAnswerDepth, followUpDeltaOnly: boolean): AskAnswerEcono
   const values: Record<AskAnswerDepth, Omit<AskAnswerEconomyPlan, "depth" | "followUpDeltaOnly">> = {
     0: { label: "ack_social", targetWords: { min: 3, max: 45 }, maxSections: 0, maxBullets: 0, maxFollowUps: 0, allowsAutomaticHistory: false },
     1: { label: "simple", targetWords: { min: 40, max: 120 }, maxSections: 0, maxBullets: 0, maxFollowUps: 1, allowsAutomaticHistory: false },
-    2: { label: "practical", targetWords: { min: 100, max: 250 }, maxSections: 2, maxBullets: 4, maxFollowUps: 2, allowsAutomaticHistory: true },
+    2: { label: "practical", targetWords: { min: 100, max: 250 }, maxSections: 1, maxBullets: 4, maxFollowUps: 2, allowsAutomaticHistory: true },
     3: { label: "complex", targetWords: { min: 200, max: 450 }, maxSections: 4, maxBullets: 8, maxFollowUps: 3, allowsAutomaticHistory: true },
     4: { label: "safety_urgent", targetWords: { min: 0, max: Number.POSITIVE_INFINITY }, maxSections: 6, maxBullets: 12, maxFollowUps: 0, allowsAutomaticHistory: false },
   };
@@ -131,7 +169,7 @@ function isFollowUpDelta(message: string, recentConversation: Array<{ role: "use
     || /\b(?:only|still|instead|at night|in the morning|after that|since then)\b/i.test(message);
 }
 
-function dedupeSections(sections: AskEconomyAnswer["sections"], maxSections: number, maxBullets: number) {
+function dedupeSections(sections: AskEconomyAnswer["sections"], summary: string, maxSections: number, maxBullets: number) {
   const normalized: AskEconomyAnswer["sections"] = [];
   const seenItems: string[] = [];
   for (const section of sections) {
@@ -139,8 +177,8 @@ function dedupeSections(sections: AskEconomyAnswer["sections"], maxSections: num
     if (!heading || normalized.some((candidate) => materiallyOverlaps(candidate.heading, heading))) continue;
     const items: string[] = [];
     for (const rawItem of section.items) {
-      const item = clean(rawItem);
-      if (!item || seenItems.some((candidate) => materiallyOverlaps(candidate, item))) continue;
+      const item = removeRepeatedSentences(canonicalizeAnswerProse(rawItem), [summary, ...seenItems].join(" "));
+      if (!item || materiallyOverlaps(item, summary) || seenItems.some((candidate) => materiallyOverlaps(candidate, item))) continue;
       items.push(item);
       seenItems.push(item);
     }
@@ -168,6 +206,20 @@ function dedupeSections(sections: AskEconomyAnswer["sections"], maxSections: num
   return accepted.filter((section) => section.items.length);
 }
 
+function normalizeSectionsWithoutSemanticRemoval(sections: AskEconomyAnswer["sections"], maxSections: number, maxBullets: number) {
+  const normalized = sections.slice(0, maxSections).flatMap((section) => {
+    const heading = clean(section.heading);
+    const items = section.items.map(canonicalizeAnswerProse).filter(Boolean);
+    return heading && items.length ? [{ heading, items }] : [];
+  });
+  let remaining = maxBullets;
+  return normalized.flatMap((section) => {
+    const items = section.items.slice(0, Math.max(0, remaining));
+    remaining -= items.length;
+    return items.length ? [{ ...section, items }] : [];
+  });
+}
+
 function countSemanticRepetitions(answer: AskEconomyAnswer) {
   const parts = [answer.summary, ...answer.sections.flatMap((section) => section.items)].filter(Boolean);
   let repeats = 0;
@@ -178,16 +230,59 @@ function countSemanticRepetitions(answer: AskEconomyAnswer) {
 }
 
 function materiallyOverlaps(left: string, right: string) {
+  return semanticOverlapScore(left, right) >= 0.68;
+}
+
+function semanticOverlapScore(left: string, right: string) {
   const leftTokens = significantTokens(left);
   const rightTokens = significantTokens(right);
-  if (!leftTokens.size || !rightTokens.size) return false;
+  if (!leftTokens.size || !rightTokens.size) return 0;
   const intersection = [...leftTokens].filter((token) => rightTokens.has(token)).length;
-  return intersection / Math.min(leftTokens.size, rightTokens.size) >= 0.72;
+  const lexical = intersection / Math.min(leftTokens.size, rightTokens.size);
+  const leftConcepts = semanticConcepts(left);
+  const rightConcepts = semanticConcepts(right);
+  const sharedConcepts = [...leftConcepts].filter((concept) => rightConcepts.has(concept));
+  const conceptScore = sharedConcepts.length / Math.max(1, Math.min(leftConcepts.size, rightConcepts.size));
+  const distinctiveMatch = sharedConcepts.includes("action:short_contact") || sharedConcepts.length >= 2;
+  return Math.max(lexical, distinctiveMatch ? Math.max(conceptScore, 0.72) : 0);
 }
 
 function significantTokens(value: string) {
   const stop = new Set(["about", "again", "also", "because", "from", "have", "here", "into", "just", "mani", "more", "should", "that", "their", "them", "then", "there", "they", "this", "what", "when", "with", "your"]);
-  return new Set((clean(value).toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter((token) => !stop.has(token)));
+  return new Set((clean(value).toLowerCase().match(/[a-z0-9]{3,}/g) || [])
+    .map(canonicalToken)
+    .filter((token) => !stop.has(token)));
+}
+
+function semanticConcepts(value: string) {
+  const normalized = ` ${clean(value).toLowerCase().replace(/[’']/g, "'")} `;
+  const concepts = new Set<string>();
+  if (/\b(?:give (?:her|him|them|\w+) space|back off|step away|stop|end|pause)\b/.test(normalized)) concepts.add("action:back_off");
+  if (/\b(?:overstimulat\w*|wound up|reaches? (?:her|his|their|the) limit|bite point|warning sign)\b/.test(normalized)) concepts.add("state:contact_limit");
+  if (/\b(?:keep|make) (?:petting |contact |interaction )?(?:sessions? )?(?:brief|short(?:er)?)|\b(?:brief|short(?:er)?) (?:petting|contact|interaction|sessions?|touch(?:es)?)\b|\bbefore (?:she|he|they|\w+) reaches? (?:her|his|their|the) limit\b/.test(normalized)) {
+    concepts.add("action:short_contact");
+    concepts.add("state:contact_limit");
+  }
+  if (/\b(?:watch|look|notice|spot|check)\b/.test(normalized) && /\b(?:sign|signal|flick|twitch|ear|pupil|freeze|tense)\w*\b/.test(normalized)) concepts.add("action:observe_signal");
+  if (/\b(?:tail\w*\s+flick\w*|flick\w*\s+tail\w*)\b/.test(normalized)) concepts.add("signal:tail_flick");
+  if (/\b(?:skin\s+(?:twitch|rippl)\w*|(?:twitch|rippl)\w*\s+skin)\b/.test(normalized)) concepts.add("signal:skin_twitch");
+  if (/\b(?:punish|scold|yell|hold (?:her|him|them) (?:down|in place))\b/.test(normalized)) concepts.add("avoid:punishment");
+  if (/\b(?:vet|veterinarian|clinic|urgent care)\b/.test(normalized)) concepts.add("safety:vet");
+  if (/\b(?:pain|sore|tender|sensitive when touched)\b/.test(normalized)) concepts.add("safety:pain");
+  return concepts;
+}
+
+function canonicalToken(token: string) {
+  const aliases: Record<string, string> = {
+    ended: "stop", ending: "stop", ends: "stop", pause: "stop", paused: "stop", stopping: "stop",
+    interactions: "contact", petting: "contact", sessions: "contact", touches: "contact",
+    brief: "short", briefly: "short",
+    flicked: "flick", flicking: "flick", flicks: "flick",
+    looking: "watch", looks: "watch", notice: "watch", noticed: "watch", noticing: "watch",
+    overstimulated: "limit", overstimulation: "limit", threshold: "limit",
+    signs: "signal", signals: "signal", warnings: "signal",
+  };
+  return aliases[token] || token.replace(/(?:ing|ed|es|s)$/i, "");
 }
 
 function stripFormulaicLead(value: string) {
@@ -195,7 +290,7 @@ function stripFormulaicLead(value: string) {
 }
 
 function asSentence(value: string) {
-  const sentence = clean(value).replace(/[.!?]+$/, "");
+  const sentence = canonicalizeAnswerProse(value).replace(/[.!?]+$/, "");
   return sentence ? `${sentence}.` : "";
 }
 
@@ -204,6 +299,66 @@ function removeRepeatedSentences(value: string, previous: string) {
     .map(clean)
     .filter((sentence) => sentence && !materiallyOverlaps(sentence, previous))
     .join(" ");
+}
+
+function directSectionOverlap(answer: AskEconomyAnswer) {
+  const items = answer.sections.flatMap((section) => section.items);
+  return items.length ? Math.max(...items.map((item) => semanticOverlapScore(answer.summary, item))) : 0;
+}
+
+function sectionNoveltyRate(answer: AskEconomyAnswer) {
+  const items = answer.sections.flatMap((section) => section.items);
+  if (!items.length) return 1;
+  return items.filter((item) => semanticOverlapScore(answer.summary, item) < 0.68).length / items.length;
+}
+
+function listMarkerMatches(value: string) {
+  const strong = [...value.matchAll(/(?:^|\s)(?:•|\d+[.)])\s+/g)]
+    .map((match) => markerFromMatch(match));
+  const lineBullets = [...value.matchAll(/(?:^|\n)\s*[-+]\s+/g)]
+    .map((match) => markerFromMatch(match));
+  const inlineStart = /:\s*[-+]\s+/.exec(value);
+  const inlineBullets = inlineStart
+    ? [...value.slice((inlineStart.index || 0) + 1).matchAll(/(?:^|\s)[-+]\s+/g)]
+      .map((match) => {
+        const marker = markerFromMatch(match);
+        return { ...marker, index: marker.index + (inlineStart.index || 0) + 1 };
+      })
+    : [];
+  return [...strong, ...lineBullets, ...inlineBullets]
+    .sort((left, right) => left.index - right.index)
+    .filter((marker, index, all) => index === 0 || marker.index !== all[index - 1].index);
+}
+
+function markerFromMatch(match: RegExpMatchArray) {
+  const leadingLength = /^\s/.test(match[0]) ? match[0].search(/[-+•\d]/) : 0;
+  return { index: (match.index || 0) + leadingLength, text: match[0].slice(leadingLength) };
+}
+
+function joinProseItems(items: string[]) {
+  const normalized = items.map((item) => lowerListItemStart(item));
+  if (normalized.length === 2) return `${normalized[0]} and ${normalized[1]}`;
+  return `${normalized.slice(0, -1).join("; ")}; and ${normalized.at(-1)}`;
+}
+
+function lowerListItemStart(value: string) {
+  if (/^(?:[A-Z]{2,}|[A-Z][a-z]+['’]s\b)/.test(value)) return value;
+  return value.charAt(0).toLowerCase() + value.slice(1);
+}
+
+function countMalformedPetPersonalization(value: string, petName: string) {
+  const name = escapeRegExp(petName);
+  const malformedSubject = new RegExp(`\\b${name}['’]s\\s+(?:act|avoid|bite|choose|continue|drink|eat|feel|follow|initiate|keep|like|need|prefer|seem|show|sit|sleep|start|stay|stop|try|use|want)\\b`, "gi");
+  const malformedObject = new RegExp(`\\b(?:allow|ask|call|feed|follow|give|help|hold|leave|let|offer|pet|reward|take|tell|touch|watch)\\s+${name}['’]s\\b`, "gi");
+  return [...value.matchAll(malformedSubject), ...value.matchAll(malformedObject)].length;
+}
+
+function countPetNameUses(value: string, petName: string) {
+  return [...value.matchAll(new RegExp(`\\b${escapeRegExp(petName)}(?:['’]s)?\\b`, "gi"))].length;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function clean(value: string) {

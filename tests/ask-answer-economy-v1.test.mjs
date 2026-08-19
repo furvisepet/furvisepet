@@ -39,7 +39,7 @@ test("semantic section and bullet budgets remove decorative structure without tr
   const practical = planAskAnswerDepth({ message: "Lately she keeps biting hard when I pet her." });
   const economical = applyAskAnswerEconomy(draft, practical);
   const metrics = measureAskAnswerEconomy(economical);
-  assert.equal(economical.sections.length, 2);
+  assert.equal(economical.sections.length, 1);
   assert.ok(metrics.bullets <= 4);
   assert.doesNotMatch(economical.summary, /^Here’s what to do/i);
   assert.match(economical.sections.flatMap((section) => section.items).join(" "), /Review every detail/);
@@ -101,10 +101,10 @@ test("new conversation titles are standalone topics for long messages", () => {
   assert.equal(deriveConversationTitle("She has been hiding under the bed for three days.", "Mani"), "Mani hiding more");
 });
 
-test("the executable 50-case review improves density without provider-call or safety regression", () => {
+test("the executable 60-case review improves density without provider-call or safety regression", () => {
   const review = buildAskAnswerEconomyReviewSet();
   const result = measureAskAnswerEconomyBenchmark(review);
-  assert.equal(review.length, 50);
+  assert.equal(review.length, 60);
   assert.ok(review.every((item) => item.previousUser && item.previousAssistant));
   assert.equal(result.providerCallsAfter, result.providerCallsBefore);
   assert.ok(result.after.averageWords < result.before.averageWords);
@@ -113,7 +113,7 @@ test("the executable 50-case review improves density without provider-call or sa
   assert.ok(result.after.careHistorySuggestionRate < result.before.careHistorySuggestionRate);
   assert.ok(result.after.zeroHeadingPercentage > result.before.zeroHeadingPercentage);
   assert.equal(result.dangerouslyShort, 0);
-  assert.equal(result.qualityPassed, 50);
+  assert.equal(result.qualityPassed, 60);
 });
 
 test("generation, orchestration, and UI share economy policy without touching reliability identities", () => {
