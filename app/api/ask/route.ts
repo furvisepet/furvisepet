@@ -108,6 +108,7 @@ import {
 import {
   derivePendingLifecycleAssertion,
   requiresLivingPet,
+  resolveDurableLifecycleCorrection,
   resolvePendingLifecycleTurn,
   type PendingLifecycleAssertion,
   type PendingLifecycleTurnResolution,
@@ -334,6 +335,10 @@ export async function POST(request: Request) {
     ? resolvePendingLifecycleTurn({ assertion: pendingLifecycle, message: question, pets: liveContext.eligiblePets })
     : null;
   const durableLifecycleStatus = getPetLifecycleStatus(liveContext.pet);
+  const durableLifecycleCorrection = resolveDurableLifecycleCorrection({
+    message: question,
+    status: durableLifecycleStatus,
+  });
   const durableLifecycleResolution = durableLifecycleStatus !== "active" && requiresLivingPet(question)
     ? durableLifecycleStatus
     : null;
@@ -393,6 +398,24 @@ export async function POST(request: Request) {
         deterministicApplicationActions = [cancelledPendingLifecycleAction(pendingLifecycle.action), ...reassignedActions];
         deferHighImpactLifecyclePersistence = true;
       }
+    } else if (durableLifecycleCorrection) {
+      deferHighImpactLifecyclePersistence = true;
+      orchestration = buildDurableLifecycleCorrectionOrchestration(
+        liveContext.pet.name || "your pet",
+        durableLifecycleCorrection.fromStatus,
+      );
+      deterministicApplicationActions = prepareFurviseApplicationActions({
+        proposals: [{
+          kind: "pet.mark_active",
+          input: { field: null, value: null, title: null, detail: null, category: null, target: "selected" },
+          evidence: question.slice(0, 240),
+          explicitIntent: true,
+        }],
+        petId: turnPetId,
+        petName: liveContext.pet.name || "your pet",
+        requestId,
+        lifecycleStatus: durableLifecycleStatus,
+      }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
     } else if (currentLoss === "confirmed_current") {
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       const pendingPet = pendingLifecycle && pendingLifecycleResolution?.kind === "continuation"
@@ -441,6 +464,7 @@ export async function POST(request: Request) {
             petId: turnPetId,
             petName: lossSubject.petName,
             requestId,
+            lifecycleStatus: lossSubject.lifecycleStatus,
           }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
           const unavailableAction = buildUnavailableConfirmedLossAction({
             message: question,
@@ -724,6 +748,7 @@ export async function POST(request: Request) {
         petId: turnPetId,
         petName: liveContext.pet.name || "your pet",
         requestId,
+        lifecycleStatus: getPetLifecycleStatus(liveContext.pet),
       }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
     } catch (error) {
       const lossEvidence = classifyCurrentPetLoss(question) === "confirmed_current" ? question : null;
@@ -770,7 +795,7 @@ export async function POST(request: Request) {
     applicationActions: preparedApplicationActions,
     interactionMode: deterministicLossInteraction || reasoning?.responseMode === "grief_support" || pendingLifecycleResolution?.kind === "reassigned_death"
       ? "grief"
-      : pendingLifecycleResolution?.kind === "contradiction" || pendingLifecycleResolution?.kind === "alternate_pet"
+      : durableLifecycleCorrection || pendingLifecycleResolution?.kind === "contradiction" || pendingLifecycleResolution?.kind === "alternate_pet"
         ? "action_confirmation"
         : orchestration.intent === "casual" ? "casual" : undefined,
     recentlyResolved: reasoning?.intelligenceSafety.level === "recently_resolved",
@@ -968,7 +993,7 @@ function buildPendingLifecycleOrchestration(
     : `the pending request to archive ${assertion.petName}`;
   if (resolution.kind === "correction") {
     return deterministicLifecycleOrchestration(
-      "Correction recorded",
+      "Correction noted",
       `Thanks for correcting that. ${capitalize(pendingReport)} was cleared. ${assertion.petName}'s profile, history, and memories were not changed by that report.`,
       "correction",
     );
@@ -1058,11 +1083,20 @@ function buildDurableLifecycleContradictionOrchestration(petName: string, status
   );
 }
 
+function buildDurableLifecycleCorrectionOrchestration(petName: string, status: "deceased" | "archived") {
+  const state = status === "deceased" ? "marked as passed away" : "archived";
+  return deterministicLifecycleOrchestration(
+    "Review the profile correction",
+    `${petName}'s profile is currently ${state}. You can review marking ${petName} as active below. Nothing has changed yet, and earlier history will remain available.`,
+    "correction",
+  );
+}
+
 function cancelledPendingLifecycleAction(action: FurviseApplicationAction): FurviseApplicationAction {
   return {
     ...action,
     status: "cancelled",
-    resultMessage: "The reported lifecycle change was corrected.",
+    resultMessage: "The unconfirmed lifecycle report was cleared. The saved profile was not changed.",
     errorMessage: null,
   };
 }

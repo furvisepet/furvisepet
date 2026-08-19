@@ -20,6 +20,7 @@ import {
   derivePendingLifecycleAssertion,
   hasPendingReportedLifecycle,
   requiresLivingPet,
+  resolveDurableLifecycleCorrection,
   resolvePendingLifecycleTurn,
 } from "../app/lib/ai/pending-lifecycle.ts";
 import { parseStoredApplicationActions, prepareFurviseApplicationActions } from "../app/lib/application-actions/index.ts";
@@ -31,6 +32,8 @@ const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), 
 const reasoning = readFileSync(new URL("../app/lib/ai/ask-reasoning.ts", import.meta.url), "utf8");
 const intelligence = readFileSync(new URL("../app/lib/intelligence/run-intelligence.ts", import.meta.url), "utf8");
 const orchestrator = readFileSync(new URL("../app/lib/ai/ask-orchestrator.ts", import.meta.url), "utf8");
+const actionRoute = readFileSync(new URL("../app/api/ask/actions/[messageId]/route.ts", import.meta.url), "utf8");
+const askPage = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
 
 test("the exact production traumatic-death report is a confirmed loss, not active emergency treatment", () => {
   assert.equal(classifyCurrentPetLoss(productionDeathMessage), "confirmed_current");
@@ -193,6 +196,7 @@ test("pending death state catches living-care contradictions and explicit correc
   }
   for (const message of ["I was joking, she's alive.", "I made a mistake.", "She didn't die."]) {
     assert.equal(resolvePendingLifecycleTurn({ assertion, message, pets }).kind, "correction", message);
+    assert.equal(resolveDurableLifecycleCorrection({ message, status: "active" }), null, message);
   }
   assert.deepEqual(resolvePendingLifecycleTurn({ assertion, message: "I meant Coco died, not Mani.", pets }), {
     kind: "reassigned_death", petId: "pet-coco", petName: "Coco",
@@ -200,6 +204,51 @@ test("pending death state catches living-care contradictions and explicit correc
   assert.deepEqual(resolvePendingLifecycleTurn({ assertion, message: "I meant my other cat.", pets }), {
     kind: "alternate_pet", petId: "pet-coco", petName: "Coco",
   });
+});
+
+test("durable lifecycle truth alone controls whether a correction offers reactivation", () => {
+  for (const message of ["I was joking, she's alive.", "I made a mistake.", "She didn't die."]) {
+    assert.equal(resolveDurableLifecycleCorrection({ message, status: "active" }), null, message);
+    assert.deepEqual(resolveDurableLifecycleCorrection({ message, status: "deceased" }), {
+      kind: "reactivate", fromStatus: "deceased",
+    }, message);
+  }
+  assert.deepEqual(resolveDurableLifecycleCorrection({ message: "I was wrong; keep the profile active.", status: "archived" }), {
+    kind: "reactivate", fromStatus: "archived",
+  });
+  assert.equal(resolveDurableLifecycleCorrection({ message: "She is alive.", status: "archived" }), null);
+
+  const activeProposal = prepareFurviseApplicationActions({
+    proposals: [{
+      kind: "pet.mark_active", explicitIntent: true, evidence: "I was joking, she is alive.",
+      input: { field: null, value: null, title: null, detail: null, category: null, target: "selected" },
+    }],
+    petId: "pet-mani", petName: "Mani", requestId: "request-correction", lifecycleStatus: "active",
+  });
+  assert.deepEqual(activeProposal, []);
+  assert.equal(prepareFurviseApplicationActions({
+    proposals: [{
+      kind: "pet.mark_active", explicitIntent: true, evidence: "I was joking, she is alive.",
+      input: { field: null, value: null, title: null, detail: null, category: null, target: "selected" },
+    }],
+    petId: "pet-mani", petName: "Mani", requestId: "request-correction", lifecycleStatus: "deceased",
+  })[0].kind, "pet.mark_active");
+});
+
+test("stored lifecycle action identity remains canonical and legacy stripped rows still recover", () => {
+  const [action] = prepareFurviseApplicationActions({
+    proposals: ensureConfirmedLossAction([], "Mani died"), petId: "pet-mani", petName: "Mani", requestId: "request-death",
+  });
+  const response = buildAskConversationResponse({ title: "I'm sorry", summary: "Nothing has changed yet.", sections: [], safetyNote: null }, {
+    applicationActions: [{ ...action, sourceMessageId: "source-death" }], interactionMode: "grief", suggestedQuestions: [],
+  });
+  assert.equal(response.applicationActions[0].kind, "pet.mark_deceased");
+  const [legacy] = parseStoredApplicationActions([{ ...action, kind: "pet.markdeceased", sourceMessageId: "source-death" }]);
+  assert.equal(legacy.kind, "pet.mark_deceased");
+  assert.ok(derivePendingLifecycleAssertion({
+    turns: [{ role: "furvise", applicationActions: [legacy] }],
+    pets: [{ id: "pet-mani", name: "Mani", lifecycle_status: "active" }],
+  }));
 });
 
 test("the exact two-turn production reproduction becomes a persisted pending assertion and deterministic contradiction", () => {
@@ -230,12 +279,14 @@ test("terminal action receipts clear pending state while failed preparation rema
   const pending = derivePendingLifecycleAssertion({ turns: [{ role: "furvise", applicationActions: [failed] }], pets });
   assert.equal(pending.action.status, "confirmation_required");
   assert.equal(pending.phase, "pending_confirmation");
-  assert.equal(derivePendingLifecycleAssertion({
+  const afterCorrection = derivePendingLifecycleAssertion({
     turns: [
       { role: "furvise", applicationActions: [failed] },
       { role: "furvise", applicationActions: [{ ...failed, status: "cancelled" }] },
     ], pets,
-  }), null);
+  });
+  assert.equal(afterCorrection, null);
+  assert.equal(requiresLivingPet("What should I feed my cat?"), true);
 });
 
 test("pending archive assertions use the same persisted state model without death semantics", () => {
@@ -336,10 +387,35 @@ test("pending lifecycle deterministic paths run before provider admission and de
   assert.match(route, /if \(!deferHighImpactLifecyclePersistence && phase3Runtime\) \{\s*await persistAskV2Phase3LowRisk/);
   assert.match(route, /deterministicApplicationActions = \[pendingLifecycle\.action\]/);
   assert.match(route, /cancelledPendingLifecycleAction\(pendingLifecycle\.action\)/);
+  assert.match(route, /resultMessage: "The unconfirmed lifecycle report was cleared\. The saved profile was not changed\."/);
+  assert.match(route, /resolveDurableLifecycleCorrection\(\{/);
+  assert.match(route, /lifecycleStatus: durableLifecycleStatus/);
   assert.doesNotMatch(route, /cancelPendingLifecycleActionReceipts/);
   assert.match(route, /durableLifecycleStatus !== "active" && requiresLivingPet\(question\)/);
   assert.match(route, /buildDurableLifecycleContradictionOrchestration/);
+  const correctionStart = route.indexOf('pendingLifecycleResolution.kind === "correction"');
+  const correctionEnd = route.indexOf('pendingLifecycleResolution.kind === "reassigned_death"', correctionStart);
+  const correctionBranch = route.slice(correctionStart, correctionEnd);
+  assert.match(correctionBranch, /cancelledPendingLifecycleAction/);
+  assert.doesNotMatch(correctionBranch, /pet\.mark_active|executeFurviseApplicationAction|persistIntelligenceLearnings/);
   assert.doesNotMatch(readFileSync(new URL("../app/lib/ai/pet-loss.ts", import.meta.url), "utf8"), /lossContinuationPattern/);
+});
+
+test("owner-facing lifecycle copy avoids internal product terminology", () => {
+  const planner = readFileSync(new URL("../app/lib/application-actions/planner.ts", import.meta.url), "utf8");
+  const petLoss = readFileSync(new URL("../app/lib/ai/pet-loss.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(`${planner}\n${petLoss}`, /future-care experiences|active-care experiences/i);
+  assert.match(buildGriefResponseFallback("Mani"), /history can stay/i);
+});
+
+test("correction cancellation survives reload and stale confirmation cannot execute", () => {
+  assert.match(askPage, /return reconcileThreadApplicationActions\(messages\)/);
+  assert.match(askPage, /terminal\.set\(action\.id, action\)/);
+  assert.match(askPage, /terminal\.get\(action\.id\) \|\| action/);
+  assert.match(actionRoute, /hasLaterDeathCorrection/);
+  assert.match(actionRoute, /if \(superseded\.value\) return Response\.json\(\{ error: "That reported loss was corrected later in this conversation\." \}, \{ status: 409 \}\)/);
+  assert.match(actionRoute, /target\?\.lifecycle_status \|\| "active"\) === "active"/);
+  assert.match(actionRoute, /target\.lifecycle_status === "deceased" \|\| target\.lifecycle_status === "archived"/);
 });
 
 test("confirmed loss is persisted through a zero-provider, zero-credit branch before every AI gate", () => {
@@ -361,7 +437,6 @@ test("confirmed loss is persisted through a zero-provider, zero-credit branch be
 });
 
 test("confirmation actions remain outside Ask credit accounting and never auto-delete a pet", () => {
-  const actionRoute = readFileSync(new URL("../app/api/ask/actions/[messageId]/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(actionRoute, /reserveAiCredit|completeAiCredit|runAdmittedAiOperation|admitAiOperation/);
   assert.match(actionRoute, /decision/);
   assert.match(actionRoute, /executeFurviseApplicationAction/);

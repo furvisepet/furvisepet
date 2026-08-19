@@ -42,6 +42,27 @@ export type PendingLifecycleTurnResolution =
   | { kind: "alternate_pet"; petId: string; petName: string }
   | { kind: "reassigned_death"; petId: string; petName: string };
 
+export type DurableLifecycleCorrection = {
+  kind: "reactivate";
+  fromStatus: "deceased" | "archived";
+};
+
+/**
+ * A correction only becomes a durable reactivation proposal when the profile's
+ * authoritative state is already non-active. An unconfirmed conversation
+ * assertion is handled separately by resolvePendingLifecycleTurn().
+ */
+export function resolveDurableLifecycleCorrection(input: {
+  message: string;
+  status: "active" | "deceased" | "archived";
+}): DurableLifecycleCorrection | null {
+  if (input.status === "active") return null;
+  const assertionKind = input.status === "deceased" ? "reported_deceased" : "reported_archived";
+  return isExplicitLifecycleCorrection(input.message, assertionKind)
+    ? { kind: "reactivate", fromStatus: input.status }
+    : null;
+}
+
 export function derivePendingLifecycleAssertion(input: {
   turns: ConversationTurnWithActions[];
   pets: EligiblePet[];

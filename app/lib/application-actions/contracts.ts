@@ -1,4 +1,4 @@
-import { FURVISE_ACTION_KINDS, type FurviseActionInput, type FurviseApplicationAction, type ModelApplicationAction } from "./types.ts";
+import { FURVISE_ACTION_KINDS, parseStoredFurviseActionKind, type FurviseActionInput, type FurviseApplicationAction, type ModelApplicationAction } from "./types.ts";
 
 export const modelApplicationActionJsonSchema = {
   type: "object",
@@ -48,7 +48,8 @@ export function parseStoredApplicationActions(value: unknown): FurviseApplicatio
   return value.slice(0, 4).flatMap((candidate) => {
     if (!candidate || typeof candidate !== "object") return [];
     const draft = candidate as Record<string, unknown>;
-    if (typeof draft.id !== "string" || typeof draft.petId !== "string" || !FURVISE_ACTION_KINDS.includes(draft.kind as never)) return [];
+    const kind = parseStoredFurviseActionKind(draft.kind);
+    if (typeof draft.id !== "string" || typeof draft.petId !== "string" || !kind) return [];
     const input = parseInput(draft.input);
     if (!input || typeof draft.evidence !== "string" || typeof draft.explicitIntent !== "boolean") return [];
     if (!["READ_ONLY", "LOW_RISK_REVERSIBLE", "CONFIRMATION_REQUIRED", "DESTRUCTIVE"].includes(String(draft.safetyClass))) return [];
@@ -57,7 +58,7 @@ export function parseStoredApplicationActions(value: unknown): FurviseApplicatio
     if (!["owned_pet", "owned_user", "owned_care_record", "owned_concern", "authenticated_user"].includes(String(draft.authorizationScope))) return [];
     if (!["proposed", "confirmation_required", "succeeded", "failed", "cancelled"].includes(String(draft.status))) return [];
     return [{
-      id: draft.id, petId: draft.petId, kind: draft.kind, input, evidence: draft.evidence,
+      id: draft.id, petId: draft.petId, kind, input, evidence: draft.evidence,
       sourceMessageId: typeof draft.sourceMessageId === "string" ? draft.sourceMessageId : null,
       explicitIntent: draft.explicitIntent, safetyClass: draft.safetyClass, mutationClass: draft.mutationClass,
       confirmationPolicy: draft.confirmationPolicy, authorizationScope: draft.authorizationScope,

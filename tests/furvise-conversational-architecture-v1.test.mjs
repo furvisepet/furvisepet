@@ -150,6 +150,7 @@ test("application actions round-trip in the canonical Ask response", () => {
   });
   const response = buildAskConversationResponse({ title: "Furvise", summary: "Here you go.", sections: [], safetyNote: null }, { applicationActions: [action] });
   const parsed = parseAskConversationResponse(response);
+  assert.equal(parsed.applicationActions[0].kind, "navigation.open_pet_profile");
   assert.equal(parsed.applicationActions[0].href, "/pets/pet-mani");
   assert.equal(parsed.applicationActions[0].status, "proposed");
 });

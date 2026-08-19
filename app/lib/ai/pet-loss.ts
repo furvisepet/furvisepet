@@ -139,7 +139,7 @@ export function buildUnavailableConfirmedLossAction(input: {
     authorizationScope: "owned_pet",
     status: "failed",
     label: `Mark ${cleanPetName(input.petName)} as passed away`,
-    description: `Keep ${cleanPetName(input.petName)}'s history while stopping future-care experiences.`,
+    description: `Keep ${cleanPetName(input.petName)}'s history while removing ${cleanPetName(input.petName)} from active care.`,
     href: null,
     resultMessage: null,
     errorMessage: "The lifecycle confirmation could not be prepared. The reported loss remains available in this conversation, but no profile, history, or memory was changed.",
