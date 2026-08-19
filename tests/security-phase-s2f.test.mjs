@@ -154,8 +154,8 @@ test("client rerender, retry, and canonical completion follow the key lifecycle"
 
 test("identical intentional actions are not deduplicated by message text", () => {
   const askClient = source("app/ask/page.tsx");
-  assert.match(askClient, /getOrCreateClientMutationKey/);
-  assert.match(askClient, /requestId/);
+  assert.match(askClient, /retry\?\.logicalTurnId \|\| crypto\.randomUUID\(\)/);
+  assert.match(askClient, /logicalTurnId/);
   assert.doesNotMatch(source("app/lib/security/idempotency/payload-hash.ts"), /message text alone/);
 });
 

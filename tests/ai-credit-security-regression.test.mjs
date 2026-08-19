@@ -11,6 +11,7 @@ import {
 } from "../app/lib/ai/usage-ledger.ts";
 
 const migrationPath = "supabase/migrations/20260818194748_secure_ai_credit_state_machine.sql";
+const settlementMigrationPath = "supabase/migrations/20260819033443_enforce_ai_credit_settlement_disposition.sql";
 const userA = "10000000-0000-4000-8000-000000000001";
 const userB = "10000000-0000-4000-8000-000000000002";
 const requestId = "20000000-0000-4000-8000-000000000001";
@@ -23,8 +24,8 @@ test("completed credits are terminal and repeated completion is exactly-once", a
   const [first, second] = await Promise.all([complete(ledger), complete(ledger)]);
   assert.equal(first.status, "completed");
   assert.equal(second.status, "completed");
-  await assert.rejects(release(ledger), hasCause("AI_CREDIT_TERMINAL_CONFLICT"));
-  assert.deepEqual(ledger.event(userA, "ask", requestId), { credits: 1, feature: "ask", payloadHash: askHash, status: "completed" });
+  await assert.rejects(release(ledger), hasCause("AI_CREDIT_DISPOSITION_CONFLICT"));
+  assert.deepEqual(ledger.event(userA, "ask", requestId), { credits: 1, disposition: "complete", feature: "ask", logicalRequestId: requestId, payloadHash: askHash, status: "completed" });
 });
 
 test("released credits are terminal and repeated release cannot double-refund", async () => {
@@ -33,8 +34,8 @@ test("released credits are terminal and repeated release cannot double-refund", 
   const [first, second] = await Promise.all([release(ledger), release(ledger)]);
   assert.equal(first.status, "released");
   assert.equal(second.status, "released");
-  await assert.rejects(complete(ledger), hasCause("AI_CREDIT_TERMINAL_CONFLICT"));
-  assert.deepEqual(ledger.event(userA, "ask", requestId), { credits: 0, feature: "ask", payloadHash: askHash, status: "released" });
+  await assert.rejects(complete(ledger), hasCause("AI_CREDIT_DISPOSITION_CONFLICT"));
+  assert.deepEqual(ledger.event(userA, "ask", requestId), { credits: 0, disposition: "release", feature: "ask", logicalRequestId: requestId, payloadHash: askHash, status: "released" });
 });
 
 test("release racing completion has one immutable terminal winner", async () => {
@@ -67,7 +68,7 @@ test("provider and pre-completion persistence failures release a reservation", a
       userId: userA,
     }), new RegExp(`${failureAt} failed`));
     assert.equal(ledger.event(userA, "ask", requestId).status, "released");
-    assert.equal(ledger.calls.filter((call) => call.name === "release_ai_credit").length, 1);
+    assert.equal(ledger.calls.filter((call) => call.name === "reconcile_ai_credit").length, 1);
   }
 });
 
@@ -170,6 +171,7 @@ test("feature, payload, and user are independent request-identity dimensions", a
 
 test("migration removes client release authority and enforces database identity/state invariants", () => {
   const sql = readFileSync(migrationPath, "utf8");
+  const settlementSql = readFileSync(settlementMigrationPath, "utf8");
   const admin = readFileSync("app/lib/ai/usage-ledger-admin.ts", "utf8");
   const ledger = readFileSync("app/lib/ai/usage-ledger.ts", "utf8");
   const clientFiles = readFileSync("app/ask/page.tsx", "utf8");
@@ -187,10 +189,15 @@ test("migration removes client release authority and enforces database identity/
   assert.match(admin, /SUPABASE_SECRET_KEY \|\| process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(clientFiles, /release_ai_credit|releaseAiCredit/);
   assert.doesNotMatch(ledger, /auth\.uid\(\)/);
-  const replay = askRoute.indexOf("persistedBeforeClaim?.assistantMessage?.response_data");
-  const reconciliation = askRoute.indexOf("reconcilePersistedAskCredit", replay);
-  const response = askRoute.indexOf("completedResponseFromPersisted", replay);
-  assert.ok(replay >= 0 && reconciliation > replay && response > reconciliation, "persisted answers reconcile the ledger before replay");
+  assert.match(settlementSql, /settlement_disposition in \('complete', 'release'\)/);
+  assert.match(settlementSql, /AI_CREDIT_DISPOSITION_IMMUTABLE/);
+  assert.match(settlementSql, /status = 'completed'[\s\S]*settlement_disposition = 'complete'/);
+  assert.match(settlementSql, /status = 'released'[\s\S]*settlement_disposition = 'release'/);
+  assert.match(settlementSql, /settlement_disposition is not null[\s\S]*for update skip locked/);
+  assert.match(settlementSql, /ai_credit_missing_disposition/);
+  const claim = askRoute.indexOf("idempotency = await claimIdempotentOperation");
+  const replay = askRoute.indexOf("completed response replayed after canonical identity validation");
+  assert.ok(claim >= 0 && replay > claim, "persisted answers replay only after canonical payload claim");
   assert.doesNotMatch(askRoute.slice(askRoute.indexOf('logAskStage("assistant message persisted"'), askRoute.indexOf("async function persistPendingSuggestion")), /safeReleaseAiCredit/);
 });
 
@@ -207,10 +214,12 @@ async function release(ledger) {
 }
 
 class AuthoritativeLedger {
-  constructor({ failCompletedResponses = 0 } = {}) {
+  constructor({ failCompletedResponses = 0, failDispositionResponses = 0, failReconciliationResponses = 0 } = {}) {
     this.calls = [];
     this.events = new Map();
     this.failCompletedResponses = failCompletedResponses;
+    this.failDispositionResponses = failDispositionResponses;
+    this.failReconciliationResponses = failReconciliationResponses;
   }
 
   event(userId, feature, operationId) {
@@ -226,16 +235,26 @@ class AuthoritativeLedger {
     const key = `${args.p_user_id}:${args.p_feature}:${args.p_request_id}`;
     let event = this.events.get(key);
     if (name === "reserve_ai_credit") {
-      if (event && event.payloadHash !== args.p_payload_hash) return failure("AI_REQUEST_IDENTITY_CONFLICT");
+      if (event && (event.payloadHash !== args.p_payload_hash || event.logicalRequestId !== args.p_logical_request_id)) return failure("AI_REQUEST_IDENTITY_CONFLICT");
       if (!event) {
-        event = { credits: 1, feature: args.p_feature, payloadHash: args.p_payload_hash, status: "reserved" };
+        event = { credits: 1, disposition: null, feature: args.p_feature, logicalRequestId: args.p_logical_request_id, payloadHash: args.p_payload_hash, status: "reserved" };
         this.events.set(key, event);
       }
       return success("reservation_status", event);
     }
     if (!event) return failure("AI_RESERVATION_NOT_FOUND");
-    if (event.payloadHash !== args.p_payload_hash) return failure("AI_REQUEST_IDENTITY_CONFLICT");
+    if (event.payloadHash !== args.p_payload_hash || event.logicalRequestId !== args.p_logical_request_id) return failure("AI_REQUEST_IDENTITY_CONFLICT");
+    if (name === "set_ai_credit_disposition") {
+      if (this.failDispositionResponses > 0) {
+        this.failDispositionResponses -= 1;
+        return failure("simulated disposition persistence failure");
+      }
+      if (event.disposition && event.disposition !== args.p_disposition) return failure("AI_CREDIT_DISPOSITION_CONFLICT");
+      event.disposition = args.p_disposition;
+      return success("event_status", event);
+    }
     if (name === "complete_ai_credit") {
+      if (event.disposition !== "complete") return failure("AI_CREDIT_DISPOSITION_CONFLICT");
       if (event.status === "released") return failure("AI_CREDIT_TERMINAL_CONFLICT");
       event.status = "completed";
       event.credits = 1;
@@ -246,9 +265,20 @@ class AuthoritativeLedger {
       return success("event_status", event);
     }
     if (name === "release_ai_credit") {
+      if (event.disposition !== "release") return failure("AI_CREDIT_DISPOSITION_CONFLICT");
       if (event.status === "completed") return failure("AI_CREDIT_TERMINAL_CONFLICT");
       event.status = "released";
       event.credits = 0;
+      return success("event_status", event);
+    }
+    if (name === "reconcile_ai_credit") {
+      if (!event.disposition) return failure("AI_CREDIT_DISPOSITION_REQUIRED");
+      if (this.failReconciliationResponses > 0) {
+        this.failReconciliationResponses -= 1;
+        return failure("simulated reconciliation failure");
+      }
+      event.status = event.disposition === "complete" ? "completed" : "released";
+      event.credits = event.disposition === "complete" ? 1 : 0;
       return success("event_status", event);
     }
     return failure("unexpected RPC");
@@ -256,7 +286,7 @@ class AuthoritativeLedger {
 }
 
 function success(statusKey, event) {
-  return { data: [{ credits_used: event.credits, remaining: 7, [statusKey]: event.status }], error: null };
+  return { data: [{ credits_used: event.credits, remaining: 7, settlement_disposition: event.disposition, [statusKey]: event.status }], error: null };
 }
 
 function failure(message) {

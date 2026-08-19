@@ -275,8 +275,8 @@ test("active concern loading excludes resolved and monitoring rows while recent 
 });
 
 test("only current urgent answers use danger styling and monitoring uses an assistant surface with a warning accent", () => {
-  assert.match(askPage, /response\.urgency === "urgent"/);
-  assert.match(askPage, /response\.urgency === "monitor"/);
+  assert.match(askPage, /messageVariant === "URGENT"/);
+  assert.match(askPage, /messageVariant === "MONITOR"/);
   assert.match(askPage, /border-l-\[var\(--pw-danger-border\)\]/);
   assert.match(askPage, /assistant-response-surface/);
   assert.match(askPage, /border-l-\[var\(--warning\)\]/);
@@ -358,7 +358,7 @@ test("suggestion actions are state-only and never touch the AI ledger", () => {
 });
 
 test("Ask reserves before generation and completes only after a saved assistant answer", () => {
-  const reserve = askRoute.indexOf('reserveAiCredit({ feature: "ask"');
+  const reserve = askRoute.indexOf("await reserveAiCredit({");
   const generation = askRoute.indexOf("runFurviseIntelligence", reserve);
   const assistantInsert = askRoute.indexOf('.from("ask_conversation_messages")', askRoute.indexOf("async function persistAssistantAnswer"));
   const complete = askRoute.indexOf("completeAiCredit", assistantInsert);

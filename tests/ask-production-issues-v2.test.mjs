@@ -13,7 +13,7 @@ import {
   prepareGovernedCareHistoryAction,
   prepareGovernedCareHistoryEvent,
 } from "../app/lib/intelligence/care-history-policy.ts";
-import { resolveClearSelectedPetContinuation } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
+import { resolveDeterministicTurnSubject } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const route = read("app/api/ask/route.ts");
@@ -21,7 +21,7 @@ const page = read("app/ask/page.tsx");
 
 test("the production casual pronoun continuation resolves to Mani without the failing subject-frame call", () => {
   const pets = [{ id: "mani", name: "Mani", species: "cat", age_value: 3, age_unit: "years" }];
-  const result = resolveClearSelectedPetContinuation({
+  const result = resolveDeterministicTurnSubject({
     message: "yeah she is dumb af",
     pets,
     recentConversation: [{ role: "user", text: "so my cat went outside and literally started chasing butterflies" }],
@@ -29,12 +29,12 @@ test("the production casual pronoun continuation resolves to Mani without the fa
   });
   assert.equal(result?.petId, "mani");
   assert.equal(result?.requiresClarification, false);
-  assert.match(route, /const contextualSelectedPet = explicitSelectedPet \|\| resolveClearSelectedPetContinuation/);
-  assert.match(route, /const subjectFrame = contextualSelectedPet \? undefined : await extractTurnSubjectFrame/);
+  assert.match(route, /const contextualSelectedPet = resolveDeterministicTurnSubject/);
+  assert.match(route, /if \(!contextualSelectedPet\)[\s\S]*extractTurnSubjectFrame/);
 });
 
 test("mixed outside-cat and selected-pet pronouns still require full entity resolution", () => {
-  const result = resolveClearSelectedPetContinuation({
+  const result = resolveDeterministicTurnSubject({
     message: "He finally left but she is still pacing.",
     pets: [{ id: "mani", name: "Mani", species: "cat", age_value: 3, age_unit: "years" }],
     recentConversation: [{ role: "user", text: "The male cat is outside and Mani is pacing." }],
@@ -72,7 +72,7 @@ test("global admission happens before user-credit reservation and cap rejection 
   const admission = route.indexOf("aiAdmission = await admitAiOperation");
   const reservation = route.indexOf("reserveAiCredit", admission);
   assert.ok(admission > -1 && reservation > admission);
-  assert.match(route, /if \(error instanceof AiAdmissionError\)[\s\S]*aiAdmissionErrorResponse/);
+  assert.match(route, /if \(error instanceof AiAdmissionError\)[\s\S]*askFailure\("AI_UNAVAILABLE"/);
   assert.doesNotMatch(route.slice(route.indexOf("if (error instanceof AiAdmissionError)"), route.indexOf("if (error instanceof AiCreditLimitError)")), /completeAiCredit/);
   assert.match(read("app/lib/ai/usage-guard/admission.ts"), /provider call denied[\s\S]*dailyCallCount[\s\S]*dailyCostMicrodollars[\s\S]*denialReason/);
 });

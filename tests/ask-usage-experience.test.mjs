@@ -18,9 +18,9 @@ test("Ask usage notice stays hidden until the allowance is exhausted", () => {
 
 test("Ask recovery is compact and never exposes internal diagnostics", () => {
   assert.match(page, /max-w-xl rounded-xl/);
-  assert.match(page, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
+  assert.match(page, /getAskErrorPresentation/);
   assert.match(page, />Try again</);
-  assert.match(page, />Edit question</);
+  assert.match(page, /presentation\.recommendedAction === "edit" \? <button[^>]+onClick=\{onEdit\}/);
   assert.doesNotMatch(page, /Diagnostic:|debugStage|AI_UNAVAILABLE at|ai_provider/);
   assert.doesNotMatch(route, /\? \{ debugStage \}/);
 });
@@ -33,7 +33,8 @@ test("failed provider or persistence paths do not consume usage", () => {
   const failedSave = persistence.slice(persistence.indexOf("if (!assistantMessage || messageError)"), persistence.indexOf('logAskStage("assistant message persisted"'));
   assert.match(failedSave, /safeReleaseAiCredit/);
   assert.doesNotMatch(failedSave, /completeAiCredit/);
-  assert.equal(route.match(/await completeAiCredit/g)?.length, 3, "two completion attempts plus persisted-answer reconciliation");
+  assert.equal(route.match(/await completeAiCredit/g)?.length, 2, "foreground completion is retried once");
+  assert.match(route, /getAiCreditEventsForLogicalRequest[\s\S]*await reconcileAiCredit/);
 });
 
 test("assistant persistence retries idempotently before returning a retryable failure", () => {

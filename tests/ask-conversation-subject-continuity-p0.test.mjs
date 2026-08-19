@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { deriveAskCreditAttemptId } from "../app/lib/ai/ask-credit-attempt.ts";
+import { deriveAskAttemptId } from "../app/lib/ai/ask-turn-model.ts";
 import { deriveConversationTitle } from "../app/lib/ask-conversations.ts";
 import { recoverOptionalQuery, recoverOptionalValue } from "../app/lib/intelligence/context-recovery.ts";
 import {
@@ -11,8 +11,7 @@ import {
 } from "../app/lib/intelligence/entities/recent-subject-state.ts";
 import {
   resolveAuthoritativeTurnSubject,
-  resolveClearSelectedPetContinuation,
-  resolveExplicitSelectedPetSubject,
+  resolveDeterministicTurnSubject,
 } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
@@ -29,7 +28,7 @@ test("production pronoun sequence remains bound to Mani across every turn", () =
   ];
   const recentConversation = [];
   for (const message of messages) {
-    const resolution = resolveClearSelectedPetContinuation({
+    const resolution = resolveDeterministicTurnSubject({
       message,
       pets: [mani],
       recentConversation,
@@ -60,16 +59,16 @@ test("outside male cat and selected female cat retain independent pronoun chains
 
 test("recent explicit pet switches and explicit returns are authoritative", () => {
   const cocoTurns = [{ role: "user", text: "Coco is limping." }];
-  let resolution = resolveClearSelectedPetContinuation({
+  let resolution = resolveDeterministicTurnSubject({
     message: "She is sleeping now.", pets: [mani, coco], recentConversation: cocoTurns, selectedPetId: mani.id,
   });
   assert.equal(resolution?.petId, coco.id);
 
-  const explicitReturn = resolveExplicitSelectedPetSubject({
-    message: "Mani is acting weird too.", pets: [mani, coco], selectedPetId: mani.id,
+  const explicitReturn = resolveDeterministicTurnSubject({
+    message: "Mani is acting weird too.", pets: [mani, coco], recentConversation: cocoTurns, selectedPetId: mani.id,
   });
   assert.equal(explicitReturn?.petId, mani.id);
-  resolution = resolveClearSelectedPetContinuation({
+  resolution = resolveDeterministicTurnSubject({
     message: "She keeps pacing.",
     pets: [mani, coco],
     recentConversation: [...cocoTurns, { role: "user", text: "She is sleeping now." }, { role: "user", text: "Mani is acting weird too." }],
@@ -101,7 +100,7 @@ test("two equally recent compatible pets produce a bounded candidate clarificati
   assert.equal(resolution.requiresClarification, true);
   assert.deepEqual(new Set(resolution.candidatePetIds), new Set([mani.id, coco.id]));
   const route = read("app/api/ask/route.ts");
-  assert.match(route, /Do you mean.*candidateNames/s);
+  assert.match(route, /buildFurviseClarification\(candidateNames\)/);
 });
 
 test("clarification rows are advisory and independently understandable next turns resume", () => {
@@ -109,11 +108,11 @@ test("clarification rows are advisory and independently understandable next turn
     { role: "user", text: "She knocked something over." },
     { role: "furvise", text: "Which pet do you mean?" },
   ];
-  const continuation = resolveClearSelectedPetContinuation({
+  const continuation = resolveDeterministicTurnSubject({
     message: "Is it normal that she sleeps there every night?", pets: [mani], recentConversation: prior, selectedPetId: mani.id,
   });
   assert.equal(continuation?.petId, mani.id);
-  const explicit = resolveExplicitSelectedPetSubject({ message: "Mani.", pets: [mani, coco], selectedPetId: mani.id });
+  const explicit = resolveDeterministicTurnSubject({ message: "Mani.", pets: [mani, coco], recentConversation: prior, selectedPetId: mani.id });
   assert.equal(explicit?.petId, mani.id);
 });
 
@@ -146,15 +145,15 @@ test("optional context failures recover while critical ownership queries remain 
 
 test("a released Ask attempt receives a new ledger UUID without changing message identity", () => {
   const requestId = "6463f405-6967-43fa-bd92-97265f1d4aea";
-  const first = deriveAskCreditAttemptId(requestId, "11111111-1111-4111-8111-111111111111");
-  const second = deriveAskCreditAttemptId(requestId, "22222222-2222-4222-8222-222222222222");
+  const first = deriveAskAttemptId(requestId, "11111111-1111-4111-8111-111111111111");
+  const second = deriveAskAttemptId(requestId, "22222222-2222-4222-8222-222222222222");
   assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.notEqual(first, requestId);
   assert.notEqual(first, second);
   const route = read("app/api/ask/route.ts");
-  assert.match(route, /priorCredit\?\.status === "released"[\s\S]*deriveAskCreditAttemptId/);
+  assert.match(route, /const attemptId = deriveAskAttemptId\(logicalTurnId, idempotency\.operation\.ownerToken\)/);
   assert.match(route, /request_id: requestId/);
-  assert.match(route, /completeAiCredit\(\{ feature: "ask", payloadHash, requestId: creditRequestId/);
+  assert.match(route, /completeAiCredit\(\{ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId/);
 });
 
 test("provider aborts at the configured deadline are classified as timeouts", () => {

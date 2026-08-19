@@ -26,7 +26,13 @@ export async function claimIdempotentOperation(input: ClaimIdempotencyInput): Pr
   }
   if (!claim) return { response: idempotencyErrorResponse("IDEMPOTENCY_UNAVAILABLE", requestId, 1) };
   logIdempotencyEvent({ elapsedMs: Date.now() - started, operationType: input.operationType, outcome: claim.claim_outcome, requestId });
-  if (claim.claim_outcome === "completed" || claim.claim_outcome === "failed_final") return { response: replayResponse(claim.response_status, claim.response_body) };
+  if (claim.claim_outcome === "completed" || claim.claim_outcome === "failed_final") {
+    const storedResponse = replayResponse(claim.response_status, claim.response_body);
+    const reconciled = input.reconcilePersistedReplay
+      ? await input.reconcilePersistedReplay({ claimOutcome: claim.claim_outcome, storedResponse })
+      : null;
+    return { response: reconciled || storedResponse };
+  }
   if (claim.claim_outcome === "conflict") return { response: idempotencyErrorResponse("IDEMPOTENCY_CONFLICT", requestId) };
   if (claim.claim_outcome === "in_progress") return { response: idempotencyErrorResponse("REQUEST_IN_PROGRESS", requestId, claim.retry_after_seconds || 1) };
   if (!claim.owner_token) return { response: idempotencyErrorResponse("IDEMPOTENCY_UNAVAILABLE", requestId, 1) };
@@ -54,6 +60,7 @@ export async function claimIdempotentOperation(input: ClaimIdempotencyInput): Pr
         return new Response(response.body, { headers, status: response.status, statusText: response.statusText });
       } catch {
         try { await failStoredOperation({ body: { code: "IDEMPOTENCY_RECONCILIATION_REQUIRED", error: "This update is being reconciled. Please contact support before repeating it." }, errorCode: "POST_MUTATION_RECONCILIATION", key: key.key, operationType: input.operationType, ownerToken: claim.owner_token!, retryable: false, status: 503, userId: input.userId }); } catch { /* The unexpired lease still blocks immediate duplication. */ }
+        if (input.preserveResponseOnCompletionFailure) return response;
         return idempotencyErrorResponse("IDEMPOTENCY_UNAVAILABLE", key.key, 1);
       }
     },

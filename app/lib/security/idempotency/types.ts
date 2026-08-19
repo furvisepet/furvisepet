@@ -21,6 +21,11 @@ export type ClaimIdempotencyInput = {
   payload: unknown;
   request: Request;
   retention?: IdempotencyRetention;
+  preserveResponseOnCompletionFailure?: boolean;
+  reconcilePersistedReplay?: (input: {
+    claimOutcome: "completed" | "failed_final";
+    storedResponse: Response;
+  }) => Promise<Response | null>;
   supabase: SupabaseClient;
   userId: string;
 };

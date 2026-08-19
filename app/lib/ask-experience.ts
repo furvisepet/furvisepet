@@ -1,4 +1,5 @@
 export type AskPresentationMode = "casual" | "normal" | "complex" | "resolved" | "serious" | "grief";
+export type AskMessageVariant = "NORMAL" | "CASUAL" | "COMPLEX" | "MONITOR" | "URGENT" | "GRIEF" | "ACTION" | "ERROR";
 
 type AskPresentationResponse = {
   answerType: string;
@@ -37,6 +38,17 @@ export function getAskPresentationMode(response: AskPresentationResponse, userMe
   if (structurallyComplex) return "complex";
   if (response.answerType === "direct_answer" && !response.safetyNote && !response.sections.length && isCasualAskTone(userMessage)) return "casual";
   return "normal";
+}
+
+export function getAskMessageVariant(response: AskPresentationResponse, userMessage = ""): AskMessageVariant {
+  if (["action_confirmation", "action_success", "action_failure"].includes(response.interactionMode || "")) return "ACTION";
+  const presentation = getAskPresentationMode(response, userMessage);
+  if (presentation === "grief") return "GRIEF";
+  if (presentation === "serious") return "URGENT";
+  if (presentation === "resolved" || response.urgency === "monitor") return "MONITOR";
+  if (presentation === "casual") return "CASUAL";
+  if (presentation === "complex") return "COMPLEX";
+  return "NORMAL";
 }
 
 export function shouldShowSuggestedQuestions(response: AskPresentationResponse, userMessage = "") {

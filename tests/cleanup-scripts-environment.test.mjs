@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 test("operational cleanup loads .env.local credentials and remains dry-run by default", async () => {
   const result = await runCleanupScript({
-    response: [{ deleted_deletion_count: 0, expired_deletion_count: 2, released_credit_count: 0, stale_credit_count: 3 }],
+    response: [{ completed_credit_count: 1, deleted_deletion_count: 0, expired_deletion_count: 2, missing_disposition_count: 1, released_credit_count: 1, stale_credit_count: 3 }],
     rpc: "cleanup_operational_records",
     script: "cleanup-operational-records.mjs",
   });
@@ -18,9 +18,11 @@ test("operational cleanup loads .env.local credentials and remains dry-run by de
   assert.deepEqual(result.output, {
     apply: false,
     batch: 500,
+    completedCredits: 1,
     deletedDeletionRecords: 0,
     expiredDeletionRecords: 2,
-    releasedCredits: 0,
+    missingCreditDispositions: 1,
+    releasedCredits: 1,
     staleCredits: 3,
   });
 });

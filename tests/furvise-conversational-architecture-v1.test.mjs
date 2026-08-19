@@ -229,7 +229,7 @@ test("grief is a distinct non-playful mode and suppresses generic suggestions", 
   assert.match(reasoning, /responseMode=grief_support/);
   assert.match(askPage, /data-ui="furvise-assistant-identity"><BrandMark showName=\{false\} size=\{24\}/);
   assert.doesNotMatch(askPage, /nav-ask-v1\.webp/);
-  assert.match(askPage, /response\.interactionMode === "grief" \|\| lifecycleStatus !== "active" \? \["copy"\]/);
+  assert.match(askPage, /messageVariant === "GRIEF" \|\| lifecycleStatus !== "active" \? \["copy"\]/);
 });
 
 test("deceased-pet summaries are retrospective and do not fabricate a future appointment", () => {

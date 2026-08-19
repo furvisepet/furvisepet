@@ -104,6 +104,34 @@ export function buildNoSafeProductMatchMessage(petName = "your pet") {
   return `I could not find a product that fits this search, ${details}, and your product country.`;
 }
 
+export function buildFurviseClarification(candidateNames: string[]) {
+  const names = [...new Set(candidateNames.map(cleanPetName).filter(Boolean))].slice(0, 4);
+  if (!names.length) return "I want to make sure I follow the right pet. Which pet do you mean?";
+  if (names.length === 1) return `Do you mean ${names[0]}?`;
+  if (names.length === 2) return `Do you mean ${names[0]} or ${names[1]}?`;
+  return `Do you mean ${names.slice(0, -1).join(", ")}, or ${names.at(-1)}?`;
+}
+
+export function buildFurviseCorrectionConfirmation(detail: string) {
+  return `Thanks for correcting that. ${String(detail || "I'll use the corrected detail from here.").trim()}`;
+}
+
+export function buildFurvisePreferenceConfirmation(detail: string) {
+  return `Got it. ${String(detail || "I'll use that preference from here.").trim()}`;
+}
+
+export function buildFurviseActionConfirmation(detail: string) {
+  return `${String(detail || "That change is ready for your confirmation.").trim()} Nothing changes until you confirm it.`;
+}
+
+export function buildFurviseQuotaMessage() {
+  return "You've reached your Ask allowance for now. Your pet profiles and saved care history are still available.";
+}
+
+export function buildFurviseUnavailableMessage() {
+  return "Furvise couldn't finish that answer just now. Your question is still here, so you can try again safely.";
+}
+
 function cleanPetName(value: string) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }

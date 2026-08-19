@@ -66,7 +66,7 @@ test("Ask Furvise uses required friendly failure messages", () => {
   const route = read("app/api/ask/route.ts");
   const voice = read("app/lib/furvise-voice.ts");
 
-  assert.match(page, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
+  assert.match(page, /getAskErrorPresentation/);
   assert.match(voice, /Furvise couldn't answer just now\. Your question has not been lost\./);
   assert.match(page, /I couldn't save that detail\. You can try again\./);
   assert.match(route, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
@@ -99,7 +99,7 @@ test("Ask Furvise route keeps usage tracking from masking successful answers", (
   assert.ok(increment > usageStart);
   assert.match(route, /friendlyAnswerFailure/);
   assert.doesNotMatch(route, /setup may be incomplete/);
-  assert.match(route, /logAskServerError\("credit_completion_failed"/);
+  assert.match(route, /optionalFailure\("credit_completion"/);
 });
 
 test("Ask Furvise route uses context planning before response persistence", () => {
@@ -112,5 +112,6 @@ test("Ask Furvise route uses context planning before response persistence", () =
   assert.ok(pipeline > contextLoad);
   assert.ok(persistence > pipeline);
   assert.doesNotMatch(route, /generateGroundedAskAnswer|answerSinglePetMemoryQuestion/);
-  assert.equal(route.match(/await completeAiCredit/g)?.length, 3, "two completion attempts plus persisted-answer reconciliation");
+  assert.equal(route.match(/await completeAiCredit/g)?.length, 2, "foreground completion is retried once");
+  assert.match(route, /getAiCreditEventsForLogicalRequest[\s\S]*await reconcileAiCredit/);
 });

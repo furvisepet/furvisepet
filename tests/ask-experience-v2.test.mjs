@@ -84,7 +84,7 @@ test("suggested questions are bounded, unique, ranked in the existing response c
   });
   assert.deepEqual(built.suggestedQuestions, ["What should I watch tonight?"]);
   assert.ok(parseAskConversationResponse({ ...built, suggestedQuestions: ["One", "Two", "Three", "Four"] }));
-  assert.equal(parseAskConversationResponse({ ...built, suggestedQuestions: ["One", "Two", "Three", "Four", "Five"] }), null);
+  assert.deepEqual(parseAskConversationResponse({ ...built, suggestedQuestions: ["One", "Two", "Three", "Four", "Five"] }).suggestedQuestions, []);
   assert.deepEqual(buildAskConversationResponse(base, { suggestedQuestions: [] }).suggestedQuestions, undefined);
   assert.match(reasoning, /suggestedFollowUps: \{ type: "array", maxItems: 4/);
   assert.match(reasoning, /Order them by usefulness, information likely to change a decision, relevant Furvise-specific capability, and continuity/);
@@ -127,5 +127,5 @@ test("Ask prompt permits personality but keeps serious safety dominant", () => {
   assert.match(page, /data-ui="furvise-assistant-identity"><BrandMark showName=\{false\} size=\{24\}/);
   assert.doesNotMatch(page, /nav-ask-v1\.webp/);
   assert.match(read("app/lib/ai/ask-orchestrator.ts"), /turn\.intent !== "casual" && proposed\.shouldOffer/);
-  assert.match(page, /presentation !== "casual" && message\.suggestion/);
+  assert.match(page, /messageVariant !== "CASUAL" && message\.suggestion/);
 });

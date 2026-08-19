@@ -235,7 +235,7 @@ test("durable lifecycle truth alone controls whether a correction offers reactiv
   })[0].kind, "pet.mark_active");
 });
 
-test("stored lifecycle action identity remains canonical and legacy stripped rows still recover", () => {
+test("stored lifecycle action identity remains canonical and malformed machine IDs fail closed", () => {
   const [action] = prepareFurviseApplicationActions({
     proposals: ensureConfirmedLossAction([], "Mani died"), petId: "pet-mani", petName: "Mani", requestId: "request-death",
   });
@@ -244,11 +244,11 @@ test("stored lifecycle action identity remains canonical and legacy stripped row
   });
   assert.equal(response.applicationActions[0].kind, "pet.mark_deceased");
   const [legacy] = parseStoredApplicationActions([{ ...action, kind: "pet.markdeceased", sourceMessageId: "source-death" }]);
-  assert.equal(legacy.kind, "pet.mark_deceased");
-  assert.ok(derivePendingLifecycleAssertion({
-    turns: [{ role: "furvise", applicationActions: [legacy] }],
+  assert.equal(legacy, undefined);
+  assert.equal(derivePendingLifecycleAssertion({
+    turns: [{ role: "furvise", applicationActions: [] }],
     pets: [{ id: "pet-mani", name: "Mani", lifecycle_status: "active" }],
-  }));
+  }), null);
 });
 
 test("the exact two-turn production reproduction becomes a persisted pending assertion and deterministic contradiction", () => {
@@ -368,12 +368,12 @@ test("non-echo answers and real clarification needs are not overwritten", () => 
 
 test("provider completion, credits, and idempotent replay are tied to durable assistant persistence", () => {
   assert.match(route, /operationType: "ask\.submit\.persisted_answer_v2"/);
-  assert.match(route, /completed response replayed before operation claim/);
+  assert.match(route, /completed response replayed after canonical identity validation/);
   assert.match(route, /user message reused/);
   assert.match(route, /const persistedResponse = await persistAssistantAnswer/);
   assert.match(route, /finalizeAiAdmissionAfterPersistence/);
   assert.match(route, /if \(!response\.ok\)[\s\S]*failAiAdmission\([\s\S]*ASK_ANSWER_NOT_PERSISTED/);
-  assert.match(route, /if \(creditReserved\) await safeReleaseAiCredit/);
+  assert.match(route, /if \(creditReserved\) \{[\s\S]{0,260}safeReleaseAiCredit/);
   assert.match(route, /request_id: requestId/);
 });
 
@@ -384,7 +384,7 @@ test("pending lifecycle deterministic paths run before provider admission and de
   assert.ok(pendingBranch > 0 && pendingBranch < rateAdmission && pendingBranch < providerAdmission);
   assert.match(route, /deferHighImpactLifecyclePersistence = classifyCurrentPetLoss\(question\) === "confirmed_current"[\s\S]*pendingLifecycle\?\.kind === "reported_deceased"/);
   assert.match(route, /if \(!deferHighImpactLifecyclePersistence && intelligenceResult/);
-  assert.match(route, /if \(!deferHighImpactLifecyclePersistence && phase3Runtime\) \{\s*await persistAskV2Phase3LowRisk/);
+  assert.match(route, /if \(!deferHighImpactLifecyclePersistence && phase3Runtime\)[\s\S]*persistAskV2Phase3LowRisk/);
   assert.match(route, /deterministicApplicationActions = \[pendingLifecycle\.action\]/);
   assert.match(route, /cancelledPendingLifecycleAction\(pendingLifecycle\.action\)/);
   assert.match(route, /resultMessage: "The unconfirmed lifecycle report was cleared\. The saved profile was not changed\."/);
@@ -421,7 +421,7 @@ test("correction cancellation survives reload and stale confirmation cannot exec
 test("confirmed loss is persisted through a zero-provider, zero-credit branch before every AI gate", () => {
   const lossBranch = route.indexOf('else if (currentLoss === "confirmed_current")');
   const durableBranch = route.indexOf("else if (durableLifecycleResolution)", lossBranch);
-  const providerBranch = route.indexOf("phase3Runtime = await prepareAskV2Phase3", durableBranch);
+  const providerBranch = route.indexOf("phase3Runtime = await runOptionalAskSubsystem", durableBranch);
   const lossSlice = route.slice(lossBranch, durableBranch);
   assert.ok(lossBranch > 0 && durableBranch > lossBranch && providerBranch > durableBranch);
   for (const forbidden of ["requireRateLimitedRequest", "admitAiOperation", "reserveAiCredit", "extractTurnSubjectFrame", "runFurviseIntelligence"]) {

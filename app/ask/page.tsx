@@ -29,8 +29,7 @@ import { getActivePetId, setActivePetId } from "../lib/active-pet";
 import { trackAskEvent } from "../lib/ask-analytics";
 import { deriveConversationTitle, formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
 import { toLocalDateTimeInputValue } from "../lib/care-log.mjs";
-import { FURVISE_ANSWER_UNAVAILABLE_MESSAGE } from "../lib/furvise-voice";
-import { clearClientMutationKey, getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
+import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import {
   createCareEntryUnlessDuplicate,
   getBrowserSupabase,
@@ -41,9 +40,9 @@ import {
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
 import { markAppDataChanged } from "../lib/navigation/app-data-freshness";
 import { setAskRequestActive } from "../lib/navigation/ask-request-activity";
-import { getAskErrorPresentation, requiresFreshAskRequestId, type AskFailureCode } from "../lib/ask-client-errors";
+import { getAskErrorPresentation, type AskFailureCode } from "../lib/ask-errors";
 import { getAskCareHistoryState } from "../lib/ask-care-history-state";
-import { applySuggestedQuestionDraft, getAskPresentationMode, shouldShowSuggestedQuestions } from "../lib/ask-experience";
+import { applySuggestedQuestionDraft, getAskMessageVariant, shouldShowSuggestedQuestions } from "../lib/ask-experience";
 import type { FurviseApplicationAction } from "../lib/application-actions/types";
 import { getPetLifecycleStatus, isActivePet } from "../lib/pet-lifecycle";
 
@@ -109,7 +108,7 @@ type AskRequestPhase = "idle" | "submitting" | "receiving" | "completed" | "fail
 type FailedAskRequest = {
   code: AskFailureCode;
   payload: AskRequestPayload;
-  requestId: string;
+  logicalTurnId: string;
   scope: string;
   userMessageId: string;
   retryAfterSeconds?: number;
@@ -178,7 +177,6 @@ function AskPageContent() {
         if (requestedConversation && history.some((item) => item.id === requestedConversation)) {
           await openConversation(requestedConversation, history);
         } else if (petId) {
-          await importLegacyConversation(petId, history);
           setQuestion(readDraft(getDraftKey(null, petId)));
         }
       } catch (loadError) {
@@ -246,21 +244,18 @@ function AskPageContent() {
       setActiveTitle(payload.conversation.title);
       setThread(parsedThread);
       const lastMessage = parsedThread.at(-1);
-      const lastAnswer = [...parsedThread].reverse().find((message): message is Extract<ConversationMessage, { role: "furvise" }> => message.role === "furvise");
       const retryScope = `ask:${payload.conversation.petId}:${payload.conversation.id}`;
       setFailedRequest(lastMessage?.role === "user" && lastMessage.failed && lastMessage.requestId
         ? {
-            code: "UNKNOWN_ERROR",
+            code: "ANSWER_RETRYABLE",
             payload: buildAskRequestPayload({
               conversationId: payload.conversation.id,
               locale: navigator.language,
+              logicalTurnId: lastMessage.requestId,
               message: lastMessage.text,
               petId: payload.conversation.petId,
-              previousResponse: lastAnswer?.response || null,
-              question: lastMessage.text,
-              requestId: lastMessage.requestId,
             }),
-            requestId: lastMessage.requestId,
+            logicalTurnId: lastMessage.requestId,
             scope: retryScope,
             userMessageId: lastMessage.id,
           }
@@ -330,16 +325,13 @@ function AskPageContent() {
     if (!prompt || composerUnavailable || askRequestActiveRef.current) return;
     const conversationIdAtSubmit = retry?.payload.conversationId || activeConversationId;
     const scope = retry?.scope || `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`;
-    if (!retry && failedRequest) clearClientMutationKey(failedRequest.scope, failedRequest.requestId);
-    const requestId = retry?.requestId || getOrCreateClientMutationKey(scope);
+    const logicalTurnId = retry?.logicalTurnId || crypto.randomUUID();
     const requestPayload = retry?.payload || buildAskRequestPayload({
       conversationId: conversationIdAtSubmit,
       locale: navigator.language,
+      logicalTurnId,
       message: prompt,
       petId: selectedPet,
-      previousResponse: latestAnswer?.response || null,
-      question: prompt,
-      requestId,
     });
     const userMessageId = retry?.userMessageId || createMessageId("user");
     askRequestActiveRef.current = true;
@@ -350,7 +342,7 @@ function AskPageContent() {
     setPersistenceWarning("");
     setStatus("");
     if (!retry) setThread((current) => [...current, { id: userMessageId, role: "user", text: prompt }]);
-    trackAskEvent(requestPayload.previousResponse ? "follow_up_submitted" : "question_submitted", { source });
+    trackAskEvent(conversationIdAtSubmit ? "follow_up_submitted" : "question_submitted", { source });
     try {
       const token = await getAskAuthToken();
       if (!token) throw new AskRequestError("AUTH_REQUIRED");
@@ -359,7 +351,7 @@ function AskPageContent() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(requestPayload),
         signal: AbortSignal.timeout(55_000),
-      }, scope, requestId);
+      }, scope, logicalTurnId);
       setQuestion("");
       const result = await request;
       setRequestPhase("receiving");
@@ -367,7 +359,7 @@ function AskPageContent() {
       const parsed = parseAskConversationResponse(payload?.response) as StructuredResponse | null;
       if (payload?.usage) setUsage(payload.usage);
       const standaloneEmergency = Boolean(payload?.handledWithoutAi && payload.persistence?.saved === false && parsed?.urgency === "urgent");
-      if (!result.ok || !payload?.success || !parsed || (!payload.conversationId && !standaloneEmergency)) throw new AskRequestError(payload?.code || "UNKNOWN_ERROR", payload?.message, payload?.retryAfterSeconds);
+      if (!result.ok || !payload?.success || !parsed || (!payload.conversationId && !standaloneEmergency)) throw new AskRequestError(payload?.code || "ANSWER_RETRYABLE", payload?.message, payload?.retryAfterSeconds);
       if (payload.dataChanged) markAppDataChanged();
 
       const confirmedCarePersistence = payload.carePersistence?.status === "persisted" && Boolean(payload.carePersistence.careEntryIds.length);
@@ -393,11 +385,7 @@ function AskPageContent() {
       if (parsed.saveSuggestions?.length) trackAskEvent("memory_save_suggested", { answerType: parsed.answerType });
     } catch (askError) {
       const failure = getAskFailure(askError);
-      const rotateIdentity = requiresFreshAskRequestId(failure.code);
-      if (rotateIdentity) clearClientMutationKey(scope, requestId);
-      const retryRequestId = rotateIdentity ? getOrCreateClientMutationKey(scope) : requestId;
-      const retryPayload = rotateIdentity ? { ...requestPayload, requestId: retryRequestId } : requestPayload;
-      setFailedRequest({ code: failure.code, payload: retryPayload, requestId: retryRequestId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId });
+      setFailedRequest({ code: failure.code, payload: requestPayload, logicalTurnId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId });
       setRequestPhase("failed");
       trackAskEvent("answer_failed", { source });
     } finally {
@@ -409,8 +397,7 @@ function AskPageContent() {
   function editFailedMessage() {
     if (!failedRequest) return;
     setThread((current) => current.filter((message) => message.id !== failedRequest.userMessageId));
-    clearClientMutationKey(failedRequest.scope, failedRequest.requestId);
-    setQuestion(failedRequest.payload.question);
+    setQuestion(failedRequest.payload.message);
     setFailedRequest(null);
     setRequestPhase("idle");
     requestAnimationFrame(() => composerRef.current?.focus());
@@ -584,7 +571,7 @@ function AskPageContent() {
                   ? <UserMessage key={message.id} text={message.text} />
                   : <FurviseMessage key={message.id} lifecycleStatus={activeProfile?.lifecycle_status || "active"} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onApplicationAction={(action, decision) => applyApplicationAction(message.id, action, decision)} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} userMessage={findPreviousUserMessage(thread, index)} />)}
                 {requestActive ? <Thinking /> : null}
-                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.question, "composer", failedRequest)} planId={usage?.planId} retryAfterSeconds={failedRequest.retryAfterSeconds} /> : null}
+                {failedRequest ? <AskFailureState code={failedRequest.code} onEdit={editFailedMessage} onRetry={() => void ask(failedRequest.payload.message, "composer", failedRequest)} planId={usage?.planId} retryAfterSeconds={failedRequest.retryAfterSeconds} /> : null}
                 <div aria-hidden="true" ref={conversationEndRef} />
               </div>
               {latestAnswer && !requestActive && !failedRequest && shouldShowSuggestedQuestions(latestAnswer.response, findPreviousUserMessage(thread, thread.lastIndexOf(latestAnswer))) ? <SuggestedQuestions currentDraft={question} onSelect={draftSuggestedQuestion} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
@@ -623,29 +610,29 @@ function UserMessage({ text }: { text: string }) {
 
 function FurviseMessage({ lifecycleStatus, likelyVetConcern, message, onAction, onApplicationAction, onSuggestionAction, userMessage }: { lifecycleStatus: "active" | "deceased" | "archived"; likelyVetConcern: boolean; message: Extract<ConversationMessage, { role: "furvise" }>; onAction: (action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) => void; onApplicationAction: (action: FurviseApplicationAction, decision: "confirm" | "cancel") => Promise<void>; onSuggestionAction: (suggestion: StateSuggestion, action: "save" | "monitor" | "dismiss" | "edit", details?: string) => Promise<void>; userMessage: string }) {
   const { response } = message;
-  const configuredActions: AnswerAction[] = response.interactionMode === "grief" || lifecycleStatus !== "active" ? ["copy"] : likelyVetConcern && response.urgency !== "urgent" ? ["prepare_vet_note", "copy"] : response.actions;
+  const messageVariant = getAskMessageVariant(response, userMessage);
+  const configuredActions: AnswerAction[] = messageVariant === "GRIEF" || lifecycleStatus !== "active" ? ["copy"] : likelyVetConcern && messageVariant !== "URGENT" ? ["prepare_vet_note", "copy"] : response.actions;
   const actions = [...new Set(configuredActions)].filter((action) => {
     const saves = action === "save_key_detail" || action === "add_to_care_history" || action === "start_tracking";
     return !saves || Boolean(message.saveMetadata?.saveable);
   }).slice(0, 2);
-  const urgent = response.urgency === "urgent";
-  const monitoring = response.urgency === "monitor";
+  const urgent = messageVariant === "URGENT";
+  const monitoring = messageVariant === "MONITOR" && response.urgency !== "resolved";
   const resolved = response.urgency === "resolved";
-  const presentation = getAskPresentationMode(response, userMessage);
-  const grief = presentation === "grief";
+  const grief = messageVariant === "GRIEF";
   const careHistoryState = getAskCareHistoryState(message);
   const semanticAccent = urgent ? "border-l-[var(--pw-danger-border)]" : monitoring ? "border-l-[var(--warning)]" : grief ? "border-l-[var(--text-tertiary)]" : resolved ? "border-l-[var(--selection-strong)]" : "border-l-[var(--assistant-response-accent)]";
-  return <article data-ask-presentation={presentation} data-ask-semantic={grief ? "grief" : urgent ? "urgent" : monitoring ? "monitoring" : "normal"} data-care-history-state={careHistoryState} className={`max-w-full rounded-2xl border border-[var(--assistant-response-border)] border-l-4 ${semanticAccent} bg-[var(--assistant-response-surface)] p-4 sm:max-w-3xl sm:p-5`}>
+  return <article data-message-variant={messageVariant} data-ask-semantic={grief ? "grief" : urgent ? "urgent" : monitoring ? "monitoring" : "normal"} data-care-history-state={careHistoryState} className={`max-w-full rounded-2xl border border-[var(--assistant-response-border)] border-l-4 ${semanticAccent} bg-[var(--assistant-response-surface)] p-4 sm:max-w-3xl sm:p-5`}>
     <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--assistant-response-accent)]" data-ui="furvise-assistant-identity"><BrandMark showName={false} size={24} /><span>Furvise</span></div>
     {shouldShowAnswerHeading(response.title) ? <h2 className="text-xl font-semibold leading-8 text-[var(--pw-heading)]">{response.title}</h2> : null}
     <p className={`${shouldShowAnswerHeading(response.title) ? "mt-2 " : ""}[overflow-wrap:anywhere] text-[1.05rem] leading-8 text-[var(--pw-text)]`}>{response.directAnswer}</p>
     {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
     <AdaptiveSections answerType={response.answerType} sections={response.sections} />
     {actions.length ? <div className="mt-5 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}
-    {presentation !== "casual" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
+    {messageVariant !== "CASUAL" && message.suggestion && message.suggestion.status !== "saved" && !message.suggestion.applyStatus ? <StateUpdateSuggestion onAction={onSuggestionAction} suggestion={message.suggestion} /> : null}
     {response.applicationActions?.length ? <ApplicationActions actions={response.applicationActions} onAction={onApplicationAction} /> : null}
     {getPersistenceNotices(message).map((notice) => <p className="mt-3 text-xs font-semibold text-[var(--text-secondary)]" data-persistence-notice={notice.type} key={notice.key}>{notice.label}</p>)}
-    {careHistoryState === "save_failed" ? <p className="mt-3 text-xs font-semibold text-[var(--pw-warning-text)]" role="status">{message.suggestion ? "This update has not been saved. Review it in the care history card and try again when ready." : "This update could not be saved to care history. Your answer is still available."}</p> : null}
+    {careHistoryState === "SAVE_FAILED" ? <p className="mt-3 text-xs font-semibold text-[var(--pw-warning-text)]" role="status">{message.suggestion ? "This update has not been saved. Review it in the care history card and try again when ready." : "This update could not be saved to care history. Your answer is still available."}</p> : null}
   </article>;
 }
 
@@ -738,20 +725,16 @@ function Thinking() { return <div className="flex items-center gap-3 py-3 text-s
 
 function AskFailureState({ code, onEdit, onRetry, planId, retryAfterSeconds }: { code: AskFailureCode; onEdit: () => void; onRetry: () => void; planId?: "free" | "plus"; retryAfterSeconds?: number }) {
   const presentation = getAskErrorPresentation(code, retryAfterSeconds);
-  const message = code === "UNKNOWN_ERROR"
-    ? FURVISE_ANSWER_UNAVAILABLE_MESSAGE
-    : code === "AI_RATE_LIMITED"
-      ? `${presentation.message} No AI credit was used.`
-      : presentation.message;
-  return <div className="max-w-xl rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] px-4 py-4 text-sm text-[var(--text-secondary)]" role="alert">
+  const message = code === "TEMPORARY_PROVIDER_FAILURE" ? `${presentation.message} No AI credit was used.` : presentation.message;
+  return <div className="max-w-xl rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] px-4 py-4 text-sm text-[var(--text-secondary)]" data-message-variant="ERROR" role="alert">
     <h2 className="font-semibold text-[var(--text-primary)]">{presentation.title}</h2>
     <p className="mt-1 leading-6">{message}</p>
     {presentation.recommendedAction !== "wait" ? <div className="mt-3 flex flex-wrap gap-2">
       {presentation.recommendedAction === "sign_in" ? <Link className={secondaryButton} href="/login?next=%2Fask">Sign in</Link> : null}
       {presentation.recommendedAction === "saved_data" ? <><Link className={secondaryButton} href="/pets">Back to pets</Link><Link className={quietButton} href="/care-log">View history</Link></> : null}
-      {code === "AI_CREDITS_EXHAUSTED" && planId === "free" ? <Link className={secondaryButton} href="/membership">Upgrade to Plus</Link> : null}
+      {code === "PLAN_LIMIT" && planId === "free" ? <Link className={secondaryButton} href="/membership">Upgrade to Plus</Link> : null}
       {presentation.retryable ? <button className={secondaryButton} onClick={onRetry} type="button">Try again</button> : null}
-      {presentation.recommendedAction === "edit" || presentation.retryable ? <button className={quietButton} onClick={onEdit} type="button">Edit question</button> : null}
+      {presentation.recommendedAction === "edit" ? <button className={quietButton} onClick={onEdit} type="button">Edit question</button> : null}
     </div> : null}
   </div>;
 }
@@ -813,23 +796,11 @@ function reconcileThreadApplicationActions(messages: ConversationMessage[]): Con
       }
     : message);
 }
-function parseLegacyThread(value: unknown): ConversationMessage[] { if (!Array.isArray(value)) return []; const messages: ConversationMessage[] = []; for (const item of value.slice(-40)) { if (!item || typeof item !== "object") continue; const draft = item as { id?: unknown; role?: unknown; text?: unknown; response?: unknown; saveMetadata?: unknown; contextUsed?: unknown }; if (draft.role === "user" && typeof draft.text === "string") messages.push({ id: typeof draft.id === "string" ? draft.id : createMessageId("user"), role: "user", text: draft.text.slice(0, 1200) }); else if (draft.role === "furvise") { const response = parseAskConversationResponse(draft.response) as StructuredResponse | null; if (response) messages.push({ contextUsed: parseContextUsed(draft.contextUsed), id: typeof draft.id === "string" ? draft.id : createMessageId("furvise"), response, role: "furvise", saveMetadata: parseStoredSaveMetadata(draft.saveMetadata) }); } } return messages; }
 function parseContextUsed(value: unknown): ContextUsed | null { if (!value || typeof value !== "object") return null; const draft = value as { petName?: unknown; usedSources?: unknown }; return { petName: typeof draft.petName === "string" ? draft.petName : null, usedSources: Array.isArray(draft.usedSources) ? draft.usedSources.filter((item): item is string => typeof item === "string").slice(0, 8) : [] }; }
 function parseCarePersistence(value: unknown): CarePersistence | null { if (!value || typeof value !== "object") return null; const draft = value as Partial<CarePersistence>; if (!draft.status || !["persisted", "suggested", "skipped", "failed"].includes(draft.status)) return null; return { status: draft.status, careEntryIds: Array.isArray(draft.careEntryIds) ? draft.careEntryIds.filter((id): id is string => typeof id === "string") : [], concernIds: Array.isArray(draft.concernIds) ? draft.concernIds.filter((id): id is string => typeof id === "string") : [], errorCode: typeof draft.errorCode === "string" ? draft.errorCode : null, memoryIds: Array.isArray(draft.memoryIds) ? draft.memoryIds.filter((id): id is string => typeof id === "string") : [], profileUpdated: draft.profileUpdated === true }; }
 function parseStateSuggestion(value: unknown): StateSuggestion | null { if (!value || typeof value !== "object") return null; const draft = value as Partial<StateSuggestion>; if (typeof draft.id !== "string" || typeof draft.title !== "string" || !draft.type || !["history", "memory", "concern_resolution", "concern_opening"].includes(draft.type)) return null; return { applyStatus: draft.applyStatus, careEntryId: typeof draft.careEntryId === "string" ? draft.careEntryId : null, concernId: typeof draft.concernId === "string" ? draft.concernId : null, id: draft.id, type: draft.type, title: draft.title, details: typeof draft.details === "string" ? draft.details : null, status: draft.status }; }
 function parseStoredSaveMetadata(value: unknown): AskSaveMetadata | null { if (!value || typeof value !== "object") return null; const draft = value as Partial<AskSaveMetadata>; if (typeof draft.answerType !== "string" || typeof draft.saveCategory !== "string" || typeof draft.saveDetail !== "string" || typeof draft.saveTitle !== "string" || typeof draft.saveable !== "boolean") return null; return { answerType: draft.answerType, cannotAnswerFromSavedData: Boolean(draft.cannotAnswerFromSavedData), saveCategory: draft.saveCategory as CareEntryCategory, saveDetail: draft.saveDetail.slice(0, 500), saveDetailPreview: typeof draft.saveDetailPreview === "string" ? draft.saveDetailPreview.slice(0, 220) : "", saveDisabledReason: typeof draft.saveDisabledReason === "string" ? draft.saveDisabledReason : "", saveTitle: draft.saveTitle.slice(0, 120), saveable: draft.saveable, usedSavedFactsCount: typeof draft.usedSavedFactsCount === "number" ? Math.max(0, draft.usedSavedFactsCount) : 0 }; }
 
-async function importLegacyConversation(petId: string, known: AskConversationSummary[]) {
-  if (known.some((item) => item.petId === petId) || typeof window === "undefined") return;
-  try {
-    const key = `furvise:ask-thread:${petId}`;
-    const raw = window.sessionStorage.getItem(key);
-    const messages = raw ? parseLegacyThread(JSON.parse(raw)) : [];
-    if (!messages.some((message) => message.role === "furvise")) return;
-    await conversationJson("/api/ask/conversations", { method: "POST", body: JSON.stringify({ messages, petId }) });
-    window.sessionStorage.removeItem(key);
-  } catch { /* A legacy session remains available for a later migration attempt. */ }
-}
 function getDraftKey(conversationId: string | null, petId: string) { return `furvise:ask-draft:${conversationId || `new:${petId}`}`; }
 function replaceAskLocation({ conversationId, petId }: { conversationId?: string; petId?: string }) {
   const params = new URLSearchParams();
@@ -843,7 +814,7 @@ function readDraft(key: string) { try { return typeof window === "undefined" ? "
 function createMessageId(role: string) { return `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 class AskRequestError extends Error { constructor(public code: AskFailureCode, message = "", public retryAfterSeconds?: number) { super(message); } }
 class SuggestionApplyError extends Error { constructor(public code: string, message = "") { super(message); this.name = "SuggestionApplyError"; } }
-function getAskFailure(error: unknown): { code: AskFailureCode; retryAfterSeconds?: number } { if (error instanceof AskRequestError) return { code: error.code, retryAfterSeconds: error.retryAfterSeconds }; if (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError")) return { code: "REQUEST_TIMEOUT" }; if (error instanceof TypeError) return { code: "NETWORK_ERROR" }; return { code: "UNKNOWN_ERROR" }; }
+function getAskFailure(error: unknown): { code: AskFailureCode; retryAfterSeconds?: number } { if (error instanceof AskRequestError) return { code: error.code, retryAfterSeconds: error.retryAfterSeconds }; return { code: "ANSWER_RETRYABLE" }; }
 function logAskCareSaveFailure(error: unknown) { if (process.env.NODE_ENV === "production") return; const databaseError = error as { code?: string; message?: string }; console.warn("[Furvise ask] care entry save failed", { errorCode: databaseError?.code || "", errorMessage: databaseError?.message || "" }); }
 async function getAskAuthToken() { const client = getBrowserSupabase(); const { data } = client ? await client.auth.getSession() : { data: { session: null } }; return data.session?.access_token || ""; }
 async function suggestionJson(url: string, init: RequestInit = {}) {

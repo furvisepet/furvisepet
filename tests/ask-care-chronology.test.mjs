@@ -34,7 +34,7 @@ test("UI confirmation requires a persisted status and a concrete entry id", () =
 
 test("persistence failure cannot show Added to care history", () => {
   assert.match(askPage, /getAskCareHistoryState\(message\)/);
-  assert.match(askPage, /careHistoryState === "save_failed"/);
+  assert.match(askPage, /careHistoryState === "SAVE_FAILED"/);
   assert.match(persistence, /status: "failed", careEntryIds: \[\]/);
 });
 

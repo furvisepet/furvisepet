@@ -124,7 +124,7 @@ test("Vet Visit Brief review is mobile-ready, explicit, and analytics receives n
   assert.doesNotMatch(printPage, /AppPage|SignedInHeader|affiliate|product promotion/i);
   assert.match(ask, /source=ask/);
   assert.match(ask, /hasLikelyVetConcern/);
-  assert.match(ask, /likelyVetConcern && response\.urgency !== "urgent"/);
+  assert.match(ask, /likelyVetConcern && messageVariant !== "URGENT"/);
 });
 
 test("Vet Visit Brief builder introduces no diagnosis or treatment claims", () => {

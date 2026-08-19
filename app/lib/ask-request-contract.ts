@@ -1,32 +1,26 @@
 export const ASK_REQUEST_KEYS = [
   "conversationId",
   "petId",
-  "previousResponse",
   "message",
-  "question",
-  "requestId",
+  "logicalTurnId",
   "locale",
 ] as const;
 
 export type AskRequestPayload = {
   conversationId: string | null;
   locale: string;
+  logicalTurnId: string;
   message: string;
   petId: string;
-  previousResponse: unknown;
-  question: string;
-  requestId: string;
 };
 
 export function buildAskRequestPayload(payload: AskRequestPayload): AskRequestPayload {
   return {
     conversationId: payload.conversationId,
     locale: payload.locale,
+    logicalTurnId: payload.logicalTurnId,
     message: payload.message,
     petId: payload.petId,
-    previousResponse: payload.previousResponse,
-    question: payload.question,
-    requestId: payload.requestId,
   };
 }
 
