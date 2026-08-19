@@ -84,8 +84,7 @@ import { validateSensitiveRequestOriginResponse } from "../../lib/security/heade
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
 import type { ProposedSemanticFrame } from "../../lib/intelligence/semantic-frame/types";
 import {
-  resolveAuthoritativeTurnSubject,
-  resolveDeterministicTurnSubject,
+  resolveAskTurnSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
 import {
   persistAskV2Phase3LowRisk,
@@ -615,36 +614,32 @@ export async function POST(request: Request) {
         logAskStage("AI credit reserved", { creditReservationId: creditRequestId, feature: "ask", requestId, retryReuse, status: reservation.status });
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
-      const contextualSelectedPet = resolveDeterministicTurnSubject({
-        message: question,
-        pets: liveContext.eligiblePets,
-        recentConversation,
-        selectedPetId: petId,
-      });
-      let subjectFrame: ProposedSemanticFrame | undefined;
-      if (!contextualSelectedPet) {
-        try {
-          subjectFrame = await extractTurnSubjectFrame({ message: question, model, onProviderEvent, recentConversation });
-        } catch (error) {
-          turnLifecycle.optionalFailure("subject_extraction").providerFailure(error instanceof AskPipelineError ? error.stage : "subject_extraction_failed");
-          if (creditReserved) {
-            const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
-            creditReserved = false;
-            creditFinalState = released ? "released" : "release_pending";
-            turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
-          }
-          contextUsed = { petName: null, usedSources: [] };
-          return buildSubjectClarificationOrchestration(question, liveContext.eligiblePets.map((pet) => pet.name).filter(Boolean));
+      let subjectDecision: Awaited<ReturnType<typeof resolveAskTurnSubject>>;
+      try {
+        subjectDecision = await resolveAskTurnSubject({
+          extractFrame: async () => await extractTurnSubjectFrame({ message: question, model, onProviderEvent, recentConversation }),
+          message: question,
+          ownerId: userId,
+          pets: liveContext.eligiblePets,
+          recentConversation,
+          selectedPetId: petId,
+        });
+      } catch (error) {
+        turnLifecycle.optionalFailure("subject_extraction").providerFailure(error instanceof AskPipelineError ? error.stage : "subject_extraction_failed");
+        if (creditReserved) {
+          const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+          creditReserved = false;
+          creditFinalState = released ? "released" : "release_pending";
+          turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
         }
+        contextUsed = { petName: null, usedSources: [] };
+        const candidateNames = liveContext.eligiblePets.length >= 2
+          ? liveContext.eligiblePets.map((pet) => pet.name).filter(Boolean)
+          : [];
+        return buildSubjectClarificationOrchestration(question, candidateNames);
       }
-      const subjectResolution = contextualSelectedPet || resolveAuthoritativeTurnSubject({
-        frame: subjectFrame!,
-        message: question,
-        ownerId: userId,
-        pets: liveContext.eligiblePets,
-        recentConversation,
-        selectedPetId: petId,
-      });
+      const subjectFrame = subjectDecision.frame;
+      const subjectResolution = subjectDecision.resolution;
       logAskStage("turn subject resolved", {
         explicitSubject: subjectResolution.explicitSubject,
         reasonCode: subjectResolution.reasonCode,
@@ -925,7 +920,7 @@ export async function POST(request: Request) {
   }
   let governedAnswer = enforceAnswerStateClaims(orchestration.answer);
   if (reasoning?.responseMode === "grief_support"
-    && governedAnswer.summary === "I can help with that using the action below.") {
+    && governedAnswer.summary === "I can help with that.") {
     governedAnswer = { ...governedAnswer, summary: buildGriefResponseFallback(liveContext.pet.name || "your pet") };
   }
   const conversationResponse = buildAskConversationResponse(governedAnswer, {
@@ -1125,7 +1120,7 @@ function buildSubjectClarificationOrchestration(message: string, candidateNames:
       title: urgent ? "Urgent guidance while we identify the pet" : clarificationQuestion,
       summary: urgent
         ? "If the pet is in immediate distress, seems weak, collapses, or is having trouble breathing, contact a veterinarian or emergency clinic now. Which pet is this about? I will not use a pet's history or save the update until the subject is clear."
-        : "I can help, but I need to know which of your pets this update is about before I use pet-specific history or save anything.",
+        : "Before I use pet-specific history or save anything, I need to know which pet or animal you mean.",
       sections: [],
       safetyNote: null,
     },

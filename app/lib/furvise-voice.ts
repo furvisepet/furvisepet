@@ -106,8 +106,7 @@ export function buildNoSafeProductMatchMessage(petName = "your pet") {
 
 export function buildFurviseClarification(candidateNames: string[]) {
   const names = [...new Set(candidateNames.map(cleanPetName).filter(Boolean))].slice(0, 4);
-  if (!names.length) return "I want to make sure I follow the right pet. Which pet do you mean?";
-  if (names.length === 1) return `Do you mean ${names[0]}?`;
+  if (names.length < 2) return "I want to make sure I follow the right pet or animal. Who do you mean?";
   if (names.length === 2) return `Do you mean ${names[0]} or ${names[1]}?`;
   return `Do you mean ${names.slice(0, -1).join(", ")}, or ${names.at(-1)}?`;
 }

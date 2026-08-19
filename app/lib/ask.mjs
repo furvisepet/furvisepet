@@ -67,6 +67,9 @@ const ASK_MEMORY_CANDIDATE_TYPES = new Set([
   "veterinarian_instruction", "medication_or_supplement", "unresolved_concern", "important_date",
 ]);
 
+const ACTION_INTERACTION_MODES = new Set(["action_confirmation", "action_success", "action_failure"]);
+const actionDependentCopyPattern = /\b(?:action|button|confirmation|save(?: option)?|choice)\s+(?:shown\s+)?below\b|\breview\s+(?:the\s+)?action\b|\bchoose\s+(?:an?\s+option\s+)?below\b/i;
+
 /**
  * Adds provider-neutral presentation metadata to an already validated Ask answer.
  * Safety and save eligibility remain deterministic outside this function.
@@ -74,21 +77,23 @@ const ASK_MEMORY_CANDIDATE_TYPES = new Set([
 export function buildAskConversationResponse(response, options = {}) {
   const parsed = parseAskResponse(response);
   if (!parsed) return null;
-  const answerType = resolveConversationAnswerType(options.intent, Boolean(options.urgent), parsed);
   const usedContextSummary = cleanStringList(options.usedContextSummary, 4);
   const missingUsefulDetails = cleanStringList(options.missingUsefulDetails, 4);
   const saveSuggestions = cleanSaveSuggestions(options.saveSuggestions);
   const trackingPlan = cleanTrackingPlan(options.trackingPlan);
   const clarificationQuestion = cleanOptionalText(options.clarificationQuestion, 240);
-  const applicationActions = cleanApplicationActions(options.applicationActions);
-  const interactionMode = cleanInteractionMode(options.interactionMode) || (options.urgent ? "urgent" : options.monitoring ? "monitoring" : "normal");
+  const applicationActions = clarificationQuestion ? [] : cleanApplicationActions(options.applicationActions);
+  const coherent = enforceActionResponseCoherence(parsed, applicationActions.length > 0, clarificationQuestion);
+  const answerType = resolveConversationAnswerType(options.intent, Boolean(options.urgent), coherent, Boolean(clarificationQuestion));
+  const interactionMode = coherentInteractionMode(options.interactionMode, applicationActions.length > 0, Boolean(clarificationQuestion),
+    options.urgent ? "urgent" : options.monitoring ? "monitoring" : "normal");
   const suggestedQuestions = shouldOfferSuggestedQuestions(interactionMode, answerType)
-    ? cleanSuggestedQuestions(options.suggestedQuestions, parsed.summary)
+    ? cleanSuggestedQuestions(options.suggestedQuestions, coherent.summary)
     : [];
   return {
-    ...parsed,
+    ...coherent,
     answerType,
-    directAnswer: parsed.summary,
+    directAnswer: coherent.summary,
     actions: [...ASK_ACTIONS_BY_TYPE[answerType]],
     urgency: options.urgent ? "urgent" : options.recentlyResolved ? "resolved" : options.monitoring ? "monitor" : "routine",
     interactionMode,
@@ -104,16 +109,20 @@ export function buildAskConversationResponse(response, options = {}) {
 }
 
 export function parseAskConversationResponse(value) {
-  const response = parseAskResponse(value);
-  if (!response || !value || typeof value !== "object") return null;
+  const parsed = parseAskResponse(value);
+  if (!parsed || !value || typeof value !== "object") return null;
   const draft = value;
-  const answerType = ASK_ANSWER_TYPES.includes(draft.answerType) ? draft.answerType : "direct_answer";
   const clarificationQuestion = cleanOptionalText(draft.clarificationQuestion, 240);
-  const applicationActions = cleanApplicationActions(draft.applicationActions);
+  const applicationActions = clarificationQuestion ? [] : cleanApplicationActions(draft.applicationActions);
+  const response = enforceActionResponseCoherence(parsed, applicationActions.length > 0, clarificationQuestion);
+  const answerType = clarificationQuestion
+    ? "clarification"
+    : ASK_ANSWER_TYPES.includes(draft.answerType) ? draft.answerType : "direct_answer";
   const saveSuggestions = cleanSaveSuggestions(draft.saveSuggestions);
   const trackingPlan = cleanTrackingPlan(draft.trackingPlan);
   const urgency = ["routine", "resolved", "monitor", "urgent"].includes(draft.urgency) ? draft.urgency : "routine";
-  const interactionMode = cleanInteractionMode(draft.interactionMode) || (urgency === "urgent" ? "urgent" : urgency === "monitor" ? "monitoring" : "normal");
+  const interactionMode = coherentInteractionMode(draft.interactionMode, applicationActions.length > 0, Boolean(clarificationQuestion),
+    urgency === "urgent" ? "urgent" : urgency === "monitor" ? "monitoring" : "normal");
   const suggestedQuestions = shouldOfferSuggestedQuestions(interactionMode, answerType)
     ? cleanSuggestedQuestions(draft.suggestedQuestions, response.summary)
     : [];
@@ -140,6 +149,36 @@ export function parseAskConversationResponse(value) {
 
 function cleanInteractionMode(value) {
   return ["normal", "casual", "complex", "monitoring", "urgent", "grief", "action_confirmation", "action_success", "action_failure"].includes(value) ? value : "";
+}
+
+function coherentInteractionMode(value, hasApplicationActions, clarification, fallback) {
+  const cleaned = cleanInteractionMode(value);
+  if (clarification || (!hasApplicationActions && ACTION_INTERACTION_MODES.has(cleaned))) return fallback;
+  return cleaned || fallback;
+}
+
+export function containsActionDependentCopy(value) {
+  return actionDependentCopyPattern.test(String(value || ""));
+}
+
+function enforceActionResponseCoherence(response, hasApplicationActions, clarificationQuestion) {
+  if (hasApplicationActions) return response;
+  const title = stripActionDependentSentences(response.title) || clarificationQuestion || "Furvise";
+  const summary = stripActionDependentSentences(response.summary)
+    || (clarificationQuestion ? "I need one detail before I can give pet-specific advice." : "I can help with that.");
+  const sections = response.sections.flatMap((section) => {
+    const heading = stripActionDependentSentences(section.heading);
+    const items = section.items.map(stripActionDependentSentences).filter(Boolean);
+    return heading && items.length ? [{ heading, items }] : [];
+  });
+  const safetyNote = response.safetyNote ? stripActionDependentSentences(response.safetyNote) || null : null;
+  return { ...response, title, summary, sections, safetyNote };
+}
+
+function stripActionDependentSentences(value) {
+  const clean = cleanText(String(value || ""));
+  if (!clean) return "";
+  return clean.split(/(?<=[.!?])\s+/).filter((sentence) => !containsActionDependentCopy(sentence)).join(" ").trim();
 }
 
 function cleanApplicationActions(value) {
@@ -169,8 +208,9 @@ function cleanActionIdentifier(value, maxLength) {
   return /^[A-Za-z0-9.:-]+$/.test(value) ? value : "";
 }
 
-function resolveConversationAnswerType(intent, urgent, response) {
+function resolveConversationAnswerType(intent, urgent, response, clarification = false) {
   if (urgent) return "urgent_guidance";
+  if (clarification) return "clarification";
   if (intent === "vet_prep") return "vet_prep";
   if (intent === "recent_summary" || intent === "last_week_logs") return "history_summary";
   if (intent === "symptom_notes") return "tracking_plan";
