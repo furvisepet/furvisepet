@@ -33,6 +33,71 @@ export type AskAnswerEconomyReviewCase = {
   candidate: AskEconomyAnswer;
 };
 
+export type BehavioralHistoryReviewCase = {
+  id: string;
+  message: string;
+  domain: string;
+  transition: "started" | "changed" | "continued" | "worsened" | "observed";
+  hasTrackedEpisode?: boolean;
+  expectedEligible: boolean;
+  legacyEligible: boolean;
+  routineBehavior: boolean;
+};
+
+const behavioralHistoryReviewCases: BehavioralHistoryReviewCase[] = [
+  { id: "ordinary-affection", message: "She has been extra affectionate today.", domain: "behavior", transition: "changed", expectedEligible: false, legacyEligible: false, routineBehavior: true },
+  { id: "petting-tolerance", message: "She keeps biting me when I pet her for more than a minute. What should I do?", domain: "behavior", transition: "started", expectedEligible: false, legacyEligible: true, routineBehavior: true },
+  { id: "stable-petting-tolerance", message: "She's always done this when I pet her for too long.", domain: "behavior", transition: "changed", expectedEligible: false, legacyEligible: true, routineBehavior: true },
+  { id: "sleeping-preference", message: "She sleeps on my pillow every night.", domain: "behavior", transition: "changed", expectedEligible: false, legacyEligible: false, routineBehavior: true },
+  { id: "attention-seeking", message: "She wants attention whenever I start working.", domain: "behavior", transition: "changed", expectedEligible: false, legacyEligible: false, routineBehavior: true },
+  { id: "routine-play", message: "She gets rowdy during our usual evening play.", domain: "behavior", transition: "changed", expectedEligible: false, legacyEligible: false, routineBehavior: true },
+  { id: "one-off-hiss", message: "She hissed once when the doorbell rang.", domain: "behavior", transition: "started", expectedEligible: false, legacyEligible: true, routineBehavior: true },
+  { id: "ordinary-following", message: "She follows me from room to room.", domain: "behavior", transition: "continued", expectedEligible: false, legacyEligible: false, routineBehavior: true },
+  { id: "new-aggression", message: "She suddenly started biting when I touch her.", domain: "behavior", transition: "started", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "worsening-aggression", message: "Her biting is getting worse every week.", domain: "behavior", transition: "worsened", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "pain-sensitivity", message: "She suddenly seems painful when I touch her back.", domain: "health", transition: "started", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "sustained-hiding", message: "She has been hiding for the past few days.", domain: "behavior", transition: "continued", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "continued-pacing", message: "The outside cat left, but she is still pacing.", domain: "behavior", transition: "continued", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "appetite-change", message: "She started eating much less yesterday.", domain: "health", transition: "started", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "vomiting", message: "She vomited twice today.", domain: "health", transition: "started", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "litter-change", message: "She is urinating much less than usual today.", domain: "health", transition: "changed", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "treatment-change", message: "Her medication dose changed this morning.", domain: "medication", transition: "changed", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "diet-change", message: "We switched her food and feeding schedule this week.", domain: "nutrition", transition: "changed", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "recurring-episode", message: "The hiding came back again this week.", domain: "behavior", transition: "started", expectedEligible: true, legacyEligible: true, routineBehavior: false },
+  { id: "tracked-worsening", message: "It's getting worse every week.", domain: "behavior", transition: "worsened", hasTrackedEpisode: true, expectedEligible: true, legacyEligible: true, routineBehavior: false },
+];
+
+export function buildBehavioralHistoryReviewSet() {
+  return behavioralHistoryReviewCases.map((item) => ({ ...item }));
+}
+
+export function measureBehavioralHistoryReview(cases = buildBehavioralHistoryReviewSet()) {
+  const evaluated = cases.map((item) => ({
+    ...item,
+    actualEligible: evaluateCareHistorySaveWorthiness({
+      domain: item.domain,
+      sourceMessage: item.message,
+      title: item.message,
+      details: item.message,
+      transition: item.transition,
+      hasTrackedEpisode: item.hasTrackedEpisode,
+    }).eligible,
+  }));
+  const meaningful = evaluated.filter((item) => item.expectedEligible);
+  const routine = evaluated.filter((item) => item.routineBehavior);
+  return {
+    cases: evaluated.length,
+    passed: evaluated.filter((item) => item.actualEligible === item.expectedEligible).length,
+    beforeSuggestionRate: round(evaluated.filter((item) => item.legacyEligible).length / evaluated.length),
+    afterSuggestionRate: round(evaluated.filter((item) => item.actualEligible).length / evaluated.length),
+    trueMeaningfulSuggestionRate: round(meaningful.filter((item) => item.actualEligible).length / meaningful.length),
+    beforeRoutineBehaviorFalsePositiveRate: round(routine.filter((item) => item.legacyEligible).length / routine.length),
+    lowValueSuggestionRate: round(routine.filter((item) => item.actualEligible).length / routine.length),
+    routineBehaviorFalsePositiveRate: round(routine.filter((item) => item.actualEligible).length / routine.length),
+    evaluations: evaluated,
+  };
+}
+
 const bases: ReviewBase[] = [
   {
     category: "ack_social",

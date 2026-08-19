@@ -83,7 +83,8 @@ test("automatic care-history suggestions require longitudinal value", () => {
     ["She follows me everywhere today and seems clingy.", false],
     ["She sits on my laptop whenever I work.", false],
     ["She has a new meowing quirk every evening.", false],
-    ["Lately she keeps biting hard when I pet her.", true],
+    ["Lately she keeps biting hard when I pet her.", false],
+    ["She suddenly started biting hard when I pet her.", true],
     ["She has been hiding for the past few days.", true],
     ["She started limping this morning.", true],
   ];

@@ -116,7 +116,7 @@ import {
   type PendingLifecycleTurnResolution,
 } from "../../lib/ai/pending-lifecycle.ts";
 import { getPetLifecycleStatus } from "../../lib/pet-lifecycle.ts";
-import { isExplicitCareHistorySaveRequest } from "../../lib/intelligence/care-history-policy.ts";
+import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/ask-errors.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -1734,17 +1734,12 @@ async function persistAssistantAnswer({
     })
     : { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
   const savedSuggestion = suggestionPersistence.suggestion;
-  const suggestionFailure = Boolean(reviewSuggestion && suggestionPersistence.errorCode);
   const persistenceMode = automaticCareAction ? "automatic" : savedSuggestion ? "suggested" : "none";
-  const carePersistence: CarePersistenceResult = automaticCareAction && confirmedCarePersistence
-    ? confirmedCarePersistence
-    : automaticCareFailure && intelligencePersistence
-      ? intelligencePersistence.carePersistence
-      : suggestionFailure
-        ? { status: "failed", careEntryIds: [], concernIds: [], errorCode: suggestionPersistence.errorCode, currentSafetyState: null, alreadyPersisted: false, memoryIds: intelligencePersistence?.memoryIds || [] }
-      : savedSuggestion
-        ? { status: "suggested", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: intelligencePersistence?.memoryIds || [] }
-        : { status: "skipped", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: intelligencePersistence?.memoryIds || [] };
+  const carePersistence = resolveAutomaticCareHistoryPresentation({
+    confirmedPersistence: confirmedCarePersistence,
+    hasSavedSuggestion: Boolean(savedSuggestion),
+    memoryIds: intelligencePersistence?.memoryIds || [],
+  });
   const reconciledResponse = reconcileResponsePersistenceCopy(response, persistenceMode, automaticCareFailure || Boolean(savedSuggestion));
   turnLifecycle.actions(applicationActions.length);
   turnLifecycle.transition("COMPLETED");
@@ -2024,7 +2019,7 @@ function successfulAnswerResponse({
     automaticSaveConfirmation: carePersistence.status === "persisted" && carePersistence.careEntryIds.length > 0 ? "Added to care history" : persistedLearningConfirmation(intelligencePersistence),
     carePersistence,
     intelligencePersistence: {
-      saved: !intelligencePersistenceWarning && carePersistence.status !== "failed",
+      saved: !intelligencePersistenceWarning && intelligencePersistence?.carePersistence.status !== "failed",
       ...(intelligencePersistenceWarning ? { warning: intelligencePersistenceWarning } : {}),
     },
     remainingCredits: usage.remaining,

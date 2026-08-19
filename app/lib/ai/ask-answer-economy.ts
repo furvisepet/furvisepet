@@ -111,6 +111,24 @@ export function normalizeAskListIntegrity<T extends AskEconomyAnswer>(answer: T)
   };
 }
 
+export function normalizeAskVisibleProseSanity<T extends AskEconomyAnswer>(answer: T): T {
+  return {
+    ...answer,
+    summary: repairVisibleProseSyntax(answer.summary),
+    sections: answer.sections.map((section) => ({
+      heading: repairVisibleProseSyntax(section.heading),
+      items: section.items.map(repairVisibleProseSyntax),
+    })),
+    safetyNote: answer.safetyNote ? repairVisibleProseSyntax(answer.safetyNote) : answer.safetyNote,
+  };
+}
+
+export function countAskVisibleProseSanityDefects(answer: AskEconomyAnswer) {
+  return [answer.summary, ...answer.sections.flatMap((section) => [section.heading, ...section.items]), answer.safetyNote || ""]
+    .filter(Boolean)
+    .reduce((sum, value) => sum + countVisibleProseSyntaxDefects(value), 0);
+}
+
 export function measureAskAnswerEconomy(answer: AskEconomyAnswer, options: { petName?: string } = {}) {
   const rendered = [
     answer.summary,
@@ -136,6 +154,7 @@ export function measureAskAnswerEconomy(answer: AskEconomyAnswer, options: { pet
     petNameDensity,
     petNameOveruseFlag: petNameUseCount >= 5 && petNameDensity > 0.8,
     bulletIntegrityViolationCount: countBulletIntegrityViolations(answer),
+    visibleProseSanityDefectCount: countAskVisibleProseSanityDefects(answer),
   };
 }
 
@@ -442,6 +461,24 @@ function countBulletIntegrityViolations(answer: AskEconomyAnswer) {
     if (sentences.length < 2) return false;
     return new Set(sentences.flatMap((sentence) => [...bulletPurposes(sentence)])).size >= 2;
   }).length, 0);
+}
+
+function repairVisibleProseSyntax(value: string) {
+  let text = String(value || "");
+  text = text.replace(
+    /\b((?:Over|During)\s+(?:the\s+)?(?:past|last)\s+[^,.;!?]+),\s*(?:she|he|they|it)\s*(?:['\u2019]s|is|are|has|have)\s+((?:[a-z]+ing\b[^.;!?]*?,\s*){2,}[a-z]+ing\b[^.;!?]*?)\s+are\s+(worth|concerning enough for|reasons? for)\b/gi,
+    (_match, timePhrase: string, changes: string, predicate: string) => `The combination of ${clean(changes)} ${timePhrase.toLowerCase()} is ${predicate}`,
+  );
+  return clean(text)
+    .replace(/\b(and|but|or)\s+\1\b/gi, "$1")
+    .replace(/\s+([,.;!?])/g, "$1");
+}
+
+function countVisibleProseSyntaxDefects(value: string) {
+  const text = String(value || "");
+  const malformedOpening = /\b(?:Over|During)\s+(?:the\s+)?(?:past|last)\s+[^,.;!?]+,\s*(?:she|he|they|it)\s*(?:['\u2019]s|is|are|has|have)\s+(?:[a-z]+ing\b[^.;!?]*?,\s*){2,}[a-z]+ing\b[^.;!?]*?\s+are\s+(?:worth|concerning enough for|reasons? for)\b/gi;
+  return [...text.matchAll(malformedOpening)].length
+    + [...text.matchAll(/\b(and|but|or)\s+\1\b/gi)].length;
 }
 
 function escapeRegExp(value: string) {

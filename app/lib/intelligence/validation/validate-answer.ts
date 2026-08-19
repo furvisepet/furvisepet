@@ -1,5 +1,5 @@
 import type { AskReasoningResult } from "../../ai/ask-reasoning.ts";
-import { measureAskAnswerEconomy, normalizeAskListIntegrity } from "../../ai/ask-answer-economy.ts";
+import { countAskVisibleProseSanityDefects, measureAskAnswerEconomy, normalizeAskListIntegrity, normalizeAskVisibleProseSanity } from "../../ai/ask-answer-economy.ts";
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 
@@ -79,6 +79,9 @@ export function validateGeneratedAnswer(
       ? neutralizeMalformedPetReferences(response.answer, petReference)
       : normalizePetVisibleAnswer(response.answer, petReference, { reduceNameOveruse: authoritativePetIds.length === 1 });
     response.answer = neutralizeMalformedPetReferences(response.answer, petReference);
+    const proseDefectsBefore = countAskVisibleProseSanityDefects(response.answer);
+    response.answer = normalizeAskVisibleProseSanity(response.answer);
+    const proseDefectsAfter = countAskVisibleProseSanityDefects(response.answer);
     const visibleQuality = measureAskAnswerEconomy(response.answer, { petName: context.pet.name });
     if (beforeQuality.malformedPersonalizationCount > visibleQuality.malformedPersonalizationCount
       || beforeQuality.petNameContractionCount > visibleQuality.petNameContractionCount) {
@@ -92,6 +95,8 @@ export function validateGeneratedAnswer(
     }
     if (visibleQuality.petNameOveruseFlag) qualityWarnings.push("pet_name_overuse_remaining");
     if (visibleQuality.bulletIntegrityViolationCount > 0) qualityWarnings.push("mixed_purpose_bullet_remaining");
+    if (proseDefectsBefore > proseDefectsAfter) repairs.push("repaired_visible_prose_syntax");
+    if (proseDefectsAfter > 0) qualityWarnings.push("visible_prose_sanity_remaining");
   } catch {
     qualityWarnings.push("quality_normalization_failed");
   }
