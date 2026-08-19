@@ -1,3 +1,6 @@
+import { resolveDeterministicTurnSubject } from "../intelligence/entities/resolve-turn-subject.ts";
+import type { EligibleSemanticPet } from "../intelligence/entities/candidate-retrieval.ts";
+
 export type AskBenchmarkScenario = {
   id: string;
   categories: string[];
@@ -42,7 +45,59 @@ const seeds: Array<Omit<AskBenchmarkScenario, "id">> = [
   scenario(["joke", "casual"], ["Is she plotting world domination?", "okay but seriously why the wall staring"], 0, [1, 1]),
   scenario(["entitlement", "quota", "safety"], ["I'm out of credits.", "He collapsed just now."], 2, [0, 0]),
   scenario(["care_state", "resolution"], ["Her breathing is back to normal.", "Thanks."], 2, [0, 0]),
+  scenario(["long_form_owner_emotion_with_clear_pet_pronouns", "one_pet", "pronouns", "complex"], [
+    "I am getting frustrated because she keeps biting me, and then I feel guilty about it.",
+    "I love her, but she gets overstimulated really fast and I am worried I am making it worse.",
+    "She follows me everywhere, and I do not know what to do without upsetting her.",
+    "I feel uncertain because she is affectionate one minute and annoyed the next.",
+  ], 0, [1, 1, 1, 1]),
 ];
+
+const benchmarkPets = {
+  mani: { id: "benchmark-pet-mani", name: "Mani", species: "cat", sex: "female", age_value: 4, age_unit: "years" },
+  coco: { id: "benchmark-pet-coco", name: "Coco", species: "cat", sex: "male", age_value: 3, age_unit: "years" },
+  luna: { id: "benchmark-pet-luna", name: "Luna", species: "cat", sex: "female", age_value: 5, age_unit: "years" },
+} satisfies Record<string, EligibleSemanticPet>;
+
+export function evaluateAskSubjectBenchmark() {
+  const longFormMessages = [
+    "I am getting frustrated because she keeps biting me, and then I feel guilty about it.",
+    "I love her but she gets overstimulated really fast.",
+    "She follows me everywhere and I do not know what to do.",
+    "I am worried I am making her behavior worse.",
+  ];
+  const onePetResults = longFormMessages.map((message) => resolveDeterministicTurnSubject({
+    message,
+    pets: [benchmarkPets.mani],
+    recentConversation: [],
+    selectedPetId: benchmarkPets.mani.id,
+  }));
+  const selectedAmongDifferentSexes = resolveDeterministicTurnSubject({
+    message: "I feel guilty about it because she keeps following me.",
+    pets: [benchmarkPets.mani, benchmarkPets.coco],
+    recentConversation: [],
+    selectedPetId: benchmarkPets.mani.id,
+  });
+  const equallyRecentFemalePets = resolveDeterministicTurnSubject({
+    message: "She keeps biting me.",
+    pets: [benchmarkPets.mani, benchmarkPets.luna],
+    recentConversation: [{ role: "user", text: "Mani and Luna were both restless." }],
+    selectedPetId: benchmarkPets.mani.id,
+  });
+  const recentOutsideFemale = resolveDeterministicTurnSubject({
+    message: "She keeps following me.",
+    pets: [benchmarkPets.mani],
+    recentConversation: [{ role: "user", text: "The outside female cat came back." }],
+    selectedPetId: benchmarkPets.mani.id,
+  });
+  return {
+    passed: onePetResults.every((result) => result?.petId === benchmarkPets.mani.id && !result.requiresClarification)
+      && selectedAmongDifferentSexes?.petId === benchmarkPets.mani.id
+      && equallyRecentFemalePets === null
+      && recentOutsideFemale === null,
+    probes: longFormMessages.length + 3,
+  };
+}
 
 export function buildAskReliabilityBenchmark(): AskBenchmarkScenario[] {
   return ["plain", "slang", "typo", "short", "switch"].flatMap((variant, variantIndex) => seeds.map((seed, index) => ({
@@ -63,10 +118,13 @@ export function measureAskReliabilityBenchmark(scenarios = buildAskReliabilityBe
   const clarifications = scenarios.reduce((sum, scenario) => sum + scenario.clarifications, 0);
   const contextQueries = scenarios.reduce((sum, scenario) => sum + scenario.contextQueries * scenario.turns.length, 0);
   const characters = scenarios.reduce((sum, scenario) => sum + scenario.turns.join(" ").length, 0);
+  const subjectBenchmark = evaluateAskSubjectBenchmark();
   return {
     scenarios: scenarios.length,
     turns: totalTurns,
-    passRate: scenarios.every((scenario) => scenario.turns.length >= 2 && scenario.providerCalls.every((count) => count >= 0 && count <= 2)) ? 1 : 0,
+    passRate: scenarios.every((scenario) => scenario.turns.length >= 2 && scenario.providerCalls.every((count) => count >= 0 && count <= 2))
+      && subjectBenchmark.passed ? 1 : 0,
+    subjectBehaviorProbes: subjectBenchmark.probes,
     averageProviderCalls: providerCalls / totalTurns,
     p95ProviderCalls: sorted[Math.max(0, Math.ceil(sorted.length * 0.95) - 1)] || 0,
     deterministicTurnPercentage: deterministicTurns / totalTurns,

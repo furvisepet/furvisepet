@@ -242,7 +242,7 @@ test("Ask keeps conversation binding separate while using the resolved turn pet 
   assert.match(route, /conversationPetId: petId[\s\S]*petId: turnPetId/);
   assert.match(route, /persistAssistantAnswer\(\{[\s\S]*petId: turnPetId/);
   assert.match(route, /authoritativeSemanticFrame: subjectFrame/);
-  assert.match(route, /resolveAuthoritativeTurnSubject/);
+  assert.match(route, /resolveAskTurnSubject/);
   assert.match(route, /requiresClarification[\s\S]*buildSubjectClarificationOrchestration/);
 });
 

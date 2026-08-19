@@ -22,6 +22,45 @@ export type AuthoritativeTurnSubjectResolution = {
   candidatePetIds?: string[];
 };
 
+export type AskTurnSubjectDecision = {
+  resolution: AuthoritativeTurnSubjectResolution;
+  frame?: ProposedSemanticFrame;
+  usedProviderExtraction: boolean;
+};
+
+export async function resolveAskTurnSubject({
+  extractFrame,
+  message,
+  ownerId,
+  pets,
+  recentConversation,
+  selectedPetId,
+}: {
+  extractFrame: () => Promise<ProposedSemanticFrame>;
+  message: string;
+  ownerId: string;
+  pets: EligibleSemanticPet[];
+  recentConversation: Array<{ role?: string; text: string }>;
+  selectedPetId: string;
+}): Promise<AskTurnSubjectDecision> {
+  const deterministic = resolveDeterministicTurnSubject({ message, pets, recentConversation, selectedPetId });
+  if (deterministic) return { resolution: deterministic, usedProviderExtraction: false };
+
+  const frame = await extractFrame();
+  return {
+    frame,
+    resolution: resolveAuthoritativeTurnSubject({
+      frame,
+      message,
+      ownerId,
+      pets,
+      recentConversation,
+      selectedPetId,
+    }),
+    usedProviderExtraction: true,
+  };
+}
+
 export function resolveDeterministicTurnSubject({
   message,
   pets,
@@ -45,21 +84,30 @@ export function resolveDeterministicTurnSubject({
   }
   const normalized = normalize(message);
   if (!normalized) return null;
+  if (!pets.some((pet) => pet.id === selectedPetId)) return null;
   const referentialPronounText = message.replace(
     /\b(?:is|was|would)\s+it\s+(?:normal|okay|ok|possible|safe|weird|bad|good)\s+(?:that|if|when|for)\b/gi,
     " ",
   );
   const hasFeminine = /\b(?:she|her|hers)\b/i.test(referentialPronounText);
   const hasMasculine = /\b(?:he|him|his)\b/i.test(referentialPronounText);
-  const hasNeutral = /\b(?:they|them|their|theirs|it|its)\b/i.test(referentialPronounText);
-  const pronounClasses = [hasFeminine, hasMasculine, hasNeutral].filter(Boolean).length;
-  if (pronounClasses === 0) return contextual(selectedPetId, 0.9);
-  if (pronounClasses > 1) return null;
+  const hasNeutralSurface = /\b(?:they|them|their|theirs|it|its)\b/i.test(referentialPronounText);
+  const hasNeutral = hasNeutralSurface && (!hasFeminine && !hasMasculine
+    || /(?:^|[.!?;]\s*)(?:(?:and|but|then|now)\s+)?(?:they|it)\b/i.test(referentialPronounText));
+  const pronouns = [
+    ...(hasFeminine ? ["she"] : []),
+    ...(hasMasculine ? ["he"] : []),
+    ...(hasNeutral ? ["they"] : []),
+  ];
+  if (!pronouns.length) return contextual(selectedPetId, 0.9);
   const state = buildRecentSubjectState({ pets, recentConversation, selectedPetId });
-  const pronoun = hasFeminine ? "she" : hasMasculine ? "he" : "they";
-  const resolution = resolveRecentPronoun(state, pronoun);
-  return resolution.status === "resolved" && resolution.entity.petId
-    ? contextual(resolution.entity.petId, 0.92)
+  const resolutions = pronouns.map((pronoun) => resolveRecentPronoun(state, pronoun));
+  if (!resolutions.every((resolution) => resolution.status === "resolved")) return null;
+  const entities = resolutions.map((resolution) => resolution.status === "resolved" ? resolution.entity : null);
+  const entityKeys = new Set(entities.flatMap((entity) => entity ? [entity.key] : []));
+  const entity = entities[0];
+  return entity && entity.petId && entityKeys.size === 1
+    ? contextual(entity.petId, 0.92)
     : null;
 }
 
@@ -151,7 +199,9 @@ export function resolveAuthoritativeTurnSubject({
     }
     for (const candidatePetId of recent?.candidatePetIds || []) candidatePetIds.add(candidatePetId);
     for (const candidate of binding?.candidates || []) {
-      if (candidate.entityType === "pet" && candidate.score > 0) candidatePetIds.add(candidate.entityId);
+      if (candidate.entityType === "pet" && (candidate.scoreBand === "strong" || candidate.scoreBand === "likely")) {
+        candidatePetIds.add(candidate.entityId);
+      }
     }
     failure ||= binding || null;
   }
