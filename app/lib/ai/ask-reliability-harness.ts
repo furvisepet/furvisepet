@@ -8,6 +8,7 @@ export const ASK_FAILURE_INJECTION_POINTS = [
   "provider_400",
   "malformed_provider_json",
   "invalid_auxiliary_field",
+  "quality_normalization",
   "repair_timeout",
   "credit_reservation",
   "credit_disposition",

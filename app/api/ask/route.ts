@@ -1288,6 +1288,7 @@ function logValidatedIntelligence(result: FurviseIntelligenceResult, requestId: 
     acceptedActionCount: result.acceptedCareActions.length + result.acceptedLearnings.length,
     rejectedActionCount: result.rejectedCareActionCount + result.rejectedLearningCount,
     deterministicRepairsApplied: result.answerValidation.repairs,
+    qualityWarnings: result.answerValidation.qualityWarnings,
   });
 }
 

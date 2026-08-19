@@ -131,7 +131,7 @@ test("visible-prose normalization cannot mutate URLs, identifiers, enums, or mar
   assert.match(normalized, /https:\/\/furvise\.com\/pets\/Mani/);
   assert.match(normalized, /action:pet\.update_profile/);
   assert.match(normalized, /`READ_ONLY`/);
-  assert.match(normalized, /let Mani choose/);
+  assert.match(normalized, /let her choose/);
 
   const response = buildAskConversationResponse({ title: "Furvise", summary: "Try these: • do one • do two • do three", sections: [], safetyNote: null }, {
     applicationActions: [{ id: "action:pet-update-profile:abc", kind: "pet.update_profile", petId: "pet-123", label: "Update profile", description: "Review the change", input: { field: "routine_note", value: "calm" }, safetyClass: "CONFIRMATION_REQUIRED", confirmationPolicy: "always", status: "confirmation_required" }],
