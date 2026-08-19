@@ -100,11 +100,11 @@ test("an explicit species with no owned match never falls back to the selected p
   assert.equal(result.requiresClarification, true);
 });
 
-test("pronouns require discourse evidence and do not invent another pet", () => {
+test("pronouns use the selected conversation pet unless recent discourse names another pet", () => {
   const frame = subjectFrame("she is tired", "she", {}, "fatigue");
   const noAntecedent = resolve("she is tired", frame);
-  assert.equal(noAntecedent.petId, null);
-  assert.equal(noAntecedent.requiresClarification, true);
+  assert.equal(noAntecedent.petId, luna.id);
+  assert.equal(noAntecedent.requiresClarification, false);
 
   const withAntecedent = resolve("she is tired", frame, [luna, mani], [{ role: "user", text: "Mani was restless earlier" }]);
   assert.equal(withAntecedent.petId, mani.id);

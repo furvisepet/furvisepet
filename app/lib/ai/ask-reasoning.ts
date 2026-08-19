@@ -1003,7 +1003,11 @@ function isRepairableStructuredOutput(error: AskPipelineError) {
 
 async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let timeoutTriggered = false;
+  const timeout = setTimeout(() => {
+    timeoutTriggered = true;
+    controller.abort();
+  }, timeoutMs);
   try {
     const model = typeof request.model === "string" ? request.model : "";
     const maxOutputTokens = typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0;
@@ -1013,6 +1017,12 @@ async function createWithTimeout(client: AskReasoningOpenAiClient, request: Reco
       model,
       providerInput: { input: request.input, instructions: request.instructions },
     });
+  } catch (error) {
+    if (!timeoutTriggered) throw error;
+    const timeoutError = new Error("Ask provider timed out.") as Error & { code: string };
+    timeoutError.name = "TimeoutError";
+    timeoutError.code = "ABORT_ERR";
+    throw timeoutError;
   } finally {
     clearTimeout(timeout);
   }
