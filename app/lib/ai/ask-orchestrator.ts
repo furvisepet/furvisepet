@@ -4,6 +4,7 @@ import { buildConcernOpeningSuggestion, buildMemorySuggestion, buildObservationS
 import { decideWhetherAiGenerationIsNeeded } from "./response-planner.ts";
 import { classifyUserTurn, type TurnIntent } from "./turn-classifier.ts";
 import { evaluateCareHistorySaveWorthiness } from "../intelligence/care-history-policy.ts";
+import { planAskAnswerDepth } from "./ask-answer-economy.ts";
 
 export type AskOrchestratorResult = {
   aiResult: AskReasoningResult | null;
@@ -78,11 +79,19 @@ function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
   turn: ReturnType<typeof classifyUserTurn>;
 }): AskOrchestratorResult {
   const proposed = aiResult.proposedHistoryUpdate;
+  const answerDepth = aiResult.answerDepth || planAskAnswerDepth({
+    intent: turn.intent,
+    message,
+    minimumSafetyLevel: aiResult.safetyLevel,
+    responseMode: aiResult.responseMode,
+  });
   const hasMemoryApplicationAction = (aiResult.applicationActions || []).some((action) => action.kind.startsWith("memory."));
   const improvementSuggestion = concern && (turn.concernState === "improved" || turn.concernState === "resolved")
     ? buildResolutionSuggestion({ concern, message, petName })
     : null;
-  const modelSuggestion: PendingUpdateSuggestion | null = turn.intent !== "casual" && proposed.shouldOffer && proposed.details
+  const modelSuggestion: PendingUpdateSuggestion | null = turn.intent !== "casual" && proposed.shouldOffer
+    && proposed.details
+    && answerDepth.allowsAutomaticHistory
     ? {
         type: proposed.resolvesConcernId ? "concern_resolution" : "history",
         title: proposed.resolvesConcernId ? "Save this improvement" : "Save this update?",
@@ -105,12 +114,12 @@ function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
       : null);
   const suggestion = aiResult.responseMode === "grief_support"
     ? null
-    : candidateSuggestion?.type === "history" && !evaluateCareHistorySaveWorthiness({
+    : (candidateSuggestion?.type === "history" || candidateSuggestion?.type === "concern_opening") && (!answerDepth.allowsAutomaticHistory || !evaluateCareHistorySaveWorthiness({
       category: typeof candidateSuggestion.payload.category === "string" ? candidateSuggestion.payload.category : undefined,
       title: typeof candidateSuggestion.payload.title === "string" ? candidateSuggestion.payload.title : candidateSuggestion.title,
       details: candidateSuggestion.details,
       sourceMessage: message,
-    }).eligible ? null : candidateSuggestion;
+    }).eligible) ? null : candidateSuggestion;
   return {
     aiResult,
     answer: aiResult.answer,

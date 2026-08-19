@@ -104,6 +104,13 @@ export function deriveConversationTitle(question: string, petName: string) {
   if (/\b(scratch|scratching|itch|itchy)\b/.test(normalized)) return `Tracking ${cleanPetName}’s scratching`;
   if (/\b(food|diet|kibble|meal)\b/.test(normalized)) return `Changing ${cleanPetName}’s food`;
   if (/\b(dental|teeth|tooth|brushing)\b/.test(normalized)) return "Building a dental routine";
+  if (/\b(bites?|biting|nips?|nipping|aggression|aggressive)\b/.test(normalized)) return `Managing ${cleanPetName}'s biting`;
+  if (/\b(litter box|pee|peeing|urine|urinating)\b/.test(normalized)) return `${cleanPetName}'s litter box change`;
+  if (/\b(hide|hiding|withdrawn)\b/.test(normalized)) return `${cleanPetName} hiding more`;
+  if (/\b(vomit|vomiting|throwing up)\b/.test(normalized)) return `${cleanPetName}'s vomiting`;
+  if (/\b(limp|limping)\b/.test(normalized)) return `${cleanPetName}'s limping`;
+  if (/\b(appetite|not eating|won't eat)\b/.test(normalized)) return `${cleanPetName}'s appetite change`;
+  if (/\b(meow|meowing|vocal|vocalizing)\b/.test(normalized)) return `${cleanPetName}'s new vocal pattern`;
   if (/\b(routine|schedule|habit)\b/.test(normalized)) return `Building ${cleanPetName}’s care routine`;
   if (/\b(track|monitor|watch)\b/.test(normalized)) return `Tracking changes for ${cleanPetName}`;
 

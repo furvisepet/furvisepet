@@ -55,7 +55,7 @@ export function classifyUserTurn(message: string, options: { hasActiveConcern?: 
   else if (indicatesResolution && options.hasActiveConcern) intent = "resolution";
   else if (indicatesReturn) intent = "new_observation";
   else if (/\b(actually|correction|i meant|not what i said|that is wrong)\b/i.test(normalizedMessage)) intent = "correction";
-  else if (/\b(prefers?|likes?|dislikes?|favorite|favourite|will not eat|won't eat)\b/i.test(normalizedMessage)) intent = "preference";
+  else if (isPreferenceStatement(normalizedMessage)) intent = "preference";
   else if (/\b(vet brief|prepare for (the )?vet|appointment notes?|questions for (the )?vet)\b/i.test(normalizedMessage)) intent = "vet_preparation";
   else if (/\b(product|food brand|buy|shopping|shampoo|treat|supplement|toy)\b/i.test(normalizedMessage) && /\?|\b(which|should|can|is|are|recommend)\b/i.test(normalizedMessage)) intent = "product_question";
   else if (isLowValueAcknowledgement) intent = options.hasActiveConcern ? "status_update" : "casual";
@@ -65,6 +65,14 @@ export function classifyUserTurn(message: string, options: { hasActiveConcern?: 
   else if (/^(hi|hello|hey|good morning|good afternoon|good evening|how are you)\b/i.test(normalizedMessage)) intent = "casual";
 
   return { concernState, immediateEmergency, intent, normalizedMessage, isLowValueAcknowledgement, indicatesResolution, indicatesReturn };
+}
+
+function isPreferenceStatement(message: string) {
+  return /\b(?:i|we)\s+(?:prefer|dislike|like|want)\b/i.test(message)
+    || /\b(?:she|he|they|my (?:cat|dog|pet))\s+(?:prefers?|likes?|dislikes?)\b/i.test(message)
+    || /\b[A-Z][a-z]+\s+(?:prefers?|likes?|dislikes?)\b/.test(message)
+    || /\b(?:favorite|favourite)\b/i.test(message)
+    || /\b(?:will not|won't)\s+eat\b/i.test(message);
 }
 
 export function classifyActiveConcernMessage(message: string, hasActiveConcern = true): ActiveConcernMessageState {

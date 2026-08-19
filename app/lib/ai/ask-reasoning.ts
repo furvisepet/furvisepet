@@ -45,6 +45,7 @@ import { terminalOutcomeSupportedBySurface } from "../intelligence/recovery-gove
 import { modelApplicationActionJsonSchema, parseModelApplicationActions, type ModelApplicationAction } from "../application-actions/index.ts";
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
 import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
+import { applyAskAnswerEconomy, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
 
 export type AskContextSourceType =
   | "profile"
@@ -102,6 +103,7 @@ export type AskReasoningResult = {
   suggestedFollowUps: string[];
   applicationActions: ModelApplicationAction[];
   proposedHistoryUpdate: ProposedHistoryUpdate;
+  answerDepth: AskAnswerEconomyPlan;
   responseMode: AskResponseMode;
   model: string;
   messageUnderstanding: IntelligenceMessageUnderstanding;
@@ -297,7 +299,10 @@ const unifiedInstructions = [
   "Classify the newest currentMessage before using prior-turn or recently-resolved context. An explicit current report that a condition is present is current/active or recurrent evidence and must outrank an older recovery; never carry recoveryStatus forward from a prior turn.",
   "Set messageUnderstanding.recoveryStatus by meaning, not keywords. Use partial only when the condition remains present but is reduced or getting better. Use terminal only when the owner explicitly reports return to the pet's normal baseline, absence of the prior symptom, or that the problem ended. Use uncertain when the extent is unclear, and none when no recovery is reported. Set recoveryConfidence from the current message and supplied compatible lifecycle context. Independently extract recoveryEvidence: choose return_to_baseline, symptom_absent, or problem_ended only for terminal semantics; partial_improvement when the problem remains; uncertain when hedged or unclear; otherwise none. recoveryEvidence.surfaceText must be one exact contiguous fragment from the current message that supports that outcome, or null for none. Set targetConcept to the specific prior problem the evidence changes, using the supplied active episode topic when compatible, or null when no specific problem is supported. Its confidence must describe only that evidence.",
   "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording.",
-  "Put the immediate direct answer in answer. For a Level 3 response, put only genuinely useful grouped actions or monitoring points in answerSections; otherwise return an empty answerSections array. Do not duplicate the direct answer in the sections.",
+  "Treat the server-authored answerEconomy plan as authoritative. Depth is earned by the reasoning and action guidance needed, never by message length, owner emotion, pronoun count, or the amount of available history.",
+  "For depth 0, answer in one or two natural sentences. For depth 1, usually use 40-120 useful words and no headings. For depth 2, usually use 100-250 useful words with at most two short sections and two to four total bullets. For depth 3, usually use 200-450 useful words with at most four meaningful sections. Depth 4 is safety-led: include every action, escalation sign, and avoidance needed even when that exceeds other budgets.",
+  "Prefer direct answer, immediate useful action, then one important caveat. Use answerSections only for discrete actions or signs, never for decorative structure. Do not repeat the direct answer in sections or restate the same idea under multiple headings.",
+  "When answerEconomy.followUpDeltaOnly is true, respond to the newest detail instead of regenerating the earlier explanation. Briefly acknowledge owner emotion when present, then help; do not turn acknowledgement into a therapy paragraph.",
   "Never diagnose. Do not repeat a generic veterinary disclaimer in routine answers.",
   "For clearly casual small talk, mirror mild slang naturally, keep the answer short, and allow a light joke or an occasional single emoji when it fits. Do not invent monitoring, logging, care-plan, or veterinary advice when the content does not warrant it.",
   "For urgent medical signs, serious injury, poisoning, severe pain, grief, death, or significant distress, immediately suppress jokes, slang, emojis, and playful framing. Safety remains dominant.",
@@ -430,12 +435,18 @@ export function buildAskContext(input: BuildContextInput) {
       sex: readOptionalString(pet, "sex") || readOptionalString(pet, "gender"),
     }).instruction,
   }));
+  const answerEconomy = planAskAnswerDepth({
+    message: input.question,
+    minimumSafetyLevel,
+    recentConversation: input.conversationTurns,
+  });
 
   const promptContext = enforceAskPromptContextBudget({
       currentMessage: clean(input.question).slice(0, 1200),
       currentTimestamp: (input.now || new Date()).toISOString(),
       locale: input.locale || "en",
       minimumSafetyLevel,
+      answerEconomy,
       activeConcernMessageState: input.concernStateHint || "unclear",
       historicalSafetyRelevant,
       activeConcernTags: safety.activeConcernTags,
@@ -671,6 +682,21 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   if (profile && isUselessQuestionEcho(input.question, answerText, profile.name || "your pet")) {
     answerText = buildObservationAssessmentFallback(input.question, profile.name || "your pet");
   }
+  const answerDepth = planAskAnswerDepth({
+    message: input.question,
+    minimumSafetyLevel: parsed.safetyLevel,
+    responseMode: parsed.responseMode,
+    recentConversation: input.conversationTurns,
+  });
+  const economicalAnswer = applyAskAnswerEconomy({
+    summary: answerText,
+    sections: parsed.answerSections,
+    safetyNote: null,
+  }, answerDepth, { previousAssistantText });
+  answerText = economicalAnswer.summary;
+  parsed.answerSections = economicalAnswer.sections;
+  parsed.suggestedFollowUps = parsed.suggestedFollowUps.slice(0, answerDepth.maxFollowUps);
+  if (!answerDepth.allowsAutomaticHistory) parsed.proposedHistoryUpdate = emptyHistoryUpdate();
   assertNoInternalReasoningLeak(answerText, context.records);
   const petName = profile?.name || "Your pet";
   const title = input.concernStateHint === "improved" || input.concernStateHint === "resolved"
@@ -688,6 +714,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     suggestedFollowUps: parsed.suggestedFollowUps,
     applicationActions: parsed.applicationActions,
     proposedHistoryUpdate: parsed.proposedHistoryUpdate,
+    answerDepth,
     responseMode: parsed.responseMode,
     model: usedModel,
     messageUnderstanding: parsed.messageUnderstanding,
@@ -783,7 +810,7 @@ export async function generateStructuredFeatureResponse<T>({
   return response;
 }
 
-type ParsedUnifiedResponse = Omit<AskReasoningResult, "answer" | "referencedRecords" | "model"> & {
+type ParsedUnifiedResponse = Omit<AskReasoningResult, "answer" | "answerDepth" | "referencedRecords" | "model"> & {
   answer: string;
   answerSections: AskReasoningResult["answer"]["sections"];
 };
