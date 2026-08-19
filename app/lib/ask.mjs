@@ -364,7 +364,7 @@ export function parseAskResponse(value) {
   }
 
   const title = cleanText(draft.title);
-  const summary = cleanText(draft.summary);
+  const summary = cleanAnswerProse(draft.summary);
   if (!title || !summary || draft.sections.length > 6) return null;
 
   const sections = [];
@@ -380,7 +380,7 @@ export function parseAskResponse(value) {
       return null;
     }
     const heading = cleanText(section.heading);
-    const items = section.items.map(cleanText).filter(Boolean);
+    const items = section.items.map(cleanAnswerProse).filter(Boolean);
     if (heading && items.length) sections.push({ heading, items });
   }
 
@@ -388,7 +388,7 @@ export function parseAskResponse(value) {
     title,
     summary,
     sections,
-    safetyNote: draft.safetyNote ? cleanText(draft.safetyNote) : null,
+    safetyNote: draft.safetyNote ? cleanAnswerProse(draft.safetyNote) : null,
   };
 }
 
@@ -765,4 +765,41 @@ function cleanText(value) {
     .replace(/^\s*[-+]\s+/gm, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function cleanAnswerProse(value) {
+  const raw = String(value || "");
+  const markers = answerListMarkers(raw);
+  if (markers.length < 2) return cleanText(raw).replace(/^\s*(?:[-+•]|\d+[.)])\s+/, "");
+
+  const prefix = cleanText(raw.slice(0, markers[0].index)).replace(/[.:;,-]+$/, "");
+  const items = markers.map((marker, index) => cleanText(raw
+    .slice(marker.index + marker.text.length, index + 1 < markers.length ? markers[index + 1].index : raw.length))
+    .replace(/[.;]+$/, ""))
+    .filter(Boolean);
+  if (items.length < 2) return cleanText(raw);
+  const lowered = items.map((item) => /^[A-Z]{2,}\b/.test(item) ? item : item.charAt(0).toLowerCase() + item.slice(1));
+  const list = lowered.length === 2
+    ? `${lowered[0]} and ${lowered[1]}`
+    : `${lowered.slice(0, -1).join("; ")}; and ${lowered.at(-1)}`;
+  return `${prefix || "Useful next steps"}: ${list}.`;
+}
+
+function answerListMarkers(value) {
+  const fromMatch = (match) => {
+    const leadingLength = /^\s/.test(match[0]) ? match[0].search(/[-+•\d]/) : 0;
+    return { index: (match.index || 0) + leadingLength, text: match[0].slice(leadingLength) };
+  };
+  const strong = [...value.matchAll(/(?:^|\s)(?:•|\d+[.)])\s+/g)].map(fromMatch);
+  const lineBullets = [...value.matchAll(/(?:^|\n)\s*[-+]\s+/g)].map(fromMatch);
+  const inlineStart = /:\s*[-+]\s+/.exec(value);
+  const inlineBullets = inlineStart
+    ? [...value.slice((inlineStart.index || 0) + 1).matchAll(/(?:^|\s)[-+]\s+/g)].map((match) => {
+      const marker = fromMatch(match);
+      return { ...marker, index: marker.index + (inlineStart.index || 0) + 1 };
+    })
+    : [];
+  return [...strong, ...lineBullets, ...inlineBullets]
+    .sort((left, right) => left.index - right.index)
+    .filter((marker, index, all) => index === 0 || marker.index !== all[index - 1].index);
 }

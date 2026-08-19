@@ -253,11 +253,87 @@ export function getPetReferenceGuidance({
 }
 
 export function removeUnsupportedGenderedPronouns(value: string, petName: string) {
-  return value
-    .replace(/\b(?:her|his) own\b/gi, `${petName}'s own`)
-    .replace(/\b(?:herself|himself)\b/gi, petName)
-    .replace(/\b(?:hers|his)\b/gi, `${petName}'s`)
-    .replace(/\b(?:she|he|her|him)\b/gi, petName);
+  const name = petName.trim() || "your pet";
+  const possessive = possessiveName(name);
+  return String(value || "")
+    .replace(/\b(?:herself|himself)\b/gi, name)
+    .replace(/\b(?:she|he)\b/gi, name)
+    .replace(new RegExp(`\\b(${objectPronounGovernors})\\s+(?:her|him)\\b`, "gi"), `$1 ${name}`)
+    .replace(/\bher\b(?=\s+[\p{L}][\p{L}'’-]*)/giu, possessive)
+    .replace(/\bhis\b(?=\s+[\p{L}][\p{L}'’-]*)/giu, possessive)
+    .replace(/\b(?:hers|his)\b/gi, possessive)
+    .replace(/\b(?:her|him)\b/gi, name);
+}
+
+export function normalizePetVisibleProse(value: string, pet: {
+  name: string;
+  pronouns?: string | null;
+  sex?: string | null;
+  species?: string | null;
+}) {
+  const name = pet.name.trim() || "your pet";
+  const reference = getPetReferenceGuidance({ ...pet, name, species: pet.species || null });
+  if (!reference.allowsGenderedPronouns) return removeUnsupportedGenderedPronouns(value, name);
+
+  const pronoun = petPronounSet(pet.pronouns, pet.sex);
+  const escapedName = escapeRegExp(name);
+  let prose = String(value || "");
+
+  // Repair only high-confidence cases where a possessive form occupies an object
+  // or finite-verb slot. Valid possessives and contractions are handled separately.
+  prose = prose
+    .replace(new RegExp(`\\b(${objectPronounGovernors})\\s+(${escapedName})['’]s\\b`, "gi"), "$1 $2")
+    .replace(new RegExp(`\\b(${escapedName})['’]s\\s+(${finitePetVerbs})\\b`, "gi"), "$1 $2")
+    .replace(new RegExp(`\\b([\\p{L}]+(?:ing|ed))\\s+(${escapedName})['’]s(?=\\s+(?:a|an|around|away|closely|space|time)\\b)`, "giu"), "$1 $2");
+
+  if (!pronoun) return prose;
+
+  // A name followed by a progressive verb is a contraction ("Mani's getting"),
+  // not a possessive. Keep the grammar while reducing repeated name use.
+  prose = prose.replace(
+    new RegExp(`\\b${escapedName}['’]s\\s+(?=(?:being|becoming|doing|feeling|getting|going|having|looking|seeming|showing|starting|trying)\\b)`, "gi"),
+    (_match, offset: number) => `${sentenceAwarePronoun(pronoun.subject, prose, offset)}'s `,
+  );
+  prose = prose.replace(
+    new RegExp(`\\b${escapedName}['’]s\\b`, "gi"),
+    (_match, offset: number) => sentenceAwarePronoun(pronoun.possessive, prose, offset),
+  );
+  prose = prose.replace(
+    new RegExp(`\\b(${pronoun.possessive})\\s+([a-z]+ing)\\s+(?:threshold|limit)\\b`, "gi"),
+    "$1 tolerance for $2",
+  );
+  return prose;
+}
+
+const objectPronounGovernors = "allow|allowed|ask|asked|call|called|feed|fed|follow|followed|give|gave|help|helped|hold|held|leave|left|let|offer|offered|pet|petted|reward|rewarded|take|took|tell|told|touch|touched|watch|watched|with|for|to";
+const finitePetVerbs = "act|avoid|bite|choose|continue|drink|eat|feel|follow|initiate|keep|like|need|prefer|seem|show|sit|sleep|start|stay|stop|try|use|want";
+
+function petPronounSet(pronouns?: string | null, sex?: string | null) {
+  const explicitPronouns = pronouns?.trim().toLowerCase() || "";
+  const explicitSex = sex?.trim().toLowerCase() || "";
+  if (/\bshe\s*\/\s*her\b/.test(explicitPronouns) || /^(female|f)$/.test(explicitSex)) {
+    return { subject: "she", object: "her", possessive: "her" };
+  }
+  if (/\bhe\s*\/\s*him\b/.test(explicitPronouns) || /^(male|m)$/.test(explicitSex)) {
+    return { subject: "he", object: "him", possessive: "his" };
+  }
+  if (/\bthey\s*\/\s*them\b/.test(explicitPronouns)) {
+    return { subject: "they", object: "them", possessive: "their" };
+  }
+  return null;
+}
+
+function possessiveName(name: string) {
+  return `${name.replace(/[’']s$/i, "")}’s`;
+}
+
+function sentenceAwarePronoun(value: string, prose: string, offset: number) {
+  const before = prose.slice(0, offset).trimEnd();
+  return !before || /[.!?]$/.test(before) ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 const allConcernTags = concernPatterns.map(({ tag }) => tag);

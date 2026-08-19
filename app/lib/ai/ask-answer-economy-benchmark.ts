@@ -1,4 +1,5 @@
 import { evaluateCareHistorySaveWorthiness } from "../intelligence/care-history-policy.ts";
+import { normalizePetVisibleProse } from "../ask-safety-context.ts";
 import {
   applyAskAnswerEconomy,
   measureAskAnswerEconomy,
@@ -89,6 +90,32 @@ const bases: ReviewBase[] = [
     safety: "normal", expectedDepth: 2, baselineSuggestion: true, requiredTerms: ["detail"],
   },
   {
+    category: "practical_personalization",
+    messages: [
+      "She keeps biting me when I pet her for more than a minute. What should I do?",
+      "I love her, but she gets overwhelmed by touch very quickly.",
+      "She asks for affection and then turns around and bites.",
+      "I feel guilty because I get frustrated when she nips me.",
+      "How can I respect her limits without ignoring her?",
+    ],
+    previousUser: "She often asks to be petted.",
+    previousAssistant: "Her tolerance can vary with timing and stimulation.",
+    safety: "normal", expectedDepth: 2, baselineSuggestion: false, requiredTerms: ["stop", "signal"],
+  },
+  {
+    category: "pseudo_list_follow_up",
+    messages: [
+      "She only does it while I am working at my desk.",
+      "It mainly happens while I am on a call.",
+      "She settles once I stop typing.",
+      "It is only during my morning work block.",
+      "She does not interrupt me anywhere else.",
+    ],
+    previousUser: "Why does she interrupt me for attention?",
+    previousAssistant: "She may have learned that interrupting reliably gets a response.",
+    safety: "normal", expectedDepth: 2, baselineSuggestion: false, requiredTerms: ["detail"],
+  },
+  {
     category: "complex_medication",
     messages: [
       "She started medication and now won't eat or drink much.",
@@ -155,9 +182,10 @@ export function measureAskAnswerEconomyBenchmark(cases = buildAskAnswerEconomyRe
 function evaluateReviewCase(item: AskAnswerEconomyReviewCase) {
   const conversation = [{ role: "user" as const, text: item.previousUser }, { role: "furvise" as const, text: item.previousAssistant }];
   const plan = planAskAnswerDepth({ message: item.message, minimumSafetyLevel: item.safety, recentConversation: conversation });
-  const after = applyAskAnswerEconomy(item.candidate, plan, { previousAssistantText: item.previousAssistant });
-  const beforeMetrics = measureAskAnswerEconomy(item.before);
-  const afterMetrics = measureAskAnswerEconomy(after);
+  const personalized = personalizeFixture(item.candidate);
+  const after = applyAskAnswerEconomy(personalized, plan, { previousAssistantText: item.previousAssistant });
+  const beforeMetrics = measureAskAnswerEconomy(item.before, { petName: "Mani" });
+  const afterMetrics = measureAskAnswerEconomy(after, { petName: "Mani" });
   const rendered = [after.summary, ...after.sections.flatMap((section) => section.items)].join(" ").toLowerCase();
   const historyDecision = evaluateCareHistorySaveWorthiness({
     domain: item.category.includes("medication") ? "medication" : item.category.includes("symptom") ? "health" : "behavior",
@@ -176,6 +204,9 @@ function evaluateReviewCase(item: AskAnswerEconomyReviewCase) {
     directness: !/^(?:here['’]?s what|the key thing is|it['’]?s worth keeping an eye on)/i.test(after.summary),
     sufficientContext: afterMetrics.words >= (plan.depth === 0 ? 2 : plan.followUpDeltaOnly ? 8 : plan.depth === 1 ? 20 : plan.depth === 2 ? 40 : plan.depth === 3 ? 80 : 80),
     unnecessaryRepetition: afterMetrics.repeatedSemanticContent <= 1,
+    sectionNovelty: plan.depth === 4 || (afterMetrics.sectionNoveltyRate >= 0.8 && afterMetrics.directSectionSemanticOverlap < 0.68),
+    coherentPersonalization: afterMetrics.malformedPersonalizationCount === 0 && afterMetrics.petNameUseCount <= 4,
+    semanticProse: afterMetrics.pseudoListCount === 0,
     actionableValue: plan.depth < 2 || /\b(?:avoid|call|contact|give|keep|note|offer|stop|track|use|watch)\b/i.test(rendered),
     voice: !/\b(?:as an ai|please be advised|leverage|utilize|workflow|system)\b/i.test(rendered),
     safetyCompleteness,
@@ -198,6 +229,12 @@ function aggregate(items: Array<ReturnType<typeof measureAskAnswerEconomy> & { s
     averageBullets: round(average(items.map((item) => item.bullets))),
     careHistorySuggestionRate: round(items.filter((item) => item.suggestion).length / items.length),
     zeroHeadingPercentage: round(items.filter((item) => item.headings === 0).length / items.length),
+    averageDirectSectionOverlap: round(average(items.map((item) => item.directSectionSemanticOverlap))),
+    repeatedRecommendationRate: round(average(items.map((item) => item.repeatedRecommendationRate))),
+    malformedPersonalizationCount: items.reduce((sum, item) => sum + item.malformedPersonalizationCount, 0),
+    averagePetNameUses: round(average(items.map((item) => item.petNameUseCount))),
+    pseudoListCount: items.reduce((sum, item) => sum + item.pseudoListCount, 0),
+    sectionNoveltyRate: round(average(items.map((item) => item.sectionNoveltyRate))),
   };
 }
 
@@ -209,6 +246,8 @@ function draftFor(category: string): AskEconomyAnswer {
   if (category === "practical_behavior_emotion") return { summary: "That sounds exhausting, especially when she asks for closeness and then bites. Treat the bite as a signal that contact went past her limit, not as something to punish. Give her more control, keep petting brief, and stop at the first warning sign.", sections: [{ heading: "What to do now", items: ["Let her initiate contact and stop after a few seconds.", "Use play or a food puzzle for attention that does not involve touch.", "Pause immediately when her tail flicks or her head turns toward your hand."] }, { heading: "What to avoid", items: ["Do not punish or hold her in place.", "Do not keep petting to test whether she will bite.", "Do not use your hands as play targets."] }, { heading: "What to watch", items: ["Notice whether the warning signs happen in the same places.", "Track whether the behavior is worsening.", "Arrange a vet check if touch seems painful."] }], safetyNote: null };
   if (category === "practical_symptom") return { summary: "A new physical change is worth monitoring today. Keep activity gentle, note when it happens and whether it is getting worse, and contact the vet if it continues or affects eating, drinking, breathing, or normal movement.", sections: [{ heading: "Check now", items: ["Look for swelling, pain, or repeated episodes.", "Note appetite, water intake, and energy.", "Keep a short timeline for the vet."] }, { heading: "Call the vet", items: ["The change persists or worsens.", "She cannot use the limb normally.", "She stops eating or seems very unwell."] }, { heading: "Avoid", items: ["Do not give human medication.", "Do not force exercise.", "Do not repeatedly press a painful area."] }], safetyNote: null };
   if (category === "follow_up_delta") return { summary: "Petting can become overstimulating. Keep contact brief, watch for tail flicks or skin twitching, and stop before she turns toward your hand. That new detail helps narrow the pattern: compare what happens immediately before it and adjust that specific trigger.", sections: [{ heading: "What to do", items: ["Keep petting sessions short.", "Stop at the first warning sign.", "Write down when the new detail appears."] }, { heading: "What to watch", items: ["Look for the same timing tomorrow.", "Notice whether appetite and energy remain normal.", "Call the vet if the pattern becomes painful or sudden."] }], safetyNote: null };
+  if (category === "practical_personalization") return { summary: "Mani's petting threshold is short, so stop before she gets wound up and let Mani's choose whether she wants more contact. Watch for the first signal instead of waiting for a bite.", sections: [{ heading: "What to do", items: ["Keep sessions short and end petting before she reaches her limit.", "Give Mani's space once she turns toward your hand."] }, { heading: "Signals", items: ["Watch for tail flicking or skin twitching."] }], safetyNote: null };
+  if (category === "pseudo_list_follow_up") return { summary: "That new detail points to a work-time habit. A few things can help: - Give Mani's a short play session first. - Set up a nearby resting spot. - Reward calm behavior there.", sections: [], safetyNote: null };
   if (category === "complex_medication") return { summary: "A change after starting medication deserves a same-day call to the prescribing vet, especially when appetite, drinking, vomiting, or energy also changed. Do not stop or repeat a dose unless the clinic tells you to. Write down each dose, meal, symptom, and time so the vet can compare the sequence.", sections: [{ heading: "Call with", items: ["The medication name, dose, and last dose time.", "When appetite or drinking changed.", "How often vomiting or diarrhea occurred."] }, { heading: "Until you hear back", items: ["Offer water and the usual tolerated food without forcing it.", "Keep her quiet and observe breathing and responsiveness.", "Avoid adding supplements or human medication."] }, { heading: "Go urgently if", items: ["She cannot keep water down.", "She becomes weak, collapses, or has trouble breathing.", "You suspect an overdose or wrong medication."] }], safetyNote: null };
   if (category === "complex_vet_preparation") return { summary: "Build the vet discussion around a short timeline: what changed first, what followed, what stayed normal, and what you already tried. Include dates, frequency, medication or diet changes, and two or three examples that show the pattern without turning the note into a transcript.", sections: [{ heading: "Timeline", items: ["List the first noticeable change and date.", "Add worsening, improvement, and recurrence points.", "Note what remained normal."] }, { heading: "Bring", items: ["Medication and food names.", "Photos or video of intermittent signs.", "Recent appetite, weight, and litter details."] }, { heading: "Ask the vet", items: ["Which causes need ruling out first?", "What should be monitored at home?", "What change should trigger an urgent return?"] }], safetyNote: null };
   return { summary: "Contact an emergency veterinarian now and start traveling if you can do so safely. Keep her quiet, minimize handling, and call the clinic on the way so they can prepare. Avoid food, water, medication, or home remedies unless a veterinary professional specifically directs them.", sections: [{ heading: "Do now", items: ["Call the nearest emergency clinic.", "Move her with as little stress as possible.", "Bring any package or exposure information."] }, { heading: "Avoid", items: ["Do not wait for another symptom.", "Do not induce vomiting unless directed.", "Do not give human medication."] }, { heading: "Tell the clinic", items: ["What happened and when.", "Current breathing and responsiveness.", "Any possible toxin, injury, or medication exposure."] }], safetyNote: null };
@@ -227,6 +266,19 @@ function inflateBaselineDraft(draft: AskEconomyAnswer): AskEconomyAnswer {
     ...draft,
     summary: `${draft.summary} The key thing is to keep the full situation in mind and continue watching for changes so you can decide what to do next.`,
     sections: [...draft.sections.map((section) => ({ ...section, items: [...section.items, ...section.items.slice(0, 2)] })), decorative],
+  };
+}
+
+function personalizeFixture(answer: AskEconomyAnswer): AskEconomyAnswer {
+  const pet = { name: "Mani", sex: "female", species: "cat" };
+  return {
+    ...answer,
+    summary: normalizePetVisibleProse(answer.summary, pet),
+    sections: answer.sections.map((section) => ({
+      heading: normalizePetVisibleProse(section.heading, pet),
+      items: section.items.map((item) => normalizePetVisibleProse(item, pet)),
+    })),
+    safetyNote: answer.safetyNote ? normalizePetVisibleProse(answer.safetyNote, pet) : null,
   };
 }
 
