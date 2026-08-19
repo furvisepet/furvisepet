@@ -48,13 +48,13 @@ test("Ask conversation contract supports every adaptive answer type", () => {
     "clarification",
   );
 });
-test("Ask conversation contract rejects model-selected actions outside the deterministic allowlist", () => {
+test("Ask conversation contract drops invalid auxiliary actions without dropping the answer", () => {
   const response = buildAskConversationResponse(baseResponse, { intent: "vet_prep" });
   assert.ok(response);
-  assert.equal(parseAskConversationResponse({ ...response, actions: ["delete_history"] }), null);
-  assert.equal(parseAskConversationResponse({ ...response, urgency: "maybe" }), null);
+  assert.deepEqual(parseAskConversationResponse({ ...response, actions: ["delete_history"] }).actions, []);
+  assert.equal(parseAskConversationResponse({ ...response, urgency: "maybe" }).urgency, "routine");
   assert.ok(parseAskConversationResponse({ ...response, suggestedQuestions: ["1", "2", "3", "4"] }));
-  assert.equal(parseAskConversationResponse({ ...response, suggestedQuestions: ["1", "2", "3", "4", "5"] }), null);
+  assert.deepEqual(parseAskConversationResponse({ ...response, suggestedQuestions: ["1", "2", "3", "4", "5"] }).suggestedQuestions, []);
 });
 
 test("Ask workspace keeps one composer, chronological thread, compact pet selection, and one general disclaimer", () => {

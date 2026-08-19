@@ -53,10 +53,10 @@ test("semantic persistence keeps the exact grounded excerpt while the review pro
   assert.doesNotMatch(suggestion.details, /^(?:and|but|so|then)\b/i);
 });
 test("Ask uses four truthful care-history states and never turns an auxiliary failure into answer failure", () => {
-  assert.equal(getAskCareHistoryState({ carePersistence: { status: "skipped", careEntryIds: [] } }), "none");
-  assert.equal(getAskCareHistoryState({ suggestion: { status: "pending" } }), "suggestion_available");
-  assert.equal(getAskCareHistoryState({ carePersistence: { status: "persisted", careEntryIds: ["entry"] } }), "saved");
-  assert.equal(getAskCareHistoryState({ carePersistence: { status: "failed", careEntryIds: [] }, suggestion: { status: "pending" } }), "save_failed");
+  assert.equal(getAskCareHistoryState({ carePersistence: { status: "skipped", careEntryIds: [] } }), "NO_HISTORY_VALUE");
+  assert.equal(getAskCareHistoryState({ suggestion: { status: "pending" } }), "SUGGESTION_AVAILABLE");
+  assert.equal(getAskCareHistoryState({ carePersistence: { status: "persisted", careEntryIds: ["entry"] } }), "SAVED");
+  assert.equal(getAskCareHistoryState({ carePersistence: { status: "failed", careEntryIds: [] }, suggestion: { status: "pending" } }), "SAVE_FAILED");
   assert.match(askRoute, /historyReviewRequired \? \[\] : intelligenceResult\.acceptedSemanticEvents/);
   assert.match(askRoute, /automaticCareFailure[\s\S]*persistPendingSuggestion/);
   assert.match(askRoute, /HISTORY_SUGGESTION_PERSISTENCE_FAILED/);

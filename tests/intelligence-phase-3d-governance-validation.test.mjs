@@ -99,7 +99,7 @@ test("emergency safety floors retain unconditional immediate escalation", () => 
 test("unrecoverable empty answer fails validation and route releases credit", () => {
   assert.equal(validateGeneratedAnswer(reasoning("I saved that."), context("save"), "routine").valid, false);
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-  assert.match(route, /if \(creditReserved\) await safeReleaseAiCredit/);
+  assert.match(route, /if \(creditReserved\) \{[\s\S]{0,260}safeReleaseAiCredit/);
 });
 test("governance metadata and service-only diagnostics are persisted securely", () => {
   const sql = readFileSync(new URL("../supabase/migrations/20260728110000_add_intelligence_governance.sql", import.meta.url), "utf8");

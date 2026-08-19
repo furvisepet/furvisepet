@@ -98,7 +98,12 @@ test("Ask status uses the caller-scoped database allowance projection", async ()
 });
 
 test("multiple provider calls in one canonical Ask reserve and complete one allowance unit", async () => {
-  const supabase = creditClient([reservation("reserved", 7), reservation("completed", 7), allowanceRow(1, 7)]);
+  const supabase = creditClient([
+    reservation("reserved", 7),
+    disposition("reserved", "complete", 7),
+    reservation("completed", 7),
+    allowanceRow(1, 7),
+  ]);
   let providerCalls = 0;
   const result = await runWithAiCredit({
     feature: "ask",
@@ -111,11 +116,15 @@ test("multiple provider calls in one canonical Ask reserve and complete one allo
   });
   assert.equal(providerCalls, 2);
   assert.equal(result.creditsUsed, 1);
-  assert.deepEqual(supabase.calls.map((call) => call.name), ["reserve_ai_credit", "complete_ai_credit", "get_my_ask_allowance_status"]);
+  assert.deepEqual(supabase.calls.map((call) => call.name), ["reserve_ai_credit", "set_ai_credit_disposition", "complete_ai_credit", "get_my_ask_allowance_status"]);
 });
 
 test("provider failure releases once and completed replay consumes no new Ask", async () => {
-  const failed = creditClient([reservation("reserved", 7), reservation("released", 8)]);
+  const failed = creditClient([
+    reservation("reserved", 7),
+    disposition("reserved", "release", 8),
+    disposition("released", "release", 8),
+  ]);
   await assert.rejects(runWithAiCredit({
     feature: "ask",
     generate: async () => { throw new Error("provider failed"); },
@@ -125,7 +134,7 @@ test("provider failure releases once and completed replay consumes no new Ask", 
     supabase: failed,
     userId: "10000000-0000-4000-8000-000000000001",
   }), /provider failed/);
-  assert.deepEqual(failed.calls.map((call) => call.name), ["reserve_ai_credit", "release_ai_credit"]);
+  assert.deepEqual(failed.calls.map((call) => call.name), ["reserve_ai_credit", "set_ai_credit_disposition", "reconcile_ai_credit"]);
 
   const replay = creditClient([reservation("completed", 4)]);
   let replayProviderCalls = 0;
@@ -217,6 +226,10 @@ function creditClient(rows) {
 
 function reservation(status, remaining) {
   return { credits_used: status === "released" ? 0 : 1, event_status: status, remaining, reservation_status: status };
+}
+
+function disposition(status, settlementDisposition, remaining) {
+  return { ...reservation(status, remaining), settlement_disposition: settlementDisposition };
 }
 
 function allowanceRow(used, remaining) {

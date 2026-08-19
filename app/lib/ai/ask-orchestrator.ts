@@ -28,6 +28,24 @@ export async function orchestrateAskTurn({
   message: string;
   petName: string;
 }): Promise<AskOrchestratorResult> {
+  const providerIndependent = planProviderIndependentAskTurn({ concerns, message, petName });
+  if (providerIndependent) return providerIndependent;
+  const concern = getCurrentConcern(concerns);
+  const turn = classifyUserTurn(message, { hasActiveConcern: Boolean(concern) });
+
+  const aiResult = await generate({ ...generationInput, concernStateHint: turn.concernState });
+  return finishGeneratedTurn({ aiResult, concern, message, petName, turn });
+}
+
+export function planProviderIndependentAskTurn({
+  concerns,
+  message,
+  petName,
+}: {
+  concerns: PetConcern[];
+  message: string;
+  petName: string;
+}): AskOrchestratorResult | null {
   const concern = getCurrentConcern(concerns);
   const turn = classifyUserTurn(message, { hasActiveConcern: Boolean(concern) });
   const deterministic = decideWhetherAiGenerationIsNeeded({ concern, petName, turn });
@@ -49,8 +67,16 @@ export async function orchestrateAskTurn({
       suggestion: deterministic.suggestion,
     };
   }
+  return null;
+}
 
-  const aiResult = await generate({ ...generationInput, concernStateHint: turn.concernState });
+function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
+  aiResult: AskReasoningResult;
+  concern: PetConcern | null;
+  message: string;
+  petName: string;
+  turn: ReturnType<typeof classifyUserTurn>;
+}): AskOrchestratorResult {
   const proposed = aiResult.proposedHistoryUpdate;
   const hasMemoryApplicationAction = (aiResult.applicationActions || []).some((action) => action.kind.startsWith("memory."));
   const improvementSuggestion = concern && (turn.concernState === "improved" || turn.concernState === "resolved")

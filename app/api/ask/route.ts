@@ -8,7 +8,6 @@ import {
 import {
   buildAskConversationResponse,
   buildAskSaveMetadata,
-  parseAskResponse,
 } from "../../lib/ask.mjs";
 import { ASK_REQUEST_KEYS } from "../../lib/ask-request-contract";
 import {
@@ -18,22 +17,25 @@ import {
   type AskContextRecord,
   type AskProviderEvent,
 } from "../../lib/ai/ask-reasoning";
-import { deriveAskCreditAttemptId } from "../../lib/ai/ask-credit-attempt";
-import { orchestrateAskTurn } from "../../lib/ai/ask-orchestrator";
+import { AskTurnLifecycle, deriveAskAttemptId, runOptionalAskSubsystem, type AskSubsystem, type AskTurnTrace } from "../../lib/ai/ask-turn-model";
+import { orchestrateAskTurn, planProviderIndependentAskTurn } from "../../lib/ai/ask-orchestrator";
+import { planDeterministicAskCommand } from "../../lib/ai/ask-command-router";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
-import { AiAdmissionError, aiAdmissionErrorResponse } from "../../lib/ai/usage-guard/errors";
+import { AiAdmissionError } from "../../lib/ai/usage-guard/errors";
 import { buildSemanticEventReviewSuggestion, type PendingUpdateSuggestion, type PetConcern } from "../../lib/ai/concern-engine";
 import {
   AiCreditLedgerError,
   buildDevelopmentAiCreditFallback,
   completeAiCredit,
-  getAiCreditEventState,
+  getAiCreditEventsForLogicalRequest,
   getAiCreditLedgerDiagnostic,
   getRemainingAiCredits,
   hashAiCreditPayload,
+  isAiCreditIntegrityError,
   isMissingAiUsageTableError,
-  releaseAiCredit,
+  reconcileAiCredit,
   reserveAiCredit,
+  setAiCreditDisposition,
   type AiCreditStatus,
 } from "../../lib/ai/usage-ledger";
 import type {
@@ -45,6 +47,7 @@ import { FURVISE_SAFETY_LINE } from "../../lib/safety-copy";
 import {
   FURVISE_ANSWER_UNAVAILABLE_MESSAGE,
   FURVISE_ASK_UNAVAILABLE_MESSAGE,
+  buildFurviseClarification,
 } from "../../lib/furvise-voice";
 import {
   getPaidGateMessage,
@@ -82,8 +85,7 @@ import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/e
 import type { ProposedSemanticFrame } from "../../lib/intelligence/semantic-frame/types";
 import {
   resolveAuthoritativeTurnSubject,
-  resolveClearSelectedPetContinuation,
-  resolveExplicitSelectedPetSubject,
+  resolveDeterministicTurnSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
 import {
   persistAskV2Phase3LowRisk,
@@ -116,12 +118,13 @@ import {
 } from "../../lib/ai/pending-lifecycle.ts";
 import { getPetLifecycleStatus } from "../../lib/pet-lifecycle.ts";
 import { isExplicitCareHistorySaveRequest } from "../../lib/intelligence/care-history-policy.ts";
+import { publicAskFailureCode, type AskInternalFailure } from "../../lib/ask-errors.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
 const askGuardOperationTtlSeconds = 90 * 24 * 60 * 60;
 
-type AskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "IDEMPOTENCY_CONFLICT" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
+type InternalAskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "IDEMPOTENCY_CONFLICT" | "REQUEST_IN_PROGRESS" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
 
 type ConversationMessage =
   | { id: string; role: "user"; text: string }
@@ -134,7 +137,7 @@ type PreparedAskRequest = {
 
 class AskApiError extends Error {
   constructor(
-    public code: AskFailureCode,
+    public code: InternalAskFailureCode,
     message: string,
     public status: number,
     public stage: string,
@@ -181,19 +184,17 @@ export async function POST(request: Request) {
   const body = rawBody as {
     conversationId?: unknown;
     petId?: unknown;
-    previousResponse?: unknown;
     message?: unknown;
-    question?: unknown;
-    requestId?: unknown;
+    logicalTurnId?: unknown;
     locale?: unknown;
   } | null;
-  const question = typeof body?.message === "string" ? body.message.trim() : typeof body?.question === "string" ? body.question.trim() : "";
+  const question = typeof body?.message === "string" ? body.message.trim() : "";
   const petId = typeof body?.petId === "string" ? body.petId : "";
   const conversationId = typeof body?.conversationId === "string" ? body.conversationId : "";
-  const requestId = typeof body?.requestId === "string" && isUuid(body.requestId) ? body.requestId : "";
-  const previousResponse = body?.previousResponse ? parseAskResponse(body.previousResponse) : null;
+  const logicalTurnId = typeof body?.logicalTurnId === "string" && isUuid(body.logicalTurnId) ? body.logicalTurnId : "";
+  const requestId = logicalTurnId;
   const locale = resolveAskLocale(body?.locale, request.headers.get("accept-language"));
-  const aiCreditPayload = { conversationId, locale, petId, previousResponse, question };
+  const aiCreditPayload = { conversationId, locale, petId, question };
   const aiCreditPayloadHash = hashAiCreditPayload("ask", aiCreditPayload);
   logAskStage("authentication succeeded", { requestId });
 
@@ -204,6 +205,8 @@ export async function POST(request: Request) {
   const currentLoss = classifyCurrentPetLoss(question);
   const immediateEmergency = currentLoss === "confirmed_current" ? null : detectImmediateAskEmergency(question);
   if (immediateEmergency) {
+    const emergencyTurn = new AskTurnLifecycle(logicalTurnId, deriveAskAttemptId(logicalTurnId, "provider-independent-emergency"));
+    emergencyTurn.transition("VALIDATED").transition("ROUTED").route("emergency", "deterministic");
     const response = buildAskConversationResponse(buildImmediateEmergencyGuidance(immediateEmergency), {
       intent: "general_pet_question",
       missingUsefulDetails: [],
@@ -212,10 +215,13 @@ export async function POST(request: Request) {
     });
     if (!response) return askFailure("UNKNOWN_ERROR", "Contact an emergency veterinarian or clinic now.", 500, {}, "emergency_preflight");
     logAskStage("provider-independent emergency preflight handled", { emergencyTags: immediateEmergency.tags, requestId });
+    emergencyTurn.transition("ANSWER_VALIDATED").transition("COMPLETED");
+    emitAskTurnTrace(emergencyTurn.snapshot(), userId, petId);
     return standaloneEmergencyResponse({
       contextUsed: { petName: null, usedSources: [] },
       requestId,
       response,
+      turn: emergencyTurn.snapshot(),
     });
   }
 
@@ -247,9 +253,6 @@ export async function POST(request: Request) {
   }
   logAskStage("pet ownership succeeded", { requestId });
 
-  if (body?.previousResponse && !previousResponse) {
-    return askFailure("INVALID_MESSAGE", "The follow-up context is no longer available. Ask a new question.", 400, {}, "request_validation");
-  }
   logAskStage("request validation succeeded", { requestId });
   let persistedBeforeClaim: PersistedRequestState | null = null;
   try {
@@ -257,40 +260,58 @@ export async function POST(request: Request) {
   } catch (error) {
     return handleAskApiError(error, requestId);
   }
-  if (persistedBeforeClaim && persistedBeforeClaim.userMessage.user_text !== question) {
-    return askFailure("IDEMPOTENCY_CONFLICT", "That request identifier was already used for a different question.", 409, {}, "idempotency_conflict");
+  let idempotency: Awaited<ReturnType<typeof claimIdempotentOperation>>;
+  try {
+    idempotency = await claimIdempotentOperation({
+      candidateKey: requestId,
+      leaseSeconds: 180,
+      operationType: "ask.submit.persisted_answer_v2",
+      payload: aiCreditPayload,
+      preserveResponseOnCompletionFailure: true,
+      reconcilePersistedReplay: async ({ claimOutcome }) => {
+        const persisted = persistedBeforeClaim || await loadPersistedRequest({ petId, requestId, supabase, userId });
+        if (!persisted?.assistantMessage?.response_data) {
+          if (claimOutcome === "completed") {
+            throw new AskApiError("DATABASE_ERROR", "Furvise could not load this answer.", 503, "request_lookup");
+          }
+          return null;
+        }
+        assertPersistedReplayIdentity({ conversationId, question, state: persisted });
+        const replayUsage = await reconcilePersistedAskCredit({
+          logicalRequestId: logicalTurnId,
+          payloadHash: aiCreditPayloadHash,
+          supabase,
+          usage,
+          userId,
+        });
+        logAskStage("completed response replayed after canonical identity validation", { requestId });
+        return completedResponseFromPersisted(persisted, replayUsage);
+      },
+      request,
+      retention: "financial",
+      supabase,
+      userId,
+    });
+  } catch (error) {
+    return handleAskApiError(error, requestId);
   }
-  if (persistedBeforeClaim?.assistantMessage?.response_data) {
-    try {
-      const replayUsage = await reconcilePersistedAskCredit({ payloadHash: aiCreditPayloadHash, requestId, supabase, usage, userId });
-      logAskStage("completed response replayed before operation claim", { requestId });
-      return completedResponseFromPersisted(persistedBeforeClaim, replayUsage);
-    } catch (error) {
-      return handleAskApiError(error, requestId);
-    }
-  }
-  const idempotency = await claimIdempotentOperation({
-    candidateKey: requestId,
-    leaseSeconds: 180,
-    operationType: "ask.submit.persisted_answer_v2",
-    payload: aiCreditPayload,
-    request,
-    retention: "financial",
-    supabase,
-    userId,
-  });
-  if ("response" in idempotency) return idempotency.response;
+  if ("response" in idempotency) return canonicalizeAskInfrastructureResponse(idempotency.response);
   return idempotency.operation.execute(async () => {
+  const attemptId = deriveAskAttemptId(logicalTurnId, idempotency.operation.ownerToken);
+  const turnLifecycle = new AskTurnLifecycle(logicalTurnId, attemptId);
+  turnLifecycle.transition("VALIDATED");
   let preparedRequest: PreparedAskRequest;
   let retryReuse = false;
   try {
     const existingRequest = persistedBeforeClaim || await loadPersistedRequest({ petId, requestId, supabase, userId });
     if (existingRequest?.assistantMessage?.response_data) {
-      const replayUsage = await reconcilePersistedAskCredit({ payloadHash: aiCreditPayloadHash, requestId, supabase, usage, userId });
+      assertPersistedReplayIdentity({ conversationId, question, state: existingRequest });
+      const replayUsage = await reconcilePersistedAskCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, supabase, usage, userId });
       logAskStage("completed response replayed", { requestId });
       return completedResponseFromPersisted(existingRequest, replayUsage);
     }
     if (existingRequest) {
+      assertPersistedReplayIdentity({ conversationId, question, state: existingRequest });
       retryReuse = true;
       logAskStage("user message reused", { requestId, retryReuse: true });
     }
@@ -304,26 +325,13 @@ export async function POST(request: Request) {
       userId,
     });
   } catch (error) {
+    turnLifecycle.fail("persistence_prepare", true);
+    emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return handleAskApiError(error, requestId);
   }
+  turnLifecycle.transition("ROUTED");
 
-  let creditRequestId = requestId;
-  if (retryReuse && usage.ledgerMode !== "development_missing_migration") {
-    try {
-      const priorCredit = await getAiCreditEventState({
-        feature: "ask",
-        payloadHash: aiCreditPayloadHash,
-        requestId,
-        supabase,
-        userId,
-      });
-      if (priorCredit?.status === "released") {
-        creditRequestId = deriveAskCreditAttemptId(requestId, idempotency.operation.ownerToken);
-      }
-    } catch (error) {
-      return handleAskApiError(error, requestId);
-    }
-  }
+  const creditRequestId = attemptId;
 
   let liveContext: FurviseLiveContext;
   try {
@@ -339,11 +347,17 @@ export async function POST(request: Request) {
   } catch (error) {
     logAskServerError("context_loading", error, { petId, requestId }, 503);
     if (error instanceof FurviseContextError && (error.code === "PET_NOT_FOUND" || error.code === "CONVERSATION_NOT_FOUND")) {
+      turnLifecycle.fail("pet_unavailable", false);
+      emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
       return askFailure("PET_NOT_FOUND", "That pet or conversation is no longer available.", 404, {}, "context_loading");
     }
+    turnLifecycle.fail("context_loading", true);
+    emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return askFailure("DATABASE_ERROR", "Furvise could not load the latest saved details. Please try again.", 503, {}, "context_loading");
   }
   reportOptionalContextRecovery(liveContext, requestId);
+  recordContextRecoveryOnTurn(liveContext, turnLifecycle);
+  turnLifecycle.transition("CONTEXT_READY");
 
   let phase3Runtime: AskV2Phase3Runtime | null = null;
 
@@ -380,7 +394,11 @@ export async function POST(request: Request) {
   let deferHighImpactLifecyclePersistence = classifyCurrentPetLoss(question) === "confirmed_current"
     || pendingLifecycle?.kind === "reported_deceased";
   const onProviderEvent = (event: AskProviderEvent) => {
-    if (event.outcome === "started") providerCallCount += 1;
+    if (event.outcome === "started") {
+      providerCallCount += 1;
+      turnLifecycle.providerCall();
+    }
+    if (event.outcome === "failed") turnLifecycle.providerFailure(event.providerErrorCode || event.stage);
     logAskProviderEvent(event, {
       conversationId: preparedRequest.conversationId,
       petId: turnPetId,
@@ -389,14 +407,24 @@ export async function POST(request: Request) {
     });
   };
   try {
-    confirmedExistingCarePersistence = await findExistingCareEventForSaveRequest({
-      context: liveContext, currentSourceMessageId: preparedRequest.userMessageId, message: question, petId, supabase, userId,
+    confirmedExistingCarePersistence = await runOptionalAskSubsystem({
+      component: "history_persistence",
+      fallback: null,
+      operation: () => findExistingCareEventForSaveRequest({
+        context: liveContext, currentSourceMessageId: preparedRequest.userMessageId, message: question, petId, supabase, userId,
+      }),
+      onFailure: (component, error) => {
+        turnLifecycle.optionalFailure(component);
+        logAskServerError("optional_history_lookup", error, { conversationId: preparedRequest.conversationId, petId, requestId }, 200);
+      },
     });
     const preconfirmedOrchestration = confirmedExistingCarePersistence ? buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet")
       : null;
     if (preconfirmedOrchestration) {
+      turnLifecycle.route("application_action", "deterministic");
       orchestration = preconfirmedOrchestration;
     } else if (pendingLifecycle && pendingLifecycleResolution && pendingLifecycleResolution.kind !== "continuation") {
+      turnLifecycle.route("lifecycle", "deterministic");
       orchestration = buildPendingLifecycleOrchestration(pendingLifecycle, pendingLifecycleResolution);
       if (pendingLifecycleResolution.kind === "contradiction" || pendingLifecycleResolution.kind === "alternate_pet") {
         deterministicApplicationActions = [pendingLifecycle.action];
@@ -419,6 +447,7 @@ export async function POST(request: Request) {
         deferHighImpactLifecyclePersistence = true;
       }
     } else if (durableLifecycleCorrection) {
+      turnLifecycle.route("lifecycle", "deterministic");
       deferHighImpactLifecyclePersistence = true;
       orchestration = buildDurableLifecycleCorrectionOrchestration(
         liveContext.pet.name || "your pet",
@@ -437,6 +466,7 @@ export async function POST(request: Request) {
         lifecycleStatus: durableLifecycleStatus,
       }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
     } else if (currentLoss === "confirmed_current") {
+      turnLifecycle.route("lifecycle", "deterministic");
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
       const pendingPet = pendingLifecycle && pendingLifecycleResolution?.kind === "continuation"
         ? liveContext.eligiblePets.find((pet) => pet.id === pendingLifecycle.petId)
@@ -504,16 +534,41 @@ export async function POST(request: Request) {
         orchestration = buildConfirmedLossClarificationOrchestration(lossSubject.candidateNames);
       }
     } else if (durableLifecycleResolution) {
+      turnLifecycle.route("lifecycle", "deterministic");
       orchestration = buildDurableLifecycleContradictionOrchestration(
         liveContext.pet.name || "your pet",
         durableLifecycleResolution,
       );
     } else {
-    phase3Runtime = await prepareAskV2Phase3({
-      accessToken,
-      context: liveContext,
-      requestId,
-      verifiedUserId: userId,
+    const deterministicCommand = planDeterministicAskCommand(question, liveContext.pet.name || "your pet");
+    const providerIndependent = planProviderIndependentAskTurn({
+      concerns: turnView.concerns,
+      message: question,
+      petName: liveContext.pet.name || "your pet",
+    });
+    if (deterministicCommand) {
+      turnLifecycle.route(deterministicCommand.routeType, "deterministic");
+      deterministicApplicationActions = prepareFurviseApplicationActions({
+        proposals: deterministicCommand.proposals,
+        petId: turnPetId,
+        petName: liveContext.pet.name || "your pet",
+        requestId,
+        lifecycleStatus: durableLifecycleStatus,
+      }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
+      orchestration = deterministicCommand.orchestration;
+    } else if (providerIndependent) {
+      turnLifecycle.route("acknowledgement", "deterministic");
+      orchestration = providerIndependent;
+    } else {
+    turnLifecycle.route("pet_care", "ai");
+    phase3Runtime = await runOptionalAskSubsystem({
+      component: "context_semantic_state",
+      fallback: null,
+      operation: () => prepareAskV2Phase3({ accessToken, context: liveContext, requestId, verifiedUserId: userId }),
+      onFailure: (component, error) => {
+        turnLifecycle.optionalFailure(component);
+        logAskServerError("optional_phase3_context", error, { conversationId: preparedRequest.conversationId, petId, requestId }, 200);
+      },
     });
     rateGateRef.current = await requireRateLimitedRequest({
       idempotencyKey: requestId,
@@ -536,13 +591,21 @@ export async function POST(request: Request) {
     aiAdmission = await admitAiOperation({
       feature: "ask", intendedModel: model,
       operationTtlSeconds: askGuardOperationTtlSeconds,
-      payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId, userId,
+      payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId: attemptId, userId,
     });
+    turnLifecycle.transition("AI_ADMITTED");
     orchestration = await withTimeout(aiAdmission.run(async () => {
+      turnLifecycle.transition("GENERATING");
       if (usage.ledgerMode === "development_missing_migration") {
         logAskStage("AI credit persistence skipped", { reason: "development_missing_migration", requestId });
       } else {
-        const reservation = await reserveAiCredit({ feature: "ask", payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+        const reservation = await reserveAiCredit({
+          feature: "ask",
+          logicalRequestId: logicalTurnId,
+          payloadHash: aiCreditPayloadHash,
+          requestId: creditRequestId,
+          userId,
+        });
         if (reservation.status === "limit_reached") throw new AiCreditLimitError();
         if (reservation.status !== "reserved") {
           throw new AiCreditLedgerError("reservation_failed", new Error(`AI_CREDIT_${reservation.status.toUpperCase()}_REPLAY_REQUIRED`), "reserve_ai_credit", "rpc");
@@ -552,23 +615,28 @@ export async function POST(request: Request) {
         logAskStage("AI credit reserved", { creditReservationId: creditRequestId, feature: "ask", requestId, retryReuse, status: reservation.status });
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
-      const explicitSelectedPet = resolveExplicitSelectedPetSubject({
-        message: question,
-        pets: liveContext.eligiblePets,
-        selectedPetId: petId,
-      });
-      const contextualSelectedPet = explicitSelectedPet || resolveClearSelectedPetContinuation({
+      const contextualSelectedPet = resolveDeterministicTurnSubject({
         message: question,
         pets: liveContext.eligiblePets,
         recentConversation,
         selectedPetId: petId,
       });
-      const subjectFrame = contextualSelectedPet ? undefined : await extractTurnSubjectFrame({
-        message: question,
-        model,
-        onProviderEvent,
-        recentConversation,
-      });
+      let subjectFrame: ProposedSemanticFrame | undefined;
+      if (!contextualSelectedPet) {
+        try {
+          subjectFrame = await extractTurnSubjectFrame({ message: question, model, onProviderEvent, recentConversation });
+        } catch (error) {
+          turnLifecycle.optionalFailure("subject_extraction").providerFailure(error instanceof AskPipelineError ? error.stage : "subject_extraction_failed");
+          if (creditReserved) {
+            const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+            creditReserved = false;
+            creditFinalState = released ? "released" : "release_pending";
+            turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+          }
+          contextUsed = { petName: null, usedSources: [] };
+          return buildSubjectClarificationOrchestration(question, liveContext.eligiblePets.map((pet) => pet.name).filter(Boolean));
+        }
+      }
       const subjectResolution = contextualSelectedPet || resolveAuthoritativeTurnSubject({
         frame: subjectFrame!,
         message: question,
@@ -585,7 +653,15 @@ export async function POST(request: Request) {
         resolvedAlternatePet: Boolean(subjectResolution.petId && subjectResolution.petId !== petId),
         subjectCount: subjectResolution.petIds.length,
       });
+      turnLifecycle.subject(subjectResolution.reasonCode || subjectResolution.status, subjectResolution.candidatePetIds?.length || subjectResolution.petIds.length);
       if (subjectResolution.requiresClarification || !subjectResolution.petId) {
+        turnLifecycle.route("clarification", "deterministic");
+        if (creditReserved) {
+          const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+          creditReserved = false;
+          creditFinalState = released ? "released" : "release_pending";
+          turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+        }
         intelligenceResult = null;
         contextUsed = { petName: null, usedSources: [] };
         const candidateNames = (subjectResolution.candidatePetIds || [])
@@ -607,17 +683,29 @@ export async function POST(request: Request) {
           userId,
         });
         reportOptionalContextRecovery(liveContext, requestId);
-        phase3Runtime = await prepareAskV2Phase3({
-          accessToken,
-          context: liveContext,
-          requestId,
-          verifiedUserId: userId,
+        recordContextRecoveryOnTurn(liveContext, turnLifecycle);
+        phase3Runtime = await runOptionalAskSubsystem({
+          component: "context_semantic_state",
+          fallback: null,
+          operation: () => prepareAskV2Phase3({ accessToken, context: liveContext, requestId, verifiedUserId: userId }),
+          onFailure: (component, error) => {
+            turnLifecycle.optionalFailure(component);
+            logAskServerError("optional_phase3_context", error, { conversationId: preparedRequest.conversationId, petId: turnPetId, requestId }, 200);
+          },
         });
       }
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
-      confirmedExistingCarePersistence = await findExistingCareEventForSaveRequest({
-        context: liveContext, currentSourceMessageId: preparedRequest.userMessageId, message: question, petId: turnPetId, supabase, userId,
+      confirmedExistingCarePersistence = await runOptionalAskSubsystem({
+        component: "history_persistence",
+        fallback: null,
+        operation: () => findExistingCareEventForSaveRequest({
+          context: liveContext, currentSourceMessageId: preparedRequest.userMessageId, message: question, petId: turnPetId, supabase, userId,
+        }),
+        onFailure: (component, error) => {
+          turnLifecycle.optionalFailure(component);
+          logAskServerError("optional_history_lookup", error, { conversationId: preparedRequest.conversationId, petId: turnPetId, requestId }, 200);
+        },
       });
       if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
 
@@ -639,13 +727,14 @@ export async function POST(request: Request) {
             subjectConfidence: subjectResolution.confidence,
             authoritativePetIds: subjectResolution.petIds,
             authoritativeSemanticFrame: subjectFrame,
-            canonicalConcepts: phase3Runtime!.canonicalConcepts,
+            canonicalConcepts: phase3Runtime?.canonicalConcepts || [],
           });
           logValidatedIntelligence(intelligenceResult, requestId);
           return intelligenceResult.reasoning;
         },
       });
     }), askRequestTimeoutMs);
+    }
     }
     logAskStage("turn orchestrated", {
       activeConcernCount: turnView.concerns.length,
@@ -655,16 +744,29 @@ export async function POST(request: Request) {
       recentlyResolvedConcernIds: turnView.recentlyResolvedConcerns.map((concern) => concern.id),
       safetyLevel: orchestration.safetyLevel,
     });
+    if (orchestration.handledWithoutAi) turnLifecycle.credit("not_required");
   } catch (error) {
     await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
     aiAdmissionFinalized = Boolean(aiAdmission);
     if (creditReserved) {
-      await safeReleaseAiCredit({ payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
-      creditFinalState = "released";
+      try {
+        const released = await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+        creditFinalState = released ? "released" : "release_pending";
+        turnLifecycle.credit(released ? "released" : "release_pending").settlement("release", released ? "reconciled" : "pending");
+      } catch (settlementError) {
+        creditFinalState = "release_pending";
+        turnLifecycle.credit("release_pending").settlement("missing", "conflict").fail("credit_disposition", true);
+        emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+        if (rateGateRef.current) await rateGateRef.current.release();
+        return handleAskApiError(settlementError, requestId);
+      }
     }
     logAskStage("Ask generation finalized", { creditFinalState, creditReservationId: creditRequestId, providerCallCount, requestId, retryReuse });
     if (rateGateRef.current) await rateGateRef.current.release();
-    if (error instanceof RateLimitRejection) return error.response;
+    if (error instanceof RateLimitRejection) {
+      turnLifecycle.fail("rate_limit", true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+      return askFailure("RATE_LIMITED", "Wait a moment, then try again.", error.response.status, {}, "rate_limit");
+    }
     if (error instanceof AiAdmissionError) {
       if (providerCallCount === 0) logAskPreProvider503({
         creditReservationState: creditFinalState,
@@ -673,9 +775,11 @@ export async function POST(request: Request) {
         providerCallAttempted: false,
         requestId,
       });
-      return aiAdmissionErrorResponse(error, requestId);
+      turnLifecycle.fail(error.reason, true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+      return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, error.status, {}, error.reason);
     }
     if (error instanceof AiCreditLimitError) {
+      turnLifecycle.credit("limit_reached").fail("plan_limit", false); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
       return askFailure("AI_CREDITS_EXHAUSTED", "Your Ask plan allowance has been reached. Your saved information remains available.", 429, { usage }, "credit_limit");
     }
     if (error instanceof AiCreditLedgerError) {
@@ -687,12 +791,14 @@ export async function POST(request: Request) {
         requestId,
       });
       logAskServerError(error.stage, error, { conversationId: preparedRequest.conversationId, petId, requestId, userId }, 503);
+      turnLifecycle.fail(error.stage, true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
       return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503);
     }
     const internalStage = error instanceof AskPipelineError ? error.stage : "primary_provider_failed";
     logAskServerError(internalStage, error, { conversationId: preparedRequest.conversationId, petId, requestId }, 503);
     if (error instanceof AskPipelineError && isProviderRateLimit(error)) {
       const retryAfterMs = error.diagnostics.retryAfterMs || 0;
+      turnLifecycle.fail("provider_rate_limit", true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
       return askFailure(
         "AI_RATE_LIMITED",
         "Furvise is receiving a lot of questions right now. Your message is saved, and no AI credit was used. Try again in a moment.",
@@ -707,6 +813,7 @@ export async function POST(request: Request) {
       providerCallAttempted: false,
       requestId,
     });
+    turnLifecycle.fail(internalStage, true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503);
   }
 
@@ -731,10 +838,18 @@ export async function POST(request: Request) {
         petId: turnPetId,
         requestId,
       }, 503);
-      if (creditReserved) await safeReleaseAiCredit({ payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+      if (creditReserved) {
+        try {
+          await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+        } catch (settlementError) {
+          if (rateGateRef.current) await rateGateRef.current.release();
+          return handleAskApiError(settlementError, requestId);
+        }
+      }
       if (rateGateRef.current) await rateGateRef.current.release();
       return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
     }
+    turnLifecycle.transition("ANSWER_VALIDATED");
     try {
       const persistedResponse = await persistAssistantAnswer({
         creditRequestId,
@@ -756,12 +871,13 @@ export async function POST(request: Request) {
         supabase,
         usage,
         userId,
+        turnLifecycle,
       }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
       await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, requestId, response: persistedResponse });
       return persistedResponse;
     } catch (error) {
       await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
-      throw error;
+      return handleAskApiError(error, requestId);
     }
   }
   let preparedApplicationActions: FurviseApplicationAction[] = [];
@@ -838,10 +954,18 @@ export async function POST(request: Request) {
       petId: turnPetId,
       requestId,
     }, 503);
-    if (creditReserved) await safeReleaseAiCredit({ payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+    if (creditReserved) {
+      try {
+        await safeReleaseAiCredit({ logicalRequestId: logicalTurnId, payloadHash: aiCreditPayloadHash, requestId: creditRequestId, userId });
+      } catch (settlementError) {
+        if (rateGateRef.current) await rateGateRef.current.release();
+        return handleAskApiError(settlementError, requestId);
+      }
+    }
     if (rateGateRef.current) await rateGateRef.current.release();
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
   }
+  turnLifecycle.transition("ANSWER_VALIDATED");
 
   try {
     const persistedResponse = await persistAssistantAnswer({
@@ -871,12 +995,13 @@ export async function POST(request: Request) {
       supabase,
       usage,
       userId,
+      turnLifecycle,
     }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
     await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, requestId, response: persistedResponse });
     return persistedResponse;
   } catch (error) {
     await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
-    throw error;
+    return handleAskApiError(error, requestId);
   }
   });
 }
@@ -993,10 +1118,7 @@ function buildSubjectClarificationOrchestration(message: string, candidateNames:
     recentUpdates: [],
   });
   const urgent = safety.safetyLevel === "urgent";
-  const names = [...new Set(candidateNames.filter(Boolean))];
-  const clarificationQuestion = names.length > 1
-    ? `Do you mean ${names.slice(0, -1).join(", ")} or ${names.at(-1)}?`
-    : names.length === 1 ? `Do you mean ${names[0]}?` : "Which pet do you mean?";
+  const clarificationQuestion = buildFurviseClarification(candidateNames);
   return {
     aiResult: null,
     answer: {
@@ -1182,7 +1304,7 @@ type PersistedAskMessageRow = {
   id: string;
   request_id: string | null;
   role: "user" | "furvise";
-  response_data: CompletedAskResponse | null;
+  response_data: (CompletedAskResponse & { turn?: AskTurnTrace }) | null;
   save_metadata: unknown | null;
   sequence_number: number;
   user_text: string | null;
@@ -1333,6 +1455,7 @@ async function persistAssistantAnswer({
   urgent,
   usage,
   userId,
+  turnLifecycle,
 }: {
   concern?: PetConcern | null;
   creditRequestId: string;
@@ -1359,8 +1482,14 @@ async function persistAssistantAnswer({
   urgent?: boolean;
   usage: AiCreditStatus;
   userId: string;
+  turnLifecycle: AskTurnLifecycle;
 }) {
   const { conversationId, userMessageId } = preparedRequest;
+  const responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
+  const optionalFailure = (component: AskSubsystem, error: unknown) => {
+    turnLifecycle.optionalFailure(component);
+    logAskServerError(`optional_${component}`, error, { conversationId, petId, requestId }, 200);
+  };
   const { data: lastMessage, error: sequenceError } = await supabase
     .from("ask_conversation_messages")
     .select("sequence_number")
@@ -1371,7 +1500,13 @@ async function persistAssistantAnswer({
     .maybeSingle<{ sequence_number: number }>();
   if (sequenceError) {
     logAskServerError("persist_assistant_message", sequenceError, { requestId }, 200);
-    if (creditReserved) await safeReleaseAiCredit({ payloadHash, requestId: creditRequestId, userId });
+    const released = creditReserved
+      ? await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId })
+      : false;
+    turnLifecycle.credit(creditReserved ? released ? "released" : "release_pending" : "not_required");
+    if (creditReserved) turnLifecycle.settlement("release", released ? "reconciled" : "pending");
+    turnLifecycle.fail("assistant_persistence", true);
+    emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persist_assistant_message");
   }
 
@@ -1381,7 +1516,7 @@ async function persistAssistantAnswer({
       context_used: contextUsed,
       conversation_id: conversationId,
       request_id: requestId,
-      response_data: response,
+      response_data: responseWithTurn,
       intelligence_validation: intelligenceResult?.answerValidation || null,
       persistence_governance: intelligenceResult ? { ...intelligenceResult.governance, semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace) } : null,
       role: "furvise",
@@ -1395,7 +1530,18 @@ async function persistAssistantAnswer({
   if (messageError || !assistantMessage) {
     const existing = await loadPersistedRequestByConversation({ conversationId, requestId, supabase, userId });
     if (existing?.assistantMessage?.response_data) {
-      const replayUsage = await reconcilePersistedAskCredit({ payloadHash, requestId, supabase, usage, userId });
+      if (creditReserved) {
+        await setAiCreditDisposition({
+          disposition: "complete",
+          feature: "ask",
+          logicalRequestId: requestId,
+          payloadHash,
+          requestId: creditRequestId,
+          userId,
+        });
+        turnLifecycle.credit("completion_pending").settlement("complete", "pending");
+      }
+      const replayUsage = await reconcilePersistedAskCredit({ logicalRequestId: requestId, payloadHash, supabase, usage, userId });
       return completedResponseFromPersisted(existing, replayUsage);
     }
     logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
@@ -1405,7 +1551,7 @@ async function persistAssistantAnswer({
         context_used: contextUsed,
         conversation_id: conversationId,
         request_id: requestId,
-        response_data: response,
+        response_data: responseWithTurn,
         intelligence_validation: intelligenceResult?.answerValidation || null,
         persistence_governance: intelligenceResult ? { ...intelligenceResult.governance, semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace) } : null,
         role: "furvise",
@@ -1419,37 +1565,66 @@ async function persistAssistantAnswer({
     messageError = retryResult.error;
     if (!assistantMessage || messageError) {
       logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
-      if (creditReserved) await safeReleaseAiCredit({ payloadHash, requestId: creditRequestId, userId });
+      const released = creditReserved
+        ? await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId })
+        : false;
+      turnLifecycle.credit(creditReserved ? released ? "released" : "release_pending" : "not_required");
+      if (creditReserved) turnLifecycle.settlement("release", released ? "reconciled" : "pending");
+      turnLifecycle.fail("assistant_persistence", true);
+      emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
       return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persistence_failed");
     }
     logAskStage("assistant message persisted after idempotent retry", { requestId });
   }
   logAskStage("assistant message persisted", { requestId });
+  turnLifecycle.transition("ANSWER_PERSISTED");
 
   let nextUsage = usage;
   let creditsUsed = 0;
   if (creditReserved) {
+    await setAiCreditDisposition({
+      disposition: "complete",
+      feature: "ask",
+      logicalRequestId: requestId,
+      payloadHash,
+      requestId: creditRequestId,
+      userId,
+    });
+    creditsUsed = 1;
+    turnLifecycle.settlement("complete", "pending");
     try {
       try {
-        await completeAiCredit({ feature: "ask", payloadHash, requestId: creditRequestId, userId });
+        await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
       } catch {
-        await completeAiCredit({ feature: "ask", payloadHash, requestId: creditRequestId, userId });
+        await completeAiCredit({ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId });
       }
-      nextUsage = await getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId });
-      creditsUsed = 1;
+      turnLifecycle.credit("completed").settlement("complete", "reconciled");
       logAskStage("AI credit completed", { creditFinalState: "completed", creditReservationId: creditRequestId, requestId });
     } catch (error) {
-      logAskServerError("credit_completion_failed", error, { requestId }, 503);
-      return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "credit_completion_failed");
+      if (isAiCreditIntegrityError(error)) throw error;
+      turnLifecycle.credit("completion_pending").settlement("complete", "pending");
+      optionalFailure("credit_completion", error);
     }
+    nextUsage = await runOptionalAskSubsystem({
+      component: "conversation_metadata",
+      fallback: usage,
+      operation: () => getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId }),
+      onFailure: optionalFailure,
+    });
   }
 
-  const { error: conversationUpdateError } = await supabase
-    .from("ask_conversations")
-    .update({ last_activity_at: new Date().toISOString(), preview: response.directAnswer.slice(0, 220) })
-    .eq("id", conversationId)
-    .eq("user_id", userId);
-  if (conversationUpdateError) logAskServerError("conversation_metadata", conversationUpdateError, { requestId }, 200);
+  await runOptionalAskSubsystem({
+    component: "conversation_metadata",
+    fallback: null,
+    operation: async () => {
+      const { error } = await supabase.from("ask_conversations")
+        .update({ last_activity_at: new Date().toISOString(), preview: response.directAnswer.slice(0, 220) })
+        .eq("id", conversationId).eq("user_id", userId);
+      if (error) throw error;
+      return null;
+    },
+    onFailure: optionalFailure,
+  });
 
   let intelligencePersistence: IntelligencePersistenceSummary | null = null;
   let intelligencePersistenceWarning = "";
@@ -1486,6 +1661,8 @@ async function persistAssistantAnswer({
       }
     } catch (error) {
       intelligencePersistenceWarning = "Approved learnings could not be saved.";
+      turnLifecycle.optionalFailure("memory_persistence");
+      turnLifecycle.optionalFailure("history_persistence");
       logAskServerError("learning_persistence_failed", error, { conversationId, petId, requestId }, 200);
       if (semanticTrace) semanticTrace = withSemanticPersistenceOutcome(semanticTrace, { status: "failed", errorCode: "INTELLIGENCE_PERSISTENCE_EXCEPTION", careEntryCount: 0, memoryCount: 0 });
     }
@@ -1504,9 +1681,13 @@ async function persistAssistantAnswer({
         executed.push(action);
         continue;
       }
-      const execution = await executeFurviseApplicationAction({
-        action, confirmed: false, sourceMessageId: userMessageId, supabase, userId,
+      const execution = await runOptionalAskSubsystem({
+        component: "application_action_preparation",
+        fallback: null,
+        operation: () => executeFurviseApplicationAction({ action, confirmed: false, sourceMessageId: userMessageId, supabase, userId }),
+        onFailure: optionalFailure,
       });
+      if (!execution) { executed.push({ ...action, status: "failed", errorMessage: "That action could not be prepared. Your answer is still available." }); continue; }
       applicationStateChanged ||= execution.changed;
       executed.push(execution.action);
       emitOperationalEvent({
@@ -1526,15 +1707,15 @@ async function persistAssistantAnswer({
   }
 
   if (!deferHighImpactLifecyclePersistence && phase3Runtime) {
-    await persistAskV2Phase3LowRisk({
-      runtime: phase3Runtime,
-      turn: intelligenceResult?.v2GovernedTurn || null,
-      legacyLearnings: intelligenceResult?.acceptedLearnings || [],
-      legacyPersistence: intelligencePersistence,
-      requestId,
-      selectedPetId: petId,
-      sourceMessage,
-      verifiedUserId: userId,
+    await runOptionalAskSubsystem({
+      component: "semantic_persistence",
+      fallback: undefined,
+      operation: () => persistAskV2Phase3LowRisk({
+        runtime: phase3Runtime!, turn: intelligenceResult?.v2GovernedTurn || null,
+        legacyLearnings: intelligenceResult?.acceptedLearnings || [], legacyPersistence: intelligencePersistence,
+        requestId, selectedPetId: petId, sourceMessage, verifiedUserId: userId,
+      }),
+      onFailure: optionalFailure,
     });
   }
 
@@ -1549,7 +1730,12 @@ async function persistAssistantAnswer({
       : suggestion || semanticReviewSuggestion
     : null;
   const suggestionPersistence = reviewSuggestion
-    ? await persistPendingSuggestion({ assistantMessageId: assistantMessage.id, conversationId, petId, suggestion: reviewSuggestion, supabase, userId })
+    ? await runOptionalAskSubsystem({
+      component: "history_proposal",
+      fallback: { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_UNAVAILABLE", suggestion: null },
+      operation: () => persistPendingSuggestion({ assistantMessageId: assistantMessage.id, conversationId, petId, suggestion: reviewSuggestion, supabase, userId }),
+      onFailure: optionalFailure,
+    })
     : { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
   const savedSuggestion = suggestionPersistence.suggestion;
   const suggestionFailure = Boolean(reviewSuggestion && suggestionPersistence.errorCode);
@@ -1564,10 +1750,23 @@ async function persistAssistantAnswer({
         ? { status: "suggested", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: intelligencePersistence?.memoryIds || [] }
         : { status: "skipped", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: intelligencePersistence?.memoryIds || [] };
   const reconciledResponse = reconcileResponsePersistenceCopy(response, persistenceMode, automaticCareFailure || Boolean(savedSuggestion));
-  const canonicalResponse = applicationActions.length ? { ...reconciledResponse, applicationActions } : reconciledResponse;
-  const { error: responseUpdateError } = await supabase.from("ask_conversation_messages")
-    .update({ care_persistence: carePersistence, response_data: canonicalResponse }).eq("id", assistantMessage.id).eq("user_id", userId);
-  if (responseUpdateError) logAskServerError("response_state_reconciliation", responseUpdateError, { conversationId, requestId }, 200);
+  turnLifecycle.actions(applicationActions.length);
+  turnLifecycle.transition("COMPLETED");
+  const canonicalResponse = {
+    ...(applicationActions.length ? { ...reconciledResponse, applicationActions } : reconciledResponse),
+    turn: turnLifecycle.snapshot(),
+  };
+  await runOptionalAskSubsystem({
+    component: "conversation_metadata",
+    fallback: null,
+    operation: async () => {
+      const { error } = await supabase.from("ask_conversation_messages")
+        .update({ care_persistence: carePersistence, response_data: canonicalResponse }).eq("id", assistantMessage.id).eq("user_id", userId);
+      if (error) throw error;
+      return null;
+    },
+    onFailure: optionalFailure,
+  });
   if (didPersistEffectiveState(intelligencePersistence, carePersistence)) {
     revalidateAskStateViews([
       petId,
@@ -1575,6 +1774,7 @@ async function persistAssistantAnswer({
     ]);
   }
   if (applicationStateChanged) revalidateAskStateViews([petId]);
+  emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
   return successfulAnswerResponse({
     assistantMessageId: assistantMessage.id,
     applicationStateChanged,
@@ -1600,6 +1800,7 @@ async function persistAssistantAnswer({
     } : null,
     usage: nextUsage,
     userMessageId,
+    turn: turnLifecycle.snapshot(),
   });
 }
 
@@ -1693,42 +1894,76 @@ async function persistPendingSuggestion({
 }
 
 async function safeReleaseAiCredit({
+  logicalRequestId,
   payloadHash,
   requestId,
   userId,
 }: {
+  logicalRequestId: string;
   payloadHash: string;
   requestId: string;
   userId: string;
 }) {
+  await setAiCreditDisposition({
+    disposition: "release",
+    feature: "ask",
+    logicalRequestId,
+    payloadHash,
+    requestId,
+    userId,
+  });
   try {
-    await releaseAiCredit({ feature: "ask", payloadHash, requestId, userId });
+    await reconcileAiCredit({ feature: "ask", logicalRequestId, payloadHash, requestId, userId });
     logAskStage("AI credit released", { requestId });
+    return true;
   } catch (error) {
+    if (isAiCreditIntegrityError(error)) throw error;
     logAskServerError("credit_release_failed", error, { requestId }, 200);
+    return false;
   }
 }
 
 async function reconcilePersistedAskCredit({
+  logicalRequestId,
   payloadHash,
-  requestId,
   supabase,
   usage,
   userId,
 }: {
+  logicalRequestId: string;
   payloadHash: string;
-  requestId: string;
   supabase: SupabaseClient;
   usage: AiCreditStatus;
   userId: string;
 }) {
   if (usage.ledgerMode === "development_missing_migration") return usage;
-  const state = await getAiCreditEventState({ feature: "ask", payloadHash, requestId, supabase, userId });
-  if (!state || state.status === "completed" || state.status === "released") {
-    return getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId });
+  const states = await getAiCreditEventsForLogicalRequest({ feature: "ask", logicalRequestId, payloadHash, supabase, userId });
+  if (states.some((state) => state.disposition === null)) {
+    throw new AiCreditLedgerError("reconciliation_failed", new Error("AI_CREDIT_DISPOSITION_REQUIRED"), "ai_usage_events", "select");
   }
-  await completeAiCredit({ feature: "ask", payloadHash, requestId, userId });
-  return getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId });
+  if (states.filter((state) => state.disposition === "complete").length > 1) {
+    throw new AiCreditLedgerError("reconciliation_failed", new Error("AI_CREDIT_DISPOSITION_CONFLICT"), "ai_usage_events", "select");
+  }
+  try {
+    for (const state of states) {
+      if (state.status !== "reserved") continue;
+      await reconcileAiCredit({
+        feature: "ask",
+        logicalRequestId,
+        payloadHash,
+        requestId: state.requestId,
+        userId,
+      });
+    }
+    return await getRemainingAiCredits({ feature: "ask", monthlyAiCredits: usage.limit, planId: usage.planId, supabase, userId });
+  } catch (error) {
+    if (isAiCreditIntegrityError(error)) throw error;
+    // Terminal RPC execution may degrade only after every attempt has durable,
+    // compatible disposition. Identity and missing-disposition checks happen
+    // above and remain answer-critical.
+    logAskServerError("optional_credit_reconciliation", error, { requestId: logicalRequestId }, 200);
+    return usage;
+  }
 }
 
 function successfulAnswerResponse({
@@ -1753,6 +1988,7 @@ function successfulAnswerResponse({
   usage,
   shoppingSuppressed,
   suggestion = null,
+  turn = null,
   userMessageId,
 }: {
   assistantMessageId?: string;
@@ -1776,6 +2012,7 @@ function successfulAnswerResponse({
   usage: AiCreditStatus;
   shoppingSuppressed: boolean;
   suggestion?: (PendingUpdateSuggestion & { id: string }) | null;
+  turn?: AskTurnTrace | null;
   userMessageId: string;
 }) {
   logAskStage("final response serialized", { requestId, saved });
@@ -1814,6 +2051,7 @@ function successfulAnswerResponse({
     saveMetadata,
     suggestion,
     success: true,
+    turn,
     userMessageId,
     usage,
   });
@@ -1823,10 +2061,12 @@ function standaloneEmergencyResponse({
   contextUsed,
   requestId,
   response,
+  turn,
 }: {
   contextUsed: unknown;
   requestId: string;
   response: CompletedAskResponse;
+  turn: AskTurnTrace;
 }) {
   logAskStage("standalone emergency response serialized", { requestId });
   return Response.json({
@@ -1844,6 +2084,7 @@ function standaloneEmergencyResponse({
     safety: { level: "urgent", shoppingSuppressed: true },
     saveMetadata: { answerType: "urgent_guidance", persistenceEligible: false, reason: "deterministic_emergency_preflight" },
     success: true,
+    turn,
   });
 }
 
@@ -1936,6 +2177,25 @@ async function loadPersistedRequestByConversation({ conversationId, requestId, s
   } satisfies PersistedRequestState;
 }
 
+function assertPersistedReplayIdentity({
+  conversationId,
+  question,
+  state,
+}: {
+  conversationId: string;
+  question: string;
+  state: PersistedRequestState;
+}) {
+  if (state.userMessage.user_text !== question || (conversationId && state.conversationId !== conversationId)) {
+    throw new AskApiError(
+      "IDEMPOTENCY_CONFLICT",
+      "This question could not be reused because its details changed.",
+      409,
+      "idempotency_conflict",
+    );
+  }
+}
+
 function completedResponseFromPersisted(state: PersistedRequestState, usage: AiCreditStatus) {
   const assistantMessage = state.assistantMessage;
   if (!assistantMessage?.response_data) throw new AskApiError("DATABASE_ERROR", "Furvise could not load this answer.", 503, "request_lookup");
@@ -1953,6 +2213,7 @@ function completedResponseFromPersisted(state: PersistedRequestState, usage: AiC
     shoppingSuppressed: response.urgency === "urgent",
     usage,
     userMessageId: state.userMessageId,
+    turn: response.turn || null,
   });
 }
 
@@ -1960,14 +2221,40 @@ async function deleteEmptyConversation(supabase: SupabaseClient, conversationId:
   await supabase.from("ask_conversations").delete().eq("id", conversationId).eq("user_id", userId);
 }
 
-function askFailure(code: AskFailureCode, message: string, status: number, extra: Record<string, unknown> = {}, debugStage = "") {
+function askFailure(code: InternalAskFailureCode, message: string, status: number, extra: Record<string, unknown> = {}, debugStage = "") {
   void debugStage;
   return Response.json({
-    code,
+    code: publicAskFailureCode(internalFailureClass(code)),
     message,
     success: false,
     ...extra,
   }, { status });
+}
+
+function internalFailureClass(code: InternalAskFailureCode): AskInternalFailure {
+  if (code === "AUTH_REQUIRED") return "auth_required";
+  if (code === "PET_NOT_FOUND") return "pet_unavailable";
+  if (code === "INVALID_MESSAGE") return "invalid_input";
+  if (code === "AI_CREDITS_EXHAUSTED") return "plan_limit";
+  if (code === "RATE_LIMITED") return "rate_limit";
+  if (code === "REQUEST_IN_PROGRESS") return "request_in_progress";
+  if (code === "AI_RATE_LIMITED" || code === "AI_UNAVAILABLE") return "provider_failure";
+  if (code === "DATABASE_ERROR") return "database_failure";
+  return "answer_retryable";
+}
+
+async function canonicalizeAskInfrastructureResponse(response: Response) {
+  if (response.ok) return response;
+  const payload = await response.clone().json().catch(() => null) as { code?: string; error?: string; message?: string; retryAfterSeconds?: number } | null;
+  if (payload?.code === "REQUEST_IN_PROGRESS") {
+    return Response.json({
+      code: publicAskFailureCode("request_in_progress"),
+      message: payload.error || payload.message || "Furvise is still working on this question.",
+      retryAfterSeconds: payload.retryAfterSeconds,
+      success: false,
+    }, { status: response.status });
+  }
+  return askFailure("IDEMPOTENCY_CONFLICT", payload?.error || payload?.message || "This question can be retried safely.", response.status, payload?.retryAfterSeconds ? { retryAfterSeconds: payload.retryAfterSeconds } : {}, "idempotency");
 }
 
 function handleAskApiError(error: unknown, requestId: string) {
@@ -1976,6 +2263,12 @@ function handleAskApiError(error: unknown, requestId: string) {
     return askFailure(error.code, error.message, error.status, {}, error.stage);
   }
   if (error instanceof AiCreditLedgerError) {
+    const diagnostic = getAiCreditLedgerDiagnostic(error);
+    const detail = `${diagnostic.message} ${diagnostic.details} ${diagnostic.hint}`;
+    if (/AI_REQUEST_IDENTITY_CONFLICT/.test(detail)) {
+      logAskServerError("idempotency_conflict", error, { requestId }, 409);
+      return askFailure("IDEMPOTENCY_CONFLICT", "This question could not be reused because its details changed.", 409, {}, "idempotency_conflict");
+    }
     logAskServerError(error.stage, error, { requestId }, 503);
     return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, error.stage);
   }
@@ -2042,6 +2335,36 @@ function logAskStage(message: string, context: Record<string, unknown>) {
   console.info(`[Ask API] ${message}`, context);
 }
 
+function emitAskTurnTrace(trace: AskTurnTrace, userId: string, petId: string) {
+  emitOperationalEvent({
+    actorId: userId,
+    eventType: "ask_turn",
+    feature: "ask",
+    metadata: {
+      actionCount: trace.actionCount,
+      candidateCount: trace.subjectCandidateCount,
+      creditDisposition: trace.creditDisposition,
+      creditState: trace.creditState,
+      executionMode: trace.executionMode,
+      finalErrorClass: trace.finalErrorClass,
+      finalOutcome: trace.finalStage === "COMPLETED" ? "success" : trace.finalStage,
+      finalStage: trace.finalStage,
+      optionalFailureCount: trace.optionalFailures.length,
+      optionalFailures: trace.optionalFailures.join("|"),
+      providerCallCount: trace.providerCallCount,
+      providerFailureClass: trace.providerFailureClass,
+      routeType: trace.routeType,
+      settlementState: trace.settlementState,
+      subjectResolutionStrategy: trace.subjectResolutionStrategy,
+    },
+    operationId: trace.attemptId,
+    requestId: trace.logicalTurnId,
+    resourceId: petId,
+    route: "/api/ask",
+    severity: trace.finalErrorClass ? "warning" : "info",
+  });
+}
+
 function reportOptionalContextRecovery(context: FurviseLiveContext, requestId: string) {
   if (!context.contextRecovery.unavailableSources.length) return;
   emitOperationalEvent({
@@ -2054,6 +2377,15 @@ function reportOptionalContextRecovery(context: FurviseLiveContext, requestId: s
     route: "/api/ask",
     severity: "warning",
   });
+}
+
+function recordContextRecoveryOnTurn(context: FurviseLiveContext, turn: AskTurnLifecycle) {
+  for (const source of context.contextRecovery.unavailableSources) {
+    if (/care|concern|episode/.test(source)) turn.optionalFailure("context_care_history");
+    else if (/memor|owner_profile/.test(source)) turn.optionalFailure("context_memory");
+    else if (/product_feedback/.test(source)) turn.optionalFailure("context_product_feedback");
+    else turn.optionalFailure("context_semantic_state");
+  }
 }
 
 function logAskServerError(stage: string, error: unknown, context: Record<string, unknown>, httpStatus: number) {

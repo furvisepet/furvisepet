@@ -107,43 +107,33 @@ export function parseAskConversationResponse(value) {
   const response = parseAskResponse(value);
   if (!response || !value || typeof value !== "object") return null;
   const draft = value;
-  if (!ASK_ANSWER_TYPES.includes(draft.answerType)) return null;
-  if (typeof draft.directAnswer !== "string" || cleanText(draft.directAnswer) !== response.summary) return null;
-  if (draft.supportingText !== undefined && draft.supportingText !== null && typeof draft.supportingText !== "string") return null;
-  if (draft.suggestedQuestions !== undefined && !isStringArray(draft.suggestedQuestions, 4)) return null;
-  if (!isStringArray(draft.actions, 4)) return null;
-  if (draft.usedContextSummary !== undefined && !isStringArray(draft.usedContextSummary, 4)) return null;
-  if (draft.missingUsefulDetails !== undefined && !isStringArray(draft.missingUsefulDetails, 4)) return null;
-  if (draft.clarificationQuestion !== undefined && !cleanOptionalText(draft.clarificationQuestion, 240)) return null;
+  const answerType = ASK_ANSWER_TYPES.includes(draft.answerType) ? draft.answerType : "direct_answer";
+  const clarificationQuestion = cleanOptionalText(draft.clarificationQuestion, 240);
   const applicationActions = cleanApplicationActions(draft.applicationActions);
-  if (draft.applicationActions !== undefined && (!Array.isArray(draft.applicationActions) || applicationActions.length !== draft.applicationActions.length)) return null;
   const saveSuggestions = cleanSaveSuggestions(draft.saveSuggestions);
-  if (draft.saveSuggestions !== undefined && saveSuggestions.length !== draft.saveSuggestions.length) return null;
   const trackingPlan = cleanTrackingPlan(draft.trackingPlan);
-  if (draft.trackingPlan !== undefined && !trackingPlan) return null;
-  if (draft.vetBriefRelevant !== undefined && typeof draft.vetBriefRelevant !== "boolean") return null;
-  if (draft.urgency !== "routine" && draft.urgency !== "resolved" && draft.urgency !== "monitor" && draft.urgency !== "urgent") return null;
-  const interactionMode = cleanInteractionMode(draft.interactionMode) || (draft.urgency === "urgent" ? "urgent" : draft.urgency === "monitor" ? "monitoring" : "normal");
-  const suggestedQuestions = shouldOfferSuggestedQuestions(interactionMode, draft.answerType)
+  const urgency = ["routine", "resolved", "monitor", "urgent"].includes(draft.urgency) ? draft.urgency : "routine";
+  const interactionMode = cleanInteractionMode(draft.interactionMode) || (urgency === "urgent" ? "urgent" : urgency === "monitor" ? "monitoring" : "normal");
+  const suggestedQuestions = shouldOfferSuggestedQuestions(interactionMode, answerType)
     ? cleanSuggestedQuestions(draft.suggestedQuestions, response.summary)
     : [];
-  const allowedActions = new Set(ASK_ACTIONS_BY_TYPE[draft.answerType]);
-  if (draft.actions.some((action) => !allowedActions.has(action))) return null;
+  const allowedActions = new Set(ASK_ACTIONS_BY_TYPE[answerType]);
+  const actions = Array.isArray(draft.actions) ? draft.actions.filter((action) => allowedActions.has(action)).slice(0, 4) : [];
   return {
     ...response,
-    answerType: draft.answerType,
+    answerType,
     directAnswer: response.summary,
-    supportingText: draft.supportingText ? cleanText(draft.supportingText) : null,
+    supportingText: typeof draft.supportingText === "string" ? cleanText(draft.supportingText) : null,
     suggestedQuestions,
-    actions: [...draft.actions],
-    usedContextSummary: (draft.usedContextSummary || []).map(cleanText).filter(Boolean),
-    missingUsefulDetails: (draft.missingUsefulDetails || []).map(cleanText).filter(Boolean),
-    ...(draft.clarificationQuestion ? { clarificationQuestion: cleanText(draft.clarificationQuestion) } : {}),
+    actions,
+    usedContextSummary: cleanStringList(draft.usedContextSummary, 4),
+    missingUsefulDetails: cleanStringList(draft.missingUsefulDetails, 4),
+    ...(clarificationQuestion ? { clarificationQuestion } : {}),
     ...(applicationActions.length ? { applicationActions } : {}),
     ...(saveSuggestions.length ? { saveSuggestions } : {}),
     ...(trackingPlan ? { trackingPlan } : {}),
     ...(typeof draft.vetBriefRelevant === "boolean" ? { vetBriefRelevant: draft.vetBriefRelevant } : {}),
-    urgency: draft.urgency,
+    urgency,
     interactionMode,
   };
 }

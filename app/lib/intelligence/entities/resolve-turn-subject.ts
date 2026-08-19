@@ -22,26 +22,7 @@ export type AuthoritativeTurnSubjectResolution = {
   candidatePetIds?: string[];
 };
 
-export function resolveExplicitSelectedPetSubject({
-  message,
-  pets,
-  selectedPetId,
-}: {
-  message: string;
-  pets: EligibleSemanticPet[];
-  selectedPetId: string;
-}): AuthoritativeTurnSubjectResolution | null {
-  const explicitNames = explicitlyNamedOwnedPets(message, pets);
-  if (explicitNames.length !== 1 || explicitNames[0].id !== selectedPetId) return null;
-  return resolved(selectedPetId, 0.99);
-}
-
-/**
- * Resolves a narrow pronoun-only continuation without spending a separate
- * provider call. It deliberately declines mixed pronouns, animal nouns, and
- * other entity signals so outside animals still go through full resolution.
- */
-export function resolveClearSelectedPetContinuation({
+export function resolveDeterministicTurnSubject({
   message,
   pets,
   recentConversation,
@@ -52,8 +33,18 @@ export function resolveClearSelectedPetContinuation({
   recentConversation: Array<{ role?: string; text: string }>;
   selectedPetId: string;
 }): AuthoritativeTurnSubjectResolution | null {
+  const explicitNames = explicitlyNamedOwnedPets(message, pets);
+  if (explicitNames.length === 1) return resolved(explicitNames[0].id, 0.99);
+  if (explicitNames.length > 1 || isExplicitExternalAnimalSurface(message)) return null;
+  const species = explicitOwnedSpecies(message);
+  if (species) {
+    const compatible = pets.filter((pet) => normalize(pet.species || "") === species);
+    if (compatible.length === 1) return resolved(compatible[0].id, 0.98);
+    const selected = compatible.find((pet) => pet.id === selectedPetId);
+    return selected && !/\b(?:other|another)\b/i.test(message) ? resolved(selected.id, 0.94) : null;
+  }
   const normalized = normalize(message);
-  if (!normalized || explicitlyNamedOwnedPets(message, pets).length) return null;
+  if (!normalized) return null;
   const referentialPronounText = message.replace(
     /\b(?:is|was|would)\s+it\s+(?:normal|okay|ok|possible|safe|weird|bad|good)\s+(?:that|if|when|for)\b/gi,
     " ",
@@ -61,10 +52,9 @@ export function resolveClearSelectedPetContinuation({
   const hasFeminine = /\b(?:she|her|hers)\b/i.test(referentialPronounText);
   const hasMasculine = /\b(?:he|him|his)\b/i.test(referentialPronounText);
   const hasNeutral = /\b(?:they|them|their|theirs|it|its)\b/i.test(referentialPronounText);
-  if (![hasFeminine, hasMasculine, hasNeutral].some(Boolean) || [hasFeminine, hasMasculine, hasNeutral].filter(Boolean).length > 1) return null;
-  if (/\b(?:cat|dog|kitten|puppy|animal|pet)\b/i.test(message)) return null;
-  const selected = pets.find((pet) => pet.id === selectedPetId);
-  if (!selected) return null;
+  const pronounClasses = [hasFeminine, hasMasculine, hasNeutral].filter(Boolean).length;
+  if (pronounClasses === 0) return contextual(selectedPetId, 0.9);
+  if (pronounClasses > 1) return null;
   const state = buildRecentSubjectState({ pets, recentConversation, selectedPetId });
   const pronoun = hasFeminine ? "she" : hasMasculine ? "he" : "they";
   const resolution = resolveRecentPronoun(state, pronoun);

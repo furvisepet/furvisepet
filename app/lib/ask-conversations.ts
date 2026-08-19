@@ -100,11 +100,11 @@ function normalizeMessageText(value: string | null | undefined) {
 export function deriveConversationTitle(question: string, petName: string) {
   const cleanPetName = petName.trim() || "Your pet";
   const normalized = question.toLowerCase();
-  if (/\b(vet|veterinarian|appointment|visit)\b/.test(normalized)) return `Preparing for ${cleanPetName}\u2019s vet visit`;
-  if (/\b(scratch|scratching|itch|itchy)\b/.test(normalized)) return `Tracking ${cleanPetName}\u2019s scratching`;
-  if (/\b(food|diet|kibble|meal)\b/.test(normalized)) return `Changing ${cleanPetName}\u2019s food`;
+  if (/\b(vet|veterinarian|appointment|visit)\b/.test(normalized)) return `Preparing for ${cleanPetName}’s vet visit`;
+  if (/\b(scratch|scratching|itch|itchy)\b/.test(normalized)) return `Tracking ${cleanPetName}’s scratching`;
+  if (/\b(food|diet|kibble|meal)\b/.test(normalized)) return `Changing ${cleanPetName}’s food`;
   if (/\b(dental|teeth|tooth|brushing)\b/.test(normalized)) return "Building a dental routine";
-  if (/\b(routine|schedule|habit)\b/.test(normalized)) return `Building ${cleanPetName}\u2019s care routine`;
+  if (/\b(routine|schedule|habit)\b/.test(normalized)) return `Building ${cleanPetName}’s care routine`;
   if (/\b(track|monitor|watch)\b/.test(normalized)) return `Tracking changes for ${cleanPetName}`;
 
   const normalizedQuestion = question.normalize("NFKC").replace(/[“”]/g, "").trim();

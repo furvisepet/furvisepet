@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { resolveAuthoritativeTurnSubject, resolveExplicitSelectedPetSubject } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
+import { resolveAuthoritativeTurnSubject, resolveDeterministicTurnSubject } from "../app/lib/intelligence/entities/resolve-turn-subject.ts";
 import { evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
 import { governCanonicalEvents } from "../app/lib/intelligence/semantic-events.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
@@ -12,7 +12,7 @@ const mani = { id: "pet-mani", name: "Mani", species: "cat", age_value: 4, age_u
 
 test("an explicitly named selected pet bypasses ambiguous outside-animal preflight", () => {
   const message = "Mani has been restless since the male cat started coming to our door. She keeps meowing at the door.";
-  assert.deepEqual(resolveExplicitSelectedPetSubject({ message, pets: [luna, mani], selectedPetId: mani.id }), {
+  assert.deepEqual(resolveDeterministicTurnSubject({ message, pets: [luna, mani], recentConversation: [], selectedPetId: mani.id }), {
     status: "resolved", petId: mani.id, petIds: [mani.id], reasonCode: null,
     requiresClarification: false, explicitSubject: true, confidence: 0.99,
   });

@@ -795,22 +795,22 @@ export function parseUnifiedResponse(
   sourceMessage = recoveryContext?.sourceMessage || "",
 ): ParsedUnifiedResponse {
   const value = JSON.parse(outputText) as Partial<ParsedUnifiedResponse>;
-  const intelligenceSafety = normalizeIntelligenceSafety(value?.intelligenceSafety);
-  if (!value || typeof value.answer !== "string" || !safetyLevels.includes(value.safetyLevel as never) ||
-    !responseModes.includes(value.responseMode as never) || !Array.isArray(value.suggestedFollowUps) ||
-    !Array.isArray(value.relevantContextIds) || (value.applicationActions !== undefined && !Array.isArray(value.applicationActions)) ||
-    typeof value.userIntent !== "string" || !isProposedHistoryUpdate(value.proposedHistoryUpdate) ||
-    !isMessageUnderstanding(value.messageUnderstanding) || !intelligenceSafety ||
-    !Array.isArray(value.learnings) || !value.learnings.every(isIntelligenceLearning) ||
-    !Array.isArray(value.careActions) || !value.careActions.every(isIntelligenceCareAction) ||
-    !Array.isArray(value.semanticEvents) || !value.semanticEvents.every(isCanonicalEventProposal)) {
+  if (!value || typeof value.answer !== "string") {
     throw new Error("Ask provider returned an invalid response.");
   }
+  const safetyLevel = safetyLevels.includes(value.safetyLevel as never) ? value.safetyLevel as ParsedUnifiedResponse["safetyLevel"] : "normal";
+  const intelligenceSafety = normalizeIntelligenceSafety(value.intelligenceSafety) || defaultIntelligenceSafety(safetyLevel);
+  const messageUnderstanding = isMessageUnderstanding(value.messageUnderstanding)
+    ? value.messageUnderstanding
+    : defaultMessageUnderstanding(sourceMessage);
+  const learnings = Array.isArray(value.learnings) ? value.learnings.filter(isIntelligenceLearning) : [];
+  const careActions = Array.isArray(value.careActions) ? value.careActions.filter(isIntelligenceCareAction) : [];
+  const semanticEvents = Array.isArray(value.semanticEvents) ? value.semanticEvents.filter(isCanonicalEventProposal) : [];
   const allowedIds = new Set(records.map((record) => record.id));
   const answer = cleanAnswer(value.answer).slice(0, 1800);
   if (!answer) throw new Error("Ask provider returned an empty answer.");
-  const answerSections = parseAnswerSections(value.answerSections);
-  const relevantContextIds = [...new Set(value.relevantContextIds.filter((id): id is string => typeof id === "string" && allowedIds.has(id)))].slice(0, 8);
+  const answerSections = parseAnswerSectionsLenient(value.answerSections);
+  const relevantContextIds = [...new Set((Array.isArray(value.relevantContextIds) ? value.relevantContextIds : []).filter((id): id is string => typeof id === "string" && allowedIds.has(id)))].slice(0, 8);
   const referencedTypes = new Set(relevantContextIds.map((id) => records.find((record) => record.id === id)?.sourceType).filter(Boolean));
   const frameValidation = validateProposedSemanticFrame(value.semanticFrame);
   let frameRecovery: SemanticFrameRecoveryTelemetry;
@@ -835,29 +835,29 @@ export function parseUnifiedResponse(
   return {
     answer,
     answerSections,
-    safetyLevel: value.safetyLevel as ParsedUnifiedResponse["safetyLevel"],
-    responseMode: value.responseMode as AskResponseMode,
+    safetyLevel,
+    responseMode: responseModes.includes(value.responseMode as never) ? value.responseMode as AskResponseMode : "practical_guidance",
     shoppingSuppressed: intelligenceSafety.shoppingSuppressed,
-    suggestedFollowUps: uniqueCleanSuggestedFollowUps(value.suggestedFollowUps),
-    applicationActions: parseModelApplicationActions(value.applicationActions || [], sourceMessage),
-    proposedHistoryUpdate: cleanProposedHistoryUpdate(value.proposedHistoryUpdate),
-    userIntent: clean(value.userIntent).slice(0, 120),
+    suggestedFollowUps: uniqueCleanSuggestedFollowUps(Array.isArray(value.suggestedFollowUps) ? value.suggestedFollowUps : []),
+    applicationActions: parseModelApplicationActions(Array.isArray(value.applicationActions) ? value.applicationActions : [], sourceMessage),
+    proposedHistoryUpdate: isProposedHistoryUpdate(value.proposedHistoryUpdate) ? cleanProposedHistoryUpdate(value.proposedHistoryUpdate) : emptyHistoryUpdate(),
+    userIntent: typeof value.userIntent === "string" ? clean(value.userIntent).slice(0, 120) : "unknown",
     relevantContextIds,
-    messageUnderstanding: value.messageUnderstanding,
+    messageUnderstanding,
     intelligenceSafety,
-    learnings: value.learnings.slice(0, 5).map((learning) => ({
+    learnings: learnings.slice(0, 5).map((learning) => ({
       ...learning,
       category: clean(learning.category).slice(0, 80),
       factKey: clean(learning.factKey).slice(0, 100),
       sourceExcerpt: String(learning.sourceExcerpt).slice(0, 160),
     })),
-    careActions: value.careActions.slice(0, 3).map((action) => ({
+    careActions: careActions.slice(0, 3).map((action) => ({
       ...action,
       category: clean(action.category).slice(0, 80),
       title: cleanAnswer(action.title).slice(0, 120),
       details: cleanAnswer(action.details).slice(0, 500),
     })),
-    semanticEvents: value.semanticEvents.slice(0, 4).map((event) => ({
+    semanticEvents: semanticEvents.slice(0, 4).map((event) => ({
       ...event,
       topic: clean(event.topic).slice(0, 100),
       eventTitle: cleanAnswer(event.eventTitle).slice(0, 120),
@@ -890,6 +890,30 @@ function parseAnswerSections(value: unknown): AskReasoningResult["answer"]["sect
     if (items.some((item) => !item)) throw new Error("Ask provider returned invalid answer sections.");
     return { heading, items };
   });
+}
+
+function parseAnswerSectionsLenient(value: unknown) {
+  try { return parseAnswerSections(value); }
+  catch { return []; }
+}
+
+function emptyHistoryUpdate(): ProposedHistoryUpdate {
+  return { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null };
+}
+
+function defaultIntelligenceSafety(safetyLevel: ParsedUnifiedResponse["safetyLevel"]): AskReasoningResult["intelligenceSafety"] {
+  const level = safetyLevel === "urgent" ? "urgent" : safetyLevel === "monitor" ? "monitor" : "routine";
+  return { level, reason: "Server safety policy applies.", requiresImmediateAction: level === "urgent", shoppingSuppressed: level === "urgent" };
+}
+
+function defaultMessageUnderstanding(message: string): IntelligenceMessageUnderstanding {
+  return {
+    primaryIntent: "unknown", secondaryIntents: [], userIsAskingQuestion: /\?\s*$/.test(message),
+    userIsProvidingUpdate: false, userIsCorrectingPriorInformation: false, userIsResolvingConcern: false,
+    userIsProvidingPreference: false, userIsMakingSmallTalk: false, recoveryStatus: "none", recoveryConfidence: 0,
+    recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 0 },
+    requestedTopic: null, referencedPet: null, safetyRelevance: "none", needsClarification: false, canAnswerDirectly: true,
+  };
 }
 
 function normalizeIntelligenceSafety(value: unknown): AskReasoningResult["intelligenceSafety"] | null {

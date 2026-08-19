@@ -154,14 +154,14 @@ test("repeated malformed completed output stops after one repair", async () => {
   assert.equal(client.requests.length, 2);
 });
 
-test("invalid adaptive sections are rejected and repaired once", async () => {
+test("invalid auxiliary sections are dropped without a repair call", async () => {
   const client = clientWith([
     { status: "completed", output_text: JSON.stringify(providerOutput({ answerSections: [{ heading: "What to do", items: [] }] })) },
     { status: "completed", output_text: JSON.stringify(providerOutput({ answerSections: [] })) },
   ]);
   const result = await generateContextAwareAskResponse(input(client));
   assert.deepEqual(result.answer.sections, []);
-  assert.equal(client.requests.length, 2);
+  assert.equal(client.requests.length, 1);
 });
 
 test("provider success is emitted only after parsing and schema validation", async () => {
@@ -211,10 +211,10 @@ test("canonical mutations remain after provider, schema, answer validation, and 
   assert.match(route.slice(route.indexOf("} catch (error) {", route.indexOf("orchestration =")), route.indexOf("const reasoning")), /safeReleaseAiCredit/);
 });
 
-test("retry UI reuses one request ID, blocks concurrent clicks, and preserves the user message", () => {
+test("retry UI reuses one logical turn with a new server attempt", () => {
   const page = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
   const ask = page.slice(page.indexOf("async function ask("), page.indexOf("function editFailedMessage"));
-  assert.match(ask, /retry\?\.requestId \|\| getOrCreateClientMutationKey/);
+  assert.match(ask, /retry\?\.logicalTurnId \|\| crypto\.randomUUID/);
   assert.match(ask, /askRequestActiveRef\.current/);
   assert.match(ask, /if \(!retry\) setThread/);
   assert.match(ask, /setFailedRequest\(null\)/);

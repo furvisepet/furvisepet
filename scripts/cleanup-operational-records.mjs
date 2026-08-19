@@ -17,7 +17,16 @@ try {
   const { data, error } = await client.rpc("cleanup_operational_records", { p_apply: apply, p_batch_limit: batch });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
-  console.log(JSON.stringify({ apply, batch, deletedDeletionRecords: Number(row?.deleted_deletion_count || 0), expiredDeletionRecords: Number(row?.expired_deletion_count || 0), releasedCredits: Number(row?.released_credit_count || 0), staleCredits: Number(row?.stale_credit_count || 0) }));
+  console.log(JSON.stringify({
+    apply,
+    batch,
+    completedCredits: Number(row?.completed_credit_count || 0),
+    deletedDeletionRecords: Number(row?.deleted_deletion_count || 0),
+    expiredDeletionRecords: Number(row?.expired_deletion_count || 0),
+    missingCreditDispositions: Number(row?.missing_disposition_count || 0),
+    releasedCredits: Number(row?.released_credit_count || 0),
+    staleCredits: Number(row?.stale_credit_count || 0),
+  }));
 } catch { fail("Operational cleanup failed.", 1); }
 
 function fail(message, code) { console.error(message); process.exit(code); }

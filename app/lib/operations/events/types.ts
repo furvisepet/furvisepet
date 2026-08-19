@@ -9,7 +9,7 @@ export type OperationalEventType =
   | "account_password_change"
   | "account_deletion_completed" | "account_deletion_failed" | "data_export_started"
   | "data_export_completed" | "cleanup_failed" | "migration_mismatch"
-  | "application_action";
+  | "application_action" | "ask_turn";
 
 export type OperationalSeverity = "info" | "warning" | "high" | "critical";
 

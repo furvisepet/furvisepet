@@ -85,7 +85,7 @@ test("AI RPC ignores caller allowance and pet trigger uses the DB resolver", () 
 test("internal QA does not alter infrastructure or provider-cost policies", () => {
   assert.deepEqual(getRateLimitPolicy("ASK_AI").user, { limit: 10, windowMs: 60_000 });
   assert.deepEqual(getRateLimitPolicy("ASK_AI").ip, { limit: 30, windowMs: 60_000 });
-  assert.match(read("app/lib/ai/usage-guard/features.ts"), /ask: policy\("ask", "FURVISE_AI_ASK_ENABLED", 20_000, 80_000, ASK_MAX_OUTPUT_TOKENS, 3\)/);
+  assert.match(read("app/lib/ai/usage-guard/features.ts"), /ask: policy\("ask", "FURVISE_AI_ASK_ENABLED", 20_000, 80_000, ASK_MAX_OUTPUT_TOKENS, 2\)/);
   assert.doesNotMatch(read("app/lib/security/rate-limit/config.ts"), /internal_qa|entitlement/i);
   assert.doesNotMatch(read("app/lib/ai/usage-guard/admission.ts"), /internal_qa|entitlement/i);
 });

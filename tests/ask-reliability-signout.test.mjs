@@ -7,7 +7,7 @@ import { clearAskClientState } from "../app/lib/ask-conversations.ts";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const page = read("app/ask/page.tsx");
 const route = read("app/api/ask/route.ts");
-const errorUx = read("app/lib/ask-client-errors.ts");
+const errorUx = read("app/lib/ask-errors.ts");
 const conversationRoute = read("app/api/ask/conversations/[id]/route.ts");
 const conversationListRoute = read("app/api/ask/conversations/route.ts");
 const migration = read("supabase/migrations/20260727010000_add_ask_request_idempotency.sql");
@@ -28,35 +28,33 @@ test("Ask sends selected pet context and one idempotent request", () => {
   const askFunction = page.slice(page.indexOf("async function ask("), page.indexOf("function saveCurrentDraft"));
   assert.equal((askFunction.match(/idempotentClientFetch\("\/api\/ask"/g) || []).length, 1);
   assert.match(askFunction, /petId: selectedPet/);
-  assert.match(askFunction, /requestId/);
+  assert.match(askFunction, /logicalTurnId/);
   assert.match(askFunction, /signal: AbortSignal\.timeout\(55_000\)/);
   assert.doesNotMatch(askFunction, /\/api\/ask\/conversations\/.*\/messages/);
 });
 
-test("failure preserves the visible user message and retry reuses its request ID", () => {
+test("failure preserves the visible user message and retry reuses its logical turn", () => {
   const askFunction = page.slice(page.indexOf("async function ask("), page.indexOf("function saveCurrentDraft"));
   assert.match(askFunction, /if \(!retry\) setThread/);
-  assert.match(askFunction, /requestId = retry\?\.requestId \|\| getOrCreateClientMutationKey/);
+  assert.match(askFunction, /logicalTurnId = retry\?\.logicalTurnId \|\| crypto\.randomUUID/);
   assert.match(askFunction, /requestPayload = retry\?\.payload \|\| buildAskRequestPayload/);
-  assert.match(askFunction, /if \(!retry && failedRequest\) clearClientMutationKey\(failedRequest\.scope, failedRequest\.requestId\)/);
-  assert.match(askFunction, /const rotateIdentity = requiresFreshAskRequestId\(failure\.code\)/);
-  assert.match(askFunction, /retryRequestId = rotateIdentity \? getOrCreateClientMutationKey\(scope\) : requestId/);
-  assert.match(askFunction, /setFailedRequest\(\{ code: failure\.code, payload: retryPayload, requestId: retryRequestId/);
-  assert.match(page, /clearClientMutationKey\(failedRequest\.scope, failedRequest\.requestId\)/);
+  assert.match(askFunction, /setFailedRequest\(\{ code: failure\.code, payload: requestPayload, logicalTurnId/);
+  assert.match(page, /setQuestion\(failedRequest\.payload\.message\)/);
   assert.doesNotMatch(askFunction, /current\.filter\(\(message\) => message\.id !== userMessageId\)/);
-  assert.match(page, /FURVISE_ANSWER_UNAVAILABLE_MESSAGE/);
+  assert.match(page, /getAskErrorPresentation/);
   assert.match(page, />Try again</);
-  assert.match(page, />Edit question</);
+  assert.match(page, /presentation\.recommendedAction === "edit" \? <button[^>]+onClick=\{onEdit\}/);
 });
 
 test("a failed turn cannot lend its request identity or edit state to a new composer submission", () => {
   const askFunction = page.slice(page.indexOf("async function ask("), page.indexOf("function saveCurrentDraft"));
-  const staleClear = askFunction.indexOf("if (!retry && failedRequest) clearClientMutationKey");
-  const identityRead = askFunction.indexOf("const requestId = retry?.requestId || getOrCreateClientMutationKey");
-  assert.ok(staleClear >= 0 && staleClear < identityRead);
-  assert.match(route, /persistedBeforeClaim\.userMessage\.user_text !== question[\s\S]*askFailure\("IDEMPOTENCY_CONFLICT"/);
-  assert.match(errorUx, /if \(code === "INVALID_MESSAGE"\)[\s\S]*Edit this question/);
-  assert.doesNotMatch(errorUx, /\["INVALID_MESSAGE", "AI_OPERATION_CONFLICT"/);
+  assert.match(askFunction, /const logicalTurnId = retry\?\.logicalTurnId \|\| crypto\.randomUUID\(\)/);
+  const claim = route.indexOf("idempotency = await claimIdempotentOperation");
+  const replay = route.indexOf("completed response replayed after canonical identity validation");
+  assert.ok(claim >= 0 && replay > claim);
+  assert.match(route, /assertPersistedReplayIdentity/);
+  assert.match(errorUx, /case "INVALID_CURRENT_INPUT"/);
+  assert.doesNotMatch(errorUx, /TEMPORARY_PROVIDER_FAILURE[\s\S]{0,180}"edit"/);
 });
 
 test("provider rate limits release the one reservation and return a stable recoverable error", () => {
@@ -64,8 +62,7 @@ test("provider rate limits release the one reservation and return a stable recov
   assert.match(route, /isProviderRateLimit\(error\)/);
   assert.match(route, /"AI_RATE_LIMITED"/);
   assert.match(route, /Furvise is receiving a lot of questions right now\. Your message is saved, and no AI credit was used\. Try again in a moment\./);
-  assert.match(errorUx, /"AI_RATE_LIMITED"/);
-  assert.match(errorUx, /Your question has been saved\. Try again in a moment\./);
+  assert.match(errorUx, /"TEMPORARY_PROVIDER_FAILURE"/);
 });
 
 test("Recent conversations excludes threads that have no assistant answer", () => {
