@@ -9,7 +9,7 @@ import {
   formatConcernTag,
   getPetReferenceGuidance,
   isHistoricalSafetyRelevantToTurn,
-  normalizePetVisibleProse,
+  normalizePetVisibleAnswer,
   type RecentAskUpdate,
 } from "../ask-safety-context.ts";
 import type { PetConcern } from "./concern-engine.ts";
@@ -298,7 +298,7 @@ const unifiedInstructions = [
   "Use activeConcernMessageState as a deterministic hint. Improved or resolved means continue conversationally and offer a saved improvement; still_active, worsening, or recurrence means address current safety first; unclear means interpret the newest message in context.",
   "Classify the newest currentMessage before using prior-turn or recently-resolved context. An explicit current report that a condition is present is current/active or recurrent evidence and must outrank an older recovery; never carry recoveryStatus forward from a prior turn.",
   "Set messageUnderstanding.recoveryStatus by meaning, not keywords. Use partial only when the condition remains present but is reduced or getting better. Use terminal only when the owner explicitly reports return to the pet's normal baseline, absence of the prior symptom, or that the problem ended. Use uncertain when the extent is unclear, and none when no recovery is reported. Set recoveryConfidence from the current message and supplied compatible lifecycle context. Independently extract recoveryEvidence: choose return_to_baseline, symptom_absent, or problem_ended only for terminal semantics; partial_improvement when the problem remains; uncertain when hedged or unclear; otherwise none. recoveryEvidence.surfaceText must be one exact contiguous fragment from the current message that supports that outcome, or null for none. Set targetConcept to the specific prior problem the evidence changes, using the supplied active episode topic when compatible, or null when no specific problem is supported. Its confidence must describe only that evidence.",
-  "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording. Use the pet's name once when it establishes the subject or distinguishes animals, then prefer natural pronouns. Never force the name into every sentence or manufacture a possessive form.",
+  "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording. Use the pet's name once when it establishes the subject or distinguishes animals, then prefer natural pronouns. Never replace a natural pronoun with the name, manufacture a possessive, or contract a pet name (for example, never write Mani'll).",
   "Treat the server-authored answerEconomy plan as authoritative. Depth is earned by the reasoning and action guidance needed, never by message length, owner emotion, pronoun count, or the amount of available history.",
   "For depth 0, answer in one or two natural sentences. For depth 1, usually use 40-120 useful words and no headings. For depth 2, usually use 100-250 useful words with zero or one useful expansion section and up to four total bullets. For depth 3, usually use 200-450 useful words with at most four meaningful sections. Depth 4 is safety-led: include every action, escalation sign, and avoidance needed even when that exceeds other budgets.",
   "The direct answer owns the core interpretation, the most important recommendation, and a brief emotional acknowledgement when useful. Every answerSection must add a new decision, action, explanation, or safety signal that is absent from the direct answer. Maximum section and bullet budgets are ceilings, not targets. Never restate the direct answer in a section.",
@@ -671,19 +671,6 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   }
 
   let answerText = parsed.answer;
-  if (profile) {
-    const petReference = {
-      name: profile.name || "your pet",
-      species: profile.species,
-      pronouns: readOptionalString(profile, "pronouns"),
-      sex: readOptionalString(profile, "sex") || readOptionalString(profile, "gender"),
-    };
-    answerText = normalizePetVisibleProse(answerText, petReference);
-    parsed.answerSections = parsed.answerSections.map((section) => ({
-      heading: normalizePetVisibleProse(section.heading, petReference),
-      items: section.items.map((item) => normalizePetVisibleProse(item, petReference)),
-    }));
-  }
   if (profile && isUselessQuestionEcho(input.question, answerText, profile.name || "your pet")) {
     answerText = buildObservationAssessmentFallback(input.question, profile.name || "your pet");
   }
@@ -693,11 +680,19 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     responseMode: parsed.responseMode,
     recentConversation: input.conversationTurns,
   });
-  const economicalAnswer = applyAskAnswerEconomy({
+  let economicalAnswer = applyAskAnswerEconomy({
     summary: answerText,
     sections: parsed.answerSections,
     safetyNote: null,
   }, answerDepth, { previousAssistantText });
+  if (profile) {
+    economicalAnswer = normalizePetVisibleAnswer(economicalAnswer, {
+      name: profile.name || "your pet",
+      species: profile.species,
+      pronouns: readOptionalString(profile, "pronouns"),
+      sex: readOptionalString(profile, "sex") || readOptionalString(profile, "gender"),
+    }, { reduceNameOveruse: input.profiles.length === 1 });
+  }
   answerText = economicalAnswer.summary;
   parsed.answerSections = economicalAnswer.sections;
   parsed.suggestedFollowUps = parsed.suggestedFollowUps.slice(0, answerDepth.maxFollowUps);

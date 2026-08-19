@@ -42,7 +42,8 @@ test("semantic section and bullet budgets remove decorative structure without tr
   assert.equal(economical.sections.length, 1);
   assert.ok(metrics.bullets <= 4);
   assert.doesNotMatch(economical.summary, /^Here’s what to do/i);
-  assert.match(economical.sections.flatMap((section) => section.items).join(" "), /Review every detail/);
+  assert.doesNotMatch(economical.sections.flatMap((section) => section.items).join(" "), /Review every detail/);
+  assert.equal(metrics.bulletIntegrityViolationCount, 0);
 
   const urgent = planAskAnswerDepth({ message: "She cannot breathe.", minimumSafetyLevel: "urgent" });
   const urgentAnswer = applyAskAnswerEconomy(draft, urgent);
@@ -101,10 +102,10 @@ test("new conversation titles are standalone topics for long messages", () => {
   assert.equal(deriveConversationTitle("She has been hiding under the bed for three days.", "Mani"), "Mani hiding more");
 });
 
-test("the executable 60-case review improves density without provider-call or safety regression", () => {
+test("the executable 75-case review improves density without provider-call or safety regression", () => {
   const review = buildAskAnswerEconomyReviewSet();
   const result = measureAskAnswerEconomyBenchmark(review);
-  assert.equal(review.length, 60);
+  assert.equal(review.length, 75);
   assert.ok(review.every((item) => item.previousUser && item.previousAssistant));
   assert.equal(result.providerCallsAfter, result.providerCallsBefore);
   assert.ok(result.after.averageWords < result.before.averageWords);
@@ -113,7 +114,11 @@ test("the executable 60-case review improves density without provider-call or sa
   assert.ok(result.after.careHistorySuggestionRate < result.before.careHistorySuggestionRate);
   assert.ok(result.after.zeroHeadingPercentage > result.before.zeroHeadingPercentage);
   assert.equal(result.dangerouslyShort, 0);
-  assert.equal(result.qualityPassed, 60);
+  assert.equal(result.qualityPassed, 75);
+  assert.equal(result.after.malformedPersonalizationCount, 0);
+  assert.equal(result.after.petNameContractionCount, 0);
+  assert.equal(result.after.pseudoListCount, 0);
+  assert.equal(result.after.bulletIntegrityViolationCount, 0);
 });
 
 test("generation, orchestration, and UI share economy policy without touching reliability identities", () => {

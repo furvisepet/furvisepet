@@ -136,6 +136,27 @@ const bases: ReviewBase[] = [
     safety: "normal", expectedDepth: 3, baselineSuggestion: false, requiredTerms: ["timeline", "vet"],
   },
   {
+    category: "natural_reference_female",
+    messages: ["She asks for petting and then bites.", "How do I give her space without ignoring her?", "She wants attention but gets irritated quickly.", "She has started biting if I keep petting, so I want to let her choose when it starts.", "How can I watch her body language more closely?"],
+    previousUser: "Mani likes being nearby.",
+    previousAssistant: "Let her control how much contact happens.",
+    safety: "normal", expectedDepth: 2, baselineSuggestion: false, requiredTerms: ["space"],
+  },
+  {
+    category: "natural_reference_neutral",
+    messages: ["They ask for petting and then move away.", "How do I give them space without ignoring them?", "They want attention but get restless quickly.", "They have started nipping if I keep petting, so I want to let them choose when it starts.", "How can I watch their body language more closely?"],
+    previousUser: "Milo likes being nearby.",
+    previousAssistant: "Let them control how much contact happens.",
+    safety: "normal", expectedDepth: 2, baselineSuggestion: false, requiredTerms: ["space"],
+  },
+  {
+    category: "list_integrity_complex",
+    messages: ["She is eating less, drinking more, hiding, and vomiting after a food change.", "Her appetite, water intake, litter use, and energy changed this week.", "She vomited after meals and is drinking more since the routine changed.", "She is hiding, skipping food, and using the litter box differently.", "Several symptoms changed after we switched food and feeding times."],
+    previousUser: "We changed her food and routine this week.",
+    previousAssistant: "Several changes together deserve a structured check.",
+    safety: "monitor", expectedDepth: 3, baselineSuggestion: true, requiredTerms: ["vet", "track"],
+  },
+  {
     category: "urgent_safety",
     messages: ["She can't breathe.", "His gums are blue and he collapsed.", "She is open-mouth breathing and weak.", "He may have eaten poison and is shaking.", "She is unconscious after a fall."],
     previousUser: "Something is very wrong.",
@@ -182,10 +203,11 @@ export function measureAskAnswerEconomyBenchmark(cases = buildAskAnswerEconomyRe
 function evaluateReviewCase(item: AskAnswerEconomyReviewCase) {
   const conversation = [{ role: "user" as const, text: item.previousUser }, { role: "furvise" as const, text: item.previousAssistant }];
   const plan = planAskAnswerDepth({ message: item.message, minimumSafetyLevel: item.safety, recentConversation: conversation });
-  const personalized = personalizeFixture(item.candidate);
-  const after = applyAskAnswerEconomy(personalized, plan, { previousAssistantText: item.previousAssistant });
-  const beforeMetrics = measureAskAnswerEconomy(item.before, { petName: "Mani" });
-  const afterMetrics = measureAskAnswerEconomy(after, { petName: "Mani" });
+  const economical = applyAskAnswerEconomy(item.candidate, plan, { previousAssistantText: item.previousAssistant });
+  const after = personalizeFixture(economical, item.category);
+  const metricPetName = item.category === "natural_reference_neutral" ? "Milo" : "Mani";
+  const beforeMetrics = measureAskAnswerEconomy(item.before, { petName: metricPetName });
+  const afterMetrics = measureAskAnswerEconomy(after, { petName: metricPetName });
   const rendered = [after.summary, ...after.sections.flatMap((section) => section.items)].join(" ").toLowerCase();
   const historyDecision = evaluateCareHistorySaveWorthiness({
     domain: item.category.includes("medication") ? "medication" : item.category.includes("symptom") ? "health" : "behavior",
@@ -205,8 +227,10 @@ function evaluateReviewCase(item: AskAnswerEconomyReviewCase) {
     sufficientContext: afterMetrics.words >= (plan.depth === 0 ? 2 : plan.followUpDeltaOnly ? 8 : plan.depth === 1 ? 20 : plan.depth === 2 ? 40 : plan.depth === 3 ? 80 : 80),
     unnecessaryRepetition: afterMetrics.repeatedSemanticContent <= 1,
     sectionNovelty: plan.depth === 4 || (afterMetrics.sectionNoveltyRate >= 0.8 && afterMetrics.directSectionSemanticOverlap < 0.68),
-    coherentPersonalization: afterMetrics.malformedPersonalizationCount === 0 && afterMetrics.petNameUseCount <= 4,
-    semanticProse: afterMetrics.pseudoListCount === 0,
+    coherentPersonalization: afterMetrics.malformedPersonalizationCount === 0
+      && afterMetrics.petNameContractionCount === 0
+      && !afterMetrics.petNameOveruseFlag,
+    semanticProse: afterMetrics.pseudoListCount === 0 && afterMetrics.bulletIntegrityViolationCount === 0,
     actionableValue: plan.depth < 2 || /\b(?:avoid|call|contact|give|keep|note|offer|stop|track|use|watch)\b/i.test(rendered),
     voice: !/\b(?:as an ai|please be advised|leverage|utilize|workflow|system)\b/i.test(rendered),
     safetyCompleteness,
@@ -232,8 +256,12 @@ function aggregate(items: Array<ReturnType<typeof measureAskAnswerEconomy> & { s
     averageDirectSectionOverlap: round(average(items.map((item) => item.directSectionSemanticOverlap))),
     repeatedRecommendationRate: round(average(items.map((item) => item.repeatedRecommendationRate))),
     malformedPersonalizationCount: items.reduce((sum, item) => sum + item.malformedPersonalizationCount, 0),
+    petNameContractionCount: items.reduce((sum, item) => sum + item.petNameContractionCount, 0),
     averagePetNameUses: round(average(items.map((item) => item.petNameUseCount))),
+    averagePetNameDensity: round(average(items.map((item) => item.petNameDensity))),
+    petNameOveruseRate: round(items.filter((item) => item.petNameOveruseFlag).length / items.length),
     pseudoListCount: items.reduce((sum, item) => sum + item.pseudoListCount, 0),
+    bulletIntegrityViolationCount: items.reduce((sum, item) => sum + item.bulletIntegrityViolationCount, 0),
     sectionNoveltyRate: round(average(items.map((item) => item.sectionNoveltyRate))),
   };
 }
@@ -248,6 +276,9 @@ function draftFor(category: string): AskEconomyAnswer {
   if (category === "follow_up_delta") return { summary: "Petting can become overstimulating. Keep contact brief, watch for tail flicks or skin twitching, and stop before she turns toward your hand. That new detail helps narrow the pattern: compare what happens immediately before it and adjust that specific trigger.", sections: [{ heading: "What to do", items: ["Keep petting sessions short.", "Stop at the first warning sign.", "Write down when the new detail appears."] }, { heading: "What to watch", items: ["Look for the same timing tomorrow.", "Notice whether appetite and energy remain normal.", "Call the vet if the pattern becomes painful or sudden."] }], safetyNote: null };
   if (category === "practical_personalization") return { summary: "Mani's petting threshold is short, so stop before she gets wound up and let Mani's choose whether she wants more contact. Watch for the first signal instead of waiting for a bite.", sections: [{ heading: "What to do", items: ["Keep sessions short and end petting before she reaches her limit.", "Give Mani's space once she turns toward your hand."] }, { heading: "Signals", items: ["Watch for tail flicking or skin twitching."] }], safetyNote: null };
   if (category === "pseudo_list_follow_up") return { summary: "That new detail points to a work-time habit. A few things can help: - Give Mani's a short play session first. - Set up a nearby resting spot. - Reward calm behavior there.", sections: [], safetyNote: null };
+  if (category === "natural_reference_female") return { summary: "Mani may want contact but reach her limit quickly. Give Mani's space, pet Mani's briefly, and let Mani's choose when Mani's ready to come back. That keeps the interaction predictable without forcing more contact than she wants.", sections: [{ heading: "Useful signals", items: ["Watch Mani closely for a tail flick or head turn."] }], safetyNote: null };
+  if (category === "natural_reference_neutral") return { summary: "Milo may want contact but reach their limit quickly. Give them space, pet them briefly, and let them choose when they're ready to come back. That keeps the interaction predictable without forcing more contact than they want.", sections: [{ heading: "Useful signals", items: ["Watch them closely for a tail flick or head turn."] }], safetyNote: null };
+  if (category === "list_integrity_complex") return { summary: "Several changes together deserve a vet call and a short timeline. Track appetite, drinking, vomiting, litter use, and energy while keeping food and routine steady. Bring those notes so the clinic can compare the timing and decide what needs checking first.", sections: [{ heading: "Track", items: ["Write down meal amounts and vomiting times.", "Note drinking and litter-box changes.", "Record hiding and energy changes."] }, { heading: "Do now", items: ["Keep the current food steady. Offer water and small meals.", "Avoid another sudden food change."] }, { heading: "Call sooner if", items: ["Call the vet today if the pattern continues. She stops eating. She becomes weak. She cannot keep water down."] }], safetyNote: null };
   if (category === "complex_medication") return { summary: "A change after starting medication deserves a same-day call to the prescribing vet, especially when appetite, drinking, vomiting, or energy also changed. Do not stop or repeat a dose unless the clinic tells you to. Write down each dose, meal, symptom, and time so the vet can compare the sequence.", sections: [{ heading: "Call with", items: ["The medication name, dose, and last dose time.", "When appetite or drinking changed.", "How often vomiting or diarrhea occurred."] }, { heading: "Until you hear back", items: ["Offer water and the usual tolerated food without forcing it.", "Keep her quiet and observe breathing and responsiveness.", "Avoid adding supplements or human medication."] }, { heading: "Go urgently if", items: ["She cannot keep water down.", "She becomes weak, collapses, or has trouble breathing.", "You suspect an overdose or wrong medication."] }], safetyNote: null };
   if (category === "complex_vet_preparation") return { summary: "Build the vet discussion around a short timeline: what changed first, what followed, what stayed normal, and what you already tried. Include dates, frequency, medication or diet changes, and two or three examples that show the pattern without turning the note into a transcript.", sections: [{ heading: "Timeline", items: ["List the first noticeable change and date.", "Add worsening, improvement, and recurrence points.", "Note what remained normal."] }, { heading: "Bring", items: ["Medication and food names.", "Photos or video of intermittent signs.", "Recent appetite, weight, and litter details."] }, { heading: "Ask the vet", items: ["Which causes need ruling out first?", "What should be monitored at home?", "What change should trigger an urgent return?"] }], safetyNote: null };
   return { summary: "Contact an emergency veterinarian now and start traveling if you can do so safely. Keep her quiet, minimize handling, and call the clinic on the way so they can prepare. Avoid food, water, medication, or home remedies unless a veterinary professional specifically directs them.", sections: [{ heading: "Do now", items: ["Call the nearest emergency clinic.", "Move her with as little stress as possible.", "Bring any package or exposure information."] }, { heading: "Avoid", items: ["Do not wait for another symptom.", "Do not induce vomiting unless directed.", "Do not give human medication."] }, { heading: "Tell the clinic", items: ["What happened and when.", "Current breathing and responsiveness.", "Any possible toxin, injury, or medication exposure."] }], safetyNote: null };
@@ -269,8 +300,10 @@ function inflateBaselineDraft(draft: AskEconomyAnswer): AskEconomyAnswer {
   };
 }
 
-function personalizeFixture(answer: AskEconomyAnswer): AskEconomyAnswer {
-  const pet = { name: "Mani", sex: "female", species: "cat" };
+function personalizeFixture(answer: AskEconomyAnswer, category: string): AskEconomyAnswer {
+  const pet = category === "natural_reference_neutral"
+    ? { name: "Milo", pronouns: "they/them", species: "cat" }
+    : { name: "Mani", sex: "female", species: "cat" };
   return {
     ...answer,
     summary: normalizePetVisibleProse(answer.summary, pet),

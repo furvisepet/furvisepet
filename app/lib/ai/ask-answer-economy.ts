@@ -101,12 +101,25 @@ export function applyAskAnswerEconomy<T extends AskEconomyAnswer>(answer: T, eco
   };
 }
 
+export function normalizeAskListIntegrity<T extends AskEconomyAnswer>(answer: T): T {
+  return {
+    ...answer,
+    sections: answer.sections.map((section) => ({
+      ...section,
+      items: section.items.flatMap((item) => splitCompositeBullet(canonicalizeAnswerProse(item))).filter(Boolean),
+    })).filter((section) => section.heading && section.items.length > 0),
+  };
+}
+
 export function measureAskAnswerEconomy(answer: AskEconomyAnswer, options: { petName?: string } = {}) {
   const rendered = [
     answer.summary,
     ...answer.sections.flatMap((section) => [section.heading, ...section.items]),
     answer.safetyNote || "",
   ].filter(Boolean).join(" ");
+  const petNameUseCount = options.petName ? countPetNameUses(rendered, options.petName) : 0;
+  const sentenceCount = countSentences(rendered);
+  const petNameDensity = sentenceCount ? petNameUseCount / sentenceCount : 0;
   return {
     words: countWords(rendered),
     headings: answer.sections.length,
@@ -118,7 +131,11 @@ export function measureAskAnswerEconomy(answer: AskEconomyAnswer, options: { pet
       .filter(hasEmbeddedListMarkers).length,
     sectionNoveltyRate: sectionNoveltyRate(answer),
     malformedPersonalizationCount: options.petName ? countMalformedPetPersonalization(rendered, options.petName) : 0,
-    petNameUseCount: options.petName ? countPetNameUses(rendered, options.petName) : 0,
+    petNameContractionCount: options.petName ? countPetNameContractions(rendered, options.petName) : 0,
+    petNameUseCount,
+    petNameDensity,
+    petNameOveruseFlag: petNameUseCount >= 5 && petNameDensity > 0.8,
+    bulletIntegrityViolationCount: countBulletIntegrityViolations(answer),
   };
 }
 
@@ -177,10 +194,12 @@ function dedupeSections(sections: AskEconomyAnswer["sections"], summary: string,
     if (!heading || normalized.some((candidate) => materiallyOverlaps(candidate.heading, heading))) continue;
     const items: string[] = [];
     for (const rawItem of section.items) {
-      const item = removeRepeatedSentences(canonicalizeAnswerProse(rawItem), [summary, ...seenItems].join(" "));
-      if (!item || materiallyOverlaps(item, summary) || seenItems.some((candidate) => materiallyOverlaps(candidate, item))) continue;
-      items.push(item);
-      seenItems.push(item);
+      for (const candidate of splitCompositeBullet(canonicalizeAnswerProse(rawItem))) {
+        const item = removeRepeatedSentences(candidate, [summary, ...seenItems].join(" "));
+        if (!item || materiallyOverlaps(item, summary) || seenItems.some((seen) => materiallyOverlaps(seen, item))) continue;
+        items.push(item);
+        seenItems.push(item);
+      }
     }
     if (items.length) normalized.push({ heading, items });
   }
@@ -189,35 +208,82 @@ function dedupeSections(sections: AskEconomyAnswer["sections"], summary: string,
   }
 
   const accepted = normalized.slice(0, Math.max(1, maxSections)).map((section) => ({ ...section, items: [...section.items] }));
-  for (const overflow of normalized.slice(accepted.length)) {
-    accepted[accepted.length - 1].items.push(`${overflow.heading}: ${overflow.items.map(asSentence).join(" ")}`);
-  }
-  const itemSlots = accepted.flatMap((section, sectionIndex) => section.items.map((item) => ({ item, sectionIndex })));
-  if (itemSlots.length <= maxBullets) return accepted;
-
-  const primary = accepted.map((section, sectionIndex) => ({ item: section.items[0], sectionIndex }));
-  const remainder = accepted.flatMap((section, sectionIndex) => section.items.slice(1).map((item) => ({ item, sectionIndex })));
-  const openSlots = Math.max(0, maxBullets - primary.length);
-  const keptRemainder = remainder.slice(0, Math.max(0, openSlots - 1));
-  const overflow = remainder.slice(keptRemainder.length).map(({ item }) => asSentence(item)).join(" ");
-  for (const section of accepted) section.items = [];
-  for (const slot of [...primary, ...keptRemainder]) accepted[slot.sectionIndex].items.push(slot.item);
-  if (overflow) accepted[accepted.length - 1].items.push(overflow);
-  return accepted.filter((section) => section.items.length);
+  return selectCoherentBullets(accepted, maxBullets);
 }
 
 function normalizeSectionsWithoutSemanticRemoval(sections: AskEconomyAnswer["sections"], maxSections: number, maxBullets: number) {
   const normalized = sections.slice(0, maxSections).flatMap((section) => {
     const heading = clean(section.heading);
-    const items = section.items.map(canonicalizeAnswerProse).filter(Boolean);
+    const items = section.items.flatMap((item) => splitCompositeBullet(canonicalizeAnswerProse(item))).filter(Boolean);
     return heading && items.length ? [{ heading, items }] : [];
   });
-  let remaining = maxBullets;
-  return normalized.flatMap((section) => {
-    const items = section.items.slice(0, Math.max(0, remaining));
-    remaining -= items.length;
+  return selectCoherentBullets(normalized, maxBullets);
+}
+
+function splitCompositeBullet(value: string) {
+  const sentences = splitSentences(value);
+  if (sentences.length < 2) return value ? [value] : [];
+  const purposes = sentences.map(bulletPurposes);
+  const distinctPurposes = new Set(purposes.flat());
+  if (distinctPurposes.size < 2) return [value];
+  return sentences;
+}
+
+function selectCoherentBullets(sections: AskEconomyAnswer["sections"], maxBullets: number) {
+  const slots = sections.flatMap((section, sectionIndex) => section.items.map((item, itemIndex) => ({
+    heading: section.heading,
+    item,
+    itemIndex,
+    sectionIndex,
+  })));
+  if (slots.length <= maxBullets) return sections;
+
+  const selected = new Set<string>();
+  const guaranteedPerSection = sections.length * 2 <= maxBullets ? 2 : 1;
+  for (const slot of slots.filter((candidate) => candidate.itemIndex < guaranteedPerSection)) {
+    if (selected.size >= maxBullets) break;
+    selected.add(`${slot.sectionIndex}:${slot.itemIndex}`);
+  }
+  const remainder = slots
+    .filter((slot) => !selected.has(`${slot.sectionIndex}:${slot.itemIndex}`))
+    .sort((left, right) => bulletPriority(right) - bulletPriority(left)
+      || left.sectionIndex - right.sectionIndex
+      || left.itemIndex - right.itemIndex);
+  for (const slot of remainder) {
+    if (selected.size >= maxBullets) break;
+    selected.add(`${slot.sectionIndex}:${slot.itemIndex}`);
+  }
+  return sections.flatMap((section, sectionIndex) => {
+    const items = section.items.filter((_item, itemIndex) => selected.has(`${sectionIndex}:${itemIndex}`));
     return items.length ? [{ ...section, items }] : [];
   });
+}
+
+function bulletPriority(slot: { heading: string; item: string; itemIndex: number }) {
+  const value = `${slot.heading} ${slot.item}`;
+  let score = slot.itemIndex === 0 ? 2 : 0;
+  if (/\b(?:call|clinic|emergency|urgent|vet|veterinarian|same-day|sooner)\b/i.test(value)) score += 5;
+  if (/\b(?:can(?:not|['\u2019]t) keep|collapse|difficulty breathing|not peeing)\b/i.test(value)) score += 6;
+  else if (/\b(?:seems? (?:painful|weak)|stops? eating|won['\u2019]t eat)\b/i.test(value)) score += 4;
+  if (/\b(?:avoid|do not|don't|never)\b/i.test(value)) score += 2;
+  if (/\b(?:track|note|record|write down|watch|monitor)\b/i.test(value)) score += 1;
+  return score;
+}
+
+function bulletPurposes(value: string) {
+  const purposes = new Set<"ACTION" | "MONITOR" | "ESCALATE" | "AVOID" | "TRACK">();
+  if (/\b(?:call|contact|clinic|emergency|urgent|vet|veterinarian|go sooner|same-day|stops? eating|can(?:not|['\u2019]t) keep|seems? (?:painful|weak))\b/i.test(value)) purposes.add("ESCALATE");
+  if (/\b(?:avoid|do not|don't|never)\b/i.test(value)) purposes.add("AVOID");
+  if (/\b(?:track|note|record|write down|save a photo|how much|how often|what time)\b/i.test(value)) purposes.add("TRACK");
+  if (/\b(?:watch|monitor|check|look for|keep an eye)\b/i.test(value)) purposes.add("MONITOR");
+  if (/\b(?:give|keep|offer|pause|reward|set up|stop|try|use)\b/i.test(value)) purposes.add("ACTION");
+  return purposes;
+}
+
+function splitSentences(value: string) {
+  return (String(value || "").match(/[^.!?]+(?:[.!?]+|$)/g) || [])
+    .map(clean)
+    .filter(Boolean);
 }
 
 function countSemanticRepetitions(answer: AskEconomyAnswer) {
@@ -348,13 +414,34 @@ function lowerListItemStart(value: string) {
 
 function countMalformedPetPersonalization(value: string, petName: string) {
   const name = escapeRegExp(petName);
-  const malformedSubject = new RegExp(`\\b${name}['’]s\\s+(?:act|avoid|bite|choose|continue|drink|eat|feel|follow|initiate|keep|like|need|prefer|seem|show|sit|sleep|start|stay|stop|try|use|want)\\b`, "gi");
-  const malformedObject = new RegExp(`\\b(?:allow|ask|call|feed|follow|give|help|hold|leave|let|offer|pet|reward|take|tell|touch|watch)\\s+${name}['’]s\\b`, "gi");
-  return [...value.matchAll(malformedSubject), ...value.matchAll(malformedObject)].length;
+  const apostrophe = "['\\u2019]";
+  const malformedSubject = new RegExp(`(?<![\\p{L}\\p{N}])${name}${apostrophe}s\\s+(?:(?:act|avoid|bite|choose|continue|drink|eat|feel|follow|initiate|keep|like|need|prefer|seem|show|sit|sleep|start|stay|stop|try|use|want)s?|is|are|was|were|has|have|does|do|may|might|can(?:not|${apostrophe}t)?|could|will|would|should)\\b`, "giu");
+  const malformedObject = new RegExp(`\\b(?:allow|ask|call|feed|feeding|follow|give|giving|help|hold|holding|leave|let|offer|pet|petting|reward|take|tell|touch|watch)\\s+${name}${apostrophe}s\\b|\\bkeep\\s+${name}${apostrophe}s(?=\\s+(?:still|quiet|calm|comfortable|safe|warm)\\b)`, "giu");
+  return [
+    ...value.matchAll(malformedSubject),
+    ...value.matchAll(malformedObject),
+    ...value.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${name}${apostrophe}(?:ll|re|ve|d)\\b`, "giu")),
+  ].length;
 }
 
 function countPetNameUses(value: string, petName: string) {
-  return [...value.matchAll(new RegExp(`\\b${escapeRegExp(petName)}(?:['’]s)?\\b`, "gi"))].length;
+  return [...value.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(petName)}(?:['\\u2019](?:s|ll|re|ve|d))?(?![\\p{L}\\p{N}])`, "giu"))].length;
+}
+
+function countPetNameContractions(value: string, petName: string) {
+  return [...value.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(petName)}['\\u2019](?:ll|re|ve|d)(?![\\p{L}\\p{N}])`, "giu"))].length;
+}
+
+function countSentences(value: string) {
+  return Math.max(1, splitSentences(value).length);
+}
+
+function countBulletIntegrityViolations(answer: AskEconomyAnswer) {
+  return answer.sections.reduce((sum, section) => sum + section.items.filter((item) => {
+    const sentences = splitSentences(item);
+    if (sentences.length < 2) return false;
+    return new Set(sentences.flatMap((sentence) => [...bulletPurposes(sentence)])).size >= 2;
+  }).length, 0);
 }
 
 function escapeRegExp(value: string) {

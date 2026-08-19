@@ -1,16 +1,23 @@
 import type { AskReasoningResult } from "../../ai/ask-reasoning.ts";
+import { measureAskAnswerEconomy, normalizeAskListIntegrity } from "../../ai/ask-answer-economy.ts";
+import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 
-export type AnswerValidationResult = { response: AskReasoningResult; valid: boolean; repairs: string[]; errors: string[] };
+export type AnswerValidationResult = {
+  response: AskReasoningResult;
+  valid: boolean;
+  repairs: string[];
+  errors: string[];
+  qualityWarnings: string[];
+};
 export function validateGeneratedAnswer(
   result: AskReasoningResult,
   context: FurviseLiveContext,
   canonicalSafety: IntelligenceSafetyLevel,
   authoritativePetIds: readonly string[] = [context.pet.id],
 ): AnswerValidationResult {
-  const repairs: string[] = []; const errors: string[] = [];
+  const repairs: string[] = []; const errors: string[] = []; const qualityWarnings: string[] = [];
   const response = structuredClone(result);
-  const knownPronouns = context.memories.some((memory) => /^(?:sex|gender|pronouns?)$/i.test(memory.fact_key));
   const contextText = `${context.currentMessage} ${context.careEntries.map((entry) => `${entry.title || ""} ${entry.note}`).join(" ")} ${context.memories.map((memory) => `${memory.fact_key} ${JSON.stringify(memory.fact_value)}`).join(" ")}`;
   const unrelatedResolved = context.currentState?.state.breathing?.status === "normal" && !/breath|breathing/i.test(context.currentMessage);
   const sanitize = (source: string) => {
@@ -22,10 +29,6 @@ export function validateGeneratedAnswer(
     replace(/\bI(?:'ve| have)? (?:saved|added|recorded|updated|marked)[^.]*\.?/gi, "", "removed_false_persistence_claim");
     replace(/\b(?:RPC|database error|stack trace|requestId|Supabase|context id|internal classifier)\b[^.]*\.?/gi, "", "removed_internal_diagnostic");
     replace(/\u2014/g, "-", "removed_em_dash");
-    if (!knownPronouns) {
-      replace(/\b(?:she|he)\b/gi, context.pet.name, "neutralized_pronoun");
-      replace(/\b(?:her|his)\b/gi, `${context.pet.name}'s`, "neutralized_pronoun");
-    }
     if (/\b(?:has|is|was) (?:diagnosed with|suffering from)\b/i.test(text) && !/diagnos/i.test(contextText)) {
       replace(/[^.]*\b(?:diagnosed with|suffering from)\b[^.]*\.?/gi, "", "removed_unsupported_diagnosis");
     }
@@ -62,6 +65,36 @@ export function validateGeneratedAnswer(
     if (response.responseMode === "urgent_safety") response.responseMode = "practical_guidance";
   }
   else if (response.safetyLevel === "urgent" && canonicalSafety === "routine") { response.safetyLevel = "normal"; repairs.push("aligned_safety_to_current_state"); }
+  const savedPronouns = savedPetPronouns(context);
+  const petReference = {
+    name: context.pet.name,
+    pronouns: savedPronouns.value,
+    sex: context.pet.sex,
+    species: context.pet.species,
+  };
+  try {
+    const beforeQuality = measureAskAnswerEconomy(response.answer, { petName: context.pet.name });
+    response.answer = normalizeAskListIntegrity(response.answer);
+    response.answer = savedPronouns.presentWithoutValue
+      ? neutralizeMalformedPetReferences(response.answer, petReference)
+      : normalizePetVisibleAnswer(response.answer, petReference, { reduceNameOveruse: authoritativePetIds.length === 1 });
+    response.answer = neutralizeMalformedPetReferences(response.answer, petReference);
+    const visibleQuality = measureAskAnswerEconomy(response.answer, { petName: context.pet.name });
+    if (beforeQuality.malformedPersonalizationCount > visibleQuality.malformedPersonalizationCount
+      || beforeQuality.petNameContractionCount > visibleQuality.petNameContractionCount) {
+      repairs.push("neutralized_malformed_pet_reference");
+    }
+    if (beforeQuality.bulletIntegrityViolationCount > visibleQuality.bulletIntegrityViolationCount) {
+      repairs.push("split_mixed_purpose_bullet");
+    }
+    if (visibleQuality.malformedPersonalizationCount > 0 || visibleQuality.petNameContractionCount > 0) {
+      qualityWarnings.push("personalization_defect_remaining");
+    }
+    if (visibleQuality.petNameOveruseFlag) qualityWarnings.push("pet_name_overuse_remaining");
+    if (visibleQuality.bulletIntegrityViolationCount > 0) qualityWarnings.push("mixed_purpose_bullet_remaining");
+  } catch {
+    qualityWarnings.push("quality_normalization_failed");
+  }
   const answerText = JSON.stringify(response.answer);
   const unauthorizedPetNamed = (context.eligiblePets || []).some((pet) => pet.name
     && !authoritativePetIds.includes(pet.id)
@@ -69,7 +102,21 @@ export function validateGeneratedAnswer(
   if (unauthorizedPetNamed) errors.push("response_subject_disagreement");
   if (!response.answer.summary) errors.push("empty_after_grounding_repair");
   if (/\b(?:I saved|I added|stack trace|requestId|Supabase|context id|internal classifier)\b/i.test(answerText)) errors.push("unsafe_content_remaining");
-  return { response, valid: errors.length === 0, repairs: [...new Set(repairs)], errors };
+  return {
+    response,
+    valid: errors.length === 0,
+    repairs: [...new Set(repairs)],
+    errors,
+    qualityWarnings: [...new Set(qualityWarnings)],
+  };
+}
+
+function savedPetPronouns(context: FurviseLiveContext) {
+  const memory = context.memories.find((candidate) => /^(?:pronouns?)$/i.test(candidate.fact_key));
+  return {
+    value: typeof memory?.fact_value === "string" ? memory.fact_value : null,
+    presentWithoutValue: Boolean(memory) && typeof memory?.fact_value !== "string",
+  };
 }
 
 function escapeRegex(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

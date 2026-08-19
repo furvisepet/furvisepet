@@ -270,7 +270,12 @@ export async function runFurviseIntelligence({
     acceptedSemanticEvents,
     rejectedCareActionCount: carePolicy.rejected.length,
     governance,
-    answerValidation: { valid: answerValidation.valid, repairs: answerValidation.repairs, errors: answerValidation.errors },
+    answerValidation: {
+      valid: answerValidation.valid,
+      repairs: answerValidation.repairs,
+      errors: answerValidation.errors,
+      qualityWarnings: answerValidation.qualityWarnings,
+    },
     semanticTrace: shadow.trace,
     v2GovernedTurn: shadow.v2Turn,
   };

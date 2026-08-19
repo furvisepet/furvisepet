@@ -240,29 +240,37 @@ export function getPetReferenceGuidance({
   const explicitPronouns = pronouns?.trim().toLowerCase() || "";
   const explicitSex = sex?.trim().toLowerCase() || "";
   if (/\bshe\s*\/\s*her\b/.test(explicitPronouns) || /^(female|f)$/.test(explicitSex)) {
-    return { allowsGenderedPronouns: true, instruction: `Use she and her consistently for ${name}.` };
+    return { allowsGenderedPronouns: true, instruction: `Use she and her consistently. Use ${name} once when useful to establish the subject, then prefer those natural pronouns. Never contract the pet's name or replace a natural pronoun with the name.` };
   }
   if (/\bhe\s*\/\s*him\b/.test(explicitPronouns) || /^(male|m)$/.test(explicitSex)) {
-    return { allowsGenderedPronouns: true, instruction: `Use he and him consistently for ${name}.` };
+    return { allowsGenderedPronouns: true, instruction: `Use he and him consistently. Use ${name} once when useful to establish the subject, then prefer those natural pronouns. Never contract the pet's name or replace a natural pronoun with the name.` };
+  }
+  if (/\bthey\s*\/\s*them\b/.test(explicitPronouns)) {
+    return { allowsGenderedPronouns: true, instruction: `Use they and them consistently. Use ${name} once when useful to establish the subject, then prefer those natural pronouns. Never contract the pet's name or replace a natural pronoun with the name.` };
   }
   const neutralPet = species === "cat" ? "your cat" : species === "dog" ? "your dog" : "your pet";
   return {
     allowsGenderedPronouns: false,
-    instruction: `No saved sex or pronoun data is available. Use ${name}, ${neutralPet}, or neutral they wording. Never infer gender from the name, species, breed, or photo.`,
+    instruction: `No saved sex or pronoun data is available. Use ${name}, ${neutralPet}, or neutral they wording sparingly. Never infer gender or create a contraction with the pet's name.`,
   };
 }
 
 export function removeUnsupportedGenderedPronouns(value: string, petName: string) {
   const name = petName.trim() || "your pet";
   const possessive = possessiveName(name);
-  return String(value || "")
-    .replace(/\b(?:herself|himself)\b/gi, name)
-    .replace(/\b(?:she|he)\b/gi, name)
+  return transformProtectedVisibleProse(value, (source) => source
+    .replace(/\b(?:she|he)['\u2019]ll\b/gi, `${name} will`)
+    .replace(/\b(?:she|he)['\u2019]re\b/gi, `${name} is`)
+    .replace(/\b(?:she|he)['\u2019]ve\b/gi, `${name} has`)
+    .replace(/\b(?:she|he)['\u2019]d\b/gi, `${name} would`)
+    .replace(/\b(?:she|he)['\u2019]s\b/gi, `${name} is`)
+    .replace(/\b(?:herself|himself)\b/gi, "themself")
     .replace(new RegExp(`\\b(${objectPronounGovernors})\\s+(?:her|him)\\b`, "gi"), `$1 ${name}`)
-    .replace(/\bher\b(?=\s+[\p{L}][\p{L}'’-]*)/giu, possessive)
-    .replace(/\bhis\b(?=\s+[\p{L}][\p{L}'’-]*)/giu, possessive)
+    .replace(/\bher\b(?=\s+[\p{L}][\p{L}'\u2019-]*)/giu, possessive)
+    .replace(/\bhis\b(?=\s+[\p{L}][\p{L}'\u2019-]*)/giu, possessive)
     .replace(/\b(?:hers|his)\b/gi, possessive)
-    .replace(/\b(?:her|him)\b/gi, name);
+    .replace(/\b(?:she|he)\b/gi, name)
+    .replace(/\b(?:her|him)\b/gi, name));
 }
 
 export function normalizePetVisibleProse(value: string, pet: {
@@ -270,43 +278,228 @@ export function normalizePetVisibleProse(value: string, pet: {
   pronouns?: string | null;
   sex?: string | null;
   species?: string | null;
-}) {
+}, options: { reduceNameOveruse?: boolean; retainFirstName?: boolean } = {}) {
   const name = pet.name.trim() || "your pet";
   const reference = getPetReferenceGuidance({ ...pet, name, species: pet.species || null });
-  if (!reference.allowsGenderedPronouns) return removeUnsupportedGenderedPronouns(value, name);
+  if (!reference.allowsGenderedPronouns) {
+    return neutralizeMalformedNamedReferences(removeUnsupportedGenderedPronouns(value, name), name, null, false);
+  }
 
   const pronoun = petPronounSet(pet.pronouns, pet.sex);
+  if (!pronoun) return neutralizeMalformedNamedReferences(removeUnsupportedGenderedPronouns(value, name), name, null, false);
+  const normalized = transformProtectedVisibleProse(value, (source) => normalizeKnownPetReferences(
+    source,
+    name,
+    pronoun,
+    options.reduceNameOveruse !== false,
+    options.retainFirstName !== false,
+  ));
+  return neutralizeMalformedNamedReferences(normalized, name, pronoun, options.reduceNameOveruse !== false);
+}
+
+export function normalizePetVisibleAnswer<T extends {
+  summary: string;
+  sections: { heading: string; items: string[] }[];
+  safetyNote?: string | null;
+}>(answer: T, pet: {
+  name: string;
+  pronouns?: string | null;
+  sex?: string | null;
+  species?: string | null;
+}, options: { reduceNameOveruse?: boolean } = {}): T {
+  let nameEstablished = false;
+  const normalize = (value: string) => {
+    const normalized = normalizePetVisibleProse(value, pet, {
+      ...options,
+      retainFirstName: !nameEstablished,
+    });
+    if (containsPetName(normalized, pet.name)) nameEstablished = true;
+    return normalized;
+  };
+  return {
+    ...answer,
+    summary: normalize(answer.summary),
+    sections: answer.sections.map((section) => ({
+      heading: normalize(section.heading),
+      items: section.items.map(normalize),
+    })),
+    safetyNote: answer.safetyNote ? normalize(answer.safetyNote) : answer.safetyNote,
+  };
+}
+
+export function neutralizeMalformedPetReferences<T extends {
+  summary: string;
+  sections: { heading: string; items: string[] }[];
+  safetyNote?: string | null;
+}>(answer: T, pet: {
+  name: string;
+  pronouns?: string | null;
+  sex?: string | null;
+}): T {
+  const name = pet.name.trim() || "your pet";
+  const pronoun = petPronounSet(pet.pronouns, pet.sex);
+  const repair = (value: string) => neutralizeMalformedNamedReferences(value, name, pronoun, Boolean(pronoun));
+  return {
+    ...answer,
+    summary: repair(answer.summary),
+    sections: answer.sections.map((section) => ({
+      heading: repair(section.heading),
+      items: section.items.map(repair),
+    })),
+    safetyNote: answer.safetyNote ? repair(answer.safetyNote) : answer.safetyNote,
+  };
+}
+
+const objectPronounGovernors = "allow|allowed|ask|asked|call|called|feed|fed|feeding|follow|followed|following|give|gave|giving|help|helped|hold|held|holding|leave|left|leaving|let|offer|offered|offering|pet|petted|petting|reward|rewarded|rewarding|take|took|taking|tell|told|telling|touch|touched|touching|watch|watched|watching|with|for|to";
+const finitePetVerbs = "act|avoid|bite|choose|continue|drink|eat|feel|follow|initiate|keep|like|need|prefer|seem|show|sit|sleep|start|stay|stop|try|use|want";
+const subjectPetVerbs = `${finitePetVerbs}|acts?|avoids?|bites?|chooses?|continues?|drinks?|eats?|feels?|follows?|initiates?|keeps?|likes?|needs?|prefers?|seems?|shows?|sits?|sleeps?|starts?|stays?|stops?|tries?|uses?|wants?|is|are|was|were|has|have|had|does|do|did|may|might|can(?:not|['\u2019]t)?|could|will|would|should`;
+const contractionAdjectives = "done|ready|tired|hungry|sore|calm|restless|comfortable|uncomfortable|afraid|anxious|okay|fine|better|worse";
+
+function normalizeKnownPetReferences(
+  source: string,
+  name: string,
+  pronoun: { subject: string; object: string; possessive: string },
+  reduceNameOveruse: boolean,
+  retainFirstName: boolean,
+) {
   const escapedName = escapeRegExp(name);
-  let prose = String(value || "");
+  const apostrophe = "['\\u2019]";
+  const subjectAt = (prose: string, offset: number) => sentenceAwarePronoun(pronoun.subject, prose, offset);
+  const objectReference = reduceNameOveruse ? pronoun.object : name;
+  let prose = source;
 
-  // Repair only high-confidence cases where a possessive form occupies an object
-  // or finite-verb slot. Valid possessives and contractions are handled separately.
-  prose = prose
-    .replace(new RegExp(`\\b(${objectPronounGovernors})\\s+(${escapedName})['’]s\\b`, "gi"), "$1 $2")
-    .replace(new RegExp(`\\b(${escapedName})['’]s\\s+(${finitePetVerbs})\\b`, "gi"), "$1 $2")
-    .replace(new RegExp(`\\b([\\p{L}]+(?:ing|ed))\\s+(${escapedName})['’]s(?=\\s+(?:a|an|around|away|closely|space|time)\\b)`, "giu"), "$1 $2");
-
-  if (!pronoun) return prose;
-
-  // A name followed by a progressive verb is a contraction ("Mani's getting"),
-  // not a possessive. Keep the grammar while reducing repeated name use.
   prose = prose.replace(
-    new RegExp(`\\b${escapedName}['’]s\\s+(?=(?:being|becoming|doing|feeling|getting|going|having|looking|seeming|showing|starting|trying)\\b)`, "gi"),
-    (_match, offset: number) => `${sentenceAwarePronoun(pronoun.subject, prose, offset)}'s `,
+    new RegExp(`\\b(${objectPronounGovernors})\\s+${escapedName}${apostrophe}s\\b`, "giu"),
+    `$1 ${objectReference}`,
   );
   prose = prose.replace(
-    new RegExp(`\\b${escapedName}['’]s\\b`, "gi"),
-    (_match, offset: number) => sentenceAwarePronoun(pronoun.possessive, prose, offset),
+    new RegExp(`\\b${escapedName}${apostrophe}(ll|re|ve|d)\\b`, "giu"),
+    (_match, contraction: string, offset: number) => {
+      if (!reduceNameOveruse) return `${name} ${expandNameContraction(contraction)}`;
+      return `${subjectAt(prose, offset)}'${contraction.toLowerCase()}`;
+    },
   );
   prose = prose.replace(
+    new RegExp(`\\b${escapedName}${apostrophe}s\\s+(?=(?:being|becoming|biting|breathing|doing|drinking|eating|feeling|following|getting|going|having|hiding|limping|looking|scratching|seeming|showing|sleeping|starting|trying|urinating|using|vomiting|walking|${contractionAdjectives})\\b)`, "giu"),
+    (_match, offset: number) => reduceNameOveruse ? `${subjectAt(prose, offset)}'s ` : `${name} is `,
+  );
+  prose = prose.replace(
+    new RegExp(`\\b${escapedName}${apostrophe}s\\s+(${subjectPetVerbs})\\b`, "giu"),
+    (_match, verb: string, offset: number) => {
+      const subject = reduceNameOveruse ? subjectAt(prose, offset) : name;
+      return `${subject} ${conjugatePetVerb(verb, pronoun.subject)}`;
+    },
+  );
+  if (reduceNameOveruse) {
+    prose = prose.replace(
+      new RegExp(`\\b${escapedName}${apostrophe}s\\b`, "giu"),
+      (_match, offset: number) => sentenceAwarePronoun(pronoun.possessive, prose, offset),
+    );
+    prose = reduceRepeatedPlainPetNames(prose, name, pronoun, retainFirstName);
+  }
+  return prose.replace(
     new RegExp(`\\b(${pronoun.possessive})\\s+([a-z]+ing)\\s+(?:threshold|limit)\\b`, "gi"),
     "$1 tolerance for $2",
   );
-  return prose;
 }
 
-const objectPronounGovernors = "allow|allowed|ask|asked|call|called|feed|fed|follow|followed|give|gave|help|helped|hold|held|leave|left|let|offer|offered|pet|petted|reward|rewarded|take|took|tell|told|touch|touched|watch|watched|with|for|to";
-const finitePetVerbs = "act|avoid|bite|choose|continue|drink|eat|feel|follow|initiate|keep|like|need|prefer|seem|show|sit|sleep|start|stay|stop|try|use|want";
+function neutralizeMalformedNamedReferences(
+  value: string,
+  name: string,
+  pronoun: { subject: string; object: string; possessive: string } | null,
+  preferPronouns: boolean,
+) {
+  const escapedName = escapeRegExp(name);
+  const apostrophe = "['\\u2019]";
+  return transformProtectedVisibleProse(value, (source) => {
+    let prose = source;
+    prose = prose.replace(
+      new RegExp(`\\b(${objectPronounGovernors})\\s+${escapedName}${apostrophe}s\\b`, "giu"),
+      (_match, governor: string) => `${governor} ${preferPronouns && pronoun ? pronoun.object : name}`,
+    );
+    prose = prose.replace(
+      new RegExp(`\\b(keep)\\s+${escapedName}${apostrophe}s(?=\\s+(?:still|quiet|calm|comfortable|safe|warm)\\b)`, "giu"),
+      (_match, governor: string) => `${governor} ${preferPronouns && pronoun ? pronoun.object : name}`,
+    );
+    prose = prose.replace(
+      new RegExp(`\\b${escapedName}${apostrophe}(ll|re|ve|d)\\b`, "giu"),
+      (_match, contraction: string, offset: number) => {
+        if (preferPronouns && pronoun) {
+          return `${sentenceAwarePronoun(pronoun.subject, prose, offset)}'${contraction.toLowerCase()}`;
+        }
+        return `${name} ${expandNameContraction(contraction)}`;
+      },
+    );
+    prose = prose.replace(
+      new RegExp(`\\b${escapedName}${apostrophe}s\\s+(?=(?:being|becoming|biting|breathing|doing|drinking|eating|feeling|following|getting|going|having|hiding|limping|looking|scratching|seeming|showing|sleeping|starting|trying|urinating|using|vomiting|walking|${contractionAdjectives})\\b)`, "giu"),
+      (_match, offset: number) => preferPronouns && pronoun
+        ? `${sentenceAwarePronoun(pronoun.subject, prose, offset)}'s `
+        : `${name} is `,
+    );
+    prose = prose.replace(
+      new RegExp(`\\b${escapedName}${apostrophe}s\\s+(${subjectPetVerbs})\\b`, "giu"),
+      (_match, verb: string, offset: number) => {
+        const subject = preferPronouns && pronoun ? sentenceAwarePronoun(pronoun.subject, prose, offset) : name;
+        return `${subject} ${conjugatePetVerb(verb, pronoun?.subject || "it")}`;
+      },
+    );
+    return prose;
+  });
+}
+
+function reduceRepeatedPlainPetNames(
+  source: string,
+  name: string,
+  pronoun: { subject: string; object: string; possessive: string },
+  retainFirstName: boolean,
+) {
+  const escapedName = escapeRegExp(name);
+  const matcher = new RegExp(`(?<![\\p{L}\\p{N}])${escapedName}(?![\\p{L}\\p{N}'\\u2019])`, "giu");
+  let retainedName = !retainFirstName;
+  return source.replace(matcher, (match, offset: number) => {
+    const before = source.slice(Math.max(0, offset - 40), offset);
+    const after = source.slice(offset + match.length, offset + match.length + 45);
+    if (!retainedName) {
+      retainedName = true;
+      return match;
+    }
+    if (new RegExp(`(?:\\b(?:${objectPronounGovernors})\\s+)$`, "i").test(before)) return pronoun.object;
+    if (/\b(?:about|around|at|beside|by|for|from|near|to|toward|towards|with)\s+$/i.test(before)) return pronoun.object;
+    if (new RegExp(`^\\s+(?:\\w+ly\\s+)?(?:${subjectPetVerbs})\\b`, "i").test(after)) {
+      return sentenceAwarePronoun(pronoun.subject, source, offset);
+    }
+    return match;
+  });
+}
+
+function containsPetName(value: string, name: string) {
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, "iu").test(value);
+}
+
+function expandNameContraction(contraction: string) {
+  return ({ ll: "will", re: "are", ve: "have", d: "would" } as const)[contraction.toLowerCase() as "ll" | "re" | "ve" | "d"];
+}
+
+function conjugatePetVerb(verb: string, subject: string) {
+  const normalized = verb.toLowerCase();
+  if (/^(?:may|might|can(?:not|['’]t)?|could|will|would|should|had|did)$/i.test(normalized)) return verb;
+  if (subject === "they") {
+    if (normalized === "is") return "are";
+    if (normalized === "was") return "were";
+    if (normalized === "has") return "have";
+    if (normalized === "does") return "do";
+    return verb;
+  }
+  if (/s$/i.test(normalized)) return verb;
+  if (normalized === "are") return "is";
+  if (normalized === "were") return "was";
+  if (normalized === "have") return "has";
+  if (normalized === "do") return "does";
+  if (normalized === "go") return "goes";
+  if (/[^aeiou]y$/i.test(normalized)) return `${verb.slice(0, -1)}ies`;
+  if (/(?:s|x|z|ch|sh|o)$/i.test(normalized)) return `${verb}es`;
+  return `${verb}s`;
+}
 
 function petPronounSet(pronouns?: string | null, sex?: string | null) {
   const explicitPronouns = pronouns?.trim().toLowerCase() || "";
@@ -324,7 +517,7 @@ function petPronounSet(pronouns?: string | null, sex?: string | null) {
 }
 
 function possessiveName(name: string) {
-  return `${name.replace(/[’']s$/i, "")}’s`;
+  return `${name.replace(/['\u2019]s$/i, "")}\u2019s`;
 }
 
 function sentenceAwarePronoun(value: string, prose: string, offset: number) {
@@ -334,6 +527,15 @@ function sentenceAwarePronoun(value: string, prose: string, offset: number) {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function transformProtectedVisibleProse(value: string, transform: (source: string) => string) {
+  const protectedValues: string[] = [];
+  const masked = String(value || "").replace(/https?:\/\/[^\s)]+|`[^`]*`|\[[^\]]*\]\([^)]*\)/g, (match) => {
+    const index = protectedValues.push(match) - 1;
+    return `\uE000${index}\uE001`;
+  });
+  return transform(masked).replace(/\uE000(\d+)\uE001/g, (_match, index: string) => protectedValues[Number(index)] || "");
 }
 
 const allConcernTags = concernPatterns.map(({ tag }) => tag);

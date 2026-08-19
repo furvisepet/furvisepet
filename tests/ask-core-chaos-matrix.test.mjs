@@ -3,17 +3,21 @@ import test from "node:test";
 import { ASK_FAILURE_INJECTION_POINTS, assertAskCriticalityRegistry, runAskFailureInjection } from "../app/lib/ai/ask-reliability-harness.ts";
 
 test("failure injection covers every named Ask subsystem seam", () => {
-  assert.equal(ASK_FAILURE_INJECTION_POINTS.length, 19);
+  assert.equal(ASK_FAILURE_INJECTION_POINTS.length, 20);
   assert.equal(assertAskCriticalityRegistry(), true);
 });
 
 test("optional subsystem failures never destroy a valid answer", () => {
-  for (const point of ["optional_context_query", "subject_extraction", "invalid_auxiliary_field", "credit_completion", "history_proposal", "history_persistence", "memory_persistence", "semantic_persistence", "application_action_preparation", "suggestion_generation"]) {
+  for (const point of ["optional_context_query", "subject_extraction", "invalid_auxiliary_field", "quality_normalization", "credit_completion", "history_proposal", "history_persistence", "memory_persistence", "semantic_persistence", "application_action_preparation", "suggestion_generation"]) {
     const result = runAskFailureInjection(point);
     assert.equal(result.success, true, point);
     assert.equal(result.userMessageCount, 1, point);
     assert.equal(result.assistantMessageCount, 1, point);
     assert.equal(result.finalStage, "COMPLETED", point);
+    if (point === "quality_normalization") {
+      assert.equal(result.providerCallCount, 1);
+      assert.equal(result.creditState, "completed");
+    }
   }
 });
 
