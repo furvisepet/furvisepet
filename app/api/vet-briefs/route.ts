@@ -2,6 +2,9 @@ import { parseVetBriefDocument } from "../../lib/vet-brief/schema";
 import { getVetBriefRequestContext, toPublicVetBriefRecord, type VetBriefDatabaseRow } from "../../lib/vet-brief/server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../lib/security/idempotency";
+import { isEligibleLegacyMemory, isEligibleStoredMemory } from "../../lib/intelligence/memory-integrity.ts";
+import type { DogMemoryRow } from "../../lib/supabase.ts";
+import type { FurviseMemoryRow } from "../../lib/intelligence/types.ts";
 
 export async function GET(request: Request) {
   const context = await getVetBriefRequestContext(request);
@@ -64,10 +67,14 @@ export async function POST(request: Request) {
     const [care, concerns, legacyMemories, memories] = await Promise.all([
       context.supabase.from("pet_care_entries").select("id").eq("pet_profile_id", petId).eq("user_id", context.userId).is("deleted_at", null).in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
       context.supabase.from("pet_concerns").select("id").eq("pet_profile_id", petId).eq("user_id", context.userId).in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
-      context.supabase.from("dog_memories").select("id").eq("dog_profile_id", petId).eq("user_id", context.userId).eq("status", "active").in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
-      context.supabase.from("furvise_memories").select("id").eq("user_id", context.userId).eq("status", "active").or(`pet_id.eq.${petId},pet_id.is.null`).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`).in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
+      context.supabase.from("dog_memories").select("id,type,text").eq("dog_profile_id", petId).eq("user_id", context.userId).eq("status", "active").in("id", requestedSourceIds).returns<Array<Pick<DogMemoryRow, "id" | "type" | "text">>>(),
+      context.supabase.from("furvise_memories").select("id,category,fact_key,fact_value,pet_id,source_excerpt,subject_type").eq("user_id", context.userId).eq("status", "active").or(`pet_id.eq.${petId},pet_id.is.null`).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`).in("id", requestedSourceIds).returns<Array<Pick<FurviseMemoryRow, "id" | "category" | "fact_key" | "fact_value" | "pet_id" | "source_excerpt" | "subject_type">>>(),
     ]);
-    verifiedSourceIds = [...new Set([care, concerns, legacyMemories, memories].flatMap((result) => (result.data || []).map((row) => row.id)))];
+    verifiedSourceIds = [...new Set([
+      ...[care, concerns].flatMap((result) => (result.data || []).map((row) => row.id)),
+      ...(legacyMemories.data || []).filter(isEligibleLegacyMemory).map((row) => row.id),
+      ...(memories.data || []).filter(isEligibleStoredMemory).map((row) => row.id),
+    ])];
   }
 
   let previousVersionId: string | null = null;

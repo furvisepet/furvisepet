@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CareEntryRow, DogMemoryRow, DogProfileRow } from "../supabase";
 import type { PetConcern } from "./concern-engine";
+import { isEligibleLegacyMemory } from "../intelligence/memory-integrity.ts";
 
 export async function loadPetContext(supabase: SupabaseClient, userId: string, petId: string) {
   const { data, error } = await supabase
@@ -74,5 +75,5 @@ export async function loadRememberedDetails(supabase: SupabaseClient, userId: st
     .limit(100)
     .returns<DogMemoryRow[]>();
   if (error) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
-  return data || [];
+  return (data || []).filter(isEligibleLegacyMemory);
 }

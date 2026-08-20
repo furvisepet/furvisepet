@@ -2,6 +2,7 @@ import { getAuthenticatedApiContext } from "../../lib/authenticated-api-server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../lib/security/idempotency";
 import type { DogMemoryRow } from "../../lib/supabase";
+import { isEligibleLegacyMemory } from "../../lib/intelligence/memory-integrity.ts";
 
 export async function POST(request: Request) {
   const context = await getAuthenticatedApiContext(request);
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     let skippedDuplicates = 0;
     const rows = memories.flatMap((memory, index) => {
       const normalized = normalize(memory.text);
-      if (!normalized || seen.has(normalized)) { skippedDuplicates += 1; return []; }
+      if (!isEligibleLegacyMemory(memory) || seen.has(normalized)) { skippedDuplicates += 1; return []; }
       seen.add(normalized);
       return [{ confidence: memory.confidence, dog_profile_id: petId, idempotency_item_index: index, idempotency_key: gate.operation.key, source: memory.source || "ai_suggestion", text: memory.text.trim(), type: memory.type, user_id: context.userId }];
     });

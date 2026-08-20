@@ -19,6 +19,7 @@ import type { GovernedConceptIdentity, GovernedSemanticTurn } from "./v2/types.t
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
 import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/legacy-memory.ts";
+import { memoryDisplayContent } from "./memory-integrity.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
 import { buildExplicitCareHistoryAction, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
 import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-loss.ts";
@@ -367,7 +368,7 @@ function buildClearResolutionAction(
 }
 
 function memoryText(memory: FurviseLiveContext["memories"][number]) {
-  const value = typeof memory.fact_value === "string" ? memory.fact_value : JSON.stringify(memory.fact_value);
+  const value = memoryDisplayContent(memory);
   const freshness = calculateMemoryFreshness(memory, new Date());
   const qualifier = freshness.needsConfirmation ? " This may be outdated; confirm it only if relevant to the current question." : "";
   return `${memory.fact_key}: ${value}. Freshness: ${freshness.freshnessStatus}; effective confidence: ${freshness.effectiveConfidence.toFixed(2)}.${qualifier}`.slice(0, 600);

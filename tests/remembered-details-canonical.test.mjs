@@ -20,7 +20,7 @@ function memory(overrides = {}) {
 test("active automatic pet memory appears once under the pet", () => {
   const details = buildRememberedDetails({ canonical: [memory()], petName: "Maple", now });
   assert.equal(details.pet.length, 1);
-  assert.equal(details.pet[0].fact, "Maple prefers soft dental chews");
+  assert.equal(details.pet[0].fact, "Prefers soft dental chews.");
   assert.equal(details.owner.length, 0);
 });
 
@@ -94,9 +94,9 @@ test("corrected food preferences project only effective knowledge without hiding
     memory({ id: "crate", category: "routine", fact_key: "sleepingarrangement", fact_value: "crate at night", last_confirmed_at: "2026-07-19T00:00:00.000Z" }),
   ], petName: "Milo", now });
   assert.deepEqual(new Set(details.pet.map((item) => item.fact)), new Set([
-    "Milo dislikes chicken.",
-    "Milo prefers salmon.",
-    "Milo sleeps in a crate at night.",
+    "Dislikes chicken.",
+    "Prefers salmon.",
+    "Sleeps in a crate at night.",
   ]));
   assert.equal(details.pet.some((item) => /likesfood|dislikesfood|sleepingarrangement/i.test(item.fact)), false);
 });
@@ -107,7 +107,7 @@ test("explicit replacement suppresses only the replaced preference target", () =
     memory({ id: "beef", fact_key: "food_preference_beef", fact_value: { preference: "prefer", value: "beef" }, last_confirmed_at: "2026-07-21T00:00:00.000Z" }),
     memory({ id: "salmon", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon" }, source_excerpt: "Actually, Milo prefers salmon instead of chicken.", last_confirmed_at: "2026-07-27T00:00:00.000Z" }),
   ], petName: "Milo", now });
-  assert.deepEqual(new Set(details.pet.map((item) => item.fact)), new Set(["Milo prefers salmon.", "Milo prefers beef."]));
+  assert.deepEqual(new Set(details.pet.map((item) => item.fact)), new Set(["Prefers salmon.", "Prefers beef."]));
 });
 
 test("repeated equivalent assertions collapse to one active remembered detail", () => {
@@ -115,14 +115,14 @@ test("repeated equivalent assertions collapse to one active remembered detail", 
     memory({ id: "older", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon" }, last_confirmed_at: "2026-07-20T00:00:00.000Z" }),
     memory({ id: "newer", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon" }, last_confirmed_at: "2026-07-27T00:00:00.000Z" }),
   ], petName: "Milo", now });
-  assert.deepEqual(details.pet.map((item) => item.fact), ["Milo prefers salmon."]);
+  assert.deepEqual(details.pet.map((item) => item.fact), ["Prefers salmon."]);
 });
 
 test("pet-local food preferences remain isolated in Remembered Details", () => {
   const milo = memory({ id: "milo-salmon", pet_id: "pet-milo", fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon" } });
   const luna = memory({ id: "luna-chicken", pet_id: "pet-luna", fact_key: "food_preference_chicken", fact_value: { preference: "prefer", value: "chicken" } });
-  assert.deepEqual(buildRememberedDetails({ canonical: [milo], petName: "Milo", now }).pet.map((item) => item.fact), ["Milo prefers salmon."]);
-  assert.deepEqual(buildRememberedDetails({ canonical: [luna], petName: "Luna", now }).pet.map((item) => item.fact), ["Luna prefers chicken."]);
+  assert.deepEqual(buildRememberedDetails({ canonical: [milo], petName: "Milo", now }).pet.map((item) => item.fact), ["Prefers salmon."]);
+  assert.deepEqual(buildRememberedDetails({ canonical: [luna], petName: "Luna", now }).pet.map((item) => item.fact), ["Prefers chicken."]);
 });
 
 test("legacy malformed owner pet-food keys project to the named pet and never leak internal keys", () => {
@@ -131,7 +131,7 @@ test("legacy malformed owner pet-food keys project to the named pet and never le
     memory({ id: "mani-food", pet_id: null, subject_type: "owner", fact_key: "petfoodpreferencemani", fact_value: "chicken" }),
     memory({ id: "chewy", pet_id: null, subject_type: "owner", category: "shopping", fact_key: "preferred_retailer", fact_value: "Chewy" }),
   ], petName: "Milo", now });
-  assert.deepEqual(details.pet.map((item) => item.fact), ["Milo prefers salmon."]);
+  assert.deepEqual(details.pet.map((item) => item.fact), ["Prefers salmon."]);
   assert.deepEqual(details.owner.map((item) => item.fact), ["You usually shop at Chewy."]);
   assert.equal(details.all.some((item) => /petfoodpreference/i.test(item.fact)), false);
 });

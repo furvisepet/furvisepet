@@ -109,7 +109,8 @@ export async function POST(request: Request) {
         try {
           await persistFeatureIntelligenceLearnings({
             careActions: result.acceptedCareActions, feature: "safety_followup", learnings: result.acceptedLearnings,
-            petId, requestId, supabase: auth.supabase,
+            operationOwnerToken: idempotency.operation.ownerToken, payloadHash: idempotency.operation.payloadHash,
+            petId, requestId, sourceInput: currentMessage, supabase: auth.supabase, userId: auth.userId,
           });
         } catch {
           persistenceWarning = "The guidance is available, but the follow-up could not be added to saved care context.";

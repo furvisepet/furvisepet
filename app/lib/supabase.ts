@@ -676,7 +676,8 @@ export async function loadDogProfileWithMemoriesForUser(profileId: string, user:
   ]);
   if (profile.error) throw friendlyDatabaseError(profile.error, "pet profile memories");
   if (memories.error) throw friendlyDatabaseError(memories.error, "pet profile memories");
-  return { ...profile.data, dog_memories: memories.data || [], dog_product_feedback: [] } as DogProfileWithMemories;
+  const { isEligibleLegacyMemory } = await import("./intelligence/memory-integrity.ts");
+  return { ...profile.data, dog_memories: (memories.data || []).filter(isEligibleLegacyMemory), dog_product_feedback: [] } as DogProfileWithMemories;
 }
 
 export async function loadCanonicalRememberedDetailsForUser(profileId: string, user: User): Promise<CanonicalRememberedDetailsRows> {
@@ -691,9 +692,10 @@ export async function loadCanonicalRememberedDetailsForUser(profileId: string, u
   ]);
   if (canonical.error) throw friendlyDatabaseError(canonical.error, "remembered details");
   if (legacy.error) throw friendlyDatabaseError(legacy.error, "remembered details");
+  const { isEligibleLegacyMemory, isEligibleStoredMemory } = await import("./intelligence/memory-integrity.ts");
   return {
-    canonical: (canonical.data || []).filter((memory) => memory.subject_type === "owner" || memory.pet_id === profileId),
-    legacy: legacy.data || [],
+    canonical: (canonical.data || []).filter((memory) => (memory.subject_type === "owner" || memory.pet_id === profileId) && isEligibleStoredMemory(memory)),
+    legacy: (legacy.data || []).filter(isEligibleLegacyMemory),
   };
 }
 
@@ -981,7 +983,8 @@ async function loadOptionalDogMemories(profileIds: string[], user: User) {
     return [];
   }
 
-  return data || [];
+  const { isEligibleLegacyMemory } = await import("./intelligence/memory-integrity.ts");
+  return (data || []).filter(isEligibleLegacyMemory);
 }
 
 async function loadOptionalDogProductFeedback(profileIds: string[], user: User) {

@@ -9,6 +9,8 @@ import { groupLearningsByPersistencePet } from "./persistence-partition";
 import { oneSemanticEventPerPet, persistSemanticEventRpc } from "./semantic-event-persistence";
 import type { CareEntryRow } from "../supabase.ts";
 import { findEquivalentRecentCareEntry, prepareGovernedCareHistoryEvent } from "./care-history-policy.ts";
+import { areMemorySemanticsEquivalent, isEligibleStoredMemory, prepareTypedMemoryCandidate } from "./memory-integrity.ts";
+import { createOperationsAdminClient } from "../operations/admin-client.ts";
 
 export class IntelligencePersistenceError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -21,6 +23,7 @@ export async function persistIntelligenceLearnings({
   careActions,
   semanticEvents = [],
   learnings,
+  currentMessage,
   petId,
   sourceMessageId,
   supabase,
@@ -30,13 +33,15 @@ export async function persistIntelligenceLearnings({
   careActions: IntelligenceCareAction[];
   semanticEvents?: GovernedCanonicalEvent[];
   learnings: IntelligenceLearning[];
+  currentMessage: string;
   petId: string;
   sourceMessageId: string;
   supabase: SupabaseClient;
   userId: string;
   recentCareEntries?: CareEntryRow[];
 }): Promise<IntelligencePersistenceSummary> {
-  const normalizedLearnings = learnings.map((learning) => ({
+  const governedLearnings = await preparePersistableLearnings({ currentMessage, learnings, petId, supabase, userId });
+  const normalizedLearnings = governedLearnings.map((learning) => ({
     ...learning,
     normalizedValue: normalizeMemoryValue(learning.factValue),
   }));
@@ -178,20 +183,33 @@ export async function persistFeatureIntelligenceLearnings({
   feature,
   learnings,
   petId,
+  payloadHash,
   requestId,
+  operationOwnerToken,
+  sourceInput,
   supabase,
+  userId,
 }: {
   careActions: IntelligenceCareAction[];
-  feature: "product_question" | "product_query" | "safety_followup" | "vet_brief";
+  feature: "product_question" | "product_query" | "safety_followup";
   learnings: IntelligenceLearning[];
   petId: string;
+  payloadHash: string;
   requestId: string;
+  operationOwnerToken: string;
+  sourceInput: string;
   supabase: SupabaseClient;
+  userId: string;
 }): Promise<IntelligencePersistenceSummary> {
-  const normalizedLearnings = learnings.map((learning) => ({ ...learning, normalizedValue: normalizeMemoryValue(learning.factValue) }));
-  const { data, error } = await supabase.rpc("persist_furvise_feature_intelligence", {
+  const governedLearnings = await preparePersistableLearnings({ currentMessage: sourceInput, learnings, petId, supabase, userId });
+  const normalizedLearnings = governedLearnings.map((learning) => ({ ...learning, normalizedValue: normalizeMemoryValue(learning.factValue) }));
+  const operationType = feature === "product_question" ? "product.question"
+    : feature === "product_query" ? "product.interpret" : "safety.followup";
+  const { data, error } = await createOperationsAdminClient().rpc("persist_furvise_feature_intelligence", {
     p_care_actions: careActions, p_learnings: normalizedLearnings,
-    p_pet_id: petId, p_request_id: requestId, p_source_type: feature,
+    p_operation_owner_token: operationOwnerToken, p_operation_type: operationType, p_payload_hash: payloadHash,
+    p_pet_id: petId, p_request_id: requestId,
+    p_source_input: sourceInput, p_source_type: feature, p_user_id: userId,
   });
   if (error) throw new IntelligencePersistenceError("Furvise could not persist feature learnings.", error);
   const row = Array.isArray(data) ? data[0] : data;
@@ -364,3 +382,54 @@ function stringArray(value: unknown) {
 }
 
 function numberValue(value: unknown) { return typeof value === "number" ? value : Number(value) || 0; }
+
+async function preparePersistableLearnings({ currentMessage, learnings, petId, supabase, userId }: {
+  currentMessage: string | null;
+  learnings: IntelligenceLearning[];
+  petId: string;
+  supabase: SupabaseClient;
+  userId: string | null;
+}) {
+  let authorizedPetIds = [petId];
+  if (userId) {
+    const { data, error } = await supabase.from("dog_profiles").select("id").eq("user_id", userId).returns<Array<{ id: string }>>();
+    if (error) throw new IntelligencePersistenceError("Furvise could not verify memory ownership.", error);
+    authorizedPetIds = (data || []).map((row) => row.id);
+  }
+  const typed = learnings.flatMap((learning) => {
+    const decision = prepareTypedMemoryCandidate(learning, currentMessage || learning.sourceExcerpt, authorizedPetIds);
+    return decision.accepted ? [decision.learning] : [];
+  });
+  if (!typed.length || !userId) return typed;
+
+  const targetPetIds = [...new Set(typed.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []))];
+  let query = supabase.from("furvise_memories")
+    .select("category,fact_key,fact_value,pet_id,source_excerpt,subject_type")
+    .eq("user_id", userId).eq("status", "active");
+  if (targetPetIds.length) query = query.or(`pet_id.in.(${targetPetIds.join(",")}),pet_id.is.null`);
+  else query = query.is("pet_id", null);
+  const { data: existing, error: existingError } = await query.limit(200).returns<Array<{
+    category: string; fact_key: string; fact_value: unknown; pet_id: string | null;
+    source_excerpt: string | null; subject_type: "pet" | "owner";
+  }>>();
+  if (existingError) {
+    logIntelligenceError("memory_deduplication_context", existingError, { petIdPresent: Boolean(petId) });
+    return [];
+  }
+  const accepted: IntelligenceLearning[] = [];
+  for (const learning of typed) {
+    const candidate = {
+      category: learning.category, fact_key: learning.factKey, fact_value: learning.factValue,
+      pet_id: learning.subjectType === "pet" ? learning.subjectId : null,
+      source_excerpt: learning.sourceExcerpt, subject_type: learning.subjectType,
+    };
+    const duplicate = [...(existing || []), ...accepted.map((item) => ({
+      category: item.category, fact_key: item.factKey, fact_value: item.factValue,
+      pet_id: item.subjectType === "pet" ? item.subjectId : null,
+      source_excerpt: item.sourceExcerpt, subject_type: item.subjectType,
+    }))].some((memory) => isEligibleStoredMemory(memory) && memory.fact_key !== candidate.fact_key
+      && areMemorySemanticsEquivalent(memory, candidate));
+    if (!duplicate) accepted.push(learning);
+  }
+  return accepted;
+}
