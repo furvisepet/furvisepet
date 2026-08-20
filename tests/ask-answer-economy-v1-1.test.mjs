@@ -108,7 +108,7 @@ test("semantic deduplication catches equivalent recommendations but preserves di
   assert.ok(semanticAnswerOverlap("Watch for a flicking tail.", "Call the vet if she cannot keep water down.") < 0.68);
 });
 
-test("personalization fuzz preserves grammatical pronoun roles across pet names", () => {
+test("personalization fuzz preserves grammatical pronoun roles and ambiguous possessive gerunds across pet names", () => {
   const phrases = ["pet her", "feed her", "let her choose", "watch her", "her food", "her behavior", "her litter box", "give her space", "when she chooses", "if she wants", "her tolerance", "I gave her food"];
   for (const name of ["Mani", "Luna", "Max", "Milo", "O’Malley"]) {
     const output = phrases.map((phrase) => removeUnsupportedGenderedPronouns(phrase, name));
@@ -120,7 +120,7 @@ test("personalization fuzz preserves grammatical pronoun roles across pet names"
     assert.doesNotMatch(output.join(" "), new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['’]s\\s+(?:choose|wants)`, "i"));
   }
   assert.equal(normalizePetVisibleProse("Pet her, then let her choose whether she wants more.", mani), "Pet her, then let her choose whether she wants more.");
-  assert.equal(normalizePetVisibleProse("Mani's food is ready. Mani's getting hungry.", mani), "Her food is ready. She's getting hungry.");
+  assert.equal(normalizePetVisibleProse("Mani's food is ready. Mani's getting hungry.", mani), "Her food is ready. Mani's getting hungry.");
   assert.equal(normalizePetVisibleProse("Pet him, then let him choose whether he wants more.", { name: "Max", sex: "male", species: "dog" }), "Pet him, then let him choose whether he wants more.");
   assert.equal(normalizePetVisibleProse("Pet them, then let them choose whether they want more.", { name: "Milo", pronouns: "they/them", species: "cat" }), "Pet them, then let them choose whether they want more.");
 });

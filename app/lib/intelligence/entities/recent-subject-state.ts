@@ -4,7 +4,7 @@ export type SubjectPronounClass = "feminine" | "masculine" | "neutral";
 
 export type RecentSubjectEntity = {
   key: string;
-  kind: "pet" | "external_animal";
+  kind: "pet" | "external_animal" | "person" | "owner" | "other";
   petId: string | null;
   label: string;
   species: string | null;
@@ -12,11 +12,13 @@ export type RecentSubjectEntity = {
   pronouns: SubjectPronounClass[];
   lastMentionTurn: number;
   lastSubjectTurn: number;
+  grammaticalRole: "subject" | "object" | "other";
 };
 
 export type RecentSubjectState = {
   selectedPetId: string;
   entities: RecentSubjectEntity[];
+  currentFocusKey: string | null;
 };
 
 export type RecentPronounResolution =
@@ -25,6 +27,10 @@ export type RecentPronounResolution =
   | { status: "unresolved"; entity: null; candidatePetIds: string[] };
 
 const externalAnimalPattern = /\b((?:(?:neighbou?r(?:['’]s)?|outside|stray|feral|unknown|another|other)\s+)(?:(male|female)\s+)?(cat|dog|kitten|puppy|animal|pet)|(?:the\s+)?(male|female)\s+(cat|dog|kitten|puppy|animal|pet))\b/giu;
+const femininePersonTerms = "sister|girlfriend|wife|mother|mom|mum|woman|lady|aunt|grandmother|grandma|daughter|niece";
+const masculinePersonTerms = "brother|boyfriend|husband|father|dad|man|gentleman|uncle|grandfather|grandpa|son|nephew";
+const neutralPersonTerms = "partner|spouse|friend|roommate|neighbor|neighbour|vet|veterinarian|doctor|technician|nurse|visitor|guest|person|owner|coworker|colleague|boss";
+const personPattern = new RegExp(`\\b((?:my|our|the|a|an)\\s+(?:${femininePersonTerms}|${masculinePersonTerms}|${neutralPersonTerms}))\\b`, "giu");
 
 export function buildRecentSubjectState(input: {
   pets: EligibleSemanticPet[];
@@ -33,10 +39,12 @@ export function buildRecentSubjectState(input: {
 }): RecentSubjectState {
   const entities = new Map<string, RecentSubjectEntity>();
   for (const pet of input.pets) entities.set(petKey(pet.id), petEntity(pet));
-  const selected = entities.get(petKey(input.selectedPetId));
-  if (!selected) return { selectedPetId: input.selectedPetId, entities: [] };
+  if (!entities.has(petKey(input.selectedPetId))) {
+    return { selectedPetId: input.selectedPetId, entities: [], currentFocusKey: null };
+  }
 
   const turns = input.recentConversation.filter((turn) => !turn.role || turn.role === "user").slice(-8);
+  let currentFocusKey: string | null = null;
   turns.forEach((turn, turnIndex) => {
     const namedPets = explicitlyNamedPets(turn.text, input.pets);
     for (const pet of namedPets) {
@@ -46,31 +54,60 @@ export function buildRecentSubjectState(input: {
 
     const externalEntities = extractExternalAnimalEntities(turn.text, entities);
     for (const entity of externalEntities) entity.lastMentionTurn = turnIndex;
+    const people = extractPersonEntities(turn.text, entities);
+    for (const entity of people) entity.lastMentionTurn = turnIndex;
 
-    const explicitEntities = [...namedPets.map((pet) => entities.get(petKey(pet.id))!), ...externalEntities];
-    const leading = leadingSubjectResolution(turn.text, entities, input.selectedPetId);
-    if (leading.status === "resolved") {
+    const explicitEntities = [...namedPets.map((pet) => entities.get(petKey(pet.id))!), ...externalEntities, ...people];
+    let turnFocus: RecentSubjectEntity | null = null;
+    for (const sentence of splitSentences(turn.text)) {
+      const leading = leadingSubjectResolution(sentence, entities, input.selectedPetId);
+      if (leading.status !== "resolved") continue;
       leading.entity.lastSubjectTurn = turnIndex;
-    } else if (explicitEntities.length === 1) {
-      explicitEntities[0].lastSubjectTurn = turnIndex;
-    } else if (explicitEntities.length > 1) {
-      for (const entity of explicitEntities) entity.lastSubjectTurn = turnIndex;
+      leading.entity.grammaticalRole = "subject";
+      for (const mentioned of entities.values()) {
+        if (mentioned !== leading.entity && containsWholeTerm(sentence, mentioned.label)) mentioned.grammaticalRole = "object";
+      }
+      turnFocus = leading.entity;
     }
+    if (!turnFocus && explicitEntities.length === 1) {
+      turnFocus = explicitEntities[0];
+      turnFocus.lastSubjectTurn = turnIndex;
+      turnFocus.grammaticalRole = "subject";
+    }
+    if (turnFocus) currentFocusKey = turnFocus.key;
+    else if (explicitEntities.length > 1) currentFocusKey = null;
   });
 
-  return { selectedPetId: input.selectedPetId, entities: [...entities.values()] };
+  return { selectedPetId: input.selectedPetId, entities: [...entities.values()], currentFocusKey };
 }
 
 export function resolveRecentPronoun(state: RecentSubjectState, surface: string): RecentPronounResolution {
   const pronoun = pronounClass(surface);
   if (!pronoun) return { status: "unresolved", entity: null, candidatePetIds: [] };
   const compatible = state.entities.filter((entity) => entity.pronouns.includes(pronoun));
+  const focused = compatible.find((entity) => entity.key === state.currentFocusKey);
+  if (focused && entityRecencyScore(focused) >= 0) return resolved(focused, [focused]);
   const recentScore = Math.max(-1, ...compatible.map(entityRecencyScore));
   const recent = compatible.filter((entity) => entityRecencyScore(entity) === recentScore && recentScore >= 0);
   if (recent.length === 1) return resolved(recent[0], recent);
   if (recent.length > 1) return ambiguous(recent);
   const selected = compatible.find((entity) => entity.petId === state.selectedPetId);
   return selected ? resolved(selected, [selected]) : { status: "unresolved", entity: null, candidatePetIds: [] };
+}
+
+export function resolveCurrentDiscourseFocus(input: {
+  pets: EligibleSemanticPet[];
+  recentConversation: Array<{ role?: string; text: string }>;
+  selectedPetId: string;
+  message: string;
+}): RecentPronounResolution {
+  const state = buildRecentSubjectState({
+    pets: input.pets,
+    recentConversation: [...input.recentConversation, { role: "user", text: input.message }],
+    selectedPetId: input.selectedPetId,
+  });
+  const current = state.currentFocusKey ? state.entities.find((entity) => entity.key === state.currentFocusKey) : null;
+  return current ? resolved(current, [current]) : { status: "unresolved", entity: null, candidatePetIds: [] };
 }
 
 export function pronounClass(surface: string): SubjectPronounClass | null {
@@ -86,6 +123,11 @@ export function isExplicitExternalAnimalSurface(surface: string) {
   return externalAnimalPattern.test(surface.normalize("NFKC"));
 }
 
+export function hasExplicitPersonSurface(value: string) {
+  personPattern.lastIndex = 0;
+  return personPattern.test(value.normalize("NFKC"));
+}
+
 function leadingSubjectResolution(text: string, entities: Map<string, RecentSubjectEntity>, selectedPetId: string): RecentPronounResolution {
   const firstSentence = text.normalize("NFKC").split(/[.!?]/, 1)[0]?.trim() || "";
   const normalizedFirstSentence = normalize(firstSentence);
@@ -95,11 +137,16 @@ function leadingSubjectResolution(text: string, entities: Map<string, RecentSubj
     && normalizedFirstSentence.startsWith(`${normalize(leadingNamed[0].label)} and ${normalize(entity.label)}`));
   if (leadingNamed.length === 1 && !coordinatedNamedSubjects) return resolved(leadingNamed[0], named);
   const external = [...entities.values()].filter((entity) => entity.kind === "external_animal" && containsWholeTerm(firstSentence, entity.label));
-  const leadingExternal = external.filter((entity) => normalize(firstSentence).startsWith(normalize(entity.label)));
+  const leadingExternal = external.filter((entity) => normalizedFirstSentence.startsWith(normalize(entity.label)));
   if (leadingExternal.length === 1) return resolved(leadingExternal[0], external);
+  const people = [...entities.values()].filter((entity) => entity.kind === "person" && containsWholeTerm(firstSentence, entity.label));
+  const leadingPeople = people.filter((entity) => normalizedFirstSentence.startsWith(normalize(entity.label)));
+  const coordinatedPeople = leadingPeople.length === 1 && people.some((entity) => entity !== leadingPeople[0]
+    && normalizedFirstSentence.startsWith(`${normalize(leadingPeople[0].label)} and ${normalize(entity.label)}`));
+  if (leadingPeople.length === 1 && !coordinatedPeople) return resolved(leadingPeople[0], people);
   const leadingPronoun = /^(?:["'“”‘’]\s*)?(she|her|he|him|they|them|it)\b/iu.exec(firstSentence)?.[1];
   if (!leadingPronoun) return { status: "unresolved", entity: null, candidatePetIds: [] };
-  return resolveRecentPronoun({ selectedPetId, entities: [...entities.values()] }, leadingPronoun);
+  return resolveRecentPronoun({ selectedPetId, entities: [...entities.values()], currentFocusKey: null }, leadingPronoun);
 }
 
 function extractExternalAnimalEntities(text: string, entities: Map<string, RecentSubjectEntity>) {
@@ -116,7 +163,34 @@ function extractExternalAnimalEntities(text: string, entities: Map<string, Recen
     if (!entity) {
       entity = {
         key, kind: "external_animal", petId: null, label: surface, species, sex,
-        pronouns: pronounsForSex(sex), lastMentionTurn: -1, lastSubjectTurn: -1,
+        pronouns: pronounsForSex(sex), lastMentionTurn: -1, lastSubjectTurn: -1, grammaticalRole: "other",
+      };
+      entities.set(key, entity);
+    }
+    if (!result.includes(entity)) result.push(entity);
+  }
+  return result;
+}
+
+function extractPersonEntities(text: string, entities: Map<string, RecentSubjectEntity>) {
+  const result: RecentSubjectEntity[] = [];
+  personPattern.lastIndex = 0;
+  for (const match of text.normalize("NFKC").matchAll(personPattern)) {
+    const following = text.normalize("NFKC").slice((match.index || 0) + match[0].length);
+    if (/^(?:['’]s)?\s+(?:(?:male|female)\s+)?(?:cat|dog|kitten|puppy|animal|pet)\b/i.test(following)) continue;
+    const surface = match[1].trim();
+    const descriptor = normalize(surface).split(" ").at(-1) || "person";
+    const key = `person:${descriptor}`;
+    let entity = entities.get(key);
+    if (!entity) {
+      const pronouns: SubjectPronounClass[] = new RegExp(`^(?:${femininePersonTerms})$`, "i").test(descriptor)
+        ? ["feminine", "neutral"]
+        : new RegExp(`^(?:${masculinePersonTerms})$`, "i").test(descriptor)
+          ? ["masculine", "neutral"]
+          : ["feminine", "masculine", "neutral"];
+      entity = {
+        key, kind: "person", petId: null, label: surface, species: null, sex: null, pronouns,
+        lastMentionTurn: -1, lastSubjectTurn: -1, grammaticalRole: "other",
       };
       entities.set(key, entity);
     }
@@ -130,7 +204,7 @@ function petEntity(pet: EligibleSemanticPet): RecentSubjectEntity {
   return {
     key: petKey(pet.id), kind: "pet", petId: pet.id, label: pet.name || "pet",
     species: normalizeSpecies(pet.species || ""), sex, pronouns: pronounsForSex(sex),
-    lastMentionTurn: -1, lastSubjectTurn: -1,
+    lastMentionTurn: -1, lastSubjectTurn: -1, grammaticalRole: "other",
   };
 }
 
@@ -174,12 +248,14 @@ function entityRecencyScore(entity: RecentSubjectEntity) {
   return Math.max(entity.lastSubjectTurn * 2 + 1, entity.lastMentionTurn * 2);
 }
 
-function petKey(id: string) {
-  return `pet:${id}`;
-}
+function petKey(id: string) { return `pet:${id}`; }
 
 function containsWholeTerm(value: string, term: string) {
   return (` ${normalize(value)} `).includes(` ${normalize(term)} `);
+}
+
+function splitSentences(value: string) {
+  return value.normalize("NFKC").split(/(?<=[.!?])\s+/).map((sentence) => sentence.trim()).filter(Boolean);
 }
 
 function normalize(value: string) {

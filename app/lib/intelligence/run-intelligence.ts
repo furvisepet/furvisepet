@@ -47,6 +47,7 @@ export async function runFurviseIntelligence({
   canonicalConcepts = [],
   authoritativePetIds = [context.pet.id],
   authoritativeSemanticFrame,
+  discourseFocus,
 }: {
   context: FurviseLiveContext;
   requestId: string;
@@ -56,6 +57,7 @@ export async function runFurviseIntelligence({
   canonicalConcepts?: GovernedConceptIdentity[];
   authoritativePetIds?: string[];
   authoritativeSemanticFrame?: ProposedSemanticFrame;
+  discourseFocus?: import("./entities/resolve-turn-subject.ts").AskDiscourseFocus;
 }): Promise<FurviseIntelligenceResult> {
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
@@ -90,6 +92,7 @@ export async function runFurviseIntelligence({
       ownerIdentityVerified: Boolean(context.owner.userId),
       canonicalConcepts,
     },
+    discourseFocus,
   });
   const lossContext = resolvePetLossContext({
     message: context.currentMessage,
@@ -98,6 +101,7 @@ export async function runFurviseIntelligence({
     petName: context.pet.name,
   });
   const multiPetTurn = authoritativePetIds.length > 1;
+  const hasOwnedPetSubject = authoritativePetIds.length > 0;
   const semanticGovernanceInput = {
     proposals: reasoning.semanticEvents,
     message: context.currentMessage,
@@ -110,7 +114,9 @@ export async function runFurviseIntelligence({
     allowTerminalResolution: allowsAcceptedRecoverySafetyReconciliation(safety),
     subjectConfidence,
   };
-  const semanticGovernance = multiPetTurn
+  const semanticGovernance = !hasOwnedPetSubject
+    ? governCanonicalEvents({ ...semanticGovernanceInput, resolvedPetSubject: undefined })
+    : multiPetTurn
     ? governCanonicalEventsForOwnedPets({
       ...semanticGovernanceInput,
       pets: context.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
@@ -173,7 +179,7 @@ export async function runFurviseIntelligence({
     activeConcernIds: safety.activeConcernIds,
   });
   const deterministicStateAction = buildClearResolutionAction(context, safety) || buildRecurrenceAction(context, safety);
-  const proposedCareActions = multiPetTurn ? [] : deterministicStateAction ? [deterministicStateAction] : carePolicy.accepted;
+  const proposedCareActions = !hasOwnedPetSubject || multiPetTurn ? [] : deterministicStateAction ? [deterministicStateAction] : carePolicy.accepted;
   const governance = authorizeProposedActions({
     message: context.currentMessage, petId: context.pet.id, authorizedPetIds: authoritativePetIds,
     careActions: proposedCareActions, memories: learningPolicy.accepted,
@@ -185,7 +191,7 @@ export async function runFurviseIntelligence({
       petName: context.pet.name,
       sourceMessage: context.currentMessage,
     }));
-  const explicitCareHistoryAction = multiPetTurn ? null : buildExplicitCareHistoryAction({
+  const explicitCareHistoryAction = !hasOwnedPetSubject || multiPetTurn ? null : buildExplicitCareHistoryAction({
     currentMessage: context.currentMessage,
     conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
     pet: context.pet,
@@ -199,7 +205,7 @@ export async function runFurviseIntelligence({
       sourceMessage: context.currentMessage,
       sourceMessageId,
       ownerId: context.owner.userId,
-      pets: context.eligiblePets,
+      pets: context.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
       conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
       activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
       canonicalConcepts,
@@ -219,7 +225,9 @@ export async function runFurviseIntelligence({
     careActions: governedCareActions,
     learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
   });
-  const confirmedLossCareAction = buildConfirmedLossCareAction({ message: context.currentMessage, petName: context.pet.name || "the pet" });
+  const confirmedLossCareAction = hasOwnedPetSubject
+    ? buildConfirmedLossCareAction({ message: context.currentMessage, petName: context.pet.name || "the pet" })
+    : null;
   const acceptedCareActions = confirmedLossCareAction ? [confirmedLossCareAction]
     : explicitCareHistoryAction ? [explicitCareHistoryAction] : routedPersistence.careActions;
   const acceptedSemanticEvents = confirmedLossCareAction ? [] : semanticGovernance.accepted;
@@ -232,7 +240,12 @@ export async function runFurviseIntelligence({
   ]);
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
-  const answerValidation = validateGeneratedAnswer(reasoning, context, reasoning.intelligenceSafety.level, authoritativePetIds);
+  const answerValidation = validateGeneratedAnswer(
+    reasoning,
+    context,
+    reasoning.intelligenceSafety.level,
+    hasOwnedPetSubject ? authoritativePetIds : [context.pet.id],
+  );
   if (!answerValidation.valid) throw new Error(`FURVISE_ANSWER_VALIDATION_FAILED:${answerValidation.errors.join(",")}`);
   Object.assign(reasoning, answerValidation.response);
   const shadow = buildShadowSemanticAnalysis({

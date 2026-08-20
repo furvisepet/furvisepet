@@ -1,5 +1,6 @@
 import type { AskReasoningResult } from "../../ai/ask-reasoning.ts";
 import { countAskVisibleProseSanityDefects, measureAskAnswerEconomy, normalizeAskListIntegrity, normalizeAskVisibleProseSanity } from "../../ai/ask-answer-economy.ts";
+import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-internal-product-policy.ts";
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 
@@ -44,6 +45,9 @@ export function validateGeneratedAnswer(
     items: section.items.map(sanitize).filter(Boolean),
   })).filter((section) => section.heading && section.items.length > 0);
   if (response.answer.safetyNote) response.answer.safetyNote = sanitize(response.answer.safetyNote) || null;
+  const productMetadataGuard = sanitizeInternalProductMetadataFromCareAnswer(response.answer);
+  response.answer = productMetadataGuard.answer;
+  if (productMetadataGuard.removedCount > 0) repairs.push("removed_internal_product_metadata");
   if (canonicalSafety === "urgent" || canonicalSafety === "emergency") { response.safetyLevel = "urgent"; response.shoppingSuppressed = true; }
   else if (canonicalSafety === "recently_resolved") {
     const reconcile = (value: string) => {

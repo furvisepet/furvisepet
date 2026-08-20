@@ -380,7 +380,11 @@ function normalizeKnownPetReferences(
     },
   );
   prose = prose.replace(
-    new RegExp(`\\b${escapedName}${apostrophe}s\\s+(?=(?:being|becoming|biting|breathing|doing|drinking|eating|feeling|following|getting|going|having|hiding|limping|looking|scratching|seeming|showing|sleeping|starting|trying|urinating|using|vomiting|walking|${contractionAdjectives})\\b)`, "giu"),
+    new RegExp(`\\b${escapedName}${apostrophe}s\\s+([a-z]+ing)\\s+(?:threshold|limit)\\b`, "giu"),
+    (_match, gerund: string, offset: number) => `${sentenceAwarePronoun(pronoun.possessive, prose, offset)} tolerance for ${gerund}`,
+  );
+  prose = prose.replace(
+    new RegExp(`\\b${escapedName}${apostrophe}s\\s+(?=(?:${contractionAdjectives})\\b)`, "giu"),
     (_match, offset: number) => reduceNameOveruse ? `${subjectAt(prose, offset)}'s ` : `${name} is `,
   );
   prose = prose.replace(
@@ -392,7 +396,7 @@ function normalizeKnownPetReferences(
   );
   if (reduceNameOveruse) {
     prose = prose.replace(
-      new RegExp(`\\b${escapedName}${apostrophe}s\\b`, "giu"),
+      new RegExp(`\\b${escapedName}${apostrophe}s\\b(?!\\s+[\\p{L}]+ing\\b)`, "giu"),
       (_match, offset: number) => sentenceAwarePronoun(pronoun.possessive, prose, offset),
     );
     prose = reduceRepeatedPlainPetNames(prose, name, pronoun, retainFirstName);
@@ -431,7 +435,7 @@ function neutralizeMalformedNamedReferences(
       },
     );
     prose = prose.replace(
-      new RegExp(`\\b${escapedName}${apostrophe}s\\s+(?=(?:being|becoming|biting|breathing|doing|drinking|eating|feeling|following|getting|going|having|hiding|limping|looking|scratching|seeming|showing|sleeping|starting|trying|urinating|using|vomiting|walking|${contractionAdjectives})\\b)`, "giu"),
+      new RegExp(`\\b${escapedName}${apostrophe}s\\s+(?=(?:${contractionAdjectives})\\b)`, "giu"),
       (_match, offset: number) => preferPronouns && pronoun
         ? `${sentenceAwarePronoun(pronoun.subject, prose, offset)}'s `
         : `${name} is `,
