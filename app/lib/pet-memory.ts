@@ -6,6 +6,7 @@ import type {
   DogProfileRow,
 } from "./supabase";
 import { FURVISE_SAFETY_LINE, FURVISE_URGENT_SAFETY_MESSAGE } from "./safety-copy.ts";
+import { isEligibleLegacyMemory } from "./intelligence/memory-integrity.ts";
 
 export type PetMemorySource = "owner" | "furvise" | "system";
 
@@ -160,7 +161,7 @@ export function buildPetMemoryContext({
   const entriesLast30Days = allEntries.filter((entry) => isWithinDays(entry.date, now, 30));
 
   const savedDetails = savedMemories
-    .filter((memory) => normalizeNullable(memory.text))
+    .filter((memory) => isEligibleLegacyMemory(memory) && normalizeNullable(memory.text))
     .map((memory) => ({
       createdAt: memory.created_at,
       id: memory.id,
@@ -269,7 +270,7 @@ export async function loadPetMemoryContext({
     careEntries: entriesResult.data || [],
     productFeedback: feedbackResult.data || [],
     profile,
-    savedMemories: memoriesResult.data || [],
+    savedMemories: (memoriesResult.data || []).filter(isEligibleLegacyMemory),
   });
 }
 

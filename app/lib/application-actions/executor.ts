@@ -3,6 +3,8 @@ import { actionCanAutoExecute } from "./policy.ts";
 import type { FurviseActionExecutionResult, FurviseApplicationAction } from "./types.ts";
 import { normalizeSingletonPreferenceKey } from "./memory-scopes.ts";
 import { buildConfirmedLossCareAction } from "../ai/pet-loss.ts";
+import { prepareTypedMemoryCandidate } from "../intelligence/memory-integrity.ts";
+import type { IntelligenceLearning } from "../intelligence/types.ts";
 
 export async function executeFurviseApplicationAction(input: {
   action: FurviseApplicationAction;
@@ -45,15 +47,18 @@ async function setPreference({ action, sourceMessageId, supabase, userId }: Para
   const factKey = normalizeSingletonPreferenceKey(action.input.field || "");
   const value = action.input.value?.trim();
   if (!factKey || !value) return failure(action, "That preference is incomplete.");
+  const learning: IntelligenceLearning = {
+    subjectType: "owner", subjectId: null, category: "communication_preference", factKey,
+    factValue: value, confidence: 1, importance: "high", durability: "durable", action: "update",
+    sourceExcerpt: action.evidence,
+  };
+  const governed = prepareTypedMemoryCandidate(learning, action.evidence, [action.petId]);
+  if (!governed.accepted) return failure(action, "That preference is not a durable remembered detail.");
   const { data, error } = await supabase.rpc("persist_furvise_intelligence", {
     p_pet_id: action.petId,
     p_source_message_id: sourceMessageId,
     p_care_actions: [],
-    p_learnings: [{
-      subjectType: "owner", subjectId: userId, category: "communication_preference", factKey,
-      factValue: value, normalizedValue: normalizeValue(value), confidence: 1, importance: "high",
-      durability: "durable", sourceExcerpt: action.evidence,
-    }],
+    p_learnings: [{ ...governed.learning, normalizedValue: normalizeValue(String(governed.learning.factValue)) }],
   });
   if (error) return failure(action, "That preference could not be changed.");
   const row = Array.isArray(data) ? data[0] : data;

@@ -53,15 +53,7 @@ export const intelligenceLearningJsonSchema = {
     subjectType: { type: "string", enum: ["pet", "owner"] },
     subjectId: { anyOf: [{ type: "string" }, { type: "null" }] },
     category: { type: "string", maxLength: 80 }, factKey: { type: "string", maxLength: 100 },
-    factValue: {
-      anyOf: [
-        { type: "string", maxLength: 500 }, { type: "number" }, { type: "boolean" }, { type: "null" },
-        {
-          type: "array", maxItems: 12,
-          items: { anyOf: [{ type: "string", maxLength: 200 }, { type: "number" }, { type: "boolean" }] },
-        },
-      ],
-    },
+    factValue: { type: "string", minLength: 2, maxLength: 500 },
     confidence: { type: "number", minimum: 0, maximum: 1 }, importance: { type: "string", enum: ["low", "medium", "high"] },
     durability: { type: "string", enum: ["temporary", "ongoing", "durable"] },
     action: { type: "string", enum: ["create", "confirm", "update", "supersede", "resolve", "none"] },
@@ -140,6 +132,7 @@ export function isIntelligenceLearning(value: unknown): value is IntelligenceLea
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
   return ["pet", "owner"].includes(String(item.subjectType)) && typeof item.category === "string" && typeof item.factKey === "string" &&
+    typeof item.factValue === "string" && item.factValue.trim().length >= 2 &&
     typeof item.confidence === "number" && item.confidence >= 0 && item.confidence <= 1 &&
     ["low", "medium", "high"].includes(String(item.importance)) && ["temporary", "ongoing", "durable"].includes(String(item.durability)) &&
     ["create", "confirm", "update", "supersede", "resolve", "none"].includes(String(item.action)) && typeof item.sourceExcerpt === "string";

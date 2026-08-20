@@ -3,6 +3,7 @@ import { validateSensitiveRequestOriginResponse } from "../../../../lib/security
 import { safeErrorForLog } from "../../../../lib/security/logging";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../../../lib/security/idempotency";
+import { isEligibleLegacyMemory } from "../../../../lib/intelligence/memory-integrity.ts";
 
 type SuggestionStatus = "pending" | "saved" | "dismissed";
 type SuggestionRow = {
@@ -181,9 +182,13 @@ async function saveMemorySuggestion(supabase: SupabaseClient, userId: string, su
   if (suggestion.status === "saved") return alreadyAppliedResponse(suggestion, { careEntryId: null, concernStatus: null }, requestId);
   const note = suggestion.details || textValue(suggestion.payload.note);
   if (!note) return suggestionError("SUGGESTION_INVALID", "This remembered detail is empty.", 422, requestId);
+  const memoryType = textValue(suggestion.payload.memoryType) || "preference";
+  if (!isEligibleLegacyMemory({ type: memoryType, text: note })) {
+    return suggestionError("SUGGESTION_INVALID", "That suggestion is not a durable remembered detail.", 422, requestId);
+  }
   const { error } = await supabase.from("dog_memories").insert({
     confidence: "user_confirmed", dog_profile_id: suggestion.pet_profile_id, source: `ask_suggestion:${suggestion.id}`,
-    text: note, type: textValue(suggestion.payload.memoryType) || "preference", user_id: userId,
+    text: note, type: memoryType, user_id: userId,
   });
   if (error && error.code !== "23505") {
     logSuggestionFailure("save_memory_suggestion", error, logContext);

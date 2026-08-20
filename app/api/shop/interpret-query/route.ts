@@ -307,7 +307,8 @@ export async function POST(request: Request) {
         try {
           await persistFeatureIntelligenceLearnings({
             careActions: [], feature: "product_query", learnings: result.acceptedLearnings,
-            petId, requestId, supabase: context.supabase,
+            operationOwnerToken: idempotency.operation.ownerToken, payloadHash: idempotency.operation.payloadHash,
+            petId, requestId, sourceInput: query, supabase: context.supabase, userId: context.userId,
           });
         } catch (error) {
           persistenceWarning = "Approved preferences could not be saved.";

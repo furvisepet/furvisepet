@@ -1,9 +1,9 @@
 import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "./types";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
-import { canPersistFurviseMemory, getFurviseMemoryDefinition, normalizeSingletonPreferenceKey } from "../application-actions/memory-scopes.ts";
+import { canPersistFurviseMemory } from "../application-actions/memory-scopes.ts";
+import { prepareTypedMemoryCandidate } from "./memory-integrity.ts";
 
-const forbiddenOwnerCategories = /(?:age|race|religion|politic|medical_condition|disability|sexual|ethnicity)/i;
 const diagnosisPattern = /\b(diagnos(?:e|is)|has allergies|has an infection|is sick|definitely has)\b/i;
 const dosagePattern = /\b\d+(?:\.\d+)?\s*(?:mg|ml|tablet|capsule)s?\b/i;
 
@@ -11,12 +11,22 @@ export function evaluateLearningPolicy(learnings: IntelligenceLearning[], curren
   const accepted: IntelligenceLearning[] = [];
   const rejected: Array<{ learning: IntelligenceLearning; reason: string }> = [];
   for (const learning of learnings.slice(0, 8)) {
-    const governedLearning = normalizeLearningScope(learning);
-    const reason = rejectLearningReason(governedLearning, currentMessage, authorizedPetIds);
-    if (reason) rejected.push({ learning: governedLearning, reason });
+    if (learning.subjectType === "pet" && containsUnsupportedPetIdentitySemantics(
+      learning.category, learning.factKey, stringify(learning.factValue), learning.sourceExcerpt,
+    )) {
+      rejected.push({ learning, reason: "unsupported_pet_identity_claim" });
+      continue;
+    }
+    const semanticDecision = prepareTypedMemoryCandidate(learning, currentMessage, authorizedPetIds);
+    if (!semanticDecision.accepted) {
+      rejected.push({ learning, reason: semanticDecision.reason });
+      continue;
+    }
+    const reason = rejectLearningReason(semanticDecision.learning, currentMessage, authorizedPetIds);
+    if (reason) rejected.push({ learning, reason });
     else accepted.push({
-      ...governedLearning,
-      subjectId: governedLearning.subjectType === "pet" ? governedLearning.subjectId || authorizedPetIds[0] : null,
+      ...semanticDecision.learning,
+      subjectId: semanticDecision.learning.subjectType === "pet" ? semanticDecision.learning.subjectId || authorizedPetIds[0] : null,
     });
   }
   return { accepted, rejected };
@@ -65,24 +75,16 @@ function rejectLearningReason(learning: IntelligenceLearning, currentMessage: st
   if (!canPersistFurviseMemory(learning.factKey)) return "conversation_scope_is_not_durable";
   if (learning.action === "none" || learning.durability === "temporary") return "not_durable";
   if (learning.confidence < 0.85) return "confidence_below_automatic_threshold";
-  if (!learning.factKey.trim() || learning.factValue === null || learning.factValue === undefined) return "empty_fact";
+  if (!learning.factKey.trim() || typeof learning.factValue !== "string" || !learning.factValue.trim()) return "empty_fact";
   if (learning.subjectType === "pet" && learning.subjectId && !authorizedPetIds.includes(learning.subjectId)) return "wrong_pet";
   if (learning.subjectType === "pet" && !learning.subjectId && authorizedPetIds.length !== 1) return "ambiguous_pet";
   if (learning.subjectType === "pet" && containsUnsupportedPetIdentitySemantics(
     learning.category, learning.factKey, learning.factValue, learning.sourceExcerpt,
   )) return "unsupported_pet_identity_claim";
-  if (learning.subjectType === "owner" && forbiddenOwnerCategories.test(`${learning.category} ${learning.factKey}`)) return "sensitive_owner_inference";
   if (diagnosisPattern.test(`${learning.category} ${learning.factKey} ${stringify(learning.factValue)}`)) return "diagnosis_is_not_memory";
   if (!learning.sourceExcerpt.trim() || !normalized(currentMessage).includes(normalized(learning.sourceExcerpt))) return "source_excerpt_not_explicit";
-  if (/^(?:hello|hi|hey|thanks|thank you|okay|ok)$/i.test(String(learning.factValue).trim())) return "conversational_filler";
+  if (/^(?:hello|hi|hey|thanks|thank you|okay|ok)$/i.test(learning.factValue.trim())) return "conversational_filler";
   return "";
-}
-
-function normalizeLearningScope(learning: IntelligenceLearning): IntelligenceLearning {
-  const factKey = normalizeSingletonPreferenceKey(learning.factKey);
-  const definition = getFurviseMemoryDefinition(factKey);
-  if (definition.scope !== "USER") return learning;
-  return { ...learning, subjectType: "owner", subjectId: null, factKey, category: "communication_preference", durability: "durable" };
 }
 
 function hasSupport(message: string, proposed: string) {
@@ -93,9 +95,10 @@ function hasSupport(message: string, proposed: string) {
 
 function tokens(value: string) { return [...new Set(normalized(value).match(/[a-z0-9]{3,}/g) || [])]; }
 function normalized(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
-function stringify(value: unknown) { try { return JSON.stringify(value); } catch { return String(value); } }
+function stringify(value: unknown) { try { return JSON.stringify(value); } catch { return "[unavailable]"; } }
 
 export function normalizeMemoryValue(value: unknown) {
-  const raw = stringify(value);
+  if (typeof value !== "string") return "";
+  const raw = value;
   return raw.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 500);
 }

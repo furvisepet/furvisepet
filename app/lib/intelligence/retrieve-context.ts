@@ -14,6 +14,7 @@ import { isKnownConversationalCareNoise, isLongitudinalCareHistoryEntry } from "
 import { featureRequiresActivePet, getPetLifecycleStatus } from "../pet-lifecycle.ts";
 import { parseStoredApplicationActions } from "../application-actions/contracts.ts";
 import { recoverOptionalQuery, recoverOptionalValue } from "./context-recovery.ts";
+import { isEligibleLegacyMemory, isEligibleStoredMemory } from "./memory-integrity.ts";
 
 export class FurviseContextError extends Error {
   constructor(public code: "PET_NOT_FOUND" | "PET_INACTIVE" | "CONVERSATION_NOT_FOUND" | "CONTEXT_UNAVAILABLE", message: string, public cause?: unknown) {
@@ -62,9 +63,9 @@ export async function buildFurviseContext({
   const sharedMemoryQuery = supabase.from("furvise_memories").select("*").eq("user_id", userId).eq("status", "active")
     .or(`pet_id.eq.${petId},pet_id.is.null`).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .order("last_confirmed_at", { ascending: false }).limit(mode.contextPolicy.memoryLimit * 2).returns<FurviseMemoryRow[]>();
-  const inactiveMemoryQuery = supabase.from("furvise_memories").select("fact_key,fact_value,normalized_value,status,updated_at").eq("user_id", userId)
+  const inactiveMemoryQuery = supabase.from("furvise_memories").select("category,fact_key,fact_value,pet_id,source_excerpt,subject_type,normalized_value,status,updated_at").eq("user_id", userId)
     .in("status", ["resolved", "superseded", "rejected", "expired"]).or(`pet_id.eq.${petId},pet_id.is.null`)
-    .order("updated_at", { ascending: false }).limit(40).returns<InactiveMemoryMarker[]>();
+    .order("updated_at", { ascending: false }).limit(40).returns<Array<InactiveMemoryMarker & Pick<FurviseMemoryRow, "category" | "pet_id" | "source_excerpt" | "subject_type">>>();
   const feedbackQuery = supabase.from("dog_product_feedback").select("*").eq("dog_profile_id", petId).eq("user_id", userId)
     .order("created_at", { ascending: false }).limit(80).returns<DogProductFeedbackRow[]>();
   const ownerQuery = supabase.from("user_profiles").select("*").eq("user_id", userId).maybeSingle<UserProfileRow>();
@@ -94,7 +95,7 @@ export async function buildFurviseContext({
     recoverOptionalQuery("care_entries", boundedCareQuery, [] as CareEntryRow[]),
     recoverOptionalQuery("legacy_memories", legacyMemoryQuery, [] as DogMemoryRow[]),
     recoverOptionalQuery("furvise_memories", sharedMemoryQuery, [] as FurviseMemoryRow[]),
-    recoverOptionalQuery("inactive_memories", inactiveMemoryQuery, [] as InactiveMemoryMarker[]),
+    recoverOptionalQuery("inactive_memories", inactiveMemoryQuery, [] as Array<InactiveMemoryMarker & Pick<FurviseMemoryRow, "category" | "pet_id" | "source_excerpt" | "subject_type">>),
     recoverOptionalQuery("product_feedback", feedbackQuery, [] as DogProductFeedbackRow[]),
     recoverOptionalQuery("owner_profile", ownerQuery, null as UserProfileRow | null),
     recoverOptionalQuery("conversation_messages", messagesQuery, [] as Array<{ id: string; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>),
@@ -129,7 +130,7 @@ export async function buildFurviseContext({
     text: message.role === "user" ? message.user_text || "" : responseText(message.response_data),
     createdAt: message.created_at,
     ...(message.role === "furvise" ? { applicationActions: parseStoredApplicationActions(message.response_data?.applicationActions) } : {}),
-  })).filter((message) => message.text.trim()), inactiveMemories.data);
+  })).filter((message) => message.text.trim()), inactiveMemories.data.filter(isEligibleStoredMemory));
 
   const longitudinalCareEntries = care.data.filter(isLongitudinalCareHistoryEntry);
   const longitudinalEpisodes = episodes.data.filter((episode) => !isKnownConversationalCareNoise(
@@ -144,12 +145,13 @@ export async function buildFurviseContext({
     pet: selectedProfile,
     eligiblePets: (eligiblePets.data || [selectedProfile]).filter((pet) => pet.id === selectedProfile.id || getPetLifecycleStatus(pet) === "active"),
     owner: { userId, profile: owner.data }, careEntries: longitudinalCareEntries,
-    activeConcerns: longitudinalConcerns, recentlyResolvedConcerns: longitudinalResolvedConcerns, legacyPetMemories: legacyMemories.data,
+    activeConcerns: longitudinalConcerns, recentlyResolvedConcerns: longitudinalResolvedConcerns,
+    legacyPetMemories: legacyMemories.data.filter(isEligibleLegacyMemory),
     activeEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "active"),
     monitoringEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "monitoring"),
     recentlyResolvedEpisodes: longitudinalEpisodes.filter((episode) => episode.status === "resolved").slice(0, 8),
     currentState: longitudinalCurrentState || null,
-    memories: selectFreshRelevantMemories(sharedMemories.data.filter((memory) => !(
+    memories: selectFreshRelevantMemories(sharedMemories.data.filter((memory) => isEligibleStoredMemory(memory) && !(
       memory.source_type === "ask_message" && memory.source_id && suppressedSourceMessageIds.has(memory.source_id)
     )), currentMessage, new Date(), mode.contextPolicy.memoryLimit).map((item) => item.memory),
     productFeedback: feedback.data, conversationTurns, contextRecovery: { unavailableSources },

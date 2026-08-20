@@ -3,6 +3,7 @@ import { countAskVisibleProseSanityDefects, measureAskAnswerEconomy, normalizeAs
 import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-internal-product-policy.ts";
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
+import { memoryDisplayContent } from "../memory-integrity.ts";
 
 export type AnswerValidationResult = {
   response: AskReasoningResult;
@@ -19,7 +20,7 @@ export function validateGeneratedAnswer(
 ): AnswerValidationResult {
   const repairs: string[] = []; const errors: string[] = []; const qualityWarnings: string[] = [];
   const response = structuredClone(result);
-  const contextText = `${context.currentMessage} ${context.careEntries.map((entry) => `${entry.title || ""} ${entry.note}`).join(" ")} ${context.memories.map((memory) => `${memory.fact_key} ${JSON.stringify(memory.fact_value)}`).join(" ")}`;
+  const contextText = `${context.currentMessage} ${context.careEntries.map((entry) => `${entry.title || ""} ${entry.note}`).join(" ")} ${context.memories.map((memory) => `${memory.fact_key} ${memoryDisplayContent(memory)}`).join(" ")}`;
   const unrelatedResolved = context.currentState?.state.breathing?.status === "normal" && !/breath|breathing/i.test(context.currentMessage);
   const sanitize = (source: string) => {
     let text = source;

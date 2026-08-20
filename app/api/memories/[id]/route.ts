@@ -3,6 +3,8 @@ import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBounded
 import { safeErrorForLog } from "../../../lib/security/logging";
 import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../../lib/security/headers/origin-policy";
+import { isEligibleStoredMemory, prepareTypedMemoryCandidate } from "../../../lib/intelligence/memory-integrity.ts";
+import type { FurviseMemoryRow, IntelligenceLearning } from "../../../lib/intelligence/types.ts";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await authenticatedClient(request);
@@ -18,8 +20,31 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (action !== "confirm" && action !== "edit" && action !== "forget") return errorResponse("MEMORY_INVALID", "Choose a valid memory action.", 422);
   const value = typeof body?.value === "string" && body.value.length <= 500 ? body.value : null;
   if (action === "edit" && value === null) return errorResponse("MEMORY_INVALID", "Keep the remembered detail under 500 characters.", 422);
-  const { data: ownedMemory } = await auth.supabase.from("furvise_memories").select("id").eq("id", id).eq("user_id", auth.userId).maybeSingle<{ id: string }>();
+  const { data: ownedMemory } = await auth.supabase.from("furvise_memories")
+    .select("id,category,fact_key,fact_value,pet_id,source_excerpt,subject_type")
+    .eq("id", id).eq("user_id", auth.userId).maybeSingle<Pick<FurviseMemoryRow, "id" | "category" | "fact_key" | "fact_value" | "pet_id" | "source_excerpt" | "subject_type">>();
   if (!ownedMemory) return errorResponse("MEMORY_NOT_FOUND", "That remembered detail is no longer available.", 404);
+  if (action !== "forget" && !isEligibleStoredMemory(ownedMemory)) {
+    return errorResponse("MEMORY_INVALID", "That detail is not eligible for remembered information. You can forget it instead.", 422);
+  }
+  if (action === "edit" && value !== null) {
+    const editedLearning: IntelligenceLearning = {
+      subjectType: ownedMemory.subject_type,
+      subjectId: ownedMemory.pet_id,
+      category: ownedMemory.category,
+      factKey: ownedMemory.fact_key,
+      factValue: value,
+      confidence: 1,
+      importance: "high",
+      durability: "durable",
+      action: "update",
+      sourceExcerpt: value,
+    };
+    const decision = prepareTypedMemoryCandidate(
+      editedLearning, value, ownedMemory.pet_id ? [ownedMemory.pet_id] : [], { explicitPreferenceIntent: true },
+    );
+    if (!decision.accepted) return errorResponse("MEMORY_INVALID", "Use a meaningful remembered detail rather than a status or machine value.", 422);
+  }
   const gate = await beginIdempotentRateLimitedOperation({ operationType: `memory.${action}`, payload: { action, id, value }, policy: action === "forget" ? "DESTRUCTIVE_WRITE" : "MEMORY_WRITE", request, retention: action === "forget" ? "destructive" : "ordinary", route: "/api/memories/[id]", supabase: auth.supabase, userId: auth.userId });
   if ("response" in gate) return gate.response;
   return gate.operation.execute(async () => {

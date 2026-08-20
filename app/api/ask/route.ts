@@ -1645,6 +1645,7 @@ async function persistAssistantAnswer({
     try {
       intelligencePersistence = await persistIntelligenceLearnings({
         careActions: historyReviewRequired ? [] : intelligenceResult.acceptedCareActions,
+        currentMessage: sourceMessage,
         semanticEvents: historyReviewRequired ? [] : intelligenceResult.acceptedSemanticEvents,
         learnings: intelligenceResult.acceptedLearnings,
         petId,

@@ -2,6 +2,7 @@ import type { FurviseMemoryRow } from "./intelligence/types.ts";
 import { calculateMemoryFreshness, type FreshnessStatus } from "./intelligence/memory-freshness/calculate-memory-freshness.ts";
 import type { DogMemoryRow } from "./supabase.ts";
 import { historicalPreferenceTargetIdentity, normalizeKnownPreferenceMemory, preferenceTargetIdentity } from "./intelligence/preference-semantics.ts";
+import { isEligibleLegacyMemory, isEligibleStoredMemory, memoryDisplayContent } from "./intelligence/memory-integrity.ts";
 
 export type RememberedDetail = {
   id: string;
@@ -52,12 +53,12 @@ export function buildRememberedDetails({
       lastConfirmedAt: memory.last_confirmed_at,
     }];
   });
-  const seen = new Set(current.map((memory) => normalizeText(memory.fact)));
+  const seen = new Set(current.flatMap((memory) => normalizedPetFactVariants(memory.fact, petName)));
   const seenSemantics = new Set(projectedCanonical.map((memory) => semanticIdentity(memory, petName)).filter(Boolean));
   const compatible = legacy.flatMap((memory) => {
     const fact = memory.text.replace(/\s+/g, " ").trim();
     const semantics = semanticIdentityFromText(fact, petName, memory.dog_profile_id);
-    if (!fact || hiddenCategories.has((memory.type || "").toLowerCase().trim()) || seen.has(normalizeText(fact))
+    if (!isEligibleLegacyMemory(memory) || hiddenCategories.has((memory.type || "").toLowerCase().trim()) || normalizedPetFactVariants(fact, petName).some((item) => seen.has(item))
       || Boolean(semantics && seenSemantics.has(semantics))) return [];
     seen.add(normalizeText(fact));
     return [{
@@ -78,32 +79,33 @@ export function buildRememberedDetails({
 
 export function isVisibleCanonicalMemory(memory: FurviseMemoryRow, now = new Date()) {
   if (memory.status !== "active") return false;
+  if (!isEligibleStoredMemory(memory)) return false;
   if (memory.freshness_class === "episode_bound" || memory.freshness_class === "short_lived") return false;
   if (memory.durability === "temporary" || hiddenCategories.has(memory.category.toLowerCase().trim())) return false;
   return calculateMemoryFreshness(memory, now).freshnessStatus !== "expired";
 }
 
 export function formatCanonicalMemory(memory: FurviseMemoryRow, petName: string) {
-  const value = factValueText(memory.fact_value);
+  const value = memoryDisplayContent(memory);
   const key = compact(memory.fact_key);
   const ownerPreference = ownerPreferenceSemantics(memory);
   if (ownerPreference?.role === "retailer") return `You usually shop at ${ownerPreference.value}.`;
   if (ownerPreference?.role === "monthly_pet_supply_budget") return `Your pet-supply budget is $${ownerPreference.value}/month.`;
-  if (key === "prefersdentalchewtexture") return `${petName} prefers ${value.replace(/^softer\b/i, "soft")}`;
+  if (key === "prefersdentalchewtexture") return sentenceValue(`Prefers ${value.replace(/^softer\b/i, "soft")}`);
   if (key === "productbudgetpreference" || key === "budgetpreference") {
     const clearer = value.replace(/unless there is a much better option/i, "unless there is a clearly better option");
     return `You prefer products ${clearer}`;
   }
   const food = foodPreferenceSemantics(memory, petName);
-  if (food) return `${petName} ${food.polarity === "avoid" ? "dislikes" : "prefers"} ${food.object}.`;
-  if (sleepingArrangement(key)) return `${petName} sleeps ${sleepingPhrase(value)}.`;
+  if (food) return `${food.polarity === "avoid" ? "Dislikes" : "Prefers"} ${food.object}.`;
+  if (sleepingArrangement(key)) return `Sleeps ${sleepingPhrase(value)}.`;
   if (memory.subject_type === "owner") return `You shared this preference: ${sentenceValue(value)}`;
-  return `${petName}: ${sentenceValue(value)}`;
+  return sentenceValue(capitalizePetPredicate(value, petName));
 }
 
 function factValueText(value: unknown) {
   if (typeof value === "string") return value.trim();
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean") return "";
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;
     const object = record.object;
@@ -117,7 +119,7 @@ function factValueText(value: unknown) {
       if (typeof record[key] === "string" || typeof record[key] === "number") return String(record[key]).trim();
     }
   }
-  return "a remembered detail";
+  return "";
 }
 
 function formatCategory(value: string) {
@@ -126,6 +128,11 @@ function formatCategory(value: string) {
 }
 
 function normalizeText(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+function normalizedPetFactVariants(value: string, petName: string) {
+  const normalized = normalizeText(value);
+  const pet = normalizeText(petName);
+  return [...new Set([normalized, pet && normalized.startsWith(`${pet} `) ? normalized.slice(pet.length + 1) : `${pet} ${normalized}`].filter(Boolean))];
+}
 
 function projectEffectiveCanonicalMemories(memories: FurviseMemoryRow[], petName: string, now: Date) {
   const visible = memories.filter((memory) => isVisibleCanonicalMemory(memory, now));
@@ -201,6 +208,11 @@ function sleepingPhrase(value: string) {
 function sentenceValue(value: string) {
   const clean = value.replace(/[.!]+$/, "").trim();
   return `${clean || "a remembered detail"}.`;
+}
+
+function capitalizePetPredicate(value: string, petName: string) {
+  const clean = value.replace(new RegExp(`^${escapeRegex(petName)}\\s*[:,-]?\\s*`, "i"), "").trim();
+  return clean ? clean[0].toUpperCase() + clean.slice(1) : clean;
 }
 
 function compact(value: string) { return value.toLowerCase().replace(/[^a-z0-9]/g, ""); }

@@ -92,7 +92,7 @@ test("Remembered Details hides an active stale prose row behind the effective co
     memory("salmon", { fact_key: "food_preference_salmon", fact_value: { preference: "prefer", value: "salmon", conceptKey: "food_preference" }, source_excerpt: "He prefers salmon", last_confirmed_at: "2026-08-12T00:00:01Z" }),
   ] });
   assert.deepEqual(new Set(details.pet.map((item) => item.fact)), new Set([
-    "Milo dislikes chicken.", "Milo prefers salmon.", "Milo prefers beef.",
+    "Dislikes chicken.", "Prefers salmon.", "Prefers beef.",
   ]));
 });
 
@@ -105,7 +105,7 @@ test("exact production sequence projects one negative chicken and one positive s
     }),
   ];
   const before = buildRememberedDetails({ petName: "Milo", now: new Date("2026-08-12T20:00:00Z"), canonical: initial });
-  assert.deepEqual(before.pet.map((item) => item.fact), ["Milo prefers chicken."]);
+  assert.deepEqual(before.pet.map((item) => item.fact), ["Prefers chicken."]);
 
   const afterRows = [
     ...initial,
@@ -132,7 +132,7 @@ test("exact production sequence projects one negative chicken and one positive s
     }),
   ];
   const after = buildRememberedDetails({ petName: "Milo", now: new Date("2026-08-12T20:00:00Z"), canonical: afterRows });
-  assert.deepEqual(new Set(after.pet.map((item) => item.fact)), new Set(["Milo dislikes chicken.", "Milo prefers salmon."]));
+  assert.deepEqual(new Set(after.pet.map((item) => item.fact)), new Set(["Dislikes chicken.", "Prefers salmon."]));
   assert.equal(after.pet.length, 2);
 });
 
@@ -151,7 +151,7 @@ test("beef treat correction projects negative beef and human-readable turkey onl
       source_excerpt: "He prefers turkey", last_confirmed_at: "2026-08-12T00:00:01Z",
     }),
   ] });
-  assert.deepEqual(details.pet.map((item) => item.fact).sort(), ["Milo dislikes beef.", "Milo prefers turkey."].sort());
+  assert.deepEqual(details.pet.map((item) => item.fact).sort(), ["Dislikes beef.", "Prefers turkey."].sort());
   assert.equal(details.pet.some((item) => /prefers he prefers|prefers beef/i.test(item.fact)), false);
 });
 
@@ -162,7 +162,7 @@ test("used-to replacement keeps salmon historical and projects tuna as current",
     memory("preferred-tuna", { pet_id: lunaId, fact_key: "preferredfood", fact_value: "tuna", source_excerpt: "now she prefers tuna", last_confirmed_at: "2026-08-12T00:00:01Z" }),
     memory("canonical-tuna", { pet_id: lunaId, fact_key: "food_preference_tuna", fact_value: { preference: "prefer", value: "tuna" }, source_excerpt: "Luna used to like salmon but now she prefers tuna", last_confirmed_at: "2026-08-12T00:00:02Z" }),
   ] });
-  assert.deepEqual(details.pet.map((item) => item.fact), ["Luna prefers tuna."]);
+  assert.deepEqual(details.pet.map((item) => item.fact), ["Prefers tuna."]);
 });
 
 test("one governed correction turn projects both independently grounded preference facts", () => {
