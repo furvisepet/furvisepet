@@ -20,6 +20,7 @@ import {
 import { AskTurnLifecycle, deriveAskAttemptId, runOptionalAskSubsystem, type AskSubsystem, type AskTurnTrace } from "../../lib/ai/ask-turn-model";
 import { orchestrateAskTurn, planProviderIndependentAskTurn } from "../../lib/ai/ask-orchestrator";
 import { planDeterministicAskCommand } from "../../lib/ai/ask-command-router";
+import { classifyFurviseCapabilityQuestion, type FurviseCapabilityIntent } from "../../lib/ai/ask-internal-product-policy";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../lib/ai/usage-guard/errors";
 import { buildSemanticEventReviewSuggestion, type PendingUpdateSuggestion, type PetConcern } from "../../lib/ai/concern-engine";
@@ -376,6 +377,7 @@ export async function POST(request: Request) {
     ? durableLifecycleStatus
     : null;
   let turnPetId = petId;
+  let turnAuthoritativePetIds = [petId];
   let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
   let contextUsed = turnView.contextUsed;
 
@@ -640,6 +642,7 @@ export async function POST(request: Request) {
       }
       const subjectFrame = subjectDecision.frame;
       const subjectResolution = subjectDecision.resolution;
+      turnAuthoritativePetIds = subjectResolution.petIds;
       logAskStage("turn subject resolved", {
         explicitSubject: subjectResolution.explicitSubject,
         reasonCode: subjectResolution.reasonCode,
@@ -648,7 +651,10 @@ export async function POST(request: Request) {
         resolvedAlternatePet: Boolean(subjectResolution.petId && subjectResolution.petId !== petId),
         subjectCount: subjectResolution.petIds.length,
       });
-      turnLifecycle.subject(subjectResolution.reasonCode || subjectResolution.status, subjectResolution.candidatePetIds?.length || subjectResolution.petIds.length);
+      turnLifecycle.subject(
+        subjectResolution.reasonCode || subjectResolution.discourseFocus?.kind || subjectResolution.status,
+        subjectResolution.candidateLabels?.length || subjectResolution.candidatePetIds?.length || subjectResolution.petIds.length,
+      );
       if (subjectResolution.requiresClarification || !subjectResolution.petId) {
         turnLifecycle.route("clarification", "deterministic");
         if (creditReserved) {
@@ -659,7 +665,7 @@ export async function POST(request: Request) {
         }
         intelligenceResult = null;
         contextUsed = { petName: null, usedSources: [] };
-        const candidateNames = (subjectResolution.candidatePetIds || [])
+        const candidateNames = subjectResolution.candidateLabels || (subjectResolution.candidatePetIds || [])
           .map((candidateId) => liveContext.eligiblePets.find((pet) => pet.id === candidateId)?.name)
           .filter((name): name is string => Boolean(name));
         return buildSubjectClarificationOrchestration(question, candidateNames);
@@ -691,7 +697,10 @@ export async function POST(request: Request) {
       }
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
-      confirmedExistingCarePersistence = await runOptionalAskSubsystem({
+      if (subjectResolution.discourseFocus && subjectResolution.discourseFocus.kind !== "pet") {
+        contextUsed = { petName: null, usedSources: contextUsed.usedSources };
+      }
+      confirmedExistingCarePersistence = turnAuthoritativePetIds.length ? await runOptionalAskSubsystem({
         component: "history_persistence",
         fallback: null,
         operation: () => findExistingCareEventForSaveRequest({
@@ -701,11 +710,12 @@ export async function POST(request: Request) {
           turnLifecycle.optionalFailure(component);
           logAskServerError("optional_history_lookup", error, { conversationId: preparedRequest.conversationId, petId: turnPetId, requestId }, 200);
         },
-      });
+      }) : null;
       if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
 
       const generationInput = buildTurnGenerationInput({
         authoritativePetIds: subjectResolution.petIds,
+        discourseFocus: subjectResolution.discourseFocus,
         locale, onProviderEvent, question, requestId, turnSemanticFrame: subjectFrame, turnView, liveContext,
       });
       return await orchestrateAskTurn({
@@ -722,6 +732,7 @@ export async function POST(request: Request) {
             subjectConfidence: subjectResolution.confidence,
             authoritativePetIds: subjectResolution.petIds,
             authoritativeSemanticFrame: subjectFrame,
+            discourseFocus: subjectResolution.discourseFocus,
             canonicalConcepts: phase3Runtime?.canonicalConcepts || [],
           });
           logValidatedIntelligence(intelligenceResult, requestId);
@@ -815,8 +826,9 @@ export async function POST(request: Request) {
   const reasoning = orchestration.aiResult;
   if (reasoning) contextUsed.usedSources = [...new Set(reasoning.referencedRecords.map(formatContextSourceLabel))].slice(0, 4);
   const safetyLevel = orchestration.safetyLevel;
-  const plannedGate = reasoning && safetyLevel === "normal" && !reasoning.shoppingSuppressed
-    ? buildPlannedCapabilityResponse(question, capabilities)
+  const plannedCapabilityIntent = classifyFurviseCapabilityQuestion(question);
+  const plannedGate = reasoning && plannedCapabilityIntent && safetyLevel === "normal" && !reasoning.shoppingSuppressed
+    ? buildPlannedCapabilityResponse(plannedCapabilityIntent, capabilities)
     : null;
   if (plannedGate) {
     const plannedResponse = buildAskConversationResponse(plannedGate, {
@@ -880,7 +892,7 @@ export async function POST(request: Request) {
   if (reasoning) {
     try {
       preparedApplicationActions = prepareFurviseApplicationActions({
-        proposals: reasoning.applicationActions,
+        proposals: turnAuthoritativePetIds.length ? reasoning.applicationActions : [],
         petId: turnPetId,
         petName: liveContext.pet.name || "your pet",
         requestId,
@@ -970,7 +982,7 @@ export async function POST(request: Request) {
       contextUsed,
       handledWithoutAi: orchestration.handledWithoutAi,
       deferHighImpactLifecyclePersistence,
-      historyReviewRequired: orchestration.intent === "new_observation"
+      historyReviewRequired: turnAuthoritativePetIds.length > 0 && orchestration.intent === "new_observation"
         && classifyCurrentPetLoss(question) !== "confirmed_current"
         && !isExplicitCareHistorySaveRequest(question),
       intelligenceResult,
@@ -986,7 +998,7 @@ export async function POST(request: Request) {
       saveMetadata: buildAskSaveMetadata(conversationResponse, { intent: reasoning?.userIntent || orchestration.intent, question }),
       safetyLevel,
       shoppingSuppressed: reasoning ? reasoning.shoppingSuppressed : safetyLevel === "urgent",
-      suggestion: orchestration.suggestion,
+      suggestion: turnAuthoritativePetIds.length ? orchestration.suggestion : null,
       supabase,
       usage,
       userId,
@@ -1073,8 +1085,9 @@ function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requ
   };
 }
 
-function buildTurnGenerationInput({ authoritativePetIds, locale, liveContext, onProviderEvent, question, requestId, turnSemanticFrame, turnView }: {
+function buildTurnGenerationInput({ authoritativePetIds, discourseFocus, locale, liveContext, onProviderEvent, question, requestId, turnSemanticFrame, turnView }: {
   authoritativePetIds: string[];
+  discourseFocus?: import("../../lib/intelligence/entities/resolve-turn-subject").AskDiscourseFocus;
   locale: string;
   liveContext: FurviseLiveContext;
   onProviderEvent: (event: AskProviderEvent) => void;
@@ -1096,6 +1109,7 @@ function buildTurnGenerationInput({ authoritativePetIds, locale, liveContext, on
     productFeedback: turnView.feedback,
     profiles: liveContext.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
     question,
+    discourseFocus,
     recentlyResolvedConcerns: turnView.recentlyResolvedConcerns,
     recentUpdates: turnView.recentUpdates,
     requestId,
@@ -2609,23 +2623,22 @@ function formatContextSourceLabel(record: AskContextRecord) {
   } satisfies Record<AskContextRecord["sourceType"], string>)[record.sourceType];
 }
 
-function buildPlannedCapabilityResponse(question: string, capabilities: EffectiveEntitlements["capabilities"]) {
-  const normalized = question.toLowerCase();
-  if (/\b(export|pdf|download|printable report|vet[- ]?prep report)\b/.test(normalized)) {
+function buildPlannedCapabilityResponse(intent: FurviseCapabilityIntent, capabilities: EffectiveEntitlements["capabilities"]) {
+  if (intent === "vet_prep_exports") {
     return plannedCapabilityResponse(
       capabilities.vetPrepExports
         ? "Exportable vet-prep reports are not built yet."
         : getPaidGateMessage("vetPrepExports"),
     );
   }
-  if (/\b(long|older|all history|pattern|trend|over time|months?)\b/.test(normalized)) {
+  if (intent === "long_history_patterns") {
     return plannedCapabilityResponse(
       capabilities.longHistoryPatternDetection
         ? "Longer-history pattern detection is not built yet."
         : getPaidGateMessage("longHistoryPatternDetection"),
     );
   }
-  if (/\b(live product|research products|current price|chewy|amazon|walmart|retailer)\b/.test(normalized)) {
+  if (intent === "live_product_research") {
     return plannedCapabilityResponse(
       capabilities.liveProductResearch
         ? "Live product research is not built yet."

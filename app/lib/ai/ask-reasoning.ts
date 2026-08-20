@@ -152,6 +152,11 @@ type BuildContextInput = {
   locale?: string;
   concernStateHint?: ActiveConcernMessageState;
   turnSemanticFrame?: ProposedSemanticFrame;
+  discourseFocus?: {
+    kind: "pet" | "external_animal" | "person" | "owner" | "other";
+    label: string;
+    pronouns: Array<"feminine" | "masculine" | "neutral">;
+  };
   now?: Date;
 };
 
@@ -330,6 +335,8 @@ const unifiedInstructions = [
   "Choose SemanticFrame claim kinds by structure, not keywords. An assertion is a property, measurement, durable fact, or state snapshot. An event is a bounded occurrence or action. A state_transition explicitly changes a prior or active state, including resolution, recurrence, improvement, or worsening. A preference expresses desirability or a constraint. A relationship expresses a recurring or durable role between entities. A correction targets and revises, retracts, forgets, negates, or confirms another claim.",
   "Bind first-person preferences and first-person owner facts to the owner mention (I, me, or my). Treat named organizations, retailers, brands, products, stores, and places as values or objects unless the message explicitly makes a third party the subject.",
   "For every SemanticFrame concept, provide short lexical aliases only when they mean the same thing, parentLabels only for broader concepts, and relatedLabels only for non-identical related concepts. Do not call merely similar concepts aliases. The selected pet is contextual evidence, not automatic subject identity.",
+  "Treat discourseFocus as the current referent when supplied. A recent explicit person outranks a stale selected-pet prior; do not rewrite human she, he, or they references as the pet. An explicit later pet mention can return focus to that pet.",
+  "Never mention internal product roadmap, rollout, implementation status, experimental flags, or planned capability metadata in care guidance. Product capability details belong only in an explicit Furvise product question handled by the server.",
   "Owner learnings may cover explicit shopping, budget, schedule, or communication preferences. Never infer sensitive personal traits.",
   "Return zero to four suggestedFollowUps only when they add decision value. Write each from the owner's perspective as a directly sendable question, such as What should I track? or Can you summarize the last few days? Never write assistant offers beginning If you want, I can, I can also, or Would you like me to. Order them by usefulness, information likely to change a decision, relevant Furvise-specific capability, and continuity with the recent conversation. Do not paraphrase the answer, repeat a suggestion, offer generic filler, expose internal machinery, or suggest unsafe actions. Return none for urgent, grief-related, significantly distressed, or trivial casual turns.",
   "Keep every reason and source excerpt concise. Return at most four follow-ups, five learnings, and three care actions. Do not repeat supplied context in metadata.",
@@ -458,6 +465,7 @@ export function buildAskContext(input: BuildContextInput) {
         ownerReport: concern.resolution_note,
       })),
       pets: petReferences,
+      ...(input.discourseFocus ? { discourseFocus: input.discourseFocus } : {}),
       contextRecords: records,
       olderUpdateSummary: updateSummary,
   });
