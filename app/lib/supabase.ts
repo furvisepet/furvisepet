@@ -701,7 +701,11 @@ export async function loadCanonicalRememberedDetailsForUser(profileId: string, u
 
 export async function deleteDogProfileForUser(profileId: string, _user: User) {
   void _user;
-  const response = await authenticatedApiFetch(`/api/pets/${profileId}`, { method: "DELETE" });
+  const response = await authenticatedApiFetch(`/api/pets/${profileId}`, {
+    body: JSON.stringify({ confirmation: "DELETE" }),
+    headers: { "content-type": "application/json" },
+    method: "DELETE",
+  });
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { error?: string } | null;
     throw new Error(payload?.error || "The pet profile could not be deleted.");

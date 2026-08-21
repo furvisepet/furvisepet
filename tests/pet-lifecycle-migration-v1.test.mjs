@@ -105,7 +105,8 @@ test("deletion and account deletion remain separate cascade operations", () => {
   assert.match(migration, /pet_profile_id uuid not null references public\.dog_profiles\(id\) on delete cascade/);
   assert.match(migration, /user_id uuid not null references auth\.users\(id\) on delete cascade/);
   assert.match(read("app/lib/application-actions/executor.ts"), /case "pet\.delete_permanently"[\s\S]*deletePet/);
-  assert.match(read("app/api/pets/[id]/route.ts"), /from\("dog_profiles"\)\.delete\(\)/);
+  assert.match(read("app/api/pets/[id]/route.ts"), /\.rpc\("delete_pet_profile_for_user"/);
+  assert.match(read("supabase/migrations/20260821021825_harden_entitlement_and_pet_data_boundaries.sql"), /delete from public\.dog_profiles[\s\S]*where id = p_pet_id and user_id = p_user_id/);
 });
 
 test("active workflow helpers exclude retained profiles but intentional Ask access remains possible", () => {

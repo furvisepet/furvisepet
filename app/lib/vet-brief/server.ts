@@ -3,7 +3,7 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { validateSensitiveRequestOriginResponse } from "../security/headers/origin-policy";
 import type { PlanId } from "../billing/plan-limits";
-import { resolveEffectiveEntitlements } from "../billing/entitlements";
+import { EntitlementResolutionError, resolveEffectiveEntitlements } from "../billing/entitlements";
 import { parseVetBriefDocument } from "./schema";
 
 export async function getVetBriefRequestContext(request: Request): Promise<
@@ -23,7 +23,18 @@ export async function getVetBriefRequestContext(request: Request): Promise<
   if (!data.user) return { response: Response.json({ error: "Your session has expired." }, { status: 401 }) };
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
-  const entitlements = await resolveEffectiveEntitlements(supabase);
+  let entitlements;
+  try {
+    entitlements = await resolveEffectiveEntitlements(supabase);
+  } catch (error) {
+    if (error instanceof EntitlementResolutionError) {
+      return { response: Response.json({ error: "Furvise could not verify Vet Visit Brief access." }, { headers: { "Cache-Control": "private, no-store" }, status: 503 }) };
+    }
+    throw error;
+  }
+  if (entitlements.effectivePlan !== "plus" || !entitlements.capabilities.vetPrepExports) {
+    return { response: Response.json({ error: "Furvise Plus is required for Vet Visit Briefs." }, { headers: { "Cache-Control": "private, no-store" }, status: 403 }) };
+  }
   return { monthlyAiCredits: entitlements.limits.monthlyAiCredits, planId: entitlements.effectivePlan, supabase, userId: data.user.id };
 }
 

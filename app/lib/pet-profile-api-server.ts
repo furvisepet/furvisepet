@@ -30,7 +30,7 @@ export async function saveProfile(request: Request, profileId: string | null) {
   const gate = await beginIdempotentRateLimitedOperation({ operationType: profileId ? "profile.update" : "profile.create", payload: { profile: validation.profile, profileId }, policy: "PROFILE_WRITE", request, route: profileId ? "/api/pets/[id]" : "/api/pets", supabase: context.supabase, userId: context.userId });
   if ("response" in gate) return gate.response;
   return gate.operation.execute(async () => {
-    const payload = buildPayload(validation.profile, context.userId);
+    const payload = buildPayload(validation.profile, context.userId, !profileId);
     const query = profileId ? context.supabase.from("dog_profiles").update(payload).eq("id", profileId).eq("user_id", context.userId) : context.supabase.from("dog_profiles").insert({ ...payload, idempotency_key: gate.operation.key });
     const { data, error } = await query.select().single<DogProfileRow>();
     if (!profileId && error?.code === "23505") {
@@ -50,9 +50,9 @@ function profileFieldsAreBounded(value: unknown) {
   return !Array.isArray(profile.avoidIngredients) || (profile.avoidIngredients.length <= 30 && profile.avoidIngredients.every((item) => typeof item === "string" && item.length <= 120));
 }
 
-function buildPayload(profile: DogProfile, userId: string) {
+function buildPayload(profile: DogProfile, userId: string, includeOwner: boolean) {
   const age = profile.ageUnknown || !profile.age.trim() ? Number.NaN : parsePositiveNumber(profile.age);
   const weight = profile.weightUnknown || !profile.weight.trim() ? Number.NaN : parsePositiveNumber(profile.weight);
   const budget = profile.monthlyBudget.trim() ? parsePositiveNumber(profile.monthlyBudget) : Number.NaN;
-  return { user_id: userId, name: profile.name.trim(), species: normalizeSpecies(profile.species) || null, breed: profile.breed.trim() || null, age_value: Number.isFinite(age) ? age : null, age_unit: Number.isFinite(age) ? profile.ageUnit : null, weight_value: Number.isFinite(weight) ? weight : null, weight_unit: Number.isFinite(weight) ? profile.weightUnit : null, current_food: profile.currentFoodUnknown ? null : profile.currentFood.trim() || null, main_concern: profile.mainConcern === "Other" ? profile.otherConcern.trim() : profile.mainConcern || null, wellness_goal: normalizeWellnessGoal(profile.wellnessGoal) || null, avoid_ingredients: profile.avoidIngredientsNoneKnown ? [] : profile.avoidIngredients.length ? normalizeAvoidIngredientValues(profile.avoidIngredients) : null, monthly_budget: Number.isFinite(budget) ? budget : null, sex: profile.sex || null, routine_note: profile.routineNote?.trim() || null, updated_at: new Date().toISOString() };
+  return { ...(includeOwner ? { user_id: userId } : {}), name: profile.name.trim(), species: normalizeSpecies(profile.species) || null, breed: profile.breed.trim() || null, age_value: Number.isFinite(age) ? age : null, age_unit: Number.isFinite(age) ? profile.ageUnit : null, weight_value: Number.isFinite(weight) ? weight : null, weight_unit: Number.isFinite(weight) ? profile.weightUnit : null, current_food: profile.currentFoodUnknown ? null : profile.currentFood.trim() || null, main_concern: profile.mainConcern === "Other" ? profile.otherConcern.trim() : profile.mainConcern || null, wellness_goal: normalizeWellnessGoal(profile.wellnessGoal) || null, avoid_ingredients: profile.avoidIngredientsNoneKnown ? [] : profile.avoidIngredients.length ? normalizeAvoidIngredientValues(profile.avoidIngredients) : null, monthly_budget: Number.isFinite(budget) ? budget : null, sex: profile.sex || null, routine_note: profile.routineNote?.trim() || null, updated_at: new Date().toISOString() };
 }
