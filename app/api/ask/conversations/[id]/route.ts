@@ -1,4 +1,4 @@
-import { getAskConversationRequestContext, reconcileAskSuggestions, toConversationDetail, type AskConversationRow, type AskMessageRow, type AskSuggestionRow } from "../../../../lib/ask-conversation-server";
+import { getAskConversationRequestContext, loadActionCapabilitiesForMessages, reconcileAskSuggestions, toConversationDetail, type AskConversationRow, type AskMessageRow, type AskSuggestionRow } from "../../../../lib/ask-conversation-server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../../../lib/security/idempotency";
 
@@ -46,7 +46,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (entry.concern_id && !existing.concernIds.includes(entry.concern_id)) existing.concernIds.push(entry.concern_id);
     automaticPersistenceByMessage.set(assistantId, existing);
   }
-  return Response.json({ conversation: toConversationDetail(conversation, messages || [], canonicalSuggestions, automaticPersistenceByMessage) });
+  const capabilityActions = await loadActionCapabilitiesForMessages(context.userId, (messages || []).filter((message) => message.role === "furvise").map((message) => message.id));
+  return Response.json({ conversation: toConversationDetail(conversation, messages || [], canonicalSuggestions, automaticPersistenceByMessage, capabilityActions) });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

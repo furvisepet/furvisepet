@@ -15,6 +15,7 @@ import { featureRequiresActivePet, getPetLifecycleStatus } from "../pet-lifecycl
 import { parseStoredApplicationActions } from "../application-actions/contracts.ts";
 import { recoverOptionalQuery, recoverOptionalValue } from "./context-recovery.ts";
 import { isEligibleLegacyMemory, isEligibleStoredMemory } from "./memory-integrity.ts";
+import { loadActionCapabilitiesForMessages, presentationOnlyAskResponse } from "../ask-conversation-server.ts";
 
 export class FurviseContextError extends Error {
   constructor(public code: "PET_NOT_FOUND" | "PET_INACTIVE" | "CONVERSATION_NOT_FOUND" | "CONTEXT_UNAVAILABLE", message: string, public cause?: unknown) {
@@ -107,6 +108,7 @@ export async function buildFurviseContext({
   const unavailableSources = [care, legacyMemories, sharedMemories, inactiveMemories, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState]
     .filter((result) => result.unavailable)
     .map((result) => result.source);
+  const capabilityActions = await loadActionCapabilitiesForMessages(userId, messages.data.filter((message) => message.role === "furvise").map((message) => message.id));
 
   const candidateSourceMessageIds = [...new Set([
     ...messages.data.map((message) => message.id),
@@ -124,13 +126,19 @@ export async function buildFurviseContext({
 
   const conversationTurns = removeInactiveMemoryClaimsFromConversation([...messages.data]
     .filter((message) => !suppressedSourceMessageIds.has(message.id) && !responseReferencesCareEntry(message.response_data, deletedCareEntryIds))
-    .reverse().map((message) => ({
-    id: message.id,
-    role: message.role,
-    text: message.role === "user" ? message.user_text || "" : responseText(message.response_data),
-    createdAt: message.created_at,
-    ...(message.role === "furvise" ? { applicationActions: parseStoredApplicationActions(message.response_data?.applicationActions) } : {}),
-  })).filter((message) => message.text.trim()), inactiveMemories.data.filter(isEligibleStoredMemory));
+    .reverse().map((message) => {
+      const trustedActions = capabilityActions.get(message.id) || [];
+      const trustedResponse = message.role === "furvise"
+        ? presentationOnlyAskResponse(message.response_data, trustedActions) as Record<string, unknown> | null
+        : null;
+      return {
+        id: message.id,
+        role: message.role,
+        text: message.role === "user" ? message.user_text || "" : responseText(trustedResponse),
+        createdAt: message.created_at,
+        ...(message.role === "furvise" ? { applicationActions: parseStoredApplicationActions(trustedActions) } : {}),
+      };
+    }).filter((message) => message.text.trim()), inactiveMemories.data.filter(isEligibleStoredMemory));
 
   const longitudinalCareEntries = care.data.filter(isLongitudinalCareHistoryEntry);
   const longitudinalEpisodes = episodes.data.filter((episode) => !isKnownConversationalCareNoise(

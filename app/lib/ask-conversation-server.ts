@@ -1,6 +1,10 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createIdempotencyAdminClient } from "./security/idempotency/admin-client.ts";
+import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
+import { getFurviseActionPolicy } from "./application-actions/policy.ts";
+import { enforceVerifiedStateClaims } from "./application-actions/state-claims.ts";
 import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
 import { deduplicateLegacyRetriedMessages, type AskConversationDetail, type AskConversationSummary, type StoredAskMessage, type StoredAskSuggestion } from "./ask-conversations";
 
@@ -88,14 +92,14 @@ export function toConversationSummary(row: AskConversationRow): AskConversationS
   };
 }
 
-export function toConversationDetail(row: AskConversationRow, messages: AskMessageRow[], suggestions: AskSuggestionRow[] = [], automaticPersistenceByMessage = new Map<string, Extract<StoredAskMessage, { role: "furvise" }>["carePersistence"]>()): AskConversationDetail {
+export function toConversationDetail(row: AskConversationRow, messages: AskMessageRow[], suggestions: AskSuggestionRow[] = [], automaticPersistenceByMessage = new Map<string, Extract<StoredAskMessage, { role: "furvise" }>["carePersistence"]>(), capabilityActions = new Map<string, unknown[]>()): AskConversationDetail {
   const canonicalMessages = deduplicateLegacyRetriedMessages(messages);
   const assistantRequests = new Set(canonicalMessages.filter((item) => item.role === "furvise" && item.request_id).map((item) => item.request_id));
   const byMessage = new Map(suggestions.filter((item) => item.source_message_id).map((item) => [item.source_message_id, item]));
-  return { ...toConversationSummary(row), messages: canonicalMessages.map((message) => toStoredMessage(message, byMessage.get(message.id) || null, automaticPersistenceByMessage.get(message.id) || null, assistantRequests)) };
+  return { ...toConversationSummary(row), messages: canonicalMessages.map((message) => toStoredMessage(message, byMessage.get(message.id) || null, automaticPersistenceByMessage.get(message.id) || null, assistantRequests, capabilityActions.get(message.id) || [])) };
 }
 
-function toStoredMessage(row: AskMessageRow, suggestion: AskSuggestionRow | null, automaticPersistence: Extract<StoredAskMessage, { role: "furvise" }>["carePersistence"] = null, assistantRequests = new Set<string | null | undefined>()): StoredAskMessage {
+function toStoredMessage(row: AskMessageRow, suggestion: AskSuggestionRow | null, automaticPersistence: Extract<StoredAskMessage, { role: "furvise" }>["carePersistence"] = null, assistantRequests = new Set<string | null | undefined>(), trustedActions: unknown[] = []): StoredAskMessage {
   if (row.role === "user") return { id: row.id, role: "user", text: row.user_text || "", createdAt: row.created_at, requestId: row.request_id, failed: Boolean(row.request_id && !assistantRequests.has(row.request_id)) };
   const storedPersistence = row.care_persistence && typeof row.care_persistence === "object"
     ? row.care_persistence as Extract<StoredAskMessage, { role: "furvise" }>["carePersistence"] : null;
@@ -108,7 +112,7 @@ function toStoredMessage(row: AskMessageRow, suggestion: AskSuggestionRow | null
   return {
     id: row.id,
     role: "furvise",
-    response: row.response_data,
+    response: presentationOnlyAskResponse(row.response_data, trustedActions),
     saveMetadata: row.save_metadata,
     contextUsed: row.context_used,
     suggestion,
@@ -116,4 +120,98 @@ function toStoredMessage(row: AskMessageRow, suggestion: AskSuggestionRow | null
     carePersistence: mergedPersistence,
     createdAt: row.created_at,
   };
+}
+
+// Do not render tenant-writable action receipts as completed after a reload.
+// A terminal claim is returned only by the capability confirmation endpoint.
+export function presentationOnlyAskResponse(value: unknown, trustedActions: unknown[]) {
+  if (!value || typeof value !== "object") return value;
+  const response = value as Record<string, unknown>;
+  const raw = Array.isArray(response.applicationActions) ? response.applicationActions : [];
+  const mutationCapable = trustedActions.length > 0 || raw.some((action) => {
+    if (!action || typeof action !== "object") return false;
+    const kind = parseStoredFurviseActionKind((action as Record<string, unknown>).kind);
+    return Boolean(kind && getFurviseActionPolicy(kind).mutationClass === "mutation");
+  });
+  const nonMutation = raw.flatMap((action) => {
+    if (!action || typeof action !== "object") return [];
+    const draft = action as Record<string, unknown>;
+    const kind = parseStoredFurviseActionKind(draft.kind);
+    if (!kind) return [];
+    const policy = getFurviseActionPolicy(kind);
+    if (policy.mutationClass === "mutation") return [];
+    return [{ ...draft, kind, ...policy, status: "proposed", resultMessage: null, errorMessage: null }];
+  });
+  const applicationActions = [...nonMutation, ...trustedActions];
+  const trustedStatus = trustedActions.some((action) => action && typeof action === "object" && (action as Record<string, unknown>).status === "succeeded")
+    ? "action_success"
+    : trustedActions.some((action) => action && typeof action === "object" && ["failed", "cancelled"].includes(String((action as Record<string, unknown>).status)))
+      ? "action_failure"
+      : applicationActions.length ? "action_confirmation" : null;
+  const untrustedInteractionMode = ["action_confirmation", "action_success", "action_failure"].includes(String(response.interactionMode))
+    ? "normal"
+    : response.interactionMode;
+  const summary = scrubUntrustedMutationClaim(response.summary, "I can help with that.");
+  return {
+    ...response,
+    title: scrubUntrustedMutationClaim(response.title, "Furvise"),
+    summary,
+    directAnswer: summary,
+    // Tenant-owned response_data cannot carry Furvise-authored mutation-success
+    // prose. Trusted terminal wording lives only in capability receipts/cards.
+    supportingText: mutationCapable ? null : response.supportingText,
+    sections: Array.isArray(response.sections) ? response.sections.map((section) => scrubUntrustedSection(section)).filter(Boolean) : response.sections,
+    interactionMode: trustedStatus || untrustedInteractionMode,
+    applicationActions,
+  };
+}
+
+function scrubUntrustedSection(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const section = value as Record<string, unknown>;
+  const heading = scrubUntrustedMutationClaim(section.heading, "");
+  const items = Array.isArray(section.items)
+    ? section.items.map((item) => scrubUntrustedMutationClaim(item, "")).filter(Boolean)
+    : [];
+  return heading && items.length ? { ...section, heading, items } : null;
+}
+
+const untrustedTerminalMutationClaim = /\b(?:profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(?:saved|deleted|removed|forgotten|changed|updated|archived|recorded|completed|marked)\b/i;
+function scrubUntrustedMutationClaim(value: unknown, fallback: string) {
+  if (typeof value !== "string") return fallback;
+  const governed = enforceVerifiedStateClaims(value, false);
+  const safe = governed.split(/(?<=[.!?])\s+/).filter((sentence) => !untrustedTerminalMutationClaim.test(sentence)).join(" ").trim();
+  return safe || fallback;
+}
+
+export async function loadActionCapabilitiesForMessages(userId: string, messageIds: string[]) {
+  const result = new Map<string, unknown[]>();
+  if (!messageIds.length) return result;
+  const admin = createIdempotencyAdminClient();
+  const { data, error } = await admin.from("ask_action_capabilities")
+    .select("id,assistant_message_id,source_message_id,action_kind,pet_profile_id,action_payload,receipt,status")
+    .eq("user_id", userId)
+    .in("assistant_message_id", messageIds)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) return result;
+  for (const row of data || []) {
+    const payload = row.receipt || row.action_payload;
+    if (!payload || typeof payload !== "object") continue;
+    const kind = parseStoredFurviseActionKind(row.action_kind);
+    if (!kind) continue;
+    const policy = getFurviseActionPolicy(kind);
+    const action = {
+      ...(payload as Record<string, unknown>),
+      ...policy,
+      id: row.id,
+      kind,
+      petId: row.pet_profile_id,
+      sourceMessageId: row.source_message_id,
+      status: row.status === "pending" ? policy.confirmationPolicy === "always" ? "confirmation_required" : "proposed" : row.status,
+      ...(row.status === "pending" ? { resultMessage: null, errorMessage: null } : {}),
+    };
+    result.set(row.assistant_message_id, [...(result.get(row.assistant_message_id) || []), action]);
+  }
+  return result;
 }

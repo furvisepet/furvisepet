@@ -178,8 +178,10 @@ async function addHistory({ action, sourceMessageId, supabase, userId }: Paramet
 }
 
 async function removeHistory({ action, supabase, userId }: Parameters<typeof executeFurviseApplicationAction>[0]) {
-  const entry = await supabase.from("pet_care_entries").select("id").eq("user_id", userId).eq("pet_profile_id", action.petId)
-    .is("deleted_at", null).order("occurred_at", { ascending: false }).limit(1).maybeSingle<{ id: string }>();
+  const targetId = (action as FurviseApplicationAction & { boundTargetId?: string | null }).boundTargetId;
+  if (!targetId) return failure(action, "The original history update is no longer available.");
+  const entry = await supabase.from("pet_care_entries").select("id").eq("id", targetId).eq("user_id", userId).eq("pet_profile_id", action.petId)
+    .is("deleted_at", null).maybeSingle<{ id: string }>();
   if (entry.error || !entry.data) return failure(action, "There is no matching history update to remove.");
   const removed = await supabase.rpc("remove_my_care_entry", { p_entry_id: entry.data.id, p_stop_tracking: true });
   if (removed.error) return failure(action, "That history update could not be removed.");
@@ -187,8 +189,10 @@ async function removeHistory({ action, supabase, userId }: Parameters<typeof exe
 }
 
 async function editHistory({ action, supabase, userId }: Parameters<typeof executeFurviseApplicationAction>[0]) {
-  const entry = await supabase.from("pet_care_entries").select("id").eq("user_id", userId).eq("pet_profile_id", action.petId)
-    .is("deleted_at", null).order("occurred_at", { ascending: false }).limit(1).maybeSingle<{ id: string }>();
+  const targetId = (action as FurviseApplicationAction & { boundTargetId?: string | null }).boundTargetId;
+  if (!targetId) return failure(action, "The original history update is no longer available.");
+  const entry = await supabase.from("pet_care_entries").select("id").eq("id", targetId).eq("user_id", userId).eq("pet_profile_id", action.petId)
+    .is("deleted_at", null).maybeSingle<{ id: string }>();
   const detail = action.input.detail?.trim();
   if (entry.error || !entry.data || !detail) return failure(action, "There is no matching history update to edit.");
   const update = await supabase.from("pet_care_entries").update({
@@ -202,9 +206,10 @@ async function editHistory({ action, supabase, userId }: Parameters<typeof execu
 }
 
 async function updateConcern({ action, supabase, userId }: Parameters<typeof executeFurviseApplicationAction>[0], status: "resolved" | "reopened") {
-  const query = supabase.from("pet_concerns").select("id,status").eq("user_id", userId).eq("pet_profile_id", action.petId)
-    .in("status", status === "resolved" ? ["active", "monitoring", "reopened"] : ["resolved"])
-    .order("updated_at", { ascending: false }).limit(1);
+  const targetId = (action as FurviseApplicationAction & { boundTargetId?: string | null }).boundTargetId;
+  if (!targetId) return failure(action, "The original concern is no longer available.");
+  const query = supabase.from("pet_concerns").select("id,status").eq("id", targetId).eq("user_id", userId).eq("pet_profile_id", action.petId)
+    .in("status", status === "resolved" ? ["active", "monitoring", "reopened"] : ["resolved"]);
   const concern = await query.maybeSingle<{ id: string; status: string }>();
   if (concern.error || !concern.data) return failure(action, "There is no matching concern to update.");
   const now = new Date().toISOString();

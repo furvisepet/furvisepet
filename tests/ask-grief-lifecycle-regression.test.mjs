@@ -33,7 +33,6 @@ const reasoning = readFileSync(new URL("../app/lib/ai/ask-reasoning.ts", import.
 const intelligence = readFileSync(new URL("../app/lib/intelligence/run-intelligence.ts", import.meta.url), "utf8");
 const orchestrator = readFileSync(new URL("../app/lib/ai/ask-orchestrator.ts", import.meta.url), "utf8");
 const actionRoute = readFileSync(new URL("../app/api/ask/actions/[messageId]/route.ts", import.meta.url), "utf8");
-const askPage = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
 
 test("the exact production traumatic-death report is a confirmed loss, not active emergency treatment", () => {
   assert.equal(classifyCurrentPetLoss(productionDeathMessage), "confirmed_current");
@@ -273,12 +272,12 @@ test("the exact two-turn production reproduction becomes a persisted pending ass
   assert.equal(resolvePendingLifecycleTurn({ assertion, message: "so what should i feed my cat", pets }).kind, "contradiction");
 });
 
-test("terminal action receipts clear pending state while failed preparation remains retryable after reload", () => {
+test("terminal and failed action states never become pending lifecycle assertions after reload", () => {
   const failed = buildUnavailableConfirmedLossAction({ message: "Mani died", petId: "pet-mani", petName: "Mani", requestId: "request-death" });
   const pets = [{ id: "pet-mani", name: "Mani", species: "cat", lifecycle_status: "active" }];
   const pending = derivePendingLifecycleAssertion({ turns: [{ role: "furvise", applicationActions: [failed] }], pets });
-  assert.equal(pending.action.status, "confirmation_required");
-  assert.equal(pending.phase, "pending_confirmation");
+  assert.equal(pending, null);
+  assert.equal(hasPendingReportedLifecycle([{ role: "furvise", applicationActions: [failed] }], "reported_deceased"), false);
   const afterCorrection = derivePendingLifecycleAssertion({
     turns: [
       { role: "furvise", applicationActions: [failed] },
@@ -386,7 +385,7 @@ test("pending lifecycle deterministic paths run before provider admission and de
   assert.match(route, /if \(!deferHighImpactLifecyclePersistence && intelligenceResult/);
   assert.match(route, /if \(!deferHighImpactLifecyclePersistence && phase3Runtime\)[\s\S]*persistAskV2Phase3LowRisk/);
   assert.match(route, /deterministicApplicationActions = \[pendingLifecycle\.action\]/);
-  assert.match(route, /cancelledPendingLifecycleAction\(pendingLifecycle\.action\)/);
+  assert.match(route, /settlePendingLifecycleCancellation/);
   assert.match(route, /resultMessage: "The unconfirmed lifecycle report was cleared\. The saved profile was not changed\."/);
   assert.match(route, /resolveDurableLifecycleCorrection\(\{/);
   assert.match(route, /lifecycleStatus: durableLifecycleStatus/);
@@ -396,7 +395,8 @@ test("pending lifecycle deterministic paths run before provider admission and de
   const correctionStart = route.indexOf('pendingLifecycleResolution.kind === "correction"');
   const correctionEnd = route.indexOf('pendingLifecycleResolution.kind === "reassigned_death"', correctionStart);
   const correctionBranch = route.slice(correctionStart, correctionEnd);
-  assert.match(correctionBranch, /cancelledPendingLifecycleAction/);
+  assert.match(correctionBranch, /settlePendingLifecycleCancellation/);
+  assert.match(correctionBranch, /buildAuthoritativeLifecycleCorrectionOrchestration/);
   assert.doesNotMatch(correctionBranch, /pet\.mark_active|executeFurviseApplicationAction|persistIntelligenceLearnings/);
   assert.doesNotMatch(readFileSync(new URL("../app/lib/ai/pet-loss.ts", import.meta.url), "utf8"), /lossContinuationPattern/);
 });
@@ -409,13 +409,14 @@ test("owner-facing lifecycle copy avoids internal product terminology", () => {
 });
 
 test("correction cancellation survives reload and stale confirmation cannot execute", () => {
-  assert.match(askPage, /return reconcileThreadApplicationActions\(messages\)/);
-  assert.match(askPage, /terminal\.set\(action\.id, action\)/);
-  assert.match(askPage, /terminal\.get\(action\.id\) \|\| action/);
-  assert.match(actionRoute, /hasLaterDeathCorrection/);
-  assert.match(actionRoute, /if \(superseded\.value\) return Response\.json\(\{ error: "That reported loss was corrected later in this conversation\." \}, \{ status: 409 \}\)/);
-  assert.match(actionRoute, /target\?\.lifecycle_status \|\| "active"\) === "active"/);
-  assert.match(actionRoute, /target\.lifecycle_status === "deceased" \|\| target\.lifecycle_status === "archived"/);
+  const capabilities = readFileSync(new URL("../app/lib/application-actions/capabilities.ts", import.meta.url), "utf8");
+  assert.match(route, /settlePendingLifecycleCancellation/);
+  assert.match(route, /correctionSourceMessageId: preparedRequest\.userMessageId/);
+  assert.match(route, /result\?\.action/);
+  assert.match(capabilities, /mode: "cancel"/);
+  assert.match(capabilities, /p_correction_source_message_id/);
+  assert.match(capabilities, /UUID\.test\(action\.id\)/);
+  assert.match(actionRoute, /executeActionCapability/);
 });
 
 test("confirmed loss is persisted through a zero-provider, zero-credit branch before every AI gate", () => {
@@ -439,20 +440,13 @@ test("confirmed loss is persisted through a zero-provider, zero-credit branch be
 test("confirmation actions remain outside Ask credit accounting and never auto-delete a pet", () => {
   assert.doesNotMatch(actionRoute, /reserveAiCredit|completeAiCredit|runAdmittedAiOperation|admitAiOperation/);
   assert.match(actionRoute, /decision/);
-  assert.match(actionRoute, /executeFurviseApplicationAction/);
-  assert.match(actionRoute, /action\.sourceMessageId/);
-  assert.match(actionRoute, /conversation\.pet_profile_id/);
-  assert.match(actionRoute, /dog_profiles[\s\S]*resolveProviderIndependentLossSubject/);
-  assert.match(actionRoute, /subject\.petId === action\.petId/);
-  assert.match(actionRoute, /action\.input\.target === expectedTarget/);
-  assert.match(actionRoute, /isAuthoritativeLifecycleAction/);
-  assert.match(actionRoute, /classifyCurrentPetLoss\(sourceText\) === "confirmed_current"/);
-  assert.match(actionRoute, /action\.safetyClass !== policy\.safetyClass/);
-  assert.match(actionRoute, /normalizeEvidence\(sourceText\)\.includes\(normalizeEvidence\(action\.evidence\)\)/);
-  assert.match(actionRoute, /hasLaterDeathCorrection/);
-  assert.match(actionRoute, /findTerminalActionStateAcrossConversation/);
-  assert.match(actionRoute, /persistActionStateAcrossConversation/);
-  assert.match(actionRoute, /candidate\.id === input\.action\.id \? input\.action : candidate/);
+  assert.match(actionRoute, /executeActionCapability/);
+  assert.match(actionRoute, /actionId/);
+  const migration = readFileSync(new URL("../supabase/migrations/20260820070956_server_authored_ask_action_capabilities.sql", import.meta.url), "utf8");
+  assert.match(migration, /for update/);
+  assert.match(migration, /status <> 'pending'/);
+  assert.match(migration, /confirmation_policy <> 'always'/);
+  assert.match(migration, /SERVICE_ROLE_REQUIRED/);
   assert.doesNotMatch(reasoning, /automatically delete/i);
 });
 
