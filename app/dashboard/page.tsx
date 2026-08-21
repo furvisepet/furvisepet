@@ -123,6 +123,7 @@ export default function TodayPage() {
     legacy: rememberedRows.legacy,
     petName,
   }).pet.slice(0, 3);
+  const hasRememberedDetails = rememberedDetails.length > 0;
   const recentEntries = useMemo(
     () => selectedProfile ? buildTodayRecentEntries(entries, selectedProfile.id) : [],
     [entries, selectedProfile],
@@ -255,7 +256,14 @@ export default function TodayPage() {
           <section aria-labelledby="today-memory-heading" className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] p-4 shadow-[var(--shadow-surface-1)] sm:p-5">
             <h2 className="text-xl font-semibold text-[var(--text-primary)]" id="today-memory-heading">What Furvise knows about {petName}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Useful details Furvise has picked up over time.</p>
-            {rememberedLoadState === "loading" ? <div className="mt-4"><LoadingState label="Loading remembered details" /></div> : null}
+            {rememberedLoadState === "loading" ? (
+              <div className="mt-4">
+                <LoadingState label="Loading remembered details" />
+                <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+                  Checking what Furvise remembers about {petName}.
+                </p>
+              </div>
+            ) : null}
             {rememberedLoadState === "error" && !rememberedDetails.length ? (
               <div className="mt-3">
                 <Notice tone="neutral">
@@ -263,13 +271,13 @@ export default function TodayPage() {
                 </Notice>
               </div>
             ) : null}
-            {!rememberedDetails.length && rememberedLoadState !== "loading" ? (
+            {!hasRememberedDetails && rememberedLoadState !== "loading" ? (
               <div className="mt-3">
                 <p className="text-sm leading-6 text-[var(--text-secondary)]">{`Furvise is still getting to know ${petName}. Useful details you share can show up here over time.`}</p>
                 <SecondaryButton className="mt-3" href={`/ask?pet=${encodeURIComponent(selectedProfile.id)}`}>Ask about {petName}</SecondaryButton>
               </div>
             ) : null}
-            {!!rememberedDetails.length ? (
+            {hasRememberedDetails ? (
               <>
                 <ul aria-label={`What Furvise knows about ${petName}`} className="mt-4 space-y-2">
                   {rememberedDetails.map((detail) => (
