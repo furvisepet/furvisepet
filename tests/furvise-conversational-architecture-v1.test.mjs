@@ -90,7 +90,8 @@ test("authoritative mutation claims are removed unless an executor verified succ
   assert.equal(enforceVerifiedStateClaims("Her profile has been updated.", true), "Her profile has been updated.");
   assert.equal(enforceVerifiedStateClaims("That's the relevant part. If you want, I can help make a checklist.", false), "That's the relevant part");
   assert.match(askRoute, /enforceAnswerStateClaims\(orchestration\.answer\)/);
-  assert.match(askRoute, /executeFurviseApplicationAction/);
+  assert.match(askRoute, /executeActionCapability/);
+  assert.doesNotMatch(askRoute, /executeFurviseApplicationAction/);
 });
 
 test("USER singleton memory is distinct from PET and ephemeral CONVERSATION state", () => {
@@ -157,10 +158,10 @@ test("application actions round-trip in the canonical Ask response", () => {
 
 test("the confirmation endpoint accepts only a persisted action id and decision", () => {
   assert.match(actionRoute, /hasOnlyKeys\(rawBody, \["actionId", "decision"\]\)/);
-  assert.match(actionRoute, /ask_conversation_messages/);
-  assert.match(actionRoute, /\.eq\("user_id", auth\.userId\)/);
-  assert.match(actionRoute, /parseStoredApplicationActions\(message\?\.response_data\?\.applicationActions\)/);
-  assert.match(actionRoute, /beginIdempotentRateLimitedOperation/);
+  assert.match(actionRoute, /executeActionCapability/);
+  assert.match(actionRoute, /assistantMessageId: messageId/);
+  assert.match(actionRoute, /userId: auth\.userId/);
+  assert.doesNotMatch(actionRoute, /response_data|parseStoredApplicationActions/);
   assert.doesNotMatch(actionRoute, /OPENAI|runAdmittedAiOperation|reserveAiCredit|completeAiCredit/);
 });
 

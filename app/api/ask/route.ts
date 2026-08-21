@@ -94,12 +94,12 @@ import {
 } from "../../lib/intelligence/v2/phase3/runtime";
 import {
   enforceVerifiedStateClaims,
-  executeFurviseApplicationAction,
   parseStoredApplicationActions,
   prepareFurviseApplicationActions,
   shouldAutoExecuteAction,
   type FurviseApplicationAction,
 } from "../../lib/application-actions/index.ts";
+import { cancelActionCapability, createActionCapabilities, executeActionCapability } from "../../lib/application-actions/capabilities.ts";
 import {
   buildGriefResponseFallback,
   buildUnavailableConfirmedLossAction,
@@ -430,8 +430,23 @@ export async function POST(request: Request) {
       if (pendingLifecycleResolution.kind === "contradiction" || pendingLifecycleResolution.kind === "alternate_pet") {
         deterministicApplicationActions = [pendingLifecycle.action];
       } else if (pendingLifecycleResolution.kind === "correction") {
-        deterministicApplicationActions = [cancelledPendingLifecycleAction(pendingLifecycle.action)];
+        const terminalAction = await settlePendingLifecycleCancellation({
+          action: pendingLifecycle.action,
+          correctionSourceMessageId: preparedRequest.userMessageId,
+          userId,
+        });
+        deterministicApplicationActions = [terminalAction];
+        orchestration = buildAuthoritativeLifecycleCorrectionOrchestration(
+          pendingLifecycle,
+          pendingLifecycleResolution,
+          terminalAction,
+        );
       } else if (pendingLifecycleResolution.kind === "reassigned_death") {
+        const terminalAction = await settlePendingLifecycleCancellation({
+          action: pendingLifecycle.action,
+          correctionSourceMessageId: preparedRequest.userMessageId,
+          userId,
+        });
         turnPetId = pendingLifecycleResolution.petId;
         const reassignedActions = prepareFurviseApplicationActions({
           proposals: [{
@@ -444,7 +459,12 @@ export async function POST(request: Request) {
           petName: pendingLifecycleResolution.petName,
           requestId,
         }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
-        deterministicApplicationActions = [cancelledPendingLifecycleAction(pendingLifecycle.action), ...reassignedActions];
+        deterministicApplicationActions = [terminalAction, ...reassignedActions];
+        orchestration = buildAuthoritativeLifecycleCorrectionOrchestration(
+          pendingLifecycle,
+          pendingLifecycleResolution,
+          terminalAction,
+        );
         deferHighImpactLifecyclePersistence = true;
       }
     } else if (durableLifecycleCorrection) {
@@ -1265,6 +1285,51 @@ function cancelledPendingLifecycleAction(action: FurviseApplicationAction): Furv
   };
 }
 
+async function settlePendingLifecycleCancellation(input: {
+  action: FurviseApplicationAction;
+  correctionSourceMessageId: string;
+  userId: string;
+}) {
+  if (!isSecurityUuid(input.action.id)) return cancelledPendingLifecycleAction(input.action);
+  const result = await cancelActionCapability({
+    capabilityId: input.action.id,
+    correctionSourceMessageId: input.correctionSourceMessageId,
+    userId: input.userId,
+  });
+  return result?.action || {
+    ...input.action,
+    status: "failed" as const,
+    resultMessage: null,
+    errorMessage: "The earlier lifecycle action is no longer available.",
+  };
+}
+
+function buildAuthoritativeLifecycleCorrectionOrchestration(
+  assertion: PendingLifecycleAssertion,
+  resolution: Extract<PendingLifecycleTurnResolution, { kind: "correction" | "reassigned_death" }>,
+  terminalAction: FurviseApplicationAction,
+) {
+  if (terminalAction.status === "cancelled") return buildPendingLifecycleOrchestration(assertion, resolution);
+  if (terminalAction.status === "succeeded") {
+    const next = resolution.kind === "reassigned_death"
+      ? ` A separate confirmation for ${resolution.petName} is ready below.`
+      : " Use a new profile correction action if the saved lifecycle state now needs to change.";
+    return deterministicLifecycleOrchestration(
+      "Earlier action already completed",
+      `${terminalAction.resultMessage || "The earlier lifecycle action completed before this correction was processed."}${next}`,
+      "correction",
+    );
+  }
+  const next = resolution.kind === "reassigned_death"
+    ? ` A separate confirmation for ${resolution.petName} is ready below.`
+    : " No new profile change was made by this correction.";
+  return deterministicLifecycleOrchestration(
+    "Earlier action did not complete",
+    `${terminalAction.errorMessage || "The earlier lifecycle action was already unavailable."}${next}`,
+    "correction",
+  );
+}
+
 function buildAlreadyPersistedOrchestration(petName: string) {
   return {
     aiResult: null,
@@ -1495,7 +1560,7 @@ async function persistAssistantAnswer({
   turnLifecycle: AskTurnLifecycle;
 }) {
   const { conversationId, userMessageId } = preparedRequest;
-  const responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
+  let responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
   const optionalFailure = (component: AskSubsystem, error: unknown) => {
     turnLifecycle.optionalFailure(component);
     logAskServerError(`optional_${component}`, error, { conversationId, petId, requestId }, 200);
@@ -1588,6 +1653,33 @@ async function persistAssistantAnswer({
   }
   logAskStage("assistant message persisted", { requestId });
   turnLifecycle.transition("ANSWER_PERSISTED");
+
+  // Persist immutable server authority before exposing any display action ids. The
+  // row below is intentionally presentation-only and can safely be tenant-writable.
+  const proposedActions = parseStoredApplicationActions(response.applicationActions);
+  if (proposedActions.length) {
+    try {
+      const capabilityActions = await createActionCapabilities({
+        actions: proposedActions,
+        assistantMessageId: assistantMessage.id,
+        sourceMessageId: userMessageId,
+        supabase,
+        userId,
+      });
+      response = { ...response, applicationActions: capabilityActions };
+      responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
+      const persisted = await supabase.from("ask_conversation_messages").update({ response_data: responseWithTurn })
+        .eq("id", assistantMessage.id).eq("user_id", userId).select("id").maybeSingle<{ id: string }>();
+      if (persisted.error || !persisted.data) throw new Error("ACTION_CAPABILITY_PRESENTATION_UPDATE_FAILED");
+    } catch (error) {
+      // Fail closed: a response-data proposal is never executable without its capability.
+      const unavailableActions = proposedActions.map((action) => ({ ...action, status: "failed" as const, resultMessage: null, errorMessage: "That action could not be prepared safely." }));
+      response = { ...response, applicationActions: unavailableActions };
+      responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
+      await supabase.from("ask_conversation_messages").update({ response_data: responseWithTurn }).eq("id", assistantMessage.id).eq("user_id", userId);
+      logAskServerError("action_capability_creation", error, { conversationId, petId, requestId }, 200);
+    }
+  }
 
   let nextUsage = usage;
   let creditsUsed = 0;
@@ -1695,7 +1787,11 @@ async function persistAssistantAnswer({
       const execution = await runOptionalAskSubsystem({
         component: "application_action_preparation",
         fallback: null,
-        operation: () => executeFurviseApplicationAction({ action, confirmed: false, sourceMessageId: userMessageId, supabase, userId }),
+        operation: async () => {
+          if (!isSecurityUuid(action.id)) return { action: { ...action, status: "failed" as const, errorMessage: "That action could not be prepared safely." }, changed: false, audit: { actionKind: action.kind, authorization: "allowed" as const, mutationClass: action.mutationClass, outcome: "failed" as const, petIdPresent: Boolean(action.petId) } };
+          const executed = await executeActionCapability({ capabilityId: action.id, assistantMessageId: assistantMessage.id, userId, mode: "auto" });
+          return executed ? { action: executed.action, changed: executed.changed, audit: { actionKind: executed.action.kind, authorization: "allowed" as const, mutationClass: executed.action.mutationClass, outcome: executed.action.status === "succeeded" ? "succeeded" as const : "failed" as const, petIdPresent: Boolean(executed.action.petId) } } : null;
+        },
         onFailure: optionalFailure,
       });
       if (!execution) { executed.push({ ...action, status: "failed", errorMessage: "That action could not be prepared. Your answer is still available." }); continue; }

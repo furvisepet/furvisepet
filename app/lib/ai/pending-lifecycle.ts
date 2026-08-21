@@ -29,7 +29,7 @@ export function hasPendingReportedLifecycle(
     }
   }
   return turns.some((turn) => (turn.applicationActions || []).some((action) =>
-    action.kind === actionKind && !terminal.has(action.id) && ["proposed", "confirmation_required", "failed"].includes(action.status),
+    action.kind === actionKind && !terminal.has(action.id) && isExecutablePendingStatus(action.status),
   ));
 }
 
@@ -75,7 +75,7 @@ export function derivePendingLifecycleAssertion(input: {
   }
   for (const turn of [...input.turns].reverse()) {
     for (const action of [...(turn.applicationActions || [])].reverse()) {
-      if (!isLifecycleAction(action) || terminalActionIds.has(action.id)) continue;
+      if (!isLifecycleAction(action) || !isExecutablePendingStatus(action.status) || terminalActionIds.has(action.id)) continue;
       const pet = input.pets.find((candidate) => candidate.id === action.petId);
       if (!pet) continue;
       if (action.kind === "pet.mark_deceased" && pet.lifecycle_status === "deceased") continue;
@@ -86,7 +86,7 @@ export function derivePendingLifecycleAssertion(input: {
         petId: action.petId,
         petName: cleanPetName(pet.name),
         sourceMessageId: action.sourceMessageId || null,
-        action: retryablePendingAction(action),
+        action,
       };
     }
   }
@@ -154,8 +154,8 @@ function isLifecycleAction(action: FurviseApplicationAction) {
   return action.kind === "pet.mark_deceased" || action.kind === "pet.archive";
 }
 
-function retryablePendingAction(action: FurviseApplicationAction): FurviseApplicationAction {
-  return action.status === "failed" ? { ...action, status: "confirmation_required", resultMessage: null } : action;
+function isExecutablePendingStatus(status: FurviseApplicationAction["status"]) {
+  return status === "proposed" || status === "confirmation_required";
 }
 
 function containsName(message: string, name?: string | null) {
