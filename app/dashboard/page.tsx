@@ -124,6 +124,9 @@ export default function TodayPage() {
     petName,
   }).pet.slice(0, 3);
   const hasRememberedDetails = rememberedDetails.length > 0;
+  const memoryStateComplete = rememberedLoadState === "ready" || rememberedLoadState === "error";
+  const showMemoryFallback = memoryStateComplete && !hasRememberedDetails;
+  const memorySectionClassName = `mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] shadow-[var(--shadow-surface-1)] ${showMemoryFallback ? "p-3 sm:p-4" : "p-4 sm:p-5"}`;
   const recentEntries = useMemo(
     () => selectedProfile ? buildTodayRecentEntries(entries, selectedProfile.id) : [],
     [entries, selectedProfile],
@@ -253,29 +256,21 @@ export default function TodayPage() {
             ) : null}
           </div>
 
-          <section aria-labelledby="today-memory-heading" className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] p-4 shadow-[var(--shadow-surface-1)] sm:p-5">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)]" id="today-memory-heading">What Furvise knows about {petName}</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Useful details Furvise has picked up over time.</p>
+          <section aria-labelledby="today-memory-heading" className={memorySectionClassName}>
+            <h2 className={showMemoryFallback ? "text-lg font-semibold text-[var(--text-primary)]" : "text-xl font-semibold text-[var(--text-primary)]"} id="today-memory-heading">
+              {showMemoryFallback ? `Furvise is getting to know ${petName}` : `What Furvise knows about ${petName}`}
+            </h2>
+            {!showMemoryFallback ? (
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Useful details Furvise has picked up over time.</p>
+            ) : null}
             {rememberedLoadState === "loading" ? (
-              <div className="mt-4">
-                <LoadingState label="Loading remembered details" />
-                <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
-                  Checking what Furvise remembers about {petName}.
-                </p>
+              <div className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+                <span className="inline-block h-2 w-40 rounded-full bg-[var(--line)]" />
+                <p className="mt-2">Checking what Furvise remembers about {petName}.</p>
               </div>
             ) : null}
-            {rememberedLoadState === "error" && !rememberedDetails.length ? (
-              <div className="mt-3">
-                <Notice tone="neutral">
-                  Furvise could not refresh your remembered details just now. You can still continue.
-                </Notice>
-              </div>
-            ) : null}
-            {!hasRememberedDetails && rememberedLoadState !== "loading" ? (
-              <div className="mt-3">
-                <p className="text-sm leading-6 text-[var(--text-secondary)]">{`Furvise is still getting to know ${petName}. Useful details you share can show up here over time.`}</p>
-                <SecondaryButton className="mt-3" href={`/ask?pet=${encodeURIComponent(selectedProfile.id)}`}>Ask about {petName}</SecondaryButton>
-              </div>
+            {showMemoryFallback ? (
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Things you share over time will help Furvise remember what matters.</p>
             ) : null}
             {hasRememberedDetails ? (
               <>

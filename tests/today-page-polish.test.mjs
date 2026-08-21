@@ -35,10 +35,10 @@ test("Today memory surface includes empty and populated rendering branches", () 
   const today = read("app/dashboard/page.tsx");
   assert.match(today, /today-memory-heading/);
   assert.match(today, /What Furvise knows about/);
-  assert.match(today, /Loading remembered details/);
+  assert.ok(today.includes("showMemoryFallback"));
   assert.match(today, /Checking what Furvise remembers about/);
-  assert.ok(today.includes("!hasRememberedDetails && rememberedLoadState !== \"loading\""));
   assert.ok(today.includes("{hasRememberedDetails ?"));
-  assert.match(today, /Furvise is still getting to know \$\{petName\}\. Useful details you share can show up here over time\./);
+  assert.match(today, /Furvise is getting to know \$\{petName\}/);
+  assert.match(today, /Things you share over time will help Furvise remember what matters\./);
   assert.match(today, /See what Furvise remembers/);
 });
