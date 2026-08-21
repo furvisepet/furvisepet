@@ -41,7 +41,7 @@ test("Membership Back uses only usable same-site history and otherwise falls bac
 
 test("Free and Plus show canonical Ask allowances and remaining usage without new accounting", () => {
   assert.match(page, /FREE_ASK_ALLOWANCE, PLUS_ASK_ALLOWANCE/);
-  assert.match(page, /8 Ask per month/);
+  assert.match(page, /15 Ask per month/);
   assert.match(page, /55 thoughtful Ask messages every month/);
   assert.match(page, /const used = Math\.max\(0, limit - remaining\)/);
   assert.match(page, /Ask remaining/);

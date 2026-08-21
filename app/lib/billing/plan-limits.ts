@@ -25,7 +25,7 @@ export type PlanCapabilities = PlanLimits & {
 
 export const FREE_PLAN_ID: PlanId = "free";
 export const PLUS_PLAN_ID: PlanId = "plus";
-export const FREE_ASK_ALLOWANCE = 8;
+export const FREE_ASK_ALLOWANCE = 15;
 export const PLUS_ASK_ALLOWANCE = 55;
 
 export const PLAN_CAPABILITIES: Record<PlanId, PlanCapabilities> = {

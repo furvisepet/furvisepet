@@ -146,7 +146,7 @@ export default function MembershipPage() {
               imageAlt="A Furvise pup waiting under a small rain cloud"
               title="Free"
             >
-              <p className="text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">8 Ask per month</p>
+              <p className="text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">15 Ask per month</p>
               <FeatureList items={["One pet", "Care history and tracking", "The same Furvise reasoning and safety standards"]} />
               {!isInternalQa && !isPlus ? <SecondaryButton className="mt-auto w-full" disabled type="button">Current plan</SecondaryButton> : null}
             </PlanCard>

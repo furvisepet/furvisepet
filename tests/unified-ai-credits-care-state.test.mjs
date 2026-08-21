@@ -133,10 +133,10 @@ test("development fallback recognizes only a proven missing usage table", () => 
     allowed: true,
     count: 0,
     ledgerMode: "development_missing_migration",
-    limit: 8,
+    limit: 15,
     monthKey: fallback.monthKey,
     planId: "free",
-    remaining: 8,
+    remaining: 15,
     resetAt: fallback.resetAt,
   });
   assert.deepEqual(getAiCreditLedgerDiagnostic(permission), {
