@@ -107,6 +107,7 @@ export function AppHeader({
   const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
   const mobileGlassRootRef = useRef<HTMLElement>(null);
   const mobileGlassRef = useRef<HTMLDivElement>(null);
+  const mobileNavigationDockRef = useRef<HTMLDivElement>(null);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const menuId = useId();
   const mobileMoreMenuId = useId();
@@ -176,6 +177,41 @@ export function AppHeader({
       document.removeEventListener("keydown", handleEscape);
     };
   }, [mobileMoreOpen]);
+
+  useEffect(() => {
+    if (!showMobileNavigation) {
+      document.documentElement.style.removeProperty("--mobile-nav-clearance");
+      return;
+    }
+
+    const dock = mobileNavigationDockRef.current;
+    if (!dock) return;
+
+    const updateClearance = () => {
+      const contentHeight = Math.ceil(dock.getBoundingClientRect().height);
+      if (contentHeight > 0) {
+        document.documentElement.style.setProperty(
+          "--mobile-nav-clearance",
+          `calc(${contentHeight}px + var(--mobile-nav-safe-area) + var(--space-6))`,
+        );
+      }
+    };
+
+    const handleResize = () => requestAnimationFrame(updateClearance);
+    const observer = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(() => requestAnimationFrame(updateClearance));
+
+    handleResize();
+    if (observer) observer.observe(dock);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      document.documentElement.style.removeProperty("--mobile-nav-clearance");
+      observer?.disconnect();
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [askCompactNavigation, showMobileNavigation]);
 
   return (
     <>
@@ -277,7 +313,7 @@ export function AppHeader({
         <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state={askCompactNavigation ? "ask-compact" : "stable"} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
           <span aria-hidden="true" className="mobile-liquid-glass-scene" />
           <div aria-hidden="true" className="mobile-liquid-glass" data-liquid-glass-skip-content="" ref={mobileGlassRef} />
-          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] sm:mx-auto ${askCompactNavigation ? "h-[var(--mobile-nav-compact-height)] p-1" : "h-[var(--mobile-nav-expanded-height)] p-1.5"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock">
+          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] sm:mx-auto ${askCompactNavigation ? "h-[var(--mobile-nav-compact-height)] p-1" : "h-[var(--mobile-nav-expanded-height)] p-1.5"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock" ref={mobileNavigationDockRef}>
             {MOBILE_NAV_ITEMS.map((item) => {
               const active = activeMobileTab === item.tab;
               return (
@@ -298,16 +334,18 @@ export function AppHeader({
 
 function NavigationIcon({ asset }: { asset: string }) {
   return (
-    <Image
-      alt=""
-      aria-hidden="true"
-      className="h-full w-full object-contain"
-      decoding="async"
-      draggable={false}
-      height={48}
-      loading="lazy"
-      src={asset}
-      width={48}
-    />
+    <span className="relative h-full w-full">
+      <Image
+        alt=""
+        aria-hidden="true"
+        className="object-contain"
+        decoding="async"
+        draggable={false}
+        fill
+        loading="lazy"
+        sizes="100%"
+        src={asset}
+      />
+    </span>
   );
 }
