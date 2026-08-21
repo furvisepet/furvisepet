@@ -122,7 +122,7 @@ test("plan capabilities define generous free and future plus limits", () => {
   assert.equal(free.dashboard, true);
   assert.equal(free.curatedProducts, true);
   assert.equal(free.aiCreditsMonthlyLimit, 50);
-  assert.equal(free.askFurviseMonthlyLimit, 8);
+  assert.equal(free.askFurviseMonthlyLimit, 15);
   assert.equal(free.productsAiMonthlyLimit, 50);
   assert.equal(free.shopSearchMonthlyLimit, 50);
   assert.equal(free.productQuestionMonthlyLimit, 50);
@@ -164,8 +164,8 @@ test("pet limit gates new pets but never edits existing pets", () => {
 });
 
 test("legacy Ask usage UI mirrors the launch Free allowance during compatibility", () => {
-  assert.equal(evaluateAskUsageLimit({ monthlyCount: 7, planId: "free", earlyAccessUnlocked: false }).allowed, true);
-  const blocked = evaluateAskUsageLimit({ monthlyCount: 8, planId: "free", earlyAccessUnlocked: false });
+  assert.equal(evaluateAskUsageLimit({ monthlyCount: 14, planId: "free", earlyAccessUnlocked: false }).allowed, true);
+  const blocked = evaluateAskUsageLimit({ monthlyCount: 15, planId: "free", earlyAccessUnlocked: false });
   assert.equal(blocked.hardBlocked, true);
   assert.equal(blocked.remaining, 0);
   const early = evaluateAskUsageLimit({ monthlyCount: 30, planId: "free", earlyAccessUnlocked: true });
@@ -199,7 +199,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     userId: "user-1",
   });
   assert.equal(status.count, 7);
-  assert.equal(status.remaining, 1);
+  assert.equal(status.remaining, 8);
 
   await incrementAskUsage({ monthKey: "2026-07", previousCount: status.count, supabase, userId: "user-1" });
   const after = await getAskUsageStatus({
@@ -211,7 +211,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     userId: "user-1",
   });
   assert.equal(after.count, 8);
-  assert.equal(after.allowed, false);
+  assert.equal(after.allowed, true);
 
   const reset = await getAskUsageStatus({
     earlyAccessUnlocked: false,
@@ -222,7 +222,7 @@ test("Ask usage reads current month, increments successful answers, and resets b
     userId: "user-1",
   });
   assert.equal(reset.count, 0);
-  assert.equal(reset.remaining, 8);
+  assert.equal(reset.remaining, 15);
 });
 
 test("Ask usage treats a missing monthly row as zero for new users", async () => {
@@ -338,7 +338,7 @@ test("Ask usage read errors log Supabase details and early access falls back saf
 });
 
 test("legacy Ask usage still hard gates at the launch allowance while compatibility remains", async () => {
-  const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 8 }]);
+  const supabase = createUsageSupabase([{ user_id: "user-1", month_key: "2026-07", count: 15 }]);
   const status = await getAskUsageStatus({
     earlyAccessUnlocked: false,
     monthlyLimit: getPlanCapabilities("free").askFurviseMonthlyLimit,

@@ -13,14 +13,15 @@ import {
 import { buildStripeSubscriptionProjection } from "../app/lib/billing/stripe-projection.ts";
 import { getAskAllowanceStatus, runWithAiCredit } from "../app/lib/ai/usage-ledger.ts";
 
-const migrationPath = "supabase/migrations/20260814085052_add_launch_billing_and_ask_allowances.sql";
+const legacyMigrationPath = "supabase/migrations/20260814085052_add_launch_billing_and_ask_allowances.sql";
+const canonicalMigrationPath = "supabase/migrations/20260821062935_increase_free_ask_allowance_to_15.sql";
 const read = (path) => readFileSync(path, "utf8");
 const prices = { STRIPE_PLUS_PRICE_ID: "price_plusmonthly" };
 
-test("launch plans expose exactly 8 Free Ask and 55 Plus Ask", () => {
-  assert.equal(FREE_ASK_ALLOWANCE, 8);
+test("launch plans expose exactly 15 Free Ask and 55 Plus Ask", () => {
+  assert.equal(FREE_ASK_ALLOWANCE, 15);
   assert.equal(PLUS_ASK_ALLOWANCE, 55);
-  assert.equal(getAskAllowance("free"), 8);
+  assert.equal(getAskAllowance("free"), 15);
   assert.equal(getAskAllowance("plus"), 55);
 });
 
@@ -152,25 +153,31 @@ test("provider failure releases once and completed replay consumes no new Ask", 
 });
 
 test("migration extends the canonical ledger and secures authoritative billing state", () => {
-  const sql = read(migrationPath);
-  assert.match(sql, /create table public\.billing_accounts/);
-  assert.match(sql, /alter table public\.billing_accounts enable row level security/);
-  assert.match(sql, /revoke all on table public\.billing_accounts from public, anon, authenticated/);
-  assert.match(sql, /grant select, insert, update on table public\.billing_accounts to service_role/);
-  assert.match(sql, /create table private\.stripe_webhook_events/);
-  assert.match(sql, /stripe_event_id text primary key/);
-  assert.match(sql, /p_stripe_event_created_at < v_account\.last_stripe_event_created_at/);
-  assert.match(sql, /if exists \(select 1 from private\.stripe_webhook_events where stripe_event_id = p_stripe_event_id\)/);
-  assert.match(sql, /when p_price_recognized[\s\S]*p_subscription_status = 'active'[\s\S]*then 'plus'/);
-  assert.match(sql, /stripe_currency text check/);
-  assert.doesNotMatch(sql, /checkout_country/);
-  assert.doesNotMatch(sql.slice(sql.indexOf("create or replace function private.resolve_account_entitlements")), /raw_app_meta_data/);
-  assert.match(sql, /when billing\.billing_plan = 'plus' then 55 else 8/);
-  assert.match(sql, /'stripe:' \|\| account\.stripe_subscription_id \|\| ':' \|\| extract\(epoch from account\.current_period_start\)/);
-  assert.match(sql, /event\.allowance_period_key = resolved\.period_key/);
-  assert.match(sql, /monthly_usage\.feature = 'ask'/);
-  assert.match(sql, /pg_advisory_xact_lock/);
-  assert.match(sql, /where usage_event\.user_id = v_user_id and usage_event\.request_id = p_request_id/);
+  const legacyMigration = read(legacyMigrationPath);
+  const sql = read(canonicalMigrationPath);
+  assert.match(legacyMigration, /create table public\.billing_accounts/);
+  assert.match(legacyMigration, /alter table public\.billing_accounts enable row level security/);
+  assert.match(legacyMigration, /revoke all on table public\.billing_accounts from public, anon, authenticated/);
+  assert.match(legacyMigration, /grant select, insert, update on table public\.billing_accounts to service_role/);
+  assert.match(legacyMigration, /create table private\.stripe_webhook_events/);
+  assert.match(legacyMigration, /stripe_event_id text primary key/);
+  assert.match(legacyMigration, /p_stripe_event_created_at < v_account\.last_stripe_event_created_at/);
+  assert.match(legacyMigration, /if exists \(select 1 from private\.stripe_webhook_events where stripe_event_id = p_stripe_event_id\)/);
+  assert.match(legacyMigration, /when p_price_recognized[\s\S]*p_subscription_status = 'active'[\s\S]*then 'plus'/);
+  assert.match(legacyMigration, /stripe_currency text check/);
+  assert.doesNotMatch(legacyMigration, /checkout_country/);
+  assert.match(legacyMigration, /case when exists \(select 1 from active_grant\) then 100000 when billing\.billing_plan = 'plus' then 55 else 8 end/);
+  assert.doesNotMatch(legacyMigration.slice(legacyMigration.indexOf("create or replace function private.resolve_account_entitlements")), /raw_app_meta_data/);
+  assert.match(sql, /set search_path = pg_catalog/);
+  assert.match(sql, /create or replace function private\.resolve_ask_allowance\(p_user_id uuid\)/);
+  assert.match(sql, /security definer/);
+  assert.match(sql, /case when exists \(select 1 from active_grant\) then 100000 when billing\.billing_plan = 'plus' then 55 else 15 end/);
+  assert.match(sql, /when billing\.billing_plan = 'plus' then 55 else 15/);
+  assert.match(legacyMigration, /'stripe:' \|\| account\.stripe_subscription_id \|\| ':' \|\| extract\(epoch from account\.current_period_start\)/);
+  assert.match(legacyMigration, /event\.allowance_period_key = resolved\.period_key/);
+  assert.match(legacyMigration, /monthly_usage\.feature = 'ask'/);
+  assert.match(legacyMigration, /pg_advisory_xact_lock/);
+  assert.match(legacyMigration, /where usage_event\.user_id = v_user_id and usage_event\.request_id = p_request_id/);
 });
 
 test("billing endpoints keep price and currency selection server/Stripe-owned and verify raw signed webhooks", () => {
@@ -233,5 +240,5 @@ function disposition(status, settlementDisposition, remaining) {
 }
 
 function allowanceRow(used, remaining) {
-  return { allowance: 8, billing_plan: "free", cancel_at_period_end: false, effective_plan: "free", period_end: "2026-09-01T00:00:00Z", period_start: "2026-08-01", remaining, subscription_status: "none", used };
+  return { allowance: 15, billing_plan: "free", cancel_at_period_end: false, effective_plan: "free", period_end: "2026-09-01T00:00:00Z", period_start: "2026-08-01", remaining, subscription_status: "none", used };
 }

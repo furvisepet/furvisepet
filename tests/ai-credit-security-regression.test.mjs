@@ -88,7 +88,7 @@ test("successful persisted answer completes once and UI allowance remains correc
   assert.equal(persisted, 1);
   assert.equal(result.creditsUsed, 1);
   assert.equal(result.usage.count, 1);
-  assert.equal(result.usage.remaining, 7);
+  assert.equal(result.usage.remaining, 14);
   assert.equal(ledger.calls.filter((call) => call.name === "complete_ai_credit").length, 1);
 });
 
@@ -230,7 +230,7 @@ class AuthoritativeLedger {
     this.calls.push({ args, name });
     if (name === "get_my_ask_allowance_status") {
       const used = [...this.events.values()].filter((event) => event.feature === "ask" && event.status === "completed").length;
-      return { data: [{ allowance: 8, billing_plan: "free", cancel_at_period_end: false, effective_plan: "free", period_end: "2026-09-01T00:00:00Z", period_start: "2026-08-01", remaining: 8 - used, subscription_status: "none", used }], error: null };
+      return { data: [{ allowance: 15, billing_plan: "free", cancel_at_period_end: false, effective_plan: "free", period_end: "2026-09-01T00:00:00Z", period_start: "2026-08-01", remaining: 15 - used, subscription_status: "none", used }], error: null };
     }
     const key = `${args.p_user_id}:${args.p_feature}:${args.p_request_id}`;
     let event = this.events.get(key);
@@ -286,7 +286,7 @@ class AuthoritativeLedger {
 }
 
 function success(statusKey, event) {
-  return { data: [{ credits_used: event.credits, remaining: 7, settlement_disposition: event.disposition, [statusKey]: event.status }], error: null };
+  return { data: [{ credits_used: event.credits, remaining: 14, settlement_disposition: event.disposition, [statusKey]: event.status }], error: null };
 }
 
 function failure(message) {

@@ -53,7 +53,7 @@ begin
   end if;
 
   select * into v_result from public.complete_ai_credit(v_user_one, v_request_one, 'ask', repeat('a', 64));
-  if v_result.event_status <> 'completed' or v_result.credits_used <> 1 or v_result.remaining <> 7 then
+  if v_result.event_status <> 'completed' or v_result.credits_used <> 1 or v_result.remaining <> 14 then
     raise exception 'completion failed: %', row_to_json(v_result);
   end if;
   v_denied := false;
@@ -111,11 +111,11 @@ begin
 
   perform set_config('request.jwt.claim.sub', v_user_two::text, true);
   select * into v_result from public.reserve_ai_credit(v_user_two, v_request_one, 'ask', repeat('e', 64));
-  if v_result.reservation_status <> 'reserved' or v_result.remaining <> 8 then
+  if v_result.reservation_status <> 'reserved' or v_result.remaining <> 15 then
     raise exception 'second user was not isolated: %', row_to_json(v_result);
   end if;
   select * into v_result from public.complete_ai_credit(v_user_two, v_request_one, 'ask', repeat('e', 64));
-  if v_result.event_status <> 'completed' or v_result.remaining <> 7 then
+  if v_result.event_status <> 'completed' or v_result.remaining <> 14 then
     raise exception 'second user completion failed: %', row_to_json(v_result);
   end if;
 

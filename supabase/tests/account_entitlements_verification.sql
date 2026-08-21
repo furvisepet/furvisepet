@@ -106,7 +106,7 @@ begin
   insert into public.ai_usage_events (user_id, request_id, feature, credits_used, status, period_start, allowance_period_key, completed_at)
   select v_free_user, gen_random_uuid(), 'ask', 1, 'completed', date_trunc('month', timezone('utc', now()))::date,
     'free:' || to_char(timezone('utc', now()), 'YYYY-MM'), now()
-  from generate_series(1, 8);
+  from generate_series(1, 15);
   select * into strict v_credit from public.reserve_ai_credit(v_free_user, v_request, 'ask', repeat('a', 64));
   if v_credit.reservation_status <> 'limit_reached' or v_credit.remaining <> 0 then
     raise exception 'authenticated caller inflated its allowance: %', row_to_json(v_credit);

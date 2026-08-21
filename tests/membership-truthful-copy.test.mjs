@@ -5,7 +5,7 @@ import test from "node:test";
 const membership = readFileSync(new URL("../app/membership/page.tsx", import.meta.url), "utf8");
 
 test("Membership promises only current plan limits and shared quality", () => {
-  assert.match(membership, /8 Ask per month/);
+  assert.match(membership, /15 Ask per month/);
   assert.match(membership, /55 thoughtful Ask messages every month/);
   assert.match(membership, /One pet/);
   assert.match(membership, /Up to 10 pets/);

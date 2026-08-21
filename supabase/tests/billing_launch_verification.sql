@@ -34,18 +34,18 @@ begin
 
   perform set_config('request.jwt.claim.sub', v_free_user::text, true);
   perform set_config('request.jwt.claim.role', 'authenticated', true);
-  for v_count in 1..8 loop
+  for v_count in 1..15 loop
     v_request := ('41000000-0000-4000-8000-' || lpad(v_count::text, 12, '0'))::uuid;
     select * into strict v_result from public.reserve_ai_credit(v_free_user, v_request, 'ask', repeat('a', 64));
     if v_result.reservation_status <> 'reserved' then raise exception 'Free Ask % did not reserve: %', v_count, row_to_json(v_result); end if;
     select * into strict v_result from public.complete_ai_credit(v_free_user, v_request, 'ask', repeat('a', 64));
   end loop;
   select * into strict v_status from public.get_my_ask_allowance_status();
-  if v_status.allowance <> 8 or v_status.used <> 8 or v_status.remaining <> 0 then
+  if v_status.allowance <> 15 or v_status.used <> 15 or v_status.remaining <> 0 then
     raise exception 'Free allowance incorrect: %', row_to_json(v_status);
   end if;
-  select * into strict v_result from public.reserve_ai_credit(v_free_user, '41000000-0000-4000-8000-000000000009', 'ask', repeat('a', 64));
-  if v_result.reservation_status <> 'limit_reached' then raise exception '9th Free Ask was admitted'; end if;
+  select * into strict v_result from public.reserve_ai_credit(v_free_user, '41000000-0000-4000-8000-000000000016', 'ask', repeat('a', 64));
+  if v_result.reservation_status <> 'limit_reached' then raise exception '16th Free Ask was admitted'; end if;
 
   insert into public.billing_accounts (
     user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_currency, checkout_price_id,
@@ -95,7 +95,7 @@ begin
 
   perform set_config('request.jwt.claim.sub', v_plus_user::text, true);
   select * into strict v_status from public.get_my_ask_allowance_status();
-  if v_status.billing_plan <> 'free' or v_status.allowance <> 8 then
+  if v_status.billing_plan <> 'free' or v_status.allowance <> 15 then
     raise exception 'canceled subscription did not resolve Free: %', row_to_json(v_status);
   end if;
 end;
@@ -151,7 +151,7 @@ begin
 
   perform public.register_stripe_billing_customer(v_projection_user, 'cus_projection_test', 'price_plus_test');
   select * into strict v_status from private.resolve_ask_allowance(v_projection_user);
-  if v_status.billing_plan <> 'free' or v_status.allowance <> 8 then
+  if v_status.billing_plan <> 'free' or v_status.allowance <> 15 then
     raise exception 'registered customer without subscription was not Free: %', row_to_json(v_status);
   end if;
 
@@ -161,7 +161,7 @@ begin
     'evt_projection_unknown', 'customer.subscription.updated', now()
   ) into v_outcome;
   select * into strict v_status from private.resolve_ask_allowance(v_projection_user);
-  if v_outcome <> 'free_active' or v_status.billing_plan <> 'free' or v_status.allowance <> 8 then
+  if v_outcome <> 'free_active' or v_status.billing_plan <> 'free' or v_status.allowance <> 15 then
     raise exception 'unknown Stripe Price granted Plus: %, %', v_outcome, row_to_json(v_status);
   end if;
 
@@ -173,7 +173,7 @@ begin
       'evt_projection_status_' || v_event_number, 'customer.subscription.updated', now() + make_interval(secs => v_event_number)
     ) into v_outcome;
     select * into strict v_status from private.resolve_ask_allowance(v_projection_user);
-    if v_outcome <> 'free_active' or v_status.billing_plan <> 'free' or v_status.allowance <> 8 then
+    if v_outcome <> 'free_active' or v_status.billing_plan <> 'free' or v_status.allowance <> 15 then
       raise exception '% subscription granted Plus: %, %', v_status_name, v_outcome, row_to_json(v_status);
     end if;
   end loop;
@@ -185,7 +185,7 @@ begin
     'evt_projection_expired', 'customer.subscription.updated', now() + make_interval(secs => v_event_number)
   );
   select * into strict v_status from private.resolve_ask_allowance(v_projection_user);
-  if v_status.billing_plan <> 'free' or v_status.allowance <> 8 then
+  if v_status.billing_plan <> 'free' or v_status.allowance <> 15 then
     raise exception 'expired active subscription granted Plus: %', row_to_json(v_status);
   end if;
 
@@ -196,7 +196,7 @@ begin
     'evt_projection_future', 'customer.subscription.updated', now() + make_interval(secs => v_event_number)
   );
   select * into strict v_status from private.resolve_ask_allowance(v_projection_user);
-  if v_status.billing_plan <> 'free' or v_status.allowance <> 8 then
+  if v_status.billing_plan <> 'free' or v_status.allowance <> 15 then
     raise exception 'future active subscription granted Plus: %', row_to_json(v_status);
   end if;
 
@@ -268,16 +268,16 @@ begin
   select v_reset_user, ('45000000-0000-4000-8000-' || lpad(sequence::text, 12, '0'))::uuid,
     'ask', 1, 'completed', (date_trunc('month', timezone('utc', now())) - interval '1 month')::date,
     'free:' || to_char(timezone('utc', now()) - interval '1 month', 'YYYY-MM'), now() - interval '1 month'
-  from generate_series(1, 8) as sequence;
+  from generate_series(1, 15) as sequence;
   perform set_config('request.jwt.claim.sub', v_reset_user::text, true);
   select * into strict v_status from public.get_my_ask_allowance_status();
-  if v_status.billing_plan <> 'free' or v_status.allowance <> 8 or v_status.used <> 0 or v_status.remaining <> 8 then
+  if v_status.billing_plan <> 'free' or v_status.allowance <> 15 or v_status.used <> 0 or v_status.remaining <> 15 then
     raise exception 'Free monthly reset rolled prior usage forward: %', row_to_json(v_status);
   end if;
   select * into strict v_result from public.reserve_ai_credit(v_reset_user, '45000000-0000-4000-8000-000000000101', 'ask', repeat('d', 64));
   select * into strict v_result from public.release_ai_credit(v_reset_user, '45000000-0000-4000-8000-000000000101', 'ask', repeat('d', 64));
   select * into strict v_status from public.get_my_ask_allowance_status();
-  if v_result.event_status <> 'released' or v_result.credits_used <> 0 or v_status.used <> 0 or v_status.remaining <> 8 then
+  if v_result.event_status <> 'released' or v_result.credits_used <> 0 or v_status.used <> 0 or v_status.remaining <> 15 then
     raise exception 'released Ask was not returned to the allowance: %, %', row_to_json(v_result), row_to_json(v_status);
   end if;
 end;
