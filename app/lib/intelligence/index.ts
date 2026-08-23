@@ -1,7 +1,7 @@
 export { buildFurviseContext, FurviseContextError } from "./retrieve-context";
 export { runFurviseIntelligence } from "./run-intelligence";
 export type { FurviseIntelligenceResult } from "./run-intelligence";
-export { persistIntelligenceLearnings, IntelligencePersistenceError } from "./persist-learnings";
+export { persistIntelligenceLearnings, prepareAskMemoryAuthorityLearnings, IntelligencePersistenceError } from "./persist-learnings";
 export { resolveProductSafety, type ProductSafety } from "./product-safety";
 export { persistFeatureIntelligenceLearnings } from "./persist-learnings";
 export { applySafetyFloor, resolveSafetyState } from "./safety-state";

@@ -67,6 +67,7 @@ import {
 import {
   buildFurviseContext,
   FurviseContextError,
+  prepareAskMemoryAuthorityLearnings,
   persistIntelligenceLearnings,
   persistedLearningConfirmation,
   runFurviseIntelligence,
@@ -96,6 +97,7 @@ import {
   enforceVerifiedStateClaims,
   parseStoredApplicationActions,
   prepareFurviseApplicationActions,
+  resolveFurviseActionTargetBindings,
   shouldAutoExecuteAction,
   type FurviseApplicationAction,
 } from "../../lib/application-actions/index.ts";
@@ -879,6 +881,7 @@ export async function POST(request: Request) {
     turnLifecycle.transition("ANSWER_VALIDATED");
     try {
       const persistedResponse = await persistAssistantAnswer({
+        authorizedPetIds: turnAuthoritativePetIds,
         creditRequestId,
         creditReserved,
         contextUsed,
@@ -886,6 +889,8 @@ export async function POST(request: Request) {
         intelligenceResult,
         phase3Runtime,
         payloadHash: aiCreditPayloadHash,
+        operationPayloadHash: idempotency.operation.payloadHash,
+        operationOwnerToken: idempotency.operation.ownerToken,
         petId: turnPetId,
         preparedRequest,
         requestId,
@@ -993,9 +998,14 @@ export async function POST(request: Request) {
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
   }
   turnLifecycle.transition("ANSWER_VALIDATED");
+  const actionTargetBindings = resolveFurviseActionTargetBindings({
+    actions: preparedApplicationActions,
+    referencedRecords: reasoning?.referencedRecords || [],
+  });
 
   try {
     const persistedResponse = await persistAssistantAnswer({
+      authorizedPetIds: turnAuthoritativePetIds,
       concern: orchestration.concern,
       creditRequestId,
       creditReserved,
@@ -1008,12 +1018,15 @@ export async function POST(request: Request) {
       intelligenceResult,
       phase3Runtime,
       payloadHash: aiCreditPayloadHash,
+      operationPayloadHash: idempotency.operation.payloadHash,
+      operationOwnerToken: idempotency.operation.ownerToken,
       preconfirmedCarePersistence: confirmedExistingCarePersistence,
       petId: turnPetId,
       preparedRequest,
       requestId,
       recentCareEntries: liveContext.careEntries,
       response: conversationResponse,
+      actionTargetBindings,
       sourceMessage: question,
       saveMetadata: buildAskSaveMetadata(conversationResponse, { intent: reasoning?.userIntent || orchestration.intent, question }),
       safetyLevel,
@@ -1505,6 +1518,8 @@ async function ensureConversationAndUserMessage({
 }
 
 async function persistAssistantAnswer({
+  actionTargetBindings = {},
+  authorizedPetIds,
   concern = null,
   creditRequestId,
   creditReserved,
@@ -1513,6 +1528,8 @@ async function persistAssistantAnswer({
   handledWithoutAi,
   historyReviewRequired = false,
   intelligenceResult = null,
+  operationPayloadHash,
+  operationOwnerToken,
   phase3Runtime,
   payloadHash,
   preconfirmedCarePersistence = null,
@@ -1532,6 +1549,8 @@ async function persistAssistantAnswer({
   userId,
   turnLifecycle,
 }: {
+  actionTargetBindings?: Record<string, string>;
+  authorizedPetIds: string[];
   concern?: PetConcern | null;
   creditRequestId: string;
   creditReserved: boolean;
@@ -1540,6 +1559,8 @@ async function persistAssistantAnswer({
   deferHighImpactLifecyclePersistence?: boolean;
   historyReviewRequired?: boolean;
   intelligenceResult?: FurviseIntelligenceResult | null;
+  operationPayloadHash: string;
+  operationOwnerToken: string;
   phase3Runtime: AskV2Phase3Runtime | null;
   payloadHash: string;
   preconfirmedCarePersistence?: CarePersistenceResult | null;
@@ -1560,6 +1581,15 @@ async function persistAssistantAnswer({
   turnLifecycle: AskTurnLifecycle;
 }) {
   const { conversationId, userMessageId } = preparedRequest;
+  const persistenceGovernance = intelligenceResult ? {
+    ...intelligenceResult.governance,
+    authorizedLearnings: prepareAskMemoryAuthorityLearnings({
+      authorizedPetIds,
+      currentMessage: sourceMessage,
+      learnings: intelligenceResult.acceptedLearnings,
+    }),
+    semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace),
+  } : null;
   let responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
   const optionalFailure = (component: AskSubsystem, error: unknown) => {
     turnLifecycle.optionalFailure(component);
@@ -1593,7 +1623,7 @@ async function persistAssistantAnswer({
       request_id: requestId,
       response_data: responseWithTurn,
       intelligence_validation: intelligenceResult?.answerValidation || null,
-      persistence_governance: intelligenceResult ? { ...intelligenceResult.governance, semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace) } : null,
+      persistence_governance: persistenceGovernance,
       role: "furvise",
       save_metadata: saveMetadata,
       sequence_number: (lastMessage?.sequence_number || preparedRequest.userSequence) + 1,
@@ -1628,7 +1658,7 @@ async function persistAssistantAnswer({
         request_id: requestId,
         response_data: responseWithTurn,
         intelligence_validation: intelligenceResult?.answerValidation || null,
-        persistence_governance: intelligenceResult ? { ...intelligenceResult.governance, semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace) } : null,
+        persistence_governance: persistenceGovernance,
         role: "furvise",
         save_metadata: saveMetadata,
         sequence_number: (lastMessage?.sequence_number || preparedRequest.userSequence) + 1,
@@ -1664,6 +1694,7 @@ async function persistAssistantAnswer({
         assistantMessageId: assistantMessage.id,
         sourceMessageId: userMessageId,
         supabase,
+        targetBindings: actionTargetBindings,
         userId,
       });
       response = { ...response, applicationActions: capabilityActions };
@@ -1736,12 +1767,17 @@ async function persistAssistantAnswer({
   if (!deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.acceptedLearnings.length || intelligenceResult.acceptedCareActions.length || intelligenceResult.acceptedSemanticEvents.length)) {
     try {
       intelligencePersistence = await persistIntelligenceLearnings({
+        assistantMessageId: assistantMessage.id,
+        authorizedPetIds,
         careActions: historyReviewRequired ? [] : intelligenceResult.acceptedCareActions,
         currentMessage: sourceMessage,
         semanticEvents: historyReviewRequired ? [] : intelligenceResult.acceptedSemanticEvents,
         learnings: intelligenceResult.acceptedLearnings,
+        operationOwnerToken,
+        payloadHash: operationPayloadHash,
         petId,
         recentCareEntries,
+        requestId,
         sourceMessageId: userMessageId,
         supabase,
         userId,

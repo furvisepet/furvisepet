@@ -19,28 +19,52 @@ export class IntelligencePersistenceError extends Error {
   }
 }
 
+export function prepareAskMemoryAuthorityLearnings({ authorizedPetIds, currentMessage, learnings }: {
+  authorizedPetIds: string[];
+  currentMessage: string | null;
+  learnings: IntelligenceLearning[];
+}) {
+  return learnings.flatMap((learning) => {
+    const decision = prepareTypedMemoryCandidate(learning, currentMessage || learning.sourceExcerpt, authorizedPetIds);
+    return decision.accepted ? [{
+      ...decision.learning,
+      normalizedValue: normalizeMemoryValue(decision.learning.factValue),
+    }] : [];
+  });
+}
+
 export async function persistIntelligenceLearnings({
+  assistantMessageId,
+  authorizedPetIds,
   careActions,
   semanticEvents = [],
   learnings,
   currentMessage,
+  operationOwnerToken,
+  payloadHash,
   petId,
+  requestId,
   sourceMessageId,
   supabase,
   userId,
   recentCareEntries = [],
 }: {
+  assistantMessageId: string;
+  authorizedPetIds: string[];
   careActions: IntelligenceCareAction[];
   semanticEvents?: GovernedCanonicalEvent[];
   learnings: IntelligenceLearning[];
   currentMessage: string;
+  operationOwnerToken: string;
+  payloadHash: string;
   petId: string;
+  requestId: string;
   sourceMessageId: string;
   supabase: SupabaseClient;
   userId: string;
   recentCareEntries?: CareEntryRow[];
 }): Promise<IntelligencePersistenceSummary> {
-  const governedLearnings = await preparePersistableLearnings({ currentMessage, learnings, petId, supabase, userId });
+  const governedLearnings = await preparePersistableLearnings({ authorizedPetIds, currentMessage, learnings, petId, supabase, userId });
   const normalizedLearnings = governedLearnings.map((learning) => ({
     ...learning,
     normalizedValue: normalizeMemoryValue(learning.factValue),
@@ -59,12 +83,26 @@ export async function persistIntelligenceLearnings({
   const persistenceRows: Record<string, unknown>[] = [];
   if (normalizedLearnings.length) {
     for (const [targetPetId, group] of groupLearningsByPersistencePet(normalizedLearnings, petId)) {
-      const { data, error } = await supabase.rpc("persist_furvise_intelligence", {
-        p_care_actions: [],
+      const authorized = await createOperationsAdminClient().rpc("persist_furvise_ask_intelligence", {
+        p_assistant_message_id: assistantMessageId,
+        p_authorized_pet_ids: authorizedPetIds,
         p_learnings: group,
+        p_operation_owner_token: operationOwnerToken,
+        p_payload_hash: payloadHash,
         p_pet_id: targetPetId,
+        p_request_id: requestId,
         p_source_message_id: sourceMessageId,
+        p_user_id: userId,
       });
+      const result = isMissingAskMemoryAuthorityRpc(authorized.error)
+        ? await supabase.rpc("persist_furvise_intelligence", {
+            p_care_actions: [],
+            p_learnings: group,
+            p_pet_id: targetPetId,
+            p_source_message_id: sourceMessageId,
+          })
+        : authorized;
+      const { data, error } = result;
       if (error && !careActions.length && !semanticEvent) throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
       if (error) {
         logIntelligenceError("memory_persistence_after_care", error, {
@@ -100,6 +138,11 @@ export async function persistIntelligenceLearnings({
     persistenceMode: carePersistence.status === "persisted" && persistedCareEntryId ? "automatic" : "none",
     carePersistence: { ...carePersistence, memoryIds },
   };
+}
+
+function isMissingAskMemoryAuthorityRpc(error: { code?: string; message?: string } | null) {
+  return Boolean(error && error.code === "PGRST202"
+    && /^Could not find the function public\.persist_furvise_ask_intelligence\([^)]*\) in the schema cache\.?$/i.test(error.message || ""));
 }
 
 async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, supabase, userId, recentCareEntries }: {
@@ -383,22 +426,28 @@ function stringArray(value: unknown) {
 
 function numberValue(value: unknown) { return typeof value === "number" ? value : Number(value) || 0; }
 
-async function preparePersistableLearnings({ currentMessage, learnings, petId, supabase, userId }: {
+async function preparePersistableLearnings({ authorizedPetIds, currentMessage, learnings, petId, supabase, userId }: {
+  authorizedPetIds?: string[];
   currentMessage: string | null;
   learnings: IntelligenceLearning[];
   petId: string;
   supabase: SupabaseClient;
   userId: string | null;
 }) {
-  let authorizedPetIds = [petId];
+  let verifiedPetIds = [...new Set(authorizedPetIds || [petId])];
   if (userId) {
-    const { data, error } = await supabase.from("dog_profiles").select("id").eq("user_id", userId).returns<Array<{ id: string }>>();
+    let ownershipQuery = supabase.from("dog_profiles").select("id").eq("user_id", userId);
+    if (authorizedPetIds) ownershipQuery = ownershipQuery.in("id", verifiedPetIds);
+    const { data, error } = await ownershipQuery.returns<Array<{ id: string }>>();
     if (error) throw new IntelligencePersistenceError("Furvise could not verify memory ownership.", error);
-    authorizedPetIds = (data || []).map((row) => row.id);
+    const ownedPetIds = new Set((data || []).map((row) => row.id));
+    if (authorizedPetIds && ownedPetIds.size !== verifiedPetIds.length) throw new IntelligencePersistenceError("Furvise could not verify memory ownership.");
+    verifiedPetIds = authorizedPetIds ? verifiedPetIds.filter((id) => ownedPetIds.has(id)) : [...ownedPetIds];
   }
-  const typed = learnings.flatMap((learning) => {
-    const decision = prepareTypedMemoryCandidate(learning, currentMessage || learning.sourceExcerpt, authorizedPetIds);
-    return decision.accepted ? [decision.learning] : [];
+  const typed = prepareAskMemoryAuthorityLearnings({
+    authorizedPetIds: verifiedPetIds,
+    currentMessage,
+    learnings,
   });
   if (!typed.length || !userId) return typed;
 

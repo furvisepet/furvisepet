@@ -14,6 +14,7 @@ type CapabilityRow = {
   action_payload: unknown;
   status: "pending" | "succeeded" | "failed" | "cancelled";
   receipt: unknown | null;
+  expires_at: string;
 };
 
 /** Creates the only mutation authority. response_data receives only the returned display id. */
@@ -22,6 +23,7 @@ export async function createActionCapabilities(input: {
   assistantMessageId: string;
   sourceMessageId: string;
   supabase: SupabaseClient;
+  targetBindings?: Record<string, string>;
   userId: string;
 }) {
   const admin = createIdempotencyAdminClient();
@@ -36,7 +38,7 @@ export async function createActionCapabilities(input: {
     // only. They must never be canonicalized back into executable authority.
     if (!isExecutableSourceAction(action)) { display.push(action); continue; }
     const authoritativeAction = canonicalCapabilityAction(action, input.sourceMessageId);
-    const targetId = await bindTarget(authoritativeAction, input.supabase, input.userId);
+    const targetId = await bindTarget(authoritativeAction, input.targetBindings?.[action.id] || null, input.supabase, input.userId);
     // A proposed edit/remove/concern action with no exact target must never be executable.
     if (requiresBoundTarget(authoritativeAction) && !targetId) {
       display.push({ ...authoritativeAction, status: "failed", errorMessage: "That original target is no longer available.", resultMessage: null });
@@ -66,7 +68,7 @@ export async function createActionCapabilities(input: {
       confirmation_policy: authoritativeAction.confirmationPolicy,
       authorization_scope: authoritativeAction.authorizationScope,
       explicit_intent: authoritativeAction.explicitIntent,
-    }).select("id,assistant_message_id,action_payload,status,receipt").single<CapabilityRow>();
+    }).select("id,assistant_message_id,action_payload,status,receipt,expires_at").single<CapabilityRow>();
     if (error || !data) {
       // Idempotent retries and concurrent duplicate preparation keep the first
       // immutable authority instead of changing semantics or losing the card.
@@ -143,16 +145,23 @@ function capabilityPresentation(row: CapabilityRow) {
   const parsed = parseStoredApplicationActions([payload])[0];
   if (!parsed) throw new Error("ACTION_CAPABILITY_CORRUPT");
   const policy = getFurviseActionPolicy(parsed.kind);
-  const status = row.status === "pending"
+  const expired = row.status === "pending" && Date.parse(row.expires_at) <= Date.now();
+  const status = expired ? "failed" as const : row.status === "pending"
     ? policy.confirmationPolicy === "always" ? "confirmation_required" as const : "proposed" as const
     : row.status;
-  return { ...parsed, ...policy, id: row.id, status };
+  return {
+    ...parsed,
+    ...policy,
+    id: row.id,
+    status,
+    ...(expired ? { resultMessage: null, errorMessage: "That action expired before it was confirmed." } : {}),
+  };
 }
 
 async function loadExistingCapability(input: { sourceActionId: string; sourceMessageId: string; userId: string }) {
   const admin = createIdempotencyAdminClient();
   const { data, error } = await admin.from("ask_action_capabilities")
-    .select("id,assistant_message_id,action_payload,status,receipt")
+    .select("id,assistant_message_id,action_payload,status,receipt,expires_at")
     .eq("user_id", input.userId)
     .eq("source_message_id", input.sourceMessageId)
     .eq("source_action_id", input.sourceActionId)
@@ -165,17 +174,19 @@ function requiresBoundTarget(action: FurviseApplicationAction) {
   return action.kind === "care_history.edit" || action.kind === "care_history.remove" || action.kind === "care_state.resolve" || action.kind === "care_state.reopen";
 }
 
-async function bindTarget(action: FurviseApplicationAction, supabase: SupabaseClient, userId: string) {
+async function bindTarget(action: FurviseApplicationAction, targetId: string | null, supabase: SupabaseClient, userId: string) {
   if (action.kind === "care_history.edit" || action.kind === "care_history.remove") {
-    const { data, error } = await supabase.from("pet_care_entries").select("id").eq("user_id", userId).eq("pet_profile_id", action.petId)
-      .is("deleted_at", null).order("occurred_at", { ascending: false }).limit(1).maybeSingle<{ id: string }>();
+    if (!targetId || !UUID.test(targetId)) return null;
+    const { data, error } = await supabase.from("pet_care_entries").select("id").eq("id", targetId)
+      .eq("user_id", userId).eq("pet_profile_id", action.petId).is("deleted_at", null).maybeSingle<{ id: string }>();
     if (error) throw new Error("ACTION_CAPABILITY_TARGET_LOOKUP_FAILED");
     return data?.id || null;
   }
   if (action.kind === "care_state.resolve" || action.kind === "care_state.reopen") {
+    if (!targetId || !UUID.test(targetId)) return null;
     const statuses = action.kind === "care_state.resolve" ? ["active", "monitoring", "reopened"] : ["resolved"];
-    const { data, error } = await supabase.from("pet_concerns").select("id").eq("user_id", userId).eq("pet_profile_id", action.petId)
-      .in("status", statuses).order("updated_at", { ascending: false }).limit(1).maybeSingle<{ id: string }>();
+    const { data, error } = await supabase.from("pet_concerns").select("id").eq("id", targetId)
+      .eq("user_id", userId).eq("pet_profile_id", action.petId).in("status", statuses).maybeSingle<{ id: string }>();
     if (error) throw new Error("ACTION_CAPABILITY_TARGET_LOOKUP_FAILED");
     return data?.id || null;
   }

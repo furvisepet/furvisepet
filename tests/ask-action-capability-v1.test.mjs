@@ -9,6 +9,7 @@ const capability = read("app/lib/application-actions/capabilities.ts");
 const conversation = read("app/lib/ask-conversation-server.ts");
 const retrieval = read("app/lib/intelligence/retrieve-context.ts");
 const migration = read("supabase/migrations/20260820070956_server_authored_ask_action_capabilities.sql");
+const hardeningMigration = read("supabase/migrations/20260823120000_harden_ask_action_capability_targets_freshness_expiry.sql");
 
 test("reload and retrieval discard tenant-authored mutation authority and terminal claims", () => {
   assert.match(conversation, /export function presentationOnlyAskResponse/);
@@ -68,6 +69,16 @@ test("care and concern mutations use their bound target and stale state fails cl
   assert.match(migration, /The original history update is no longer available/);
   assert.match(migration, /The original concern is no longer available/);
   assert.doesNotMatch(migration, /order by occurred_at/);
+  assert.doesNotMatch(capability, /order\("occurred_at"|order\("updated_at"/);
+  assert.match(hardeningMigration, /care_history\.remove[\s\S]*target_updated_at is not null/);
+  assert.match(hardeningMigration, /v_entry\.updated_at is distinct from v\.target_updated_at/);
+});
+
+test("all capabilities expire at the database authority boundary", () => {
+  assert.match(hardeningMigration, /expires_at timestamptz/);
+  assert.match(hardeningMigration, /interval '15 minutes'/);
+  assert.match(hardeningMigration, /v_now >= v\.expires_at/);
+  assert.match(hardeningMigration, /That action expired before it was confirmed/);
 });
 
 test("row locking, terminal receipts, cancel, and duplicate replay form one concurrency contract", () => {

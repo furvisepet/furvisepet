@@ -189,7 +189,7 @@ export async function loadActionCapabilitiesForMessages(userId: string, messageI
   if (!messageIds.length) return result;
   const admin = createIdempotencyAdminClient();
   const { data, error } = await admin.from("ask_action_capabilities")
-    .select("id,assistant_message_id,source_message_id,action_kind,pet_profile_id,action_payload,receipt,status")
+    .select("id,assistant_message_id,source_message_id,action_kind,pet_profile_id,action_payload,receipt,status,expires_at")
     .eq("user_id", userId)
     .in("assistant_message_id", messageIds)
     .order("created_at", { ascending: true })
@@ -201,6 +201,7 @@ export async function loadActionCapabilitiesForMessages(userId: string, messageI
     const kind = parseStoredFurviseActionKind(row.action_kind);
     if (!kind) continue;
     const policy = getFurviseActionPolicy(kind);
+    const expired = row.status === "pending" && Date.parse(row.expires_at) <= Date.now();
     const action = {
       ...(payload as Record<string, unknown>),
       ...policy,
@@ -208,8 +209,10 @@ export async function loadActionCapabilitiesForMessages(userId: string, messageI
       kind,
       petId: row.pet_profile_id,
       sourceMessageId: row.source_message_id,
-      status: row.status === "pending" ? policy.confirmationPolicy === "always" ? "confirmation_required" : "proposed" : row.status,
-      ...(row.status === "pending" ? { resultMessage: null, errorMessage: null } : {}),
+      status: expired ? "failed" : row.status === "pending" ? policy.confirmationPolicy === "always" ? "confirmation_required" : "proposed" : row.status,
+      ...(expired
+        ? { resultMessage: null, errorMessage: "That action expired before it was confirmed." }
+        : row.status === "pending" ? { resultMessage: null, errorMessage: null } : {}),
     };
     result.set(row.assistant_message_id, [...(result.get(row.assistant_message_id) || []), action]);
   }
