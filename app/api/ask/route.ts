@@ -460,6 +460,7 @@ export async function POST(request: Request) {
           petId: pendingLifecycleResolution.petId,
           petName: pendingLifecycleResolution.petName,
           requestId,
+          sourceMessage: question,
         }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
         deterministicApplicationActions = [terminalAction, ...reassignedActions];
         orchestration = buildAuthoritativeLifecycleCorrectionOrchestration(
@@ -486,6 +487,7 @@ export async function POST(request: Request) {
         petId: turnPetId,
         petName: liveContext.pet.name || "your pet",
         requestId,
+        sourceMessage: question,
         lifecycleStatus: durableLifecycleStatus,
       }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
     } else if (currentLoss === "confirmed_current") {
@@ -537,6 +539,7 @@ export async function POST(request: Request) {
             petId: turnPetId,
             petName: lossSubject.petName,
             requestId,
+            sourceMessage: question,
             lifecycleStatus: lossSubject.lifecycleStatus,
           }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
           const unavailableAction = buildUnavailableConfirmedLossAction({
@@ -576,6 +579,7 @@ export async function POST(request: Request) {
         petId: turnPetId,
         petName: liveContext.pet.name || "your pet",
         requestId,
+        sourceMessage: question,
         lifecycleStatus: durableLifecycleStatus,
       }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
       orchestration = deterministicCommand.orchestration;
@@ -921,6 +925,7 @@ export async function POST(request: Request) {
         petId: turnPetId,
         petName: liveContext.pet.name || "your pet",
         requestId,
+        sourceMessage: question,
         lifecycleStatus: getPetLifecycleStatus(liveContext.pet),
       }).map((action) => ({ ...action, sourceMessageId: preparedRequest.userMessageId }));
     } catch (error) {

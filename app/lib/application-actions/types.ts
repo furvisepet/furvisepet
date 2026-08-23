@@ -47,13 +47,16 @@ export type ModelApplicationAction = {
   kind: FurviseActionKind;
   input: FurviseActionInput;
   evidence: string;
+  /** Non-authoritative model classification. Never use directly for mutation authority. */
   explicitIntent: boolean;
 };
 
-export type FurviseApplicationAction = ModelApplicationAction & {
+export type FurviseApplicationAction = Omit<ModelApplicationAction, "explicitIntent"> & {
   id: string;
   petId: string;
   sourceMessageId?: string | null;
+  /** Server-derived authorization from the persisted user message and exact action semantics. */
+  explicitIntent: boolean;
   safetyClass: FurviseActionSafetyClass;
   mutationClass: FurviseActionMutationClass;
   confirmationPolicy: FurviseActionConfirmationPolicy;
