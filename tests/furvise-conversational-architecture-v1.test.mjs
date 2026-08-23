@@ -46,7 +46,7 @@ test("model actions require grounded evidence and are rebound to the server-sele
     input: { field: null, value: null, title: null, detail: null, category: null, target: "selected" },
   }], source);
   assert.equal(proposals.length, 1);
-  const [action] = prepareFurviseApplicationActions({ proposals, petId: "pet-mani", petName: "Mani", requestId: "request-1" });
+  const [action] = prepareFurviseApplicationActions({ proposals, petId: "pet-mani", petName: "Mani", requestId: "request-1", sourceMessage: source });
   assert.equal(action.petId, "pet-mani");
   assert.equal(action.authorizationScope, "owned_pet");
   assert.equal(action.safetyClass, "LOW_RISK_REVERSIBLE");
@@ -56,6 +56,7 @@ test("model actions require grounded evidence and are rebound to the server-sele
 test("a model cannot manufacture explicit owner intent to auto-execute a mutation", () => {
   const [action] = prepareFurviseApplicationActions({
     petId: "pet-mani", petName: "Mani", requestId: "request-untrusted-intent",
+    sourceMessage: "Mani weighs 4.2 kg",
     proposals: [{
       kind: "pet.update_profile", explicitIntent: true, evidence: "Mani weighs 4.2 kg",
       input: { field: "weight", value: "4.2 kg", title: null, detail: null, category: null, target: "selected" },

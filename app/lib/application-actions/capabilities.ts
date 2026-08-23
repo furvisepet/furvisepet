@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "../security/idempotency/admin-client.ts";
 import { parseStoredApplicationActions } from "./contracts.ts";
+import { hasDeterministicUserMutationIntent } from "./planner.ts";
 import { getFurviseActionPolicy } from "./policy.ts";
 import type { FurviseApplicationAction } from "./types.ts";
 
@@ -28,6 +29,8 @@ export async function createActionCapabilities(input: {
 }) {
   const admin = createIdempotencyAdminClient();
   const display: FurviseApplicationAction[] = [];
+  let authoritativeSourceMessage: string | undefined;
+  const authoritativePetNames = new Map<string, string>();
   for (const action of input.actions) {
     // Continuations carry the original opaque capability id. Never mint a
     // second capability for that logical lifecycle action or bind it to a
@@ -37,7 +40,21 @@ export async function createActionCapabilities(input: {
     // Planner/display failures and every other terminal state are presentation
     // only. They must never be canonicalized back into executable authority.
     if (!isExecutableSourceAction(action)) { display.push(action); continue; }
-    const authoritativeAction = canonicalCapabilityAction(action, input.sourceMessageId);
+    // Re-read the persisted user turn and owned pet at the capability boundary.
+    // Neither model evidence nor the model-authored explicitIntent field can be
+    // copied into the immutable capability as auto-execution authority.
+    authoritativeSourceMessage ??= await loadAuthoritativeSourceMessage(input.sourceMessageId, input.supabase, input.userId);
+    let authoritativePetName = authoritativePetNames.get(action.petId);
+    if (authoritativePetName === undefined) {
+      authoritativePetName = await loadAuthoritativePetName(action.petId, input.supabase, input.userId);
+      authoritativePetNames.set(action.petId, authoritativePetName);
+    }
+    const authoritativeAction = canonicalCapabilityAction(
+      action,
+      input.sourceMessageId,
+      authoritativeSourceMessage,
+      authoritativePetName,
+    );
     const targetId = await bindTarget(authoritativeAction, input.targetBindings?.[action.id] || null, input.supabase, input.userId);
     // A proposed edit/remove/concern action with no exact target must never be executable.
     if (requiresBoundTarget(authoritativeAction) && !targetId) {
@@ -122,18 +139,40 @@ export async function cancelActionCapability(input: { capabilityId: string; user
   });
 }
 
-function canonicalCapabilityAction(action: FurviseApplicationAction, sourceMessageId: string): FurviseApplicationAction {
+function canonicalCapabilityAction(
+  action: FurviseApplicationAction,
+  sourceMessageId: string,
+  sourceMessage: string,
+  petName: string,
+): FurviseApplicationAction {
   if (!isExecutableSourceAction(action)) throw new Error("ACTION_CAPABILITY_SOURCE_NOT_EXECUTABLE");
   const policy = getFurviseActionPolicy(action.kind);
   if (policy.mutationClass !== "mutation") throw new Error("ACTION_CAPABILITY_KIND_NOT_MUTABLE");
+  const explicitIntent = hasDeterministicUserMutationIntent({ action, petName, sourceMessage });
   return {
     ...action,
     ...policy,
+    explicitIntent,
     sourceMessageId,
     status: policy.confirmationPolicy === "always" ? "confirmation_required" : "proposed",
     resultMessage: null,
     errorMessage: null,
   };
+}
+
+async function loadAuthoritativeSourceMessage(sourceMessageId: string, supabase: SupabaseClient, userId: string) {
+  const { data, error } = await supabase.from("ask_conversation_messages").select("user_text")
+    .eq("id", sourceMessageId).eq("user_id", userId).eq("role", "user")
+    .maybeSingle<{ user_text: string }>();
+  if (error || !data?.user_text) throw new Error("ACTION_CAPABILITY_SOURCE_MESSAGE_LOOKUP_FAILED");
+  return data.user_text;
+}
+
+async function loadAuthoritativePetName(petId: string, supabase: SupabaseClient, userId: string) {
+  const { data, error } = await supabase.from("dog_profiles").select("name")
+    .eq("id", petId).eq("user_id", userId).maybeSingle<{ name: string | null }>();
+  if (error || !data) throw new Error("ACTION_CAPABILITY_PET_LOOKUP_FAILED");
+  return String(data.name || "your pet");
 }
 
 function isExecutableSourceAction(action: FurviseApplicationAction) {

@@ -18,6 +18,7 @@ export function prepareFurviseApplicationActions(input: {
   petId: string;
   petName: string;
   requestId: string;
+  sourceMessage: string;
   lifecycleStatus?: "active" | "deceased" | "archived";
 }): FurviseApplicationAction[] {
   const replacementPreferences = new Set(input.proposals.filter((proposal) => proposal.kind === "memory.set_preference" && proposal.input.field)
@@ -27,7 +28,14 @@ export function prepareFurviseApplicationActions(input: {
     if (!validProposalInput(proposal, input.lifecycleStatus)) return [];
     const policy = getFurviseActionPolicy(proposal.kind);
     const presentation = actionPresentation(proposal.kind, input.petId, input.petName, proposal.input);
-    const explicitIntent = proposal.explicitIntent && hasServerVerifiedExplicitIntent(proposal);
+    // The model's explicitIntent value is proposal metadata only. This field is
+    // overwritten with server-derived authority before an action can become a
+    // capability or reach the auto-execution policy.
+    const explicitIntent = hasDeterministicUserMutationIntent({
+      action: proposal,
+      petName: input.petName,
+      sourceMessage: input.sourceMessage,
+    });
     return [{
       ...proposal,
       explicitIntent,
@@ -40,6 +48,38 @@ export function prepareFurviseApplicationActions(input: {
       errorMessage: null,
     }];
   });
+}
+
+/**
+ * Authorizes only a narrow command for the exact proposed mutation and input.
+ * Model evidence and model intent classification are deliberately not inputs.
+ */
+export function hasDeterministicUserMutationIntent(input: {
+  action: Pick<ModelApplicationAction, "kind" | "input">;
+  petName: string;
+  sourceMessage: string;
+}) {
+  const command = normalizedCommand(input.sourceMessage);
+  if (!command) return false;
+  const value = normalizeIntentPhrase(input.action.input.value);
+  switch (input.action.kind) {
+    case "pet.update_profile":
+      return Boolean(value && exactProfileUpdateCommand(command, input.action.input.field, value, input.petName));
+    case "memory.set_preference":
+      return Boolean(value && exactPreferenceSetCommand(command, input.action.input.field, value));
+    case "memory.forget_preference":
+      return exactPreferenceForgetCommand(command, input.action.input.field);
+    case "care_history.add":
+      return exactCareHistoryAddCommand(command, input.action.input.detail);
+    case "care_state.resolve":
+      return /^(?:mark|record|set) (?:it|this concern|that concern|the concern) (?:as )?resolved$/.test(command)
+        || /^(?:resolve|close) (?:it|this concern|that concern|the concern)$/.test(command);
+    case "care_state.reopen":
+      return /^(?:mark|record|set) (?:it|this concern|that concern|the concern) (?:as )?reopened$/.test(command)
+        || /^reopen (?:it|this concern|that concern|the concern)$/.test(command);
+    default:
+      return false;
+  }
 }
 
 /**
@@ -67,17 +107,6 @@ export function resolveFurviseActionTargetBindings(input: {
   return bindings;
 }
 
-function hasServerVerifiedExplicitIntent(proposal: ModelApplicationAction) {
-  const evidence = proposal.evidence.toLowerCase();
-  if (proposal.kind === "pet.update_profile") return /\b(?:change|correct|edit|set|update)\b/.test(evidence);
-  if (proposal.kind === "memory.set_preference") return /\b(?:answer|change|keep|prefer|reply|respond|set|speak|switch|use)\b/.test(evidence);
-  if (proposal.kind === "memory.forget_preference") return /\b(?:delete|forget|remove|stop using)\b/.test(evidence);
-  if (proposal.kind === "care_history.add") return /\b(?:add|log|record|save)\b/.test(evidence);
-  if (proposal.kind === "care_state.resolve") return /\b(?:mark|record|resolve|resolved|close)\b/.test(evidence);
-  if (proposal.kind === "care_state.reopen") return /\b(?:mark|record|reopen|reopened)\b/.test(evidence);
-  return proposal.explicitIntent;
-}
-
 function validProposalInput(proposal: ModelApplicationAction, lifecycleStatus?: "active" | "deceased" | "archived") {
   if (["pet.delete_permanently", "pet.mark_active", "pet.archive", "care_history.remove"].includes(proposal.kind) && !proposal.explicitIntent) return false;
   if (["care_history.edit", "care_history.remove", "care_state.resolve", "care_state.reopen"].includes(proposal.kind) && proposal.input.target !== "specified") return false;
@@ -94,6 +123,86 @@ function standaloneHistoryDetail(value: string | null) {
   const detail = String(value || "").trim();
   return detail.length >= 16 && !/^(?:this|that|it|the last (?:one|update|entry))\.?$/i.test(detail);
 }
+
+function exactProfileUpdateCommand(command: string, field: string | null, value: string, petName: string) {
+  const normalizedField = normalizeKey(field);
+  const aliases: Record<string, string[]> = {
+    name: ["name"],
+    weight: ["weight"],
+    current_food: ["current food", "food"],
+    routine_note: ["routine note", "routine"],
+    sex: ["sex"],
+    breed: ["breed"],
+  };
+  const fields = aliases[normalizedField];
+  if (!fields) return false;
+  const pet = normalizeIntentPhrase(petName);
+  const targets = ["my pet s", "the pet s", "my", "his", "her", "their", "its"];
+  if (pet) targets.unshift(`${pet} s`);
+  const target = `(?:(?:${targets.map(escapeRegExp).join("|")}) )?`;
+  const profile = "(?:profile )?";
+  const fieldPattern = `(?:${fields.map((item) => escapeRegExp(normalizeIntentPhrase(item))).join("|")})`;
+  return new RegExp(`^(?:change|correct|edit|set|update) ${target}${profile}${fieldPattern} (?:to|as) ${escapeRegExp(value)}$`).test(command);
+}
+
+function exactPreferenceSetCommand(command: string, field: string | null, value: string) {
+  const preference = normalizeSingletonPreferenceKey(field || "");
+  const escapedValue = escapeRegExp(value);
+  if (preference === "preferred_language") {
+    return new RegExp(`^(?:answer|reply|respond|speak)(?: to me)? in ${escapedValue}$`).test(command)
+      || new RegExp(`^(?:change|set|switch|use) (?:my |the )?(?:answer )?language (?:to|as) ${escapedValue}$`).test(command)
+      || new RegExp(`^switch to ${escapedValue}$`).test(command);
+  }
+  if (preference === "preferred_units") {
+    return new RegExp(`^(?:change|set|switch) (?:my |the )?units (?:to|as) ${escapedValue}$`).test(command)
+      || new RegExp(`^use ${escapedValue} units$`).test(command);
+  }
+  if (preference === "communication_style") {
+    return new RegExp(`^(?:change|set|switch|use) (?:my |the )?(?:answer |communication )?style (?:to|as) ${escapedValue}$`).test(command)
+      || new RegExp(`^(?:answer|reply|respond) in (?:a )?${escapedValue} style$`).test(command);
+  }
+  return false;
+}
+
+function exactPreferenceForgetCommand(command: string, field: string | null) {
+  const preference = normalizeSingletonPreferenceKey(field || "");
+  const labels: Record<string, string> = {
+    preferred_language: "(?:answer )?language",
+    preferred_units: "units",
+    communication_style: "(?:answer |communication )?style",
+  };
+  const label = labels[preference];
+  return Boolean(label && new RegExp(`^(?:delete|forget|remove|stop using) (?:my |the )?${label}(?: preference)?$`).test(command));
+}
+
+function exactCareHistoryAddCommand(command: string, detail: string | null) {
+  const normalizedDetail = normalizeIntentPhrase(detail);
+  if (!normalizedDetail || normalizedDetail.length < 12) return false;
+  const exactDetail = escapeRegExp(normalizedDetail);
+  const destination = "(?:care history|care log|health history|health log)";
+  return new RegExp(`^(?:add|log|record|save) (?:this |that )?${exactDetail}(?: (?:in|to) (?:my |the )?${destination})?$`).test(command)
+    || new RegExp(`^(?:add|log|record|save) (?:this |that |it )?(?:in|to) (?:my |the )?${destination} ${exactDetail}$`).test(command);
+}
+
+function normalizedCommand(value: string) {
+  let normalized = normalizeIntentPhrase(value);
+  if (!normalized) return "";
+  normalized = normalized.replace(/^(?:furvise )/, "");
+  normalized = normalized.replace(/^(?:please )/, "");
+  normalized = normalized.replace(/^(?:(?:can|could|would|will) you |i (?:want|need|would like) (?:you|furvise) to )/, "");
+  normalized = normalized.replace(/ please$/, "");
+  return normalized;
+}
+
+function normalizeIntentPhrase(value: string | null) {
+  return String(value || "").normalize("NFKC").toLocaleLowerCase()
+    .replace(/[’']s\b/g, " s ")
+    .replace(/[’']/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ").trim();
+}
+
+function escapeRegExp(value: string) { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
 function actionPresentation(kind: FurviseActionKind, petId: string, petName: string, actionInput: ModelApplicationAction["input"]) {
   const encoded = encodeURIComponent(petId);
