@@ -36,12 +36,15 @@ import {
   toggleTodayQuickAction,
   type TodayQuickActionId,
 } from "../lib/today";
+import { buildRememberedDetails } from "../lib/remembered-details";
 import {
   getSupabaseConfigError,
   createCareEntry,
+  loadCanonicalRememberedDetailsForUser,
   listRecentCareEntries,
   loadDogProfilesWithMemories,
   type CareEntryWithPetName,
+  type CanonicalRememberedDetailsRows,
   type DogProfileWithMemories,
 } from "../lib/supabase";
 
@@ -57,6 +60,8 @@ export default function TodayPage() {
   const [historyLoading, setHistoryLoading] = useState(!configError);
   const [error, setError] = useState("");
   const [historyError, setHistoryError] = useState("");
+  const [rememberedRows, setRememberedRows] = useState<CanonicalRememberedDetailsRows>({ canonical: [], legacy: [] });
+  const [rememberedLoadState, setRememberedLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [quickNote, setQuickNote] = useState("");
   const [selectedQuickAction, setSelectedQuickAction] = useState<TodayQuickActionId | null>(null);
   const [quickPhoto, setQuickPhoto] = useState("");
@@ -65,6 +70,7 @@ export default function TodayPage() {
   const quickNoteRef = useRef<HTMLTextAreaElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const quickSavingRef = useRef(false);
+  const rememberedLoadToken = useRef(0);
 
   useEffect(() => {
     if (configError || authStatus !== "signedIn" || !user) return;
@@ -77,8 +83,17 @@ export default function TodayPage() {
         setHasRetainedProfiles(activeProfiles.length < profileRows.length);
         const requestedPetId = new URLSearchParams(window.location.search).get("pet") || getActivePetId(window.localStorage);
         const nextPetId = activeProfiles.some((profile) => profile.id === requestedPetId) ? requestedPetId : activeProfiles[0]?.id || "";
-        setSelectedPetId(nextPetId);
-        if (nextPetId) setActivePetId(window.localStorage, nextPetId);
+        if (nextPetId) {
+          if (nextPetId !== selectedPetId) {
+            rememberedLoadToken.current += 1;
+            setRememberedRows({ canonical: [], legacy: [] });
+            setRememberedLoadState("loading");
+            setSelectedPetId(nextPetId);
+            setActivePetId(window.localStorage, nextPetId);
+          }
+        } else {
+          setSelectedPetId(nextPetId);
+        }
       })
       .catch((loadError) => {
         if (active) setError(loadError instanceof Error ? loadError.message : "Furvise could not load Today.");
@@ -98,10 +113,20 @@ export default function TodayPage() {
         if (active) setHistoryLoading(false);
       });
     return () => { active = false; };
-  }, [appDataVersion, authStatus, configError, user]);
+  }, [appDataVersion, authStatus, configError, selectedPetId, user]);
 
   const selectedProfile = profiles.find((profile) => profile.id === selectedPetId) ?? profiles[0] ?? null;
   const petName = selectedProfile ? formatPetDisplayName(selectedProfile.name) : "your pet";
+  const rememberedTargetPetId = selectedProfile?.id;
+  const rememberedDetails = buildRememberedDetails({
+    canonical: rememberedRows.canonical,
+    legacy: rememberedRows.legacy,
+    petName,
+  }).pet.slice(0, 3);
+  const hasRememberedDetails = rememberedDetails.length > 0;
+  const memoryStateComplete = rememberedLoadState === "ready" || rememberedLoadState === "error";
+  const showMemoryFallback = memoryStateComplete && !hasRememberedDetails;
+  const memorySectionClassName = `mt-6 rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] shadow-[var(--shadow-surface-1)] ${showMemoryFallback ? "p-3 sm:p-4" : "p-4 sm:p-5"}`;
   const recentEntries = useMemo(
     () => selectedProfile ? buildTodayRecentEntries(entries, selectedProfile.id) : [],
     [entries, selectedProfile],
@@ -134,6 +159,35 @@ export default function TodayPage() {
       setQuickSaving(false);
     }
   }
+
+  function switchProfile(petId: string) {
+    if (petId === selectedPetId) return;
+    rememberedLoadToken.current += 1;
+    setRememberedRows({ canonical: [], legacy: [] });
+    setRememberedLoadState("loading");
+    setSelectedPetId(petId);
+    setActivePetId(window.localStorage, petId);
+  }
+
+  useEffect(() => {
+    if (!rememberedTargetPetId || !user || configError || authStatus !== "signedIn") return;
+    const token = ++rememberedLoadToken.current;
+    const loadMemoryDetails = async () => {
+      setRememberedRows({ canonical: [], legacy: [] });
+      setRememberedLoadState("loading");
+      try {
+        const rows = await loadCanonicalRememberedDetailsForUser(rememberedTargetPetId, user);
+        if (token !== rememberedLoadToken.current) return;
+        setRememberedRows(rows);
+        setRememberedLoadState("ready");
+      } catch {
+        if (token !== rememberedLoadToken.current) return;
+        setRememberedRows({ canonical: [], legacy: [] });
+        setRememberedLoadState("error");
+      }
+    };
+    void loadMemoryDetails();
+  }, [appDataVersion, authStatus, configError, rememberedTargetPetId, user]);
 
   function focusQuickNote() {
     requestAnimationFrame(() => quickNoteRef.current?.focus());
@@ -193,14 +247,44 @@ export default function TodayPage() {
         <div className="mt-8">
           <div className="flex flex-col gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface-interactive)] p-5 shadow-[0_8px_24px_var(--shadow)] sm:flex-row sm:items-center sm:justify-between">
             <LocalPetIdentity detail={formatSpecies(selectedProfile.species)} id={selectedProfile.id} name={petName} />
-            {profiles.length > 1 ? (
+          {profiles.length > 1 ? (
               <div className="w-full sm:w-56">
-                <Select aria-label="Pet shown on Today" label="Pet" onChange={(event) => { setSelectedPetId(event.target.value); setActivePetId(window.localStorage, event.target.value); }} value={selectedProfile.id}>
+                <Select aria-label="Pet shown on Today" label="Pet" onChange={(event) => { switchProfile(event.target.value); }} value={selectedProfile.id}>
                   {profiles.map((profile) => <option key={profile.id} value={profile.id}>{formatPetDisplayName(profile.name)}</option>)}
                 </Select>
               </div>
             ) : null}
           </div>
+
+          <section aria-labelledby="today-memory-heading" className={memorySectionClassName}>
+            <h2 className={showMemoryFallback ? "text-lg font-semibold text-[var(--text-primary)]" : "text-xl font-semibold text-[var(--text-primary)]"} id="today-memory-heading">
+              {showMemoryFallback ? `Furvise is getting to know ${petName}` : `What Furvise knows about ${petName}`}
+            </h2>
+            {!showMemoryFallback ? (
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Useful details Furvise has picked up over time.</p>
+            ) : null}
+            {rememberedLoadState === "loading" ? (
+              <div className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+                <span className="inline-block h-2 w-40 rounded-full bg-[var(--line)]" />
+                <p className="mt-2">Checking what Furvise remembers about {petName}.</p>
+              </div>
+            ) : null}
+            {showMemoryFallback ? (
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Things you share over time will help Furvise remember what matters.</p>
+            ) : null}
+            {hasRememberedDetails ? (
+              <>
+                <ul aria-label={`What Furvise knows about ${petName}`} className="mt-4 space-y-2">
+                  {rememberedDetails.map((detail) => (
+                    <li className="rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--surface-primary)] px-3 py-2 text-sm leading-6 text-[var(--text-primary)]" key={`${detail.source}:${detail.id}`}>
+                      {detail.fact}
+                    </li>
+                  ))}
+                </ul>
+                <TextButton className="mt-4 block" href={`/pets/${selectedProfile.id}/memories`}>See what Furvise remembers</TextButton>
+              </>
+            ) : null}
+          </section>
 
           {profileNeedsCompletion ? (
             <section aria-labelledby="today-focus-heading" className="mt-6 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-4 shadow-[var(--shadow-surface-1)] sm:p-5 md:flex md:items-center md:justify-between md:gap-6" data-ui="today-profile-focus">

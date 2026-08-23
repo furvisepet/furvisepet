@@ -30,3 +30,15 @@ test("one submission invokes one care-entry write and clears only after success"
   const catchBlock = handler.slice(handler.indexOf("catch"), handler.indexOf("finally"));
   assert.doesNotMatch(catchBlock, /setQuickNote|setSelectedQuickAction/);
 });
+
+test("Today memory surface includes empty and populated rendering branches", () => {
+  const today = read("app/dashboard/page.tsx");
+  assert.match(today, /today-memory-heading/);
+  assert.match(today, /What Furvise knows about/);
+  assert.ok(today.includes("showMemoryFallback"));
+  assert.match(today, /Checking what Furvise remembers about/);
+  assert.ok(today.includes("{hasRememberedDetails ?"));
+  assert.match(today, /Furvise is getting to know \$\{petName\}/);
+  assert.match(today, /Things you share over time will help Furvise remember what matters\./);
+  assert.match(today, /See what Furvise remembers/);
+});
