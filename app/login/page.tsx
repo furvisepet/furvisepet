@@ -38,6 +38,8 @@ function LoginPageContent() {
   const configError = getSupabaseConfigError();
   const passwordResetValues = searchParams.getAll("passwordReset");
   const passwordResetSucceeded = passwordResetValues.length === 1 && passwordResetValues[0] === "success";
+  const reauthValues = searchParams.getAll("reauth");
+  const isPetDeleteReauthentication = reauthValues.length === 1 && reauthValues[0] === "pet-delete";
   const nextPath = getSafeNextPath(searchParams.get("next") || searchParams.get("returnTo"), "/today");
   const { status: authStatus } = useConfirmedSupabaseAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -59,10 +61,10 @@ function LoginPageContent() {
   const captchaBlocksSubmission = process.env.NODE_ENV === "production" && !captchaToken;
 
   useEffect(() => {
-    if (didRedirectRef.current || authStatus !== "signedIn") return;
+    if (isPetDeleteReauthentication || didRedirectRef.current || authStatus !== "signedIn") return;
     didRedirectRef.current = true;
     router.replace(nextPath);
-  }, [authStatus, nextPath, router]);
+  }, [authStatus, isPetDeleteReauthentication, nextPath, router]);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -168,7 +170,7 @@ function LoginPageContent() {
     setStatusMessage(payload?.message || "If confirmation is still required, a new email will be sent.");
   }
 
-  if (authStatus === "signedIn") {
+  if (authStatus === "signedIn" && !isPetDeleteReauthentication) {
     return (
       <AccountAccessLayout supportingText="Your account is ready. Taking you back to Furvise." title="Welcome back">
         <AccountStatus text="Opening Furvise..." />
@@ -178,7 +180,7 @@ function LoginPageContent() {
 
   return (
     <AccountAccessLayout
-      supportingText={mode === "signin" ? "Sign in to continue caring for your pets." : "Keep your pet’s care, history, and guidance in one private place."}
+      supportingText={isPetDeleteReauthentication ? "Sign in again to continue with permanent pet deletion." : mode === "signin" ? "Sign in to continue caring for your pets." : "Keep your pet’s care, history, and guidance in one private place."}
       title={mode === "signin" ? "Welcome back" : "Create your Furvise account"}
     >
       <div className="space-y-5">
@@ -186,6 +188,7 @@ function LoginPageContent() {
         {configError ? <AccountStatus tone="warning" text={configError} /> : null}
         {error ? <AccountStatus tone="danger" text={error} /> : null}
         {passwordResetSucceeded ? <AccountStatus text="Your password has been updated. Sign in with your new password." /> : null}
+        {isPetDeleteReauthentication ? <AccountStatus text="After signing in, you’ll return to the pet profile. Permanent deletion will still require a new confirmation." /> : null}
         {showConfirmationRecovery ? <SignupSuccessNotice /> : null}
         {statusMessage ? <AccountStatus text={statusMessage} /> : null}
 
@@ -227,9 +230,11 @@ function LoginPageContent() {
 
         {showConfirmationRecovery ? <button className="inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold underline underline-offset-4" disabled={loading || resendCooldown > 0 || !captchaToken} onClick={() => void resendConfirmation()} type="button">{resendCooldown > 0 ? `Resend available in ${resendCooldown}s` : "Resend confirmation email"}</button> : null}
 
-        <button className="inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" onClick={() => switchMode(mode === "signin" ? "signup" : "signin")} type="button">
-          {mode === "signin" ? "New to Furvise? Create account" : "Already have an account? Sign in"}
-        </button>
+        {!isPetDeleteReauthentication ? (
+          <button className="inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" onClick={() => switchMode(mode === "signin" ? "signup" : "signin")} type="button">
+            {mode === "signin" ? "New to Furvise? Create account" : "Already have an account? Sign in"}
+          </button>
+        ) : null}
         <p className="border-t border-[var(--line)] pt-5 text-sm leading-6 text-[var(--text-secondary)]">Your pets, notes, conversations, and Vet Visit Briefs stay private to your account.</p>
       </div>
     </AccountAccessLayout>

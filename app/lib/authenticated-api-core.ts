@@ -11,7 +11,7 @@ export async function resolveAuthenticatedApiContext(
   dependencies: AuthenticatedApiDependencies,
 ): Promise<
   | { response: Response }
-  | { supabase: SupabaseClient; user: User; userId: string }
+  | { accessToken: string | null; supabase: SupabaseClient; user: User; userId: string }
 > {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!dependencies.configurationAvailable) {
@@ -35,5 +35,5 @@ export async function resolveAuthenticatedApiContext(
     };
   }
 
-  return { supabase, user: data.user, userId: data.user.id };
+  return { accessToken: token || null, supabase, user: data.user, userId: data.user.id };
 }

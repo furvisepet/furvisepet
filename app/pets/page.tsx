@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppPage } from "../components/app-page";
 import { PetOverflowMenu } from "../components/pet-overflow-menu";
 import {
@@ -15,7 +16,7 @@ import {
   TextAction,
   TextButton,
 } from "../components/product-primitives";
-import { NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
+import { buildPetDeletionReauthenticationHref, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import { clearEditPetOnboardingDraft } from "../lib/onboarding-drafts";
 import { clearActivePetId } from "../lib/active-pet";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
@@ -27,6 +28,7 @@ import {
   deleteDogProfileForUser,
   getCurrentUser,
   getCurrentAccessToken,
+  isRecentAuthenticationRequiredError,
   listRecentCareEntries,
   loadDogProfilesWithMemories,
   type CareEntryWithPetName,
@@ -34,6 +36,7 @@ import {
 } from "../lib/supabase";
 
 export default function PetsPage() {
+  const router = useRouter();
   const appDataVersion = useAppDataVersion();
   const { status: authStatus, user } = useRequireConfirmedSupabaseAuth();
   const [profiles, setProfiles] = useState<DogProfileWithMemories[]>([]);
@@ -78,6 +81,10 @@ export default function PetsPage() {
       setProfiles((current) => current.filter((item) => item.id !== profile.id));
       setEntries((current) => current.filter((entry) => entry.pet_profile_id !== profile.id));
     } catch (deleteError) {
+      if (isRecentAuthenticationRequiredError(deleteError)) {
+        router.push(buildPetDeletionReauthenticationHref(profile.id));
+        return;
+      }
       setError(deleteError instanceof Error ? deleteError.message : "Furvise could not delete that profile.");
     }
   }

@@ -7,6 +7,11 @@ export function buildLoginHref(nextPath = NEW_PET_ONBOARDING_PATH) {
   return `/login?next=${encodeURIComponent(nextPath)}`;
 }
 
+export function buildPetDeletionReauthenticationHref(petId: string) {
+  const petPath = `/pets/${encodeURIComponent(petId)}`;
+  return `${buildLoginHref(petPath)}&reauth=pet-delete`;
+}
+
 export function getSafeNextPath(value: string | null | undefined, fallback = "/dashboard") {
   const candidate = value?.trim() || "";
 

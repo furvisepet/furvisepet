@@ -3,6 +3,8 @@ import { saveProfile } from "../../../lib/pet-profile-api-server";
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
+import { PRIVATE_CACHE_HEADERS } from "../../../lib/security/private-routes";
+import { requireRecentInteractiveAuthentication } from "../../../lib/security/recent-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -25,6 +27,13 @@ export async function DELETE(request: Request, context: RouteContext) {
   }
   if (!hasOnlyKeys(rawBody, ["confirmation"]) || (rawBody as { confirmation?: unknown }).confirmation !== "DELETE") {
     return Response.json({ error: "Confirm permanent pet profile deletion." }, { status: 400 });
+  }
+  const recentAuth = await requireRecentInteractiveAuthentication(auth);
+  if (!recentAuth.allowed) {
+    return Response.json(
+      { code: recentAuth.code, error: "For your security, sign in again before permanently deleting this pet." },
+      { headers: PRIVATE_CACHE_HEADERS, status: 401 },
+    );
   }
   const gate = await beginIdempotentRateLimitedOperation({ operationType: "profile.delete", payload: { confirmation: "DELETE", id, version: 1 }, policy: "DESTRUCTIVE_WRITE", request, retention: "destructive", route: "/api/pets/[id]", supabase: auth.supabase, userId: auth.userId });
   if ("response" in gate) return gate.response;
