@@ -82,7 +82,8 @@ test("a resolved semantic update reconciles the pending event instead of inserti
 
 test("history suggestion save and retry are idempotent and never spend another Ask credit", () => {
   assert.match(suggestionRoute, /beginIdempotentRateLimitedOperation/);
-  assert.match(suggestionRoute, /apply_furvise_state_suggestion/);
+  assert.match(suggestionRoute, /apply_furvise_server_state_suggestion/);
+  assert.match(suggestionRoute, /createCanonicalCareAuthorityClient/);
   assert.match(suggestionRoute, /apply_status === "already_applied"/);
   assert.doesNotMatch(suggestionRoute, /reserveAiCredit|completeAiCredit|releaseAiCredit|admitAiOperation|generateAsk/);
   assert.match(askPage, /uiStatus === "failed" \? "Try again"/);

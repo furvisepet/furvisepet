@@ -1,0 +1,150 @@
+-- Browser sessions may submit narrowly allowlisted owner observations to
+-- pet_care_entries, but Furvise-authored care intelligence is server-governed.
+
+revoke all privileges
+  on table public.pet_concerns, public.ai_update_suggestions
+  from public, anon, authenticated;
+
+grant select on table public.pet_concerns, public.ai_update_suggestions
+  to authenticated;
+
+grant select, insert, update, delete
+  on table public.pet_concerns, public.ai_update_suggestions
+  to service_role;
+
+drop policy if exists pet_concerns_insert_own on public.pet_concerns;
+drop policy if exists pet_concerns_update_own on public.pet_concerns;
+drop policy if exists pet_concerns_delete_own on public.pet_concerns;
+drop policy if exists ai_update_suggestions_insert_own on public.ai_update_suggestions;
+drop policy if exists ai_update_suggestions_update_own on public.ai_update_suggestions;
+drop policy if exists ai_update_suggestions_delete_own on public.ai_update_suggestions;
+
+-- Function privileges survive ALTER FUNCTION ... RENAME. Revoke every active
+-- care persistence implementation, including retained renamed delegates.
+revoke all on function public.persist_furvise_semantic_event(uuid, uuid, uuid, jsonb)
+  from public, anon, authenticated, service_role;
+revoke all on function public.persist_furvise_semantic_event_exact_20260807(uuid, uuid, uuid, jsonb)
+  from public, anon, authenticated, service_role;
+revoke all on function public.persist_furvise_care_event(uuid, uuid, uuid, jsonb, uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.persist_furvise_care_event_before_destination_routing(uuid, uuid, uuid, jsonb, uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.persist_furvise_care_event_with_concern(uuid, uuid, uuid, jsonb, uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.apply_furvise_state_suggestion(uuid, uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.resolve_concern_suggestion(uuid)
+  from public, anon, authenticated, service_role;
+
+create or replace function private.set_furvise_server_actor(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, pg_temp
+as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role' or p_user_id is null then
+    raise exception using errcode = '42501', message = 'FURVISE_SERVER_AUTHORITY_REQUIRED';
+  end if;
+
+  -- Retained persistence implementations bind ownership to auth.uid(). The
+  -- trusted server supplies an independently verified user id and keeps its
+  -- service_role claim while delegating to those implementations.
+  perform set_config('request.jwt.claim.sub', p_user_id::text, true);
+end;
+$$;
+
+revoke all on function private.set_furvise_server_actor(uuid)
+  from public, anon, authenticated, service_role;
+
+create or replace function public.persist_furvise_server_semantic_event(
+  p_user_id uuid,
+  p_pet_id uuid,
+  p_source_message_id uuid,
+  p_event jsonb
+)
+returns table(
+  persistence_status text,
+  care_entry_id uuid,
+  episode_id uuid,
+  normalized_topic text,
+  resulting_state text,
+  already_persisted boolean
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  perform private.set_furvise_server_actor(p_user_id);
+  return query
+  select * from public.persist_furvise_semantic_event(
+    p_user_id, p_pet_id, p_source_message_id, p_event
+  );
+end;
+$$;
+
+create or replace function public.persist_furvise_server_care_event(
+  p_user_id uuid,
+  p_pet_id uuid,
+  p_source_message_id uuid,
+  p_care_action jsonb,
+  p_suggestion_id uuid default null
+)
+returns table(
+  persistence_status text,
+  care_entry_ids uuid[],
+  concern_ids uuid[],
+  current_safety_state text,
+  already_persisted boolean,
+  error_code text
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  perform private.set_furvise_server_actor(p_user_id);
+  return query
+  select * from public.persist_furvise_care_event(
+    p_user_id, p_pet_id, p_source_message_id, p_care_action, p_suggestion_id
+  );
+end;
+$$;
+
+create or replace function public.apply_furvise_server_state_suggestion(
+  p_user_id uuid,
+  p_suggestion_id uuid
+)
+returns table(
+  apply_status text,
+  suggestion_id uuid,
+  concern_id uuid,
+  care_entry_id uuid,
+  concern_status text,
+  applied_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  perform private.set_furvise_server_actor(p_user_id);
+  return query
+  select * from public.apply_furvise_state_suggestion(p_user_id, p_suggestion_id);
+end;
+$$;
+
+revoke all on function public.persist_furvise_server_semantic_event(uuid, uuid, uuid, jsonb)
+  from public, anon, authenticated, service_role;
+revoke all on function public.persist_furvise_server_care_event(uuid, uuid, uuid, jsonb, uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.apply_furvise_server_state_suggestion(uuid, uuid)
+  from public, anon, authenticated, service_role;
+
+grant execute on function public.persist_furvise_server_semantic_event(uuid, uuid, uuid, jsonb)
+  to service_role;
+grant execute on function public.persist_furvise_server_care_event(uuid, uuid, uuid, jsonb, uuid)
+  to service_role;
+grant execute on function public.apply_furvise_server_state_suggestion(uuid, uuid)
+  to service_role;

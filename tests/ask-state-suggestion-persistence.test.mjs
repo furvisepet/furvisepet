@@ -13,7 +13,7 @@ const intelligence = read("app/lib/intelligence/run-intelligence.ts");
 const safetyState = read("app/lib/intelligence/safety-state.ts");
 
 test("new improvement suggestions apply through one transactional RPC", () => {
-  assert.match(suggestionRoute, /rpc\("apply_furvise_state_suggestion"/);
+  assert.match(suggestionRoute, /authority\.rpc\("apply_furvise_server_state_suggestion"/);
   assert.match(migration, /for update/);
   assert.match(migration, /'applied'/);
 });

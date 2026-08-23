@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { createCanonicalCareAuthorityClient } from "../../lib/intelligence/care-authority-client";
 import { emitOperationalEvent } from "../../lib/operations/events";
 import {
   buildPetMemoryContext,
@@ -1986,7 +1987,7 @@ async function persistPendingSuggestion({
       .order("created_at", { ascending: false }).limit(1).maybeSingle<{ id: string; title: string; details: string | null; payload: Record<string, unknown> }>();
     if (priorError) logAskServerError("suggestion_reconciliation_lookup", priorError, { conversationId, requestId: assistantMessageId }, 200);
     if (prior) {
-      const { error: updateError } = await supabase.from("ai_update_suggestions").update({
+      const { error: updateError } = await createCanonicalCareAuthorityClient().from("ai_update_suggestions").update({
         details: suggestion.details || null,
         payload: suggestion.payload,
         source_message_id: assistantMessageId,
@@ -2007,7 +2008,7 @@ async function persistPendingSuggestion({
   existingQuery = suggestion.concernId ? existingQuery.eq("concern_id", suggestion.concernId) : existingQuery.is("concern_id", null);
   const { data: existing } = await existingQuery.maybeSingle<{ id: string }>();
   if (existing) return { effectAlreadyPresent: false, errorCode: null, suggestion: { ...suggestion, id: existing.id } };
-  const { data, error } = await supabase
+  const { data, error } = await createCanonicalCareAuthorityClient()
     .from("ai_update_suggestions")
     .insert({
       concern_id: suggestion.concernId || null,

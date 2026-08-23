@@ -37,7 +37,7 @@ test("a selected-pet reduced-appetite observation uses source chronology and per
   assert.equal(result.error, null);
   assert.equal(result.data[0].persistence_status, "persisted");
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].name, "persist_furvise_semantic_event");
+  assert.equal(calls[0].name, "persist_furvise_server_semantic_event");
   assert.equal(calls[0].args.p_pet_id, milo.id);
   assert.equal(calls[0].args.p_event.domain, "nutrition");
   assert.equal(calls[0].args.p_event.transition, "observed");
@@ -161,7 +161,7 @@ test("Milo is vomiting and Coco is limping. resolves and persists both event-kin
   }
   assert.equal(calls.length, 2);
   assert.deepEqual(calls.map((item) => item.args.p_pet_id), [milo.id, coco.id]);
-  assert.ok(calls.every((item) => item.name === "persist_furvise_semantic_event"));
+  assert.ok(calls.every((item) => item.name === "persist_furvise_server_semantic_event"));
   assert.ok(calls.every((item) => item.args.p_source_message_id === "shared-source-message"));
   assert.deepEqual(persistenceResults.map((result) => result.error), [null, null]);
   assert.deepEqual(
