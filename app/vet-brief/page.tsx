@@ -13,6 +13,7 @@ import { getBrowserSupabase } from "../lib/supabase";
 import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getVetBriefFilename, parseVetBriefDocument } from "../lib/vet-brief/schema";
 import type { VetBriefDatedItem, VetBriefDocument, VetBriefHistoryItem, VetBriefRecord, VetBriefSectionId } from "../lib/vet-brief/types";
+import { readVetBriefClientDraft, removeVetBriefClientDraft, saveVetBriefClientDraft } from "../lib/vet-brief/client-drafts";
 
 const outline: Array<{ id: VetBriefSectionId; label: string }> = [
   { id: "visit-reason", label: "Visit reason" },
@@ -29,11 +30,16 @@ export default function VetBriefPage() { return <Suspense fallback={<AppPage>{nu
 
 function VetBriefPageContent() {
   const searchParams = useSearchParams();
-  const { status: authStatus } = useRequireConfirmedSupabaseAuth();
+  const { status: authStatus, user } = useRequireConfirmedSupabaseAuth();
   const petId = searchParams.get("pet") || "";
   const existingBriefId = searchParams.get("brief") || "";
   const source = searchParams.get("source") || "";
   const conversationId = searchParams.get("conversation") || "";
+  if (authStatus !== "signedIn" || !user) return <AppPage>{null}</AppPage>;
+  return <VetBriefWorkspace conversationId={conversationId} existingBriefId={existingBriefId} key={`${user.id}:${petId}:${existingBriefId || "new"}`} petId={petId} source={source} userId={user.id} />;
+}
+
+function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, userId }: { conversationId: string; existingBriefId: string; petId: string; source: string; userId: string }) {
   const defaults = getDefaultRange();
   const [from, setFrom] = useState(defaults.from);
   const [to, setTo] = useState(defaults.to);
@@ -53,27 +59,34 @@ function VetBriefPageContent() {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    if (authStatus !== "signedIn") return;
     let active = true;
     async function load() {
       try {
         if (existingBriefId) {
           const payload = await authenticatedJson(`/api/vet-briefs/${encodeURIComponent(existingBriefId)}`) as { brief?: VetBriefRecord };
           if (!active || !payload.brief) return;
-          setDocument(payload.brief.document);
+          if (petId && payload.brief.petProfileId !== petId) throw new Error("That Vet Visit Brief does not belong to the selected pet.");
+          const scope = { briefId: payload.brief.id, petId: payload.brief.petProfileId, userId };
+          const savedDraft = readVetBriefClientDraft(window.localStorage, scope);
+          setDocument(savedDraft?.document || payload.brief.document);
           setDocumentPetId(payload.brief.petProfileId);
-          setConfirmed(payload.brief);
+          setSourceEntryIds(savedDraft?.sourceEntryIds || []);
+          setConfirmed(savedDraft ? null : payload.brief);
           setPreviousVersionId(payload.brief.id);
-          setFrom(payload.brief.dateRange.from);
-          setTo(payload.brief.dateRange.to);
+          setFrom(savedDraft?.document.dateRange.from || payload.brief.dateRange.from);
+          setTo(savedDraft?.document.dateRange.to || payload.brief.dateRange.to);
+          if (savedDraft) setStatus("Your saved draft has been restored.");
         } else {
           if (!petId) throw new Error("Choose a pet before preparing a Vet Visit Brief.");
-          const savedDraft = readSavedDraft(getDraftStorageKey(petId, null));
+          await validateDraftScope(petId);
+          if (!active) return;
+          const savedDraft = readVetBriefClientDraft(window.localStorage, { briefId: null, petId, userId });
           if (savedDraft) {
-            if (!active) return;
             setDocument(savedDraft.document);
             setDocumentPetId(petId);
             setSourceEntryIds(savedDraft.sourceEntryIds);
+            setFrom(savedDraft.document.dateRange.from);
+            setTo(savedDraft.document.dateRange.to);
             setStatus("Your saved draft has been restored.");
             return;
           }
@@ -91,7 +104,7 @@ function VetBriefPageContent() {
     return () => { active = false; };
     // Initial source and date range are captured once; the user refreshes them explicitly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, existingBriefId, petId, source, conversationId]);
+  }, [existingBriefId, petId, source, conversationId, userId]);
 
   const documentStatus = confirmed ? "Confirmed" : previousVersionId ? "New version in progress" : "Draft";
   const retrospective = document?.title === "Furvise Care History Summary";
@@ -117,7 +130,7 @@ function VetBriefPageContent() {
       const payload = await authenticatedJson("/api/vet-briefs", { method: "POST", body: JSON.stringify({ document: checked, petId: documentPetId, previousVersionId, sourceEntryIds }) }) as { brief?: VetBriefRecord };
       if (!payload.brief) throw new Error("The brief could not be saved.");
       setDocument(payload.brief.document); setConfirmed(payload.brief); setPreviousVersionId(payload.brief.id); setMode("preview");
-      window.localStorage.removeItem(getDraftStorageKey(documentPetId, previousVersionId));
+      removeVetBriefClientDraft(window.localStorage, { briefId: previousVersionId, petId: documentPetId, userId });
       setStatus(`Version ${payload.brief.version} confirmed.`);
       trackAskEvent("vet_note_created", { action: "confirmed" });
     } catch (saveError) { setError(saveError instanceof Error ? saveError.message : "The brief could not be saved."); }
@@ -133,7 +146,7 @@ function VetBriefPageContent() {
   function saveDraft() {
     if (!document || !documentPetId) return;
     try {
-      window.localStorage.setItem(getDraftStorageKey(documentPetId, previousVersionId), JSON.stringify({ document, sourceEntryIds }));
+      saveVetBriefClientDraft(window.localStorage, { briefId: previousVersionId, petId: documentPetId, userId }, { document, sourceEntryIds });
       setStatus("Draft saved on this device.");
     } catch { setError("The draft could not be saved on this device."); }
   }
@@ -247,8 +260,7 @@ async function fetchPdfFile(brief: VetBriefRecord, paperSize: "letter" | "a4") {
 function formatBriefForCopy(document: VetBriefDocument) { const included = (id: VetBriefSectionId) => !document.excludedSections.includes(id); return [document.title, `${document.pet.name} | ${document.pet.species} | Breed: ${document.pet.breed} | Age: ${document.pet.age} | Weight: ${document.pet.weight}`, included("visit-reason") ? `Reason for visit: ${document.reasonForVisit}` : "", included("changes-noticed") ? formatCopyItems("Owner-reported changes", document.ownerReportedChanges.map((item) => `${item.date}: ${item.text}`)) : "", included("timeline") ? formatCopyItems("Concern timeline", document.concernTimeline.map((item) => `${item.date}: ${item.text}`)) : "", included("questions") ? formatCopyItems("Questions for the veterinarian", document.questionsForVeterinarian) : "", included("owner-notes") ? `Owner notes: ${document.ownerNotes || "Not recorded"}` : "", document.disclaimer].filter(Boolean).join("\n\n"); }
 function formatCopyItems(title: string, items: string[]) { return `${title}:\n${items.length ? items.map((item) => `- ${item}`).join("\n") : "Not recorded"}`; }
 function getDefaultRange() { const to = new Date(); const from = new Date(to); from.setUTCDate(from.getUTCDate() - 90); return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }; }
-function getDraftStorageKey(petId: string, previousVersionId: string | null) { return `furvise:vet-brief-draft:${petId}:${previousVersionId || "new"}`; }
-function readSavedDraft(key: string) { try { const raw = window.localStorage.getItem(key); if (!raw) return null; const value = JSON.parse(raw) as { document?: unknown; sourceEntryIds?: unknown } | unknown; const document = parseVetBriefDocument(value && typeof value === "object" && "document" in value ? value.document : value); if (!document) return null; const sourceEntryIds = value && typeof value === "object" && "sourceEntryIds" in value && Array.isArray(value.sourceEntryIds) ? value.sourceEntryIds.filter((item): item is string => typeof item === "string") : []; return { document, sourceEntryIds }; } catch { return null; } }
+async function validateDraftScope(petId: string) { await authenticatedJson(`/api/vet-briefs/draft?pet=${encodeURIComponent(petId)}`); }
 function documentGlobal() { return window.document; }
 
 const inputClass = "min-h-11 w-full rounded-xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3 text-base font-normal text-[var(--pw-text)] outline-none focus:border-[var(--pw-primary)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";

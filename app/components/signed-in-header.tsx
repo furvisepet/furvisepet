@@ -7,6 +7,7 @@ import { getBrowserSupabase, setBrowserSupabasePersistence } from "../lib/supaba
 import { clearNewPetOnboardingState } from "../lib/onboarding-drafts";
 import { clearActivePetId } from "../lib/active-pet";
 import { clearAskClientState } from "../lib/ask-conversations";
+import { enforceVetBriefDraftAccountBoundary } from "../lib/vet-brief/client-drafts";
 
 type AuthState = "loading" | "anonymous" | "authenticated";
 
@@ -64,6 +65,7 @@ export function SignedInHeader({ variant = "site" }: { variant?: "homepage" | "s
       clearActivePetId(window.localStorage);
       clearAskClientState(window.localStorage);
       clearAskClientState(window.sessionStorage);
+      enforceVetBriefDraftAccountBoundary(window.localStorage, null);
       setBrowserSupabasePersistence(null);
       setAuthState("anonymous");
       router.replace("/");

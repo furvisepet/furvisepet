@@ -23,6 +23,16 @@ import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 const MAX_VET_BRIEF_RANGE_DAYS = 730;
 const MAX_REASON_FOR_VISIT_LENGTH = 1_200;
 
+export async function GET(request: Request) {
+  const auth = await getVetBriefRequestContext(request);
+  if ("response" in auth) return auth.response;
+  const petId = new URL(request.url).searchParams.get("pet") || "";
+  if (!isSecurityUuid(petId)) return Response.json({ error: "Choose a pet." }, { status: 400 });
+  const { data: pet } = await auth.supabase.from("dog_profiles").select("id").eq("id", petId).eq("user_id", auth.userId).maybeSingle<{ id: string }>();
+  if (!pet) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
+  return Response.json({ petId: pet.id }, { headers: { "Cache-Control": "private, no-store" } });
+}
+
 export async function POST(request: Request) {
   const auth = await getVetBriefRequestContext(request);
   if ("response" in auth) return auth.response;
