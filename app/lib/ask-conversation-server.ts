@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "./security/idempotency/admin-client.ts";
+import { createCanonicalCareAuthorityClient } from "./intelligence/care-authority-client.ts";
 import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 import { getFurviseActionPolicy } from "./application-actions/policy.ts";
 import { enforceVerifiedStateClaims } from "./application-actions/state-claims.ts";
@@ -73,7 +74,8 @@ export async function reconcileAskSuggestions(supabase: SupabaseClient, userId: 
     return { ...suggestion, careEntryId, concernId: suggestion.concern_id || null };
   });
   const stale = reconciled.filter((item, index) => suggestions[index].status === "pending" && item.status === "saved");
-  await Promise.all(stale.map((item) => supabase.from("ai_update_suggestions").update({
+  const authority = stale.length ? createCanonicalCareAuthorityClient() : null;
+  await Promise.all(stale.map((item) => authority!.from("ai_update_suggestions").update({
     actioned_at: new Date().toISOString(), applied_at: new Date().toISOString(), care_entry_id: item.careEntryId || null, status: "saved",
   }).eq("id", item.id).eq("user_id", userId).eq("status", "pending")));
   return reconciled;

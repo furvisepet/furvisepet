@@ -352,7 +352,7 @@ test("resolved concerns reopen when a matching concern returns", () => {
 });
 
 test("suggestion actions are state-only and never touch the AI ledger", () => {
-  assert.match(suggestionRoute, /apply_furvise_state_suggestion/);
+  assert.match(suggestionRoute, /apply_furvise_server_state_suggestion/);
   assert.match(stateSuggestionMigration, /create or replace function public\.apply_furvise_state_suggestion[\s\S]*insert into public\.pet_care_entries[\s\S]*status = 'resolved'/);
   assert.doesNotMatch(suggestionRoute, /reserveAiCredit|completeAiCredit|runWithAiCredit/);
 });

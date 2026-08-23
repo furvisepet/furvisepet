@@ -4,6 +4,7 @@ import { safeErrorForLog } from "../../../../lib/security/logging";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../../../lib/security/idempotency";
 import { isEligibleLegacyMemory } from "../../../../lib/intelligence/memory-integrity.ts";
+import { createCanonicalCareAuthorityClient } from "../../../../lib/intelligence/care-authority-client.ts";
 
 type SuggestionStatus = "pending" | "saved" | "dismissed";
 type SuggestionRow = {
@@ -101,7 +102,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
     const details = typeof body?.details === "string" ? body.details.replace(/\s+/g, " ").trim() : "";
     if (!details || details.length > 1_000) return suggestionError("SUGGESTION_INVALID", "Add an update under 1,000 characters before saving.", 422, requestId);
-    const { data, error: updateError } = await auth.supabase
+    const { data, error: updateError } = await auth.authority
       .from("ai_update_suggestions")
       .update({ details, payload: { ...suggestion.payload, note: details } })
       .eq("id", id)
@@ -118,7 +119,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
   if (action === "dismiss") {
     if (suggestion.status === "saved") return alreadyAppliedResponse(suggestion, diagnostic, requestId);
-    const { error: dismissError } = await auth.supabase.from("ai_update_suggestions")
+    const { error: dismissError } = await auth.authority.from("ai_update_suggestions")
       .update({ actioned_at: new Date().toISOString(), status: "dismissed" })
       .eq("id", id).eq("user_id", auth.userId).eq("status", "pending");
     if (dismissError) {
@@ -131,14 +132,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (action === "monitor") {
     if (!suggestion.concern_id) return suggestionError("SUGGESTION_INVALID", "This improvement is not linked to a concern.", 422, requestId);
     if (diagnostic.concernStatus === "resolved") return alreadyAppliedResponse(suggestion, diagnostic, requestId);
-    const { error: concernError } = await auth.supabase.from("pet_concerns")
+    const { error: concernError } = await auth.authority.from("pet_concerns")
       .update({ status: "monitoring", updated_at: new Date().toISOString() })
       .eq("id", suggestion.concern_id).eq("user_id", auth.userId).in("status", ["active", "monitoring", "reopened"]);
     if (concernError) {
       logSuggestionFailure("monitor_concern", concernError, logContext);
       return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This concern could not be updated.", 503, requestId);
     }
-    const { error: markError } = await markSuggestion(auth.supabase, id, auth.userId, "saved");
+    const { error: markError } = await markSuggestion(id, auth.userId, "saved");
     if (markError) {
       logSuggestionFailure("mark_monitoring_suggestion", markError, logContext);
       return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This concern could not be updated.", 503, requestId);
@@ -148,7 +149,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
   if (suggestion.type === "memory") return saveMemorySuggestion(auth.supabase, auth.userId, suggestion, requestId, logContext);
 
-  const { data, error: rpcError } = await auth.supabase.rpc("apply_furvise_state_suggestion", {
+  const { data, error: rpcError } = await auth.authority.rpc("apply_furvise_server_state_suggestion", {
     p_suggestion_id: suggestion.id,
     p_user_id: auth.userId,
   });
@@ -194,7 +195,7 @@ async function saveMemorySuggestion(supabase: SupabaseClient, userId: string, su
     logSuggestionFailure("save_memory_suggestion", error, logContext);
     return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This remembered detail could not be saved.", 503, requestId);
   }
-  const { error: markError } = await markSuggestion(supabase, suggestion.id, userId, "saved");
+  const { error: markError } = await markSuggestion(suggestion.id, userId, "saved");
   if (markError) {
     logSuggestionFailure("mark_memory_suggestion", markError, logContext);
     return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This remembered detail could not be saved.", 503, requestId);
@@ -244,12 +245,12 @@ function logSuggestionFailure(operationStage: string, error: PostgrestError | nu
   });
 }
 
-async function markSuggestion(supabase: SupabaseClient, id: string, userId: string, status: "saved" | "dismissed") {
+async function markSuggestion(id: string, userId: string, status: "saved" | "dismissed") {
   const now = new Date().toISOString();
-  return supabase.from("ai_update_suggestions").update({ actioned_at: now, ...(status === "saved" ? { applied_at: now } : {}), status }).eq("id", id).eq("user_id", userId);
+  return createCanonicalCareAuthorityClient().from("ai_update_suggestions").update({ actioned_at: now, ...(status === "saved" ? { applied_at: now } : {}), status }).eq("id", id).eq("user_id", userId);
 }
 
-async function loadSuggestionContext(request: Request, requestId: string): Promise<{ response: Response } | { supabase: SupabaseClient; userId: string }> {
+async function loadSuggestionContext(request: Request, requestId: string): Promise<{ response: Response } | { authority: SupabaseClient; supabase: SupabaseClient; userId: string }> {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -260,7 +261,11 @@ async function loadSuggestionContext(request: Request, requestId: string): Promi
   if (!data.user) return { response: Response.json({ code: "SUGGESTION_FORBIDDEN", error: "Your session expired. Sign in again to continue.", ok: false, requestId }, { status: 401 }) };
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
-  return { supabase, userId: data.user.id };
+  try {
+    return { authority: createCanonicalCareAuthorityClient(), supabase, userId: data.user.id };
+  } catch {
+    return { response: suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This improvement is temporarily unavailable.", 503, requestId) };
+  }
 }
 
 function toCanonicalSuggestion(suggestion: SuggestionRow) {

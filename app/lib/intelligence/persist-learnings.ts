@@ -11,6 +11,7 @@ import type { CareEntryRow } from "../supabase.ts";
 import { findEquivalentRecentCareEntry, prepareGovernedCareHistoryEvent } from "./care-history-policy.ts";
 import { areMemorySemanticsEquivalent, isEligibleStoredMemory, prepareTypedMemoryCandidate } from "./memory-integrity.ts";
 import { createOperationsAdminClient } from "../operations/admin-client.ts";
+import { createCanonicalCareAuthorityClient } from "./care-authority-client.ts";
 
 export class IntelligencePersistenceError extends Error {
   constructor(message: string, public cause?: unknown) {
@@ -168,7 +169,8 @@ async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, su
       currentSafetyState: proposal.state === "resolved" ? "recently_resolved" : proposal.importance === "urgent" ? "urgent" : "routine", alreadyPersisted: true };
   }
   const { data, error } = await persistSemanticEventRpc({
-    event: preparedEvent, fallbackPetId: petId, sourceMessageId, supabase, userId,
+    event: preparedEvent, fallbackPetId: petId, sourceMessageId,
+    supabase: createCanonicalCareAuthorityClient(), userId,
   });
   if (error) {
     logIntelligenceError("semantic_event_persistence", error, {
@@ -391,7 +393,7 @@ async function persistCanonicalCareAction({ action, petId, sourceMessageId, supa
     return { status: "persisted", careEntryIds: [equivalent.id], concernIds: equivalent.concern_id ? [equivalent.concern_id] : [], errorCode: null,
       currentSafetyState: action.action === "resolve_concern" ? "recently_resolved" : action.severity === "urgent" || action.severity === "emergency" ? "urgent" : "routine", alreadyPersisted: true };
   }
-  const { data, error } = await supabase.rpc("persist_furvise_care_event", {
+  const { data, error } = await createCanonicalCareAuthorityClient().rpc("persist_furvise_server_care_event", {
     p_care_action: action,
     p_pet_id: petId,
     p_source_message_id: sourceMessageId,

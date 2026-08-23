@@ -54,7 +54,7 @@ export function persistSemanticEventRpc({ event, fallbackPetId, sourceMessageId,
   supabase: Pick<SupabaseClient, "rpc">;
   userId: string;
 }) {
-  return supabase.rpc("persist_furvise_semantic_event", semanticEventRpcArguments({
+  return supabase.rpc("persist_furvise_server_semantic_event", semanticEventRpcArguments({
     event, fallbackPetId, sourceMessageId, userId,
   }));
 }
