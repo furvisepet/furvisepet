@@ -720,9 +720,14 @@ export async function deleteDogProfileForUser(profileId: string, _user: User) {
     method: "DELETE",
   });
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
-    throw new Error(payload?.error || "The pet profile could not be deleted.");
+    const payload = await response.json().catch(() => null) as { code?: string; error?: string } | null;
+    throw Object.assign(new Error(payload?.error || "The pet profile could not be deleted."), { code: payload?.code });
   }
+}
+
+export function isRecentAuthenticationRequiredError(error: unknown) {
+  return error instanceof Error
+    && (error as Error & { code?: unknown }).code === "RECENT_AUTH_REQUIRED";
 }
 
 export async function deleteDogMemoryForUser(memoryId: string, dogProfileId: string, user: User) {

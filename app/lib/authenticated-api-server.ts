@@ -21,5 +21,5 @@ export async function getAuthenticatedApiContext(request: Request) {
   if ("response" in context) return context;
   const originResponse = validateSensitiveRequestOriginResponse(request);
   if (originResponse) return { response: originResponse };
-  return { supabase: context.supabase, user: context.user, userId: context.userId };
+  return { accessToken: context.accessToken, supabase: context.supabase, user: context.user, userId: context.userId };
 }

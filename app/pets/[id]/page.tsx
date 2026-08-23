@@ -27,10 +27,12 @@ import {
 } from "../../lib/pet-profile";
 import { formatSpecies, formatPetDisplayName } from "../../lib/petwise";
 import { useAppDataVersion } from "../../lib/navigation/app-data-freshness";
+import { buildPetDeletionReauthenticationHref } from "../../lib/auth-routing";
 import {
   deleteDogProfileForUser,
   getCurrentUser,
   getSupabaseConfigError,
+  isRecentAuthenticationRequiredError,
   listCareEntriesForPet,
   listActiveConcernsForPet,
   loadCanonicalRememberedDetailsForUser,
@@ -151,6 +153,11 @@ export default function PetProfilePage() {
       clearActivePetId(window.localStorage, profile.id);
       router.replace("/pets");
     } catch (deleteError) {
+      if (isRecentAuthenticationRequiredError(deleteError)) {
+        setDeleting(false);
+        router.push(buildPetDeletionReauthenticationHref(profile.id));
+        return;
+      }
       setError(
         deleteError instanceof Error
           ? deleteError.message
