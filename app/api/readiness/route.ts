@@ -3,7 +3,7 @@ import { Redis } from "@upstash/redis";
 import { createOperationsAdminClient } from "../../lib/operations/admin-client";
 import { emitOperationalEvent } from "../../lib/operations/events";
 import { validateProductionConfiguration } from "../../lib/operations/production-config";
-import { requiredSchemaIsReady } from "../../lib/operations/readiness";
+import { REQUIRED_SECURITY_MIGRATIONS, schemaReadinessFailures } from "../../lib/operations/readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -17,19 +17,25 @@ export async function GET(request: Request) {
   try {
     const admin = createOperationsAdminClient();
     const signal = AbortSignal.timeout(1_000);
-    const [{ data, error }, billingAccounts, deletionTombstones] = await Promise.all([
+    const [{ data, error }, billingAccounts, deletionTombstones, securityCompatibility] = await Promise.all([
       admin.rpc("furvise_readiness_snapshot").abortSignal(signal),
       admin.from("billing_accounts").select("user_id,stripe_customer_id,stripe_subscription_id,plan,subscription_status").limit(1).abortSignal(signal),
       admin.from("billing_deletion_tombstones").select("user_id,stripe_customer_id,stripe_subscription_id,deletion_idempotency_key").limit(1).abortSignal(signal),
+      admin.rpc("furvise_security_compatibility_snapshot", { p_required_migrations: [...REQUIRED_SECURITY_MIGRATIONS] }).abortSignal(signal),
     ]);
     if (!error && Array.isArray(data) && data[0]) {
       components.database = "ready";
-      components.migrations = requiredSchemaIsReady({
+      const failures = schemaReadinessFailures({
         billingAccountsError: billingAccounts.error,
         deletionTombstonesError: deletionTombstones.error,
         latestMigration: data[0].latest_migration,
-      }) ? "ready" : "misconfigured";
-      if (components.migrations !== "ready") emitOperationalEvent({ errorCode: "MIGRATION_MISMATCH", eventType: "migration_mismatch", requestId, route: "/api/readiness", severity: "critical" });
+        securityCompatibility: Array.isArray(securityCompatibility.data) ? securityCompatibility.data[0] : null,
+        securityCompatibilityError: securityCompatibility.error,
+      });
+      components.migrations = failures.length === 0 ? "ready" : "misconfigured";
+      for (const failure of failures) {
+        emitOperationalEvent({ errorCode: `SCHEMA_COMPATIBILITY:${failure}`, eventType: "migration_mismatch", requestId, route: "/api/readiness", severity: "critical" });
+      }
     }
   } catch { /* Safe state remains unavailable. */ }
   try {
