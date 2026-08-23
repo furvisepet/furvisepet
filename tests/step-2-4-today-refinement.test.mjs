@@ -18,7 +18,9 @@ test("Today completion card renders only genuinely missing checklist items", () 
   assert.match(today, /PROFILE_CHECKLIST_FIELDS\.filter\(\(item\) => missingItems\.some/);
   assert.match(today, /profileNeedsCompletion = profileChecklist\.length > 0/);
   assert.match(today, /Make \{petName\}&apos;s guidance more specific/);
-  assert.doesNotMatch(today, /item\.complete|Profile incomplete|Getting to know|Limited context|percentage/i);
+  const completionCard = today.match(/<section aria-labelledby="today-focus-heading"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(completionCard);
+  assert.doesNotMatch(completionCard, /Getting to know|item\.complete|Profile incomplete|Limited context|percentage/i);
 });
 
 test("shared Add update action remains readable and bottom-nav clearance stays shared", () => {

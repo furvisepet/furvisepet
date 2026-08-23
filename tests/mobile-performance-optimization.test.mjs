@@ -53,8 +53,11 @@ test("navigation uses small stable derivatives and never requests oversized sour
   for (const source of ["today_house.png", "history_clock.png", "ask_chat.png", "pets_paw.png", "pet_products.png", "more_dots.png"]) {
     assert.doesNotMatch(navigation, new RegExp(source.replace(".", "\\.")));
   }
-  assert.match(header, /height=\{48\}[\s\S]*loading="lazy"[\s\S]*width=\{48\}/);
-  assert.match(header, /className="h-full w-full object-contain"/);
+  assert.match(header, /<span className="relative h-full w-full">/);
+  assert.match(header, /<span className={`inline-flex[^`]*overflow-hidden[^`]*rounded-\[var\(--radius-pill\)\][^`]*h-(?:8|10) w-(?:10|12)/);
+  assert.match(header, /<Image[\s\S]*className="object-contain"[\s\S]*decoding="async"[\s\S]*fill[\s\S]*loading="lazy"[\s\S]*sizes="100%"/);
+  assert.doesNotMatch(header, /className="object-cover"|className=".*object-scale-down"/);
+  assert.doesNotMatch(header, /style=\{\{[^}]*filter:|transform:\s*.+filter|filter:\s*[\w-]+;/);
   assert.match(header, /alt=""[\s\S]*aria-hidden="true"/);
 });
 
