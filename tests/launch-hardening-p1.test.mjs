@@ -2,16 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import Stripe from "stripe";
-import { REQUIRED_CORE_MIGRATION, requiredSchemaIsReady } from "../app/lib/operations/readiness.ts";
+import { REQUIRED_SECURITY_MIGRATIONS, SECURITY_SCHEMA_CONTRACT_VERSION, requiredSchemaIsReady } from "../app/lib/operations/readiness.ts";
 import { readBoundedRawBody, RawBodyTooLargeError, STRIPE_WEBHOOK_BODY_LIMIT } from "../app/lib/security/bounded-raw-body.ts";
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 test("readiness accepts the real tombstone schema and fails closed for a missing required column", () => {
   const route = source("app/api/readiness/route.ts");
   assert.match(route, /billing_deletion_tombstones"\)\.select\("user_id,stripe_customer_id,stripe_subscription_id,deletion_idempotency_key"\)/);
   assert.doesNotMatch(route, /billing_deletion_tombstones"\)\.select\([^\n]*operation_id/);
-  assert.equal(requiredSchemaIsReady({ billingAccountsError: null, deletionTombstonesError: null, latestMigration: REQUIRED_CORE_MIGRATION }), true);
-  assert.equal(requiredSchemaIsReady({ billingAccountsError: null, deletionTombstonesError: new Error("missing"), latestMigration: REQUIRED_CORE_MIGRATION }), false);
-  assert.equal(requiredSchemaIsReady({ billingAccountsError: null, deletionTombstonesError: null, latestMigration: "20260815075551" }), false);
+  const compatible = { contract_version: SECURITY_SCHEMA_CONTRACT_VERSION, failed_checks: [] };
+  const base = { billingAccountsError: null, deletionTombstonesError: null, latestMigration: REQUIRED_SECURITY_MIGRATIONS.at(-1), securityCompatibility: compatible, securityCompatibilityError: null };
+  assert.equal(requiredSchemaIsReady(base), true);
+  assert.equal(requiredSchemaIsReady({ ...base, deletionTombstonesError: new Error("missing") }), false);
+  assert.equal(requiredSchemaIsReady({ ...base, latestMigration: null }), false);
 });
 test("readiness exposes only component states and ignores deferred Product infrastructure", () => {
   const route = source("app/api/readiness/route.ts");

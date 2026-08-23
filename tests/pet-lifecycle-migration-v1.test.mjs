@@ -18,7 +18,7 @@ test("migration adds a backward-compatible active projection without rewriting e
   assert.match(migration, /validate constraint dog_profiles_lifecycle_status_check/);
   assert.match(migration, /dog_profiles_owner_lifecycle_idx[\s\S]*user_id, lifecycle_status, updated_at desc/);
   assert.match(migration, /tg_op = 'INSERT'[\s\S]*new\.lifecycle_status := 'active'/);
-  assert.match(read("app/lib/operations/readiness.ts"), /REQUIRED_CORE_MIGRATION = "20260818084249"/);
+  assert.match(read("app/lib/operations/readiness.ts"), /"20260818084249", \/\/ Production operations\/readiness primitives/);
 });
 
 test("server-owned transition timestamps preserve death provenance on correction", () => {
