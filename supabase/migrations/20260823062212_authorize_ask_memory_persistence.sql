@@ -35,18 +35,14 @@ declare
   v_normalized_value text;
   v_source_excerpt text;
   v_source_text text;
-  v_fact_term_count integer;
-  v_grounded_term_count integer;
+  v_authorized_learnings jsonb;
   v_memories_created integer := 0;
   v_memories_superseded integer := 0;
 begin
-  if coalesce(
-    nullif(auth.jwt()->>'role', ''),
-    nullif(pg_catalog.current_setting('request.jwt.claim.role', true), '')
-  ) is distinct from 'service_role' then
-    raise exception using errcode = '42501', message = 'SERVICE_ROLE_REQUIRED';
-  end if;
-
+  -- Opaque sb_secret keys are authorized by PostgREST as the service_role
+  -- database role and do not carry legacy JWT role claims. The EXECUTE grant
+  -- below is therefore the caller boundary; the body still binds every write
+  -- to the live Ask lease and the exact server-governed message output.
   if p_user_id is null or p_pet_id is null or p_source_message_id is null
     or p_assistant_message_id is null or p_request_id is null or p_operation_owner_token is null
     or p_payload_hash is null or p_payload_hash !~ '^[0-9a-f]{64}$' then
@@ -89,7 +85,8 @@ begin
     raise exception using errcode = '42501', message = 'ASK_MEMORY_REQUEST_NOT_AUTHORIZED';
   end if;
 
-  select source_message.user_text into strict v_source_text
+  select source_message.user_text, assistant_message.persistence_governance->'authorizedLearnings'
+    into strict v_source_text, v_authorized_learnings
   from public.ask_conversation_messages as source_message
   join public.ask_conversation_messages as assistant_message
     on assistant_message.conversation_id = source_message.conversation_id
@@ -109,6 +106,13 @@ begin
     and source_message.request_id = p_request_id;
   if btrim(coalesce(v_source_text, '')) = '' or char_length(v_source_text) > 1200 then
     raise exception using errcode = '22023', message = 'ASK_MEMORY_SOURCE_INVALID';
+  end if;
+  if jsonb_typeof(v_authorized_learnings) is distinct from 'array' then
+    raise exception using errcode = '42501', message = 'ASK_MEMORY_GOVERNANCE_REQUIRED';
+  end if;
+  if jsonb_array_length(v_authorized_learnings) > 8
+    or octet_length(v_authorized_learnings::text) > 32768 then
+    raise exception using errcode = '42501', message = 'ASK_MEMORY_GOVERNANCE_REQUIRED';
   end if;
   v_source_text := lower(regexp_replace(v_source_text, '[^[:alnum:]]+', ' ', 'g'));
 
@@ -178,16 +182,8 @@ begin
     ) = 0 then
       raise exception using errcode = '22023', message = 'ASK_MEMORY_PROVENANCE_REQUIRED';
     end if;
-    select count(*), count(*) filter (where position(grounding_term.term in v_source_text) > 0)
-      into v_fact_term_count, v_grounded_term_count
-    from (
-      select distinct term
-      from regexp_split_to_table(lower(v_fact_value), '[^[:alnum:]]+') as terms(term)
-      where char_length(term) >= 2
-        and term not in ('a', 'an', 'and', 'are', 'as', 'at', 'be', 'for', 'from', 'has', 'have', 'he', 'her', 'his', 'i', 'in', 'is', 'it', 'my', 'of', 'on', 'or', 'she', 'that', 'the', 'their', 'they', 'this', 'to', 'was', 'we', 'were', 'with', 'you', 'your')
-    ) as grounding_term;
-    if v_fact_term_count = 0 or v_grounded_term_count < least(2, v_fact_term_count) then
-      raise exception using errcode = '22023', message = 'ASK_MEMORY_FACT_NOT_GROUNDED';
+    if not coalesce(v_authorized_learnings @> jsonb_build_array(v_learning), false) then
+      raise exception using errcode = '22023', message = 'ASK_MEMORY_FACT_NOT_GOVERNED';
     end if;
 
     v_dedupe_key := md5(

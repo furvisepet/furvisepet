@@ -19,6 +19,20 @@ export class IntelligencePersistenceError extends Error {
   }
 }
 
+export function prepareAskMemoryAuthorityLearnings({ authorizedPetIds, currentMessage, learnings }: {
+  authorizedPetIds: string[];
+  currentMessage: string | null;
+  learnings: IntelligenceLearning[];
+}) {
+  return learnings.flatMap((learning) => {
+    const decision = prepareTypedMemoryCandidate(learning, currentMessage || learning.sourceExcerpt, authorizedPetIds);
+    return decision.accepted ? [{
+      ...decision.learning,
+      normalizedValue: normalizeMemoryValue(decision.learning.factValue),
+    }] : [];
+  });
+}
+
 export async function persistIntelligenceLearnings({
   assistantMessageId,
   authorizedPetIds,
@@ -128,7 +142,7 @@ export async function persistIntelligenceLearnings({
 
 function isMissingAskMemoryAuthorityRpc(error: { code?: string; message?: string } | null) {
   return Boolean(error && error.code === "PGRST202"
-    && /persist_furvise_ask_intelligence/i.test(error.message || ""));
+    && /^Could not find the function public\.persist_furvise_ask_intelligence\([^)]*\) in the schema cache\.?$/i.test(error.message || ""));
 }
 
 async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, supabase, userId, recentCareEntries }: {
@@ -430,9 +444,10 @@ async function preparePersistableLearnings({ authorizedPetIds, currentMessage, l
     if (authorizedPetIds && ownedPetIds.size !== verifiedPetIds.length) throw new IntelligencePersistenceError("Furvise could not verify memory ownership.");
     verifiedPetIds = authorizedPetIds ? verifiedPetIds.filter((id) => ownedPetIds.has(id)) : [...ownedPetIds];
   }
-  const typed = learnings.flatMap((learning) => {
-    const decision = prepareTypedMemoryCandidate(learning, currentMessage || learning.sourceExcerpt, verifiedPetIds);
-    return decision.accepted ? [decision.learning] : [];
+  const typed = prepareAskMemoryAuthorityLearnings({
+    authorizedPetIds: verifiedPetIds,
+    currentMessage,
+    learnings,
   });
   if (!typed.length || !userId) return typed;
 

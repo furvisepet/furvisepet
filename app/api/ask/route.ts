@@ -67,6 +67,7 @@ import {
 import {
   buildFurviseContext,
   FurviseContextError,
+  prepareAskMemoryAuthorityLearnings,
   persistIntelligenceLearnings,
   persistedLearningConfirmation,
   runFurviseIntelligence,
@@ -1572,6 +1573,15 @@ async function persistAssistantAnswer({
   turnLifecycle: AskTurnLifecycle;
 }) {
   const { conversationId, userMessageId } = preparedRequest;
+  const persistenceGovernance = intelligenceResult ? {
+    ...intelligenceResult.governance,
+    authorizedLearnings: prepareAskMemoryAuthorityLearnings({
+      authorizedPetIds,
+      currentMessage: sourceMessage,
+      learnings: intelligenceResult.acceptedLearnings,
+    }),
+    semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace),
+  } : null;
   let responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
   const optionalFailure = (component: AskSubsystem, error: unknown) => {
     turnLifecycle.optionalFailure(component);
@@ -1605,7 +1615,7 @@ async function persistAssistantAnswer({
       request_id: requestId,
       response_data: responseWithTurn,
       intelligence_validation: intelligenceResult?.answerValidation || null,
-      persistence_governance: intelligenceResult ? { ...intelligenceResult.governance, semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace) } : null,
+      persistence_governance: persistenceGovernance,
       role: "furvise",
       save_metadata: saveMetadata,
       sequence_number: (lastMessage?.sequence_number || preparedRequest.userSequence) + 1,
@@ -1640,7 +1650,7 @@ async function persistAssistantAnswer({
         request_id: requestId,
         response_data: responseWithTurn,
         intelligence_validation: intelligenceResult?.answerValidation || null,
-        persistence_governance: intelligenceResult ? { ...intelligenceResult.governance, semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace) } : null,
+        persistence_governance: persistenceGovernance,
         role: "furvise",
         save_metadata: saveMetadata,
         sequence_number: (lastMessage?.sequence_number || preparedRequest.userSequence) + 1,

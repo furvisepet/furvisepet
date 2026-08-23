@@ -18,11 +18,12 @@ insert into public.ask_conversation_messages(
   request_id, intelligence_validation, persistence_governance
 ) values
   ('41000000-0000-4000-8000-000000000041', '41000000-0000-4000-8000-000000000031', '41000000-0000-4000-8000-000000000001',
-    'user', 1, 'Remember that Maple sometimes hides during thunderstorms and answer me in French.', null,
+    'user', 1, 'Remember that Maple hides during thunderstorms and answer me in French.', null,
     '41000000-0000-4000-8000-000000000051', null, null),
   ('41000000-0000-4000-8000-000000000042', '41000000-0000-4000-8000-000000000031', '41000000-0000-4000-8000-000000000001',
     'furvise', 2, null, '{"directAnswer":"I will remember that."}',
-    '41000000-0000-4000-8000-000000000051', '{"valid":true}', '{"memoryPolicy":"ask.server-governed.v1"}'),
+    '41000000-0000-4000-8000-000000000051', '{"valid":true}',
+    '{"memoryPolicy":"ask.server-governed.v1","authorizedLearnings":[{"subjectType":"pet","subjectId":"41000000-0000-4000-8000-000000000011","category":"behavior","factKey":"storm_behavior","factValue":"shows storm anxiety","normalizedValue":"shows storm anxiety","confidence":0.96,"importance":"high","durability":"ongoing","action":"create","sourceExcerpt":"Maple hides during thunderstorms"},{"subjectType":"owner","subjectId":null,"category":"communication_preference","factKey":"preferred_language","factValue":"French","normalizedValue":"french","confidence":0.99,"importance":"high","durability":"durable","action":"update","sourceExcerpt":"answer me in French"}]}'),
   ('42000000-0000-4000-8000-000000000043', '42000000-0000-4000-8000-000000000032', '42000000-0000-4000-8000-000000000002',
     'user', 1, 'Remember that Cedar sleeps under the desk.', null,
     '42000000-0000-4000-8000-000000000052', null, null),
@@ -34,13 +35,15 @@ insert into public.ask_conversation_messages(
     '41000000-0000-4000-8000-000000000053', null, null),
   ('41000000-0000-4000-8000-000000000046', '41000000-0000-4000-8000-000000000031', '41000000-0000-4000-8000-000000000001',
     'furvise', 4, null, '{"directAnswer":"I updated that memory."}',
-    '41000000-0000-4000-8000-000000000053', '{"valid":true}', '{"memoryPolicy":"ask.server-governed.v1"}'),
+    '41000000-0000-4000-8000-000000000053', '{"valid":true}',
+    '{"memoryPolicy":"ask.server-governed.v1","authorizedLearnings":[{"subjectType":"pet","subjectId":"41000000-0000-4000-8000-000000000011","category":"behavior","factKey":"storm_behavior","factValue":"usually seeks the basement during thunderstorms","normalizedValue":"usually seeks the basement during thunderstorms","confidence":0.98,"importance":"high","durability":"ongoing","action":"supersede","sourceExcerpt":"Maple usually seeks the basement during thunderstorms"}]}'),
   ('41000000-0000-4000-8000-000000000047', '41000000-0000-4000-8000-000000000031', '41000000-0000-4000-8000-000000000001',
     'user', 5, 'Remember that Juniper sleeps in the basket by the window.', null,
     '41000000-0000-4000-8000-000000000054', null, null),
   ('41000000-0000-4000-8000-000000000048', '41000000-0000-4000-8000-000000000031', '41000000-0000-4000-8000-000000000001',
     'furvise', 6, null, '{"directAnswer":"I will remember that for Juniper."}',
-    '41000000-0000-4000-8000-000000000054', '{"valid":true}', '{"memoryPolicy":"ask.server-governed.v1"}');
+    '41000000-0000-4000-8000-000000000054', '{"valid":true}',
+    '{"memoryPolicy":"ask.server-governed.v1","authorizedLearnings":[{"subjectType":"pet","subjectId":"41000000-0000-4000-8000-000000000012","category":"routine","factKey":"sleep_location","factValue":"sleeps in the basket by the window","normalizedValue":"sleeps in the basket by the window","confidence":0.96,"importance":"medium","durability":"ongoing","action":"create","sourceExcerpt":"Juniper sleeps in the basket by the window"}]}');
 
 insert into public.idempotency_operations(
   user_id, operation_type, idempotency_key, payload_hash, status, owner_token,
@@ -129,8 +132,8 @@ $$;
 reset role;
 set local role service_role;
 select set_config('request.jwt.claim.sub', '', true);
-select set_config('request.jwt.claim.role', 'service_role', true);
-select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claims', '{}', true);
 
 do $$
 declare
@@ -143,10 +146,10 @@ declare
   v_owner_token constant uuid := '41000000-0000-4000-8000-000000000061';
   v_pet_learning jsonb := jsonb_build_object(
     'subjectType', 'pet', 'subjectId', v_pet, 'category', 'behavior',
-    'factKey', 'storm_behavior', 'factValue', 'sometimes hides during thunderstorms',
-    'normalizedValue', 'sometimes hides during thunderstorms', 'confidence', 0.96,
+    'factKey', 'storm_behavior', 'factValue', 'shows storm anxiety',
+    'normalizedValue', 'shows storm anxiety', 'confidence', 0.96,
     'importance', 'high', 'durability', 'ongoing', 'action', 'create',
-    'sourceExcerpt', 'Maple sometimes hides during thunderstorms'
+    'sourceExcerpt', 'Maple hides during thunderstorms'
   );
   v_owner_learning jsonb := jsonb_build_object(
     'subjectType', 'owner', 'subjectId', null, 'category', 'communication_preference',
@@ -223,7 +226,7 @@ begin
   exception when invalid_parameter_value then null;
   end;
 
-  -- C/H. A legitimate governed server call succeeds and preserves subject isolation.
+  -- C/H. A legitimate governed paraphrase succeeds and preserves subject isolation.
   select * into v_result from public.persist_furvise_ask_intelligence(
     v_user, v_pet, array[v_pet], v_source, v_assistant, v_request,
     repeat('a', 64), v_owner_token, jsonb_build_array(v_pet_learning, v_owner_learning)

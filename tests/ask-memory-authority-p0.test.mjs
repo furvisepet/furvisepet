@@ -32,6 +32,9 @@ test("Ask uses a service-only lease and provenance-bound RPC", () => {
   assert.match(route, /operationPayloadHash: idempotency\.operation\.payloadHash/);
   assert.match(route, /payloadHash: operationPayloadHash/);
   assert.match(route, /authorizedPetIds: turnAuthoritativePetIds/);
+  assert.match(route, /authorizedLearnings: prepareAskMemoryAuthorityLearnings/);
+  assert.match(migration, /Opaque sb_secret keys are authorized by PostgREST as the service_role/);
+  assert.doesNotMatch(migration, /request\.jwt\.claim\.role/);
   assert.match(migration, /operation_row\.operation_type = 'ask\.submit\.persisted_answer_v2'/);
   assert.match(migration, /operation_row\.owner_token = p_operation_owner_token/);
   assert.match(migration, /operation_row\.lease_expires_at > pg_catalog\.clock_timestamp\(\)/);
@@ -48,7 +51,7 @@ test("new database boundary enforces scope, grounding, bounds, and idempotency",
   assert.match(migration, /octet_length\(coalesce\(p_learnings,[\s\S]*> 32768/);
   assert.match(migration, /v_learning - array\[/);
   assert.match(migration, /char_length\(v_fact_value\) not between 2 and 500/);
-  assert.match(migration, /v_grounded_term_count < least\(2, v_fact_term_count\)/);
+  assert.match(migration, /v_authorized_learnings @> jsonb_build_array\(v_learning\)/);
   assert.match(migration, /on conflict \(dedupe_key\) do nothing/);
   for (const proof of [
     "wrong owned pet was accepted",
@@ -64,13 +67,16 @@ test("new database boundary enforces scope, grounding, bounds, and idempotency",
     "correction/supersession semantics changed",
     "canonical memory visibility filters changed",
   ]) assert.match(sqlVerification, new RegExp(proof.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(sqlVerification, /legitimate governed paraphrase succeeds/);
+  assert.match(sqlVerification, /set_config\('request\.jwt\.claims', '\{\}', true\)/);
 });
 
 test("app-first compatibility is narrow and cannot bypass a deployed authority boundary", () => {
   const fallback = persistence.slice(persistence.indexOf("const authorized ="), persistence.indexOf("const { data, error } = result"));
   assert.match(fallback, /isMissingAskMemoryAuthorityRpc\(authorized\.error\)/);
   assert.match(persistence, /error\.code === "PGRST202"/);
-  assert.match(persistence, /persist_furvise_ask_intelligence/i);
+  assert.match(persistence, /\^Could not find the function public\\\.persist_furvise_ask_intelligence/);
+  assert.match(persistence, /in the schema cache/);
   assert.match(fallback, /supabase\.rpc\("persist_furvise_intelligence"/);
   assert.doesNotMatch(fallback, /authorized\.error\s*\?/);
 });
