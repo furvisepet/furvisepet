@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { buildLoginHref } from "./auth-routing";
 import { getBrowserSupabase } from "./supabase";
+import { enforceVetBriefDraftAccountBoundary } from "./vet-brief/client-drafts";
 
 export type ConfirmedAuthStatus = "loading" | "signedIn" | "signedOut";
 
@@ -37,11 +38,13 @@ export function useConfirmedSupabaseAuth(): ConfirmedAuthState {
       .then(({ data }) => {
         if (!active) return;
         initialCheckComplete = true;
+        enforceVetBriefDraftAccountBoundary(window.localStorage, data.user?.id || null);
         setAuthState(data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null });
       })
       .catch(() => {
         if (!active) return;
         initialCheckComplete = true;
+        enforceVetBriefDraftAccountBoundary(window.localStorage, null);
         setAuthState({ status: "signedOut", user: null });
       });
 
@@ -49,6 +52,8 @@ export function useConfirmedSupabaseAuth(): ConfirmedAuthState {
       data: { subscription },
     } = client.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+
+      enforceVetBriefDraftAccountBoundary(window.localStorage, session?.user?.id || null);
 
       if (event === "SIGNED_OUT" || !session?.user) {
         initialCheckComplete = true;
@@ -69,9 +74,13 @@ export function useConfirmedSupabaseAuth(): ConfirmedAuthState {
       if (!event.persisted) return;
       void client.auth.getUser().then(({ data }) => {
         if (!active) return;
+        enforceVetBriefDraftAccountBoundary(window.localStorage, data.user?.id || null);
         setAuthState(data.user ? { status: "signedIn", user: data.user } : { status: "signedOut", user: null });
       }).catch(() => {
-        if (active) setAuthState({ status: "signedOut", user: null });
+        if (active) {
+          enforceVetBriefDraftAccountBoundary(window.localStorage, null);
+          setAuthState({ status: "signedOut", user: null });
+        }
       });
     };
     window.addEventListener("pageshow", revalidateRestoredPage);
