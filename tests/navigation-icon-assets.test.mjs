@@ -69,9 +69,9 @@ test("Products has one canonical icon path and remains outside the LiquidGlass c
 test("navigation images use bounded object-contain rendering without artwork-damaging effects", () => {
   assert.match(header, /import Image from "next\/image"/);
   assert.doesNotMatch(header, /artworkScale|scale-\[/);
-  assert.match(header, /className="h-full w-full object-contain"/);
-  assert.match(header, /height=\{48\}/);
-  assert.match(header, /width=\{48\}/);
+  assert.match(header, /className="object-contain"/);
+  assert.match(header, /fill/);
+  assert.match(header, /sizes=\"100%\"/);
   assert.match(header, /grid-cols-5/);
   assert.match(header, /min-h-11 min-w-0/);
   assert.match(header, /inline-flex shrink-0[^"]*overflow-hidden[\s\S]*askCompactNavigation \? "h-8 w-10" : "h-10 w-12"/);

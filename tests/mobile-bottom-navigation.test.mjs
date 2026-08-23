@@ -113,9 +113,9 @@ test("persistent navigation icons are low-priority and do not remount by pathnam
   assert.match(header, /decoding="async"/);
   assert.doesNotMatch(mobileNavigation, /key=\{pathname\}|opacity-0|animate-opacity/);
   assert.doesNotMatch(header, /artworkScale|scale-\[/);
-  assert.match(header, /className="h-full w-full object-contain"/);
-  assert.match(header, /height=\{48\}/);
-  assert.match(header, /width=\{48\}/);
+  assert.match(header, /className="object-contain"/);
+  assert.match(header, /fill/);
+  assert.match(header, /sizes="100%"/);
 });
 
 test("History alias reuses the established care-history implementation", () => {
