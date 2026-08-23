@@ -879,6 +879,7 @@ export async function POST(request: Request) {
     turnLifecycle.transition("ANSWER_VALIDATED");
     try {
       const persistedResponse = await persistAssistantAnswer({
+        authorizedPetIds: turnAuthoritativePetIds,
         creditRequestId,
         creditReserved,
         contextUsed,
@@ -886,6 +887,8 @@ export async function POST(request: Request) {
         intelligenceResult,
         phase3Runtime,
         payloadHash: aiCreditPayloadHash,
+        operationPayloadHash: idempotency.operation.payloadHash,
+        operationOwnerToken: idempotency.operation.ownerToken,
         petId: turnPetId,
         preparedRequest,
         requestId,
@@ -996,6 +999,7 @@ export async function POST(request: Request) {
 
   try {
     const persistedResponse = await persistAssistantAnswer({
+      authorizedPetIds: turnAuthoritativePetIds,
       concern: orchestration.concern,
       creditRequestId,
       creditReserved,
@@ -1008,6 +1012,8 @@ export async function POST(request: Request) {
       intelligenceResult,
       phase3Runtime,
       payloadHash: aiCreditPayloadHash,
+      operationPayloadHash: idempotency.operation.payloadHash,
+      operationOwnerToken: idempotency.operation.ownerToken,
       preconfirmedCarePersistence: confirmedExistingCarePersistence,
       petId: turnPetId,
       preparedRequest,
@@ -1505,6 +1511,7 @@ async function ensureConversationAndUserMessage({
 }
 
 async function persistAssistantAnswer({
+  authorizedPetIds,
   concern = null,
   creditRequestId,
   creditReserved,
@@ -1513,6 +1520,8 @@ async function persistAssistantAnswer({
   handledWithoutAi,
   historyReviewRequired = false,
   intelligenceResult = null,
+  operationPayloadHash,
+  operationOwnerToken,
   phase3Runtime,
   payloadHash,
   preconfirmedCarePersistence = null,
@@ -1532,6 +1541,7 @@ async function persistAssistantAnswer({
   userId,
   turnLifecycle,
 }: {
+  authorizedPetIds: string[];
   concern?: PetConcern | null;
   creditRequestId: string;
   creditReserved: boolean;
@@ -1540,6 +1550,8 @@ async function persistAssistantAnswer({
   deferHighImpactLifecyclePersistence?: boolean;
   historyReviewRequired?: boolean;
   intelligenceResult?: FurviseIntelligenceResult | null;
+  operationPayloadHash: string;
+  operationOwnerToken: string;
   phase3Runtime: AskV2Phase3Runtime | null;
   payloadHash: string;
   preconfirmedCarePersistence?: CarePersistenceResult | null;
@@ -1736,12 +1748,17 @@ async function persistAssistantAnswer({
   if (!deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.acceptedLearnings.length || intelligenceResult.acceptedCareActions.length || intelligenceResult.acceptedSemanticEvents.length)) {
     try {
       intelligencePersistence = await persistIntelligenceLearnings({
+        assistantMessageId: assistantMessage.id,
+        authorizedPetIds,
         careActions: historyReviewRequired ? [] : intelligenceResult.acceptedCareActions,
         currentMessage: sourceMessage,
         semanticEvents: historyReviewRequired ? [] : intelligenceResult.acceptedSemanticEvents,
         learnings: intelligenceResult.acceptedLearnings,
+        operationOwnerToken,
+        payloadHash: operationPayloadHash,
         petId,
         recentCareEntries,
+        requestId,
         sourceMessageId: userMessageId,
         supabase,
         userId,
