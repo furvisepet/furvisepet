@@ -5,6 +5,13 @@ import { classifyCurrentPetLoss } from "../ai/pet-loss.ts";
 
 const supportedProfileFields = new Set(["name", "weight", "current_food", "routine_note", "sex", "breed"]);
 const supportedUserPreferences = new Set(["preferred_language", "preferred_units", "communication_style"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type ActionTargetContextRecord = {
+  id: string;
+  petId: string;
+  sourceType: string;
+};
 
 export function prepareFurviseApplicationActions(input: {
   proposals: ModelApplicationAction[];
@@ -35,6 +42,31 @@ export function prepareFurviseApplicationActions(input: {
   });
 }
 
+/**
+ * Turns model-selected, server-supplied context references into exact record
+ * bindings. Missing or ambiguous references deliberately produce no binding;
+ * capability creation then fails closed instead of choosing a recent row.
+ */
+export function resolveFurviseActionTargetBindings(input: {
+  actions: FurviseApplicationAction[];
+  referencedRecords: ActionTargetContextRecord[];
+}) {
+  const bindings: Record<string, string> = {};
+  for (const action of input.actions) {
+    const expected = targetReferenceType(action.kind);
+    if (!expected) continue;
+    const candidates = new Set(input.referencedRecords.flatMap((record) => {
+      if (record.petId !== action.petId || record.sourceType !== expected.sourceType) return [];
+      const prefix = `${expected.prefix}:`;
+      if (!record.id.startsWith(prefix)) return [];
+      const targetId = record.id.slice(prefix.length);
+      return UUID.test(targetId) ? [targetId] : [];
+    }));
+    if (candidates.size === 1) bindings[action.id] = [...candidates][0];
+  }
+  return bindings;
+}
+
 function hasServerVerifiedExplicitIntent(proposal: ModelApplicationAction) {
   const evidence = proposal.evidence.toLowerCase();
   if (proposal.kind === "pet.update_profile") return /\b(?:change|correct|edit|set|update)\b/.test(evidence);
@@ -48,7 +80,7 @@ function hasServerVerifiedExplicitIntent(proposal: ModelApplicationAction) {
 
 function validProposalInput(proposal: ModelApplicationAction, lifecycleStatus?: "active" | "deceased" | "archived") {
   if (["pet.delete_permanently", "pet.mark_active", "pet.archive", "care_history.remove"].includes(proposal.kind) && !proposal.explicitIntent) return false;
-  if (["care_history.edit", "care_history.remove"].includes(proposal.kind) && proposal.input.target !== "last") return false;
+  if (["care_history.edit", "care_history.remove", "care_state.resolve", "care_state.reopen"].includes(proposal.kind) && proposal.input.target !== "specified") return false;
   if (proposal.kind === "pet.mark_deceased" && classifyCurrentPetLoss(proposal.evidence) !== "confirmed_current") return false;
   if (proposal.kind === "pet.mark_active" && lifecycleStatus === "active") return false;
   if (proposal.kind === "pet.update_profile") return Boolean(proposal.input.field && proposal.input.value && supportedProfileFields.has(normalizeKey(proposal.input.field)));
@@ -94,3 +126,9 @@ function view(label: string, href: string) { return { label, description: "Open 
 function mutation(label: string, description: string) { return { label, description, href: null }; }
 function normalizeKey(value: string | null) { return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""); }
 function formatField(value: string | null) { return normalizeKey(value).replace(/_/g, " ") || "profile"; }
+
+function targetReferenceType(kind: FurviseActionKind) {
+  if (kind === "care_history.edit" || kind === "care_history.remove") return { prefix: "care", sourceType: "care_update" };
+  if (kind === "care_state.resolve" || kind === "care_state.reopen") return { prefix: "concern", sourceType: "active_concern" };
+  return null;
+}

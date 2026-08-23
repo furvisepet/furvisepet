@@ -97,6 +97,7 @@ import {
   enforceVerifiedStateClaims,
   parseStoredApplicationActions,
   prepareFurviseApplicationActions,
+  resolveFurviseActionTargetBindings,
   shouldAutoExecuteAction,
   type FurviseApplicationAction,
 } from "../../lib/application-actions/index.ts";
@@ -997,6 +998,10 @@ export async function POST(request: Request) {
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
   }
   turnLifecycle.transition("ANSWER_VALIDATED");
+  const actionTargetBindings = resolveFurviseActionTargetBindings({
+    actions: preparedApplicationActions,
+    referencedRecords: reasoning?.referencedRecords || [],
+  });
 
   try {
     const persistedResponse = await persistAssistantAnswer({
@@ -1021,6 +1026,7 @@ export async function POST(request: Request) {
       requestId,
       recentCareEntries: liveContext.careEntries,
       response: conversationResponse,
+      actionTargetBindings,
       sourceMessage: question,
       saveMetadata: buildAskSaveMetadata(conversationResponse, { intent: reasoning?.userIntent || orchestration.intent, question }),
       safetyLevel,
@@ -1512,6 +1518,7 @@ async function ensureConversationAndUserMessage({
 }
 
 async function persistAssistantAnswer({
+  actionTargetBindings = {},
   authorizedPetIds,
   concern = null,
   creditRequestId,
@@ -1542,6 +1549,7 @@ async function persistAssistantAnswer({
   userId,
   turnLifecycle,
 }: {
+  actionTargetBindings?: Record<string, string>;
   authorizedPetIds: string[];
   concern?: PetConcern | null;
   creditRequestId: string;
@@ -1686,6 +1694,7 @@ async function persistAssistantAnswer({
         assistantMessageId: assistantMessage.id,
         sourceMessageId: userMessageId,
         supabase,
+        targetBindings: actionTargetBindings,
         userId,
       });
       response = { ...response, applicationActions: capabilityActions };
