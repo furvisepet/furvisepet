@@ -614,16 +614,29 @@ export async function updateCareEntry(
   await ensurePetOwnership(input.petProfileId, user, deps.getClient);
   const payload = prepareCareEntryForUpdate(input);
 
-  const { data, error } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("pet_care_entries")
-    .update(payload)
+    .select("id,updated_at")
     .eq("id", entryId)
     .eq("user_id", user.id)
+    .eq("pet_profile_id", input.petProfileId)
     .is("deleted_at", null)
-    .select()
-    .single<CareEntryRow>();
+    .maybeSingle<{ id: string; updated_at: string }>();
 
-  if (error) throw normalizeCareDatabaseError(error, "care entry");
+  if (existingError || !existing) throw normalizeCareDatabaseError(existingError, "care entry");
+  const { data: rows, error } = await supabase.rpc("update_my_care_entry", {
+    p_entry_id: entryId,
+    p_pet_profile_id: input.petProfileId,
+    p_expected_updated_at: existing.updated_at,
+    p_category: payload.category,
+    p_title: payload.title,
+    p_note: payload.note,
+    p_severity: payload.severity,
+    p_occurred_at: payload.occurred_at,
+  });
+  const data = (rows as CareEntryRow[] | null)?.[0] || null;
+
+  if (error || !data) throw normalizeCareDatabaseError(error, "care entry");
   return data;
 }
 

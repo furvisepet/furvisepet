@@ -168,12 +168,26 @@ async function addHistory({ action, sourceMessageId, supabase, userId }: Paramet
   if (existing.data) return success(action, false, "That update was already in care history.");
   const detail = action.input.detail?.trim();
   if (!detail) return failure(action, "That care-history update is incomplete.");
-  const { data, error } = await supabase.from("pet_care_entries").insert({
-    user_id: userId, pet_profile_id: action.petId, category: normalizeCategory(action.input.category),
-    title: action.input.title?.trim().slice(0, 120) || "Care update", note: detail.slice(0, 1000),
-    occurred_at: new Date().toISOString(), intelligence_source_message_id: sourceMessageId, intelligence_source_type: "ask_application_action",
-  }).select("id").single<{ id: string }>();
-  if (error || !data) return failure(action, "That update could not be added to care history.");
+  const { data, error } = await supabase.rpc("persist_furvise_intelligence", {
+    p_pet_id: action.petId,
+    p_source_message_id: sourceMessageId,
+    p_learnings: [],
+    p_care_actions: [{
+      action: "create_entry",
+      category: normalizeCategory(action.input.category),
+      confidence: 1,
+      details: detail.slice(0, 1000),
+      severity: null,
+      title: action.input.title?.trim().slice(0, 120) || "Care update",
+    }],
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || Number(row?.care_entries_created || 0) < 1) {
+    const replay = await supabase.from("pet_care_entries").select("id").eq("user_id", userId).eq("pet_profile_id", action.petId)
+      .eq("intelligence_source_message_id", sourceMessageId).limit(1).maybeSingle<{ id: string }>();
+    if (!replay.data) return failure(action, "That update could not be added to care history.");
+    return success(action, false, "That update was already in care history.");
+  }
   return success(action, true, "The update was added to care history.");
 }
 
@@ -191,17 +205,25 @@ async function removeHistory({ action, supabase, userId }: Parameters<typeof exe
 async function editHistory({ action, supabase, userId }: Parameters<typeof executeFurviseApplicationAction>[0]) {
   const targetId = (action as FurviseApplicationAction & { boundTargetId?: string | null }).boundTargetId;
   if (!targetId) return failure(action, "The original history update is no longer available.");
-  const entry = await supabase.from("pet_care_entries").select("id").eq("id", targetId).eq("user_id", userId).eq("pet_profile_id", action.petId)
-    .is("deleted_at", null).maybeSingle<{ id: string }>();
+  const entry = await supabase.from("pet_care_entries").select("id,category,title,note,severity,occurred_at,updated_at")
+    .eq("id", targetId).eq("user_id", userId).eq("pet_profile_id", action.petId)
+    .is("deleted_at", null).maybeSingle<{
+      id: string; category: string; title: string | null; note: string; severity: string | null;
+      occurred_at: string; updated_at: string;
+    }>();
   const detail = action.input.detail?.trim();
   if (entry.error || !entry.data || !detail) return failure(action, "There is no matching history update to edit.");
-  const update = await supabase.from("pet_care_entries").update({
-    note: detail.slice(0, 1000),
-    ...(action.input.title ? { title: action.input.title.slice(0, 120) } : {}),
-    ...(action.input.category ? { category: normalizeCategory(action.input.category) } : {}),
-    updated_at: new Date().toISOString(),
-  }).eq("id", entry.data.id).eq("user_id", userId).select("id").maybeSingle<{ id: string }>();
-  if (update.error || !update.data) return failure(action, "That history update could not be edited.");
+  const update = await supabase.rpc("update_my_care_entry", {
+    p_entry_id: entry.data.id,
+    p_pet_profile_id: action.petId,
+    p_expected_updated_at: entry.data.updated_at,
+    p_category: action.input.category ? normalizeCategory(action.input.category) : entry.data.category,
+    p_title: action.input.title ? action.input.title.slice(0, 120) : entry.data.title,
+    p_note: detail.slice(0, 1000),
+    p_severity: entry.data.severity,
+    p_occurred_at: entry.data.occurred_at,
+  });
+  if (update.error || !(update.data as unknown[] | null)?.length) return failure(action, "That history update could not be edited.");
   return success(action, true, "The history update was edited.");
 }
 

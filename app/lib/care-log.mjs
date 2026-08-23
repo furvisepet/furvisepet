@@ -242,7 +242,6 @@ export function prepareCareEntryForInsert(input, userId) {
     note: draft.note,
     severity: draft.severity || null,
     occurred_at: new Date(draft.occurredAt).toISOString(),
-    updated_at: new Date().toISOString(),
   };
 }
 

@@ -42,6 +42,24 @@ function createFakeSupabase({ dogProfiles = [], petCareEntries = [] }) {
 
   async function rpc(name, args) {
     store.rpc_calls.push({ args, name });
+    if (name === "update_my_care_entry") {
+      const entry = store.pet_care_entries.find((row) =>
+        row.id === args.p_entry_id
+        && row.pet_profile_id === args.p_pet_profile_id
+        && row.updated_at === args.p_expected_updated_at
+        && !row.deleted_at
+      );
+      if (!entry) return { data: null, error: { message: "Care entry stale or unavailable" } };
+      Object.assign(entry, {
+        category: args.p_category,
+        title: args.p_title,
+        note: args.p_note,
+        severity: args.p_severity,
+        occurred_at: args.p_occurred_at,
+        updated_at: "2026-06-23T12:00:00Z",
+      });
+      return { data: [{ ...entry }], error: null };
+    }
     if (name !== "remove_my_care_entry") return { data: null, error: { message: "Unknown RPC" } };
     const entry = store.pet_care_entries.find((row) => row.id === args.p_entry_id);
     if (!entry) return { data: null, error: { message: "Care entry not found" } };
@@ -531,6 +549,19 @@ test("updateCareEntry edits the stored row", async () => {
 
   assert.equal(updated.category, "symptom");
   assert.equal(client.store.pet_care_entries[0].note, "Updated note");
+  assert.deepEqual(client.store.rpc_calls[0], {
+    args: {
+      p_category: "symptom",
+      p_entry_id: "entry-1",
+      p_expected_updated_at: "2026-06-23T10:00:00Z",
+      p_note: "Updated note",
+      p_occurred_at: new Date("2026-06-23T12:00").toISOString(),
+      p_pet_profile_id: "pet-1",
+      p_severity: "moderate",
+      p_title: "Changed",
+    },
+    name: "update_my_care_entry",
+  });
 });
 
 test("deleteCareEntry tombstones the user's row, hides it, and rejects others", async () => {
