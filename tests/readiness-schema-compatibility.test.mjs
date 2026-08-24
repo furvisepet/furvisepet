@@ -81,7 +81,8 @@ test("hardened V2 contract detects effective privilege and overload drift", () =
   assert.match(migration, /pg_catalog\.pg_proc[\s\S]*proc\.proname::text = any/);
   assert.match(migration, /persist_furvise_semantic_event/);
   assert.match(migration, /persist_furvise_server_care_event/);
-  assert.match(migration, /care_event_metadata/);
+  assert.match(migration, /'user_id', 'pet_profile_id', 'category', 'title', 'note', 'severity',[\s\S]*'occurred_at', 'idempotency_key'/);
+  assert.match(migration, /else[\s\S]*not pg_catalog\.has_column_privilege\('authenticated', v_relation, v_column, 'INSERT'\)/);
   assert.match(migration, /has_column_privilege\('authenticated', v_relation, v_column, 'INSERT'\)/);
   assert.match(migration, /care_history_write_authority/);
   assert.match(migration, /canonical_care_state_authority/);
