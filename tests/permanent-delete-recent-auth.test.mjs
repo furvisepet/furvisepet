@@ -125,7 +125,7 @@ test("account deletion and export use current-session verified AMR before privil
   assert.ok(deletion.indexOf("requireRecentInteractiveAuthentication(context)") < deletion.indexOf("prepare_account_deletion"));
   assert.ok(deletion.indexOf("requireRecentInteractiveAuthentication(context)") < deletion.indexOf("deleteUser"));
   assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("const gate = await beginIdempotentRateLimitedOperation"));
-  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("buildUserDataExport"));
+  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("const body = await buildUserDataExport"));
   assert.match(apiServer, /accessToken: context\.accessToken/);
   assert.match(apiServer, /validateSensitiveRequestOriginResponse/);
   assert.match(deletion, /confirmation[^\n]+!== "DELETE"/);
