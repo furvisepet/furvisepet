@@ -44,6 +44,27 @@ begin
 end;
 $$;
 
+-- PostgreSQL represents SET search_path = '' as the literal proconfig entry
+-- search_path="". Keep the readiness contract pinned to the catalog's real form.
+do $$
+declare
+  v_function oid := pg_catalog.to_regprocedure(
+    'public.claim_billing_checkout_single_flight_v2(uuid,text,integer,text,text)'
+  );
+  v_config text[];
+begin
+  if v_function is null then
+    raise exception 'currency-aware checkout claim RPC missing';
+  end if;
+  select proc.proconfig into v_config
+  from pg_catalog.pg_proc proc
+  where proc.oid = v_function;
+  if not coalesce(v_config @> array['search_path=""']::text[], false) then
+    raise exception 'currency-aware checkout claim search_path config invalid: %', v_config;
+  end if;
+end;
+$$;
+
 do $$
 begin
   if pg_temp.checkout_currency_failures() <> '{}'::text[] then
