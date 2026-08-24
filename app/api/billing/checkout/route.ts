@@ -15,7 +15,6 @@ import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 import { PRIVATE_CACHE_HEADERS } from "../../../lib/security/private-routes";
 import { resolveTargetOrigin } from "../../../lib/security/headers/origin-policy";
 
-const CHECKOUT_SESSION_LIFETIME_SECONDS = 30 * 60;
 const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"]);
 
 export async function POST(request: Request) {
@@ -99,14 +98,12 @@ export async function POST(request: Request) {
         }
 
         if (!singleFlight.owner_token) throw new Error("CHECKOUT_SINGLE_FLIGHT_OWNER_MISSING");
-        const expiresAt = Math.floor(Date.now() / 1000) + CHECKOUT_SESSION_LIFETIME_SECONDS;
         try {
           const session = await stripe.checkout.sessions.create({
             billing_address_collection: "required",
             cancel_url: `${singleFlight.return_origin}/membership?checkout=cancelled`,
             client_reference_id: context.userId,
             customer: customerId,
-            expires_at: expiresAt,
             integration_identifier: checkoutIntegrationIdentifier(singleFlight.attempt_id),
             line_items: [{ price: priceId, quantity: 1 }],
             metadata: { furvise_user_id: context.userId },
