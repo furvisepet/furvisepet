@@ -168,9 +168,9 @@ begin
     v_failures := pg_catalog.array_append(v_failures, 'canonical_memory_authority');
   end if;
 
-  -- AI-credit rows may be read by their owner but never mutated by browser roles.
-  -- Check column grants as well as table grants so a narrow hostile grant cannot
-  -- bypass the table-level test.
+  -- AI-credit rows are mutated only through the reviewed service-executable
+  -- SECURITY DEFINER RPCs checked by the prior contract. The service_role itself
+  -- intentionally has no direct table/column DML, so a future direct grant is drift.
   v_relation := pg_catalog.to_regclass('public.ai_usage_events');
   v_ok := v_relation is not null;
   if v_relation is not null then
@@ -182,9 +182,17 @@ begin
           and relation.relforcerowsecurity
       )
       and pg_catalog.has_table_privilege('authenticated', v_relation, 'SELECT')
-      and not pg_catalog.has_table_privilege('authenticated', v_relation, 'INSERT,UPDATE,DELETE')
-      and not pg_catalog.has_table_privilege('anon', v_relation, 'SELECT,INSERT,UPDATE,DELETE')
-      and pg_catalog.has_table_privilege('service_role', v_relation, 'SELECT,INSERT,UPDATE,DELETE');
+      and not pg_catalog.has_table_privilege('authenticated', v_relation, 'INSERT')
+      and not pg_catalog.has_table_privilege('authenticated', v_relation, 'UPDATE')
+      and not pg_catalog.has_table_privilege('authenticated', v_relation, 'DELETE')
+      and not pg_catalog.has_table_privilege('anon', v_relation, 'SELECT')
+      and not pg_catalog.has_table_privilege('anon', v_relation, 'INSERT')
+      and not pg_catalog.has_table_privilege('anon', v_relation, 'UPDATE')
+      and not pg_catalog.has_table_privilege('anon', v_relation, 'DELETE')
+      and not pg_catalog.has_table_privilege('service_role', v_relation, 'SELECT')
+      and not pg_catalog.has_table_privilege('service_role', v_relation, 'INSERT')
+      and not pg_catalog.has_table_privilege('service_role', v_relation, 'UPDATE')
+      and not pg_catalog.has_table_privilege('service_role', v_relation, 'DELETE');
     for v_column in
       select attribute.attname::text
       from pg_catalog.pg_attribute attribute
@@ -196,7 +204,11 @@ begin
         and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'INSERT')
         and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'UPDATE')
         and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'INSERT')
-        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE');
+        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE')
+        and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'SELECT')
+        and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'INSERT')
+        and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'UPDATE')
+        and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'DELETE');
     end loop;
   end if;
   if not v_ok then
