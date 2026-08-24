@@ -78,7 +78,7 @@ test("export authenticates, requires current-session recent auth, origin protect
   assert.match(exportRoute, /getAuthenticatedApiContext/); assert.match(exportRoute, /requireRecentInteractiveAuthentication\(context\)/);
   assert.doesNotMatch(exportRoute, /hasRecentAuthentication|last_sign_in_at/);
   assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("const gate = await beginIdempotentRateLimitedOperation"));
-  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("buildUserDataExport"));
+  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("const body = await buildUserDataExport"));
   assert.match(exportRoute, /beginIdempotentRateLimitedOperation/);
   assert.match(exportRoute, /policy: "DATA_EXPORT"/); assert.match(source("app/lib/security/rate-limit/config.ts"), /DATA_EXPORT:[\s\S]*limit: 3, windowMs: HOUR/);
 });
