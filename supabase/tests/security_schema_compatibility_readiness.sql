@@ -21,7 +21,9 @@ as $$
     'enforce_canonical_care_state_authority',
     'security_compatibility_contract_v2',
     'harden_security_compatibility_contract_v2',
-    'harden_security_compatibility_protected_authority_families'
+    'harden_security_compatibility_protected_authority_families',
+    'add_billing_checkout_single_flight',
+    'harden_billing_checkout_single_flight_readiness'
   ]);
 $$;
 
@@ -55,7 +57,7 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 do $$
 begin
   begin
-    perform public.furvise_security_compatibility_snapshot_v2(array['harden_security_compatibility_protected_authority_families']);
+    perform public.furvise_security_compatibility_snapshot_v2(array['harden_billing_checkout_single_flight_readiness']);
     raise exception 'authenticated role unexpectedly executed V2 compatibility RPC';
   exception
     when insufficient_privilege then null;
@@ -118,6 +120,16 @@ savepoint missing_protected_authority_migration;
 delete from supabase_migrations.schema_migrations where name = 'harden_security_compatibility_protected_authority_families';
 select pg_temp.assert_has_failure('required_migration_name:harden_security_compatibility_protected_authority_families');
 rollback to savepoint missing_protected_authority_migration;
+
+savepoint missing_checkout_single_flight_migration;
+delete from supabase_migrations.schema_migrations where name = 'add_billing_checkout_single_flight';
+select pg_temp.assert_has_failure('required_migration_name:add_billing_checkout_single_flight');
+rollback to savepoint missing_checkout_single_flight_migration;
+
+savepoint missing_checkout_readiness_migration;
+delete from supabase_migrations.schema_migrations where name = 'harden_billing_checkout_single_flight_readiness';
+select pg_temp.assert_has_failure('required_migration_name:harden_billing_checkout_single_flight_readiness');
+rollback to savepoint missing_checkout_readiness_migration;
 
 savepoint action_drift;
 alter table public.ask_action_capabilities alter column expires_at drop not null;
@@ -290,6 +302,35 @@ savepoint browser_policy_drift;
 create policy temporary_concern_insert_drift on public.pet_concerns for insert to authenticated with check (true);
 select pg_temp.assert_has_failure('canonical_care_state_authority');
 rollback to savepoint browser_policy_drift;
+
+-- Financial single-flight authority is part of readiness. These drift injections
+-- prove that direct table grants, RPC grant changes, SECURITY DEFINER changes, and
+-- unexpected overloads all fail the deployment contract.
+savepoint checkout_table_authority_drift;
+grant select on table private.billing_checkout_single_flights to service_role;
+select pg_temp.assert_has_failure('billing_checkout_authority');
+rollback to savepoint checkout_table_authority_drift;
+
+savepoint checkout_rpc_grant_drift;
+grant execute on function public.claim_billing_checkout_single_flight(uuid,text,integer,text) to authenticated;
+select pg_temp.assert_has_failure('billing_checkout_authority');
+rollback to savepoint checkout_rpc_grant_drift;
+
+savepoint checkout_rpc_security_mode_drift;
+alter function public.complete_billing_checkout_single_flight(uuid,text,uuid,uuid,text,timestamptz) security invoker;
+select pg_temp.assert_has_failure('billing_checkout_authority');
+rollback to savepoint checkout_rpc_security_mode_drift;
+
+savepoint unexpected_checkout_overload_drift;
+create function public.claim_billing_checkout_single_flight(text)
+returns void
+language sql
+security definer
+set search_path = ''
+as 'select';
+revoke all on function public.claim_billing_checkout_single_flight(text) from public, anon, authenticated, service_role;
+select pg_temp.assert_has_failure('billing_checkout_authority');
+rollback to savepoint unexpected_checkout_overload_drift;
 
 do $$
 declare

@@ -16,6 +16,18 @@ export type BillingAccountRow = {
   user_id: string;
 };
 
+export type BillingCheckoutSingleFlightClaim = {
+  attempt_id: string;
+  claim_outcome: "claimed" | "existing" | "in_progress";
+  owner_token: string | null;
+  retry_after_seconds: number;
+  return_origin: string;
+  session_expires_at: string | null;
+  stripe_checkout_session_id: string | null;
+};
+
+const PLUS_CHECKOUT_PRODUCT_KEY = "furvise_plus_monthly";
+
 export async function getBillingAccountForUser(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin
     .from("billing_accounts")
@@ -53,6 +65,84 @@ export async function registerBillingCustomer({
     p_user_id: userId,
   });
   if (error) throw new BillingProjectionError("BILLING_CUSTOMER_REGISTRATION_FAILED", error);
+}
+
+export async function claimPlusCheckoutSingleFlight(admin: SupabaseClient, userId: string, returnOrigin: string) {
+  const { data, error } = await admin.rpc("claim_billing_checkout_single_flight", {
+    p_lease_seconds: 120,
+    p_product_key: PLUS_CHECKOUT_PRODUCT_KEY,
+    p_return_origin: returnOrigin,
+    p_user_id: userId,
+  });
+  if (error) throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_CLAIM_FAILED", error);
+  const row = (Array.isArray(data) ? data[0] : data) as BillingCheckoutSingleFlightClaim | null;
+  if (!row || !row.attempt_id || !row.return_origin || !["claimed", "existing", "in_progress"].includes(row.claim_outcome)) {
+    throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_CLAIM_INVALID", data);
+  }
+  return row;
+}
+
+export async function completePlusCheckoutSingleFlight({
+  admin,
+  attemptId,
+  ownerToken,
+  sessionExpiresAt,
+  sessionId,
+  userId,
+}: {
+  admin: SupabaseClient;
+  attemptId: string;
+  ownerToken: string;
+  sessionExpiresAt: string;
+  sessionId: string;
+  userId: string;
+}) {
+  const { data, error } = await admin.rpc("complete_billing_checkout_single_flight", {
+    p_attempt_id: attemptId,
+    p_owner_token: ownerToken,
+    p_product_key: PLUS_CHECKOUT_PRODUCT_KEY,
+    p_session_expires_at: sessionExpiresAt,
+    p_stripe_checkout_session_id: sessionId,
+    p_user_id: userId,
+  });
+  if (error || data !== true) throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_COMPLETION_FAILED", error || data);
+}
+
+export async function abandonPlusCheckoutSingleFlight({
+  admin,
+  attemptId,
+  ownerToken,
+  userId,
+}: {
+  admin: SupabaseClient;
+  attemptId: string;
+  ownerToken: string;
+  userId: string;
+}) {
+  const { error } = await admin.rpc("abandon_billing_checkout_single_flight", {
+    p_attempt_id: attemptId,
+    p_owner_token: ownerToken,
+    p_product_key: PLUS_CHECKOUT_PRODUCT_KEY,
+    p_user_id: userId,
+  });
+  if (error) throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_ABANDON_FAILED", error);
+}
+
+export async function resetPlusCheckoutSingleFlight({
+  admin,
+  sessionId,
+  userId,
+}: {
+  admin: SupabaseClient;
+  sessionId: string;
+  userId: string;
+}) {
+  const { data, error } = await admin.rpc("reset_billing_checkout_single_flight", {
+    p_product_key: PLUS_CHECKOUT_PRODUCT_KEY,
+    p_stripe_checkout_session_id: sessionId,
+    p_user_id: userId,
+  });
+  if (error || data !== true) throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_RESET_FAILED", error || data);
 }
 
 export async function applyStripeSubscriptionProjection(admin: SupabaseClient, projection: StripeSubscriptionProjection) {

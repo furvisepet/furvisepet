@@ -192,11 +192,12 @@ test("billing endpoints keep price and currency selection server/Stripe-owned an
   assert.doesNotMatch(checkout, /user_profiles|account-country|profile\?\.country|currency\s*:/);
   assert.doesNotMatch(checkout, /STRIPE_PLUS_PRICE_CAD|STRIPE_PLUS_PRICE_USD/);
   assert.match(checkout, /resolveTargetOrigin\(request\)/);
+  assert.match(checkout, /claimPlusCheckoutSingleFlight\(admin, context\.userId, applicationOrigin\)/);
   assert.match(checkout, /subscription_data: \{ metadata: \{ furvise_user_id: context\.userId \} \}/);
   assert.match(checkout, /integration_identifier:/);
   assert.doesNotMatch(checkout, /payment_method_types/);
-  assert.match(checkout, /success_url: `\$\{applicationOrigin\}\/membership\?checkout=success`/);
-  assert.match(checkout, /cancel_url: `\$\{applicationOrigin\}\/membership\?checkout=cancelled`/);
+  assert.match(checkout, /success_url: `\$\{singleFlight\.return_origin\}\/membership\?checkout=success`/);
+  assert.match(checkout, /cancel_url: `\$\{singleFlight\.return_origin\}\/membership\?checkout=cancelled`/);
   assert.match(portal, /account\.stripe_customer_id/);
   assert.match(portal, /return_url: `\$\{applicationOrigin\}\/membership`/);
   assert.match(webhook, /readBoundedRawBody\(request, STRIPE_WEBHOOK_BODY_LIMIT\)/);
