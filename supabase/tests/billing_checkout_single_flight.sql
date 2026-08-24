@@ -22,6 +22,7 @@ declare
   v_second record;
   v_reclaimed record;
   v_existing record;
+  v_expired_existing record;
   v_new record;
   v_completed boolean;
   v_reset boolean;
@@ -103,10 +104,27 @@ begin
     raise exception 'open checkout session was not reused: %', row_to_json(v_existing);
   end if;
 
+  -- Local expiry metadata is advisory only. Even after that timestamp passes,
+  -- claim must return the existing Stripe session so the server can retrieve it
+  -- and reset only after Stripe itself reports status=expired.
+  update private.billing_checkout_single_flights
+  set session_expires_at = now() - interval '1 minute'
+  where user_id = v_user and product_key = 'furvise_plus_monthly';
+
+  select * into strict v_expired_existing
+  from public.claim_billing_checkout_single_flight(
+    v_user, 'furvise_plus_monthly', 120, 'https://furvise.com'
+  );
+  if v_expired_existing.claim_outcome <> 'existing'
+    or v_expired_existing.stripe_checkout_session_id <> 'cs_test_furvise_single_flight_1'
+    or v_expired_existing.attempt_id <> v_first.attempt_id then
+    raise exception 'database clock incorrectly replaced Stripe expiry authority: %', row_to_json(v_expired_existing);
+  end if;
+
   select public.reset_billing_checkout_single_flight(
     v_user, 'furvise_plus_monthly', 'cs_test_furvise_single_flight_1'
   ) into strict v_reset;
-  if not v_reset then raise exception 'expired checkout reset failed'; end if;
+  if not v_reset then raise exception 'Stripe-confirmed expired checkout reset failed'; end if;
 
   select * into strict v_new
   from public.claim_billing_checkout_single_flight(
