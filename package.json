@@ -14,6 +14,7 @@
     "catalog:organic": "node --env-file=.env.local scripts/catalog-ingestion.mjs organic",
     "vet-brief:samples": "node scripts/generate-vet-brief-samples.mjs",
     "idempotency:cleanup": "node --env-file=.env.local scripts/cleanup-idempotency-operations.mjs",
+    "billing:sandbox:verify": "node --env-file=.env.billing-sandbox.local scripts/verify-billing-sandbox-config.mjs",
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
