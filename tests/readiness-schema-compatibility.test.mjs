@@ -13,7 +13,7 @@ const compatible = { contract_version: SECURITY_SCHEMA_CONTRACT_VERSION, failed_
 const valid = {
   billingAccountsError: null,
   deletionTombstonesError: null,
-  latestMigration: "20260824014500",
+  latestMigration: "20260824023000",
   securityCompatibility: compatible,
   securityCompatibilityError: null,
 };
@@ -33,6 +33,8 @@ test("each security capability failure fails closed", () => {
     "permanent_delete_authority",
     "ai_credit_authority",
     "canonical_care_state_authority",
+    "browser_security_definer_authority",
+    "protected_rpc_inventory",
   ]) {
     assert.deepEqual(schemaReadinessFailures({ ...valid, securityCompatibility: { ...compatible, failed_checks: [failure] } }), [failure]);
   }
@@ -58,6 +60,7 @@ test("required migration identities match clean Supabase ledger names", () => {
     "enforce_canonical_care_state_authority",
     "security_compatibility_contract_v2",
     "harden_security_compatibility_contract_v2",
+    "harden_security_compatibility_protected_authority_families",
   ]) assert.ok(REQUIRED_SECURITY_MIGRATION_NAMES.includes(name), name);
   assert.equal(REQUIRED_SECURITY_MIGRATION_NAMES.includes("20260820010000_enforce_furvise_memory_semantic_integrity"), false);
   assert.equal(REQUIRED_SECURITY_MIGRATION_NAMES.some((name) => /^20260823\d{6}$/.test(name)), false);
@@ -92,10 +95,35 @@ test("hardened V2 contract detects effective privilege and overload drift", () =
   assert.doesNotMatch(migration, /pg_catalog\.array\(/);
 });
 
-test("SQL drift fixture covers the two launch-gate reproductions", () => {
+test("protected-authority wrapper closes the remaining readiness family gaps", () => {
+  const migration = source("supabase/migrations/20260824023000_harden_security_compatibility_protected_authority_families.sql");
+  assert.match(migration, /rename to furvise_security_compatibility_snapshot_v2_pre_protected_authority_families/);
+  assert.match(migration, /v_allowed_browser_security_definers/);
+  assert.match(migration, /browser_security_definer_authority/);
+  assert.match(migration, /v_protected_rpc_names/);
+  assert.match(migration, /protected_rpc_inventory/);
+  assert.match(migration, /persist_furvise_ask_intelligence/);
+  assert.match(migration, /execute_ask_action_capability/);
+  assert.match(migration, /delete_pet_profile_for_user/);
+  assert.match(migration, /update_my_care_entry/);
+  assert.match(migration, /array\['status', 'superseded_by', 'updated_at'\]/);
+  assert.match(migration, /public\.furvise_memories/);
+  assert.match(migration, /public\.ai_usage_events/);
+  assert.match(migration, /public\.ask_action_capabilities/);
+  assert.match(migration, /public\.dog_profiles/);
+  assert.match(migration, /revoke all on function public\.furvise_security_compatibility_snapshot_v2_pre_protected_authority_families\(text\[\]\)/);
+  assert.match(migration, /grant execute on function public\.furvise_security_compatibility_snapshot_v2\(text\[\]\)[\s\S]*to service_role/);
+});
+
+test("SQL drift fixture covers the launch-gate readiness reproductions", () => {
   const sql = source("supabase/tests/security_schema_compatibility_readiness.sql");
   assert.match(sql, /grant insert \(care_event_metadata\) on table public\.pet_care_entries to authenticated/);
   assert.match(sql, /create function public\.persist_furvise_semantic_event\(text\)/);
+  assert.match(sql, /grant update \(source_id\) on table public\.furvise_memories to authenticated/);
+  assert.match(sql, /create function public\.update_my_care_entry\(text\)/);
+  assert.match(sql, /create function public\.persist_furvise_ask_intelligence\(text\)/);
+  assert.match(sql, /create function public\.execute_ask_action_capability\(text\)/);
+  assert.match(sql, /create function public\.delete_pet_profile_for_user\(text\)/);
   assert.match(sql, /required_migration_name:enforce_furvise_memory_semantic_integrity/);
-  assert.match(sql, /harden_security_compatibility_contract_v2/);
+  assert.match(sql, /harden_security_compatibility_protected_authority_families/);
 });
