@@ -20,7 +20,7 @@ test("checkout creation uses durable user/product single-flight authority", () =
   assert.match(route, /CHECKOUT_IN_PROGRESS/);
   assert.match(route, /CHECKOUT_PROCESSING/);
   assert.match(route, /checkout\.sessions\.retrieve\(singleFlight\.stripe_checkout_session_id\)/);
-  assert.match(route, /expires_at: expiresAt/);
+  assert.doesNotMatch(route, /\bexpires_at\s*:/);
 });
 
 test("Stripe retries reuse stable parameters for the same financial attempt", () => {
@@ -29,6 +29,7 @@ test("Stripe retries reuse stable parameters for the same financial attempt", ()
   assert.match(route, /checkoutIntegrationIdentifier\(singleFlight\.attempt_id\)/);
   assert.match(route, /function checkoutIntegrationIdentifier\(attemptId: string\)/);
   assert.match(migration, /A stale creating attempt keeps both attempt_id and return_origin/);
+  assert.match(migration, /Stripe owns[\s\S]*Checkout expiry/);
   assert.match(migration, /v_next_attempt := v_row\.attempt_id/);
   assert.match(migration, /v_next_origin := v_row\.return_origin/);
 });
