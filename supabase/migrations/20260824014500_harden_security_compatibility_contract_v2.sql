@@ -37,6 +37,16 @@ begin
         select 1
         from supabase_migrations.schema_migrations migration
         where migration.name = v_name
+          or (
+            v_name = any(array[
+              'enforce_furvise_memory_semantic_integrity',
+              '20260820010000_enforce_furvise_memory_semantic_integrity'
+            ]::text[])
+            and migration.name = any(array[
+              'enforce_furvise_memory_semantic_integrity',
+              '20260820010000_enforce_furvise_memory_semantic_integrity'
+            ]::text[])
+          )
       ) then
         v_failures := pg_catalog.array_append(
           v_failures,
