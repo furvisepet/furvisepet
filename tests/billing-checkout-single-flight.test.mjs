@@ -6,6 +6,7 @@ const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "u
 
 const route = source("app/api/billing/checkout/route.ts");
 const billingAdmin = source("app/lib/billing/billing-admin.ts");
+const readiness = source("app/lib/operations/readiness.ts");
 const migration = source("supabase/migrations/20260824060000_add_billing_checkout_single_flight.sql");
 const sqlFixture = source("supabase/tests/billing_checkout_single_flight.sql");
 
@@ -32,6 +33,12 @@ test("Stripe retries reuse stable parameters for the same financial attempt", ()
   assert.match(migration, /v_next_origin := v_row\.return_origin/);
 });
 
+test("new checkout is blocked while any Stripe subscription is nonterminal", () => {
+  assert.match(route, /TERMINAL_SUBSCRIPTION_STATUSES = new Set\(\["canceled", "incomplete_expired"\]\)/);
+  assert.match(route, /!TERMINAL_SUBSCRIPTION_STATUSES\.has\(subscription\.status\)/);
+  assert.match(route, /SUBSCRIPTION_ALREADY_EXISTS/);
+});
+
 test("single-flight state is private and callable only through service RPCs", () => {
   assert.match(migration, /create table private\.billing_checkout_single_flights/);
   assert.match(migration, /primary key \(user_id, product_key\)/);
@@ -42,6 +49,7 @@ test("single-flight state is private and callable only through service RPCs", ()
   assert.match(billingAdmin, /complete_billing_checkout_single_flight/);
   assert.match(billingAdmin, /abandon_billing_checkout_single_flight/);
   assert.match(billingAdmin, /reset_billing_checkout_single_flight/);
+  assert.match(readiness, /"add_billing_checkout_single_flight"/);
 });
 
 test("database fixture proves serialization, retry recovery, reuse, and reset", () => {
