@@ -5,11 +5,21 @@ returns text[]
 language sql
 as $$
   select failed_checks
-  from public.furvise_security_compatibility_snapshot(array[
-    '20260818084249', '20260818194748', '20260819033443',
-    '20260820010000', '20260820070956', '20260821021825',
-    '20260821050646', '20260823062212', '20260823120000',
-    '20260823120001', '20260823120002'
+  from public.furvise_security_compatibility_snapshot_v2(array[
+    'add_pet_profile_lifecycle_v1',
+    'secure_ai_credit_state_machine',
+    'enforce_ai_credit_settlement_disposition',
+    '20260820010000_enforce_furvise_memory_semantic_integrity',
+    'server_authored_ask_action_capabilities',
+    'harden_entitlement_and_pet_data_boundaries',
+    'repair_permanent_pet_delete_admin_role',
+    'authorize_ask_memory_persistence',
+    'harden_ask_action_capability_targets_freshness_expiry',
+    'add_controlled_care_entry_update_boundary',
+    'restrict_authenticated_care_entry_writes',
+    'prepare_canonical_care_state_authority',
+    'enforce_canonical_care_state_authority',
+    'security_compatibility_contract_v2'
   ]);
 $$;
 
@@ -37,15 +47,15 @@ begin
 end;
 $$;
 
--- The compatibility RPC itself is not a browser-visible schema oracle.
+-- The V2 compatibility RPC itself is not a browser-visible schema oracle.
 savepoint browser_role;
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
 do $$
 begin
   begin
-    perform public.furvise_security_compatibility_snapshot(array['20260823120002']);
-    raise exception 'authenticated role unexpectedly executed compatibility RPC';
+    perform public.furvise_security_compatibility_snapshot_v2(array['security_compatibility_contract_v2']);
+    raise exception 'authenticated role unexpectedly executed V2 compatibility RPC';
   exception
     when insufficient_privilege then null;
   end;
@@ -54,30 +64,32 @@ $$;
 rollback to savepoint browser_role;
 select set_config('request.jwt.claim.role', 'service_role', true);
 
--- New application connected to migration history ending at the obsolete floor.
-savepoint old_floor;
-delete from supabase_migrations.schema_migrations where version::text > '20260818084249';
-select pg_temp.assert_has_failure('required_migration:20260823120002');
-rollback to savepoint old_floor;
-
--- Exact migration requirements are independent of unrelated chronology.
-savepoint missing_memory_migration;
-delete from supabase_migrations.schema_migrations where version::text = '20260823062212';
-select pg_temp.assert_has_failure('required_migration:20260823062212');
-rollback to savepoint missing_memory_migration;
-
-savepoint unrelated_migration;
-delete from supabase_migrations.schema_migrations where version::text = '20260821062935';
+-- Stable migration names survive deployment tools assigning a different
+-- timestamp/version in the migration ledger.
+savepoint migration_version_rewrite;
+update supabase_migrations.schema_migrations
+set version = '20990101000000'
+where name = 'authorize_ask_memory_persistence';
 do $$
 begin
   if pg_temp.security_compatibility_failures() <> '{}'::text[] then
-    raise exception 'unrelated migration history caused incompatibility';
+    raise exception 'timestamp rewrite caused V2 incompatibility';
   end if;
 end;
 $$;
-rollback to savepoint unrelated_migration;
+rollback to savepoint migration_version_rewrite;
 
--- Drift remains detectable even when migration history falsely looks complete.
+savepoint missing_memory_migration;
+delete from supabase_migrations.schema_migrations where name = 'authorize_ask_memory_persistence';
+select pg_temp.assert_has_failure('required_migration_name:authorize_ask_memory_persistence');
+rollback to savepoint missing_memory_migration;
+
+savepoint missing_authority_migration;
+delete from supabase_migrations.schema_migrations where name = 'enforce_canonical_care_state_authority';
+select pg_temp.assert_has_failure('required_migration_name:enforce_canonical_care_state_authority');
+rollback to savepoint missing_authority_migration;
+
+-- Existing semantic authority checks remain active through V2.
 savepoint action_drift;
 alter table public.ask_action_capabilities alter column expires_at drop not null;
 select pg_temp.assert_has_failure('action_capability_authority');
@@ -107,6 +119,32 @@ savepoint delete_drift;
 grant execute on function public.delete_pet_profile_for_user(uuid,uuid) to authenticated;
 select pg_temp.assert_has_failure('permanent_delete_authority');
 rollback to savepoint delete_drift;
+
+-- The previously missed canonical-care paths are now part of readiness.
+savepoint legacy_care_rpc_drift;
+grant execute on function public.persist_furvise_semantic_event(uuid,uuid,uuid,jsonb) to authenticated;
+select pg_temp.assert_has_failure('canonical_care_state_authority');
+rollback to savepoint legacy_care_rpc_drift;
+
+savepoint concern_write_drift;
+grant insert on table public.pet_concerns to authenticated;
+select pg_temp.assert_has_failure('canonical_care_state_authority');
+rollback to savepoint concern_write_drift;
+
+savepoint suggestion_write_drift;
+grant update on table public.ai_update_suggestions to authenticated;
+select pg_temp.assert_has_failure('canonical_care_state_authority');
+rollback to savepoint suggestion_write_drift;
+
+savepoint server_rpc_drift;
+revoke execute on function public.persist_furvise_server_care_event(uuid,uuid,uuid,jsonb,uuid) from service_role;
+select pg_temp.assert_has_failure('canonical_care_state_authority');
+rollback to savepoint server_rpc_drift;
+
+savepoint browser_policy_drift;
+create policy temporary_concern_insert_drift on public.pet_concerns for insert to authenticated with check (true);
+select pg_temp.assert_has_failure('canonical_care_state_authority');
+rollback to savepoint browser_policy_drift;
 
 -- A normal check reads catalogs/history but does not alter application data.
 do $$
