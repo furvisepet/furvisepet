@@ -79,7 +79,7 @@ test("recovery and other non-login methods are never eligible", () => {
   assert.equal(assessRecentInteractiveAuthentication(claims("password", nowSeconds, { is_anonymous: true }), userId, nowMs).allowed, false);
 });
 
-test("the route verifies exact claims before idempotency or deletion", () => {
+test("the pet deletion route verifies exact claims before idempotency or deletion", () => {
   const route = read("app/api/pets/[id]/route.ts");
   const helper = read("app/lib/security/recent-auth.ts");
   const core = read("app/lib/authenticated-api-core.ts");
@@ -109,8 +109,24 @@ test("reauthentication returns to the exact pet but never resumes deletion autom
   assert.doesNotMatch(login, /deleteDogProfileForUser|method:\s*["']DELETE["']/);
 });
 
-test("neighboring account deletion policy and origin protection remain unchanged", () => {
-  assert.match(read("app/api/account/delete/route.ts"), /hasRecentAuthentication/);
-  assert.match(read("app/lib/authenticated-api-server.ts"), /validateSensitiveRequestOriginResponse/);
-  assert.match(read("app/api/pets/[id]/route.ts"), /confirmation[^\n]+!== "DELETE"/);
+test("account deletion and export use current-session verified AMR before privileged work", () => {
+  const deletion = read("app/api/account/delete/route.ts");
+  const exportRoute = read("app/api/account/export/route.ts");
+  const apiServer = read("app/lib/authenticated-api-server.ts");
+
+  for (const route of [deletion, exportRoute]) {
+    assert.match(route, /requireRecentInteractiveAuthentication\(context\)/);
+    assert.doesNotMatch(route, /hasRecentAuthentication|last_sign_in_at/);
+    assert.match(route, /RECENT_AUTH_REQUIRED|recentAuth\.code/);
+    assert.match(route, /status:\s*401/);
+    assert.match(route, /private, no-store/);
+  }
+  assert.ok(deletion.indexOf("requireRecentInteractiveAuthentication(context)") < deletion.indexOf("beginRateLimitedRequest"));
+  assert.ok(deletion.indexOf("requireRecentInteractiveAuthentication(context)") < deletion.indexOf("prepare_account_deletion"));
+  assert.ok(deletion.indexOf("requireRecentInteractiveAuthentication(context)") < deletion.indexOf("deleteUser"));
+  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("beginIdempotentRateLimitedOperation"));
+  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("buildUserDataExport"));
+  assert.match(apiServer, /accessToken: context\.accessToken/);
+  assert.match(apiServer, /validateSensitiveRequestOriginResponse/);
+  assert.match(deletion, /confirmation[^\n]+!== "DELETE"/);
 });
