@@ -160,10 +160,8 @@ begin
       end if;
       v_ok := v_ok
         and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'INSERT')
-        and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'DELETE')
         and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'INSERT')
-        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE')
-        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'DELETE');
+        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE');
     end loop;
   end if;
   if not v_ok then
@@ -197,10 +195,8 @@ begin
       v_ok := v_ok
         and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'INSERT')
         and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'UPDATE')
-        and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'DELETE')
         and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'INSERT')
-        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE')
-        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'DELETE');
+        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE');
     end loop;
   end if;
   if not v_ok then
@@ -233,10 +229,8 @@ begin
       v_ok := v_ok
         and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'INSERT')
         and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'UPDATE')
-        and not pg_catalog.has_column_privilege('authenticated', v_relation, v_column, 'DELETE')
         and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'INSERT')
-        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE')
-        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'DELETE');
+        and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE');
     end loop;
   end if;
   if not v_ok then
