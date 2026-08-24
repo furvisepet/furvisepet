@@ -11,7 +11,6 @@ create table private.billing_checkout_single_flights (
   owner_token uuid,
   lease_expires_at timestamptz,
   return_origin text not null,
-  requested_session_expires_at timestamptz not null,
   stripe_checkout_session_id text,
   session_expires_at timestamptz,
   created_at timestamptz not null default now(),
@@ -48,7 +47,6 @@ returns table(
   attempt_id uuid,
   owner_token uuid,
   return_origin text,
-  requested_session_expires_at timestamptz,
   stripe_checkout_session_id text,
   session_expires_at timestamptz,
   retry_after_seconds integer
@@ -62,10 +60,8 @@ declare
   v_now timestamptz := pg_catalog.clock_timestamp();
   v_candidate_attempt uuid := gen_random_uuid();
   v_candidate_owner uuid := gen_random_uuid();
-  v_candidate_session_expiry timestamptz := pg_catalog.date_trunc('second', v_now + interval '30 minutes');
   v_next_attempt uuid;
   v_next_origin text;
-  v_next_session_expiry timestamptz;
 begin
   if coalesce(pg_catalog.current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
     raise exception using errcode = '42501', message = 'SERVICE_ROLE_REQUIRED';
@@ -81,12 +77,10 @@ begin
   end if;
 
   insert into private.billing_checkout_single_flights(
-    user_id, product_key, state, attempt_id, owner_token, lease_expires_at,
-    return_origin, requested_session_expires_at
+    user_id, product_key, state, attempt_id, owner_token, lease_expires_at, return_origin
   ) values (
     p_user_id, p_product_key, 'creating', v_candidate_attempt, v_candidate_owner,
-    v_now + pg_catalog.make_interval(secs => p_lease_seconds),
-    p_return_origin, v_candidate_session_expiry
+    v_now + pg_catalog.make_interval(secs => p_lease_seconds), p_return_origin
   )
   on conflict (user_id, product_key) do nothing;
 
@@ -100,7 +94,6 @@ begin
     attempt_id := v_row.attempt_id;
     owner_token := v_row.owner_token;
     return_origin := v_row.return_origin;
-    requested_session_expires_at := v_row.requested_session_expires_at;
     stripe_checkout_session_id := null;
     session_expires_at := null;
     retry_after_seconds := 0;
@@ -113,7 +106,6 @@ begin
     attempt_id := v_row.attempt_id;
     owner_token := null;
     return_origin := v_row.return_origin;
-    requested_session_expires_at := v_row.requested_session_expires_at;
     stripe_checkout_session_id := v_row.stripe_checkout_session_id;
     session_expires_at := v_row.session_expires_at;
     retry_after_seconds := 0;
@@ -127,7 +119,6 @@ begin
     attempt_id := v_row.attempt_id;
     owner_token := null;
     return_origin := v_row.return_origin;
-    requested_session_expires_at := v_row.requested_session_expires_at;
     stripe_checkout_session_id := null;
     session_expires_at := null;
     retry_after_seconds := greatest(
@@ -138,17 +129,15 @@ begin
     return;
   end if;
 
-  -- A stale creating attempt keeps attempt_id, return_origin, and the requested
-  -- Stripe expiry. If Stripe accepted the prior request but the app lost the
-  -- response, the retry uses the same idempotency key and identical parameters.
+  -- A stale creating attempt keeps both attempt_id and return_origin. Stripe owns
+  -- Checkout expiry, so every app-supplied create parameter remains identical on
+  -- an ambiguous retry. The same idempotency key therefore recovers one session.
   if v_row.state = 'creating' then
     v_next_attempt := v_row.attempt_id;
     v_next_origin := v_row.return_origin;
-    v_next_session_expiry := v_row.requested_session_expires_at;
   else
     v_next_attempt := gen_random_uuid();
     v_next_origin := p_return_origin;
-    v_next_session_expiry := v_candidate_session_expiry;
   end if;
   v_candidate_owner := gen_random_uuid();
 
@@ -158,7 +147,6 @@ begin
       owner_token = v_candidate_owner,
       lease_expires_at = v_now + pg_catalog.make_interval(secs => p_lease_seconds),
       return_origin = v_next_origin,
-      requested_session_expires_at = v_next_session_expiry,
       stripe_checkout_session_id = null,
       session_expires_at = null,
       updated_at = v_now
@@ -169,7 +157,6 @@ begin
   attempt_id := v_row.attempt_id;
   owner_token := v_row.owner_token;
   return_origin := v_row.return_origin;
-  requested_session_expires_at := v_row.requested_session_expires_at;
   stripe_checkout_session_id := null;
   session_expires_at := null;
   retry_after_seconds := 0;
@@ -217,8 +204,7 @@ begin
     and flight.product_key = p_product_key
     and flight.state = 'creating'
     and flight.attempt_id = p_attempt_id
-    and flight.owner_token = p_owner_token
-    and flight.requested_session_expires_at = p_session_expires_at;
+    and flight.owner_token = p_owner_token;
   v_updated := found;
   return v_updated;
 end;
@@ -242,8 +228,8 @@ begin
     raise exception using errcode = '42501', message = 'SERVICE_ROLE_REQUIRED';
   end if;
 
-  -- Preserve every Stripe-create parameter owned by the attempt. A retry must
-  -- be byte-for-byte equivalent at Stripe after an ambiguous network failure.
+  -- Preserve attempt_id and return_origin. A retry must use the same Stripe
+  -- idempotency key and app-supplied parameters after an ambiguous network failure.
   update private.billing_checkout_single_flights as flight
   set owner_token = null,
       lease_expires_at = pg_catalog.clock_timestamp(),
