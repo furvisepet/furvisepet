@@ -8,7 +8,7 @@ import { emitOperationalEvent } from "../../../lib/operations/events";
 import { buildSupportReference } from "../../../lib/operations/support-reference";
 import { resolveIdempotencyKey } from "../../../lib/security/idempotency/request-key";
 import { beginRateLimitedRequest } from "../../../lib/security/rate-limit";
-import { hasRecentAuthentication } from "../../../lib/security/recent-auth";
+import { requireRecentInteractiveAuthentication } from "../../../lib/security/recent-auth";
 import { API_BODY_LIMITS, hasOnlyKeys, readBoundedJson } from "../../../lib/security/request";
 
 export async function POST(request: Request) {
@@ -17,7 +17,8 @@ export async function POST(request: Request) {
   const key = resolveIdempotencyKey(request);
   const requestId = "key" in key ? key.key : crypto.randomUUID();
   if ("error" in key) return safeError("IDEMPOTENCY_KEY_REQUIRED", "Refresh the page and try again.", requestId, 400);
-  if (!hasRecentAuthentication(context.user.last_sign_in_at)) return safeError("RECENT_AUTH_REQUIRED", "Sign in again before deleting your account.", requestId, 401);
+  const recentAuth = await requireRecentInteractiveAuthentication(context);
+  if (!recentAuth.allowed) return safeError(recentAuth.code, "Sign in again before deleting your account.", requestId, 401);
   let body: unknown;
   try { body = await readBoundedJson(request, API_BODY_LIMITS.standard); } catch { return safeError("INVALID_REQUEST", "Type DELETE to confirm account deletion.", requestId, 400); }
   if (!hasOnlyKeys(body, ["confirmation"]) || (body as { confirmation?: unknown }).confirmation !== "DELETE") return safeError("CONFIRMATION_REQUIRED", "Type DELETE to confirm account deletion.", requestId, 400);
