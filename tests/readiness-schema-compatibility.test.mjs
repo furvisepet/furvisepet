@@ -13,7 +13,7 @@ const compatible = { contract_version: SECURITY_SCHEMA_CONTRACT_VERSION, failed_
 const valid = {
   billingAccountsError: null,
   deletionTombstonesError: null,
-  latestMigration: "20260824023000",
+  latestMigration: "20260824062000",
   securityCompatibility: compatible,
   securityCompatibilityError: null,
 };
@@ -35,6 +35,7 @@ test("each security capability failure fails closed", () => {
     "canonical_care_state_authority",
     "browser_security_definer_authority",
     "protected_rpc_inventory",
+    "billing_checkout_authority",
   ]) {
     assert.deepEqual(schemaReadinessFailures({ ...valid, securityCompatibility: { ...compatible, failed_checks: [failure] } }), [failure]);
   }
@@ -61,6 +62,8 @@ test("required migration identities match clean Supabase ledger names", () => {
     "security_compatibility_contract_v2",
     "harden_security_compatibility_contract_v2",
     "harden_security_compatibility_protected_authority_families",
+    "add_billing_checkout_single_flight",
+    "harden_billing_checkout_single_flight_readiness",
   ]) assert.ok(REQUIRED_SECURITY_MIGRATION_NAMES.includes(name), name);
   assert.equal(REQUIRED_SECURITY_MIGRATION_NAMES.includes("20260820010000_enforce_furvise_memory_semantic_integrity"), false);
   assert.equal(REQUIRED_SECURITY_MIGRATION_NAMES.some((name) => /^20260823\d{6}$/.test(name)), false);
@@ -117,7 +120,23 @@ test("protected-authority wrapper closes the remaining readiness family gaps", (
   assert.match(migration, /grant execute on function public\.furvise_security_compatibility_snapshot_v2\(text\[\]\)[\s\S]*to service_role/);
 });
 
-test("SQL drift fixture covers the launch-gate readiness reproductions", () => {
+test("billing checkout wrapper makes the new financial authority part of readiness", () => {
+  const migration = source("supabase/migrations/20260824062000_harden_billing_checkout_single_flight_readiness.sql");
+  assert.match(migration, /rename to furvise_security_compatibility_snapshot_v2_pre_billing/);
+  assert.match(migration, /private\.billing_checkout_single_flights/);
+  assert.match(migration, /not pg_catalog\.has_table_privilege\('service_role', v_relation, 'UPDATE'\)/);
+  assert.match(migration, /claim_billing_checkout_single_flight\(uuid,text,integer,text\)/);
+  assert.match(migration, /complete_billing_checkout_single_flight\(uuid,text,uuid,uuid,text,timestamptz\)/);
+  assert.match(migration, /abandon_billing_checkout_single_flight\(uuid,text,uuid,uuid\)/);
+  assert.match(migration, /reset_billing_checkout_single_flight\(uuid,text,text\)/);
+  assert.match(migration, /proc\.proconfig @> array\['search_path=""'\]/);
+  assert.match(migration, /SERVICE_ROLE_REQUIRED/);
+  assert.match(migration, /v_protected_names/);
+  assert.match(migration, /billing_checkout_authority/);
+  assert.match(migration, /grant execute on function public\.furvise_security_compatibility_snapshot_v2\(text\[\]\)[\s\S]*to service_role/);
+});
+
+test("SQL drift fixture covers the launch-gate and billing readiness reproductions", () => {
   const sql = source("supabase/tests/security_schema_compatibility_readiness.sql");
   assert.match(sql, /grant insert \(care_event_metadata\) on table public\.pet_care_entries to authenticated/);
   assert.match(sql, /create function public\.persist_furvise_semantic_event\(text\)/);
@@ -129,4 +148,11 @@ test("SQL drift fixture covers the launch-gate readiness reproductions", () => {
   assert.match(sql, /create function public\.delete_pet_profile_for_user\(text\)/);
   assert.match(sql, /required_migration_name:enforce_furvise_memory_semantic_integrity/);
   assert.match(sql, /harden_security_compatibility_protected_authority_families/);
+  assert.match(sql, /required_migration_name:add_billing_checkout_single_flight/);
+  assert.match(sql, /required_migration_name:harden_billing_checkout_single_flight_readiness/);
+  assert.match(sql, /grant select on table private\.billing_checkout_single_flights to service_role/);
+  assert.match(sql, /grant execute on function public\.claim_billing_checkout_single_flight\(uuid,text,integer,text\) to authenticated/);
+  assert.match(sql, /alter function public\.complete_billing_checkout_single_flight\(uuid,text,uuid,uuid,text,timestamptz\) security invoker/);
+  assert.match(sql, /create function public\.claim_billing_checkout_single_flight\(text\)/);
+  assert.match(sql, /billing_checkout_authority/);
 });
