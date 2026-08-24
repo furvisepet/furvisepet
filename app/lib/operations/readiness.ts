@@ -20,6 +20,7 @@ export const REQUIRED_SECURITY_MIGRATION_NAMES = [
   "enforce_canonical_care_state_authority",
   "security_compatibility_contract_v2",
   "harden_security_compatibility_contract_v2",
+  "harden_security_compatibility_protected_authority_families",
 ] as const;
 
 export type SecurityCompatibilitySnapshot = {
