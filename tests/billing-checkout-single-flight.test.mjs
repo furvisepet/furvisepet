@@ -28,10 +28,10 @@ test("Stripe retries reuse stable parameters for the same financial attempt", ()
   assert.match(route, /success_url: `\$\{singleFlight\.return_origin\}/);
   assert.match(route, /checkoutIntegrationIdentifier\(singleFlight\.attempt_id\)/);
   assert.match(route, /function checkoutIntegrationIdentifier\(attemptId: string\)/);
-  assert.match(migration, /A stale creating attempt keeps both attempt_id and return_origin/);
-  assert.match(migration, /Stripe owns[\s\S]*Checkout expiry/);
-  assert.match(migration, /v_next_attempt := v_row\.attempt_id/);
-  assert.match(migration, /v_next_origin := v_row\.return_origin/);
+  assert.match(migration, /Only a stale or explicitly abandoned creating attempt reaches here/);
+  assert.match(migration, /attempt_id and return_origin[\s\S]*same[\s\S]*idempotency key/);
+  assert.match(migration, /if v_row\.state = 'open' then/);
+  assert.doesNotMatch(migration, /if v_row\.state = 'open' and v_row\.session_expires_at > v_now then/);
 });
 
 test("new checkout is blocked while any Stripe subscription is nonterminal", () => {
@@ -53,10 +53,12 @@ test("single-flight state is private and callable only through service RPCs", ()
   assert.match(readiness, /"add_billing_checkout_single_flight"/);
 });
 
-test("database fixture proves serialization, retry recovery, reuse, and reset", () => {
+test("database fixture proves serialization, retry recovery, reuse, Stripe expiry authority, and reset", () => {
   assert.match(sqlFixture, /claim_outcome <> 'in_progress'/);
   assert.match(sqlFixture, /v_reclaimed\.attempt_id <> v_first\.attempt_id/);
   assert.match(sqlFixture, /v_existing\.claim_outcome <> 'existing'/);
+  assert.match(sqlFixture, /database clock incorrectly replaced Stripe expiry authority/);
+  assert.match(sqlFixture, /v_expired_existing\.claim_outcome <> 'existing'/);
   assert.match(sqlFixture, /v_new\.attempt_id = v_first\.attempt_id/);
   assert.match(sqlFixture, /authenticated role unexpectedly claimed checkout authority/);
 });
