@@ -13,7 +13,7 @@ const compatible = { contract_version: SECURITY_SCHEMA_CONTRACT_VERSION, failed_
 const valid = {
   billingAccountsError: null,
   deletionTombstonesError: null,
-  latestMigration: "20260824002000",
+  latestMigration: "20260824014500",
   securityCompatibility: compatible,
   securityCompatibilityError: null,
 };
@@ -47,8 +47,9 @@ test("missing, failed, or malformed compatibility results fail closed", () => {
   assert.equal(requiredSchemaIsReady({ ...valid, latestMigration: undefined }), false);
 });
 
-test("required migration identities are stable names rather than deployment timestamps", () => {
+test("required migration identities match clean Supabase ledger names", () => {
   for (const name of [
+    "enforce_furvise_memory_semantic_integrity",
     "authorize_ask_memory_persistence",
     "harden_ask_action_capability_targets_freshness_expiry",
     "add_controlled_care_entry_update_boundary",
@@ -56,7 +57,9 @@ test("required migration identities are stable names rather than deployment time
     "prepare_canonical_care_state_authority",
     "enforce_canonical_care_state_authority",
     "security_compatibility_contract_v2",
+    "harden_security_compatibility_contract_v2",
   ]) assert.ok(REQUIRED_SECURITY_MIGRATION_NAMES.includes(name), name);
+  assert.equal(REQUIRED_SECURITY_MIGRATION_NAMES.includes("20260820010000_enforce_furvise_memory_semantic_integrity"), false);
   assert.equal(REQUIRED_SECURITY_MIGRATION_NAMES.some((name) => /^20260823\d{6}$/.test(name)), false);
 });
 
@@ -70,22 +73,29 @@ test("route performs bounded V2 semantic checks and exposes only generic compone
   assert.doesNotMatch(route, /failed_checks.*Response/);
 });
 
-test("V2 RPC is service-only, read-only, name-based, and covers canonical care authority", () => {
-  const migration = source("supabase/migrations/20260824002000_security_compatibility_contract_v2.sql");
+test("hardened V2 contract detects effective privilege and overload drift", () => {
+  const migration = source("supabase/migrations/20260824014500_harden_security_compatibility_contract_v2.sql");
+  assert.match(migration, /create or replace function public\.furvise_security_compatibility_snapshot_v2/);
   assert.match(migration, /security definer[\s\S]*request\.jwt\.claim\.role[\s\S]*service_role/);
   assert.match(migration, /schema_migrations migration[\s\S]*migration\.name = v_name/);
+  assert.match(migration, /pg_catalog\.pg_proc[\s\S]*proc\.proname::text = any/);
+  assert.match(migration, /persist_furvise_semantic_event/);
+  assert.match(migration, /persist_furvise_server_care_event/);
+  assert.match(migration, /'user_id', 'pet_profile_id', 'category', 'title', 'note', 'severity',[\s\S]*'occurred_at', 'idempotency_key'/);
+  assert.match(migration, /else[\s\S]*not pg_catalog\.has_column_privilege\('authenticated', v_relation, v_column, 'INSERT'\)/);
+  assert.match(migration, /has_column_privilege\('authenticated', v_relation, v_column, 'INSERT'\)/);
+  assert.match(migration, /care_history_write_authority/);
+  assert.match(migration, /canonical_care_state_authority/);
   assert.match(migration, /revoke all on function public\.furvise_security_compatibility_snapshot_v2\(text\[\]\)[\s\S]*from public, anon, authenticated, service_role/);
   assert.match(migration, /grant execute on function public\.furvise_security_compatibility_snapshot_v2\(text\[\]\)[\s\S]*to service_role/);
   assert.match(migration, /return query select 2, array\(/);
   assert.doesNotMatch(migration, /pg_catalog\.array\(/);
-  assert.match(migration, /canonical_care_state_authority/);
-  for (const signature of [
-    "persist_furvise_semantic_event",
-    "persist_furvise_care_event_before_destination_routing",
-    "persist_furvise_server_semantic_event",
-    "persist_furvise_server_care_event",
-    "apply_furvise_server_state_suggestion",
-    "set_furvise_server_actor",
-  ]) assert.match(migration, new RegExp(signature));
-  for (const table of ["pet_concerns", "ai_update_suggestions"]) assert.match(migration, new RegExp(table));
+});
+
+test("SQL drift fixture covers the two launch-gate reproductions", () => {
+  const sql = source("supabase/tests/security_schema_compatibility_readiness.sql");
+  assert.match(sql, /grant insert \(care_event_metadata\) on table public\.pet_care_entries to authenticated/);
+  assert.match(sql, /create function public\.persist_furvise_semantic_event\(text\)/);
+  assert.match(sql, /required_migration_name:enforce_furvise_memory_semantic_integrity/);
+  assert.match(sql, /harden_security_compatibility_contract_v2/);
 });
