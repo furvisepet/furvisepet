@@ -76,6 +76,8 @@ test("V2 RPC is service-only, read-only, name-based, and covers canonical care a
   assert.match(migration, /schema_migrations migration[\s\S]*migration\.name = v_name/);
   assert.match(migration, /revoke all on function public\.furvise_security_compatibility_snapshot_v2\(text\[\]\)[\s\S]*from public, anon, authenticated, service_role/);
   assert.match(migration, /grant execute on function public\.furvise_security_compatibility_snapshot_v2\(text\[\]\)[\s\S]*to service_role/);
+  assert.match(migration, /return query select 2, array\(/);
+  assert.doesNotMatch(migration, /pg_catalog\.array\(/);
   assert.match(migration, /canonical_care_state_authority/);
   for (const signature of [
     "persist_furvise_semantic_event",
