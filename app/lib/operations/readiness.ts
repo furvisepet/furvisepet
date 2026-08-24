@@ -8,7 +8,7 @@ export const REQUIRED_SECURITY_MIGRATION_NAMES = [
   "add_pet_profile_lifecycle_v1",
   "secure_ai_credit_state_machine",
   "enforce_ai_credit_settlement_disposition",
-  "20260820010000_enforce_furvise_memory_semantic_integrity",
+  "enforce_furvise_memory_semantic_integrity",
   "server_authored_ask_action_capabilities",
   "harden_entitlement_and_pet_data_boundaries",
   "repair_permanent_pet_delete_admin_role",
@@ -19,6 +19,7 @@ export const REQUIRED_SECURITY_MIGRATION_NAMES = [
   "prepare_canonical_care_state_authority",
   "enforce_canonical_care_state_authority",
   "security_compatibility_contract_v2",
+  "harden_security_compatibility_contract_v2",
 ] as const;
 
 export type SecurityCompatibilitySnapshot = {
