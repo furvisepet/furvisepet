@@ -7,6 +7,7 @@ import {
   registerBillingCustomer,
   resetPlusCheckoutSingleFlight,
 } from "../../../lib/billing/billing-admin";
+import { resolveBillingPresentation } from "../../../lib/billing/billing-market";
 import { getPlusPriceId } from "../../../lib/billing/launch-plans";
 import { resolveEffectiveEntitlements } from "../../../lib/billing/entitlements";
 import { getStripeServerClient } from "../../../lib/billing/stripe-server";
@@ -61,9 +62,18 @@ export async function POST(request: Request) {
       await registerBillingCustomer({ admin, customerId, priceId, userId: context.userId });
       const applicationOrigin = resolveTargetOrigin(request);
       if (!applicationOrigin) return billingError("BILLING_ORIGIN_INVALID", "Furvise could not open secure checkout.", 403);
+      const billingPresentation = resolveBillingPresentation({ headers: request.headers, projectedCurrency: null });
+      const checkoutCurrency = billingPresentation.currency.toLowerCase() as "cad" | "usd";
 
-      let singleFlight = await claimPlusCheckoutSingleFlight(admin, context.userId, applicationOrigin);
+      let singleFlight = await claimPlusCheckoutSingleFlight(admin, context.userId, applicationOrigin, checkoutCurrency);
       for (let pass = 0; pass < 2; pass += 1) {
+        if (singleFlight.claim_outcome === "legacy_reconcile") {
+          return billingRetry(
+            "CHECKOUT_RECONCILING",
+            "Secure checkout is being reconciled. Try again in a moment.",
+            singleFlight.retry_after_seconds,
+          );
+        }
         if (singleFlight.claim_outcome === "in_progress") {
           return billingRetry(
             "CHECKOUT_IN_PROGRESS",
@@ -108,16 +118,17 @@ export async function POST(request: Request) {
             sessionId: singleFlight.stripe_checkout_session_id,
             userId: context.userId,
           });
-          singleFlight = await claimPlusCheckoutSingleFlight(admin, context.userId, applicationOrigin);
+          singleFlight = await claimPlusCheckoutSingleFlight(admin, context.userId, applicationOrigin, checkoutCurrency);
           continue;
         }
 
-        if (!singleFlight.owner_token) throw new Error("CHECKOUT_SINGLE_FLIGHT_OWNER_MISSING");
+        if (!singleFlight.owner_token || !singleFlight.checkout_currency) throw new Error("CHECKOUT_SINGLE_FLIGHT_OWNER_MISSING");
         try {
           const session = await stripe.checkout.sessions.create({
             billing_address_collection: "required",
             cancel_url: `${singleFlight.return_origin}/membership?checkout=cancelled`,
             client_reference_id: context.userId,
+            currency: singleFlight.checkout_currency,
             customer: customerId,
             integration_identifier: checkoutIntegrationIdentifier(singleFlight.attempt_id),
             line_items: [{ price: priceId, quantity: 1 }],
