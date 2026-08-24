@@ -109,6 +109,8 @@ test("protected-authority wrapper closes the remaining readiness family gaps", (
   assert.match(migration, /array\['status', 'superseded_by', 'updated_at'\]/);
   assert.match(migration, /public\.furvise_memories/);
   assert.match(migration, /public\.ai_usage_events/);
+  assert.match(migration, /not pg_catalog\.has_table_privilege\('service_role', v_relation, 'UPDATE'\)/);
+  assert.match(migration, /not pg_catalog\.has_column_privilege\('service_role', v_relation, v_column, 'UPDATE'\)/);
   assert.match(migration, /public\.ask_action_capabilities/);
   assert.match(migration, /public\.dog_profiles/);
   assert.match(migration, /revoke all on function public\.furvise_security_compatibility_snapshot_v2_pre_protected_authority_families\(text\[\]\)/);
@@ -120,6 +122,7 @@ test("SQL drift fixture covers the launch-gate readiness reproductions", () => {
   assert.match(sql, /grant insert \(care_event_metadata\) on table public\.pet_care_entries to authenticated/);
   assert.match(sql, /create function public\.persist_furvise_semantic_event\(text\)/);
   assert.match(sql, /grant update \(source_id\) on table public\.furvise_memories to authenticated/);
+  assert.match(sql, /grant update \(payload_hash\) on table public\.ai_usage_events to service_role/);
   assert.match(sql, /create function public\.update_my_care_entry\(text\)/);
   assert.match(sql, /create function public\.persist_furvise_ask_intelligence\(text\)/);
   assert.match(sql, /create function public\.execute_ask_action_capability\(text\)/);
