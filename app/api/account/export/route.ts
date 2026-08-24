@@ -4,13 +4,14 @@ import { emitOperationalEvent } from "../../../lib/operations/events";
 import { buildSupportReference } from "../../../lib/operations/support-reference";
 import { buildUserDataExport } from "../../../lib/operations/user-data-export";
 import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
-import { hasRecentAuthentication } from "../../../lib/security/recent-auth";
+import { requireRecentInteractiveAuthentication } from "../../../lib/security/recent-auth";
 
 export async function POST(request: Request) {
   const context = await getAuthenticatedApiContext(request);
   if ("response" in context) return context.response;
   const requestId = request.headers.get("idempotency-key") || crypto.randomUUID();
-  if (!hasRecentAuthentication(context.user.last_sign_in_at)) return safeError("RECENT_AUTH_REQUIRED", "Sign in again before exporting your data.", requestId, 401);
+  const recentAuth = await requireRecentInteractiveAuthentication(context);
+  if (!recentAuth.allowed) return safeError(recentAuth.code, "Sign in again before exporting your data.", requestId, 401);
   const gate = await beginIdempotentRateLimitedOperation({ operationType: "account.data.export", payload: { version: 1 }, policy: "DATA_EXPORT", request, route: "/api/account/export", supabase: context.supabase, userId: context.userId });
   if ("response" in gate) return gate.response;
   return gate.operation.execute(async () => {
