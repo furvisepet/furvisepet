@@ -147,7 +147,7 @@ begin
     v_failures := pg_catalog.array_append(v_failures, 'canonical_care_state_authority');
   end if;
 
-  return query select 2, pg_catalog.array(
+  return query select 2, array(
     select distinct failure
     from pg_catalog.unnest(v_failures) failure
     order by failure
