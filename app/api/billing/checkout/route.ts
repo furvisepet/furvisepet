@@ -16,6 +16,7 @@ import { PRIVATE_CACHE_HEADERS } from "../../../lib/security/private-routes";
 import { resolveTargetOrigin } from "../../../lib/security/headers/origin-policy";
 
 const CHECKOUT_SESSION_LIFETIME_SECONDS = 30 * 60;
+const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"]);
 
 export async function POST(request: Request) {
   const context = await getAuthenticatedApiContext(request);
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
         customerId = customer.id;
       } else {
         const existing = await stripe.subscriptions.list({ customer: customerId, limit: 10, status: "all" });
-        if (existing.data.some((subscription) => ["active", "incomplete", "past_due", "trialing"].includes(subscription.status))) {
+        if (existing.data.some((subscription) => !TERMINAL_SUBSCRIPTION_STATUSES.has(subscription.status))) {
           return billingError("SUBSCRIPTION_ALREADY_EXISTS", "A Furvise subscription already exists. Manage it from billing settings.", 409);
         }
       }
