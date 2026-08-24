@@ -21,6 +21,7 @@ export const REQUIRED_SECURITY_MIGRATION_NAMES = [
   "security_compatibility_contract_v2",
   "harden_security_compatibility_contract_v2",
   "harden_security_compatibility_protected_authority_families",
+  "add_billing_checkout_single_flight",
 ] as const;
 
 export type SecurityCompatibilitySnapshot = {
