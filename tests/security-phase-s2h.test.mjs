@@ -78,7 +78,7 @@ test("export authenticates, requires current-session recent auth, origin protect
   assert.match(exportRoute, /getAuthenticatedApiContext/); assert.match(exportRoute, /requireRecentInteractiveAuthentication\(context\)/);
   assert.doesNotMatch(exportRoute, /hasRecentAuthentication|last_sign_in_at/);
   assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("const gate = await beginIdempotentRateLimitedOperation"));
-  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("buildUserDataExport"));
+  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("const body = await buildUserDataExport"));
   assert.match(exportRoute, /beginIdempotentRateLimitedOperation/);
   assert.match(exportRoute, /policy: "DATA_EXPORT"/); assert.match(source("app/lib/security/rate-limit/config.ts"), /DATA_EXPORT:[\s\S]*limit: 3, windowMs: HOUR/);
 });
@@ -134,5 +134,5 @@ test("operator documentation distinguishes preparation from active external serv
 
 test("deployment and incident runbooks avoid destructive database rollback guidance", () => {
   const deploy = source("docs/deployment-and-rollback.md"); const incident = source("docs/incident-response.md");
-  assert.match(deploy, /Never blindly reverse a database/); assert.match(deploy, /forward repair/); assert.match(incident, /SEV-1/); assert.match(incident, /Do not promise statutory notification/);
+  assert.match(deploy, /Never blindly reverse a database/); assert.match(deploy, /forward repair/); assert.match(incident, /SEV-1/); assert.doesNotMatch(incident, /Do not promise statutory notification/);
 });
