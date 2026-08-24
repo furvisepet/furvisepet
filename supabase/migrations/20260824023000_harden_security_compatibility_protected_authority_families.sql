@@ -207,8 +207,7 @@ begin
         and not pg_catalog.has_column_privilege('anon', v_relation, v_column, 'UPDATE')
         and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'SELECT')
         and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'INSERT')
-        and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'UPDATE')
-        and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'DELETE');
+        and not pg_catalog.has_column_privilege('service_role', v_relation, v_column, 'UPDATE');
     end loop;
   end if;
   if not v_ok then
