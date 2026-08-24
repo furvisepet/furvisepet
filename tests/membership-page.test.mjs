@@ -126,13 +126,15 @@ test("billing display market is server-controlled and separate from Product Coun
 
 test("checkout and portal return to Membership without client-selected price or currency", () => {
   assert.match(checkout, /resolveTargetOrigin\(request\)/);
-  assert.match(checkout, /claimPlusCheckoutSingleFlight\(admin, context\.userId, applicationOrigin\)/);
+  assert.match(checkout, /resolveBillingPresentation\(\{ headers: request\.headers, projectedCurrency: null \}\)/);
+  assert.match(checkout, /claimPlusCheckoutSingleFlight\(admin, context\.userId, applicationOrigin, checkoutCurrency\)/);
+  assert.match(checkout, /currency: singleFlight\.checkout_currency/);
   assert.match(checkout, /cancel_url: `\$\{singleFlight\.return_origin\}\/membership\?checkout=cancelled`/);
   assert.match(checkout, /success_url: `\$\{singleFlight\.return_origin\}\/membership\?checkout=success`/);
   assert.match(portal, /return_url: `\$\{applicationOrigin\}\/membership`/);
   assert.match(checkout, /line_items: \[\{ price: priceId, quantity: 1 \}\]/);
   assert.match(checkout, /getPlusPriceId\(process\.env\)/);
-  assert.doesNotMatch(checkout, /request\.json\(|searchParams\.get\(|currency\s*:/);
+  assert.doesNotMatch(checkout, /request\.json\(|searchParams\.get\(/);
   assert.doesNotMatch(page, /STRIPE_PLUS_PRICE_ID|priceId|currency.*fetch|body:.*currency/);
 });
 
