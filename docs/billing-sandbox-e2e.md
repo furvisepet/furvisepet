@@ -67,8 +67,10 @@ Copy the listener's `whsec_...` signing secret into `.env.billing-sandbox.local`
 
 ```text
 npm run billing:sandbox:verify
-node --env-file=.env.billing-sandbox.local node_modules/next/dist/bin/next dev --webpack
+npm run billing:sandbox:dev
 ```
+
+`billing:sandbox:dev` deliberately loads `.env.billing-sandbox.local` inside a wrapper process before launching Next. Do not invoke Next as `node --env-file=... node_modules/next/dist/bin/next ...`: Next spawns child Node processes and that invocation can propagate `--env-file` through `NODE_OPTIONS`, where Node rejects it.
 
 Do not continue unless `billing:sandbox:verify` prints `PASS`.
 
