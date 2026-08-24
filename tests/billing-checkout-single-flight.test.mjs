@@ -8,6 +8,7 @@ const route = source("app/api/billing/checkout/route.ts");
 const billingAdmin = source("app/lib/billing/billing-admin.ts");
 const readiness = source("app/lib/operations/readiness.ts");
 const migration = source("supabase/migrations/20260824060000_add_billing_checkout_single_flight.sql");
+const readinessMigration = source("supabase/migrations/20260824062000_harden_billing_checkout_single_flight_readiness.sql");
 const sqlFixture = source("supabase/tests/billing_checkout_single_flight.sql");
 
 test("checkout creation uses durable user/product single-flight authority", () => {
@@ -62,6 +63,8 @@ test("single-flight state is private and callable only through service RPCs", ()
   assert.match(billingAdmin, /abandon_billing_checkout_single_flight/);
   assert.match(billingAdmin, /reset_billing_checkout_single_flight/);
   assert.match(readiness, /"add_billing_checkout_single_flight"/);
+  assert.match(readiness, /"harden_billing_checkout_single_flight_readiness"/);
+  assert.match(readinessMigration, /billing_checkout_authority/);
 });
 
 test("database fixture proves serialization, retry recovery, reuse, Stripe expiry authority, and reset", () => {
