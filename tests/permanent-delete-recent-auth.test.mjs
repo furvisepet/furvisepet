@@ -118,7 +118,7 @@ test("account deletion and export use current-session verified AMR before privil
     assert.match(route, /requireRecentInteractiveAuthentication\(context\)/);
     assert.doesNotMatch(route, /hasRecentAuthentication|last_sign_in_at/);
     assert.match(route, /RECENT_AUTH_REQUIRED|recentAuth\.code/);
-    assert.match(route, /status:\s*401/);
+    assert.match(route, /if \(!recentAuth\.allowed\) return safeError\(recentAuth\.code,[^\n]+requestId, 401\);/);
     assert.match(route, /private, no-store/);
   }
   assert.ok(deletion.indexOf("requireRecentInteractiveAuthentication(context)") < deletion.indexOf("const rate = await beginRateLimitedRequest"));
