@@ -18,7 +18,8 @@ export type BillingAccountRow = {
 
 export type BillingCheckoutSingleFlightClaim = {
   attempt_id: string;
-  claim_outcome: "claimed" | "existing" | "in_progress";
+  checkout_currency: "cad" | "usd" | null;
+  claim_outcome: "claimed" | "existing" | "in_progress" | "legacy_reconcile";
   owner_token: string | null;
   retry_after_seconds: number;
   return_origin: string;
@@ -67,8 +68,14 @@ export async function registerBillingCustomer({
   if (error) throw new BillingProjectionError("BILLING_CUSTOMER_REGISTRATION_FAILED", error);
 }
 
-export async function claimPlusCheckoutSingleFlight(admin: SupabaseClient, userId: string, returnOrigin: string) {
-  const { data, error } = await admin.rpc("claim_billing_checkout_single_flight", {
+export async function claimPlusCheckoutSingleFlight(
+  admin: SupabaseClient,
+  userId: string,
+  returnOrigin: string,
+  checkoutCurrency: "cad" | "usd",
+) {
+  const { data, error } = await admin.rpc("claim_billing_checkout_single_flight_v2", {
+    p_checkout_currency: checkoutCurrency,
     p_lease_seconds: 120,
     p_product_key: PLUS_CHECKOUT_PRODUCT_KEY,
     p_return_origin: returnOrigin,
@@ -76,7 +83,13 @@ export async function claimPlusCheckoutSingleFlight(admin: SupabaseClient, userI
   });
   if (error) throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_CLAIM_FAILED", error);
   const row = (Array.isArray(data) ? data[0] : data) as BillingCheckoutSingleFlightClaim | null;
-  if (!row || !row.attempt_id || !row.return_origin || !["claimed", "existing", "in_progress"].includes(row.claim_outcome)) {
+  if (
+    !row
+    || !row.attempt_id
+    || !row.return_origin
+    || !["claimed", "existing", "in_progress", "legacy_reconcile"].includes(row.claim_outcome)
+    || (row.checkout_currency !== null && row.checkout_currency !== "cad" && row.checkout_currency !== "usd")
+  ) {
     throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_CLAIM_INVALID", data);
   }
   return row;
