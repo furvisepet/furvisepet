@@ -77,6 +77,22 @@ end;
 $$;
 rollback to savepoint migration_version_rewrite;
 
+-- Production historically recorded this one migration with its source timestamp,
+-- while a clean Supabase replay records the stable suffix. The contract accepts
+-- only these two exact identities so DB-first/app-second rollout stays compatible.
+savepoint historical_memory_name_alias;
+update supabase_migrations.schema_migrations
+set name = '20260820010000_enforce_furvise_memory_semantic_integrity'
+where name = 'enforce_furvise_memory_semantic_integrity';
+do $$
+begin
+  if pg_temp.security_compatibility_failures() <> '{}'::text[] then
+    raise exception 'historical memory migration alias caused V2 incompatibility';
+  end if;
+end;
+$$;
+rollback to savepoint historical_memory_name_alias;
+
 savepoint missing_memory_semantic_migration;
 delete from supabase_migrations.schema_migrations where name = 'enforce_furvise_memory_semantic_integrity';
 select pg_temp.assert_has_failure('required_migration_name:enforce_furvise_memory_semantic_integrity');
