@@ -1,19 +1,24 @@
-export const SECURITY_SCHEMA_CONTRACT_VERSION = 1;
+export const SECURITY_SCHEMA_CONTRACT_VERSION = 2;
 
-// This is an application compatibility contract, not a chronological floor.
-// Add only migrations whose authority boundary is required by this app version.
-export const REQUIRED_SECURITY_MIGRATIONS = [
-  "20260818084249", // Production operations/readiness primitives.
-  "20260818194748", // AI credit state machine and service-only settlement.
-  "20260819033443", // Immutable AI settlement disposition.
-  "20260820010000", // Canonical memory semantic integrity.
-  "20260820070956", // Server-authored action capabilities.
-  "20260821021825", // Entitlement and pet-data boundaries.
-  "20260821050646", // Permanent-delete service-role authority.
-  "20260823062212", // Canonical Ask memory persistence authority.
-  "20260823120000", // Exact action targets, freshness, and expiry.
-  "20260823120001", // Controlled Care History update boundary.
-  "20260823120002", // Restricted browser Care History writes.
+// Stable migration names are used instead of timestamp versions because the
+// deployment API may assign its own ledger version while preserving the
+// migration name. Effective authority is still verified semantically by the
+// database compatibility contract.
+export const REQUIRED_SECURITY_MIGRATION_NAMES = [
+  "add_pet_profile_lifecycle_v1",
+  "secure_ai_credit_state_machine",
+  "enforce_ai_credit_settlement_disposition",
+  "20260820010000_enforce_furvise_memory_semantic_integrity",
+  "server_authored_ask_action_capabilities",
+  "harden_entitlement_and_pet_data_boundaries",
+  "repair_permanent_pet_delete_admin_role",
+  "authorize_ask_memory_persistence",
+  "harden_ask_action_capability_targets_freshness_expiry",
+  "add_controlled_care_entry_update_boundary",
+  "restrict_authenticated_care_entry_writes",
+  "prepare_canonical_care_state_authority",
+  "enforce_canonical_care_state_authority",
+  "security_compatibility_contract_v2",
 ] as const;
 
 export type SecurityCompatibilitySnapshot = {
@@ -41,7 +46,7 @@ export function schemaReadinessFailures(input: {
     failures.push("compatibility_contract_invalid");
   } else {
     for (const failure of snapshot.failed_checks) {
-      failures.push(typeof failure === "string" && /^[a-z0-9_:-]{1,80}$/.test(failure) ? failure : "compatibility_result_invalid");
+      failures.push(typeof failure === "string" && /^[a-z0-9_:-]{1,96}$/.test(failure) ? failure : "compatibility_result_invalid");
     }
   }
   return [...new Set(failures)];
