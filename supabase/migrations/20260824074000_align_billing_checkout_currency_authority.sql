@@ -219,7 +219,8 @@ begin
     select pg_catalog.pg_get_functiondef(v_function) into v_definition;
     v_ok := v_ok
       and (select proc.prosecdef from pg_catalog.pg_proc proc where proc.oid = v_function)
-      and coalesce((select proc.proconfig @> array['search_path=']::text[] from pg_catalog.pg_proc proc where proc.oid = v_function), false)
+      -- PostgreSQL serializes SET search_path = '' in proconfig as search_path="".
+      and coalesce((select proc.proconfig @> array['search_path=""']::text[] from pg_catalog.pg_proc proc where proc.oid = v_function), false)
       and pg_catalog.has_function_privilege('service_role', v_function, 'EXECUTE')
       and not pg_catalog.has_function_privilege('anon', v_function, 'EXECUTE')
       and not pg_catalog.has_function_privilege('authenticated', v_function, 'EXECUTE')
