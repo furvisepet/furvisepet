@@ -125,8 +125,10 @@ test("billing display market is server-controlled and separate from Product Coun
 });
 
 test("checkout and portal return to Membership without client-selected price or currency", () => {
-  assert.match(checkout, /cancel_url: `\$\{applicationOrigin\}\/membership\?checkout=cancelled`/);
-  assert.match(checkout, /success_url: `\$\{applicationOrigin\}\/membership\?checkout=success`/);
+  assert.match(checkout, /resolveTargetOrigin\(request\)/);
+  assert.match(checkout, /claimPlusCheckoutSingleFlight\(admin, context\.userId, applicationOrigin\)/);
+  assert.match(checkout, /cancel_url: `\$\{singleFlight\.return_origin\}\/membership\?checkout=cancelled`/);
+  assert.match(checkout, /success_url: `\$\{singleFlight\.return_origin\}\/membership\?checkout=success`/);
   assert.match(portal, /return_url: `\$\{applicationOrigin\}\/membership`/);
   assert.match(checkout, /line_items: \[\{ price: priceId, quantity: 1 \}\]/);
   assert.match(checkout, /getPlusPriceId\(process\.env\)/);
