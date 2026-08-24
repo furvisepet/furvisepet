@@ -8,15 +8,13 @@ import {
   resetPlusCheckoutSingleFlight,
 } from "../../../lib/billing/billing-admin";
 import { resolveBillingPresentation } from "../../../lib/billing/billing-market";
-import { getPlusPriceId } from "../../../lib/billing/launch-plans";
+import { getPlusPriceId, isTerminalStripeSubscriptionStatus } from "../../../lib/billing/launch-plans";
 import { resolveEffectiveEntitlements } from "../../../lib/billing/entitlements";
 import { getStripeServerClient } from "../../../lib/billing/stripe-server";
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
 import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 import { PRIVATE_CACHE_HEADERS } from "../../../lib/security/private-routes";
 import { resolveTargetOrigin } from "../../../lib/security/headers/origin-policy";
-
-const TERMINAL_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"]);
 
 export async function POST(request: Request) {
   const context = await getAuthenticatedApiContext(request);
@@ -54,7 +52,7 @@ export async function POST(request: Request) {
         if (existing.has_more) {
           return billingRetry("SUBSCRIPTION_HISTORY_RECONCILING", "Billing history is being reconciled. Try again in a moment.", 2);
         }
-        if (existing.data.some((subscription) => !TERMINAL_SUBSCRIPTION_STATUSES.has(subscription.status))) {
+        if (existing.data.some((subscription) => !isTerminalStripeSubscriptionStatus(subscription.status))) {
           return billingError("SUBSCRIPTION_ALREADY_EXISTS", "A Furvise subscription already exists. Manage it from billing settings.", 409);
         }
       }
@@ -104,7 +102,7 @@ export async function POST(request: Request) {
             }
             try {
               const completedSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-              if (!TERMINAL_SUBSCRIPTION_STATUSES.has(completedSubscription.status)) {
+              if (!isTerminalStripeSubscriptionStatus(completedSubscription.status)) {
                 return billingRetry("CHECKOUT_PROCESSING", "Your payment is being processed. Furvise Plus will update shortly.", 2);
               }
             } catch {

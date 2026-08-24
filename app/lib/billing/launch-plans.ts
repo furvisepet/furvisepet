@@ -13,6 +13,16 @@ export type BillingSubscriptionStatus =
   | "unpaid"
   | "paused";
 
+const TERMINAL_STRIPE_SUBSCRIPTION_STATUSES = new Set<string>(["canceled", "incomplete_expired"]);
+
+export function isTerminalStripeSubscriptionStatus(status: string | null | undefined) {
+  return Boolean(status && TERMINAL_STRIPE_SUBSCRIPTION_STATUSES.has(status));
+}
+
+export function shouldManageExistingSubscription(status: string | null | undefined) {
+  return Boolean(status && status !== "none" && !isTerminalStripeSubscriptionStatus(status));
+}
+
 export function getAskAllowance(plan: PlanId) {
   return plan === "plus" ? PLUS_ASK_ALLOWANCE : FREE_ASK_ALLOWANCE;
 }

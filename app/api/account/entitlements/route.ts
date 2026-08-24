@@ -4,6 +4,7 @@ import { PRIVATE_CACHE_HEADERS } from "../../../lib/security/private-routes";
 import { AiCreditLedgerError, getAskAllowanceStatus } from "../../../lib/ai/usage-ledger";
 import { resolveBillingPresentation } from "../../../lib/billing/billing-market";
 import { BillingProjectionError, getProjectedBillingCurrencyForUser } from "../../../lib/billing/billing-admin";
+import { shouldManageExistingSubscription } from "../../../lib/billing/launch-plans";
 import { createOperationsAdminClient } from "../../../lib/operations/admin-client";
 
 export async function GET(request: Request) {
@@ -14,7 +15,9 @@ export async function GET(request: Request) {
       resolveEffectiveEntitlements(context.supabase),
       getAskAllowanceStatus({ supabase: context.supabase }),
     ]);
-    const projectedCurrency = entitlements.billingPlan === "plus"
+    const hasExistingBillingRelationship = entitlements.billingPlan === "plus"
+      || shouldManageExistingSubscription(askUsage.subscriptionStatus);
+    const projectedCurrency = hasExistingBillingRelationship
       ? await getProjectedBillingCurrencyForUser(createOperationsAdminClient(), context.userId)
       : null;
     const billingPresentation = resolveBillingPresentation({ headers: request.headers, projectedCurrency });

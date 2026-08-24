@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 import { resolveBillingPresentationForMarket } from "../app/lib/billing/billing-presentation.ts";
+import { shouldManageExistingSubscription } from "../app/lib/billing/launch-plans.ts";
 import { canUseSameSiteNavigationHistory } from "../app/lib/navigation/safe-back.ts";
 
 const read = (path) => readFileSync(path, "utf8");
@@ -40,7 +41,8 @@ test("Membership Back uses only usable same-site history and otherwise falls bac
 });
 
 test("Free and Plus show canonical Ask allowances and remaining usage without new accounting", () => {
-  assert.match(page, /FREE_ASK_ALLOWANCE, PLUS_ASK_ALLOWANCE/);
+  assert.match(page, /FREE_ASK_ALLOWANCE/);
+  assert.match(page, /PLUS_ASK_ALLOWANCE/);
   assert.match(page, /15 Ask per month/);
   assert.match(page, /55 thoughtful Ask messages every month/);
   assert.match(page, /const used = Math\.max\(0, limit - remaining\)/);
@@ -49,8 +51,20 @@ test("Free and Plus show canonical Ask allowances and remaining usage without ne
   assert.doesNotMatch(page, /reserve_ai_credit|complete_ai_credit|ai_usage_events/);
 });
 
-test("Membership billing actions preserve checkout, portal, confirmation, and cancellation behavior", () => {
-  assert.match(page, /openBilling\(isPlus \? "portal" : "checkout"\)/);
+test("Membership billing actions preserve checkout, recovery, portal, confirmation, and cancellation behavior", () => {
+  assert.match(page, /const billingDestination = isPlus \|\| shouldManageExistingSubscription\(subscriptionStatus\) \? "portal" : "checkout"/);
+  for (const status of ["active", "past_due", "unpaid", "paused", "incomplete", "trialing"]) {
+    assert.equal(shouldManageExistingSubscription(status), true, status);
+  }
+  for (const status of ["none", "canceled", "incomplete_expired"]) {
+    assert.equal(shouldManageExistingSubscription(status), false, status);
+  }
+  assert.match(page, /Your payment needs attention\./);
+  assert.match(page, /Your Plus payment is still overdue\./);
+  assert.match(page, /Your Plus payment could not be recovered\./);
+  assert.match(page, /Your Plus setup is not finished yet\./);
+  assert.match(page, /Your Furvise subscription is paused\./);
+  assert.match(page, /onClick=\{\(\) => void openBilling\(billingDestination\)\}/);
   assert.match(page, /Upgrade to Furvise Plus/);
   assert.match(page, /Manage billing/);
   assert.match(page, /We&apos;re confirming your Furvise Plus subscription/);

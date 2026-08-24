@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { isTerminalStripeSubscriptionStatus } from "../app/lib/billing/launch-plans.ts";
+
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const route = source("app/api/billing/checkout/route.ts");
@@ -36,18 +38,22 @@ test("Stripe retries reuse stable parameters for the same financial attempt", ()
 });
 
 test("new checkout is blocked while any Stripe subscription is nonterminal", () => {
-  assert.match(route, /TERMINAL_SUBSCRIPTION_STATUSES = new Set\(\["canceled", "incomplete_expired"\]\)/);
+  assert.equal(isTerminalStripeSubscriptionStatus("canceled"), true);
+  assert.equal(isTerminalStripeSubscriptionStatus("incomplete_expired"), true);
+  for (const status of ["active", "past_due", "unpaid", "paused", "incomplete", "trialing"]) {
+    assert.equal(isTerminalStripeSubscriptionStatus(status), false, status);
+  }
   assert.match(route, /subscriptions\.list\(\{ customer: customerId, limit: 100, status: "all" \}\)/);
   assert.match(route, /if \(existing\.has_more\)/);
   assert.match(route, /SUBSCRIPTION_HISTORY_RECONCILING/);
-  assert.match(route, /!TERMINAL_SUBSCRIPTION_STATUSES\.has\(subscription\.status\)/);
+  assert.match(route, /!isTerminalStripeSubscriptionStatus\(subscription\.status\)/);
   assert.match(route, /SUBSCRIPTION_ALREADY_EXISTS/);
 });
 
 test("completed Checkout sessions only reset after their Stripe subscription is terminal", () => {
   assert.match(route, /existingSession\.status === "complete"/);
   assert.match(route, /stripe\.subscriptions\.retrieve\(subscriptionId\)/);
-  assert.match(route, /!TERMINAL_SUBSCRIPTION_STATUSES\.has\(completedSubscription\.status\)/);
+  assert.match(route, /!isTerminalStripeSubscriptionStatus\(completedSubscription\.status\)/);
   assert.match(route, /CHECKOUT_PROCESSING/);
   assert.match(route, /await resetPlusCheckoutSingleFlight\(/);
 });
