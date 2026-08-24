@@ -60,8 +60,6 @@ declare
   v_now timestamptz := pg_catalog.clock_timestamp();
   v_candidate_attempt uuid := gen_random_uuid();
   v_candidate_owner uuid := gen_random_uuid();
-  v_next_attempt uuid;
-  v_next_origin text;
 begin
   if coalesce(pg_catalog.current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
     raise exception using errcode = '42501', message = 'SERVICE_ROLE_REQUIRED';
@@ -101,7 +99,10 @@ begin
     return;
   end if;
 
-  if v_row.state = 'open' and v_row.session_expires_at > v_now then
+  -- Once Stripe has returned a Checkout Session, database time alone is never
+  -- authority to replace it. Always return the durable session so the server can
+  -- ask Stripe for its current status and reset only after Stripe says expired.
+  if v_row.state = 'open' then
     claim_outcome := 'existing';
     attempt_id := v_row.attempt_id;
     owner_token := null;
@@ -129,26 +130,14 @@ begin
     return;
   end if;
 
-  -- A stale creating attempt keeps both attempt_id and return_origin. Stripe owns
-  -- Checkout expiry, so every app-supplied create parameter remains identical on
-  -- an ambiguous retry. The same idempotency key therefore recovers one session.
-  if v_row.state = 'creating' then
-    v_next_attempt := v_row.attempt_id;
-    v_next_origin := v_row.return_origin;
-  else
-    v_next_attempt := gen_random_uuid();
-    v_next_origin := p_return_origin;
-  end if;
+  -- Only a stale or explicitly abandoned creating attempt reaches here. Keep both
+  -- attempt_id and return_origin so an ambiguous Stripe create retry has the same
+  -- idempotency key and every app-supplied parameter remains identical.
   v_candidate_owner := gen_random_uuid();
 
   update private.billing_checkout_single_flights as flight
-  set state = 'creating',
-      attempt_id = v_next_attempt,
-      owner_token = v_candidate_owner,
+  set owner_token = v_candidate_owner,
       lease_expires_at = v_now + pg_catalog.make_interval(secs => p_lease_seconds),
-      return_origin = v_next_origin,
-      stripe_checkout_session_id = null,
-      session_expires_at = null,
       updated_at = v_now
   where flight.user_id = p_user_id and flight.product_key = p_product_key
   returning flight.* into v_row;
