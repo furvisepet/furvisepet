@@ -82,6 +82,24 @@ begin
   from public.furvise_security_compatibility_snapshot_v2_pre_protected_authority_families(
     p_required_migration_names
   ) snapshot;
+
+  -- The deployed prior V2 implementation bounds required-migration failure names
+  -- to 56 characters. Preserve that compatibility layer, but restore the complete
+  -- caller-supplied migration identity when the resulting failure code still fits
+  -- the application's 96-character readiness-code contract.
+  if p_required_migration_names is not null and v_prior_failures is not null then
+    foreach v_name in array p_required_migration_names loop
+      if pg_catalog.char_length('required_migration_name:' || v_name) <= 96
+        and ('required_migration_name:' || pg_catalog.left(v_name, 56)) = any(v_prior_failures) then
+        v_prior_failures := pg_catalog.array_replace(
+          v_prior_failures,
+          'required_migration_name:' || pg_catalog.left(v_name, 56),
+          'required_migration_name:' || v_name
+        );
+      end if;
+    end loop;
+  end if;
+
   v_failures := v_failures || coalesce(v_prior_failures, '{}'::text[]);
 
   -- Any browser-executable SECURITY DEFINER function is a privilege boundary.
