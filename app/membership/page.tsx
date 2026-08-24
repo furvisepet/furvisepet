@@ -8,7 +8,12 @@ import { PageHeader, PrimaryButton, SecondaryButton } from "../components/produc
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import type { BillingPresentation } from "../lib/billing/billing-presentation";
 import type { EffectiveEntitlements } from "../lib/billing/entitlement-types";
-import { FREE_ASK_ALLOWANCE, PLUS_ASK_ALLOWANCE } from "../lib/billing/launch-plans";
+import {
+  FREE_ASK_ALLOWANCE,
+  PLUS_ASK_ALLOWANCE,
+  shouldManageExistingSubscription,
+  type BillingSubscriptionStatus,
+} from "../lib/billing/launch-plans";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import { canUseSameSiteNavigationHistory } from "../lib/navigation/safe-back";
 import { getBrowserSupabase } from "../lib/supabase";
@@ -20,7 +25,7 @@ type AskUsage = {
   planId: "free" | "plus";
   remaining: number;
   resetAt?: string;
-  subscriptionStatus?: string;
+  subscriptionStatus?: BillingSubscriptionStatus;
 };
 
 type MembershipPayload = {
@@ -89,6 +94,8 @@ export default function MembershipPage() {
 
   const isInternalQa = membership?.entitlements.accessRole === "internal_qa";
   const isPlus = membership?.entitlements.billingPlan === "plus";
+  const subscriptionStatus = membership?.askUsage.subscriptionStatus;
+  const billingDestination = isPlus || shouldManageExistingSubscription(subscriptionStatus) ? "portal" : "checkout";
   const confirming = checkoutState === "success" && !isPlus && !isInternalQa;
 
   function goBack() {
@@ -126,6 +133,15 @@ export default function MembershipPage() {
       ) : (
         <>
           <MembershipSummary entitlements={membership.entitlements} usage={membership.askUsage} />
+
+          {!isInternalQa ? (
+            <BillingStatusNotice
+              isPlus={Boolean(isPlus)}
+              loading={billingBusy === "portal"}
+              onManage={() => void openBilling("portal")}
+              status={subscriptionStatus}
+            />
+          ) : null}
 
           {confirming ? (
             <section className="mt-6 rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-supportive)] p-5 shadow-[var(--shadow-surface-1)]" role="status">
@@ -172,11 +188,11 @@ export default function MembershipPage() {
                 <PrimaryButton
                   className="mt-auto w-full"
                   disabled={billingBusy !== null}
-                  loading={billingBusy === (isPlus ? "portal" : "checkout")}
-                  onClick={() => void openBilling(isPlus ? "portal" : "checkout")}
+                  loading={billingBusy === billingDestination}
+                  onClick={() => void openBilling(billingDestination)}
                   type="button"
                 >
-                  {isPlus ? "Manage billing" : "Upgrade to Furvise Plus"}
+                  {billingDestination === "portal" ? "Manage billing" : "Upgrade to Furvise Plus"}
                 </PrimaryButton>
               ) : (
                 <p className="mt-auto rounded-[var(--radius-md)] bg-[var(--surface-supportive)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">Consumer billing actions are hidden for internal testing access.</p>
@@ -190,6 +206,61 @@ export default function MembershipPage() {
       )}
     </AppPage>
   );
+}
+
+function BillingStatusNotice({
+  isPlus,
+  loading,
+  onManage,
+  status,
+}: {
+  isPlus: boolean;
+  loading: boolean;
+  onManage: () => void;
+  status?: BillingSubscriptionStatus;
+}) {
+  const message = billingStatusMessage(status, isPlus);
+  if (!message) return null;
+  return (
+    <section className="mt-6 rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-supportive)] p-5 shadow-[var(--shadow-surface-1)]" role="status">
+      <h2 className="font-bold text-[var(--text-primary)]">{message.title}</h2>
+      <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{message.body}</p>
+      <PrimaryButton className="mt-4 w-full sm:w-auto" loading={loading} onClick={onManage} type="button">Manage billing</PrimaryButton>
+    </section>
+  );
+}
+
+function billingStatusMessage(status: BillingSubscriptionStatus | undefined, isPlus: boolean) {
+  if (status === "past_due") {
+    return isPlus
+      ? {
+          title: "Your payment needs attention.",
+          body: "Your Plus access is temporarily still available while payment recovery is in progress. Update your payment method to keep Plus active.",
+        }
+      : {
+          title: "Your Plus payment is still overdue.",
+          body: "Plus access is paused. Open billing to update your payment method and resolve the subscription before trying to upgrade again.",
+        };
+  }
+  if (status === "unpaid") {
+    return {
+      title: "Your Plus payment could not be recovered.",
+      body: "Plus access is paused. Open billing to update your payment method and resolve the existing subscription.",
+    };
+  }
+  if (status === "incomplete") {
+    return {
+      title: "Your Plus setup is not finished yet.",
+      body: "There is already a subscription in progress. Open billing to finish resolving it instead of starting another checkout.",
+    };
+  }
+  if (status === "paused") {
+    return {
+      title: "Your Furvise subscription is paused.",
+      body: "Open billing to review the existing subscription before starting another checkout.",
+    };
+  }
+  return null;
 }
 
 function MembershipSummary({ entitlements, usage }: { entitlements: EffectiveEntitlements; usage: AskUsage }) {
