@@ -180,7 +180,7 @@ test("migration extends the canonical ledger and secures authoritative billing s
   assert.match(legacyMigration, /where usage_event\.user_id = v_user_id and usage_event\.request_id = p_request_id/);
 });
 
-test("billing endpoints keep price and currency selection server/Stripe-owned and verify raw signed webhooks", () => {
+test("billing endpoints keep price and currency selection server-owned and verify raw signed webhooks", () => {
   const checkout = read("app/api/billing/checkout/route.ts");
   const portal = read("app/api/billing/portal/route.ts");
   const webhook = read("app/api/billing/webhook/route.ts");
@@ -189,10 +189,12 @@ test("billing endpoints keep price and currency selection server/Stripe-owned an
   assert.match(checkout, /getPlusPriceId\(process\.env\)/);
   assert.match(checkout, /line_items: \[\{ price: priceId, quantity: 1 \}\]/);
   assert.doesNotMatch(checkout, /request\.json\(|searchParams\.get\(/);
-  assert.doesNotMatch(checkout, /user_profiles|account-country|profile\?\.country|currency\s*:/);
+  assert.doesNotMatch(checkout, /user_profiles|account-country|profile\?\.country/);
   assert.doesNotMatch(checkout, /STRIPE_PLUS_PRICE_CAD|STRIPE_PLUS_PRICE_USD/);
-  assert.match(checkout, /resolveTargetOrigin\(request\)/);
-  assert.match(checkout, /claimPlusCheckoutSingleFlight\(admin, context\.userId, applicationOrigin\)/);
+  assert.match(checkout, /resolveBillingPresentation\(\{ headers: request\.headers, projectedCurrency: null \}\)/);
+  assert.match(checkout, /const checkoutCurrency = billingPresentation\.currency\.toLowerCase\(\)/);
+  assert.match(checkout, /claimPlusCheckoutSingleFlight\(admin, context\.userId, applicationOrigin, checkoutCurrency\)/);
+  assert.match(checkout, /currency: singleFlight\.checkout_currency/);
   assert.match(checkout, /subscription_data: \{ metadata: \{ furvise_user_id: context\.userId \} \}/);
   assert.match(checkout, /integration_identifier:/);
   assert.doesNotMatch(checkout, /payment_method_types/);
