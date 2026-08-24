@@ -20,7 +20,8 @@ as $$
     'prepare_canonical_care_state_authority',
     'enforce_canonical_care_state_authority',
     'security_compatibility_contract_v2',
-    'harden_security_compatibility_contract_v2'
+    'harden_security_compatibility_contract_v2',
+    'harden_security_compatibility_protected_authority_families'
   ]);
 $$;
 
@@ -54,7 +55,7 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 do $$
 begin
   begin
-    perform public.furvise_security_compatibility_snapshot_v2(array['harden_security_compatibility_contract_v2']);
+    perform public.furvise_security_compatibility_snapshot_v2(array['harden_security_compatibility_protected_authority_families']);
     raise exception 'authenticated role unexpectedly executed V2 compatibility RPC';
   exception
     when insufficient_privilege then null;
@@ -113,6 +114,11 @@ delete from supabase_migrations.schema_migrations where name = 'harden_security_
 select pg_temp.assert_has_failure('required_migration_name:harden_security_compatibility_contract_v2');
 rollback to savepoint missing_contract_hardening_migration;
 
+savepoint missing_protected_authority_migration;
+delete from supabase_migrations.schema_migrations where name = 'harden_security_compatibility_protected_authority_families';
+select pg_temp.assert_has_failure('required_migration_name:harden_security_compatibility_protected_authority_families');
+rollback to savepoint missing_protected_authority_migration;
+
 savepoint action_drift;
 alter table public.ask_action_capabilities alter column expires_at drop not null;
 select pg_temp.assert_has_failure('action_capability_authority');
@@ -138,6 +144,26 @@ grant execute on function public.persist_furvise_intelligence(uuid,uuid,jsonb,js
 select pg_temp.assert_has_failure('canonical_memory_authority');
 rollback to savepoint legacy_memory_drift;
 
+savepoint memory_provenance_column_drift;
+grant update (source_id) on table public.furvise_memories to authenticated;
+select pg_temp.assert_has_failure('canonical_memory_authority');
+rollback to savepoint memory_provenance_column_drift;
+
+savepoint ai_credit_column_drift;
+grant update (payload_hash) on table public.ai_usage_events to authenticated;
+select pg_temp.assert_has_failure('ai_credit_authority');
+rollback to savepoint ai_credit_column_drift;
+
+savepoint action_capability_column_drift;
+grant update (target_id) on table public.ask_action_capabilities to authenticated;
+select pg_temp.assert_has_failure('action_capability_authority');
+rollback to savepoint action_capability_column_drift;
+
+savepoint protected_profile_column_drift;
+grant update (idempotency_key) on table public.dog_profiles to authenticated;
+select pg_temp.assert_has_failure('entitlement_pet_boundary');
+rollback to savepoint protected_profile_column_drift;
+
 savepoint entitlement_drift;
 alter table public.dog_profiles no force row level security;
 select pg_temp.assert_has_failure('entitlement_pet_boundary');
@@ -162,6 +188,74 @@ revoke all on function public.persist_furvise_semantic_event(text) from public, 
 grant execute on function public.persist_furvise_semantic_event(text) to authenticated;
 select pg_temp.assert_has_failure('canonical_care_state_authority');
 rollback to savepoint unexpected_legacy_overload_drift;
+
+-- The remaining launch-gate reproductions challenge authority families that the
+-- prior finite canonical-care catalog did not cover.
+savepoint unexpected_care_edit_overload_drift;
+create function public.update_my_care_entry(text)
+returns void
+language sql
+security definer
+set search_path = ''
+as 'select';
+revoke all on function public.update_my_care_entry(text) from public, anon, authenticated, service_role;
+grant execute on function public.update_my_care_entry(text) to authenticated;
+select pg_temp.assert_has_failure('browser_security_definer_authority');
+select pg_temp.assert_has_failure('protected_rpc_inventory');
+rollback to savepoint unexpected_care_edit_overload_drift;
+
+savepoint unexpected_ask_memory_overload_drift;
+create function public.persist_furvise_ask_intelligence(text)
+returns void
+language sql
+security definer
+set search_path = ''
+as 'select';
+revoke all on function public.persist_furvise_ask_intelligence(text) from public, anon, authenticated, service_role;
+grant execute on function public.persist_furvise_ask_intelligence(text) to authenticated;
+select pg_temp.assert_has_failure('browser_security_definer_authority');
+select pg_temp.assert_has_failure('protected_rpc_inventory');
+rollback to savepoint unexpected_ask_memory_overload_drift;
+
+savepoint unexpected_action_overload_drift;
+create function public.execute_ask_action_capability(text)
+returns void
+language sql
+security definer
+set search_path = ''
+as 'select';
+revoke all on function public.execute_ask_action_capability(text) from public, anon, authenticated, service_role;
+grant execute on function public.execute_ask_action_capability(text) to authenticated;
+select pg_temp.assert_has_failure('browser_security_definer_authority');
+select pg_temp.assert_has_failure('protected_rpc_inventory');
+rollback to savepoint unexpected_action_overload_drift;
+
+savepoint unexpected_delete_overload_drift;
+create function public.delete_pet_profile_for_user(text)
+returns void
+language sql
+security definer
+set search_path = ''
+as 'select';
+revoke all on function public.delete_pet_profile_for_user(text) from public, anon, authenticated, service_role;
+grant execute on function public.delete_pet_profile_for_user(text) to authenticated;
+select pg_temp.assert_has_failure('browser_security_definer_authority');
+select pg_temp.assert_has_failure('protected_rpc_inventory');
+rollback to savepoint unexpected_delete_overload_drift;
+
+-- A brand-new browser SECURITY DEFINER name must also fail closed. Readiness is
+-- no longer limited to a catalog of names that were known when the contract was written.
+savepoint unexpected_browser_security_definer;
+create function public.unreviewed_browser_authority()
+returns void
+language sql
+security definer
+set search_path = ''
+as 'select';
+revoke all on function public.unreviewed_browser_authority() from public, anon, authenticated, service_role;
+grant execute on function public.unreviewed_browser_authority() to authenticated;
+select pg_temp.assert_has_failure('browser_security_definer_authority');
+rollback to savepoint unexpected_browser_security_definer;
 
 savepoint concern_write_drift;
 grant insert on table public.pet_concerns to authenticated;
