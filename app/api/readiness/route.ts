@@ -3,7 +3,7 @@ import { Redis } from "@upstash/redis";
 import { createOperationsAdminClient } from "../../lib/operations/admin-client";
 import { emitOperationalEvent } from "../../lib/operations/events";
 import { validateProductionConfiguration } from "../../lib/operations/production-config";
-import { REQUIRED_SECURITY_MIGRATIONS, schemaReadinessFailures } from "../../lib/operations/readiness";
+import { REQUIRED_SECURITY_MIGRATION_NAMES, schemaReadinessFailures } from "../../lib/operations/readiness";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       admin.rpc("furvise_readiness_snapshot").abortSignal(signal),
       admin.from("billing_accounts").select("user_id,stripe_customer_id,stripe_subscription_id,plan,subscription_status").limit(1).abortSignal(signal),
       admin.from("billing_deletion_tombstones").select("user_id,stripe_customer_id,stripe_subscription_id,deletion_idempotency_key").limit(1).abortSignal(signal),
-      admin.rpc("furvise_security_compatibility_snapshot", { p_required_migrations: [...REQUIRED_SECURITY_MIGRATIONS] }).abortSignal(signal),
+      admin.rpc("furvise_security_compatibility_snapshot_v2", { p_required_migration_names: [...REQUIRED_SECURITY_MIGRATION_NAMES] }).abortSignal(signal),
     ]);
     if (!error && Array.isArray(data) && data[0]) {
       components.database = "ready";
