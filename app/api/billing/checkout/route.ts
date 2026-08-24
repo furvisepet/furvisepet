@@ -49,7 +49,10 @@ export async function POST(request: Request) {
         }, { idempotencyKey: `furvise_customer_${context.userId}` });
         customerId = customer.id;
       } else {
-        const existing = await stripe.subscriptions.list({ customer: customerId, limit: 10, status: "all" });
+        const existing = await stripe.subscriptions.list({ customer: customerId, limit: 100, status: "all" });
+        if (existing.has_more) {
+          return billingRetry("SUBSCRIPTION_HISTORY_RECONCILING", "Billing history is being reconciled. Try again in a moment.", 2);
+        }
         if (existing.data.some((subscription) => !TERMINAL_SUBSCRIPTION_STATUSES.has(subscription.status))) {
           return billingError("SUBSCRIPTION_ALREADY_EXISTS", "A Furvise subscription already exists. Manage it from billing settings.", 409);
         }
@@ -83,9 +86,21 @@ export async function POST(request: Request) {
             return Response.json({ url: existingSession.url }, { headers: PRIVATE_CACHE_HEADERS });
           }
           if (existingSession.status === "complete") {
-            return billingRetry("CHECKOUT_PROCESSING", "Your payment is being processed. Furvise Plus will update shortly.", 2);
-          }
-          if (existingSession.status !== "expired") {
+            const subscriptionId = typeof existingSession.subscription === "string"
+              ? existingSession.subscription
+              : existingSession.subscription?.id || "";
+            if (!subscriptionId) {
+              return billingRetry("CHECKOUT_RECONCILING", "Secure checkout is being reconciled. Try again in a moment.", 2);
+            }
+            try {
+              const completedSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+              if (!TERMINAL_SUBSCRIPTION_STATUSES.has(completedSubscription.status)) {
+                return billingRetry("CHECKOUT_PROCESSING", "Your payment is being processed. Furvise Plus will update shortly.", 2);
+              }
+            } catch {
+              return billingRetry("CHECKOUT_RECONCILING", "Secure checkout is being reconciled. Try again in a moment.", 2);
+            }
+          } else if (existingSession.status !== "expired") {
             return billingRetry("CHECKOUT_RECONCILING", "Secure checkout is being reconciled. Try again in a moment.", 2);
           }
           await resetPlusCheckoutSingleFlight({
