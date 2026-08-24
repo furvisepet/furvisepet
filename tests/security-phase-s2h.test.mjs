@@ -45,9 +45,12 @@ test("readiness uses bounded timeouts and never calls OpenAI", () => {
   assert.doesNotMatch(readiness, /openai|responses\.create|chat\.completions/i);
 });
 
-test("account deletion authenticates, validates origin centrally, requires recent auth and exact confirmation", () => {
+test("account deletion authenticates, validates origin, requires current-session recent auth and exact confirmation", () => {
   assert.match(deletion, /getAuthenticatedApiContext/); assert.match(source("app/lib/authenticated-api-server.ts"), /validateSensitiveRequestOriginResponse/);
-  assert.match(deletion, /hasRecentAuthentication/); assert.match(deletion, /confirmation !== "DELETE"/); assert.doesNotMatch(deletion, /p_user_id:\s*(?:body|input)/);
+  assert.match(deletion, /requireRecentInteractiveAuthentication\(context\)/); assert.doesNotMatch(deletion, /hasRecentAuthentication|last_sign_in_at/);
+  assert.ok(deletion.indexOf("requireRecentInteractiveAuthentication(context)") < deletion.indexOf("beginRateLimitedRequest"));
+  assert.ok(deletion.indexOf("requireRecentInteractiveAuthentication(context)") < deletion.indexOf("prepare_account_deletion"));
+  assert.match(deletion, /confirmation !== "DELETE"/); assert.doesNotMatch(deletion, /p_user_id:\s*(?:body|input)/);
 });
 
 test("account deletion requires canonical idempotency and destructive distributed limits", () => {
@@ -71,8 +74,12 @@ test("account deletion never uses GET and private responses do not cache", () =>
   assert.doesNotMatch(deletion, /export (?:async )?function GET/); assert.match(deletion, /private, no-store/);
 });
 
-test("export authenticates, requires recent auth, origin protection, idempotency and bounded rate policy", () => {
-  assert.match(exportRoute, /getAuthenticatedApiContext/); assert.match(exportRoute, /hasRecentAuthentication/); assert.match(exportRoute, /beginIdempotentRateLimitedOperation/);
+test("export authenticates, requires current-session recent auth, origin protection, idempotency and bounded rate policy", () => {
+  assert.match(exportRoute, /getAuthenticatedApiContext/); assert.match(exportRoute, /requireRecentInteractiveAuthentication\(context\)/);
+  assert.doesNotMatch(exportRoute, /hasRecentAuthentication|last_sign_in_at/);
+  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("beginIdempotentRateLimitedOperation"));
+  assert.ok(exportRoute.indexOf("requireRecentInteractiveAuthentication(context)") < exportRoute.indexOf("buildUserDataExport"));
+  assert.match(exportRoute, /beginIdempotentRateLimitedOperation/);
   assert.match(exportRoute, /policy: "DATA_EXPORT"/); assert.match(source("app/lib/security/rate-limit/config.ts"), /DATA_EXPORT:[\s\S]*limit: 3, windowMs: HOUR/);
 });
 
