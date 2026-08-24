@@ -43,10 +43,12 @@ test("bounded raw body preserves normal bytes and rejects declared or streamed o
 });
 test("webhook verifies the bounded raw body before processing and never parses JSON first", () => {
   const route = source("app/api/billing/webhook/route.ts");
-  const read = route.indexOf("readBoundedRawBody");
-  const verify = route.indexOf("constructEvent(rawBody");
-  const projection = route.indexOf("subscriptionForEvent(event)");
-  assert.ok(read > -1 && read < verify && verify < projection);
+  const read = route.indexOf("readBoundedRawBody(request");
+  const verify = route.indexOf("constructEvent(rawBody", read);
+  const checkoutDispatch = route.indexOf('if (event.type === "checkout.session.completed")', verify);
+  const lifecycleDispatch = route.indexOf("stripeSubscriptionSnapshotFromEvent(event)", verify);
+  assert.ok(read > -1 && read < verify);
+  assert.ok(verify < checkoutDispatch && verify < lifecycleDispatch);
   assert.match(route, /Invalid webhook signature/);
   assert.doesNotMatch(route, /request\.json\(/);
 });

@@ -16,6 +16,12 @@ const SUPPORTED_STATUSES = new Set<BillingSubscriptionStatus>([
   "paused",
 ]);
 
+const SUBSCRIPTION_LIFECYCLE_EVENT_TYPES = new Set([
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+]);
+
 export type StripeSubscriptionProjection = {
   cancelAtPeriodEnd: boolean;
   currency: string;
@@ -32,6 +38,18 @@ export type StripeSubscriptionProjection = {
   subscriptionId: string;
   userId: string;
 };
+
+/**
+ * Return the immutable subscription snapshot carried by a Stripe lifecycle
+ * event. The event timestamp and subscription state must describe the same
+ * moment; fetching the current Subscription while processing an older webhook
+ * would break ordering and can corrupt transition-derived state such as
+ * `past_due_since`.
+ */
+export function stripeSubscriptionSnapshotFromEvent(event: Stripe.Event): Stripe.Subscription | null {
+  if (!SUBSCRIPTION_LIFECYCLE_EVENT_TYPES.has(event.type)) return null;
+  return event.data.object as Stripe.Subscription;
+}
 
 export function buildStripeSubscriptionProjection({
   env,
