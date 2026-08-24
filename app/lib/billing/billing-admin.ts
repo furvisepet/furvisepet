@@ -20,6 +20,7 @@ export type BillingCheckoutSingleFlightClaim = {
   attempt_id: string;
   claim_outcome: "claimed" | "existing" | "in_progress";
   owner_token: string | null;
+  requested_session_expires_at: string;
   retry_after_seconds: number;
   return_origin: string;
   session_expires_at: string | null;
@@ -76,7 +77,8 @@ export async function claimPlusCheckoutSingleFlight(admin: SupabaseClient, userI
   });
   if (error) throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_CLAIM_FAILED", error);
   const row = (Array.isArray(data) ? data[0] : data) as BillingCheckoutSingleFlightClaim | null;
-  if (!row || !row.attempt_id || !row.return_origin || !["claimed", "existing", "in_progress"].includes(row.claim_outcome)) {
+  if (!row || !row.attempt_id || !row.return_origin || !row.requested_session_expires_at
+    || !["claimed", "existing", "in_progress"].includes(row.claim_outcome)) {
     throw new BillingProjectionError("BILLING_CHECKOUT_SINGLE_FLIGHT_CLAIM_INVALID", data);
   }
   return row;
