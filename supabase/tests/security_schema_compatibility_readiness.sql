@@ -154,6 +154,11 @@ grant update (payload_hash) on table public.ai_usage_events to authenticated;
 select pg_temp.assert_has_failure('ai_credit_authority');
 rollback to savepoint ai_credit_column_drift;
 
+savepoint ai_credit_service_direct_dml_drift;
+grant update (payload_hash) on table public.ai_usage_events to service_role;
+select pg_temp.assert_has_failure('ai_credit_authority');
+rollback to savepoint ai_credit_service_direct_dml_drift;
+
 savepoint action_capability_column_drift;
 grant update (target_id) on table public.ask_action_capabilities to authenticated;
 select pg_temp.assert_has_failure('action_capability_authority');
