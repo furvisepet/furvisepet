@@ -4,6 +4,7 @@ import test from "node:test";
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const verifier = source("scripts/verify-billing-sandbox-config.mjs");
+const devLauncher = source("scripts/start-billing-sandbox-dev.mjs");
 const runbook = source("docs/billing-sandbox-e2e.md");
 const packageJson = JSON.parse(source("package.json"));
 const gitignore = source(".gitignore");
@@ -29,6 +30,21 @@ test("billing sandbox verifier checks the real launch price contract without log
   assert.match(verifier, /product\.name === "Furvise Plus"/);
   assert.match(verifier, /WEBHOOK_SECRET_INVALID/);
   assert.doesNotMatch(verifier, /console\.(?:log|error)\([^\n]*(?:stripeSecretKey|webhookSecret|supabaseSecretKey)/);
+});
+
+test("sandbox dev launcher loads the env file without putting --env-file into Next child process flags", () => {
+  assert.equal(
+    packageJson.scripts["billing:sandbox:dev"],
+    "npm run billing:sandbox:verify && node scripts/start-billing-sandbox-dev.mjs",
+  );
+  assert.match(devLauncher, /parseEnv/);
+  assert.match(devLauncher, /spawn\(/);
+  assert.match(devLauncher, /node_modules\/next\/dist\/bin\/next/);
+  assert.match(devLauncher, /"dev", "--webpack"/);
+  assert.match(devLauncher, /BILLING_SANDBOX_NODE_OPTIONS_ENV_FILE_FORBIDDEN/);
+  assert.doesNotMatch(devLauncher, /spawn\([^]*--env-file/);
+  assert.doesNotMatch(runbook, /node --env-file=\.env\.billing-sandbox\.local node_modules\/next\/dist\/bin\/next/);
+  assert.match(runbook, /npm run billing:sandbox:dev/);
 });
 
 test("sandbox launch gate is dedicated, ignored, and covers the canonical commercial lifecycle", () => {
