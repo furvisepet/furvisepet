@@ -1,7 +1,14 @@
+import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 
 const PRODUCTION_SUPABASE_HOST_SUFFIX = ".supabase.co";
 const LOCAL_SUPABASE_HOSTS = new Set(["127.0.0.1", "localhost", "host.docker.internal"]);
+const REQUIRED_BILLING_MIGRATIONS = [
+  "security_compatibility_contract_v2",
+  "add_billing_checkout_single_flight",
+  "align_billing_checkout_currency_authority",
+  "add_billing_payment_recovery_grace",
+];
 
 function required(name) {
   const value = process.env[name]?.trim();
@@ -39,6 +46,22 @@ async function main() {
   assert(LOCAL_SUPABASE_HOSTS.has(supabaseHost), "BILLING_SANDBOX_SUPABASE_MUST_BE_LOCAL");
   assert(!supabaseHost.endsWith(PRODUCTION_SUPABASE_HOST_SUFFIX), "BILLING_SANDBOX_PRODUCTION_SUPABASE_FORBIDDEN");
 
+  const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data: compatibilityData, error: compatibilityError } = await supabase.rpc(
+    "furvise_security_compatibility_snapshot_v2",
+    { p_required_migration_names: REQUIRED_BILLING_MIGRATIONS },
+  );
+  assert(!compatibilityError, "BILLING_SANDBOX_SUPABASE_ADMIN_AUTHORITY_INVALID");
+  const compatibility = Array.isArray(compatibilityData) ? compatibilityData[0] : compatibilityData;
+  assert(
+    compatibility?.contract_version === 2
+      && Array.isArray(compatibility.failed_checks)
+      && compatibility.failed_checks.length === 0,
+    "BILLING_SANDBOX_SUPABASE_SCHEMA_NOT_READY",
+  );
+
   const stripe = new Stripe(stripeSecretKey, { appInfo: { name: "Furvise Billing Sandbox Gate", version: "1.0" } });
   const price = await stripe.prices.retrieve(priceId, { expand: ["currency_options", "product"] });
 
@@ -65,6 +88,8 @@ async function main() {
   console.log(`- USD: 5.49/month`);
   console.log(`- Billing display market: ${displayMarket}`);
   console.log(`- Supabase: local (${supabaseHost})`);
+  console.log("- Supabase admin authority: verified");
+  console.log("- Billing schema readiness: verified");
   console.log("- Webhook signing secret: configured");
 }
 
