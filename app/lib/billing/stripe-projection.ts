@@ -101,7 +101,7 @@ export function isScheduledForPeriodEndCancellation(
   currentPeriodEnd: number,
 ) {
   return subscription.cancel_at_period_end === true
-    || (Number.isFinite(subscription.cancel_at) && subscription.cancel_at === currentPeriodEnd);
+    || (typeof subscription.cancel_at === "number" && subscription.cancel_at === currentPeriodEnd);
 }
 
 function normalizeStatus(status: Stripe.Subscription.Status): BillingSubscriptionStatus {
