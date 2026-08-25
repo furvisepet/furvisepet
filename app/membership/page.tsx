@@ -271,6 +271,7 @@ function MembershipSummary({ entitlements, usage }: { entitlements: EffectiveEnt
   const used = Math.max(0, limit - remaining);
   const percentage = Math.min(100, Math.round((used / limit) * 100));
   const planName = internalQa ? "Internal testing access" : plus ? "Furvise Plus" : "Furvise Free";
+  const periodVerb = plus && !internalQa ? (usage.cancelAtPeriodEnd ? "Ends" : "Renews") : "Resets";
   return (
     <section className="mt-8 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6 shadow-[var(--shadow-surface-1)] sm:p-7">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -289,7 +290,7 @@ function MembershipSummary({ entitlements, usage }: { entitlements: EffectiveEnt
       </div>
       <div className="mt-3 flex flex-wrap justify-between gap-2 text-sm text-[var(--text-secondary)]">
         <span>{used.toLocaleString()} used</span>
-        <span>{plus && !internalQa ? "Renews" : "Resets"} {formatBillingDate(usage.resetAt)}</span>
+        <span>{periodVerb} {formatBillingDate(usage.resetAt)}</span>
       </div>
       {usage.cancelAtPeriodEnd && plus ? <p className="mt-5 rounded-[var(--radius-md)] bg-[var(--surface-supportive)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">Your cancellation is scheduled. Plus remains available through {formatBillingDate(usage.resetAt)}.</p> : null}
       {internalQa ? <p className="mt-5 text-sm leading-6 text-[var(--text-secondary)]">Expanded testing access remains separate from consumer billing and does not create a Plus subscription.</p> : null}
@@ -357,7 +358,7 @@ function formatBillingDate(value?: string) {
   if (!value) return "at the next allowance period";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "at the next allowance period";
-  return new Intl.DateTimeFormat("en", { day: "numeric", month: "long", timeZone: "UTC", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric" }).format(date);
 }
 
 function readCheckoutState() {
