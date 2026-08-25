@@ -8,6 +8,7 @@ const REQUIRED_BILLING_MIGRATIONS = [
   "add_billing_checkout_single_flight",
   "align_billing_checkout_currency_authority",
   "add_billing_payment_recovery_grace",
+  "harden_postgrest_service_authority",
 ];
 
 function required(name) {
@@ -49,6 +50,24 @@ async function main() {
   const supabase = createClient(supabaseUrl, supabaseSecretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  // Probe the same service-only idempotency boundary used by profile creation.
+  // A valid service request reaches deterministic input validation and returns
+  // IDEMPOTENCY_USER_REQUIRED without writing a row; a wrong authority/key is
+  // rejected earlier as SERVICE_ROLE_REQUIRED or an API permission failure.
+  const { error: authorityProbeError } = await supabase.rpc("claim_idempotency_operation", {
+    p_idempotency_key: crypto.randomUUID(),
+    p_lease_seconds: 30,
+    p_operation_type: "billing.sandbox.authority_probe",
+    p_payload_hash: "0".repeat(64),
+    p_retention_seconds: 3600,
+    p_user_id: null,
+  });
+  assert(
+    authorityProbeError?.message?.includes("IDEMPOTENCY_USER_REQUIRED"),
+    "BILLING_SANDBOX_SUPABASE_ADMIN_AUTHORITY_INVALID",
+  );
+
   const { data: compatibilityData, error: compatibilityError } = await supabase.rpc(
     "furvise_security_compatibility_snapshot_v2",
     { p_required_migration_names: REQUIRED_BILLING_MIGRATIONS },
