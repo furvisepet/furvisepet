@@ -20,15 +20,24 @@ test("billing sandbox verifier fails closed against live Stripe and remote Supab
   assert.match(verifier, /127\.0\.0\.1/);
 });
 
-test("billing sandbox verifier proves local Supabase admin authority and billing schema readiness", () => {
+test("billing sandbox verifier proves the same Supabase service boundary used by profile creation", () => {
   assert.match(verifier, /createClient\(supabaseUrl, supabaseSecretKey/);
-  assert.match(verifier, /furvise_security_compatibility_snapshot_v2/);
+  assert.match(verifier, /claim_idempotency_operation/);
+  assert.match(verifier, /billing\.sandbox\.authority_probe/);
+  assert.match(verifier, /IDEMPOTENCY_USER_REQUIRED/);
+  assert.match(verifier, /p_user_id: null/);
   assert.match(verifier, /BILLING_SANDBOX_SUPABASE_ADMIN_AUTHORITY_INVALID/);
+  assert.doesNotMatch(verifier, /console\.(?:log|error)\([^\n]*authorityProbeError/);
+});
+
+test("billing sandbox verifier requires healthy PostgREST-aware billing readiness", () => {
+  assert.match(verifier, /furvise_security_compatibility_snapshot_v2/);
   assert.match(verifier, /BILLING_SANDBOX_SUPABASE_SCHEMA_NOT_READY/);
   assert.match(verifier, /security_compatibility_contract_v2/);
   assert.match(verifier, /add_billing_checkout_single_flight/);
   assert.match(verifier, /align_billing_checkout_currency_authority/);
   assert.match(verifier, /add_billing_payment_recovery_grace/);
+  assert.match(verifier, /harden_postgrest_service_authority/);
   assert.match(verifier, /Supabase admin authority: verified/);
   assert.match(verifier, /Billing schema readiness: verified/);
 });
