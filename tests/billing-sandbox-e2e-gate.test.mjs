@@ -20,6 +20,19 @@ test("billing sandbox verifier fails closed against live Stripe and remote Supab
   assert.match(verifier, /127\.0\.0\.1/);
 });
 
+test("billing sandbox verifier proves local Supabase admin authority and billing schema readiness", () => {
+  assert.match(verifier, /createClient\(supabaseUrl, supabaseSecretKey/);
+  assert.match(verifier, /furvise_security_compatibility_snapshot_v2/);
+  assert.match(verifier, /BILLING_SANDBOX_SUPABASE_ADMIN_AUTHORITY_INVALID/);
+  assert.match(verifier, /BILLING_SANDBOX_SUPABASE_SCHEMA_NOT_READY/);
+  assert.match(verifier, /security_compatibility_contract_v2/);
+  assert.match(verifier, /add_billing_checkout_single_flight/);
+  assert.match(verifier, /align_billing_checkout_currency_authority/);
+  assert.match(verifier, /add_billing_payment_recovery_grace/);
+  assert.match(verifier, /Supabase admin authority: verified/);
+  assert.match(verifier, /Billing schema readiness: verified/);
+});
+
 test("billing sandbox verifier checks the real launch price contract without logging secrets", () => {
   assert.match(verifier, /stripe\.prices\.retrieve/);
   assert.match(verifier, /price\.livemode === false/);
