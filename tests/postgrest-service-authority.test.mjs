@@ -8,6 +8,7 @@ import {
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const migration = source("supabase/migrations/20260825002500_harden_postgrest_service_authority.sql");
+const volatilityMigration = source("supabase/migrations/20260825004500_correct_postgrest_service_authority_volatility.sql");
 const fixture = source("supabase/tests/postgrest_service_authority.sql");
 
 test("service authority follows the PostgREST request role and bridges legacy claim guards only after validation", () => {
@@ -16,10 +17,14 @@ test("service authority follows the PostgREST request role and bridges legacy cl
   assert.match(migration, /request\.jwt\.claims/);
   assert.match(migration, /request\.jwt\.claim\.role/);
   assert.match(migration, /SERVICE_ROLE_REQUIRED/);
-  assert.match(migration, /set_config\('request\.jwt\.claims'/);
+  assert.match(migration, /set_config\(\s*'request\.jwt\.claims'/);
   assert.match(migration, /jsonb_build_object\('role', 'service_role'\)/);
   assert.match(migration, /set_config\('request\.jwt\.claim\.role', 'service_role'/);
   assert.match(migration, /security invoker[\s\S]*private\.require_service_role_request/);
+  assert.match(
+    volatilityMigration,
+    /alter function private\.require_service_role_request\(\)[\s\S]*volatile;/,
+  );
 });
 
 test("idempotency and billing keep their public signatures while proven implementations become private", () => {
