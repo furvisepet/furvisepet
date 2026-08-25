@@ -75,7 +75,7 @@ export function buildStripeSubscriptionProjection({
   const priceRecognized = recognizePlusPriceId(priceId, env);
   const plan = resolvesToPlus({ periodEnd, periodStart, priceRecognized, status }) ? "plus" : "free";
   return {
-    cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    cancelAtPeriodEnd: isScheduledForPeriodEndCancellation(subscription, item.current_period_end),
     customerId,
     currency,
     eventCreatedAt: unixDate(event.created, "STRIPE_EVENT_CREATED_INVALID").toISOString(),
@@ -94,6 +94,14 @@ export function buildStripeSubscriptionProjection({
 
 export function stripeObjectId(value: string | { id: string } | null | undefined) {
   return typeof value === "string" ? value : typeof value?.id === "string" ? value.id : "";
+}
+
+export function isScheduledForPeriodEndCancellation(
+  subscription: Pick<Stripe.Subscription, "cancel_at" | "cancel_at_period_end">,
+  currentPeriodEnd: number,
+) {
+  return subscription.cancel_at_period_end === true
+    || (Number.isFinite(subscription.cancel_at) && subscription.cancel_at === currentPeriodEnd);
 }
 
 function normalizeStatus(status: Stripe.Subscription.Status): BillingSubscriptionStatus {
