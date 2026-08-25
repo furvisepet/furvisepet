@@ -154,6 +154,7 @@ function PetSummary({ entries, onDelete, profile }: { entries: CareEntryWithPetN
         <TextAction arrow href={`/pets/${profile.id}`}>Open profile</TextAction>
         {lifecycleStatus === "active" ? <SoftButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SoftButton> : null}
         <SecondaryButton href={`/ask?pet=${profile.id}`}>Ask about {name}</SecondaryButton>
+        {lifecycleStatus === "active" ? <SoftButton href={`/vet-brief?pet=${profile.id}`}>Vet brief</SoftButton> : null}
         <PetOverflowMenu editHref={`/pets/${profile.id}/edit`} name={name} notesHref={`/pets/${profile.id}#saved-details`} onDelete={onDelete} />
       </div>
     </article>
