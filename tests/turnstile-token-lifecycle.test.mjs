@@ -14,7 +14,9 @@ test("the first login request includes the current CAPTCHA token and leaves it u
   assert.ok(capture >= 0);
   assert.ok(request > capture);
   assert.ok(reset > request);
-  assert.match(submitAuth, /JSON\.stringify\(\{ captchaToken: token \|\| undefined, email: normalizedEmail, password \}\)/);
+  assert.match(submitAuth, /body: JSON\.stringify\(\{[^}]*captchaToken: token \|\| undefined[^}]*\}\)/);
+  assert.match(submitAuth, /await idempotentClientFetch\(endpoint, init,/);
+  assert.match(submitAuth, /await fetch\(endpoint, init\)/);
   assert.doesNotMatch(submitAuth.slice(capture, submitAuth.indexOf("try {")), /setCaptchaToken\(null\)|setCaptchaReset|resetCaptchaAfterRequest/);
 });
 
@@ -46,5 +48,5 @@ test("signup and confirmation resend reset Turnstile only after their requests s
   assert.doesNotMatch(submitAuth.slice(submitAuth.indexOf("const token = captchaToken;"), signupRequest), /resetCaptchaAfterRequest|setCaptchaToken\(null\)|setCaptchaReset/);
   assert.ok(resendCapture >= 0 && resendRequest > resendCapture && resendReset > resendRequest);
   assert.doesNotMatch(resendConfirmation.slice(resendCapture, resendRequest), /resetCaptchaAfterRequest|setCaptchaToken\(null\)|setCaptchaReset/);
-  assert.match(resendConfirmation, /captchaToken: token/);
+  assert.match(resendConfirmation, /body: JSON\.stringify\(\{[^}]*captchaToken: token[^}]*\}\)/);
 });
