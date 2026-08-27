@@ -20,6 +20,9 @@ test("widget identity prevents duplicate Turnstile renders and cleanup remains h
   assert.match(challenge, /window\.turnstile \|\| widgetRef\.current\) return/);
   assert.match(challenge, /widgetRef\.current = window\.turnstile\.render/);
   assert.match(challenge, /window\.turnstile\.remove\(widgetRef\.current\)/);
+  assert.match(challenge, /try \{ window\.turnstile\.remove\(widgetRef\.current\); \} catch/);
+  assert.match(challenge, /try \{\s*window\.turnstile\.reset\(widgetRef\.current\);\s*\} catch \{/);
+  assert.match(challenge, /queueMicrotask\(\(\) => \{\s*setWidgetVisible\(false\);\s*setRenderFailed\(true\);/);
 });
 
 test("widget and script failures expose a retryable security-check error", () => {
@@ -30,13 +33,18 @@ test("widget and script failures expose a retryable security-check error", () =>
   assert.match(challenge, /onClick=\{retryWidget\}/);
 });
 
-test("the challenge has visible loading or retry feedback whenever sign-in is blocked", () => {
+test("the challenge has visible loading or retry feedback whenever authentication is blocked", () => {
   assert.match(challenge, /!widgetVisible && !renderFailed \? <p aria-live="polite"[\s\S]*Loading security check/);
   assert.match(challenge, /renderFailed \? \([\s\S]*Retry security check/);
-  assert.ok(login.indexOf("<TurnstileChallenge") < login.indexOf('type="submit"'));
+  const signIn = login.slice(login.indexOf("function SigninForm"), login.indexOf("function SignupMethodStep"));
+  assert.ok(signIn.indexOf("<TurnstileChallenge") < signIn.indexOf('type="submit"'));
 });
 
-test("Turnstile is visible immediately and production email Auth waits for a token", () => {
+test("Turnstile is deferred until the signup password step while production Auth waits for a token", () => {
+  const method = login.slice(login.indexOf("function SignupMethodStep"), login.indexOf("function SignupPasswordStep"));
+  const password = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupVerificationStep"));
+  assert.doesNotMatch(method, /TurnstileChallenge|PasswordInput/);
+  assert.match(password, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
   assert.match(login, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
   assert.doesNotMatch(login, /loginCaptchaRequired|setLoginCaptchaRequired/);
   assert.match(login, /const captchaBlocksSubmission = process\.env\.NODE_ENV === "production" && !captchaToken;/);

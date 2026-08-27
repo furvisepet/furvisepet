@@ -63,17 +63,17 @@ test("post-auth routing sends petless users to onboarding and pet owners to safe
 test("OAuth cancellation returns safely and email authentication remains available", () => {
   const callback = read("app/auth/callback/route.ts");
   const login = read("app/login/page.tsx");
+  const access = read("app/components/account-access.tsx");
   assert.match(callback, /new URL\("\/login\?error=google_auth_failed", request\.nextUrl\.origin\)/);
   assert.match(login, /"\/api\/auth\/login"/);
   assert.match(login, /"\/api\/auth\/signup"/);
-  assert.match(login, /role="status"/);
-  assert.match(login, /aria-live="polite"/);
-  assert.match(login, />Check your email</);
-  assert.match(login, /We sent you a confirmation link\. Open it to finish creating your Furvise account\./);
-  assert.match(login, /--pw-success-surface/);
-  assert.match(login, /--pw-success-border/);
-  assert.match(login, /function SignupSuccessNotice\(\)[\s\S]*svg aria-hidden="true" className="h-4 w-4"[\s\S]*m5 12 4 4L19 6/);
-  assert.match(login, /showConfirmationRecovery \? <button[\s\S]*Resend confirmation email/);
+  assert.match(access, /role="status"/);
+  assert.match(access, /aria-live="polite"/);
+  assert.match(login, /"Check your email"/);
+  assert.match(login, /We sent a verification link to/);
+  assert.match(login, /setSignupStep\("verify"\)/);
+  assert.match(login, /Didn&apos;t get it\? Resend email/);
+  assert.match(login, /Use a different email/);
 });
 
 test("auth card remains compact, responsive, and keyboard visible", () => {
