@@ -81,8 +81,10 @@ test("mobile header has a compact safe-area-aware height and responsive approved
   assert.match(header, /\[--brand-mark-size:2rem\]/);
   assert.match(
     brand,
-    /width: showName \? `calc\(\$\{responsiveSize\} \* 4\)` : responsiveSize/
+    /if \(showName\)[\s\S]*columnGap: "6px"[\s\S]*width: `calc\(\$\{responsiveSize\} \* 4\)`/
   );
+  assert.match(brand, /src=\{FURVISE_WORDMARK_ASSET\}[\s\S]*src=\{FURVISE_MASCOT_ASSET\}/);
+  assert.match(brand, /height: responsiveSize,[\s\S]*width: responsiveSize,/);
   assert.match(header, /lg:\[--brand-mark-size:3\.125rem\]/);
   assert.match(
     brand,

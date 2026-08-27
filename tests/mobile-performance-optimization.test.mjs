@@ -35,9 +35,19 @@ test("the login heading and logo have a non-blank server Suspense fallback", () 
   assert.doesNotMatch(login, /<Suspense fallback=\{null\}>/);
 });
 
-test("the only eager above-the-fold image is the explicit approved SVG brand mark", () => {
+test("the eager compact brand mark uses responsive approved vector assets", () => {
+  const namedMark = brand.slice(brand.indexOf("if (showName)"), brand.lastIndexOf("\n  return ("));
+  const iconOnlyMark = brand.slice(brand.lastIndexOf("\n  return ("));
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
-  assert.match(brand, /height=\{showName \? 800 : 2000\}[\s\S]*priority=\{priority\}[\s\S]*width=\{showName \? 3200 : 2000\}/);
+  assert.match(brand, /FURVISE_WORDMARK_ASSET = "\/brand\/furvise-wordmark\.svg"/);
+  assert.match(brand, /FURVISE_MASCOT_ASSET = "\/brand\/furvise-heron\.svg"/);
+  assert.ok(namedMark.indexOf("src={FURVISE_WORDMARK_ASSET}") < namedMark.indexOf("src={FURVISE_MASCOT_ASSET}"));
+  assert.match(namedMark, /columnGap: "6px"/);
+  assert.match(namedMark, /width: `calc\(\$\{responsiveSize\} \* 4\)`/);
+  assert.match(namedMark, /src=\{FURVISE_WORDMARK_ASSET\}[\s\S]*objectFit: "contain"/);
+  assert.match(namedMark, /src=\{FURVISE_MASCOT_ASSET\}[\s\S]*objectFit: "contain"/);
+  assert.match(iconOnlyMark, /height: responsiveSize[\s\S]*src=\{FURVISE_MASCOT_ASSET\}[\s\S]*width: responsiveSize/);
+  assert.doesNotMatch(brand, /\.(?:png|jpe?g|webp)\b/i);
   assert.match(header, /<BrandMark priority size=\{32\} \/>/);
   assert.match(header, /function NavigationIcon[\s\S]*decoding="async"[\s\S]*loading="lazy"/);
   assert.doesNotMatch(header, /NavigationIcon[^\n]*priority|NavigationIcon[^\n]*eager/);

@@ -14,17 +14,28 @@ function appFiles(directory = "app") {
   });
 }
 
-test("approved Furvise asset is owned by the shared BrandMark", () => {
+test("approved compact Furvise assets are composed by the shared BrandMark", () => {
   const brand = read("app/components/brand-mark.tsx");
   const header = read("app/components/app-header.tsx");
+  const namedMark = brand.slice(brand.indexOf("if (showName)"), brand.lastIndexOf("\n  return ("));
+  const iconOnlyMark = brand.slice(brand.lastIndexOf("\n  return ("));
+  const liveBrandReferences = [
+    ...appFiles().filter((file) => /\.(?:tsx|ts)$/.test(file)).map(read),
+    read("public/manifest.webmanifest"),
+  ].join("\n");
+
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
   assert.match(brand, /FURVISE_WORDMARK_ASSET = "\/brand\/furvise-wordmark\.svg"/);
   assert.match(brand, /FURVISE_MASCOT_ASSET = "\/brand\/furvise-heron\.svg"/);
-  assert.match(brand, /src=\{FURVISE_WORDMARK_ASSET\}/);
-  assert.match(brand, /src=\{FURVISE_MASCOT_ASSET\}/);
-  assert.match(brand, /columnGap: "6px"/);
+  assert.match(namedMark, /src=\{FURVISE_WORDMARK_ASSET\}/);
+  assert.match(namedMark, /src=\{FURVISE_MASCOT_ASSET\}/);
+  assert.ok(namedMark.indexOf("src={FURVISE_WORDMARK_ASSET}") < namedMark.indexOf("src={FURVISE_MASCOT_ASSET}"));
+  assert.match(namedMark, /columnGap: "6px"/);
+  assert.match(iconOnlyMark, /src=\{FURVISE_MASCOT_ASSET\}/);
+  assert.doesNotMatch(iconOnlyMark, /FURVISE_WORDMARK_ASSET|FURVISE_BRAND_ASSET/);
   assert.match(brand, /import Image from "next\/image"/);
-  assert.doesNotMatch(brand, /logo-header-v1|\/brand\/logo\.png|App%20icon|filter/);
+  assert.doesNotMatch(liveBrandReferences, /logo-header-v1\.webp|\/brand\/logo\.png|App(?:%20| )icon(?:\.png)?/i);
+  assert.doesNotMatch(brand, /filter/);
   assert.match(header, /<BrandMark priority/);
   assert.doesNotMatch([header, read("app/components/homepage-client.tsx")].join("\n"), /next\.svg|vercel\.svg|triangle(?:-|_)icon|house(?:-|_)icon/i);
 });

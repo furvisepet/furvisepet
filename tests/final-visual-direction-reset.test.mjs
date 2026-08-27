@@ -15,12 +15,20 @@ const ask = read("app/ask/page.tsx");
 const history = read("app/components/care-log-workspace.tsx");
 const pets = read("app/pets/page.tsx");
 
-test("canonical logo source is preserved and rendered without a substitute", () => {
-  const source = readFileSync(new URL("../public/brand/furvise-logo.svg", import.meta.url));
-  assert.equal(createHash("sha256").update(source).digest("hex").toUpperCase(), "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00");
-  assert.match(brand, /src=\{asset\}/);
+test("canonical brand masters are preserved and rendered without substitutes", () => {
+  const approved = [
+    ["furvise-logo.svg", "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00"],
+    ["furvise-wordmark.svg", "5CE60B7D3134B5AAF00F4A4A799F46443A9EB0FD23B04724A545AD15F7C248B8"],
+    ["furvise-heron.svg", "5BC3424AFD22BBA0391D302494C506455DF9EF3A2221525C32A033E8DDA0DD0B"],
+  ];
+  for (const [file, hash] of approved) {
+    const source = readFileSync(new URL(`../public/brand/${file}`, import.meta.url));
+    assert.equal(createHash("sha256").update(source).digest("hex").toUpperCase(), hash);
+  }
+  assert.match(brand, /src=\{FURVISE_WORDMARK_ASSET\}/);
+  assert.match(brand, /src=\{FURVISE_MASCOT_ASSET\}/);
   assert.match(brand, /objectFit: "contain"/);
-  assert.doesNotMatch(brand, /furvise-mark|logo-header-v1|\/brand\/logo\.png|filter/);
+  assert.doesNotMatch(brand, /furvise-mark|logo-header-v1|\/brand\/logo\.png|App(?:%20| )icon|filter/i);
 });
 
 test("the permanent warm-light color system keeps the approved action hierarchy", () => {

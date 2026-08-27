@@ -86,11 +86,17 @@ test("homepage tells each benefit once and keeps pet-aware actions", () => {
 
 test("BrandMark keeps the canonical source without generated theme variants", () => {
   const brand = read("app/components/brand-mark.tsx");
+  const namedMark = brand.slice(brand.indexOf("if (showName)"), brand.lastIndexOf("\n  return ("));
+  const iconOnlyMark = brand.slice(brand.lastIndexOf("\n  return ("));
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
   assert.doesNotMatch(brand, /furvise-mark-light|furvise-mark-dark/);
+  assert.match(brand, /FURVISE_WORDMARK_ASSET = "\/brand\/furvise-wordmark\.svg"/);
   assert.match(brand, /FURVISE_MASCOT_ASSET = "\/brand\/furvise-heron\.svg"/);
-  assert.match(brand, /height=\{showName \? 800 : 2000\}[\s\S]*objectFit: "contain"[\s\S]*width=\{showName \? 3200 : 2000\}/);
-  assert.match(brand, /alt=\{showName \? "Furvise" : ""\}/);
+  assert.ok(namedMark.indexOf("src={FURVISE_WORDMARK_ASSET}") < namedMark.indexOf("src={FURVISE_MASCOT_ASSET}"));
+  assert.match(namedMark, /columnGap: "6px"/);
+  assert.match(namedMark, /alt="Furvise"[\s\S]*objectFit: "contain"/);
+  assert.match(namedMark, /alt=""[\s\S]*aria-hidden="true"[\s\S]*src=\{FURVISE_MASCOT_ASSET\}/);
+  assert.match(iconOnlyMark, /alt=""[\s\S]*aria-hidden="true"[\s\S]*height: responsiveSize[\s\S]*width: responsiveSize/);
   assert.match(brand, /size = 30/);
 });
 

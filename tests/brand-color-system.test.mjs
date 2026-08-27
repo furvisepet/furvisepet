@@ -173,17 +173,29 @@ test("appearance switching is absent and Products stays out of Account", () => {
   assert.doesNotMatch(account, /\/shop|Products/);
 });
 
-test("approved brand assets are pinned and deprecated asset references are absent", () => {
-  const approved = new Map([
+test("approved SVG artwork is pinned, vector, transparent, and separate from UI palette tokens", () => {
+  const approvedBrandMasters = new Map([
+    ["public/brand/furvise-logo.svg", { fills: ["#14362f", "#1c3d30"], hash: "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00" }],
+    ["public/brand/furvise-wordmark.svg", { fills: ["#1c3d30"], hash: "5ce60b7d3134b5aaf00f4a4a799f46443a9eb0fd23b04724a545ad15f7c248b8" }],
+    ["public/brand/furvise-heron.svg", { fills: ["#14362f"], hash: "5bc3424afd22bba0391d302494c506455df9ef3a2221525c32a033e8dda0dd0b" }],
+  ]);
+  for (const [file, expected] of approvedBrandMasters) {
+    assert.ok(existsSync(path.join(root, file)), `${file} must remain present`);
+    const source = read(file);
+    const fills = [...new Set([...source.matchAll(/fill="(#[0-9a-f]{6})"/gi)].map((match) => match[1].toLowerCase()))].sort();
+    assert.match(source, /<svg\b/);
+    assert.doesNotMatch(source, /<image\b|\.(?:png|jpe?g|webp)\b|data:image/i);
+    assert.doesNotMatch(source, /<rect\b|background(?:-color)?\s*:/i);
+    assert.deepEqual(fills, expected.fills, `${file} must preserve the approved master fills`);
+    assert.equal(createHash("sha256").update(read(file, null)).digest("hex"), expected.hash, `${file} must remain byte-for-byte unchanged`);
+  }
+
+  const otherPinnedAssets = new Map([
     ["app/favicon.ico", "617e8f6a24067e937ecafd8c8a8de735bf4bac546b0378f0220c884f88c952db"],
-    ["public/brand/furvise-logo.svg", "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00"],
-    ["public/brand/furvise-wordmark.svg", "5ce60b7d3134b5aaf00f4a4a799f46443a9eb0fd23b04724a545ad15f7c248b8"],
-    ["public/brand/furvise-heron.svg", "5bc3424afd22bba0391d302494c506455df9ef3a2221525c32a033e8dda0dd0b"],
-    ["public/App icon.png", "da53fb4ede39df23648d9e76badfd64989cf2fde12e6ef29e486addac7e0c6dd"],
     ["public/images/dog.png", "2365277fbeadafe581fb4cb29d68226aac1b0f092903a134e06bd39f3649bab0"],
     ["public/images/cat.png", "9fe25f03e30cfb9ffa8aae86aa1d1bb0518b84e9c75ccabc7053e2af0c7a8e17"],
   ]);
-  for (const [file, expectedHash] of approved) {
+  for (const [file, expectedHash] of otherPinnedAssets) {
     assert.ok(existsSync(path.join(root, file)), `${file} must remain present`);
     assert.equal(createHash("sha256").update(read(file, null)).digest("hex"), expectedHash, `${file} must remain byte-for-byte unchanged`);
   }
@@ -195,13 +207,20 @@ test("approved brand assets are pinned and deprecated asset references are absen
   assert.doesNotMatch(references, /logo-header-v1\.webp|\/brand\/logo\.png|App%20icon\.png|furvise-logo\.png|furvise%20logo%20website|android-chrome-|site\.webmanifest/);
 });
 
-test("BrandMark references the exact source image and preserves its intrinsic aspect ratio", () => {
+test("BrandMark composes responsive wordmark and heron assets without distortion", () => {
   const brand = read("app/components/brand-mark.tsx");
+  const namedMark = brand.slice(brand.indexOf("if (showName)"), brand.lastIndexOf("\n  return ("));
+  const iconOnlyMark = brand.slice(brand.lastIndexOf("\n  return ("));
   assert.match(brand, /import Image from "next\/image"/);
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
+  assert.match(brand, /FURVISE_WORDMARK_ASSET = "\/brand\/furvise-wordmark\.svg"/);
   assert.match(brand, /FURVISE_MASCOT_ASSET = "\/brand\/furvise-heron\.svg"/);
-  assert.match(brand, /height=\{showName \? 800 : 2000\}[\s\S]*width=\{showName \? 3200 : 2000\}/);
-  assert.match(brand, /<Image[\s\S]*objectFit: "contain"/);
+  assert.ok(namedMark.indexOf("src={FURVISE_WORDMARK_ASSET}") < namedMark.indexOf("src={FURVISE_MASCOT_ASSET}"));
+  assert.match(namedMark, /columnGap: "6px"/);
+  assert.match(namedMark, /height=\{800\}[\s\S]*src=\{FURVISE_WORDMARK_ASSET\}[\s\S]*objectFit: "contain"[\s\S]*width=\{3000\}/);
+  assert.match(namedMark, /height=\{2000\}[\s\S]*src=\{FURVISE_MASCOT_ASSET\}[\s\S]*objectFit: "contain"[\s\S]*width=\{2000\}/);
+  assert.match(namedMark, /width: `calc\(\$\{responsiveSize\} \* 4\)`/);
+  assert.match(iconOnlyMark, /height: responsiveSize[\s\S]*src=\{FURVISE_MASCOT_ASSET\}[\s\S]*width: responsiveSize/);
   const layout = read("app/layout.tsx");
   assert.match(layout, /url: "\/favicon\.ico"/);
   assert.match(layout, /manifest: "\/manifest\.webmanifest"/);
