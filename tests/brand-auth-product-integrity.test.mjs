@@ -18,8 +18,12 @@ test("approved Furvise asset is owned by the shared BrandMark", () => {
   const brand = read("app/components/brand-mark.tsx");
   const header = read("app/components/app-header.tsx");
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
+  assert.match(brand, /FURVISE_WORDMARK_ASSET = "\/brand\/furvise-wordmark\.svg"/);
+  assert.match(brand, /FURVISE_MASCOT_ASSET = "\/brand\/furvise-heron\.svg"/);
+  assert.match(brand, /src=\{FURVISE_WORDMARK_ASSET\}/);
+  assert.match(brand, /src=\{FURVISE_MASCOT_ASSET\}/);
+  assert.match(brand, /columnGap: "6px"/);
   assert.match(brand, /import Image from "next\/image"/);
-  assert.match(brand, /src=\{asset\}/);
   assert.doesNotMatch(brand, /logo-header-v1|\/brand\/logo\.png|App%20icon|filter/);
   assert.match(header, /<BrandMark priority/);
   assert.doesNotMatch([header, read("app/components/homepage-client.tsx")].join("\n"), /next\.svg|vercel\.svg|triangle(?:-|_)icon|house(?:-|_)icon/i);
