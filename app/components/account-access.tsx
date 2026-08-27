@@ -27,10 +27,10 @@ export function AccountAccessLayout({
   return (
     <main className="min-h-screen bg-[var(--surface-page)] text-[var(--text-primary)]">
       <PageShell className="flex min-h-screen flex-col" preset="reading">
-        <header className="flex min-h-[4.25rem] items-center border-b border-[var(--line)] pt-[env(safe-area-inset-top,0px)]">
-          <Link className="inline-flex min-h-11 items-center" href="/" aria-label="Furvise home">
-            <span className="inline-flex items-center [--brand-mark-size:2.5rem]">
-              <BrandMark priority size={40} />
+        <header className="flex min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] items-center border-b border-[var(--line)] pt-[env(safe-area-inset-top,0px)]">
+          <Link aria-label="Furvise home" className="inline-flex min-h-11 min-w-11 items-center" href="/">
+            <span className="inline-flex items-center [--brand-mark-size:1.5rem] sm:[--brand-mark-size:1.75rem]">
+              <BrandMark priority showName={false} size={24} />
             </span>
           </Link>
         </header>

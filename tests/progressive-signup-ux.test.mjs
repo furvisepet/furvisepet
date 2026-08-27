@@ -17,10 +17,22 @@ const signIn = login.slice(login.indexOf("function SigninForm"), login.indexOf("
 test("normal signup starts with one local email decision and no password or security challenge", () => {
   assert.match(login, /type SignupStep = "method" \| "password" \| "verify"/);
   assert.match(login, /useState<SignupStep>\("method"\)/);
-  assert.match(methodStep, /Create your Furvise account|EmailInput/);
+  assert.match(login, /signupStep === "method" \? "Create your account" : signupStep === "password" \? "Secure your account" : "Check your email"/);
+  assert.doesNotMatch(login, /Create your Furvise account/);
+  assert.match(methodStep, /EmailInput/);
   assert.match(methodStep, />Continue<\/button>/);
   assert.match(methodStep, /Already have an account\? Sign in/);
   assert.doesNotMatch(methodStep, /PasswordInput|TurnstileChallenge|Create account/);
+});
+
+test("shared auth branding is heron-only, responsive, accessible, and safe-area aware", () => {
+  assert.match(layout, /<BrandMark priority showName=\{false\} size=\{24\} \/>/);
+  assert.doesNotMatch(layout, /furvise-wordmark|FURVISE_WORDMARK_ASSET/);
+  assert.match(layout, /aria-label="Furvise home"/);
+  assert.match(layout, /min-h-11 min-w-11/);
+  assert.match(layout, /\[--brand-mark-size:1\.5rem\] sm:\[--brand-mark-size:1\.75rem\]/);
+  assert.match(layout, /min-h-\[calc\(3\.5rem\+env\(safe-area-inset-top,0px\)\)\]/);
+  assert.match(layout, /pt-\[env\(safe-area-inset-top,0px\)\]/);
 });
 
 test("valid email advances locally after normalization without an account lookup or signup request", () => {
