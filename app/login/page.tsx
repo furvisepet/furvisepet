@@ -232,7 +232,7 @@ function LoginPageContent() {
     );
   }
 
-  const signupTitle = signupStep === "method" ? "Create your Furvise account" : signupStep === "password" ? "Secure your account" : "Check your email";
+  const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Secure your account" : "Check your email";
   const signupSupportingText = signupStep === "method"
     ? "Start with your pet. We’ll help with the rest."
     : signupStep === "password"

@@ -23,11 +23,15 @@ test("desktop primary navigation is text-only without changing its inventory or 
   assert.match(desktop, /focus-visible:ring-2/);
 });
 
-test("main and every shared auth header use the larger undistorted BrandMark sizing", () => {
+test("main keeps the horizontal lockup while shared auth flows use a restrained heron", () => {
   assert.match(header, /\[--brand-mark-size:2rem\] lg:\[--brand-mark-size:3\.125rem\]/);
   assert.match(header, /lg:min-h-\[4\.25rem\]/);
-  assert.match(accountAccess, /\[--brand-mark-size:2\.5rem\]/);
-  assert.match(accountAccess, /<BrandMark priority size=\{40\} \/>/);
+  assert.match(accountAccess, /min-h-\[calc\(3\.5rem\+env\(safe-area-inset-top,0px\)\)\]/);
+  assert.match(accountAccess, /pt-\[env\(safe-area-inset-top,0px\)\]/);
+  assert.match(accountAccess, /aria-label="Furvise home" className="inline-flex min-h-11 min-w-11 items-center" href="\/"/);
+  assert.match(accountAccess, /\[--brand-mark-size:1\.5rem\] sm:\[--brand-mark-size:1\.75rem\]/);
+  assert.match(accountAccess, /<BrandMark priority showName=\{false\} size=\{24\} \/>/);
+  assert.doesNotMatch(accountAccess, /furvise-wordmark|FURVISE_WORDMARK_ASSET|<BrandMark priority size=/);
   for (const page of ["app/login/page.tsx", "app/forgot-password/page.tsx", "app/reset-password/confirm/page.tsx", "app/update-password/page.tsx"]) {
     assert.match(read(page), /AccountAccessLayout/);
   }
