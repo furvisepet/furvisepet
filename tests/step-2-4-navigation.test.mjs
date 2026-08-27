@@ -69,5 +69,5 @@ test("approved brand asset remains byte-identical", () => {
   assert.match(brand, /objectFit: "contain"/);
   assert.match(brand, /height: "100%"/);
   assert.doesNotMatch(brand, /translateY|scale\(2\.75\)/);
-  assert.equal(hash("public/brand/logo.png"), "D24A7A73878FB4692918D140D69DC9D803281D53FF2704AC51B5720A782BECB6");
+  assert.equal(hash("public/brand/furvise-logo.svg"), "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00");
 });

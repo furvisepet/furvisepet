@@ -21,7 +21,7 @@ const products = read("app/shop/page.tsx");
 const account = read("app/account/page.tsx");
 
 test("desktop and mobile headers share the approved brand without duplicating it in bottom navigation", () => {
-  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/logo\.png"/);
+  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
   assert.match(header, /data-ui="app-header"/);
   assert.match(header, /<BrandMark priority size=\{32\} \/>/);
   assert.match(header, /hidden items-center justify-self-center lg:flex[\s\S]*aria-label="Primary navigation"/);
@@ -90,8 +90,10 @@ test("footer is compact, shell aligned, and uses the canonical logo component", 
 
 test("theme switching stays removed and protected brand assets remain byte-identical", () => {
   const expected = {
-    "public/brand/logo.png": "D24A7A73878FB4692918D140D69DC9D803281D53FF2704AC51B5720A782BECB6",
-    "app/favicon.ico": "6E33AAE904FB4A5A8EBC6CE15EE8846C692F154B92FB0EEAC3278B0351444557",
+    "public/brand/furvise-logo.svg": "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00",
+    "public/brand/furvise-wordmark.svg": "5CE60B7D3134B5AAF00F4A4A799F46443A9EB0FD23B04724A545AD15F7C248B8",
+    "public/brand/furvise-heron.svg": "5BC3424AFD22BBA0391D302494C506455DF9EF3A2221525C32A033E8DDA0DD0B",
+    "app/favicon.ico": "617E8F6A24067E937ECAFD8C8A8DE735BF4BAC546B0378F0220C884F88C952DB",
   };
   for (const [path, digest] of Object.entries(expected)) assert.equal(hash(path), digest, `${path} must not change`);
   const combined = [css, header, read("app/layout.tsx")].join("\n");

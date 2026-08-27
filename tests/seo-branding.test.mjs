@@ -98,17 +98,25 @@ test("manifest and metadata use only existing approved Furvise brand assets", ()
   assert.equal(manifest.description, "Pet care history, notes, products, and guidance.");
   assert.deepEqual(
     manifest.icons.map((icon) => icon.src),
-    ["/favicon.ico"],
+    ["/favicon.ico", "/android-192.png", "/android-512.png", "/maskable-icon-512.png"],
   );
   assert.equal(existsSync(path.join(root, "public/favicon.svg")), false);
   assert.match(layout, /\/favicon\.ico/);
-  assert.doesNotMatch(layout, /favicon-(?:16|32)\.png|apple-touch-icon\.png/);
-  assert.match(seo, /\/brand\/logo\.png/);
+  assert.match(layout, /favicon-16\.png[\s\S]*favicon-32\.png[\s\S]*apple-touch-icon\.png/);
+  assert.match(seo, /\/brand\/furvise-logo\.svg/);
   assert.doesNotMatch(seo, /furvise-og/);
 
   for (const asset of [
     "app/favicon.ico",
-    "public/brand/logo.png",
+    "public/brand/furvise-logo.svg",
+    "public/brand/furvise-wordmark.svg",
+    "public/brand/furvise-heron.svg",
+    "public/favicon-16.png",
+    "public/favicon-32.png",
+    "public/apple-touch-icon.png",
+    "public/android-192.png",
+    "public/android-512.png",
+    "public/maskable-icon-512.png",
   ]) {
     assert.ok(existsSync(path.join(root, asset)), `${asset} should exist`);
   }
@@ -125,7 +133,7 @@ test("app UI has no default Next, Vercel, triangle, or house logo references", (
     .join("\n");
 
   assert.doesNotMatch(uiSource, /next\.svg|vercel\.svg|triangle(?:-|_)icon|house(?:-|_)icon/i);
-  assert.match(uiSource, /\/brand\/logo\.png/);
+  assert.match(uiSource, /\/brand\/furvise-logo\.svg/);
 });
 
 test("private app routes use shared noindex metadata", () => {
@@ -160,6 +168,6 @@ test("home JSON-LD is limited to WebSite and Organization", () => {
   assert.match(page, /application\/ld\+json/);
   assert.match(page, /"@type": "WebSite"/);
   assert.match(page, /"@type": "Organization"/);
-  assert.match(page, /brand\/logo\.png/);
+  assert.match(page, /brand\/furvise-logo\.svg/);
   assert.doesNotMatch(page, /MedicalBusiness|VeterinaryCare|AggregateRating|Review|Offer/);
 });

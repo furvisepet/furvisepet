@@ -17,20 +17,22 @@ function appFiles(directory = "app") {
 test("approved Furvise asset is owned by the shared BrandMark", () => {
   const brand = read("app/components/brand-mark.tsx");
   const header = read("app/components/app-header.tsx");
-  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/logo\.png"/);
+  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
   assert.match(brand, /import Image from "next\/image"/);
   assert.match(brand, /src=\{asset\}/);
-  assert.doesNotMatch(brand, /furvise-mark|filter|\.svg/);
+  assert.doesNotMatch(brand, /logo-header-v1|\/brand\/logo\.png|App%20icon|filter/);
   assert.match(header, /<BrandMark priority/);
   assert.doesNotMatch([header, read("app/components/homepage-client.tsx")].join("\n"), /next\.svg|vercel\.svg|triangle(?:-|_)icon|house(?:-|_)icon/i);
 });
 
-test("manifest and metadata use only the app-folder favicon", () => {
+test("manifest and metadata declare the approved browser and installed-app icons", () => {
   const manifest = read("public/manifest.webmanifest");
   const layout = read("app/layout.tsx");
   assert.match(manifest, /"src": "\/favicon\.ico"/);
   assert.match(layout, /url: "\/favicon\.ico"/);
-  assert.doesNotMatch(`${manifest}\n${layout}`, /favicon-(?:16|32)\.png|apple-touch-icon\.png|android-(?:192|512)\.png|maskable-icon/);
+  for (const asset of ["favicon-16.png", "favicon-32.png", "apple-touch-icon.png", "android-192.png", "android-512.png", "maskable-icon-512.png"]) {
+    assert.match(`${manifest}\n${layout}`, new RegExp(asset.replace(".", "\\.")));
+  }
 });
 
 test("the warm forest, sage, cream, and orange palette drives the permanent light color system", () => {

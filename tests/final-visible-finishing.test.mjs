@@ -86,10 +86,10 @@ test("homepage tells each benefit once and keeps pet-aware actions", () => {
 
 test("BrandMark keeps the canonical source without generated theme variants", () => {
   const brand = read("app/components/brand-mark.tsx");
-  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/logo\.png"/);
+  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
   assert.doesNotMatch(brand, /furvise-mark-light|furvise-mark-dark/);
-  assert.match(brand, /FURVISE_BRAND_OPTIMIZED_ASSET = "\/brand\/logo-header-v1\.webp"/);
-  assert.match(brand, /height=\{showName \? 159 : 1254\}[\s\S]*objectFit: "contain"[\s\S]*width=\{showName \? 512 : 1254\}/);
+  assert.match(brand, /FURVISE_MASCOT_ASSET = "\/brand\/furvise-heron\.svg"/);
+  assert.match(brand, /height=\{showName \? 800 : 2000\}[\s\S]*objectFit: "contain"[\s\S]*width=\{showName \? 3200 : 2000\}/);
   assert.match(brand, /alt=\{showName \? "Furvise" : ""\}/);
   assert.match(brand, /size = 30/);
 });

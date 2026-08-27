@@ -16,11 +16,11 @@ const history = read("app/components/care-log-workspace.tsx");
 const pets = read("app/pets/page.tsx");
 
 test("canonical logo source is preserved and rendered without a substitute", () => {
-  const source = readFileSync(new URL("../public/brand/logo.png", import.meta.url));
-  assert.equal(createHash("sha256").update(source).digest("hex").toUpperCase(), "D24A7A73878FB4692918D140D69DC9D803281D53FF2704AC51B5720A782BECB6");
+  const source = readFileSync(new URL("../public/brand/furvise-logo.svg", import.meta.url));
+  assert.equal(createHash("sha256").update(source).digest("hex").toUpperCase(), "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00");
   assert.match(brand, /src=\{asset\}/);
   assert.match(brand, /objectFit: "contain"/);
-  assert.doesNotMatch(brand, /furvise-mark|\.svg|filter/);
+  assert.doesNotMatch(brand, /furvise-mark|logo-header-v1|\/brand\/logo\.png|filter/);
 });
 
 test("the permanent warm-light color system keeps the approved action hierarchy", () => {

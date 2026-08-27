@@ -35,10 +35,14 @@ const nextConfig: NextConfig = {
         source,
         headers: [...immutableAssetHeaders],
       })),
-      {
-        source: "/brand/logo-header-v1.webp",
+      ...[
+        "/brand/furvise-logo.svg",
+        "/brand/furvise-wordmark.svg",
+        "/brand/furvise-heron.svg",
+      ].map((source) => ({
         headers: [...immutableAssetHeaders],
-      },
+        source,
+      })),
       {
         source: "/reset-password/confirm",
         headers: [

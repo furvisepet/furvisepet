@@ -81,6 +81,6 @@ test("navigation order, desktop active treatment, and brand assets stay protecte
   for (const label of ["Today", "Pets", "History", "Ask", "Products"]) assert.ok(desktop.includes(`label: "${label}"`));
   assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "background"/);
   assert.doesNotMatch(header, /isActive\(item\.href\) \? "[^"]*bg-\[var\(--selected-background\)\]/);
-  assert.equal(hash("public/brand/logo.png"), "D24A7A73878FB4692918D140D69DC9D803281D53FF2704AC51B5720A782BECB6");
-  assert.equal(hash("app/favicon.ico"), "6E33AAE904FB4A5A8EBC6CE15EE8846C692F154B92FB0EEAC3278B0351444557");
+  assert.equal(hash("public/brand/furvise-logo.svg"), "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00");
+  assert.equal(hash("app/favicon.ico"), "617E8F6A24067E937ECAFD8C8A8DE735BF4BAC546B0378F0220C884F88C952DB");
 });

@@ -175,9 +175,11 @@ test("appearance switching is absent and Products stays out of Account", () => {
 
 test("approved brand assets are pinned and deprecated asset references are absent", () => {
   const approved = new Map([
-    ["app/favicon.ico", "6e33aae904fb4a5a8ebc6ce15ee8846c692f154b92fb0eeac3278b0351444557"],
-    ["public/brand/logo.png", "d24a7a73878fb4692918d140d69dc9d803281d53ff2704ac51b5720a782becb6"],
-    ["public/App icon.png", "a1a556536f781b73322e6bfaad1c9bcb94f0a8ed2d8fc42c9c404300ba746886"],
+    ["app/favicon.ico", "617e8f6a24067e937ecafd8c8a8de735bf4bac546b0378f0220c884f88c952db"],
+    ["public/brand/furvise-logo.svg", "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00"],
+    ["public/brand/furvise-wordmark.svg", "5ce60b7d3134b5aaf00f4a4a799f46443a9eb0fd23b04724a545ad15f7c248b8"],
+    ["public/brand/furvise-heron.svg", "5bc3424afd22bba0391d302494c506455df9ef3a2221525c32a033e8dda0dd0b"],
+    ["public/App icon.png", "da53fb4ede39df23648d9e76badfd64989cf2fde12e6ef29e486addac7e0c6dd"],
     ["public/images/dog.png", "2365277fbeadafe581fb4cb29d68226aac1b0f092903a134e06bd39f3649bab0"],
     ["public/images/cat.png", "9fe25f03e30cfb9ffa8aae86aa1d1bb0518b84e9c75ccabc7053e2af0c7a8e17"],
   ]);
@@ -190,14 +192,15 @@ test("approved brand assets are pinned and deprecated asset references are absen
     .filter((file) => !file.replaceAll("\\", "/").endsWith("docs/security-resource-inventory.md"))
     .map((file) => read(file))
     .join("\n");
-  assert.doesNotMatch(references, /furvise-logo\.png|furvise%20logo%20website|favicon-(?:16|32)\.png|apple-touch-icon\.png|android-(?:192|512)\.png|maskable-icon|android-chrome-|site\.webmanifest/);
+  assert.doesNotMatch(references, /logo-header-v1\.webp|\/brand\/logo\.png|App%20icon\.png|furvise-logo\.png|furvise%20logo%20website|android-chrome-|site\.webmanifest/);
 });
 
 test("BrandMark references the exact source image and preserves its intrinsic aspect ratio", () => {
   const brand = read("app/components/brand-mark.tsx");
   assert.match(brand, /import Image from "next\/image"/);
-  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/logo\.png"/);
-  assert.match(brand, /FURVISE_MASCOT_ASSET = "\/App%20icon\.png"/);
+  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
+  assert.match(brand, /FURVISE_MASCOT_ASSET = "\/brand\/furvise-heron\.svg"/);
+  assert.match(brand, /height=\{showName \? 800 : 2000\}[\s\S]*width=\{showName \? 3200 : 2000\}/);
   assert.match(brand, /<Image[\s\S]*objectFit: "contain"/);
   const layout = read("app/layout.tsx");
   assert.match(layout, /url: "\/favicon\.ico"/);
