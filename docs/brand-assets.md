@@ -4,9 +4,10 @@ The application uses the supplied SVG brand files directly. They must not be reg
 
 ## Application branding
 
-- `public/brand/furvise-logo.svg`: approved horizontal heron and Furvise lockup used by the shared brand component and social metadata.
-- `public/brand/furvise-wordmark.svg`: approved text-only Furvise wordmark for contexts that genuinely need it.
-- `public/brand/furvise-heron.svg`: approved standalone heron used by icon-only UI and as the source for browser and installed-app icons.
+- `public/brand/furvise-logo.svg`: approved horizontal heron and Furvise lockup used for social metadata and large brand treatments.
+- `public/brand/furvise-wordmark.svg`: approved Furvise wordmark used by the shared `BrandMark` on compact header/footer surfaces.
+- `public/brand/furvise-heron.svg`: approved standalone heron used alongside the wordmark in the shared `BrandMark`, by icon-only UI, and as the source for browser and installed-app icons.
+- Compact shared branding composes the wordmark and heron as separate approved assets with a 6px gap so the small lockup does not visually crowd the final `E`.
 - `public/images/dog.png` and `public/images/cat.png`: transparent pet artwork used by Quick Start onboarding.
 
 ## Browser and installed-app icons
