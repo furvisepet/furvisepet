@@ -104,9 +104,12 @@ test("pre-provider infrastructure failures release email-operation replay claims
 
 test("password policy is length-only, bounded, and does not mutate passwords", () => {
   const policy = source("app/lib/security/auth-abuse/password.ts");
+  const login = source("app/login/page.tsx");
   assert.match(policy, /MIN_LENGTH = 12/); assert.match(policy, /MAX_LENGTH = 128/);
   assert.doesNotMatch(policy, /\.trim\(|toLowerCase|normalize\(|uppercase|special character/i);
-  assert.match(source("app/login/page.tsx"), /minLength=\{mode === "signin" \? 1 : 12\}/);
+  assert.match(login, /minLength=\{12\}/);
+  assert.match(login, /maxLength=\{128\}/);
+  assert.match(login, /Use 12 to 128 characters\./);
 });
 
 test("recovery redirects are server-selected and password update requires verified session", () => {

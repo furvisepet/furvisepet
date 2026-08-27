@@ -71,10 +71,24 @@ export function TurnstileChallenge({ onToken, resetSignal }: { onToken: (token: 
   useEffect(() => {
     if (!widgetRef.current || !window.turnstile) return;
     onTokenRef.current(null);
-    window.turnstile.reset(widgetRef.current);
+    try {
+      window.turnstile.reset(widgetRef.current);
+    } catch {
+      widgetRef.current = null;
+      elementRef.current?.replaceChildren();
+      queueMicrotask(() => {
+        setWidgetVisible(false);
+        setRenderFailed(true);
+      });
+    }
   }, [resetSignal]);
 
-  useEffect(() => () => { if (widgetRef.current && window.turnstile) window.turnstile.remove(widgetRef.current); }, []);
+  useEffect(() => () => {
+    if (widgetRef.current && window.turnstile) {
+      try { window.turnstile.remove(widgetRef.current); } catch { /* The provider may have already discarded a failed widget. */ }
+    }
+    widgetRef.current = null;
+  }, []);
 
   if (!siteKey) {
     return process.env.NODE_ENV === "production"
