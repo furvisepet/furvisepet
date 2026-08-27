@@ -8,7 +8,7 @@ export const HOME_DESCRIPTION =
   "Furvise keeps your pet’s care history, notes, product information, and helpful answers in one calm place.";
 export const SOCIAL_DESCRIPTION =
   "Keep pet profiles, care updates, vet notes, and product information together in one calm place.";
-export const FURVISE_OG_IMAGE_URL = `${CANONICAL_ORIGIN}/brand/logo.png`;
+export const FURVISE_OG_IMAGE_URL = `${CANONICAL_ORIGIN}/brand/furvise-logo.svg`;
 
 export const PRIVATE_PAGE_ROBOTS: NonNullable<Metadata["robots"]> = {
   index: false,
@@ -52,8 +52,8 @@ export function createPublicPageMetadata({
       images: [
         {
           url: FURVISE_OG_IMAGE_URL,
-          width: 500,
-          height: 500,
+          width: 3200,
+          height: 800,
           alt: "Furvise pet care history, notes, products, and guidance in a calm home for pet memories",
         },
       ],

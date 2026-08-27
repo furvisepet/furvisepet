@@ -1,8 +1,8 @@
 import Image from "next/image";
 
-export const FURVISE_BRAND_ASSET = "/brand/logo.png";
-export const FURVISE_BRAND_OPTIMIZED_ASSET = "/brand/logo-header-v1.webp";
-export const FURVISE_MASCOT_ASSET = "/App%20icon.png";
+export const FURVISE_BRAND_ASSET = "/brand/furvise-logo.svg";
+export const FURVISE_WORDMARK_ASSET = "/brand/furvise-wordmark.svg";
+export const FURVISE_MASCOT_ASSET = "/brand/furvise-heron.svg";
 
 export function BrandMark({
   className = "",
@@ -16,36 +16,76 @@ export function BrandMark({
   size?: number;
 }) {
   const responsiveSize = `var(--brand-mark-size, ${size}px)`;
-  const asset = showName ? FURVISE_BRAND_OPTIMIZED_ASSET : FURVISE_MASCOT_ASSET;
 
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center justify-center ${showName ? "overflow-hidden" : ""} ${className}`}
-      style={{
-        height: responsiveSize,
-        width: showName ? `calc(${responsiveSize} * 3.2)` : responsiveSize,
-      }}
-    >
-      <Image
-        alt={showName ? "Furvise" : ""}
-        aria-hidden={showName ? undefined : "true"}
-        className="block shrink-0 object-contain"
-        height={showName ? 159 : 1254}
-        priority={priority}
-        src={asset}
-        style={showName
-          ? {
+  if (showName) {
+    const heronSize = `calc(${responsiveSize} * 0.85)`;
+
+    return (
+      <span
+        className={`inline-flex shrink-0 items-center justify-center ${className}`}
+        style={{
+          columnGap: "6px",
+          height: responsiveSize,
+          width: `calc(${responsiveSize} * 4)`,
+        }}
+      >
+        <span className="h-full min-w-0 flex-1">
+          <Image
+            alt="Furvise"
+            className="block h-full w-full object-contain"
+            height={800}
+            priority={priority}
+            src={FURVISE_WORDMARK_ASSET}
+            style={{
               height: "100%",
               objectFit: "contain",
               width: "100%",
-            }
-          : {
-              height: responsiveSize,
-              objectFit: "contain",
-              width: responsiveSize,
             }}
+            unoptimized
+            width={3000}
+          />
+        </span>
+        <Image
+          alt=""
+          aria-hidden="true"
+          className="block shrink-0 object-contain"
+          height={2000}
+          priority={priority}
+          src={FURVISE_MASCOT_ASSET}
+          style={{
+            height: heronSize,
+            objectFit: "contain",
+            width: heronSize,
+          }}
+          unoptimized
+          width={2000}
+        />
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center ${className}`}
+      style={{
+        height: responsiveSize,
+        width: responsiveSize,
+      }}
+    >
+      <Image
+        alt=""
+        aria-hidden="true"
+        className="block shrink-0 object-contain"
+        height={2000}
+        priority={priority}
+        src={FURVISE_MASCOT_ASSET}
+        style={{
+          height: responsiveSize,
+          objectFit: "contain",
+          width: responsiveSize,
+        }}
         unoptimized
-        width={showName ? 512 : 1254}
+        width={2000}
       />
     </span>
   );

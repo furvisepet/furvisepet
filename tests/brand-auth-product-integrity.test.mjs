@@ -14,23 +14,40 @@ function appFiles(directory = "app") {
   });
 }
 
-test("approved Furvise asset is owned by the shared BrandMark", () => {
+test("approved compact Furvise assets are composed by the shared BrandMark", () => {
   const brand = read("app/components/brand-mark.tsx");
   const header = read("app/components/app-header.tsx");
-  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/logo\.png"/);
+  const namedMark = brand.slice(brand.indexOf("if (showName)"), brand.lastIndexOf("\n  return ("));
+  const iconOnlyMark = brand.slice(brand.lastIndexOf("\n  return ("));
+  const liveBrandReferences = [
+    ...appFiles().filter((file) => /\.(?:tsx|ts)$/.test(file)).map(read),
+    read("public/manifest.webmanifest"),
+  ].join("\n");
+
+  assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
+  assert.match(brand, /FURVISE_WORDMARK_ASSET = "\/brand\/furvise-wordmark\.svg"/);
+  assert.match(brand, /FURVISE_MASCOT_ASSET = "\/brand\/furvise-heron\.svg"/);
+  assert.match(namedMark, /src=\{FURVISE_WORDMARK_ASSET\}/);
+  assert.match(namedMark, /src=\{FURVISE_MASCOT_ASSET\}/);
+  assert.ok(namedMark.indexOf("src={FURVISE_WORDMARK_ASSET}") < namedMark.indexOf("src={FURVISE_MASCOT_ASSET}"));
+  assert.match(namedMark, /columnGap: "6px"/);
+  assert.match(iconOnlyMark, /src=\{FURVISE_MASCOT_ASSET\}/);
+  assert.doesNotMatch(iconOnlyMark, /FURVISE_WORDMARK_ASSET|FURVISE_BRAND_ASSET/);
   assert.match(brand, /import Image from "next\/image"/);
-  assert.match(brand, /src=\{asset\}/);
-  assert.doesNotMatch(brand, /furvise-mark|filter|\.svg/);
+  assert.doesNotMatch(liveBrandReferences, /logo-header-v1\.webp|\/brand\/logo\.png|App(?:%20| )icon(?:\.png)?/i);
+  assert.doesNotMatch(brand, /filter/);
   assert.match(header, /<BrandMark priority/);
   assert.doesNotMatch([header, read("app/components/homepage-client.tsx")].join("\n"), /next\.svg|vercel\.svg|triangle(?:-|_)icon|house(?:-|_)icon/i);
 });
 
-test("manifest and metadata use only the app-folder favicon", () => {
+test("manifest and metadata declare the approved browser and installed-app icons", () => {
   const manifest = read("public/manifest.webmanifest");
   const layout = read("app/layout.tsx");
   assert.match(manifest, /"src": "\/favicon\.ico"/);
   assert.match(layout, /url: "\/favicon\.ico"/);
-  assert.doesNotMatch(`${manifest}\n${layout}`, /favicon-(?:16|32)\.png|apple-touch-icon\.png|android-(?:192|512)\.png|maskable-icon/);
+  for (const asset of ["favicon-16.png", "favicon-32.png", "apple-touch-icon.png", "android-192.png", "android-512.png", "maskable-icon-512.png"]) {
+    assert.match(`${manifest}\n${layout}`, new RegExp(asset.replace(".", "\\.")));
+  }
 });
 
 test("the warm forest, sage, cream, and orange palette drives the permanent light color system", () => {

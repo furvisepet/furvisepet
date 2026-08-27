@@ -41,8 +41,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: FURVISE_OG_IMAGE_URL,
-        width: 1536,
-        height: 1024,
+        width: 3200,
+        height: 800,
         alt: "Furvise pet care history, notes, products, and guidance",
       },
     ],
@@ -54,7 +54,14 @@ export const metadata: Metadata = {
     images: [FURVISE_OG_IMAGE_URL],
   },
   icons: {
+    icon: [
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
     shortcut: [{ url: "/favicon.ico" }],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   appleWebApp: {
     capable: true,

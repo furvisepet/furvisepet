@@ -81,8 +81,10 @@ test("mobile header has a compact safe-area-aware height and responsive approved
   assert.match(header, /\[--brand-mark-size:2rem\]/);
   assert.match(
     brand,
-    /width: showName \? `calc\(\$\{responsiveSize\} \* 3\.2\)` : responsiveSize/
+    /if \(showName\)[\s\S]*columnGap: "6px"[\s\S]*width: `calc\(\$\{responsiveSize\} \* 4\)`/
   );
+  assert.match(brand, /src=\{FURVISE_WORDMARK_ASSET\}[\s\S]*src=\{FURVISE_MASCOT_ASSET\}/);
+  assert.match(brand, /height: responsiveSize,[\s\S]*width: responsiveSize,/);
   assert.match(header, /lg:\[--brand-mark-size:3\.125rem\]/);
   assert.match(
     brand,
@@ -213,14 +215,14 @@ test("desktop navigation remains hidden below 1024px and brand assets remain unc
   assert.match(header, /lg:hidden/);
   assert.equal(
     brand.match(/FURVISE_BRAND_ASSET = "([^"]+)"/)?.[1],
-    "/brand/logo.png"
+    "/brand/furvise-logo.svg"
   );
   assert.equal(
-    hash("public/brand/logo.png"),
-    "D24A7A73878FB4692918D140D69DC9D803281D53FF2704AC51B5720A782BECB6"
+    hash("public/brand/furvise-logo.svg"),
+    "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00"
   );
   assert.equal(
     hash("app/favicon.ico"),
-    "6E33AAE904FB4A5A8EBC6CE15EE8846C692F154B92FB0EEAC3278B0351444557"
+    "617E8F6A24067E937ECAFD8C8A8DE735BF4BAC546B0378F0220C884F88C952DB"
   );
 });
