@@ -14,21 +14,26 @@ const accountCornerControlClass =
 export function AccountAccessLayout({
   backLabel = "Back",
   children,
+  compact = false,
   onBack,
   supportingText,
   title,
 }: {
   backLabel?: string;
   children: React.ReactNode;
+  compact?: boolean;
   onBack?: () => void;
   supportingText?: React.ReactNode;
   title: string;
 }) {
   return (
     <main className="min-h-[100svh] bg-[var(--surface-page)] text-[var(--text-primary)]">
-      <PageShell className="flex min-h-[100svh] items-stretch justify-center py-3 sm:items-center sm:px-8 sm:py-12" preset="reading">
+      <PageShell
+        className={`flex min-h-[100svh] justify-center py-3 ${compact ? "items-start" : "items-stretch"} sm:items-center sm:px-8 sm:py-12`}
+        preset="reading"
+      >
         <section
-          className="relative flex min-h-[calc(100svh-1.5rem)] w-full flex-col overflow-x-hidden rounded-[1.75rem] border border-[var(--line)] bg-[var(--surface-primary)] px-5 pb-[max(2rem,env(safe-area-inset-bottom,0px))] pt-[max(1.25rem,env(safe-area-inset-top,0px))] shadow-[var(--shadow-surface-1)] sm:min-h-0 sm:max-w-[500px] sm:rounded-3xl sm:p-9"
+          className={`relative flex w-full flex-col overflow-x-hidden rounded-[1.75rem] border border-[var(--line)] bg-[var(--surface-primary)] px-5 pb-[max(2rem,env(safe-area-inset-bottom,0px))] pt-[max(1.25rem,env(safe-area-inset-top,0px))] shadow-[var(--shadow-surface-1)] sm:min-h-0 sm:max-w-[500px] sm:rounded-3xl sm:p-9 ${compact ? "min-h-0" : "min-h-[calc(100svh-1.5rem)]"}`}
           data-ui="account-access-surface"
         >
           {onBack ? (

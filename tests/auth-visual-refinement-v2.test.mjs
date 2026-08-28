@@ -59,7 +59,7 @@ test("reviewed auth copy and task headings are exact", () => {
     "Confirm your email",
   ]) assert.match(login, new RegExp(copy.replace(/[.?]/g, "\\$&")));
   assert.doesNotMatch(login, /Sign in to pick up where you left off|Signing in as|Add your pet to get started|Secure your account|Creating an account for|We sent a verification link to/);
-  assert.match(login, /signupStep === "otp"[\s\S]*<strong className="block break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>/);
+  assert.match(login, /signupStep === "otp"[\s\S]*We sent a code to <strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\./);
   assert.doesNotMatch(signupPassword, /Use 12 to 128 characters\./);
   assert.match(signupPassword, /Password needs at least 12 characters\./);
   assert.match(forgot, /title="Reset your password"/);
@@ -109,7 +109,7 @@ test("password steps use safe Back semantics while Close and shared branding rem
   assert.match(signinBack, /clearTransientAuthState\(\)[\s\S]*setSigninStep\("method"\)/);
   assert.match(signupBack, /clearTransientAuthState\(\)[\s\S]*if \(clearEmail\) setEmail\(""\)[\s\S]*setSignupStep\("method"\)/);
   assert.match(login, /const returnToEmail = mode === "signin" \? returnToSigninEmail : \(\) => returnToSignupEmail\(false\)/);
-  assert.match(login, /useDifferentEmail=\{\(\) => returnToSignupEmail\(true\)\}/);
+  assert.match(login, /useAnotherEmail=\{useAnotherEmailFromOtp\}/);
   assert.match(forgot, /href="\/login">Back to sign in<\/Link>/);
 });
 

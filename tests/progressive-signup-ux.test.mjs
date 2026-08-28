@@ -82,7 +82,7 @@ test("successful signup clears the password and transitions to focused OTP verif
   assert.match(submitAuth, /setPassword\(""\)/);
   assert.match(submitAuth, /setSignupStep\("otp"\)/);
   assert.doesNotMatch(login, /We sent a verification link to/);
-  assert.match(login, /signupStep === "otp"[\s\S]*<strong className="block break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>/);
+  assert.match(login, /signupStep === "otp"[\s\S]*We sent a code to <strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\./);
   assert.match(otpStep, /"Resend code"/);
   assert.match(otpStep, /Use another email/);
   assert.doesNotMatch(otpStep, /PasswordInput|GoogleButton|Create account/);
@@ -138,7 +138,8 @@ test("signup consent links are exact and confined to account creation", () => {
 });
 
 test("progressive auth layout is page-like on mobile and restrained on larger screens", () => {
-  assert.match(layout, /min-h-\[calc\(100svh-1\.5rem\)\][\s\S]*sm:max-w-\[500px\]/);
+  assert.match(layout, /sm:max-w-\[500px\]/);
+  assert.match(layout, /compact \? "min-h-0" : "min-h-\[calc\(100svh-1\.5rem\)\]"/);
   assert.match(layout, /rounded-\[1\.75rem\][\s\S]*border border-\[var\(--line\)\][\s\S]*bg-\[var\(--surface-primary\)\]/);
   assert.match(layout, /shadow-\[var\(--shadow-surface-1\)\]/);
   assert.match(methodStep, /accountPrimaryClass/);
