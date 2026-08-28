@@ -3,6 +3,7 @@ import "server-only";
 import { PRIVATE_CACHE_HEADERS } from "../private-routes";
 
 export const SIGNUP_NEUTRAL_MESSAGE = "Enter the code from your email to continue. If you already have an account, sign in or reset your password.";
+export const LOGIN_OTP_NEUTRAL_MESSAGE = "If that email can receive a sign-in code, it’s on the way.";
 export const RECOVERY_NEUTRAL_MESSAGE = "If an account exists for that email, a recovery link will be sent.";
 export const RESEND_NEUTRAL_MESSAGE = "If confirmation is still required, a new code will be sent.";
 

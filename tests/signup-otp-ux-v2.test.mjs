@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { isCompleteSignupOtp, normalizeSignupOtp } from "../app/lib/signup-otp.ts";
+import { isCompleteAuthEmailOtp, normalizeAuthEmailOtp } from "../app/lib/auth-email-otp.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const login = read("app/login/page.tsx");
 const layout = read("app/components/account-access.tsx");
 const signupRoute = read("app/api/auth/signup/route.ts");
 const resendRoute = read("app/api/auth/resend/route.ts");
-const verifyRoute = read("app/api/auth/verify-signup-otp/route.ts");
+const verifyRoute = read("app/api/auth/verify-email-otp/route.ts");
 const responses = read("app/lib/security/auth-abuse/responses.ts");
 const signupNeutral = responses.slice(responses.indexOf("SIGNUP_NEUTRAL_MESSAGE"), responses.indexOf("RECOVERY_NEUTRAL_MESSAGE"));
 const slice = (start, end) => login.slice(login.indexOf(start), login.indexOf(end));
@@ -23,7 +23,8 @@ const otpStep = slice("function SignupOtpStep", "function EmailInput");
 
 test("OTP screen uses the compact Furvise copy and one obvious rectangular field", () => {
   assert.match(login, /"Confirm your email"/);
-  assert.match(login, /We sent a code to <strong[\s\S]*\{email\}<\/strong>\./);
+  assert.match(login, /Enter the code for <span className="inline-block max-w-full"><strong[\s\S]*\{email\}<\/strong>\.<\/span>/);
+  assert.doesNotMatch(login, /We sent a code to/);
   assert.match(otpStep, /className="sr-only" htmlFor="signup-otp">Verification code<\/label>/);
   assert.equal((otpStep.match(/<input/g) || []).length, 1);
   assert.match(otpStep, /data-ui="signup-otp-input"/);
@@ -39,36 +40,36 @@ test("the semantic OTP input preserves numeric, autofill, typing, and formatted 
   assert.match(otpStep, /aria-label="Verification code"/);
   assert.match(otpStep, /inputMode="numeric"/);
   assert.match(otpStep, /autoComplete="one-time-code"/);
-  assert.match(otpStep, /maxLength=\{6\}/);
-  assert.match(otpStep, /pattern="\[0-9\]\{6\}"/);
+  assert.match(otpStep, /maxLength=\{FURVISE_EMAIL_OTP_LENGTH\}/);
+  assert.match(otpStep, /pattern=\{FURVISE_EMAIL_OTP_HTML_PATTERN\}/);
   assert.match(otpStep, /onPaste=\{\(event\) => \{[\s\S]*event\.preventDefault\(\)[\s\S]*event\.clipboardData\.getData\("text"\)/);
-  assert.equal(normalizeSignupOtp("12 34-56"), "123456");
-  assert.equal(normalizeSignupOtp("12a34b567"), "123456");
-  assert.equal(isCompleteSignupOtp("123456"), true);
-  assert.equal(isCompleteSignupOtp("12345"), false);
+  assert.equal(normalizeAuthEmailOtp("12 34-56"), "123456");
+  assert.equal(normalizeAuthEmailOtp("12a34b567"), "123456");
+  assert.equal(isCompleteAuthEmailOtp("123456"), true);
+  assert.equal(isCompleteAuthEmailOtp("12345"), false);
+  assert.equal(isCompleteAuthEmailOtp("12345678"), false);
 });
 
 test("six digits and Enter verify once while invalid codes recover predictably", () => {
-  assert.match(updateOtp, /isCompleteSignupOtp\(normalized\)[\s\S]*verifySignupOtp\(normalized\)/);
+  assert.match(updateOtp, /isCompleteAuthEmailOtp\(normalized\)[\s\S]*verifySignupOtp\(normalized\)/);
   assert.match(submitOtp, /event\.preventDefault\(\)/);
-  assert.match(submitOtp, /if \(!isCompleteSignupOtp\(signupOtp\)\)[\s\S]*return/);
+  assert.match(submitOtp, /if \(!isCompleteAuthEmailOtp\(signupOtp\)\)[\s\S]*return/);
   assert.match(submitOtp, /verifySignupOtp\(signupOtp\)/);
-  assert.match(verifyOtp, /if \(!isCompleteSignupOtp\(code\) \|\| otpVerifyingRef\.current\) return/);
+  assert.match(verifyOtp, /if \(!isCompleteAuthEmailOtp\(code\) \|\| otpVerifyingRef\.current\) return/);
   assert.match(verifyOtp, /otpVerifyingRef\.current = true/);
-  assert.equal((verifyOtp.match(/fetch\("\/api\/auth\/verify-signup-otp"/g) || []).length, 1);
+  assert.equal((verifyOtp.match(/fetch\("\/api\/auth\/verify-email-otp"/g) || []).length, 1);
   assert.match(verifyOtp, /setSignupOtp\(""\)/);
   assert.match(verifyOtp, /otpInputRef\.current\?\.focus\(\)/);
   assert.match(verifyOtp, /otpInputRef\.current\?\.select\(\)/);
 });
 
 test("resend countdown is one compact line while protected resend authority stays unchanged", () => {
-  assert.match(otpStep, /Didn&apos;t get it\?/);
   assert.match(otpStep, /Resend in \{resendCooldown\}s/);
   assert.match(otpStep, /"Resend code"/);
-  assert.doesNotMatch(otpStep, /You can resend in|verification email|confirmation link/i);
+  assert.doesNotMatch(otpStep, /Didn&apos;t get it\?|You can resend in|verification email|confirmation link/i);
   assert.match(otpStep, /resendChallengeVisible \? \([\s\S]*TurnstileChallenge/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);
-  assert.match(resend, /idempotentClientFetch\("\/api\/auth\/resend"/);
+  assert.match(resend, /idempotentClientFetch\(endpoint/);
   assert.match(resend, /setStatusMessage\("New code sent\."\)/);
   assert.match(resendRoute, /requireCaptchaToken/);
   assert.match(resendRoute, /claimPublicAuthOperation/);
@@ -76,7 +77,9 @@ test("resend countdown is one compact line while protected resend authority stay
 
 test("neutral repeated-signup outcomes always expose privacy-safe alternate recovery", () => {
   assert.match(submitAuth, /setSignupStep\("otp"\)/);
-  assert.match(otpStep, /Try another way/);
+  assert.match(otpStep, /Didn&apos;t get a code\?/);
+  assert.match(otpStep, /id="otp-recovery-title">Try another way<\/h2>/);
+  assert.match(otpStep, /Send me a sign-in code/);
   assert.match(otpStep, /Sign in with password/);
   assert.match(otpStep, /Use another email/);
   assert.match(responses, /SIGNUP_NEUTRAL_MESSAGE/);
