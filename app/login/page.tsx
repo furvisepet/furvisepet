@@ -490,7 +490,7 @@ function LoginPageContent() {
       ? "Create a password"
       : emailOtpMode === "signin_otp" ? "Confirm it’s you" : "Confirm your email";
   const signupSupportingText = signupStep === "otp"
-    ? <span>We sent a code to <span className="inline-block max-w-full"><strong className="break-all font-semibold text-[var(--text-primary)]">{email}</strong>.</span></span>
+    ? <span>Enter the code for <span className="inline-block max-w-full"><strong className="break-all font-semibold text-[var(--text-primary)]">{email}</strong>.</span></span>
     : undefined;
   const returnToEmail = mode === "signin" ? returnToSigninEmail : () => returnToSignupEmail(false);
   const passwordStep = mode === "signin" ? signinStep === "password" : signupStep === "password";
@@ -848,7 +848,6 @@ function SignupOtpStep({
         <button className="sr-only" disabled={otpVerifying} type="submit">Verify code</button>
       </form>
       <p className="min-h-11 text-sm leading-[2.75rem] text-[var(--text-secondary)]" role={resendCooldown > 0 ? "status" : undefined}>
-        Didn&apos;t get it?{" "}
         {resendCooldown > 0 ? (
           <span className="font-semibold text-[var(--text-secondary)]">Resend in {resendCooldown}s</span>
         ) : (
@@ -862,7 +861,7 @@ function SignupOtpStep({
           <TurnstileChallenge onToken={handleResendChallengeToken} resetSignal={captchaReset} />
         </div>
       ) : null}
-      <button className={`${accountSecondaryClass} mt-1`} disabled={otpVerifying} onClick={openRecovery} ref={recoveryTriggerRef} type="button">Try another way</button>
+      <button className={`${accountSecondaryClass} mt-1`} disabled={otpVerifying} onClick={openRecovery} ref={recoveryTriggerRef} type="button">Didn&apos;t get a code?</button>
       {recoveryOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(18,63,39,0.18)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:items-center sm:p-6" data-ui="otp-recovery-overlay">
           <div

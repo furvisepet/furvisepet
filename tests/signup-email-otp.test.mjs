@@ -111,7 +111,10 @@ test("signup success transitions from password creation to active OTP entry", ()
   assert.match(login, /signupStep === "otp"[\s\S]*\{email\}/);
   assert.doesNotMatch(login, /"Check your email"|We sent a verification link|Resend email/);
   assert.doesNotMatch(otpStep, /PasswordInput|GoogleButton/);
-  assert.match(otpStep, /Try another way/);
+  assert.match(login, /Enter the code for <span className="inline-block max-w-full"><strong[\s\S]*\{email\}<\/strong>\.<\/span>/);
+  assert.doesNotMatch(login, /We sent a code to/);
+  assert.match(otpStep, /Didn&apos;t get a code\?/);
+  assert.match(otpStep, /id="otp-recovery-title">Try another way<\/h2>/);
 });
 
 test("one semantic OTP input supports numeric typing, paste, and autofill", () => {
@@ -170,10 +173,9 @@ test("Use another email clears OTP, password, CAPTCHA, resend, and pending verif
 });
 
 test("resend remains lazy, captcha protected, idempotent, and code-focused", () => {
-  assert.match(otpStep, /Didn&apos;t get it\?/);
   assert.match(otpStep, /"Resend code"/);
   assert.match(otpStep, /Resend in \{resendCooldown\}s/);
-  assert.doesNotMatch(otpStep, /You can resend in/);
+  assert.doesNotMatch(otpStep, /Didn&apos;t get it\?|You can resend in/);
   assert.match(otpStep, /resendChallengeVisible \? \([\s\S]*TurnstileChallenge/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);
   assert.match(resend, /emailOtpMode === "signin_otp" \? "\/api\/auth\/login-otp\/start" : "\/api\/auth\/resend"/);

@@ -59,7 +59,8 @@ test("reviewed auth copy and task headings are exact", () => {
     "Confirm your email",
   ]) assert.match(login, new RegExp(copy.replace(/[.?]/g, "\\$&")));
   assert.doesNotMatch(login, /Sign in to pick up where you left off|Signing in as|Add your pet to get started|Secure your account|Creating an account for|We sent a verification link to/);
-  assert.match(login, /signupStep === "otp"[\s\S]*We sent a code to <span className="inline-block max-w-full"><strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\.<\/span>/);
+  assert.match(login, /signupStep === "otp"[\s\S]*Enter the code for <span className="inline-block max-w-full"><strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\.<\/span>/);
+  assert.doesNotMatch(login, /We sent a code to/);
   assert.doesNotMatch(signupPassword, /Use 12 to 128 characters\./);
   assert.match(signupPassword, /Password needs at least 12 characters\./);
   assert.match(forgot, /title="Reset your password"/);

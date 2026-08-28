@@ -23,7 +23,8 @@ const otpStep = slice("function SignupOtpStep", "function EmailInput");
 
 test("OTP screen uses the compact Furvise copy and one obvious rectangular field", () => {
   assert.match(login, /"Confirm your email"/);
-  assert.match(login, /We sent a code to <span className="inline-block max-w-full"><strong[\s\S]*\{email\}<\/strong>\.<\/span>/);
+  assert.match(login, /Enter the code for <span className="inline-block max-w-full"><strong[\s\S]*\{email\}<\/strong>\.<\/span>/);
+  assert.doesNotMatch(login, /We sent a code to/);
   assert.match(otpStep, /className="sr-only" htmlFor="signup-otp">Verification code<\/label>/);
   assert.equal((otpStep.match(/<input/g) || []).length, 1);
   assert.match(otpStep, /data-ui="signup-otp-input"/);
@@ -63,10 +64,9 @@ test("six digits and Enter verify once while invalid codes recover predictably",
 });
 
 test("resend countdown is one compact line while protected resend authority stays unchanged", () => {
-  assert.match(otpStep, /Didn&apos;t get it\?/);
   assert.match(otpStep, /Resend in \{resendCooldown\}s/);
   assert.match(otpStep, /"Resend code"/);
-  assert.doesNotMatch(otpStep, /You can resend in|verification email|confirmation link/i);
+  assert.doesNotMatch(otpStep, /Didn&apos;t get it\?|You can resend in|verification email|confirmation link/i);
   assert.match(otpStep, /resendChallengeVisible \? \([\s\S]*TurnstileChallenge/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);
   assert.match(resend, /idempotentClientFetch\(endpoint/);
@@ -77,7 +77,8 @@ test("resend countdown is one compact line while protected resend authority stay
 
 test("neutral repeated-signup outcomes always expose privacy-safe alternate recovery", () => {
   assert.match(submitAuth, /setSignupStep\("otp"\)/);
-  assert.match(otpStep, /Try another way/);
+  assert.match(otpStep, /Didn&apos;t get a code\?/);
+  assert.match(otpStep, /id="otp-recovery-title">Try another way<\/h2>/);
   assert.match(otpStep, /Send me a sign-in code/);
   assert.match(otpStep, /Sign in with password/);
   assert.match(otpStep, /Use another email/);

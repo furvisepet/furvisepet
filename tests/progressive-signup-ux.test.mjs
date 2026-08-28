@@ -82,7 +82,8 @@ test("successful signup clears the password and transitions to focused OTP verif
   assert.match(submitAuth, /setPassword\(""\)/);
   assert.match(submitAuth, /setSignupStep\("otp"\)/);
   assert.doesNotMatch(login, /We sent a verification link to/);
-  assert.match(login, /signupStep === "otp"[\s\S]*We sent a code to <span className="inline-block max-w-full"><strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\.<\/span>/);
+  assert.match(login, /signupStep === "otp"[\s\S]*Enter the code for <span className="inline-block max-w-full"><strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\.<\/span>/);
+  assert.doesNotMatch(login, /We sent a code to/);
   assert.match(otpStep, /"Resend code"/);
   assert.match(otpStep, /Use another email/);
   assert.doesNotMatch(otpStep, /PasswordInput|GoogleButton|Create account/);
