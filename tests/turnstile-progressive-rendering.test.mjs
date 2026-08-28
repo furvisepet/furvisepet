@@ -49,7 +49,7 @@ test("explicit rendering uses the supported interaction-only appearance without 
 
 test("Turnstile is lazy-mounted only after a protected Auth submit intent", () => {
   const method = login.slice(login.indexOf("function SignupMethodStep"), login.indexOf("function SignupPasswordStep"));
-  const password = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupVerificationStep"));
+  const password = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupOtpStep"));
   const request = login.slice(login.indexOf("function requestAuthSubmission"), login.indexOf("function handleAuthChallengeToken"));
   assert.doesNotMatch(method, /TurnstileChallenge|PasswordInput/);
   assert.match(password, /authChallengeVisible \? <TurnstileChallenge onToken=\{handleAuthChallengeToken\} resetSignal=\{captchaReset\} \/> : null/);

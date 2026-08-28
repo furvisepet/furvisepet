@@ -16,6 +16,7 @@ export type RateLimitPolicyName =
   | "AUTH_PASSWORD_RECOVERY"
   | "AUTH_PASSWORD_UPDATE"
   | "AUTH_CONFIRMATION_RESEND"
+  | "AUTH_CONFIRMATION_VERIFY"
   | "AUTH_OAUTH_INITIATION";
 
 export type RateLimitFailurePolicy = "fail_closed" | "fail_open";

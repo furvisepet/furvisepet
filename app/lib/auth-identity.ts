@@ -47,6 +47,10 @@ export async function ensureCanonicalApplicationUser(supabase: SupabaseClient, u
 }
 
 export function resolvePostGoogleAuthDestination(hasPet: boolean, requestedNext: string | null | undefined) {
+  return resolvePostAuthDestination(hasPet, requestedNext);
+}
+
+export function resolvePostAuthDestination(hasPet: boolean, requestedNext: string | null | undefined) {
   if (!hasPet) return "/onboarding";
   return getSafeNextPath(requestedNext, "/today");
 }

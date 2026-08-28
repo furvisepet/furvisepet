@@ -16,8 +16,8 @@ const slice = (source, start, end) => source.slice(source.indexOf(start), source
 const signinMethod = slice(login, "function SigninMethodStep", "function SigninPasswordStep");
 const signinPassword = slice(login, "function SigninPasswordStep", "function SignupMethodStep");
 const signupMethod = slice(login, "function SignupMethodStep", "function SignupPasswordStep");
-const signupPassword = slice(login, "function SignupPasswordStep", "function SignupVerificationStep");
-const signupVerify = slice(login, "function SignupVerificationStep", "function EmailInput");
+const signupPassword = slice(login, "function SignupPasswordStep", "function SignupOtpStep");
+const signupOtp = slice(login, "function SignupOtpStep", "function EmailInput");
 const requestAuth = slice(login, "function requestAuthSubmission", "function handleAuthChallengeToken");
 const handleAuthToken = slice(login, "function handleAuthChallengeToken", "async function submitAuth");
 const submitAuth = slice(login, "async function submitAuth", "async function startGoogle");
@@ -56,10 +56,10 @@ test("reviewed auth copy and task headings are exact", () => {
     "Create your account",
     "Enter your password",
     "Create a password",
-    "Check your email",
+    "Confirm your email",
   ]) assert.match(login, new RegExp(copy.replace(/[.?]/g, "\\$&")));
   assert.doesNotMatch(login, /Sign in to pick up where you left off|Signing in as|Add your pet to get started|Secure your account|Creating an account for|We sent a verification link to/);
-  assert.match(login, /signupStep === "verify"[\s\S]*<strong className="block break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>/);
+  assert.match(login, /signupStep === "otp"[\s\S]*<strong className="block break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>/);
   assert.doesNotMatch(signupPassword, /Use 12 to 128 characters\./);
   assert.match(signupPassword, /Password needs at least 12 characters\./);
   assert.match(forgot, /title="Reset your password"/);
@@ -104,8 +104,8 @@ test("password steps use safe Back semantics while Close and shared branding rem
   assert.match(layout, /accountCornerControlClass =[\s\S]*min-h-11 min-w-11/);
   assert.match(layout, /accountCornerControlClass =[\s\S]*rounded-full border border-\[var\(--line\)\]/);
   assert.doesNotMatch(`${signinPassword}\n${signupPassword}`, /Change email/);
-  assert.doesNotMatch(signupVerify, /onBack/);
-  assert.match(signupVerify, /Use a different email/);
+  assert.doesNotMatch(signupOtp, /onBack/);
+  assert.match(signupOtp, /Use another email/);
   assert.match(signinBack, /clearTransientAuthState\(\)[\s\S]*setSigninStep\("method"\)/);
   assert.match(signupBack, /clearTransientAuthState\(\)[\s\S]*if \(clearEmail\) setEmail\(""\)[\s\S]*setSignupStep\("method"\)/);
   assert.match(login, /const returnToEmail = mode === "signin" \? returnToSigninEmail : \(\) => returnToSignupEmail\(false\)/);
@@ -174,6 +174,6 @@ test("provider recovery stays visible and the inset mobile sheet remains safe", 
   assert.match(layout, /motion-reduce:animate-none/);
   assert.match(layout, />Checking security…<\/span>/);
   assert.match(layout, /role="status"/);
-  assert.match(login, /data-ui="signup-verification-actions"/);
-  assert.doesNotMatch(signupVerify, /min-h-|h-screen|justify-between|flex-1/);
+  assert.match(login, /data-ui="signup-otp-actions"/);
+  assert.doesNotMatch(signupOtp, /h-screen|justify-between|flex-1/);
 });

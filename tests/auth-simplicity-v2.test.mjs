@@ -14,8 +14,8 @@ const submitAuth = login.slice(login.indexOf("async function submitAuth"), login
 const signinMethod = login.slice(login.indexOf("function SigninMethodStep"), login.indexOf("function SigninPasswordStep"));
 const signinPassword = login.slice(login.indexOf("function SigninPasswordStep"), login.indexOf("function SignupMethodStep"));
 const signupMethod = login.slice(login.indexOf("function SignupMethodStep"), login.indexOf("function SignupPasswordStep"));
-const signupPassword = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupVerificationStep"));
-const signupVerify = login.slice(login.indexOf("function SignupVerificationStep"), login.indexOf("function EmailInput"));
+const signupPassword = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupOtpStep"));
+const signupOtp = login.slice(login.indexOf("function SignupOtpStep"), login.indexOf("function EmailInput"));
 const googleButton = login.slice(login.indexOf("function GoogleButton"), login.indexOf("function AuthDivider"));
 const googleIcon = login.slice(login.indexOf("function GoogleIcon"));
 const googleAsset = read("public/icons/google-g.svg");
@@ -87,7 +87,7 @@ test("Google stays method-only, icon-only, accessible, and feature-gated", () =>
   assert.match(login, /signInWithGoogle\(nextPath\)/);
   assert.doesNotMatch(signinPassword, /GoogleButton/);
   assert.doesNotMatch(signupPassword, /GoogleButton/);
-  assert.doesNotMatch(signupVerify, /GoogleButton/);
+  assert.doesNotMatch(signupOtp, /GoogleButton/);
   assert.doesNotMatch(login, /Continue with Apple/);
 });
 
@@ -100,9 +100,9 @@ test("signup method shares email-first hierarchy while protected steps stay unch
   assert.match(signupPassword, /Password needs at least 12 characters\./);
   assert.match(signupPassword, /authChallengeVisible \? <TurnstileChallenge/);
   assert.match(submitAuth, /idempotentClientFetch\(endpoint, init, `auth-signup:\$\{normalizedEmail\}`\)/);
-  assert.match(signupVerify, /"Resend email"/);
-  assert.match(signupVerify, /Use a different email/);
-  assert.doesNotMatch(signupVerify, /PasswordInput|GoogleButton/);
+  assert.match(signupOtp, /"Resend code"/);
+  assert.match(signupOtp, /Use another email/);
+  assert.doesNotMatch(signupOtp, /PasswordInput|GoogleButton/);
 });
 
 test("Turnstile uses official interaction-only rendering without concealing provider interaction", () => {

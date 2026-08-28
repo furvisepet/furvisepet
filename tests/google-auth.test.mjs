@@ -69,12 +69,12 @@ test("OAuth cancellation returns safely and email authentication remains availab
   assert.match(login, /"\/api\/auth\/signup"/);
   assert.match(access, /role="status"/);
   assert.match(access, /aria-live="polite"/);
-  assert.match(login, /"Check your email"/);
+  assert.match(login, /"Confirm your email"/);
   assert.doesNotMatch(login, /We sent a verification link to/);
-  assert.match(login, /signupStep === "verify"[\s\S]*\{email\}/);
-  assert.match(login, /setSignupStep\("verify"\)/);
-  assert.match(login, /"Resend email"/);
-  assert.match(login, /Use a different email/);
+  assert.match(login, /signupStep === "otp"[\s\S]*\{email\}/);
+  assert.match(login, /setSignupStep\("otp"\)/);
+  assert.match(login, /"Resend code"/);
+  assert.match(login, /Use another email/);
 });
 
 test("auth card remains compact, responsive, and keyboard visible", () => {

@@ -294,6 +294,7 @@ test("every current API mutation route is inventoried behind a direct or canonic
     "app/api/account/change-password/route.ts",
     "app/api/auth/login/route.ts", "app/api/auth/oauth/route.ts", "app/api/auth/recovery/continue/route.ts", "app/api/auth/recovery/route.ts",
     "app/api/auth/resend/route.ts", "app/api/auth/signup/route.ts", "app/api/auth/update-password/route.ts",
+    "app/api/auth/verify-signup-otp/route.ts",
   ]);
   const signedWebhooks = new Set(["app/api/billing/webhook/route.ts"]);
   const inventoried = [...direct, ...authenticated, ...conversations, ...vetBriefs, ...petProfiles, ...publicAuth, ...signedWebhooks].sort();
