@@ -32,6 +32,7 @@ type SignupStep = "method" | "password" | "otp";
 type EmailOtpMode = "signup_confirmation" | "signin_otp";
 
 const SIGNUP_RESEND_COOLDOWN_SECONDS = 60;
+const ACCOUNT_ROUTE_WATCHDOG_MS = 15_000;
 const accountLinkClass =
   "inline-flex min-h-11 items-center justify-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
 const legalLinkClass =
@@ -81,6 +82,7 @@ function LoginPageContent() {
   const [authSubmitPending, setAuthSubmitPending] = useState(false);
   const [accountRouteChallengeVisible, setAccountRouteChallengeVisible] = useState(false);
   const [accountRoutePending, setAccountRoutePending] = useState(false);
+  const [accountRouteExecuteSignal, setAccountRouteExecuteSignal] = useState<number | null>(null);
   const [resendChallengeVisible, setResendChallengeVisible] = useState(false);
   const [resendSubmitPending, setResendSubmitPending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -88,6 +90,8 @@ function LoginPageContent() {
   const googleStartingRef = useRef(false);
   const authSubmitPendingRef = useRef(false);
   const accountRoutePendingRef = useRef(false);
+  const accountRouteExecuteSequenceRef = useRef(0);
+  const accountRouteWatchdogRef = useRef<number | null>(null);
   const resendSubmitPendingRef = useRef(false);
   const authCaptchaTokenRef = useRef<string | null>(null);
   const resendCaptchaTokenRef = useRef<string | null>(null);
@@ -112,6 +116,10 @@ function LoginPageContent() {
     return () => window.clearInterval(timer);
   }, [resendCooldown]);
 
+  useEffect(() => () => {
+    if (accountRouteWatchdogRef.current !== null) window.clearTimeout(accountRouteWatchdogRef.current);
+  }, []);
+
   useEffect(() => {
     if (!otpRecoveryOpen) return;
     function closeOnEscape(event: KeyboardEvent) {
@@ -131,6 +139,8 @@ function LoginPageContent() {
     otpVerifyingRef.current = false;
     authSubmitPendingRef.current = false;
     accountRoutePendingRef.current = false;
+    if (accountRouteWatchdogRef.current !== null) window.clearTimeout(accountRouteWatchdogRef.current);
+    accountRouteWatchdogRef.current = null;
     resendSubmitPendingRef.current = false;
     authCaptchaTokenRef.current = null;
     resendCaptchaTokenRef.current = null;
@@ -149,6 +159,7 @@ function LoginPageContent() {
     setAuthSubmitPending(false);
     setAccountRouteChallengeVisible(false);
     setAccountRoutePending(false);
+    setAccountRouteExecuteSignal(null);
     setResendChallengeVisible(false);
     setResendSubmitPending(false);
     setResendCooldown(0);
@@ -228,6 +239,22 @@ function LoginPageContent() {
     setCaptchaReset((value) => value + 1);
   }
 
+  function clearAccountRouteWatchdog() {
+    if (accountRouteWatchdogRef.current !== null) window.clearTimeout(accountRouteWatchdogRef.current);
+    accountRouteWatchdogRef.current = null;
+  }
+
+  function failAccountRouteSecurityCheck() {
+    if (!accountRoutePendingRef.current) return;
+    accountRoutePendingRef.current = false;
+    clearAccountRouteWatchdog();
+    setAccountRoutePending(false);
+    setAccountRouteExecuteSignal(null);
+    setLoading(false);
+    setCaptchaToken(null);
+    setError("Security check failed. Try again.");
+  }
+
   function continueSignupWithEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (loading || accountRoutePendingRef.current) return;
@@ -241,17 +268,22 @@ function LoginPageContent() {
     accountRoutePendingRef.current = true;
     setAccountRoutePending(true);
     setAccountRouteChallengeVisible(true);
-    setCaptchaReset((value) => value + 1);
+    accountRouteExecuteSequenceRef.current += 1;
+    setAccountRouteExecuteSignal(accountRouteExecuteSequenceRef.current);
+    clearAccountRouteWatchdog();
+    accountRouteWatchdogRef.current = window.setTimeout(failAccountRouteSecurityCheck, ACCOUNT_ROUTE_WATCHDOG_MS);
   }
 
   function handleAccountRouteChallengeToken(token: string | null) {
     setCaptchaToken(token);
     if (!token) {
-      accountRoutePendingRef.current = false;
-      setAccountRoutePending(false);
+      failAccountRouteSecurityCheck();
       return;
     }
     if (!accountRoutePendingRef.current) return;
+    accountRoutePendingRef.current = false;
+    clearAccountRouteWatchdog();
+    setAccountRouteExecuteSignal(null);
     setCaptchaToken(null);
     void routeSignupEmail(token);
   }
@@ -619,11 +651,13 @@ function LoginPageContent() {
           <SignupMethodStep
             accountRouteChallengeVisible={accountRouteChallengeVisible}
             accountRoutePending={accountRoutePending}
+            accountRouteExecuteSignal={accountRouteExecuteSignal}
             authChecked={authChecked}
             captchaReset={captchaReset}
             email={email}
             googleLoading={googleLoading}
             handleAccountRouteChallengeToken={handleAccountRouteChallengeToken}
+            handleAccountRouteChallengeFailure={failAccountRouteSecurityCheck}
             loading={loading}
             onContinue={continueSignupWithEmail}
             inputRef={emailInputRef}
@@ -760,12 +794,14 @@ function SigninPasswordStep({
 
 function SignupMethodStep({
   accountRouteChallengeVisible,
+  accountRouteExecuteSignal,
   accountRoutePending,
   authChecked,
   captchaReset,
   email,
   googleLoading,
   handleAccountRouteChallengeToken,
+  handleAccountRouteChallengeFailure,
   inputRef,
   loading,
   onContinue,
@@ -774,12 +810,14 @@ function SignupMethodStep({
   switchToSignin,
 }: {
   accountRouteChallengeVisible: boolean;
+  accountRouteExecuteSignal: number | null;
   accountRoutePending: boolean;
   authChecked: boolean;
   captchaReset: number;
   email: string;
   googleLoading: boolean;
   handleAccountRouteChallengeToken: (token: string | null) => void;
+  handleAccountRouteChallengeFailure: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
   loading: boolean;
   onContinue: (event: FormEvent<HTMLFormElement>) => void;
@@ -791,7 +829,16 @@ function SignupMethodStep({
     <>
       <form className="grid gap-4" onSubmit={onContinue}>
         <EmailInput email={email} inputRef={inputRef} setEmail={setEmail} />
-        {accountRouteChallengeVisible ? <TurnstileChallenge action="account_route" onToken={handleAccountRouteChallengeToken} resetSignal={captchaReset} /> : null}
+        {accountRouteChallengeVisible ? (
+          <TurnstileChallenge
+            action="account_route"
+            executeSignal={accountRouteExecuteSignal}
+            execution="execute"
+            onFailure={handleAccountRouteChallengeFailure}
+            onToken={handleAccountRouteChallengeToken}
+            resetSignal={captchaReset}
+          />
+        ) : null}
         <button className={accountPrimaryClass} disabled={!authChecked || loading || accountRoutePending} type="submit">
           {loading || accountRoutePending ? <AccountPendingLabel /> : "Continue"}
         </button>

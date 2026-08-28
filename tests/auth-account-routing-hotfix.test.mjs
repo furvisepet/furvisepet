@@ -103,11 +103,14 @@ test("signup Continue lazily classifies only after Turnstile and cannot create o
   assert.match(intent, /normalizeAuthEmail\(email\)/);
   assert.match(intent, /accountRoutePendingRef\.current = true/);
   assert.match(intent, /setAccountRouteChallengeVisible\(true\)/);
+  assert.match(intent, /setAccountRouteExecuteSignal\(accountRouteExecuteSequenceRef\.current\)/);
+  assert.doesNotMatch(intent, /setCaptchaReset/);
   assert.doesNotMatch(intent, /fetch|\/api\/auth/);
-  assert.match(method, /accountRouteChallengeVisible \? <TurnstileChallenge action="account_route"/);
+  assert.match(method, /accountRouteChallengeVisible \? \([\s\S]*<TurnstileChallenge[\s\S]*action="account_route"/);
   assert.match(challenge, /\.\.\.\(action \? \{ action \} : \{\}\)/);
   assert.match(tokenHandler, /if \(!token\)/);
   assert.match(tokenHandler, /if \(!accountRoutePendingRef\.current\) return/);
+  assert.match(tokenHandler, /accountRoutePendingRef\.current = false/);
   assert.equal((tokenHandler.match(/routeSignupEmail\(token\)/g) || []).length, 1);
   assert.match(request, /fetch\("\/api\/auth\/account-route"/);
   assert.doesNotMatch(request, /\/api\/auth\/(?:signup|resend)|idempotentClientFetch/);

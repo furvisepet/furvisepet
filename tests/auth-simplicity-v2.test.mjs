@@ -109,7 +109,7 @@ test("Turnstile uses official interaction-only rendering without concealing prov
   assert.match(turnstile, /window\.turnstile\.render\(elementRef\.current, \{[\s\S]*appearance: "interaction-only"/);
   assert.match(turnstile, /callback: \(token: string\)[\s\S]*onTokenRef\.current\(token\)/);
   assert.match(turnstile, /"error-callback": \(\) => \{[\s\S]*onTokenRef\.current\(null\)/);
-  assert.match(turnstile, /"expired-callback": \(\) => onTokenRef\.current\(null\)/);
+  assert.match(turnstile, /"expired-callback": failChallenge/);
   assert.match(turnstile, />Retry security check<\/button>/);
   assert.match(turnstile, /<div ref=\{elementRef\} \/>/);
   assert.doesNotMatch(turnstile, /display:\s*none|visibility:\s*hidden|opacity:\s*0|clip-path|overflow-hidden/i);

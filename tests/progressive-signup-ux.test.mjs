@@ -32,7 +32,7 @@ test("normal signup starts with one email decision and lazily protects account r
   assert.match(methodStep, /"Continue"/);
   assert.match(methodStep, /Already have an account\? Sign in/);
   assert.doesNotMatch(methodStep, /PasswordInput|Create account/);
-  assert.match(methodStep, /accountRouteChallengeVisible \? <TurnstileChallenge action="account_route"/);
+  assert.match(methodStep, /accountRouteChallengeVisible \? \([\s\S]*<TurnstileChallenge[\s\S]*action="account_route"/);
 });
 
 test("shared auth branding is heron-only, responsive, accessible, and safe-area aware", () => {

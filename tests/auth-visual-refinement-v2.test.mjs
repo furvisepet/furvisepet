@@ -162,7 +162,7 @@ test("recovery and resend defer their APIs until a pending action receives a tok
 test("provider recovery stays visible and the inset mobile sheet remains safe", () => {
   assert.match(turnstile, /appearance: "interaction-only"/);
   assert.match(turnstile, /"error-callback": \(\) => \{[\s\S]*onTokenRef\.current\(null\)/);
-  assert.match(turnstile, /"expired-callback": \(\) => onTokenRef\.current\(null\)/);
+  assert.match(turnstile, /"expired-callback": failChallenge/);
   assert.match(turnstile, /onClick=\{retryWidget\}/);
   assert.match(turnstile, />Retry security check<\/button>/);
   assert.doesNotMatch(turnstile, /display:\s*none|visibility:\s*hidden|clip-path|overflow-hidden/i);
