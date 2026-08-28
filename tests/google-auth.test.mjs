@@ -72,7 +72,7 @@ test("OAuth cancellation returns safely and email authentication remains availab
   assert.match(login, /"Check your email"/);
   assert.match(login, /We sent a verification link to/);
   assert.match(login, /setSignupStep\("verify"\)/);
-  assert.match(login, /Didn&apos;t get it\? Resend email/);
+  assert.match(login, /"Resend email"/);
   assert.match(login, /Use a different email/);
 });
 

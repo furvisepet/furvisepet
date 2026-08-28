@@ -31,7 +31,7 @@ test("the public LCP heading is server-prerendered instead of gated by auth load
 test("the login heading and logo have a non-blank server Suspense fallback", () => {
   assert.match(login, /<Suspense fallback=\{<LoginPageFallback \/>\}>/);
   assert.match(login, /function LoginPageFallback\(\)[\s\S]*title="Welcome back"/);
-  assert.match(login, /supportingText="Sign in to continue caring for your pets\."/);
+  assert.match(login, /supportingText="Sign in to pick up where you left off\."/);
   assert.doesNotMatch(login, /<Suspense fallback=\{null\}>/);
 });
 

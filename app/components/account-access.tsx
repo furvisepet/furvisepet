@@ -8,46 +8,70 @@ export const accountInputClass =
 export const accountPrimaryClass =
   "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--deep-forest)] px-5 text-base font-semibold text-[var(--warm-cream)] transition hover:bg-[var(--forest)] active:bg-[var(--deep-forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] disabled:cursor-wait disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)]";
 
+const accountCornerControlClass =
+  "absolute top-[max(1rem,env(safe-area-inset-top,0px))] z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] sm:top-5";
+
 export function AccountAccessLayout({
+  backLabel = "Back",
+  centeredIntro = false,
   children,
+  onBack,
   showBrand = false,
   showClose = false,
   supportingText,
   title,
 }: {
+  backLabel?: string;
+  centeredIntro?: boolean;
   children: React.ReactNode;
+  onBack?: () => void;
   showBrand?: boolean;
   showClose?: boolean;
   supportingText: React.ReactNode;
   title: string;
 }) {
+  const hasTopControl = Boolean(onBack) || showClose;
+
   return (
     <main className="min-h-[100svh] bg-[var(--surface-page)] text-[var(--text-primary)]">
-      <PageShell className="flex min-h-[100svh] items-stretch justify-center px-0 sm:items-center sm:px-8 sm:py-12" preset="reading">
+      <PageShell className="flex min-h-[100svh] items-stretch justify-center py-3 sm:items-center sm:px-8 sm:py-12" preset="reading">
         <section
-          className="relative flex min-h-[100svh] w-full flex-col overflow-x-hidden bg-[var(--surface-primary)] px-5 pb-[max(2rem,env(safe-area-inset-bottom,0px))] pt-[max(1.25rem,env(safe-area-inset-top,0px))] sm:min-h-0 sm:max-w-[500px] sm:rounded-3xl sm:border sm:border-[var(--line)] sm:p-9 sm:shadow-[var(--shadow-surface-1)]"
+          className="relative flex min-h-[calc(100svh-1.5rem)] w-full flex-col overflow-x-hidden rounded-[1.75rem] border border-[var(--line)] bg-[var(--surface-primary)] px-5 pb-[max(2rem,env(safe-area-inset-bottom,0px))] pt-[max(1.25rem,env(safe-area-inset-top,0px))] shadow-[var(--shadow-surface-1)] sm:min-h-0 sm:max-w-[500px] sm:rounded-3xl sm:p-9"
           data-ui="account-access-surface"
         >
+          {onBack ? (
+            <button
+              aria-label={backLabel}
+              className={`${accountCornerControlClass} left-[max(1rem,env(safe-area-inset-left,0px))] text-2xl sm:left-5`}
+              onClick={onBack}
+              title={backLabel}
+              type="button"
+            >
+              <span aria-hidden="true">←</span>
+            </button>
+          ) : null}
           {showClose ? (
             <Link
               aria-label="Close and return to Furvise home"
-              className="absolute right-[max(1rem,env(safe-area-inset-right,0px))] top-[max(1rem,env(safe-area-inset-top,0px))] inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[1.75rem] font-light leading-none text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] sm:right-5 sm:top-5"
+              className={`${accountCornerControlClass} right-[max(1rem,env(safe-area-inset-right,0px))] text-[1.75rem] font-light leading-none sm:right-5`}
               href="/"
             >
               <span aria-hidden="true">×</span>
             </Link>
           ) : null}
-          <div className={showClose ? "pt-12 sm:pt-10" : "pt-2 sm:pt-0"}>
+          <div className={hasTopControl ? "pt-12 sm:pt-10" : "pt-2 sm:pt-0"}>
             {showBrand ? (
-              <div className="mb-6 flex justify-center" data-ui="account-access-brand">
+              <div className="mb-5 flex justify-center" data-ui="account-access-brand">
                 <span className="inline-flex [--brand-mark-size:1.875rem] sm:[--brand-mark-size:2rem]">
                   <BrandMark priority showName={false} size={30} />
                 </span>
               </div>
             ) : null}
-            <h1 className="text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] sm:text-[2.375rem]">{title}</h1>
-            <p className="mt-3 text-base leading-7 text-[var(--text-secondary)] sm:text-lg">{supportingText}</p>
-            <div className="mt-7">{children}</div>
+            <div className={centeredIntro ? "text-center" : undefined} data-ui="account-access-intro">
+              <h1 className="text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] sm:text-[2.375rem]">{title}</h1>
+              <p className="mt-3 text-base leading-7 text-[var(--text-secondary)] sm:text-lg">{supportingText}</p>
+            </div>
+            <div className="mt-6 sm:mt-7">{children}</div>
           </div>
         </section>
       </PageShell>

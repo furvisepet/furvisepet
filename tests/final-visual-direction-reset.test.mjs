@@ -69,7 +69,7 @@ test("Products is primary navigation, mobile More owns utilities, and Account st
 });
 
 test("login and warm empty states keep the requested actions", () => {
-  for (const copy of ["Welcome back", "Sign in to continue caring for your pets.", "Enter your password", "Forgot password?", "New to Furvise? Create account"]) assert.match(login, new RegExp(copy.replace(/[?.]/g, "\\$&")));
+  for (const copy of ["Welcome back", "Sign in to pick up where you left off.", "Enter your password", "Forgot password?", "New to Furvise? Create account"]) assert.match(login, new RegExp(copy.replace(/[?.]/g, "\\$&")));
   assert.doesNotMatch(login, /Keep me signed in|Your pets, notes, conversations, and Vet Visit Briefs stay private to your account\./);
   assert.doesNotMatch(login, /pet family care companion|role="tablist"|benefit-card/i);
   assert.match(history, /Add first update[\s\S]*<SecondaryButton[\s\S]*Ask about/);

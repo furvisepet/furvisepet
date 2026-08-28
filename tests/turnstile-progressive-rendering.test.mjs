@@ -47,22 +47,28 @@ test("explicit rendering uses the supported interaction-only appearance without 
   assert.doesNotMatch(challenge, /display:\s*none|visibility:\s*hidden|opacity:\s*0|clip-path|overflow-hidden|hidden[^A-Za-z]/i);
 });
 
-test("Turnstile is deferred until the signup password step while production Auth waits for a token", () => {
+test("Turnstile is lazy-mounted only after a protected Auth submit intent", () => {
   const method = login.slice(login.indexOf("function SignupMethodStep"), login.indexOf("function SignupPasswordStep"));
   const password = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupVerificationStep"));
+  const request = login.slice(login.indexOf("function requestAuthSubmission"), login.indexOf("function handleAuthChallengeToken"));
   assert.doesNotMatch(method, /TurnstileChallenge|PasswordInput/);
-  assert.match(password, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
-  assert.match(login, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
+  assert.match(password, /authChallengeVisible \? <TurnstileChallenge onToken=\{handleAuthChallengeToken\} resetSignal=\{captchaReset\} \/> : null/);
+  assert.match(request, /setAuthChallengeVisible\(true\)/);
+  assert.match(request, /authSubmitPendingRef\.current = true/);
+  assert.doesNotMatch(request, /fetch|idempotentClientFetch|\/api\/auth/);
   assert.doesNotMatch(login, /loginCaptchaRequired|setLoginCaptchaRequired/);
-  assert.match(login, /const captchaBlocksSubmission = process\.env\.NODE_ENV === "production" && !captchaToken;/);
-  assert.match(login, /disabled=\{!authChecked \|\| loading \|\| Boolean\(configError\) \|\| captchaBlocksSubmission\}/);
+  assert.doesNotMatch(login, /captchaBlocksSubmission/);
   assert.match(challenge, /Local security-check test mode\./);
   assert.match(challenge, /The security check could not load/);
 });
 
-test("Turnstile success only stores the token and never submits the form automatically", () => {
+test("Turnstile success resumes one pending action while failure and expiry stay fail-closed", () => {
   const successCallback = challenge.slice(challenge.indexOf("callback: (token: string)"), challenge.indexOf('"error-callback"'));
   assert.match(successCallback, /onTokenRef\.current\(token\)/);
   assert.doesNotMatch(successCallback, /submit|requestSubmit|fetch/);
-  assert.doesNotMatch(login, /useEffect\([^)]*captchaToken[\s\S]*submitAuth|requestSubmit/);
+  const handler = login.slice(login.indexOf("function handleAuthChallengeToken"), login.indexOf("async function submitAuth"));
+  assert.match(handler, /if \(!token \|\| !authSubmitPendingRef\.current\) return/);
+  assert.match(handler, /authSubmitPendingRef\.current = false/);
+  assert.equal((handler.match(/submitAuth\(token\)/g) || []).length, 1);
+  assert.doesNotMatch(login, /requestSubmit/);
 });

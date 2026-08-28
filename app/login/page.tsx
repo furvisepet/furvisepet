@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
@@ -34,7 +35,7 @@ export default function LoginPage() {
 
 function LoginPageFallback() {
   return (
-    <AccountAccessLayout showBrand showClose supportingText="Sign in to continue caring for your pets." title="Welcome back">
+    <AccountAccessLayout centeredIntro showBrand showClose supportingText="Sign in to pick up where you left off." title="Welcome back">
       <div aria-hidden="true" className="min-h-[28rem]" />
     </AccountAccessLayout>
   );
@@ -60,14 +61,18 @@ function LoginPageContent() {
   const [error, setError] = useState(() => searchParams.get("error") === "google_auth_failed" ? "Google sign-in couldn’t be completed. Please try again." : "");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
+  const [authChallengeVisible, setAuthChallengeVisible] = useState(false);
+  const [authSubmitPending, setAuthSubmitPending] = useState(false);
   const [resendChallengeVisible, setResendChallengeVisible] = useState(false);
+  const [resendSubmitPending, setResendSubmitPending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const didRedirectRef = useRef(false);
   const googleStartingRef = useRef(false);
+  const authSubmitPendingRef = useRef(false);
+  const resendSubmitPendingRef = useRef(false);
   const authChecked = authStatus !== "loading";
-  const captchaBlocksSubmission = process.env.NODE_ENV === "production" && !captchaToken;
 
   useEffect(() => {
     if (isPetDeleteReauthentication || didRedirectRef.current || authStatus !== "signedIn") return;
@@ -82,6 +87,8 @@ function LoginPageContent() {
   }, [resendCooldown]);
 
   function clearTransientAuthState() {
+    authSubmitPendingRef.current = false;
+    resendSubmitPendingRef.current = false;
     setPassword("");
     setShowPassword(false);
     setError("");
@@ -89,7 +96,10 @@ function LoginPageContent() {
     setLoading(false);
     setCaptchaToken(null);
     setCaptchaReset((value) => value + 1);
+    setAuthChallengeVisible(false);
+    setAuthSubmitPending(false);
     setResendChallengeVisible(false);
+    setResendSubmitPending(false);
     setResendCooldown(0);
   }
 
@@ -146,10 +156,29 @@ function LoginPageContent() {
     returnViewportToTop();
   }
 
-  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+  function requestAuthSubmission(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (mode === "signin" && signinStep !== "password") return;
     if (mode === "signup" && signupStep !== "password") return;
+    if (loading || authSubmitPendingRef.current) return;
+    authSubmitPendingRef.current = true;
+    setAuthSubmitPending(true);
+    setCaptchaToken(null);
+    setAuthChallengeVisible(true);
+    setError("");
+    setStatusMessage("");
+  }
+
+  function handleAuthChallengeToken(token: string | null) {
+    setCaptchaToken(token);
+    if (!token || !authSubmitPendingRef.current) return;
+    authSubmitPendingRef.current = false;
+    setAuthSubmitPending(false);
+    void submitAuth(token);
+  }
+
+  async function submitAuth(token: string) {
+    if (!token) return;
     setLoading(true);
     setError("");
     setStatusMessage("");
@@ -158,9 +187,8 @@ function LoginPageContent() {
 
     const normalizedEmail = normalizeAuthEmail(email);
     setEmail(normalizedEmail);
-    const token = captchaToken;
     const endpoint = mode === "signin" ? "/api/auth/login" : "/api/auth/signup";
-    const init = { body: JSON.stringify({ captchaToken: token || undefined, email: normalizedEmail, password }), headers: { "Content-Type": "application/json" }, method: "POST" };
+    const init = { body: JSON.stringify({ captchaToken: token, email: normalizedEmail, password }), headers: { "Content-Type": "application/json" }, method: "POST" };
     let result: Response;
     try {
       result = mode === "signup"
@@ -168,6 +196,7 @@ function LoginPageContent() {
         : await fetch(endpoint, init);
     } catch {
       resetCaptchaAfterRequest();
+      setAuthChallengeVisible(false);
       setLoading(false);
       setError("Account access is temporarily unavailable. Please try again.");
       return;
@@ -175,6 +204,7 @@ function LoginPageContent() {
     const payload = await result.json().catch(() => null) as { code?: string; error?: string; message?: string; pendingConfirmation?: boolean } | null;
     if (!result.ok) {
       resetCaptchaAfterRequest();
+      setAuthChallengeVisible(false);
       setLoading(false);
       setError(payload?.error || (mode === "signin" ? "Email or password is incorrect." : "Furvise could not complete that request. Please try again."));
       return;
@@ -185,6 +215,7 @@ function LoginPageContent() {
       return;
     }
     resetCaptchaAfterRequest();
+    setAuthChallengeVisible(false);
     setLoading(false);
     setPassword("");
     setShowPassword(false);
@@ -210,23 +241,42 @@ function LoginPageContent() {
     }
   }
 
-  async function resendConfirmation() {
+  function requestResendConfirmation() {
+    if (resendCooldown > 0 || loading || resendSubmitPendingRef.current) return;
+    resendSubmitPendingRef.current = true;
+    setResendSubmitPending(true);
+    setCaptchaToken(null);
+    setResendChallengeVisible(true);
+    setError("");
+    setStatusMessage("");
+  }
+
+  function handleResendChallengeToken(token: string | null) {
+    setCaptchaToken(token);
+    if (!token || !resendSubmitPendingRef.current) return;
+    resendSubmitPendingRef.current = false;
+    setResendSubmitPending(false);
+    void resendConfirmation(token);
+  }
+
+  async function resendConfirmation(token: string) {
     const normalizedEmail = normalizeAuthEmail(email);
-    if (!normalizedEmail || !captchaToken || resendCooldown > 0 || loading) return;
+    if (!normalizedEmail || !token || resendCooldown > 0 || loading) return;
     setLoading(true);
     setError("");
     setStatusMessage("");
-    const token = captchaToken;
     let response: Response;
     try {
       response = await idempotentClientFetch("/api/auth/resend", { body: JSON.stringify({ captchaToken: token, email: normalizedEmail }), headers: { "Content-Type": "application/json" }, method: "POST" }, `auth-resend:${normalizedEmail}`);
     } catch {
       resetCaptchaAfterRequest();
+      setResendChallengeVisible(false);
       setLoading(false);
       setError("Furvise could not send a new email. Please try again.");
       return;
     }
     resetCaptchaAfterRequest();
+    setResendChallengeVisible(false);
     const payload = await response.json().catch(() => null) as { error?: string; message?: string; retryAfterSeconds?: number } | null;
     setLoading(false);
     if (!response.ok) {
@@ -234,7 +284,6 @@ function LoginPageContent() {
       if (response.status === 429) setResendCooldown(Math.max(SIGNUP_RESEND_COOLDOWN_SECONDS, payload?.retryAfterSeconds || SIGNUP_RESEND_COOLDOWN_SECONDS));
       return;
     }
-    setResendChallengeVisible(false);
     setResendCooldown(SIGNUP_RESEND_COOLDOWN_SECONDS);
     setStatusMessage(payload?.message || "A new verification email is on its way.");
   }
@@ -251,20 +300,25 @@ function LoginPageContent() {
   const signinSupportingText = signinStep === "method"
     ? isPetDeleteReauthentication
       ? "Sign in again to continue with permanent pet deletion."
-      : "Sign in to continue caring for your pets."
+      : "Sign in to pick up where you left off."
     : <><span className="block">Signing in as</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>;
   const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Secure your account" : "Check your email";
   const signupSupportingText = signupStep === "method"
-    ? "Start with your pet. We’ll help with the rest."
+    ? "Add your pet to get started."
     : signupStep === "password"
       ? <><span className="block">Creating an account for</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>
       : <><span className="block">We sent a verification link to</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>;
   const initialMethodStep = mode === "signin" ? signinStep === "method" : signupStep === "method";
+  const returnToEmail = mode === "signin" ? returnToSigninEmail : () => returnToSignupEmail(false);
+  const passwordStep = mode === "signin" ? signinStep === "password" : signupStep === "password";
 
   return (
     <AccountAccessLayout
+      backLabel="Back to email"
+      centeredIntro={initialMethodStep}
+      onBack={passwordStep ? returnToEmail : undefined}
       showBrand={initialMethodStep}
-      showClose={initialMethodStep}
+      showClose
       supportingText={mode === "signin" ? signinSupportingText : signupSupportingText}
       title={mode === "signin" ? signinTitle : signupTitle}
     >
@@ -290,17 +344,17 @@ function LoginPageContent() {
         ) : mode === "signin" ? (
           <SigninPasswordStep
             authChecked={authChecked}
-            captchaBlocksSubmission={captchaBlocksSubmission}
+            authChallengeVisible={authChallengeVisible}
+            authSubmitPending={authSubmitPending}
             captchaReset={captchaReset}
             configError={configError}
+            handleAuthChallengeToken={handleAuthChallengeToken}
             loading={loading}
             password={password}
-            returnToEmail={returnToSigninEmail}
-            setCaptchaToken={setCaptchaToken}
+            requestAuthSubmission={requestAuthSubmission}
             setPassword={setPassword}
             setShowPassword={setShowPassword}
             showPassword={showPassword}
-            submitAuth={submitAuth}
           />
         ) : signupStep === "method" ? (
           <SignupMethodStep
@@ -315,32 +369,27 @@ function LoginPageContent() {
         ) : signupStep === "password" ? (
           <SignupPasswordStep
             authChecked={authChecked}
-            captchaBlocksSubmission={captchaBlocksSubmission}
+            authChallengeVisible={authChallengeVisible}
+            authSubmitPending={authSubmitPending}
             captchaReset={captchaReset}
             configError={configError}
+            handleAuthChallengeToken={handleAuthChallengeToken}
             loading={loading}
             password={password}
-            returnToEmail={() => returnToSignupEmail(false)}
-            setCaptchaToken={setCaptchaToken}
+            requestAuthSubmission={requestAuthSubmission}
             setPassword={setPassword}
             setShowPassword={setShowPassword}
             showPassword={showPassword}
-            submitAuth={submitAuth}
           />
         ) : (
           <SignupVerificationStep
-            captchaToken={captchaToken}
             captchaReset={captchaReset}
+            handleResendChallengeToken={handleResendChallengeToken}
             loading={loading}
             resendChallengeVisible={resendChallengeVisible}
-            resendConfirmation={resendConfirmation}
             resendCooldown={resendCooldown}
-            revealResendChallenge={() => {
-              setError("");
-              setStatusMessage("");
-              setResendChallengeVisible(true);
-            }}
-            setCaptchaToken={setCaptchaToken}
+            resendSubmitPending={resendSubmitPending}
+            requestResendConfirmation={requestResendConfirmation}
             useDifferentEmail={() => returnToSignupEmail(true)}
           />
         )}
@@ -384,35 +433,33 @@ function SigninMethodStep({
 
 function SigninPasswordStep({
   authChecked,
-  captchaBlocksSubmission,
+  authChallengeVisible,
+  authSubmitPending,
   captchaReset,
   configError,
+  handleAuthChallengeToken,
   loading,
   password,
-  returnToEmail,
-  setCaptchaToken,
+  requestAuthSubmission,
   setPassword,
   setShowPassword,
   showPassword,
-  submitAuth,
 }: {
   authChecked: boolean;
-  captchaBlocksSubmission: boolean;
+  authChallengeVisible: boolean;
+  authSubmitPending: boolean;
   captchaReset: number;
   configError?: string | null;
+  handleAuthChallengeToken: (token: string | null) => void;
   loading: boolean;
   password: string;
-  returnToEmail: () => void;
-  setCaptchaToken: (token: string | null) => void;
+  requestAuthSubmission: (event: FormEvent<HTMLFormElement>) => void;
   setPassword: (value: string) => void;
   setShowPassword: (value: boolean | ((current: boolean) => boolean)) => void;
   showPassword: boolean;
-  submitAuth: (event: FormEvent<HTMLFormElement>) => Promise<void>;
 }) {
   return (
-    <>
-      <button className={accountLinkClass} onClick={returnToEmail} type="button">Change email</button>
-      <form className="grid gap-4" onSubmit={submitAuth}>
+    <form className="grid gap-4" onSubmit={requestAuthSubmission}>
         <PasswordInput
           autoComplete="current-password"
           maxLength={128}
@@ -424,12 +471,11 @@ function SigninPasswordStep({
           showPassword={showPassword}
         />
         <Link className={`${accountLinkClass} justify-self-start`} href="/forgot-password">Forgot password?</Link>
-        <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} />
-        <button className={accountPrimaryClass} disabled={!authChecked || loading || Boolean(configError) || captchaBlocksSubmission} type="submit">
-          {loading ? "Signing in..." : "Sign in"}
+        {authChallengeVisible ? <TurnstileChallenge onToken={handleAuthChallengeToken} resetSignal={captchaReset} /> : null}
+        <button className={accountPrimaryClass} disabled={!authChecked || loading || authSubmitPending || Boolean(configError)} type="submit">
+          {loading ? "Signing in..." : authSubmitPending ? "Checking security..." : "Sign in"}
         </button>
       </form>
-    </>
   );
 }
 
@@ -464,35 +510,34 @@ function SignupMethodStep({
 
 function SignupPasswordStep({
   authChecked,
-  captchaBlocksSubmission,
+  authChallengeVisible,
+  authSubmitPending,
   captchaReset,
   configError,
+  handleAuthChallengeToken,
   loading,
   password,
-  returnToEmail,
-  setCaptchaToken,
+  requestAuthSubmission,
   setPassword,
   setShowPassword,
   showPassword,
-  submitAuth,
 }: {
   authChecked: boolean;
-  captchaBlocksSubmission: boolean;
+  authChallengeVisible: boolean;
+  authSubmitPending: boolean;
   captchaReset: number;
   configError?: string | null;
+  handleAuthChallengeToken: (token: string | null) => void;
   loading: boolean;
   password: string;
-  returnToEmail: () => void;
-  setCaptchaToken: (token: string | null) => void;
+  requestAuthSubmission: (event: FormEvent<HTMLFormElement>) => void;
   setPassword: (value: string) => void;
   setShowPassword: (value: boolean | ((current: boolean) => boolean)) => void;
   showPassword: boolean;
-  submitAuth: (event: FormEvent<HTMLFormElement>) => Promise<void>;
 }) {
   return (
     <>
-      <button className={accountLinkClass} onClick={returnToEmail} type="button">Change email</button>
-      <form className="grid gap-4" onSubmit={submitAuth}>
+      <form className="grid gap-4" onSubmit={requestAuthSubmission}>
         <PasswordInput
           autoComplete="new-password"
           maxLength={128}
@@ -504,9 +549,9 @@ function SignupPasswordStep({
           showPassword={showPassword}
         />
         <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters.</p>
-        <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} />
-        <button className={accountPrimaryClass} disabled={!authChecked || loading || Boolean(configError) || captchaBlocksSubmission} type="submit">
-          {loading ? "Creating account..." : "Create account"}
+        {authChallengeVisible ? <TurnstileChallenge onToken={handleAuthChallengeToken} resetSignal={captchaReset} /> : null}
+        <button className={accountPrimaryClass} disabled={!authChecked || loading || authSubmitPending || Boolean(configError)} type="submit">
+          {loading ? "Creating account..." : authSubmitPending ? "Checking security..." : "Create account"}
         </button>
       </form>
       <p className="text-center text-sm leading-6 text-[var(--text-secondary)]">
@@ -517,41 +562,36 @@ function SignupPasswordStep({
 }
 
 function SignupVerificationStep({
-  captchaToken,
   captchaReset,
+  handleResendChallengeToken,
   loading,
   resendChallengeVisible,
-  resendConfirmation,
   resendCooldown,
-  revealResendChallenge,
-  setCaptchaToken,
+  resendSubmitPending,
+  requestResendConfirmation,
   useDifferentEmail,
 }: {
-  captchaToken: string | null;
   captchaReset: number;
+  handleResendChallengeToken: (token: string | null) => void;
   loading: boolean;
   resendChallengeVisible: boolean;
-  resendConfirmation: () => Promise<void>;
   resendCooldown: number;
-  revealResendChallenge: () => void;
-  setCaptchaToken: (token: string | null) => void;
+  resendSubmitPending: boolean;
+  requestResendConfirmation: () => void;
   useDifferentEmail: () => void;
 }) {
   return (
-    <div className="space-y-4">
-      {!resendChallengeVisible ? (
-        <button className={`${accountLinkClass} w-full`} onClick={revealResendChallenge} type="button">Didn&apos;t get it? Resend email</button>
-      ) : (
-        <div className="grid gap-4 rounded-2xl border border-[var(--line)] bg-[var(--surface-primary)] p-4" data-testid="resend-security-challenge">
-          <p className="text-sm leading-6 text-[var(--text-secondary)]">Complete the security check to send a new verification email.</p>
-          {resendCooldown > 0 ? <p className="text-sm font-medium text-[var(--text-primary)]" role="status">You can send a new email in {resendCooldown}s.</p> : null}
-          <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} />
-          <button className={accountPrimaryClass} disabled={loading || resendCooldown > 0 || !captchaToken} onClick={() => void resendConfirmation()} type="button">
-            {loading ? "Sending..." : "Send new email"}
-          </button>
+    <div className="grid justify-items-center gap-2 pt-1">
+      <button className={accountLinkClass} disabled={loading || resendCooldown > 0 || resendSubmitPending} onClick={requestResendConfirmation} type="button">
+        {loading ? "Sending..." : "Resend email"}
+      </button>
+      {resendCooldown > 0 ? <p className="text-sm text-[var(--text-secondary)]" role="status">You can resend in {resendCooldown}s.</p> : null}
+      {resendChallengeVisible ? (
+        <div className="mt-2 grid w-full gap-3" data-testid="resend-security-challenge">
+          <TurnstileChallenge onToken={handleResendChallengeToken} resetSignal={captchaReset} />
         </div>
-      )}
-      <button className={`${accountLinkClass} w-full`} onClick={useDifferentEmail} type="button">Use a different email</button>
+      ) : null}
+      <button className={accountLinkClass} onClick={useDifferentEmail} type="button">Use a different email</button>
     </div>
   );
 }
@@ -597,7 +637,7 @@ function GoogleButton({ googleLoading, startGoogle }: { googleLoading: boolean; 
   return (
     <button
       aria-label="Continue with Google"
-      className="mx-auto flex size-14 items-center justify-center rounded-xl border border-[var(--border-strong)] bg-[var(--surface-primary)] text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] disabled:cursor-wait disabled:opacity-65"
+      className="mx-auto flex size-14 items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] disabled:cursor-wait disabled:opacity-65"
       disabled={googleLoading}
       onClick={() => void startGoogle()}
       title="Continue with Google"
@@ -614,5 +654,5 @@ function AuthDivider() {
 }
 
 function GoogleIcon() {
-  return <svg aria-hidden="true" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M21.35 12.2c0-.7-.06-1.38-.18-2.03H12v3.85h5.24a4.48 4.48 0 0 1-1.95 2.94v2.5h3.16c1.85-1.71 2.9-4.22 2.9-7.26ZM12 21.7c2.64 0 4.85-.87 6.45-2.24l-3.16-2.5c-.88.59-2 .94-3.29.94-2.54 0-4.69-1.71-5.47-4.02H3.27v2.54A9.75 9.75 0 0 0 12 21.7ZM6.53 13.88A5.87 5.87 0 0 1 6.23 12c0-.65.11-1.29.3-1.88V7.58H3.27A9.75 9.75 0 0 0 2.25 12c0 1.57.37 3.06 1.02 4.42l3.26-2.54ZM12 6.1c1.43 0 2.72.5 3.73 1.46l2.8-2.8A9.38 9.38 0 0 0 12 2.25a9.75 9.75 0 0 0-8.73 5.33l3.26 2.54C7.31 7.81 9.46 6.1 12 6.1Z" /></svg>;
+  return <Image alt="" height={20} src="/icons/google-g.svg" width={20} />;
 }

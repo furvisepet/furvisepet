@@ -9,7 +9,11 @@ const methodStep = login.slice(login.indexOf("function SignupMethodStep"), login
 const passwordStep = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupVerificationStep"));
 const verificationStep = login.slice(login.indexOf("function SignupVerificationStep"), login.indexOf("function EmailInput"));
 const localEmailAdvance = login.slice(login.indexOf("function continueSignupWithEmail"), login.indexOf("async function submitAuth"));
+const requestAuth = login.slice(login.indexOf("function requestAuthSubmission"), login.indexOf("function handleAuthChallengeToken"));
+const authTokenHandler = login.slice(login.indexOf("function handleAuthChallengeToken"), login.indexOf("async function submitAuth"));
 const submitAuth = login.slice(login.indexOf("async function submitAuth"), login.indexOf("async function startGoogle"));
+const requestResend = login.slice(login.indexOf("function requestResendConfirmation"), login.indexOf("function handleResendChallengeToken"));
+const resendTokenHandler = login.slice(login.indexOf("function handleResendChallengeToken"), login.indexOf("async function resendConfirmation"));
 const resendConfirmation = login.slice(login.indexOf("async function resendConfirmation"), login.indexOf('if (authStatus === "signedIn")'));
 const clearTransientState = login.slice(login.indexOf("function clearTransientAuthState"), login.indexOf("function returnViewportToTop"));
 const returnToSignupEmail = login.slice(login.indexOf("function returnToSignupEmail"), login.indexOf("function continueSigninWithEmail"));
@@ -48,41 +52,50 @@ test("valid email advances locally after normalization without an account lookup
 
 test("password step exposes the normalized email, exact policy, Turnstile, and forest action", () => {
   assert.match(login, /Creating an account for[\s\S]*\{email\}/);
-  assert.match(passwordStep, /Change email/);
+  assert.doesNotMatch(passwordStep, /Change email/);
+  assert.match(login, /onBack=\{passwordStep \? returnToEmail : undefined\}/);
   assert.match(passwordStep, /placeholder="Create a password"/);
   assert.match(passwordStep, /minLength=\{12\}/);
   assert.match(passwordStep, /maxLength=\{128\}/);
   assert.match(passwordStep, /Use 12 to 128 characters\./);
-  assert.match(passwordStep, /TurnstileChallenge/);
+  assert.match(passwordStep, /authChallengeVisible \? <TurnstileChallenge/);
   assert.match(passwordStep, /accountPrimaryClass/);
   assert.match(passwordStep, /Create account/);
   assert.match(layout, /accountPrimaryClass[\s\S]*bg-\[var\(--deep-forest\)\]/);
 });
 
 test("production signup stays captcha-gated and uses the existing idempotent signup API", () => {
-  assert.match(login, /process\.env\.NODE_ENV === "production" && !captchaToken/);
-  assert.match(passwordStep, /disabled=\{!authChecked \|\| loading \|\| Boolean\(configError\) \|\| captchaBlocksSubmission\}/);
+  assert.match(requestAuth, /setAuthChallengeVisible\(true\)/);
+  assert.doesNotMatch(requestAuth, /fetch|idempotentClientFetch/);
+  assert.match(authTokenHandler, /if \(!token \|\| !authSubmitPendingRef\.current\) return/);
+  assert.match(authTokenHandler, /submitAuth\(token\)/);
+  assert.match(submitAuth, /if \(!token\) return/);
   assert.match(submitAuth, /"\/api\/auth\/signup"/);
   assert.match(submitAuth, /await idempotentClientFetch\(endpoint, init, `auth-signup:\$\{normalizedEmail\}`\)/);
-  assert.match(submitAuth, /captchaToken: token \|\| undefined/);
+  assert.match(submitAuth, /captchaToken: token/);
 });
 
 test("successful signup clears the password and transitions to focused link verification", () => {
   assert.match(submitAuth, /setPassword\(""\)/);
   assert.match(submitAuth, /setSignupStep\("verify"\)/);
   assert.match(login, /We sent a verification link to/);
-  assert.match(verificationStep, /Didn&apos;t get it\? Resend email/);
+  assert.match(verificationStep, /"Resend email"/);
   assert.match(verificationStep, /Use a different email/);
   assert.doesNotMatch(verificationStep, /PasswordInput|GoogleButton|Create account/);
 });
 
 test("verification recovery reveals a captcha-gated resend with a sixty-second cooldown", () => {
   assert.match(verificationStep, /resendChallengeVisible/);
-  assert.match(verificationStep, /TurnstileChallenge/);
-  assert.match(verificationStep, /disabled=\{loading \|\| resendCooldown > 0 \|\| !captchaToken\}/);
-  assert.match(verificationStep, /Send new email/);
+  assert.match(verificationStep, /resendChallengeVisible \? \([\s\S]*TurnstileChallenge/);
+  assert.match(verificationStep, /disabled=\{loading \|\| resendCooldown > 0 \|\| resendSubmitPending\}/);
+  assert.match(verificationStep, /"Resend email"/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);
-  assert.match(resendConfirmation, /if \(!normalizedEmail \|\| !captchaToken \|\| resendCooldown > 0 \|\| loading\) return/);
+  assert.match(requestResend, /resendSubmitPendingRef\.current = true/);
+  assert.match(requestResend, /setResendChallengeVisible\(true\)/);
+  assert.doesNotMatch(requestResend, /idempotentClientFetch|\/api\/auth\/resend/);
+  assert.match(resendTokenHandler, /if \(!token \|\| !resendSubmitPendingRef\.current\) return/);
+  assert.equal((resendTokenHandler.match(/resendConfirmation\(token\)/g) || []).length, 1);
+  assert.match(resendConfirmation, /if \(!normalizedEmail \|\| !token \|\| resendCooldown > 0 \|\| loading\) return/);
   assert.match(resendConfirmation, /idempotentClientFetch\("\/api\/auth\/resend"/);
   assert.match(resendConfirmation, /Math\.max\(SIGNUP_RESEND_COOLDOWN_SECONDS/);
 });
@@ -120,9 +133,9 @@ test("signup consent links are exact and confined to account creation", () => {
 });
 
 test("progressive auth layout is page-like on mobile and restrained on larger screens", () => {
-  assert.match(layout, /min-h-\[100svh\][\s\S]*sm:max-w-\[500px\]/);
-  assert.match(layout, /bg-\[var\(--surface-primary\)\][\s\S]*sm:rounded-3xl sm:border/);
-  assert.match(layout, /sm:shadow-\[var\(--shadow-surface-1\)\]/);
+  assert.match(layout, /min-h-\[calc\(100svh-1\.5rem\)\][\s\S]*sm:max-w-\[500px\]/);
+  assert.match(layout, /rounded-\[1\.75rem\][\s\S]*border border-\[var\(--line\)\][\s\S]*bg-\[var\(--surface-primary\)\]/);
+  assert.match(layout, /shadow-\[var\(--shadow-surface-1\)\]/);
   assert.match(methodStep, /accountPrimaryClass/);
   assert.match(layout, /min-h-12 w-full/);
   assert.match(login, /min-h-11/);
