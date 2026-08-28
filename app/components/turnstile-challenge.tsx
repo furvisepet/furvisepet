@@ -2,8 +2,10 @@
 
 import Script from "next/script";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { executeTurnstileOnce, type TurnstileExecutionState } from "../lib/turnstile-explicit-execution";
 
 type TurnstileApi = {
+  execute(widgetId: string): void;
   render(element: HTMLElement, options: Record<string, unknown>): string;
   reset(widgetId: string): void;
   remove(widgetId: string): void;
@@ -11,14 +13,47 @@ type TurnstileApi = {
 
 declare global { interface Window { turnstile?: TurnstileApi } }
 
-export function TurnstileChallenge({ action, onToken, resetSignal }: { action?: string; onToken: (token: string | null) => void; resetSignal: number }) {
+type TurnstileChallengeProps = {
+  action?: string;
+  executeSignal?: number | null;
+  execution?: "execute" | "render";
+  onFailure?: () => void;
+  onToken: (token: string | null) => void;
+  resetSignal: number;
+};
+
+export function TurnstileChallenge({ action, executeSignal = null, execution = "render", onFailure, onToken, resetSignal }: TurnstileChallengeProps) {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
   const elementRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<string | null>(null);
   const onTokenRef = useRef(onToken);
+  const onFailureRef = useRef(onFailure);
+  const executeSignalRef = useRef(executeSignal);
+  const executionStateRef = useRef<TurnstileExecutionState>({ lastSignal: null });
+  const previousResetSignalRef = useRef(resetSignal);
   const labelId = useId();
   const [renderFailed, setRenderFailed] = useState(false);
   const [widgetReady, setWidgetReady] = useState(false);
+
+  const failChallenge = useCallback(() => {
+    onTokenRef.current(null);
+    onFailureRef.current?.();
+  }, []);
+
+  const executeWidget = useCallback(() => {
+    if (execution !== "execute") return;
+    try {
+      executeTurnstileOnce({
+        api: window.turnstile,
+        signal: executeSignalRef.current,
+        state: executionStateRef.current,
+        widgetId: widgetRef.current,
+      });
+    } catch {
+      setRenderFailed(true);
+      failChallenge();
+    }
+  }, [execution, failChallenge]);
 
   const renderWidget = useCallback(() => {
     if (!siteKey || !elementRef.current || !window.turnstile || widgetRef.current) return;
@@ -27,26 +62,30 @@ export function TurnstileChallenge({ action, onToken, resetSignal }: { action?: 
       widgetRef.current = window.turnstile.render(elementRef.current, {
         ...(action ? { action } : {}),
         appearance: "interaction-only",
+        ...(execution === "execute" ? { execution: "execute" } : {}),
         callback: (token: string) => {
           setRenderFailed(false);
           onTokenRef.current(token);
         },
         "error-callback": () => {
-          onTokenRef.current(null);
           setRenderFailed(true);
+          failChallenge();
         },
-        "expired-callback": () => onTokenRef.current(null),
+        "expired-callback": failChallenge,
+        "timeout-callback": failChallenge,
+        "unsupported-callback": failChallenge,
         sitekey: siteKey,
         theme: "auto",
       });
       setWidgetReady(true);
+      executeWidget();
     } catch {
       widgetRef.current = null;
-      onTokenRef.current(null);
       setWidgetReady(false);
       setRenderFailed(true);
+      failChallenge();
     }
-  }, [action, siteKey]);
+  }, [action, executeWidget, execution, failChallenge, siteKey]);
 
   const retryWidget = useCallback(() => {
     onTokenRef.current(null);
@@ -62,6 +101,14 @@ export function TurnstileChallenge({ action, onToken, resetSignal }: { action?: 
   }, [renderWidget]);
 
   useEffect(() => { onTokenRef.current = onToken; }, [onToken]);
+  useEffect(() => { onFailureRef.current = onFailure; }, [onFailure]);
+
+  useEffect(() => {
+    executeSignalRef.current = executeSignal;
+    let active = true;
+    queueMicrotask(() => { if (active) executeWidget(); });
+    return () => { active = false; };
+  }, [executeSignal, executeWidget]);
 
   useEffect(() => {
     if (!window.turnstile) return;
@@ -71,6 +118,8 @@ export function TurnstileChallenge({ action, onToken, resetSignal }: { action?: 
   }, [renderWidget]);
 
   useEffect(() => {
+    if (previousResetSignalRef.current === resetSignal) return;
+    previousResetSignalRef.current = resetSignal;
     if (!widgetRef.current || !window.turnstile) return;
     onTokenRef.current(null);
     try {
@@ -101,7 +150,7 @@ export function TurnstileChallenge({ action, onToken, resetSignal }: { action?: 
   return (
     <div aria-labelledby={labelId} className="grid gap-2">
       <span className="sr-only" id={labelId}>Security check</span>
-      <Script onError={() => { onTokenRef.current(null); setWidgetReady(false); setRenderFailed(true); }} onLoad={renderWidget} onReady={renderWidget} src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" />
+      <Script onError={() => { setWidgetReady(false); setRenderFailed(true); failChallenge(); }} onLoad={renderWidget} onReady={renderWidget} src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" />
       <div ref={elementRef} />
       {!widgetReady && !renderFailed ? <span aria-live="polite" className="sr-only">Preparing security check.</span> : null}
       {renderFailed ? (
