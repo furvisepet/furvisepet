@@ -8,7 +8,9 @@ const layout = read("app/components/account-access.tsx");
 const methodStep = login.slice(login.indexOf("function SignupMethodStep"), login.indexOf("function SignupPasswordStep"));
 const passwordStep = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupOtpStep"));
 const otpStep = login.slice(login.indexOf("function SignupOtpStep"), login.indexOf("function EmailInput"));
-const localEmailAdvance = login.slice(login.indexOf("function continueSignupWithEmail"), login.indexOf("async function submitAuth"));
+const signupRouteIntent = login.slice(login.indexOf("function continueSignupWithEmail"), login.indexOf("function handleAccountRouteChallengeToken"));
+const signupRouteToken = login.slice(login.indexOf("function handleAccountRouteChallengeToken"), login.indexOf("async function routeSignupEmail"));
+const signupRouteRequest = login.slice(login.indexOf("async function routeSignupEmail"), login.indexOf("function requestAuthSubmission"));
 const requestAuth = login.slice(login.indexOf("function requestAuthSubmission"), login.indexOf("function handleAuthChallengeToken"));
 const authTokenHandler = login.slice(login.indexOf("function handleAuthChallengeToken"), login.indexOf("async function submitAuth"));
 const submitAuth = login.slice(login.indexOf("async function submitAuth"), login.indexOf("async function startGoogle"));
@@ -20,16 +22,17 @@ const returnToSignupEmail = login.slice(login.indexOf("function returnToSignupEm
 const signinMethod = login.slice(login.indexOf("function SigninMethodStep"), login.indexOf("function SigninPasswordStep"));
 const signinPassword = login.slice(login.indexOf("function SigninPasswordStep"), login.indexOf("function SignupMethodStep"));
 
-test("normal signup starts with one local email decision and no password or security challenge", () => {
+test("normal signup starts with one email decision and lazily protects account routing", () => {
   assert.match(login, /type SignupStep = "method" \| "password" \| "otp"/);
   assert.match(login, /useState<SignupStep>\("method"\)/);
   assert.match(login, /signupStep === "method"[\s\S]*"Create your account"[\s\S]*signupStep === "password"[\s\S]*"Create a password"[\s\S]*emailOtpMode === "signin_otp" \? "Confirm it’s you" : "Confirm your email"/);
   assert.doesNotMatch(login, /Secure your account/);
   assert.doesNotMatch(login, /Create your Furvise account/);
   assert.match(methodStep, /EmailInput/);
-  assert.match(methodStep, />Continue<\/button>/);
+  assert.match(methodStep, /"Continue"/);
   assert.match(methodStep, /Already have an account\? Sign in/);
-  assert.doesNotMatch(methodStep, /PasswordInput|TurnstileChallenge|Create account/);
+  assert.doesNotMatch(methodStep, /PasswordInput|Create account/);
+  assert.match(methodStep, /accountRouteChallengeVisible \? <TurnstileChallenge action="account_route"/);
 });
 
 test("shared auth branding is heron-only, responsive, accessible, and safe-area aware", () => {
@@ -42,13 +45,19 @@ test("shared auth branding is heron-only, responsive, accessible, and safe-area 
   assert.match(layout, /safe-area-inset-top/);
 });
 
-test("valid email advances locally after normalization without an account lookup or signup request", () => {
-  assert.match(localEmailAdvance, /event\.preventDefault\(\)/);
-  assert.match(localEmailAdvance, /normalizeAuthEmail\(email\)/);
-  assert.match(localEmailAdvance, /setEmail\(normalizedEmail\)/);
-  assert.match(localEmailAdvance, /setSignupStep\("password"\)/);
-  assert.doesNotMatch(localEmailAdvance, /fetch|idempotentClientFetch|\/api\/auth/);
-  assert.doesNotMatch(login, /email-exists|check-email|account-exists/i);
+test("signup email routing waits for a CAPTCHA token and never creates an account", () => {
+  assert.match(signupRouteIntent, /event\.preventDefault\(\)/);
+  assert.match(signupRouteIntent, /normalizeAuthEmail\(email\)/);
+  assert.match(signupRouteIntent, /setEmail\(normalizedEmail\)/);
+  assert.match(signupRouteIntent, /accountRoutePendingRef\.current = true/);
+  assert.match(signupRouteIntent, /setAccountRouteChallengeVisible\(true\)/);
+  assert.doesNotMatch(signupRouteIntent, /fetch|idempotentClientFetch|\/api\/auth/);
+  assert.match(signupRouteToken, /if \(!token\)/);
+  assert.match(signupRouteToken, /if \(!accountRoutePendingRef\.current\) return/);
+  assert.equal((signupRouteToken.match(/routeSignupEmail\(token\)/g) || []).length, 1);
+  assert.match(signupRouteRequest, /fetch\("\/api\/auth\/account-route"/);
+  assert.match(signupRouteRequest, /captchaToken: token, email: normalizedEmail/);
+  assert.doesNotMatch(signupRouteRequest, /\/api\/auth\/signup|\/api\/auth\/resend|idempotentClientFetch/);
 });
 
 test("password step stays visually quiet while preserving exact policy, Turnstile, and forest action", () => {

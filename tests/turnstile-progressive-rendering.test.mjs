@@ -50,8 +50,16 @@ test("explicit rendering uses the supported interaction-only appearance without 
 test("Turnstile is lazy-mounted only after a protected Auth submit intent", () => {
   const method = login.slice(login.indexOf("function SignupMethodStep"), login.indexOf("function SignupPasswordStep"));
   const password = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupOtpStep"));
+  const accountRouteIntent = login.slice(login.indexOf("function continueSignupWithEmail"), login.indexOf("function handleAccountRouteChallengeToken"));
+  const accountRouteToken = login.slice(login.indexOf("function handleAccountRouteChallengeToken"), login.indexOf("async function routeSignupEmail"));
   const request = login.slice(login.indexOf("function requestAuthSubmission"), login.indexOf("function handleAuthChallengeToken"));
-  assert.doesNotMatch(method, /TurnstileChallenge|PasswordInput/);
+  assert.doesNotMatch(method, /PasswordInput/);
+  assert.match(method, /accountRouteChallengeVisible \? <TurnstileChallenge action="account_route"/);
+  assert.match(accountRouteIntent, /accountRoutePendingRef\.current = true/);
+  assert.match(accountRouteIntent, /setAccountRouteChallengeVisible\(true\)/);
+  assert.doesNotMatch(accountRouteIntent, /fetch|idempotentClientFetch|\/api\/auth/);
+  assert.match(accountRouteToken, /if \(!accountRoutePendingRef\.current\) return/);
+  assert.equal((accountRouteToken.match(/routeSignupEmail\(token\)/g) || []).length, 1);
   assert.match(password, /authChallengeVisible \? <TurnstileChallenge onToken=\{handleAuthChallengeToken\} resetSignal=\{captchaReset\} \/> : null/);
   assert.match(request, /setAuthChallengeVisible\(true\)/);
   assert.match(request, /authSubmitPendingRef\.current = true/);

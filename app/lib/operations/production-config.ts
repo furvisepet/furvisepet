@@ -5,7 +5,7 @@ export type ProductionConfigResult = { missing: string[]; ready: boolean; warnin
 export function validateProductionConfiguration(env: Record<string, string | undefined> = process.env): ProductionConfigResult {
   const missing: string[] = [];
   const warnings: string[] = [];
-  for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "FURVISE_RATE_LIMIT_HASH_SECRET", "FURVISE_AUTH_RATE_LIMIT_HASH_SECRET", "FURVISE_OPERATIONS_HASH_SECRET", "FURVISE_READINESS_SECRET", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PLUS_PRICE_ID"]) {
+  for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SECRET_KEY", "TURNSTILE_SECRET_KEY", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "FURVISE_RATE_LIMIT_HASH_SECRET", "FURVISE_AUTH_RATE_LIMIT_HASH_SECRET", "FURVISE_OPERATIONS_HASH_SECRET", "FURVISE_READINESS_SECRET", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PLUS_PRICE_ID"]) {
     if (!env[name]?.trim()) missing.push(name);
   }
   if (env.FURVISE_AI_ENABLED !== "false") {

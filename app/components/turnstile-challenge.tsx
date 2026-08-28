@@ -11,7 +11,7 @@ type TurnstileApi = {
 
 declare global { interface Window { turnstile?: TurnstileApi } }
 
-export function TurnstileChallenge({ onToken, resetSignal }: { onToken: (token: string | null) => void; resetSignal: number }) {
+export function TurnstileChallenge({ action, onToken, resetSignal }: { action?: string; onToken: (token: string | null) => void; resetSignal: number }) {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
   const elementRef = useRef<HTMLDivElement>(null);
   const widgetRef = useRef<string | null>(null);
@@ -25,6 +25,7 @@ export function TurnstileChallenge({ onToken, resetSignal }: { onToken: (token: 
     try {
       setRenderFailed(false);
       widgetRef.current = window.turnstile.render(elementRef.current, {
+        ...(action ? { action } : {}),
         appearance: "interaction-only",
         callback: (token: string) => {
           setRenderFailed(false);
@@ -45,7 +46,7 @@ export function TurnstileChallenge({ onToken, resetSignal }: { onToken: (token: 
       setWidgetReady(false);
       setRenderFailed(true);
     }
-  }, [siteKey]);
+  }, [action, siteKey]);
 
   const retryWidget = useCallback(() => {
     onTokenRef.current(null);

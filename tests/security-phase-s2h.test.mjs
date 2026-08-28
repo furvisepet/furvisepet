@@ -117,7 +117,7 @@ test("integrity diagnostics cover orphan, memory, credit, idempotency and deleti
 
 test("production validation fails required configuration while AI-disabled mode omits OpenAI", () => {
   const config = source("app/lib/operations/production-config.ts"); const script = source("scripts/validate-production-environment.mjs");
-  for (const name of ["SUPABASE_SECRET_KEY", "UPSTASH_REDIS_REST_TOKEN", "FURVISE_AUTH_RATE_LIMIT_HASH_SECRET", "FURVISE_READINESS_SECRET"]) assert.match(config, new RegExp(name));
+  for (const name of ["SUPABASE_SECRET_KEY", "TURNSTILE_SECRET_KEY", "UPSTASH_REDIS_REST_TOKEN", "FURVISE_AUTH_RATE_LIMIT_HASH_SECRET", "FURVISE_READINESS_SECRET"]) assert.match(config, new RegExp(name));
   assert.match(config, /FURVISE_AI_ENABLED !== "false"/); assert.match(script, /process\.exitCode = 1/);
 });
 
