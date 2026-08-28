@@ -31,8 +31,12 @@ test("signup and recovery keep their existing CAPTCHA submission behavior", () =
 
   assert.match(login, /mode === "signin" \? "\/api\/auth\/login" : "\/api\/auth\/signup"/);
   assert.match(login, /idempotentClientFetch\(endpoint, init, `auth-signup:/);
-  assert.match(recovery, /captchaToken: token \|\| undefined/);
-  assert.match(recovery, /process\.env\.NODE_ENV === "production" && !captchaToken/);
+  assert.match(recovery, /challengeVisible \? <TurnstileChallenge onToken=\{handleChallengeToken\}/);
+  assert.match(recovery, /if \(!token\) \{[\s\S]*setSubmitPending\(false\)/);
+  assert.match(recovery, /if \(!submitPendingRef\.current\) return/);
+  assert.match(recovery, /if \(!token\) return/);
+  assert.match(recovery, /captchaToken: token/);
+  assert.doesNotMatch(recovery.slice(recovery.indexOf("function requestReset"), recovery.indexOf("function handleChallengeToken")), /idempotentClientFetch|\/api\/auth\/recovery/);
 });
 
 test("update-password accepts only the already-established recovery session", () => {

@@ -22,40 +22,57 @@ test("widget identity prevents duplicate Turnstile renders and cleanup remains h
   assert.match(challenge, /window\.turnstile\.remove\(widgetRef\.current\)/);
   assert.match(challenge, /try \{ window\.turnstile\.remove\(widgetRef\.current\); \} catch/);
   assert.match(challenge, /try \{\s*window\.turnstile\.reset\(widgetRef\.current\);\s*\} catch \{/);
-  assert.match(challenge, /queueMicrotask\(\(\) => \{\s*setWidgetVisible\(false\);\s*setRenderFailed\(true\);/);
+  assert.match(challenge, /queueMicrotask\(\(\) => \{\s*setWidgetReady\(false\);\s*setRenderFailed\(true\);/);
 });
 
 test("widget and script failures expose a retryable security-check error", () => {
-  assert.match(challenge, /onError=\{\(\) => \{ onTokenRef\.current\(null\); setWidgetVisible\(false\); setRenderFailed\(true\); \}\}/);
+  assert.match(challenge, /onError=\{\(\) => \{ onTokenRef\.current\(null\); setWidgetReady\(false\); setRenderFailed\(true\); \}\}/);
   assert.match(challenge, /"error-callback": \(\) => \{[\s\S]*onTokenRef\.current\(null\);[\s\S]*setRenderFailed\(true\)/);
   assert.match(challenge, /role="alert"/);
   assert.match(challenge, />Retry security check<\/button>/);
   assert.match(challenge, /onClick=\{retryWidget\}/);
 });
 
-test("the challenge has visible loading or retry feedback whenever authentication is blocked", () => {
-  assert.match(challenge, /!widgetVisible && !renderFailed \? <p aria-live="polite"[\s\S]*Loading security check/);
+test("the challenge keeps loading quiet for sighted users and exposes visible retry feedback", () => {
+  assert.match(challenge, /!widgetReady && !renderFailed \? <span aria-live="polite" className="sr-only">Preparing security check\.<\/span>/);
+  assert.doesNotMatch(challenge, /Loading security check/);
   assert.match(challenge, /renderFailed \? \([\s\S]*Retry security check/);
-  const signIn = login.slice(login.indexOf("function SigninForm"), login.indexOf("function SignupMethodStep"));
+  const signIn = login.slice(login.indexOf("function SigninPasswordStep"), login.indexOf("function SignupMethodStep"));
   assert.ok(signIn.indexOf("<TurnstileChallenge") < signIn.indexOf('type="submit"'));
 });
 
-test("Turnstile is deferred until the signup password step while production Auth waits for a token", () => {
+test("explicit rendering uses the supported interaction-only appearance without hiding provider UI", () => {
+  assert.match(challenge, /appearance: "interaction-only"/);
+  assert.match(challenge, /<div ref=\{elementRef\} \/>/);
+  assert.doesNotMatch(challenge, /display:\s*none|visibility:\s*hidden|opacity:\s*0|clip-path|overflow-hidden|hidden[^A-Za-z]/i);
+});
+
+test("Turnstile is lazy-mounted only after a protected Auth submit intent", () => {
   const method = login.slice(login.indexOf("function SignupMethodStep"), login.indexOf("function SignupPasswordStep"));
   const password = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupVerificationStep"));
+  const request = login.slice(login.indexOf("function requestAuthSubmission"), login.indexOf("function handleAuthChallengeToken"));
   assert.doesNotMatch(method, /TurnstileChallenge|PasswordInput/);
-  assert.match(password, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
-  assert.match(login, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
+  assert.match(password, /authChallengeVisible \? <TurnstileChallenge onToken=\{handleAuthChallengeToken\} resetSignal=\{captchaReset\} \/> : null/);
+  assert.match(request, /setAuthChallengeVisible\(true\)/);
+  assert.match(request, /authSubmitPendingRef\.current = true/);
+  assert.doesNotMatch(request, /fetch|idempotentClientFetch|\/api\/auth/);
   assert.doesNotMatch(login, /loginCaptchaRequired|setLoginCaptchaRequired/);
-  assert.match(login, /const captchaBlocksSubmission = process\.env\.NODE_ENV === "production" && !captchaToken;/);
-  assert.match(login, /disabled=\{!authChecked \|\| loading \|\| Boolean\(configError\) \|\| captchaBlocksSubmission\}/);
+  assert.doesNotMatch(login, /captchaBlocksSubmission/);
   assert.match(challenge, /Local security-check test mode\./);
   assert.match(challenge, /The security check could not load/);
 });
 
-test("Turnstile success only stores the token and never submits the form automatically", () => {
+test("Turnstile success resumes one pending action while failure and expiry stay fail-closed", () => {
   const successCallback = challenge.slice(challenge.indexOf("callback: (token: string)"), challenge.indexOf('"error-callback"'));
   assert.match(successCallback, /onTokenRef\.current\(token\)/);
   assert.doesNotMatch(successCallback, /submit|requestSubmit|fetch/);
-  assert.doesNotMatch(login, /useEffect\([^)]*captchaToken[\s\S]*submitAuth|requestSubmit/);
+  const handler = login.slice(login.indexOf("function handleAuthChallengeToken"), login.indexOf("async function submitAuth"));
+  assert.match(handler, /authCaptchaTokenRef\.current = token/);
+  assert.match(handler, /if \(!token\) \{[\s\S]*authSubmitPendingRef\.current = false;[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(handler, /if \(!authSubmitPendingRef\.current\) return/);
+  assert.match(handler, /authSubmitPendingRef\.current = false/);
+  assert.match(handler, /authCaptchaTokenRef\.current = null/);
+  assert.match(handler, /setAuthSubmitPending\(false\)/);
+  assert.equal((handler.match(/submitAuth\(token\)/g) || []).length, 1);
+  assert.doesNotMatch(login, /requestSubmit/);
 });

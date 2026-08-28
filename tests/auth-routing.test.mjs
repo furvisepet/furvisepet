@@ -61,16 +61,20 @@ test("login redirects to next after successful auth", () => {
   assert.match(source, /const nextPath = getSafeNextPath\(searchParams\.get\("next"\) \|\| searchParams\.get\("returnTo"\), "\/today"\);/);
   assert.match(source, /authStatus !== "signedIn"/);
   assert.match(source, /router\.replace\(nextPath\);/);
-  assert.match(source, /Sign in to continue caring for your pets\./);
+  assert.match(source, /title="Welcome back"/);
+  assert.doesNotMatch(source, /Sign in to pick up where you left off\./);
 });
 
 test("signed-out login with onboarding next keeps the form tree stable", () => {
   const source = read("app/login/page.tsx");
 
   assert.match(source, /const authChecked = authStatus !== "loading";/);
-  assert.match(source, /<form className="grid gap-4" onSubmit=\{submitAuth\}>/);
+  assert.match(source, /<form className="grid gap-4" onSubmit=\{requestAuthSubmission\}>/);
   assert.match(source, /<AccountStatus text="Checking your session\.\.\." \/>/);
-  assert.match(source, /disabled=\{!authChecked \|\| loading \|\| Boolean\(configError\)[\s\S]*!captchaToken\}/);
+  assert.match(source, /disabled=\{!authChecked \|\| loading \|\| authSubmitPending \|\| Boolean\(configError\)\}/);
+  assert.match(source, /if \(!token\) \{[\s\S]*authSubmitPendingRef\.current = false;[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(source, /if \(!authSubmitPendingRef\.current\) return/);
+  assert.match(source, /if \(!token\) return;[\s\S]*captchaToken: token/);
   assert.doesNotMatch(source, /!authChecked \? \(\s*<div className="space-y-5">/);
   assert.doesNotMatch(source, /Checking your account\.\.\./);
   assert.doesNotMatch(source, /h-3 w-28 rounded-full bg-\[var\(--pw-card-muted\)\]/);

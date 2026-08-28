@@ -439,6 +439,15 @@ a {
   text-decoration: none;
 }
 
+.account-auth-primary {
+  color: var(--warm-cream);
+}
+
+.account-auth-primary:disabled,
+.account-auth-primary[aria-disabled="true"] {
+  color: var(--deep-forest);
+}
+
 a:not([class]) {
   color: var(--pw-link, var(--action-primary));
   text-decoration: underline;

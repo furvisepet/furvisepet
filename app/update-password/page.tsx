@@ -8,9 +8,10 @@ import { getBrowserSupabase, getSupabaseConfigError, setBrowserSupabasePersisten
 const PASSWORD_RESET_SUCCESS_PATH = "/login?passwordReset=success";
 
 export default function UpdatePasswordPage() {
-  const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [newPasswordValidationMessage, setNewPasswordValidationMessage] = useState("");
+  const [confirmPasswordValidationMessage, setConfirmPasswordValidationMessage] = useState("");
   const configError = getSupabaseConfigError();
   const [loading, setLoading] = useState(!configError);
   const [saving, setSaving] = useState(false);
@@ -27,9 +28,8 @@ export default function UpdatePasswordPage() {
       try {
         const { data } = await authClient.auth.getSession();
         if (!data.session) throw new Error("This password reset link is missing or expired. Request a new reset email.");
-        const { data: userData } = await authClient.auth.getUser();
+        await authClient.auth.getUser();
         if (active) {
-          setEmail(userData.user?.email || "");
           setSessionReady(true);
         }
       } catch (sessionError) {
@@ -80,14 +80,15 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <AccountAccessLayout supportingText={loading ? "Verifying your reset link..." : email ? `Set a new password for ${email}.` : "Set a new password for your Furvise account."} title="Choose a new password">
+    <AccountAccessLayout title="Choose a new password">
       <div className="space-y-5">
         {configError ? <AccountStatus tone="warning" text={configError} /> : null}
         {errorMessage ? <AccountStatus tone="danger" text={errorMessage} /> : null}
         <form className="grid gap-4" onSubmit={submitPassword}>
-          <AccountField label="New password" name="new-password"><input autoComplete="new-password" className={accountInputClass} id="new-password" maxLength={128} minLength={12} name="new-password" onChange={(event) => { idempotencyKey.current = null; setNewPassword(event.target.value); }} placeholder="New password" required type="password" value={newPassword} /></AccountField>
-          <AccountField label="Confirm password" name="confirm-password"><input autoComplete="new-password" className={accountInputClass} id="confirm-password" maxLength={128} minLength={12} name="confirm-password" onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm password" required type="password" value={confirmPassword} /></AccountField>
-          <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>
+          <AccountField label="New password" name="new-password"><input aria-describedby={newPasswordValidationMessage ? "new-password-error" : undefined} autoComplete="new-password" className={accountInputClass} id="new-password" maxLength={128} minLength={12} name="new-password" onChange={(event) => { idempotencyKey.current = null; setNewPassword(event.target.value); if (event.target.value.length >= 12) setNewPasswordValidationMessage(""); }} onInvalid={(event) => setNewPasswordValidationMessage(event.currentTarget.validity.valueMissing ? "Enter a new password." : "Password needs at least 12 characters.")} placeholder="New password" required type="password" value={newPassword} /></AccountField>
+          {newPasswordValidationMessage ? <p className="text-sm font-medium leading-6 text-[var(--danger-text)]" id="new-password-error" role="alert">{newPasswordValidationMessage}</p> : null}
+          <AccountField label="Confirm password" name="confirm-password"><input aria-describedby={confirmPasswordValidationMessage ? "confirm-password-error" : undefined} autoComplete="new-password" className={accountInputClass} id="confirm-password" maxLength={128} minLength={12} name="confirm-password" onChange={(event) => { setConfirmPassword(event.target.value); if (event.target.value.length >= 12) setConfirmPasswordValidationMessage(""); }} onInvalid={(event) => setConfirmPasswordValidationMessage(event.currentTarget.validity.valueMissing ? "Confirm your new password." : "Confirmation needs at least 12 characters.")} placeholder="Confirm password" required type="password" value={confirmPassword} /></AccountField>
+          {confirmPasswordValidationMessage ? <p className="text-sm font-medium leading-6 text-[var(--danger-text)]" id="confirm-password-error" role="alert">{confirmPasswordValidationMessage}</p> : null}
           <button className={accountPrimaryClass} disabled={loading || saving || Boolean(configError) || !sessionReady} type="submit">{saving ? "Updating password..." : "Update password"}</button>
         </form>
         {errorMessage && !sessionReady ? <Link className={accountPrimaryClass} href="/forgot-password">Request a new reset link</Link> : null}

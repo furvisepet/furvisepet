@@ -70,18 +70,20 @@ test("OAuth cancellation returns safely and email authentication remains availab
   assert.match(access, /role="status"/);
   assert.match(access, /aria-live="polite"/);
   assert.match(login, /"Check your email"/);
-  assert.match(login, /We sent a verification link to/);
+  assert.doesNotMatch(login, /We sent a verification link to/);
+  assert.match(login, /signupStep === "verify"[\s\S]*\{email\}/);
   assert.match(login, /setSignupStep\("verify"\)/);
-  assert.match(login, /Didn&apos;t get it\? Resend email/);
+  assert.match(login, /"Resend email"/);
   assert.match(login, /Use a different email/);
 });
 
 test("auth card remains compact, responsive, and keyboard visible", () => {
   const layout = read("app/components/account-access.tsx");
   const login = read("app/login/page.tsx");
-  assert.match(layout, /max-w-\[480px\]/);
+  assert.match(layout, /sm:max-w-\[500px\]/);
   assert.match(layout, /w-full/);
-  assert.match(login, /min-h-12 w-full/);
+  assert.match(layout, /accountPrimaryClass[\s\S]*min-h-12 w-full/);
+  assert.match(login, /className="mx-auto flex size-14/);
   assert.match(login, /focus-visible:ring-2/);
   assert.doesNotMatch(login, /min-w-\[|w-\[5\d\dpx\]/);
 });

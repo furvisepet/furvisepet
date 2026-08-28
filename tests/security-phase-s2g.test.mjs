@@ -35,9 +35,21 @@ test("production cannot activate the explicit CAPTCHA development bypass", () =>
   assert.doesNotMatch(captcha, /bypass-token|test-token|always-pass/);
 });
 
-test("email sign-in mounts CAPTCHA immediately while server-side challenge enforcement remains layered", () => {
+test("email sign-in defers CAPTCHA to the password step while server-side challenge enforcement remains layered", () => {
   const login = source("app/login/page.tsx"); const route = source("app/api/auth/login/route.ts");
-  assert.match(login, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
+  const method = login.slice(login.indexOf("function SigninMethodStep"), login.indexOf("function SigninPasswordStep"));
+  const password = login.slice(login.indexOf("function SigninPasswordStep"), login.indexOf("function SignupMethodStep"));
+  const request = login.slice(login.indexOf("function requestAuthSubmission"), login.indexOf("function handleAuthChallengeToken"));
+  const handler = login.slice(login.indexOf("function handleAuthChallengeToken"), login.indexOf("async function submitAuth"));
+  const submit = login.slice(login.indexOf("async function submitAuth"), login.indexOf("async function startGoogle"));
+  assert.doesNotMatch(method, /TurnstileChallenge|PasswordInput/);
+  assert.match(password, /authChallengeVisible \? <TurnstileChallenge onToken=\{handleAuthChallengeToken\}/);
+  assert.match(request, /setAuthChallengeVisible\(true\)/);
+  assert.doesNotMatch(request, /fetch|idempotentClientFetch|\/api\/auth/);
+  assert.match(handler, /if \(!token\) \{[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(handler, /if \(!authSubmitPendingRef\.current\) return/);
+  assert.match(submit, /if \(!token\) return/);
+  assert.match(submit, /captchaToken: token/);
   assert.doesNotMatch(login, /loginCaptchaRequired/);
   assert.match(route, /failures\.challengeRequired/); assert.match(route, /getLoginCaptchaMode\(\) === "always"/);
   assert.ok(route.indexOf("getLoginFailureState") < route.indexOf("signInWithPassword"));
@@ -109,7 +121,8 @@ test("password policy is length-only, bounded, and does not mutate passwords", (
   assert.doesNotMatch(policy, /\.trim\(|toLowerCase|normalize\(|uppercase|special character/i);
   assert.match(login, /minLength=\{12\}/);
   assert.match(login, /maxLength=\{128\}/);
-  assert.match(login, /Use 12 to 128 characters\./);
+  assert.doesNotMatch(login, /Use 12 to 128 characters\./);
+  assert.match(login, /Password needs at least 12 characters\./);
 });
 
 test("recovery redirects are server-selected and password update requires verified session", () => {
