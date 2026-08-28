@@ -38,20 +38,6 @@ export async function POST(request: Request) {
   if (!email) return authJson({ code: "INVALID_EMAIL", error: "Enter a valid email address." }, 400);
   if (!captcha.allowed) return captchaRequiredResponse(requestId);
 
-  const limit = await enforceAuthInitiationLimit({
-    captchaPresent: Boolean(captcha.token),
-    email,
-    flow: "account_route",
-    policy: "AUTH_ACCOUNT_ROUTE",
-    request,
-    requestId,
-  });
-  if (!limit.allowed) {
-    return limit.code === "AUTH_RATE_LIMITED"
-      ? authLimitResponse(requestId, limit.retryAfterSeconds)
-      : authUnavailableResponse(requestId);
-  }
-
   if (!captcha.bypassed) {
     if (!captcha.token) return captchaRequiredResponse(requestId);
     const captchaResult = await verifyTurnstileToken({
@@ -65,6 +51,20 @@ export async function POST(request: Request) {
       logAuthAbuseEvent({ captchaPresent: true, elapsedMs: 0, flow: "account_route", outcome: captchaResult === "invalid" ? "captcha_rejected" : "captcha_unavailable", requestId });
       return captchaResult === "invalid" ? captchaRequiredResponse(requestId) : authUnavailableResponse(requestId);
     }
+  }
+
+  const limit = await enforceAuthInitiationLimit({
+    captchaPresent: Boolean(captcha.token),
+    email,
+    flow: "account_route",
+    policy: "AUTH_ACCOUNT_ROUTE",
+    request,
+    requestId,
+  });
+  if (!limit.allowed) {
+    return limit.code === "AUTH_RATE_LIMITED"
+      ? authLimitResponse(requestId, limit.retryAfterSeconds)
+      : authUnavailableResponse(requestId);
   }
 
   try {

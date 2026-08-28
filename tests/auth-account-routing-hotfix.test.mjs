@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { getRateLimitPolicy } from "../app/lib/security/rate-limit/config.ts";
+import { MemoryAuthAbuseTestStore } from "../app/lib/security/auth-abuse/memory-test-store.ts";
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const login = source("app/login/page.tsx");
@@ -29,20 +30,49 @@ test("account classification route is a bounded same-origin POST with exact inpu
   assert.match(source("app/lib/security/auth-abuse/responses.ts"), /PRIVATE_CACHE_HEADERS/);
 });
 
-test("account classification requires server Siteverify and fail-closed distributed IP and email limits", () => {
+test("account classification authenticates Turnstile before consuming strict classification limits", () => {
   const handler = route.slice(route.indexOf("export async function POST"));
+  const captchaCheck = handler.indexOf("requireCaptchaToken(input.captchaToken)");
+  const siteverify = handler.indexOf("verifyTurnstileToken");
+  const invalidCaptchaReturn = handler.indexOf('captchaResult === "invalid" ? captchaRequiredResponse(requestId) : authUnavailableResponse(requestId)');
+  const classificationLimit = handler.indexOf("enforceAuthInitiationLimit");
+  const privilegedLookup = handler.indexOf("authUserExistsByEmail");
   assert.match(route, /requireCaptchaToken\(input\.captchaToken\)/);
   assert.match(route, /flow: "account_route"/);
   assert.match(route, /policy: "AUTH_ACCOUNT_ROUTE"/);
   assert.match(route, /verifyTurnstileToken\(\{[\s\S]*action: "account_route"[\s\S]*remoteIp: resolveClientIp\(request\)[\s\S]*token: captcha\.token/);
-  assert.ok(handler.indexOf("validatePublicAuthOrigin") < handler.indexOf("enforceAuthInitiationLimit"));
-  assert.ok(handler.indexOf("enforceAuthInitiationLimit") < handler.indexOf("verifyTurnstileToken"));
-  assert.ok(handler.indexOf("verifyTurnstileToken") < handler.indexOf("authUserExistsByEmail"));
+  assert.ok(handler.indexOf("validatePublicAuthOrigin") < captchaCheck);
+  assert.ok(captchaCheck < siteverify);
+  assert.ok(siteverify < invalidCaptchaReturn);
+  assert.ok(invalidCaptchaReturn < classificationLimit);
+  assert.ok(classificationLimit < privilegedLookup);
   const policy = getRateLimitPolicy("AUTH_ACCOUNT_ROUTE", { NODE_ENV: "production" });
   assert.deepEqual(policy.email, { limit: 3, windowMs: 10 * 60_000 });
   assert.deepEqual(policy.ip, { limit: 10, windowMs: 10 * 60_000 });
   assert.equal(policy.failurePolicy, "fail_closed");
   assert.match(route, /AUTH_PROTECTION_UNAVAILABLE|authUnavailableResponse/);
+});
+
+test("invalid or unavailable Siteverify results cannot spend a target email classification quota", () => {
+  const handler = route.slice(route.indexOf("export async function POST"));
+  const verificationBranch = handler.slice(
+    handler.indexOf("if (!captcha.bypassed)"),
+    handler.indexOf("const limit = await enforceAuthInitiationLimit"),
+  );
+  assert.match(verificationBranch, /captchaResult !== "valid"/);
+  assert.match(verificationBranch, /captchaResult === "invalid" \? captchaRequiredResponse\(requestId\) : authUnavailableResponse\(requestId\)/);
+  assert.doesNotMatch(verificationBranch, /enforceAuthInitiationLimit|authUserExistsByEmail/);
+  assert.ok(handler.indexOf("const limit = await enforceAuthInitiationLimit") < handler.indexOf("authUserExistsByEmail"));
+});
+
+test("three valid account classifications consume the email allowance and the next is limited", async () => {
+  const policy = getRateLimitPolicy("AUTH_ACCOUNT_ROUTE", { NODE_ENV: "production" });
+  const store = new MemoryAuthAbuseTestStore();
+  const request = { key: "account-route:email:target", limit: policy.email.limit, nowMs: 1_000, windowMs: policy.email.windowMs };
+  for (const member of ["valid-1", "valid-2", "valid-3"]) {
+    assert.equal((await store.check({ ...request, member })).allowed, true);
+  }
+  assert.equal((await store.check({ ...request, member: "valid-4" })).allowed, false);
 });
 
 test("Siteverify validates the one-time token, action, hostname, IP, and request id without leaking the secret", () => {
