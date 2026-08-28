@@ -44,7 +44,7 @@ test("sign-in password step owns credentials, recovery, and CAPTCHA", () => {
   assert.match(signinPassword, /minLength=\{1\}/);
   assert.match(signinPassword, /href="\/forgot-password"/);
   assert.match(signinPassword, /authChallengeVisible \? <TurnstileChallenge/);
-  assert.match(signinPassword, /\{loading \? "Signing in\.\.\." : authSubmitPending \? "Checking security\.\.\." : "Sign in"\}/);
+  assert.match(signinPassword, /authSubmitPending \? <AccountPendingLabel \/> : "Sign in"/);
   assert.match(signinReset, /clearTransientAuthState\(\)/);
   assert.match(signinReset, /setSigninStep\("method"\)/);
 });
@@ -54,7 +54,8 @@ test("login authority, generic errors, and fail-closed CAPTCHA serialization rem
   assert.match(requestAuth, /authSubmitPendingRef\.current = true/);
   assert.match(requestAuth, /setAuthChallengeVisible\(true\)/);
   assert.doesNotMatch(requestAuth, /fetch|idempotentClientFetch|\/api\/auth/);
-  assert.match(authTokenHandler, /if \(!token \|\| !authSubmitPendingRef\.current\) return/);
+  assert.match(authTokenHandler, /if \(!token\) \{[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(authTokenHandler, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(authTokenHandler, /authSubmitPendingRef\.current = false/);
   assert.equal((authTokenHandler.match(/submitAuth\(token\)/g) || []).length, 1);
   assert.match(submitAuth, /if \(!token\) return/);
@@ -114,14 +115,12 @@ test("Turnstile uses official interaction-only rendering without concealing prov
   assert.doesNotMatch(turnstile, /requestSubmit|autoSubmit/);
 });
 
-test("auth surface removes the nav bar and keeps method branding inside the mobile-safe card", () => {
+test("auth surface removes the nav bar and keeps universal branding inside the mobile-safe card", () => {
   assert.doesNotMatch(layout, /<header|<nav|furvise-wordmark|FURVISE_WORDMARK_ASSET/);
   assert.match(layout, /data-ui="account-access-surface"/);
-  assert.match(layout, /showBrand \? \([\s\S]*<BrandMark priority showName=\{false\} size=\{30\} \/>/);
-  assert.match(login, /const initialMethodStep = mode === "signin" \? signinStep === "method" : signupStep === "method"/);
-  assert.match(login, /showBrand=\{initialMethodStep\}/);
-  assert.match(login, /centeredIntro=\{initialMethodStep\}/);
-  assert.match(layout, /className=\{centeredIntro \? "text-center" : undefined\}/);
+  assert.match(layout, /<BrandMark priority showName=\{false\} size=\{30\} \/>/);
+  assert.match(layout, /className="text-center" data-ui="account-access-intro"/);
+  assert.doesNotMatch(layout, /showBrand|centeredIntro/);
   assert.match(layout, /aria-label="Close and return to Furvise home"/);
   assert.match(layout, /href="\/"/);
   assert.match(layout, /min-h-11 min-w-11/);

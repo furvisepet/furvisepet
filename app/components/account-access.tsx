@@ -9,29 +9,21 @@ export const accountPrimaryClass =
   "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--deep-forest)] px-5 text-base font-semibold text-[var(--warm-cream)] transition hover:bg-[var(--forest)] active:bg-[var(--deep-forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] disabled:cursor-wait disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)]";
 
 const accountCornerControlClass =
-  "absolute top-[max(1rem,env(safe-area-inset-top,0px))] z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] sm:top-5";
+  "absolute top-[max(1rem,env(safe-area-inset-top,0px))] z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-primary)] text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] sm:top-5";
 
 export function AccountAccessLayout({
   backLabel = "Back",
-  centeredIntro = false,
   children,
   onBack,
-  showBrand = false,
-  showClose = false,
   supportingText,
   title,
 }: {
   backLabel?: string;
-  centeredIntro?: boolean;
   children: React.ReactNode;
   onBack?: () => void;
-  showBrand?: boolean;
-  showClose?: boolean;
   supportingText: React.ReactNode;
   title: string;
 }) {
-  const hasTopControl = Boolean(onBack) || showClose;
-
   return (
     <main className="min-h-[100svh] bg-[var(--surface-page)] text-[var(--text-primary)]">
       <PageShell className="flex min-h-[100svh] items-stretch justify-center py-3 sm:items-center sm:px-8 sm:py-12" preset="reading">
@@ -42,7 +34,7 @@ export function AccountAccessLayout({
           {onBack ? (
             <button
               aria-label={backLabel}
-              className={`${accountCornerControlClass} left-[max(1rem,env(safe-area-inset-left,0px))] text-2xl sm:left-5`}
+              className={`${accountCornerControlClass} left-[max(1rem,env(safe-area-inset-left,0px))] text-lg sm:left-5`}
               onClick={onBack}
               title={backLabel}
               type="button"
@@ -50,32 +42,37 @@ export function AccountAccessLayout({
               <span aria-hidden="true">←</span>
             </button>
           ) : null}
-          {showClose ? (
-            <Link
-              aria-label="Close and return to Furvise home"
-              className={`${accountCornerControlClass} right-[max(1rem,env(safe-area-inset-right,0px))] text-[1.75rem] font-light leading-none sm:right-5`}
-              href="/"
-            >
-              <span aria-hidden="true">×</span>
-            </Link>
-          ) : null}
-          <div className={hasTopControl ? "pt-12 sm:pt-10" : "pt-2 sm:pt-0"}>
-            {showBrand ? (
-              <div className="mb-5 flex justify-center" data-ui="account-access-brand">
-                <span className="inline-flex [--brand-mark-size:1.875rem] sm:[--brand-mark-size:2rem]">
-                  <BrandMark priority showName={false} size={30} />
-                </span>
-              </div>
-            ) : null}
-            <div className={centeredIntro ? "text-center" : undefined} data-ui="account-access-intro">
+          <Link
+            aria-label="Close and return to Furvise home"
+            className={`${accountCornerControlClass} right-[max(1rem,env(safe-area-inset-right,0px))] text-xl font-light leading-none sm:right-5`}
+            href="/"
+          >
+            <span aria-hidden="true">×</span>
+          </Link>
+          <div className="pt-12 sm:pt-10">
+            <div className="mb-5 flex justify-center" data-ui="account-access-brand">
+              <span className="inline-flex [--brand-mark-size:1.875rem] sm:[--brand-mark-size:2rem]">
+                <BrandMark priority showName={false} size={30} />
+              </span>
+            </div>
+            <div className="text-center" data-ui="account-access-intro">
               <h1 className="text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] sm:text-[2.375rem]">{title}</h1>
               <p className="mt-3 text-base leading-7 text-[var(--text-secondary)] sm:text-lg">{supportingText}</p>
             </div>
-            <div className="mt-6 sm:mt-7">{children}</div>
+            <div className="mt-6 sm:mt-7" data-ui="account-access-form">{children}</div>
           </div>
         </section>
       </PageShell>
     </main>
+  );
+}
+
+export function AccountPendingLabel() {
+  return (
+    <span className="inline-flex items-center justify-center gap-2" role="status">
+      <span aria-hidden="true" className="size-4 shrink-0 animate-spin rounded-full border-2 border-[var(--disabled-text)] border-r-transparent motion-reduce:animate-none" />
+      <span>Checking security…</span>
+    </span>
   );
 }
 

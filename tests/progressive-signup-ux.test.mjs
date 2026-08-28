@@ -23,7 +23,8 @@ const signinPassword = login.slice(login.indexOf("function SigninPasswordStep"),
 test("normal signup starts with one local email decision and no password or security challenge", () => {
   assert.match(login, /type SignupStep = "method" \| "password" \| "verify"/);
   assert.match(login, /useState<SignupStep>\("method"\)/);
-  assert.match(login, /signupStep === "method" \? "Create your account" : signupStep === "password" \? "Secure your account" : "Check your email"/);
+  assert.match(login, /signupStep === "method" \? "Create your account" : signupStep === "password" \? "Create a password" : "Check your email"/);
+  assert.doesNotMatch(login, /Secure your account/);
   assert.doesNotMatch(login, /Create your Furvise account/);
   assert.match(methodStep, /EmailInput/);
   assert.match(methodStep, />Continue<\/button>/);
@@ -51,7 +52,7 @@ test("valid email advances locally after normalization without an account lookup
 });
 
 test("password step exposes the normalized email, exact policy, Turnstile, and forest action", () => {
-  assert.match(login, /Creating an account for[\s\S]*\{email\}/);
+  assert.match(login, /<span className="block">For<\/span>[\s\S]*\{email\}/);
   assert.doesNotMatch(passwordStep, /Change email/);
   assert.match(login, /onBack=\{passwordStep \? returnToEmail : undefined\}/);
   assert.match(passwordStep, /placeholder="Create a password"/);
@@ -67,7 +68,8 @@ test("password step exposes the normalized email, exact policy, Turnstile, and f
 test("production signup stays captcha-gated and uses the existing idempotent signup API", () => {
   assert.match(requestAuth, /setAuthChallengeVisible\(true\)/);
   assert.doesNotMatch(requestAuth, /fetch|idempotentClientFetch/);
-  assert.match(authTokenHandler, /if \(!token \|\| !authSubmitPendingRef\.current\) return/);
+  assert.match(authTokenHandler, /if \(!token\) \{[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(authTokenHandler, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(authTokenHandler, /submitAuth\(token\)/);
   assert.match(submitAuth, /if \(!token\) return/);
   assert.match(submitAuth, /"\/api\/auth\/signup"/);
@@ -93,7 +95,8 @@ test("verification recovery reveals a captcha-gated resend with a sixty-second c
   assert.match(requestResend, /resendSubmitPendingRef\.current = true/);
   assert.match(requestResend, /setResendChallengeVisible\(true\)/);
   assert.doesNotMatch(requestResend, /idempotentClientFetch|\/api\/auth\/resend/);
-  assert.match(resendTokenHandler, /if \(!token \|\| !resendSubmitPendingRef\.current\) return/);
+  assert.match(resendTokenHandler, /if \(!token\) \{[\s\S]*setResendSubmitPending\(false\)/);
+  assert.match(resendTokenHandler, /if \(!resendSubmitPendingRef\.current\) return/);
   assert.equal((resendTokenHandler.match(/resendConfirmation\(token\)/g) || []).length, 1);
   assert.match(resendConfirmation, /if \(!normalizedEmail \|\| !token \|\| resendCooldown > 0 \|\| loading\) return/);
   assert.match(resendConfirmation, /idempotentClientFetch\("\/api\/auth\/resend"/);

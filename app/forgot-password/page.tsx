@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
-import { AccountAccessLayout, AccountField, AccountStatus, accountInputClass, accountPrimaryClass } from "../components/account-access";
+import { AccountAccessLayout, AccountField, AccountPendingLabel, AccountStatus, accountInputClass, accountPrimaryClass } from "../components/account-access";
 import { TurnstileChallenge } from "../components/turnstile-challenge";
 import { getSupabaseConfigError } from "../lib/supabase";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
@@ -17,11 +17,19 @@ export default function ForgotPasswordPage() {
   const [challengeVisible, setChallengeVisible] = useState(false);
   const [submitPending, setSubmitPending] = useState(false);
   const submitPendingRef = useRef(false);
+  const captchaTokenRef = useRef<string | null>(null);
   const configError = getSupabaseConfigError();
 
   function requestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (loading || submitPendingRef.current) return;
+    if (captchaTokenRef.current) {
+      const token = captchaTokenRef.current;
+      captchaTokenRef.current = null;
+      setCaptchaToken(null);
+      void submitReset(token);
+      return;
+    }
     submitPendingRef.current = true;
     setSubmitPending(true);
     setCaptchaToken(null);
@@ -32,8 +40,16 @@ export default function ForgotPasswordPage() {
 
   function handleChallengeToken(token: string | null) {
     setCaptchaToken(token);
-    if (!token || !submitPendingRef.current) return;
+    captchaTokenRef.current = token;
+    if (!token) {
+      submitPendingRef.current = false;
+      setSubmitPending(false);
+      return;
+    }
+    if (!submitPendingRef.current) return;
     submitPendingRef.current = false;
+    captchaTokenRef.current = null;
+    setCaptchaToken(null);
     setSubmitPending(false);
     void submitReset(token);
   }
@@ -59,7 +75,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AccountAccessLayout showBrand showClose supportingText="Enter your email and we'll send you a password reset link." title="Reset your password">
+    <AccountAccessLayout supportingText="Enter your email and we’ll send you a reset link." title="Reset your password">
       <div className="space-y-5">
         {configError ? <AccountStatus tone="warning" text={configError} /> : null}
         {successMessage ? <AccountStatus text={successMessage} /> : null}
@@ -69,7 +85,7 @@ export default function ForgotPasswordPage() {
             <input autoComplete="email" className={accountInputClass} id="email" name="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} />
           </AccountField>
           {challengeVisible ? <TurnstileChallenge onToken={handleChallengeToken} resetSignal={captchaReset} /> : null}
-          <button className={accountPrimaryClass} disabled={loading || submitPending || Boolean(configError)} type="submit">{loading ? "Sending reset link..." : submitPending ? "Checking security..." : "Send reset link"}</button>
+          <button className={accountPrimaryClass} disabled={loading || submitPending || Boolean(configError)} type="submit">{loading ? "Sending reset link..." : submitPending ? <AccountPendingLabel /> : "Send reset link"}</button>
         </form>
         <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" href="/login">Back to sign in</Link>
         {successMessage ? <p className="text-sm text-[var(--text-secondary)]">Check your spam folder before trying again.</p> : null}

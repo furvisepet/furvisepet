@@ -7,6 +7,7 @@ import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   AccountAccessLayout,
   AccountField,
+  AccountPendingLabel,
   AccountStatus,
   accountInputClass,
   accountPrimaryClass,
@@ -35,7 +36,7 @@ export default function LoginPage() {
 
 function LoginPageFallback() {
   return (
-    <AccountAccessLayout centeredIntro showBrand showClose supportingText="Sign in to pick up where you left off." title="Welcome back">
+    <AccountAccessLayout supportingText="Sign in to pick up where you left off." title="Welcome back">
       <div aria-hidden="true" className="min-h-[28rem]" />
     </AccountAccessLayout>
   );
@@ -72,6 +73,8 @@ function LoginPageContent() {
   const googleStartingRef = useRef(false);
   const authSubmitPendingRef = useRef(false);
   const resendSubmitPendingRef = useRef(false);
+  const authCaptchaTokenRef = useRef<string | null>(null);
+  const resendCaptchaTokenRef = useRef<string | null>(null);
   const authChecked = authStatus !== "loading";
 
   useEffect(() => {
@@ -89,6 +92,8 @@ function LoginPageContent() {
   function clearTransientAuthState() {
     authSubmitPendingRef.current = false;
     resendSubmitPendingRef.current = false;
+    authCaptchaTokenRef.current = null;
+    resendCaptchaTokenRef.current = null;
     setPassword("");
     setShowPassword(false);
     setError("");
@@ -138,6 +143,8 @@ function LoginPageContent() {
   }
 
   function resetCaptchaAfterRequest() {
+    authCaptchaTokenRef.current = null;
+    resendCaptchaTokenRef.current = null;
     setCaptchaToken(null);
     setCaptchaReset((value) => value + 1);
   }
@@ -151,6 +158,10 @@ function LoginPageContent() {
     setError("");
     setStatusMessage("");
     setCaptchaToken(null);
+    authCaptchaTokenRef.current = null;
+    authSubmitPendingRef.current = false;
+    setAuthChallengeVisible(false);
+    setAuthSubmitPending(false);
     setCaptchaReset((value) => value + 1);
     setSignupStep("password");
     returnViewportToTop();
@@ -161,6 +172,13 @@ function LoginPageContent() {
     if (mode === "signin" && signinStep !== "password") return;
     if (mode === "signup" && signupStep !== "password") return;
     if (loading || authSubmitPendingRef.current) return;
+    if (authCaptchaTokenRef.current) {
+      const token = authCaptchaTokenRef.current;
+      authCaptchaTokenRef.current = null;
+      setCaptchaToken(null);
+      void submitAuth(token);
+      return;
+    }
     authSubmitPendingRef.current = true;
     setAuthSubmitPending(true);
     setCaptchaToken(null);
@@ -171,8 +189,16 @@ function LoginPageContent() {
 
   function handleAuthChallengeToken(token: string | null) {
     setCaptchaToken(token);
-    if (!token || !authSubmitPendingRef.current) return;
+    authCaptchaTokenRef.current = token;
+    if (!token) {
+      authSubmitPendingRef.current = false;
+      setAuthSubmitPending(false);
+      return;
+    }
+    if (!authSubmitPendingRef.current) return;
     authSubmitPendingRef.current = false;
+    authCaptchaTokenRef.current = null;
+    setCaptchaToken(null);
     setAuthSubmitPending(false);
     void submitAuth(token);
   }
@@ -243,6 +269,13 @@ function LoginPageContent() {
 
   function requestResendConfirmation() {
     if (resendCooldown > 0 || loading || resendSubmitPendingRef.current) return;
+    if (resendCaptchaTokenRef.current) {
+      const token = resendCaptchaTokenRef.current;
+      resendCaptchaTokenRef.current = null;
+      setCaptchaToken(null);
+      void resendConfirmation(token);
+      return;
+    }
     resendSubmitPendingRef.current = true;
     setResendSubmitPending(true);
     setCaptchaToken(null);
@@ -253,8 +286,16 @@ function LoginPageContent() {
 
   function handleResendChallengeToken(token: string | null) {
     setCaptchaToken(token);
-    if (!token || !resendSubmitPendingRef.current) return;
+    resendCaptchaTokenRef.current = token;
+    if (!token) {
+      resendSubmitPendingRef.current = false;
+      setResendSubmitPending(false);
+      return;
+    }
+    if (!resendSubmitPendingRef.current) return;
     resendSubmitPendingRef.current = false;
+    resendCaptchaTokenRef.current = null;
+    setCaptchaToken(null);
     setResendSubmitPending(false);
     void resendConfirmation(token);
   }
@@ -302,23 +343,19 @@ function LoginPageContent() {
       ? "Sign in again to continue with permanent pet deletion."
       : "Sign in to pick up where you left off."
     : <><span className="block">Signing in as</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>;
-  const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Secure your account" : "Check your email";
+  const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Create a password" : "Check your email";
   const signupSupportingText = signupStep === "method"
     ? "Add your pet to get started."
     : signupStep === "password"
-      ? <><span className="block">Creating an account for</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>
+      ? <><span className="block">For</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>
       : <><span className="block">We sent a verification link to</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>;
-  const initialMethodStep = mode === "signin" ? signinStep === "method" : signupStep === "method";
   const returnToEmail = mode === "signin" ? returnToSigninEmail : () => returnToSignupEmail(false);
   const passwordStep = mode === "signin" ? signinStep === "password" : signupStep === "password";
 
   return (
     <AccountAccessLayout
       backLabel="Back to email"
-      centeredIntro={initialMethodStep}
       onBack={passwordStep ? returnToEmail : undefined}
-      showBrand={initialMethodStep}
-      showClose
       supportingText={mode === "signin" ? signinSupportingText : signupSupportingText}
       title={mode === "signin" ? signinTitle : signupTitle}
     >
@@ -473,7 +510,7 @@ function SigninPasswordStep({
         <Link className={`${accountLinkClass} justify-self-start`} href="/forgot-password">Forgot password?</Link>
         {authChallengeVisible ? <TurnstileChallenge onToken={handleAuthChallengeToken} resetSignal={captchaReset} /> : null}
         <button className={accountPrimaryClass} disabled={!authChecked || loading || authSubmitPending || Boolean(configError)} type="submit">
-          {loading ? "Signing in..." : authSubmitPending ? "Checking security..." : "Sign in"}
+          {loading ? "Signing in..." : authSubmitPending ? <AccountPendingLabel /> : "Sign in"}
         </button>
       </form>
   );
@@ -551,7 +588,7 @@ function SignupPasswordStep({
         <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters.</p>
         {authChallengeVisible ? <TurnstileChallenge onToken={handleAuthChallengeToken} resetSignal={captchaReset} /> : null}
         <button className={accountPrimaryClass} disabled={!authChecked || loading || authSubmitPending || Boolean(configError)} type="submit">
-          {loading ? "Creating account..." : authSubmitPending ? "Checking security..." : "Create account"}
+          {loading ? "Creating account..." : authSubmitPending ? <AccountPendingLabel /> : "Create account"}
         </button>
       </form>
       <p className="text-center text-sm leading-6 text-[var(--text-secondary)]">
@@ -581,9 +618,9 @@ function SignupVerificationStep({
   useDifferentEmail: () => void;
 }) {
   return (
-    <div className="grid justify-items-center gap-2 pt-1">
+    <div className="mx-auto grid w-full max-w-sm justify-items-center gap-2 pt-1 text-center" data-ui="signup-verification-actions">
       <button className={accountLinkClass} disabled={loading || resendCooldown > 0 || resendSubmitPending} onClick={requestResendConfirmation} type="button">
-        {loading ? "Sending..." : "Resend email"}
+        {loading ? "Sending..." : resendSubmitPending ? <AccountPendingLabel /> : "Resend email"}
       </button>
       {resendCooldown > 0 ? <p className="text-sm text-[var(--text-secondary)]" role="status">You can resend in {resendCooldown}s.</p> : null}
       {resendChallengeVisible ? (

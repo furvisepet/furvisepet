@@ -17,7 +17,8 @@ test("the first login request waits for and serializes the exact successful CAPT
   assert.match(requestAuth, /authSubmitPendingRef\.current = true/);
   assert.match(requestAuth, /setAuthChallengeVisible\(true\)/);
   assert.doesNotMatch(requestAuth, /fetch|idempotentClientFetch|\/api\/auth/);
-  assert.match(handleAuthToken, /if \(!token \|\| !authSubmitPendingRef\.current\) return/);
+  assert.match(handleAuthToken, /if \(!token\) \{[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(handleAuthToken, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(handleAuthToken, /authSubmitPendingRef\.current = false/);
   assert.equal((handleAuthToken.match(/submitAuth\(token\)/g) || []).length, 1);
   assert.match(submitAuth, /async function submitAuth\(token: string\) \{\s*if \(!token\) return/);
@@ -34,7 +35,7 @@ test("a failed Auth request clears the spent token and resets the widget only af
 
   assert.match(failedResponse, /resetCaptchaAfterRequest\(\);/);
   assert.ok(submitAuth.indexOf("resetCaptchaAfterRequest();", submitAuth.indexOf("if (!result.ok)")) > submitAuth.indexOf("await idempotentClientFetch(endpoint"));
-  assert.match(login, /function resetCaptchaAfterRequest\(\) \{\s*setCaptchaToken\(null\);\s*setCaptchaReset\(\(value\) => value \+ 1\);\s*\}/);
+  assert.match(login, /function resetCaptchaAfterRequest\(\) \{[\s\S]*authCaptchaTokenRef\.current = null;[\s\S]*resendCaptchaTokenRef\.current = null;[\s\S]*setCaptchaToken\(null\);[\s\S]*setCaptchaReset\(\(value\) => value \+ 1\);\s*\}/);
 });
 
 test("successful login navigates without resetting the accepted token first", () => {
@@ -56,7 +57,8 @@ test("signup and confirmation resend reset Turnstile only after their requests s
   assert.doesNotMatch(submitAuth.slice(0, signupRequest), /resetCaptchaAfterRequest|setCaptchaToken\(null\)|setCaptchaReset/);
   assert.match(requestResend, /resendSubmitPendingRef\.current = true/);
   assert.doesNotMatch(requestResend, /idempotentClientFetch|\/api\/auth\/resend/);
-  assert.match(handleResendToken, /if \(!token \|\| !resendSubmitPendingRef\.current\) return/);
+  assert.match(handleResendToken, /if \(!token\) \{[\s\S]*setResendSubmitPending\(false\)/);
+  assert.match(handleResendToken, /if \(!resendSubmitPendingRef\.current\) return/);
   assert.equal((handleResendToken.match(/resendConfirmation\(token\)/g) || []).length, 1);
   assert.ok(resendRequest >= 0 && resendReset > resendRequest);
   assert.doesNotMatch(resendConfirmation.slice(0, resendRequest), /resetCaptchaAfterRequest|setCaptchaToken\(null\)|setCaptchaReset/);

@@ -5,6 +5,8 @@ import test from "node:test";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const login = read("app/login/page.tsx");
 const forgot = read("app/forgot-password/page.tsx");
+const resetConfirm = read("app/reset-password/confirm/page.tsx");
+const updatePassword = read("app/update-password/page.tsx");
 const layout = read("app/components/account-access.tsx");
 const turnstile = read("app/components/turnstile-challenge.tsx");
 const googleAsset = read("public/icons/google-g.svg");
@@ -23,12 +25,19 @@ const handleResendToken = slice(login, "function handleResendChallengeToken", "a
 const resend = slice(login, "async function resendConfirmation", 'if (authStatus === "signedIn"');
 const googleButton = slice(login, "function GoogleButton", "function AuthDivider");
 const googleIcon = login.slice(login.indexOf("function GoogleIcon"));
+const signinBack = slice(login, "function returnToSigninEmail", "function resetCaptchaAfterRequest");
+const signupBack = slice(login, "function returnToSignupEmail", "function continueSigninWithEmail");
 
-test("method composition centers only its brand and introduction while preserving labeled forms", () => {
-  assert.match(login, /centeredIntro=\{initialMethodStep\}/);
+test("every auth card shares centered heron and introduction chrome while forms stay labeled", () => {
   assert.match(layout, /data-ui="account-access-intro"/);
-  assert.match(layout, /className=\{centeredIntro \? "text-center" : undefined\}/);
+  assert.match(layout, /className="text-center" data-ui="account-access-intro"/);
   assert.match(layout, /mb-5 flex justify-center[\s\S]*<BrandMark priority showName=\{false\} size=\{30\} \/>/);
+  assert.match(layout, /data-ui="account-access-form"/);
+  assert.doesNotMatch(layout, /showBrand|centeredIntro|furvise-wordmark/);
+  assert.doesNotMatch(login, /showBrand|centeredIntro/);
+  for (const consumer of [login, forgot, resetConfirm, updatePassword]) {
+    assert.match(consumer, /<AccountAccessLayout/);
+  }
   for (const method of [signinMethod, signupMethod]) {
     assert.match(method, /<form className="grid gap-4"/);
     assert.match(method, /<EmailInput/);
@@ -44,9 +53,13 @@ test("reviewed auth copy and task headings are exact", () => {
     "Create your account",
     "Add your pet to get started.",
     "Enter your password",
-    "Secure your account",
+    "Create a password",
     "Check your email",
   ]) assert.match(login, new RegExp(copy.replace(/[.?]/g, "\\$&")));
+  assert.match(login, /signupStep === "password"[\s\S]*<span className="block">For<\/span>[\s\S]*\{email\}/);
+  assert.doesNotMatch(login, /Secure your account|Creating an account for/);
+  assert.match(forgot, /title="Reset your password"/);
+  assert.match(forgot, /Enter your email and we’ll send you a reset link\./);
   assert.doesNotMatch(login, /Sign in to continue caring for your pets|Start with your pet\. We’ll help with the rest/);
 });
 
@@ -61,17 +74,22 @@ test("Google remains a 56px accessible icon button with the multicolor mark", ()
   assert.doesNotMatch(googleIcon, /currentColor/);
 });
 
-test("password steps use safe corner navigation without redundant email links or repeated branding", () => {
+test("password steps use safe Back semantics while Close and shared branding remain universal", () => {
   assert.match(login, /backLabel="Back to email"/);
   assert.match(login, /onBack=\{passwordStep \? returnToEmail : undefined\}/);
-  assert.match(login, /showBrand=\{initialMethodStep\}/);
-  assert.match(login, /showClose/);
   assert.match(layout, /aria-label=\{backLabel\}/);
   assert.match(layout, /aria-label="Close and return to Furvise home"/);
+  assert.match(layout, /href="\/"/);
   assert.match(layout, /accountCornerControlClass =[\s\S]*min-h-11 min-w-11/);
-  assert.doesNotMatch(`${signinPassword}\n${signupPassword}`, /Change email|BrandMark/);
-  assert.doesNotMatch(signupVerify, /onBack|BrandMark/);
+  assert.match(layout, /accountCornerControlClass =[\s\S]*rounded-full border border-\[var\(--line\)\]/);
+  assert.doesNotMatch(`${signinPassword}\n${signupPassword}`, /Change email/);
+  assert.doesNotMatch(signupVerify, /onBack/);
   assert.match(signupVerify, /Use a different email/);
+  assert.match(signinBack, /clearTransientAuthState\(\)[\s\S]*setSigninStep\("method"\)/);
+  assert.match(signupBack, /clearTransientAuthState\(\)[\s\S]*if \(clearEmail\) setEmail\(""\)[\s\S]*setSignupStep\("method"\)/);
+  assert.match(login, /const returnToEmail = mode === "signin" \? returnToSigninEmail : \(\) => returnToSignupEmail\(false\)/);
+  assert.match(login, /useDifferentEmail=\{\(\) => returnToSignupEmail\(true\)\}/);
+  assert.match(forgot, /href="\/login">Back to sign in<\/Link>/);
 });
 
 test("Auth challenge mounts on submit and one valid token resumes exactly one guarded request", () => {
@@ -82,9 +100,15 @@ test("Auth challenge mounts on submit and one valid token resumes exactly one gu
   assert.match(requestAuth, /authSubmitPendingRef\.current = true/);
   assert.match(requestAuth, /setAuthChallengeVisible\(true\)/);
   assert.doesNotMatch(requestAuth, /fetch|idempotentClientFetch|\/api\/auth/);
-  assert.match(handleAuthToken, /if \(!token \|\| !authSubmitPendingRef\.current\) return/);
+  assert.match(handleAuthToken, /if \(!token\) \{[\s\S]*authSubmitPendingRef\.current = false;[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(handleAuthToken, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(handleAuthToken, /authSubmitPendingRef\.current = false/);
+  assert.match(handleAuthToken, /authCaptchaTokenRef\.current = null/);
+  assert.match(handleAuthToken, /setAuthSubmitPending\(false\)/);
   assert.equal((handleAuthToken.match(/submitAuth\(token\)/g) || []).length, 1);
+  assert.ok(handleAuthToken.indexOf("setAuthSubmitPending(false)") < handleAuthToken.indexOf("submitAuth(token)"));
+  assert.match(requestAuth, /if \(authCaptchaTokenRef\.current\) \{[\s\S]*authCaptchaTokenRef\.current = null;[\s\S]*submitAuth\(token\)/);
+  assert.equal((requestAuth.match(/submitAuth\(token\)/g) || []).length, 1);
   assert.match(submitAuth, /if \(!token\) return/);
   assert.match(submitAuth, /captchaToken: token/);
   assert.match(submitAuth, /await fetch\(endpoint, init\)/);
@@ -97,13 +121,15 @@ test("recovery and resend defer their APIs until a pending action receives a tok
   const submitReset = slice(forgot, "async function submitReset", "return (");
   assert.match(forgot, /challengeVisible \? <TurnstileChallenge/);
   assert.doesNotMatch(requestReset, /idempotentClientFetch|\/api\/auth\/recovery/);
-  assert.match(handleResetToken, /if \(!token \|\| !submitPendingRef\.current\) return/);
+  assert.match(handleResetToken, /if \(!token\) \{[\s\S]*submitPendingRef\.current = false;[\s\S]*setSubmitPending\(false\)/);
+  assert.match(handleResetToken, /if \(!submitPendingRef\.current\) return/);
   assert.equal((handleResetToken.match(/submitReset\(token\)/g) || []).length, 1);
   assert.match(submitReset, /if \(!token\) return/);
   assert.match(submitReset, /captchaToken: token/);
   assert.match(requestResend, /setResendChallengeVisible\(true\)/);
   assert.doesNotMatch(requestResend, /idempotentClientFetch|\/api\/auth\/resend/);
-  assert.match(handleResendToken, /if \(!token \|\| !resendSubmitPendingRef\.current\) return/);
+  assert.match(handleResendToken, /if \(!token\) \{[\s\S]*resendSubmitPendingRef\.current = false;[\s\S]*setResendSubmitPending\(false\)/);
+  assert.match(handleResendToken, /if \(!resendSubmitPendingRef\.current\) return/);
   assert.equal((handleResendToken.match(/resendConfirmation\(token\)/g) || []).length, 1);
   assert.match(resend, /if \(!normalizedEmail \|\| !token/);
   assert.match(resend, /idempotentClientFetch\("\/api\/auth\/resend"/);
@@ -124,4 +150,9 @@ test("provider recovery stays visible and the inset mobile sheet remains safe", 
   assert.match(layout, /safe-area-inset-top/);
   assert.match(layout, /safe-area-inset-bottom/);
   assert.match(layout, /sm:max-w-\[500px\]/);
+  assert.match(layout, /motion-reduce:animate-none/);
+  assert.match(layout, />Checking security…<\/span>/);
+  assert.match(layout, /role="status"/);
+  assert.match(login, /data-ui="signup-verification-actions"/);
+  assert.doesNotMatch(signupVerify, /min-h-|h-screen|justify-between|flex-1/);
 });

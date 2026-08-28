@@ -67,8 +67,12 @@ test("Turnstile success resumes one pending action while failure and expiry stay
   assert.match(successCallback, /onTokenRef\.current\(token\)/);
   assert.doesNotMatch(successCallback, /submit|requestSubmit|fetch/);
   const handler = login.slice(login.indexOf("function handleAuthChallengeToken"), login.indexOf("async function submitAuth"));
-  assert.match(handler, /if \(!token \|\| !authSubmitPendingRef\.current\) return/);
+  assert.match(handler, /authCaptchaTokenRef\.current = token/);
+  assert.match(handler, /if \(!token\) \{[\s\S]*authSubmitPendingRef\.current = false;[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(handler, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(handler, /authSubmitPendingRef\.current = false/);
+  assert.match(handler, /authCaptchaTokenRef\.current = null/);
+  assert.match(handler, /setAuthSubmitPending\(false\)/);
   assert.equal((handler.match(/submitAuth\(token\)/g) || []).length, 1);
   assert.doesNotMatch(login, /requestSubmit/);
 });

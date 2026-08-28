@@ -71,7 +71,8 @@ test("signed-out login with onboarding next keeps the form tree stable", () => {
   assert.match(source, /<form className="grid gap-4" onSubmit=\{requestAuthSubmission\}>/);
   assert.match(source, /<AccountStatus text="Checking your session\.\.\." \/>/);
   assert.match(source, /disabled=\{!authChecked \|\| loading \|\| authSubmitPending \|\| Boolean\(configError\)\}/);
-  assert.match(source, /if \(!token \|\| !authSubmitPendingRef\.current\) return/);
+  assert.match(source, /if \(!token\) \{[\s\S]*authSubmitPendingRef\.current = false;[\s\S]*setAuthSubmitPending\(false\)/);
+  assert.match(source, /if \(!authSubmitPendingRef\.current\) return/);
   assert.match(source, /if \(!token\) return;[\s\S]*captchaToken: token/);
   assert.doesNotMatch(source, /!authChecked \? \(\s*<div className="space-y-5">/);
   assert.doesNotMatch(source, /Checking your account\.\.\./);
