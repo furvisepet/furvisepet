@@ -9,6 +9,7 @@ const authRoutes = [
   "app/api/auth/signup/route.ts",
   "app/api/auth/login/route.ts",
   "app/api/auth/login-otp/start/route.ts",
+  "app/api/auth/account-route/route.ts",
   "app/api/auth/recovery/route.ts",
   "app/api/auth/resend/route.ts",
   "app/api/auth/oauth/route.ts",
@@ -22,6 +23,7 @@ test("browser Auth calls are mediated by same-origin application routes", () => 
   assert.doesNotMatch(recovery, /resetPasswordForEmail/);
   assert.doesNotMatch(update, /auth\.updateUser/);
   assert.match(login, /\/api\/auth\/signup/); assert.match(login, /\/api\/auth\/login/); assert.match(login, /\/api\/auth\/resend/);
+  assert.match(login, /\/api\/auth\/account-route/);
   assert.match(recovery, /\/api\/auth\/recovery/); assert.match(update, /\/api\/auth\/update-password/);
 });
 
@@ -64,12 +66,15 @@ test("email sign-in defers CAPTCHA to the password step while server-side challe
   assert.ok(route.indexOf("getLoginFailureState") < route.indexOf("signInWithPassword"));
 });
 
-test("public Auth responses do not enumerate account state", () => {
+test("credential and email-send Auth responses remain neutral while account routing returns only a bounded flow", () => {
   const responses = source("app/lib/security/auth-abuse/responses.ts"); const login = source("app/api/auth/login/route.ts");
   assert.match(responses, /Enter the code from your email to continue\. If you already have an account/);
   assert.match(responses, /If that email can receive a sign-in code, it’s on the way/);
   assert.match(responses, /If an account exists for that email/); assert.match(responses, /If confirmation is still required, a new code will be sent/);
   assert.match(login, /Email or password is incorrect\./); assert.doesNotMatch(login, /email not confirmed|already registered|google-only/i);
+  const accountRoute = source("app/api/auth/account-route/route.ts");
+  assert.match(accountRoute, /authJson\(\{ flow: exists \? "signin" : "signup" \}\)/);
+  assert.doesNotMatch(accountRoute, /userId|provider|identity|metadata|app_metadata|user_metadata/);
 });
 
 test("Auth policies use the canonical registry with the reviewed windows", () => {
@@ -77,11 +82,13 @@ test("Auth policies use the canonical registry with the reviewed windows", () =>
   const recovery = getRateLimitPolicy("AUTH_PASSWORD_RECOVERY", { NODE_ENV: "test" }); const resend = getRateLimitPolicy("AUTH_CONFIRMATION_RESEND", { NODE_ENV: "test" });
   const verify = getRateLimitPolicy("AUTH_CONFIRMATION_VERIFY", { NODE_ENV: "test" });
   const loginOtp = getRateLimitPolicy("AUTH_LOGIN_OTP_START", { NODE_ENV: "test" });
+  const accountRoute = getRateLimitPolicy("AUTH_ACCOUNT_ROUTE", { NODE_ENV: "test" });
   assert.deepEqual(signup.ip, { limit: 5, windowMs: 15 * 60_000 }); assert.deepEqual(signup.email, { limit: 3, windowMs: 60 * 60_000 });
   assert.deepEqual(login.ip, { limit: 20, windowMs: 15 * 60_000 }); assert.deepEqual(login.email, { limit: 10, windowMs: 15 * 60_000 });
   assert.equal(recovery.ip.limit, 5); assert.equal(recovery.email.limit, 3); assert.equal(resend.ip.limit, 5); assert.equal(resend.email.limit, 3);
   assert.deepEqual(verify.ip, { limit: 20, windowMs: 10 * 60_000 }); assert.deepEqual(verify.email, { limit: 6, windowMs: 10 * 60_000 }); assert.equal(verify.failurePolicy, "fail_closed");
   assert.deepEqual(loginOtp.ip, { limit: 10, windowMs: 10 * 60_000 }); assert.deepEqual(loginOtp.email, { limit: 3, windowMs: 10 * 60_000 }); assert.equal(loginOtp.failurePolicy, "fail_closed");
+  assert.deepEqual(accountRoute.ip, { limit: 10, windowMs: 10 * 60_000 }); assert.deepEqual(accountRoute.email, { limit: 3, windowMs: 10 * 60_000 }); assert.equal(accountRoute.failurePolicy, "fail_closed");
   assert.equal(getRateLimitPolicy("AUTH_OAUTH_INITIATION", { NODE_ENV: "test" }).ip.limit, 20);
 });
 
@@ -109,7 +116,11 @@ test("failed-login tracking counts credential failures, challenges temporarily, 
 });
 
 test("all public Auth mutations require an explicit same-origin browser request", () => {
-  for (const path of authRoutes) { const route = source(path); assert.match(route, /validatePublicAuthOrigin/); assert.ok(route.indexOf("validatePublicAuthOrigin") < route.indexOf("supabase.auth"), path); }
+  for (const path of authRoutes) {
+    const route = source(path); const handler = route.slice(route.indexOf("export async function POST"));
+    const authority = path.endsWith("account-route/route.ts") ? handler.indexOf("authUserExistsByEmail") : handler.indexOf("supabase.auth");
+    assert.match(handler, /validatePublicAuthOrigin/); assert.ok(handler.indexOf("validatePublicAuthOrigin") < authority, path);
+  }
   const origin = source("app/lib/security/auth-abuse/origin.ts"); assert.match(origin, /mode === "browser-origin"/); assert.match(origin, /ORIGIN_NOT_ALLOWED/);
 });
 

@@ -7,4 +7,5 @@ export * from "./memory-test-store";
 export * from "./origin";
 export * from "./password";
 export * from "./responses";
+export * from "./turnstile-siteverify";
 export type * from "./types";

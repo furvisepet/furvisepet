@@ -79,12 +79,15 @@ function LoginPageContent() {
   const [captchaReset, setCaptchaReset] = useState(0);
   const [authChallengeVisible, setAuthChallengeVisible] = useState(false);
   const [authSubmitPending, setAuthSubmitPending] = useState(false);
+  const [accountRouteChallengeVisible, setAccountRouteChallengeVisible] = useState(false);
+  const [accountRoutePending, setAccountRoutePending] = useState(false);
   const [resendChallengeVisible, setResendChallengeVisible] = useState(false);
   const [resendSubmitPending, setResendSubmitPending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const didRedirectRef = useRef(false);
   const googleStartingRef = useRef(false);
   const authSubmitPendingRef = useRef(false);
+  const accountRoutePendingRef = useRef(false);
   const resendSubmitPendingRef = useRef(false);
   const authCaptchaTokenRef = useRef<string | null>(null);
   const resendCaptchaTokenRef = useRef<string | null>(null);
@@ -93,6 +96,7 @@ function LoginPageContent() {
   const otpRecoveryTriggerRef = useRef<HTMLButtonElement>(null);
   const otpVerifyingRef = useRef(false);
   const otpAbortRef = useRef<AbortController | null>(null);
+  const accountRouteAbortRef = useRef<AbortController | null>(null);
   const authChecked = authStatus !== "loading";
 
   useEffect(() => {
@@ -122,8 +126,11 @@ function LoginPageContent() {
   function clearTransientAuthState() {
     otpAbortRef.current?.abort();
     otpAbortRef.current = null;
+    accountRouteAbortRef.current?.abort();
+    accountRouteAbortRef.current = null;
     otpVerifyingRef.current = false;
     authSubmitPendingRef.current = false;
+    accountRoutePendingRef.current = false;
     resendSubmitPendingRef.current = false;
     authCaptchaTokenRef.current = null;
     resendCaptchaTokenRef.current = null;
@@ -140,6 +147,8 @@ function LoginPageContent() {
     setCaptchaReset((value) => value + 1);
     setAuthChallengeVisible(false);
     setAuthSubmitPending(false);
+    setAccountRouteChallengeVisible(false);
+    setAccountRoutePending(false);
     setResendChallengeVisible(false);
     setResendSubmitPending(false);
     setResendCooldown(0);
@@ -221,6 +230,7 @@ function LoginPageContent() {
 
   function continueSignupWithEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (loading || accountRoutePendingRef.current) return;
     const normalizedEmail = normalizeAuthEmail(email);
     setEmail(normalizedEmail);
     setPassword("");
@@ -228,12 +238,79 @@ function LoginPageContent() {
     setError("");
     setStatusMessage("");
     setCaptchaToken(null);
-    authCaptchaTokenRef.current = null;
-    authSubmitPendingRef.current = false;
-    setAuthChallengeVisible(false);
-    setAuthSubmitPending(false);
+    accountRoutePendingRef.current = true;
+    setAccountRoutePending(true);
+    setAccountRouteChallengeVisible(true);
     setCaptchaReset((value) => value + 1);
-    setSignupStep("password");
+  }
+
+  function handleAccountRouteChallengeToken(token: string | null) {
+    setCaptchaToken(token);
+    if (!token) {
+      accountRoutePendingRef.current = false;
+      setAccountRoutePending(false);
+      return;
+    }
+    if (!accountRoutePendingRef.current) return;
+    setCaptchaToken(null);
+    void routeSignupEmail(token);
+  }
+
+  async function routeSignupEmail(token: string) {
+    if (!token) return;
+    const normalizedEmail = normalizeAuthEmail(email);
+    const controller = new AbortController();
+    accountRouteAbortRef.current?.abort();
+    accountRouteAbortRef.current = controller;
+    setLoading(true);
+    setError("");
+    setStatusMessage("");
+
+    let response: Response;
+    try {
+      response = await fetch("/api/auth/account-route", {
+        body: JSON.stringify({ captchaToken: token, email: normalizedEmail }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+        signal: controller.signal,
+      });
+    } catch {
+      if (controller.signal.aborted) return;
+      accountRouteAbortRef.current = null;
+      accountRoutePendingRef.current = false;
+      setAccountRoutePending(false);
+      setLoading(false);
+      setAccountRouteChallengeVisible(false);
+      setCaptchaToken(null);
+      setCaptchaReset((value) => value + 1);
+      setError("Account access is temporarily unavailable. Please try again.");
+      return;
+    }
+    if (controller.signal.aborted) return;
+    accountRouteAbortRef.current = null;
+    const payload = await response.json().catch(() => null) as { error?: string; flow?: "signin" | "signup" } | null;
+    if (!response.ok || (payload?.flow !== "signin" && payload?.flow !== "signup")) {
+      accountRoutePendingRef.current = false;
+      setAccountRoutePending(false);
+      setLoading(false);
+      setAccountRouteChallengeVisible(false);
+      setCaptchaToken(null);
+      setCaptchaReset((value) => value + 1);
+      setError(payload?.error || "Account access is temporarily unavailable. Please try again.");
+      return;
+    }
+
+    clearTransientAuthState();
+    setEmail(normalizedEmail);
+    if (payload.flow === "signin") {
+      setMode("signin");
+      setSigninStep("password");
+      setSignupStep("method");
+    } else {
+      setMode("signup");
+      setSigninStep("method");
+      setSignupStep("password");
+    }
     returnViewportToTop();
   }
 
@@ -540,9 +617,14 @@ function LoginPageContent() {
           />
         ) : signupStep === "method" ? (
           <SignupMethodStep
+            accountRouteChallengeVisible={accountRouteChallengeVisible}
+            accountRoutePending={accountRoutePending}
             authChecked={authChecked}
+            captchaReset={captchaReset}
             email={email}
             googleLoading={googleLoading}
+            handleAccountRouteChallengeToken={handleAccountRouteChallengeToken}
+            loading={loading}
             onContinue={continueSignupWithEmail}
             inputRef={emailInputRef}
             setEmail={setEmail}
@@ -677,19 +759,29 @@ function SigninPasswordStep({
 }
 
 function SignupMethodStep({
+  accountRouteChallengeVisible,
+  accountRoutePending,
   authChecked,
+  captchaReset,
   email,
   googleLoading,
+  handleAccountRouteChallengeToken,
   inputRef,
+  loading,
   onContinue,
   setEmail,
   startGoogle,
   switchToSignin,
 }: {
+  accountRouteChallengeVisible: boolean;
+  accountRoutePending: boolean;
   authChecked: boolean;
+  captchaReset: number;
   email: string;
   googleLoading: boolean;
+  handleAccountRouteChallengeToken: (token: string | null) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
+  loading: boolean;
   onContinue: (event: FormEvent<HTMLFormElement>) => void;
   setEmail: (value: string) => void;
   startGoogle: () => Promise<void>;
@@ -699,7 +791,10 @@ function SignupMethodStep({
     <>
       <form className="grid gap-4" onSubmit={onContinue}>
         <EmailInput email={email} inputRef={inputRef} setEmail={setEmail} />
-        <button className={accountPrimaryClass} disabled={!authChecked} type="submit">Continue</button>
+        {accountRouteChallengeVisible ? <TurnstileChallenge action="account_route" onToken={handleAccountRouteChallengeToken} resetSignal={captchaReset} /> : null}
+        <button className={accountPrimaryClass} disabled={!authChecked || loading || accountRoutePending} type="submit">
+          {loading || accountRoutePending ? <AccountPendingLabel /> : "Continue"}
+        </button>
       </form>
       {GOOGLE_AUTH_ENABLED ? <><AuthDivider /><GoogleButton googleLoading={googleLoading} startGoogle={startGoogle} /></> : null}
       <button className={`${accountLinkClass} w-full`} onClick={switchToSignin} type="button">Already have an account? Sign in</button>
@@ -818,7 +913,7 @@ function SignupOtpStep({
           <input
             aria-label="Verification code"
             autoComplete="one-time-code"
-            className="absolute inset-0 z-10 h-full w-full cursor-text rounded-xl opacity-[0.01] outline-none disabled:cursor-wait"
+            className="absolute inset-0 z-10 h-full w-full cursor-text rounded-xl bg-transparent text-transparent caret-transparent opacity-0 outline-none [-webkit-text-fill-color:transparent] disabled:cursor-wait"
             disabled={otpVerifying}
             id="signup-otp"
             inputMode="numeric"
@@ -833,6 +928,7 @@ function SignupOtpStep({
             ref={otpInputRef}
             type="text"
             value={otp}
+            style={{ WebkitTextFillColor: "transparent" }}
           />
           <div aria-hidden="true" className="grid h-full grid-cols-6 px-5">
             {Array.from({ length: FURVISE_EMAIL_OTP_LENGTH }, (_, index) => (

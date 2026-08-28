@@ -5,8 +5,8 @@ Furvise uses Cloudflare Turnstile because Supabase Auth supports it directly and
 ## Production setup
 
 1. Create a Turnstile widget for the exact production Furvise hostname and intentionally approved preview hostnames.
-2. Add the public site key to Vercel as `NEXT_PUBLIC_TURNSTILE_SITE_KEY` separately for preview and production.
-3. In Supabase Dashboard, open Authentication → Bot and Abuse Protection, enable CAPTCHA, select Cloudflare Turnstile, and enter the Turnstile secret. Never place that secret in `NEXT_PUBLIC_*`, `.env.example`, browser code, or logs.
+2. Add the public site key to Vercel as `NEXT_PUBLIC_TURNSTILE_SITE_KEY` separately for preview and production. Add the matching server-only widget secret as `TURNSTILE_SECRET_KEY` for each environment. Never prefix the secret with `NEXT_PUBLIC_`.
+3. In Supabase Dashboard, open Authentication → Bot and Abuse Protection, enable CAPTCHA, select Cloudflare Turnstile, and enter the Turnstile secret. Never place the secret value in `NEXT_PUBLIC_*`, `.env.example`, browser code, or logs.
 4. Review whether the Supabase setting requires CAPTCHA on every password sign-in. If it does, set server-only `FURVISE_AUTH_LOGIN_CAPTCHA_MODE=always`; otherwise retain the default progressive mode.
 5. Repeat signup, sign-in, recovery, and resend tests against a non-production environment before production rollout.
 
