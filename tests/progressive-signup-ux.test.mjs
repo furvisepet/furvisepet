@@ -51,14 +51,15 @@ test("valid email advances locally after normalization without an account lookup
   assert.doesNotMatch(login, /email-exists|check-email|account-exists/i);
 });
 
-test("password step exposes the normalized email, exact policy, Turnstile, and forest action", () => {
-  assert.match(login, /<span className="block">For<\/span>[\s\S]*\{email\}/);
+test("password step stays visually quiet while preserving exact policy, Turnstile, and forest action", () => {
+  assert.doesNotMatch(login, /<span className="block">For<\/span>/);
   assert.doesNotMatch(passwordStep, /Change email/);
   assert.match(login, /onBack=\{passwordStep \? returnToEmail : undefined\}/);
   assert.match(passwordStep, /placeholder="Create a password"/);
   assert.match(passwordStep, /minLength=\{12\}/);
   assert.match(passwordStep, /maxLength=\{128\}/);
-  assert.match(passwordStep, /Use 12 to 128 characters\./);
+  assert.doesNotMatch(passwordStep, /Use 12 to 128 characters\./);
+  assert.match(passwordStep, /Password needs at least 12 characters\./);
   assert.match(passwordStep, /authChallengeVisible \? <TurnstileChallenge/);
   assert.match(passwordStep, /accountPrimaryClass/);
   assert.match(passwordStep, /Create account/);
@@ -80,7 +81,8 @@ test("production signup stays captcha-gated and uses the existing idempotent sig
 test("successful signup clears the password and transitions to focused link verification", () => {
   assert.match(submitAuth, /setPassword\(""\)/);
   assert.match(submitAuth, /setSignupStep\("verify"\)/);
-  assert.match(login, /We sent a verification link to/);
+  assert.doesNotMatch(login, /We sent a verification link to/);
+  assert.match(login, /signupStep === "verify"[\s\S]*<strong className="block break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>/);
   assert.match(verificationStep, /"Resend email"/);
   assert.match(verificationStep, /Use a different email/);
   assert.doesNotMatch(verificationStep, /PasswordInput|GoogleButton|Create account/);

@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AccountAccessLayout supportingText="Enter your email and we’ll send you a reset link." title="Reset your password">
+    <AccountAccessLayout title="Reset your password">
       <div className="space-y-5">
         {configError ? <AccountStatus tone="warning" text={configError} /> : null}
         {successMessage ? <AccountStatus text={successMessage} /> : null}

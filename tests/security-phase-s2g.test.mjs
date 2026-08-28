@@ -121,7 +121,8 @@ test("password policy is length-only, bounded, and does not mutate passwords", (
   assert.doesNotMatch(policy, /\.trim\(|toLowerCase|normalize\(|uppercase|special character/i);
   assert.match(login, /minLength=\{12\}/);
   assert.match(login, /maxLength=\{128\}/);
-  assert.match(login, /Use 12 to 128 characters\./);
+  assert.doesNotMatch(login, /Use 12 to 128 characters\./);
+  assert.match(login, /Password needs at least 12 characters\./);
 });
 
 test("recovery redirects are server-selected and password update requires verified session", () => {

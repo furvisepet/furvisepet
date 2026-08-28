@@ -70,7 +70,8 @@ test("OAuth cancellation returns safely and email authentication remains availab
   assert.match(access, /role="status"/);
   assert.match(access, /aria-live="polite"/);
   assert.match(login, /"Check your email"/);
-  assert.match(login, /We sent a verification link to/);
+  assert.doesNotMatch(login, /We sent a verification link to/);
+  assert.match(login, /signupStep === "verify"[\s\S]*\{email\}/);
   assert.match(login, /setSignupStep\("verify"\)/);
   assert.match(login, /"Resend email"/);
   assert.match(login, /Use a different email/);

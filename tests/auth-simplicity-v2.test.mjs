@@ -36,7 +36,7 @@ test("sign-in starts with one local email decision", () => {
 
 test("sign-in password step owns credentials, recovery, and CAPTCHA", () => {
   assert.match(login, /const signinTitle = signinStep === "method" \? "Welcome back" : "Enter your password"/);
-  assert.match(login, /Signing in as[\s\S]*\{email\}/);
+  assert.doesNotMatch(login, /Signing in as/);
   assert.doesNotMatch(signinPassword, /Change email/);
   assert.match(login, /onBack=\{passwordStep \? returnToEmail : undefined\}/);
   assert.match(layout, /aria-label=\{backLabel\}/);
@@ -96,7 +96,8 @@ test("signup method shares email-first hierarchy while protected steps stay unch
   assert.ok(signupMethod.indexOf(">Continue</button>") < signupMethod.indexOf("<GoogleButton"));
   assert.match(signupPassword, /minLength=\{12\}/);
   assert.match(signupPassword, /maxLength=\{128\}/);
-  assert.match(signupPassword, /Use 12 to 128 characters\./);
+  assert.doesNotMatch(signupPassword, /Use 12 to 128 characters\./);
+  assert.match(signupPassword, /Password needs at least 12 characters\./);
   assert.match(signupPassword, /authChallengeVisible \? <TurnstileChallenge/);
   assert.match(submitAuth, /idempotentClientFetch\(endpoint, init, `auth-signup:\$\{normalizedEmail\}`\)/);
   assert.match(signupVerify, /"Resend email"/);

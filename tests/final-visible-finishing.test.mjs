@@ -18,7 +18,7 @@ const today = read("app/dashboard/page.tsx");
 
 test("Login uses the restrained account-access layout and removes the old benefit presentation", () => {
   assert.match(login, /const signinTitle = signinStep === "method" \? "Welcome back" : "Enter your password"/);
-  assert.match(login, /Sign in to pick up where you left off\./);
+  assert.doesNotMatch(login, /Sign in to pick up where you left off\./);
   assert.match(login, /New to Furvise\? Create account/);
   for (const old of ["Your pet family care companion", "trustPoints", "Keep your pet's care history connected", "Your pets, notes, conversations, and Vet Visit Briefs stay private to your account.", "role=\"tablist\""]) assert.doesNotMatch(login, new RegExp(old.replace(/[.?]/g, "\\$&"), "i"));
 });

@@ -36,7 +36,7 @@ export default function LoginPage() {
 
 function LoginPageFallback() {
   return (
-    <AccountAccessLayout supportingText="Sign in to pick up where you left off." title="Welcome back">
+    <AccountAccessLayout title="Welcome back">
       <div aria-hidden="true" className="min-h-[28rem]" />
     </AccountAccessLayout>
   );
@@ -331,24 +331,20 @@ function LoginPageContent() {
 
   if (authStatus === "signedIn" && !isPetDeleteReauthentication) {
     return (
-      <AccountAccessLayout supportingText="Your account is ready. Taking you back to Furvise." title="Welcome back">
+      <AccountAccessLayout title="Welcome back">
         <AccountStatus text="Opening Furvise..." />
       </AccountAccessLayout>
     );
   }
 
   const signinTitle = signinStep === "method" ? "Welcome back" : "Enter your password";
-  const signinSupportingText = signinStep === "method"
-    ? isPetDeleteReauthentication
-      ? "Sign in again to continue with permanent pet deletion."
-      : "Sign in to pick up where you left off."
-    : <><span className="block">Signing in as</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>;
+  const signinSupportingText = signinStep === "method" && isPetDeleteReauthentication
+    ? "Sign in again to continue with permanent pet deletion."
+    : undefined;
   const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Create a password" : "Check your email";
-  const signupSupportingText = signupStep === "method"
-    ? "Add your pet to get started."
-    : signupStep === "password"
-      ? <><span className="block">For</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>
-      : <><span className="block">We sent a verification link to</span><strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong></>;
+  const signupSupportingText = signupStep === "verify"
+    ? <strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong>
+    : undefined;
   const returnToEmail = mode === "signin" ? returnToSigninEmail : () => returnToSignupEmail(false);
   const passwordStep = mode === "signin" ? signinStep === "password" : signupStep === "password";
 
@@ -572,6 +568,8 @@ function SignupPasswordStep({
   setShowPassword: (value: boolean | ((current: boolean) => boolean)) => void;
   showPassword: boolean;
 }) {
+  const [passwordValidationMessage, setPasswordValidationMessage] = useState("");
+
   return (
     <>
       <form className="grid gap-4" onSubmit={requestAuthSubmission}>
@@ -581,11 +579,16 @@ function SignupPasswordStep({
           minLength={12}
           password={password}
           placeholder="Create a password"
-          setPassword={setPassword}
+          setPassword={(value) => {
+            setPassword(value);
+            if (value.length >= 12) setPasswordValidationMessage("");
+          }}
           setShowPassword={setShowPassword}
           showPassword={showPassword}
+          validationMessageId="signup-password-error"
+          onInvalid={(input) => setPasswordValidationMessage(input.validity.valueMissing ? "Enter a password." : "Password needs at least 12 characters.")}
         />
-        <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters.</p>
+        {passwordValidationMessage ? <p className="text-sm font-medium leading-6 text-[var(--danger-text)]" id="signup-password-error" role="alert">{passwordValidationMessage}</p> : null}
         {authChallengeVisible ? <TurnstileChallenge onToken={handleAuthChallengeToken} resetSignal={captchaReset} /> : null}
         <button className={accountPrimaryClass} disabled={!authChecked || loading || authSubmitPending || Boolean(configError)} type="submit">
           {loading ? "Creating account..." : authSubmitPending ? <AccountPendingLabel /> : "Create account"}
@@ -647,23 +650,27 @@ function PasswordInput({
   minLength,
   password,
   placeholder,
+  onInvalid,
   setPassword,
   setShowPassword,
   showPassword,
+  validationMessageId,
 }: {
   autoComplete: "current-password" | "new-password";
   maxLength: number;
   minLength: number;
   password: string;
   placeholder: string;
+  onInvalid?: (input: HTMLInputElement) => void;
   setPassword: (value: string) => void;
   setShowPassword: (value: boolean | ((current: boolean) => boolean)) => void;
   showPassword: boolean;
+  validationMessageId?: string;
 }) {
   return (
     <AccountField label="Password" name="password">
       <div className="relative">
-        <input autoComplete={autoComplete} className={`${accountInputClass} pr-20`} id="password" maxLength={maxLength} minLength={minLength} name="password" onChange={(event) => setPassword(event.target.value)} placeholder={placeholder} required type={showPassword ? "text" : "password"} value={password} />
+        <input aria-describedby={validationMessageId} autoComplete={autoComplete} className={`${accountInputClass} pr-20`} id="password" maxLength={maxLength} minLength={minLength} name="password" onChange={(event) => setPassword(event.target.value)} onInvalid={(event) => onInvalid?.(event.currentTarget)} placeholder={placeholder} required type={showPassword ? "text" : "password"} value={password} />
         <button aria-pressed={showPassword} className="absolute right-2 top-1/2 inline-flex min-h-11 -translate-y-1/2 items-center px-3 text-sm font-semibold text-[var(--ghost-action-foreground)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" onClick={() => setShowPassword((value) => !value)} type="button">{showPassword ? "Hide" : "Show"}</button>
       </div>
     </AccountField>

@@ -61,7 +61,8 @@ test("login redirects to next after successful auth", () => {
   assert.match(source, /const nextPath = getSafeNextPath\(searchParams\.get\("next"\) \|\| searchParams\.get\("returnTo"\), "\/today"\);/);
   assert.match(source, /authStatus !== "signedIn"/);
   assert.match(source, /router\.replace\(nextPath\);/);
-  assert.match(source, /Sign in to pick up where you left off\./);
+  assert.match(source, /title="Welcome back"/);
+  assert.doesNotMatch(source, /Sign in to pick up where you left off\./);
 });
 
 test("signed-out login with onboarding next keeps the form tree stable", () => {

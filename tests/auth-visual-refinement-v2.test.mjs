@@ -8,6 +8,7 @@ const forgot = read("app/forgot-password/page.tsx");
 const resetConfirm = read("app/reset-password/confirm/page.tsx");
 const updatePassword = read("app/update-password/page.tsx");
 const layout = read("app/components/account-access.tsx");
+const globals = read("app/globals.css");
 const turnstile = read("app/components/turnstile-challenge.tsx");
 const googleAsset = read("public/icons/google-g.svg");
 
@@ -44,23 +45,43 @@ test("every auth card shares centered heron and introduction chrome while forms 
   }
   assert.match(login, /<AccountField label="Email" name="email">/);
   assert.match(login, /<AccountField label="Password" name="password">/);
+  assert.match(layout, /supportingText\?: React\.ReactNode/);
+  assert.match(layout, /\{supportingText \? <p[\s\S]*\{supportingText\}<\/p> : null\}/);
+  assert.match(layout, /<div className="mt-6 sm:mt-7" data-ui="account-access-form">/);
 });
 
 test("reviewed auth copy and task headings are exact", () => {
   for (const copy of [
     "Welcome back",
-    "Sign in to pick up where you left off.",
     "Create your account",
-    "Add your pet to get started.",
     "Enter your password",
     "Create a password",
     "Check your email",
   ]) assert.match(login, new RegExp(copy.replace(/[.?]/g, "\\$&")));
-  assert.match(login, /signupStep === "password"[\s\S]*<span className="block">For<\/span>[\s\S]*\{email\}/);
-  assert.doesNotMatch(login, /Secure your account|Creating an account for/);
+  assert.doesNotMatch(login, /Sign in to pick up where you left off|Signing in as|Add your pet to get started|Secure your account|Creating an account for|We sent a verification link to/);
+  assert.match(login, /signupStep === "verify"[\s\S]*<strong className="block break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>/);
+  assert.doesNotMatch(signupPassword, /Use 12 to 128 characters\./);
+  assert.match(signupPassword, /Password needs at least 12 characters\./);
   assert.match(forgot, /title="Reset your password"/);
-  assert.match(forgot, /Enter your email and we’ll send you a reset link\./);
+  assert.doesNotMatch(forgot, /Enter your email and we’ll send you a reset link\./);
+  assert.match(updatePassword, /title="Choose a new password"/);
+  assert.doesNotMatch(updatePassword, /Set a new password for your Furvise account|Set a new password for \$\{email\}|Use 12 to 128 characters/);
+  assert.match(updatePassword, /Password needs at least 12 characters\./);
+  assert.match(updatePassword, /id="new-password"[\s\S]*maxLength=\{128\}[\s\S]*minLength=\{12\}/);
+  assert.match(updatePassword, /id="confirm-password"[\s\S]*maxLength=\{128\}[\s\S]*minLength=\{12\}/);
   assert.doesNotMatch(login, /Sign in to continue caring for your pets|Start with your pet\. We’ll help with the rest/);
+});
+
+test("auth primaries keep forest contrast and disabled controls remain branded and readable", () => {
+  assert.match(layout, /accountPrimaryClass[\s\S]*bg-\[var\(--deep-forest\)\][\s\S]*text-\[color:var\(--warm-cream\)\]/);
+  assert.match(layout, /account-auth-primary/);
+  assert.match(globals, /\.account-auth-primary \{[\s\S]*color: var\(--warm-cream\)/);
+  assert.match(globals, /\.account-auth-primary:disabled,[\s\S]*color: var\(--deep-forest\)/);
+  assert.match(layout, /disabled:cursor-not-allowed/);
+  assert.match(layout, /disabled:bg-\[var\(--soft-sage\)\]/);
+  assert.match(layout, /disabled:text-\[color:var\(--deep-forest\)\]/);
+  assert.match(layout, /disabled:opacity-100/);
+  assert.doesNotMatch(layout, /accountPrimaryClass[\s\S]*bg-\[var\(--action-primary\)\]/);
 });
 
 test("Google remains a 56px accessible icon button with the multicolor mark", () => {

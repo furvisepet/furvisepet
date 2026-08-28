@@ -6,7 +6,7 @@ export const accountInputClass =
   "min-h-12 w-full rounded-xl border border-[var(--input-border)] bg-[var(--input-background)] px-4 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-tertiary)] focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]";
 
 export const accountPrimaryClass =
-  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--deep-forest)] px-5 text-base font-semibold text-[var(--warm-cream)] transition hover:bg-[var(--forest)] active:bg-[var(--deep-forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] disabled:cursor-wait disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)]";
+  "account-auth-primary inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--deep-forest)] px-5 text-base font-semibold text-[color:var(--warm-cream)] transition hover:bg-[var(--forest)] active:bg-[var(--deep-forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] disabled:cursor-not-allowed disabled:bg-[var(--soft-sage)] disabled:text-[color:var(--deep-forest)] disabled:opacity-100";
 
 const accountCornerControlClass =
   "absolute top-[max(1rem,env(safe-area-inset-top,0px))] z-10 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-primary)] text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] sm:top-5";
@@ -21,7 +21,7 @@ export function AccountAccessLayout({
   backLabel?: string;
   children: React.ReactNode;
   onBack?: () => void;
-  supportingText: React.ReactNode;
+  supportingText?: React.ReactNode;
   title: string;
 }) {
   return (
@@ -57,7 +57,7 @@ export function AccountAccessLayout({
             </div>
             <div className="text-center" data-ui="account-access-intro">
               <h1 className="text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] sm:text-[2.375rem]">{title}</h1>
-              <p className="mt-3 text-base leading-7 text-[var(--text-secondary)] sm:text-lg">{supportingText}</p>
+              {supportingText ? <p className="mt-3 text-base leading-7 text-[var(--text-secondary)] sm:text-lg">{supportingText}</p> : null}
             </div>
             <div className="mt-6 sm:mt-7" data-ui="account-access-form">{children}</div>
           </div>
