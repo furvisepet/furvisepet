@@ -103,7 +103,8 @@ test("signup success transitions from password creation to active OTP entry", ()
   assert.match(login, /"Confirm your email"/);
   assert.match(login, /signupStep === "otp"[\s\S]*\{email\}/);
   assert.doesNotMatch(login, /"Check your email"|We sent a verification link|Resend email/);
-  assert.doesNotMatch(otpStep, /PasswordInput|GoogleButton|Try another way/);
+  assert.doesNotMatch(otpStep, /PasswordInput|GoogleButton/);
+  assert.match(otpStep, /Try another way/);
 });
 
 test("one semantic OTP input supports numeric typing, paste, and autofill", () => {
@@ -148,7 +149,8 @@ test("OTP verification stays in the same tab and failures recover predictably", 
 
 test("Use another email clears OTP, password, CAPTCHA, resend, and pending verification state", () => {
   assert.match(otpStep, /Use another email/);
-  assert.match(login, /useDifferentEmail=\{\(\) => returnToSignupEmail\(true\)\}/);
+  assert.match(login, /useAnotherEmail=\{useAnotherEmailFromOtp\}/);
+  assert.match(login, /function useAnotherEmailFromOtp\(\) \{[\s\S]*returnToSignupEmail\(true\)[\s\S]*emailInputRef\.current\?\.focus\(\)/);
   assert.match(clearTransient, /otpAbortRef\.current\?\.abort\(\)/);
   assert.match(clearTransient, /otpVerifyingRef\.current = false/);
   assert.match(clearTransient, /setPassword\(""\)/);
@@ -162,7 +164,8 @@ test("Use another email clears OTP, password, CAPTCHA, resend, and pending verif
 test("resend remains lazy, captcha protected, idempotent, and code-focused", () => {
   assert.match(otpStep, /Didn&apos;t get it\?/);
   assert.match(otpStep, /"Resend code"/);
-  assert.match(otpStep, /You can resend in \{resendCooldown\}s/);
+  assert.match(otpStep, /Resend in \{resendCooldown\}s/);
+  assert.doesNotMatch(otpStep, /You can resend in/);
   assert.match(otpStep, /resendChallengeVisible \? \([\s\S]*TurnstileChallenge/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);
   assert.match(resend, /idempotentClientFetch\("\/api\/auth\/resend"/);

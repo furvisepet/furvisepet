@@ -30,6 +30,8 @@ const accountLinkClass =
   "inline-flex min-h-11 items-center justify-center text-sm font-semibold text-[var(--ghost-action-foreground)] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
 const legalLinkClass =
   "font-semibold text-[var(--ghost-action-foreground)] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
+const accountSecondaryClass =
+  "inline-flex min-h-12 w-full items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-primary)] px-5 text-base font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] disabled:cursor-not-allowed disabled:text-[var(--text-tertiary)]";
 
 export default function LoginPage() {
   return <Suspense fallback={<LoginPageFallback />}><LoginPageContent /></Suspense>;
@@ -60,6 +62,7 @@ function LoginPageContent() {
   const [password, setPassword] = useState("");
   const [signupOtp, setSignupOtp] = useState("");
   const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpRecoveryOpen, setOtpRecoveryOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState(() => searchParams.get("error") === "google_auth_failed" ? "Google sign-in couldn’t be completed. Please try again." : "");
@@ -79,6 +82,8 @@ function LoginPageContent() {
   const authCaptchaTokenRef = useRef<string | null>(null);
   const resendCaptchaTokenRef = useRef<string | null>(null);
   const otpInputRef = useRef<HTMLInputElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const otpRecoveryTriggerRef = useRef<HTMLButtonElement>(null);
   const otpVerifyingRef = useRef(false);
   const otpAbortRef = useRef<AbortController | null>(null);
   const authChecked = authStatus !== "loading";
@@ -96,6 +101,17 @@ function LoginPageContent() {
     return () => window.clearInterval(timer);
   }, [resendCooldown]);
 
+  useEffect(() => {
+    if (!otpRecoveryOpen) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setOtpRecoveryOpen(false);
+      window.requestAnimationFrame(() => otpRecoveryTriggerRef.current?.focus());
+    }
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [otpRecoveryOpen]);
+
   function clearTransientAuthState() {
     otpAbortRef.current?.abort();
     otpAbortRef.current = null;
@@ -107,6 +123,7 @@ function LoginPageContent() {
     setPassword("");
     setSignupOtp("");
     setOtpVerifying(false);
+    setOtpRecoveryOpen(false);
     setShowPassword(false);
     setError("");
     setStatusMessage("");
@@ -152,6 +169,26 @@ function LoginPageContent() {
     clearTransientAuthState();
     setSigninStep("method");
     returnViewportToTop();
+  }
+
+  function closeOtpRecovery() {
+    setOtpRecoveryOpen(false);
+    window.requestAnimationFrame(() => otpRecoveryTriggerRef.current?.focus());
+  }
+
+  function signInWithPasswordFromOtp() {
+    const normalizedEmail = normalizeAuthEmail(email);
+    clearTransientAuthState();
+    setEmail(normalizedEmail);
+    setMode("signin");
+    setSigninStep("password");
+    setSignupStep("method");
+    returnViewportToTop();
+  }
+
+  function useAnotherEmailFromOtp() {
+    returnToSignupEmail(true);
+    window.requestAnimationFrame(() => emailInputRef.current?.focus());
   }
 
   function resetCaptchaAfterRequest() {
@@ -425,7 +462,7 @@ function LoginPageContent() {
     : undefined;
   const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Create a password" : "Confirm your email";
   const signupSupportingText = signupStep === "otp"
-    ? <strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong>
+    ? <span>We sent a code to <strong className="break-all font-semibold text-[var(--text-primary)]">{email}</strong>.</span>
     : undefined;
   const returnToEmail = mode === "signin" ? returnToSigninEmail : () => returnToSignupEmail(false);
   const passwordStep = mode === "signin" ? signinStep === "password" : signupStep === "password";
@@ -433,6 +470,7 @@ function LoginPageContent() {
   return (
     <AccountAccessLayout
       backLabel="Back to email"
+      compact={mode === "signup" && signupStep === "otp"}
       onBack={passwordStep ? returnToEmail : undefined}
       supportingText={mode === "signin" ? signinSupportingText : signupSupportingText}
       title={mode === "signin" ? signinTitle : signupTitle}
@@ -452,6 +490,7 @@ function LoginPageContent() {
             googleLoading={googleLoading}
             isPetDeleteReauthentication={isPetDeleteReauthentication}
             onContinue={continueSigninWithEmail}
+            inputRef={emailInputRef}
             setEmail={setEmail}
             startGoogle={startGoogle}
             switchToSignup={() => switchMode("signup")}
@@ -477,6 +516,7 @@ function LoginPageContent() {
             email={email}
             googleLoading={googleLoading}
             onContinue={continueSignupWithEmail}
+            inputRef={emailInputRef}
             setEmail={setEmail}
             startGoogle={startGoogle}
             switchToSignin={() => switchMode("signin")}
@@ -504,13 +544,18 @@ function LoginPageContent() {
             otp={signupOtp}
             otpInputRef={otpInputRef}
             otpVerifying={otpVerifying}
+            recoveryOpen={otpRecoveryOpen}
+            recoveryTriggerRef={otpRecoveryTriggerRef}
             resendChallengeVisible={resendChallengeVisible}
             resendCooldown={resendCooldown}
             resendSubmitPending={resendSubmitPending}
             requestResendConfirmation={requestResendConfirmation}
             submitOtp={submitSignupOtp}
+            closeRecovery={closeOtpRecovery}
+            openRecovery={() => setOtpRecoveryOpen(true)}
+            signInWithPassword={signInWithPasswordFromOtp}
             updateOtp={updateSignupOtp}
-            useDifferentEmail={() => returnToSignupEmail(true)}
+            useAnotherEmail={useAnotherEmailFromOtp}
           />
         )}
       </div>
@@ -523,6 +568,7 @@ function SigninMethodStep({
   email,
   googleLoading,
   isPetDeleteReauthentication,
+  inputRef,
   onContinue,
   setEmail,
   startGoogle,
@@ -532,6 +578,7 @@ function SigninMethodStep({
   email: string;
   googleLoading: boolean;
   isPetDeleteReauthentication: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onContinue: (event: FormEvent<HTMLFormElement>) => void;
   setEmail: (value: string) => void;
   startGoogle: () => Promise<void>;
@@ -540,7 +587,7 @@ function SigninMethodStep({
   return (
     <>
       <form className="grid gap-4" onSubmit={onContinue}>
-        <EmailInput email={email} setEmail={setEmail} />
+        <EmailInput email={email} inputRef={inputRef} setEmail={setEmail} />
         <button className={accountPrimaryClass} disabled={!authChecked} type="submit">Continue</button>
       </form>
       {GOOGLE_AUTH_ENABLED ? <><AuthDivider /><GoogleButton googleLoading={googleLoading} startGoogle={startGoogle} /></> : null}
@@ -603,6 +650,7 @@ function SignupMethodStep({
   authChecked,
   email,
   googleLoading,
+  inputRef,
   onContinue,
   setEmail,
   startGoogle,
@@ -611,6 +659,7 @@ function SignupMethodStep({
   authChecked: boolean;
   email: string;
   googleLoading: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onContinue: (event: FormEvent<HTMLFormElement>) => void;
   setEmail: (value: string) => void;
   startGoogle: () => Promise<void>;
@@ -619,7 +668,7 @@ function SignupMethodStep({
   return (
     <>
       <form className="grid gap-4" onSubmit={onContinue}>
-        <EmailInput email={email} setEmail={setEmail} />
+        <EmailInput email={email} inputRef={inputRef} setEmail={setEmail} />
         <button className={accountPrimaryClass} disabled={!authChecked} type="submit">Continue</button>
       </form>
       {GOOGLE_AUTH_ENABLED ? <><AuthDivider /><GoogleButton googleLoading={googleLoading} startGoogle={startGoogle} /></> : null}
@@ -695,13 +744,18 @@ function SignupOtpStep({
   otp,
   otpInputRef,
   otpVerifying,
+  recoveryOpen,
+  recoveryTriggerRef,
   resendChallengeVisible,
   resendCooldown,
   resendSubmitPending,
   requestResendConfirmation,
+  closeRecovery,
+  openRecovery,
+  signInWithPassword,
   submitOtp,
   updateOtp,
-  useDifferentEmail,
+  useAnotherEmail,
 }: {
   captchaReset: number;
   handleResendChallengeToken: (token: string | null) => void;
@@ -709,23 +763,28 @@ function SignupOtpStep({
   otp: string;
   otpInputRef: React.RefObject<HTMLInputElement | null>;
   otpVerifying: boolean;
+  recoveryOpen: boolean;
+  recoveryTriggerRef: React.RefObject<HTMLButtonElement | null>;
   resendChallengeVisible: boolean;
   resendCooldown: number;
   resendSubmitPending: boolean;
   requestResendConfirmation: () => void;
+  closeRecovery: () => void;
+  openRecovery: () => void;
+  signInWithPassword: () => void;
   submitOtp: (event: FormEvent<HTMLFormElement>) => void;
   updateOtp: (value: string) => void;
-  useDifferentEmail: () => void;
+  useAnotherEmail: () => void;
 }) {
   return (
-    <div className="mx-auto grid w-full max-w-sm justify-items-center gap-5 pt-1 text-center" data-ui="signup-otp-actions">
-      <form aria-busy={otpVerifying} className="grid w-full justify-items-center gap-3" onSubmit={submitOtp}>
-        <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="signup-otp">Verification code</label>
-        <div className="relative w-full max-w-[20rem] rounded-2xl focus-within:outline-none focus-within:ring-2 focus-within:ring-[var(--pw-focus-ring)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--surface-primary)]" data-ui="signup-otp-input">
+    <div className="mx-auto grid w-full max-w-sm justify-items-center gap-0 text-center" data-ui="signup-otp-actions">
+      <form aria-busy={otpVerifying} className="relative grid w-full justify-items-center pb-5" onSubmit={submitOtp}>
+        <label className="sr-only" htmlFor="signup-otp">Verification code</label>
+        <div className="relative h-[4.25rem] w-full max-w-[18rem] overflow-hidden rounded-xl border border-[var(--input-border)] bg-[var(--input-background)] focus-within:border-[var(--focus-ring)] focus-within:outline-none focus-within:ring-2 focus-within:ring-[var(--pw-focus-ring)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--surface-primary)]" data-ui="signup-otp-input">
           <input
             aria-label="Verification code"
             autoComplete="one-time-code"
-            className="absolute inset-0 z-10 h-full w-full cursor-text rounded-2xl opacity-[0.01] outline-none disabled:cursor-wait"
+            className="absolute inset-0 z-10 h-full w-full cursor-text rounded-xl opacity-[0.01] outline-none disabled:cursor-wait"
             disabled={otpVerifying}
             id="signup-otp"
             inputMode="numeric"
@@ -741,45 +800,75 @@ function SignupOtpStep({
             type="text"
             value={otp}
           />
-          <div aria-hidden="true" className="grid grid-cols-6 gap-2">
+          <div aria-hidden="true" className="grid h-full grid-cols-6 px-5">
             {Array.from({ length: 6 }, (_, index) => (
-              <span
-                className={`flex aspect-square min-w-0 items-center justify-center rounded-xl border bg-[var(--input-background)] text-xl font-semibold tabular-nums text-[var(--text-primary)] transition ${index === otp.length && !otpVerifying ? "border-[var(--focus-ring)]" : "border-[var(--input-border)]"}`}
-                key={index}
-              >
-                {otp[index] || ""}
+              <span className="flex min-w-0 items-center justify-center text-[1.625rem] font-semibold tabular-nums text-[var(--deep-forest)]" key={index}>
+                {otp[index] || <span className="h-px w-5 bg-[var(--text-tertiary)]" />}
               </span>
             ))}
           </div>
         </div>
-        <p aria-live="polite" className="min-h-6 text-sm font-medium text-[var(--text-secondary)]" role="status">
+        <p aria-live="polite" className="absolute inset-x-0 bottom-0 min-h-5 text-sm font-medium leading-5 text-[var(--text-secondary)]" role="status">
           {otpVerifying ? "Verifying…" : ""}
         </p>
         <button className="sr-only" disabled={otpVerifying} type="submit">Verify code</button>
       </form>
-      <div className="grid w-full justify-items-center gap-2">
-        <p className="text-sm text-[var(--text-secondary)]">
-          Didn&apos;t get it?{" "}
+      <p className="min-h-11 text-sm leading-[2.75rem] text-[var(--text-secondary)]" role={resendCooldown > 0 ? "status" : undefined}>
+        Didn&apos;t get it?{" "}
+        {resendCooldown > 0 ? (
+          <span className="font-semibold text-[var(--text-secondary)]">Resend in {resendCooldown}s</span>
+        ) : (
           <button className={accountLinkClass} disabled={loading || resendCooldown > 0 || resendSubmitPending || otpVerifying} onClick={requestResendConfirmation} type="button">
             {loading ? "Sending..." : resendSubmitPending ? <AccountPendingLabel /> : "Resend code"}
           </button>
-        </p>
-      </div>
-      {resendCooldown > 0 ? <p className="text-sm text-[var(--text-secondary)]" role="status">You can resend in {resendCooldown}s.</p> : null}
+        )}
+      </p>
       {resendChallengeVisible ? (
         <div className="mt-2 grid w-full gap-3" data-testid="resend-security-challenge">
           <TurnstileChallenge onToken={handleResendChallengeToken} resetSignal={captchaReset} />
         </div>
       ) : null}
-      <button className={accountLinkClass} disabled={otpVerifying} onClick={useDifferentEmail} type="button">Use another email</button>
+      <button className={`${accountSecondaryClass} mt-1`} disabled={otpVerifying} onClick={openRecovery} ref={recoveryTriggerRef} type="button">Try another way</button>
+      {recoveryOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(18,63,39,0.18)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:items-center sm:p-6" data-ui="otp-recovery-overlay">
+          <div
+            aria-labelledby="otp-recovery-title"
+            aria-modal="true"
+            className="relative w-full max-w-sm rounded-t-3xl rounded-b-2xl border border-[var(--line)] bg-[var(--surface-primary)] p-5 pt-7 text-left shadow-[var(--shadow-surface-2)] sm:rounded-3xl sm:p-7"
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") return;
+              const controls = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not([disabled])"));
+              const first = controls[0];
+              const last = controls.at(-1);
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last?.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first?.focus();
+              }
+            }}
+            role="dialog"
+          >
+            <button aria-label="Close alternate sign-in options" autoFocus className="absolute right-3 top-3 inline-flex size-11 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--surface-primary)] text-xl leading-none text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" onClick={closeRecovery} type="button">
+              <span aria-hidden="true">×</span>
+            </button>
+            <h2 className="pr-12 text-center text-2xl font-semibold tracking-[-0.025em]" id="otp-recovery-title">Try another way</h2>
+            <div className="mt-7 grid gap-3">
+              <button className={accountSecondaryClass} onClick={signInWithPassword} type="button">Sign in with password</button>
+              <button className={accountSecondaryClass} onClick={useAnotherEmail} type="button">Use another email</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function EmailInput({ email, setEmail }: { email: string; setEmail: (value: string) => void }) {
+function EmailInput({ email, inputRef, setEmail }: { email: string; inputRef: React.RefObject<HTMLInputElement | null>; setEmail: (value: string) => void }) {
   return (
     <AccountField label="Email" name="email">
-      <input autoComplete="email" className={accountInputClass} id="email" name="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} />
+      <input autoComplete="email" className={accountInputClass} id="email" name="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" ref={inputRef} required type="email" value={email} />
     </AccountField>
   );
 }
