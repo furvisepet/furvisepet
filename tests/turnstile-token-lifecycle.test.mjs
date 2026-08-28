@@ -50,7 +50,7 @@ test("successful login navigates without resetting the accepted token first", ()
 test("signup and confirmation resend reset Turnstile only after their requests settle", () => {
   const signupRequest = submitAuth.indexOf("await idempotentClientFetch(endpoint");
   const signupReset = submitAuth.indexOf("resetCaptchaAfterRequest();", signupRequest);
-  const resendRequest = resendConfirmation.indexOf('await idempotentClientFetch("/api/auth/resend"');
+  const resendRequest = resendConfirmation.indexOf("await idempotentClientFetch(endpoint");
   const resendReset = resendConfirmation.indexOf("resetCaptchaAfterRequest();", resendRequest);
 
   assert.ok(signupRequest >= 0 && signupReset > signupRequest);
@@ -62,5 +62,6 @@ test("signup and confirmation resend reset Turnstile only after their requests s
   assert.equal((handleResendToken.match(/resendConfirmation\(token\)/g) || []).length, 1);
   assert.ok(resendRequest >= 0 && resendReset > resendRequest);
   assert.doesNotMatch(resendConfirmation.slice(0, resendRequest), /resetCaptchaAfterRequest|setCaptchaToken\(null\)|setCaptchaReset/);
+  assert.match(resendConfirmation, /emailOtpMode === "signin_otp" \? "\/api\/auth\/login-otp\/start" : "\/api\/auth\/resend"/);
   assert.match(resendConfirmation, /body: JSON\.stringify\(\{[^}]*captchaToken: token[^}]*\}\)/);
 });

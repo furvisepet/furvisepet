@@ -23,7 +23,7 @@ const signinPassword = login.slice(login.indexOf("function SigninPasswordStep"),
 test("normal signup starts with one local email decision and no password or security challenge", () => {
   assert.match(login, /type SignupStep = "method" \| "password" \| "otp"/);
   assert.match(login, /useState<SignupStep>\("method"\)/);
-  assert.match(login, /signupStep === "method" \? "Create your account" : signupStep === "password" \? "Create a password" : "Confirm your email"/);
+  assert.match(login, /signupStep === "method"[\s\S]*"Create your account"[\s\S]*signupStep === "password"[\s\S]*"Create a password"[\s\S]*emailOtpMode === "signin_otp" \? "Confirm it’s you" : "Confirm your email"/);
   assert.doesNotMatch(login, /Secure your account/);
   assert.doesNotMatch(login, /Create your Furvise account/);
   assert.match(methodStep, /EmailInput/);
@@ -82,7 +82,7 @@ test("successful signup clears the password and transitions to focused OTP verif
   assert.match(submitAuth, /setPassword\(""\)/);
   assert.match(submitAuth, /setSignupStep\("otp"\)/);
   assert.doesNotMatch(login, /We sent a verification link to/);
-  assert.match(login, /signupStep === "otp"[\s\S]*We sent a code to <strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\./);
+  assert.match(login, /signupStep === "otp"[\s\S]*We sent a code to <span className="inline-block max-w-full"><strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\.<\/span>/);
   assert.match(otpStep, /"Resend code"/);
   assert.match(otpStep, /Use another email/);
   assert.doesNotMatch(otpStep, /PasswordInput|GoogleButton|Create account/);
@@ -101,7 +101,8 @@ test("verification recovery reveals a captcha-gated resend with a sixty-second c
   assert.match(resendTokenHandler, /if \(!resendSubmitPendingRef\.current\) return/);
   assert.equal((resendTokenHandler.match(/resendConfirmation\(token\)/g) || []).length, 1);
   assert.match(resendConfirmation, /if \(!normalizedEmail \|\| !token \|\| resendCooldown > 0 \|\| loading\) return/);
-  assert.match(resendConfirmation, /idempotentClientFetch\("\/api\/auth\/resend"/);
+  assert.match(resendConfirmation, /emailOtpMode === "signin_otp" \? "\/api\/auth\/login-otp\/start" : "\/api\/auth\/resend"/);
+  assert.match(resendConfirmation, /idempotentClientFetch\(endpoint/);
   assert.match(resendConfirmation, /Math\.max\(SIGNUP_RESEND_COOLDOWN_SECONDS/);
 });
 

@@ -2,13 +2,18 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { resolvePostAuthDestination } from "../app/lib/auth-identity.ts";
-import { isCompleteSignupOtp, normalizeSignupOtp } from "../app/lib/signup-otp.ts";
+import {
+  FURVISE_EMAIL_OTP_LENGTH,
+  isCompleteAuthEmailOtp,
+  isValidAuthEmailOtp,
+  normalizeAuthEmailOtp,
+} from "../app/lib/auth-email-otp.ts";
 import { MemoryAuthAbuseTestStore } from "../app/lib/security/auth-abuse/memory-test-store.ts";
 import { getRateLimitPolicy } from "../app/lib/security/rate-limit/config.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const login = read("app/login/page.tsx");
-const route = read("app/api/auth/verify-signup-otp/route.ts");
+const route = read("app/api/auth/verify-email-otp/route.ts");
 const signupRoute = read("app/api/auth/signup/route.ts");
 const resendRoute = read("app/api/auth/resend/route.ts");
 const callback = read("app/auth/callback/route.ts");
@@ -30,11 +35,13 @@ test("signup OTP route accepts only a small exact POST body", () => {
   assert.doesNotMatch(route, /password|captchaToken|requestedNext|returnTo/);
 });
 
-test("server normalizes email and accepts exactly six ASCII digits", () => {
+test("server normalizes email and uses the shared six-ASCII-digit contract", () => {
   assert.match(route, /normalizeAuthAbuseEmail\(input\.email\)/);
-  assert.match(route, /typeof input\.token === "string" && \/\^\[0-9\]\{6\}\$\//);
+  assert.match(route, /isValidAuthEmailOtp\(input\.token\)/);
   assert.doesNotMatch(route, /parseInt|Number\(input\.token\)|\\d\{6\}/);
   assert.match(route, /otpFailure\("INVALID_REQUEST", requestId, 400\)/);
+  assert.equal(FURVISE_EMAIL_OTP_LENGTH, 6);
+  assert.equal(isValidAuthEmailOtp("12345678"), false);
 });
 
 test("cookie-aware server verification owns the Supabase OTP exchange", () => {
@@ -72,7 +79,7 @@ test("OTP attempts use dedicated fail-closed email and IP limits", async () => {
   assert.deepEqual(policy.email, { limit: 6, windowMs: 10 * 60_000 });
   assert.deepEqual(policy.ip, { limit: 20, windowMs: 10 * 60_000 });
   assert.equal(policy.failurePolicy, "fail_closed");
-  assert.match(route, /flow: "confirmation_verify"/);
+  assert.match(route, /flow: "email_otp_verify"/);
   assert.match(route, /policy: "AUTH_CONFIRMATION_VERIFY"/);
   assert.match(route, /authUnavailableResponse\(requestId\)/);
   assert.match(limiter, /store\.check\(\{ key: keys\.ipKey/);
@@ -112,27 +119,28 @@ test("one semantic OTP input supports numeric typing, paste, and autofill", () =
   assert.match(otpStep, /aria-label="Verification code"/);
   assert.match(otpStep, /inputMode="numeric"/);
   assert.match(otpStep, /autoComplete="one-time-code"/);
-  assert.match(otpStep, /pattern="\[0-9\]\{6\}"/);
-  assert.match(otpStep, /maxLength=\{6\}/);
+  assert.match(otpStep, /pattern=\{FURVISE_EMAIL_OTP_HTML_PATTERN\}/);
+  assert.match(otpStep, /maxLength=\{FURVISE_EMAIL_OTP_LENGTH\}/);
   assert.match(otpStep, /onPaste=\{\(event\) => \{[\s\S]*event\.preventDefault\(\)[\s\S]*event\.clipboardData\.getData\("text"\)/);
-  assert.match(otpStep, /Array\.from\(\{ length: 6 \}/);
-  assert.equal(normalizeSignupOtp("123456"), "123456");
-  assert.equal(normalizeSignupOtp("12 34-56"), "123456");
-  assert.equal(normalizeSignupOtp("１２34ab5678"), "345678");
-  assert.equal(isCompleteSignupOtp("123456"), true);
-  assert.equal(isCompleteSignupOtp("12345"), false);
-  assert.equal(isCompleteSignupOtp("12345a"), false);
+  assert.match(otpStep, /Array\.from\(\{ length: FURVISE_EMAIL_OTP_LENGTH \}/);
+  assert.equal(normalizeAuthEmailOtp("123456"), "123456");
+  assert.equal(normalizeAuthEmailOtp("12 34-56"), "123456");
+  assert.equal(normalizeAuthEmailOtp("１２34ab5678"), "345678");
+  assert.equal(isCompleteAuthEmailOtp("123456"), true);
+  assert.equal(isCompleteAuthEmailOtp("12345"), false);
+  assert.equal(isCompleteAuthEmailOtp("12345a"), false);
+  assert.equal(isCompleteAuthEmailOtp("12345678"), false);
 });
 
 test("complete codes auto-submit once while Enter supports a complete code", () => {
-  assert.match(updateOtp, /normalizeSignupOtp\(value\)/);
-  assert.match(updateOtp, /isCompleteSignupOtp\(normalized\)[\s\S]*verifySignupOtp\(normalized\)/);
+  assert.match(updateOtp, /normalizeAuthEmailOtp\(value\)/);
+  assert.match(updateOtp, /isCompleteAuthEmailOtp\(normalized\)[\s\S]*verifySignupOtp\(normalized\)/);
   assert.match(submitOtp, /event\.preventDefault\(\)/);
-  assert.match(submitOtp, /if \(!isCompleteSignupOtp\(signupOtp\)\)[\s\S]*return/);
+  assert.match(submitOtp, /if \(!isCompleteAuthEmailOtp\(signupOtp\)\)[\s\S]*return/);
   assert.match(submitOtp, /verifySignupOtp\(signupOtp\)/);
-  assert.match(verifyOtp, /if \(!isCompleteSignupOtp\(code\) \|\| otpVerifyingRef\.current\) return/);
+  assert.match(verifyOtp, /if \(!isCompleteAuthEmailOtp\(code\) \|\| otpVerifyingRef\.current\) return/);
   assert.match(verifyOtp, /otpVerifyingRef\.current = true/);
-  assert.equal((verifyOtp.match(/fetch\("\/api\/auth\/verify-signup-otp"/g) || []).length, 1);
+  assert.equal((verifyOtp.match(/fetch\("\/api\/auth\/verify-email-otp"/g) || []).length, 1);
 });
 
 test("OTP verification stays in the same tab and failures recover predictably", () => {
@@ -168,7 +176,8 @@ test("resend remains lazy, captcha protected, idempotent, and code-focused", () 
   assert.doesNotMatch(otpStep, /You can resend in/);
   assert.match(otpStep, /resendChallengeVisible \? \([\s\S]*TurnstileChallenge/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);
-  assert.match(resend, /idempotentClientFetch\("\/api\/auth\/resend"/);
+  assert.match(resend, /emailOtpMode === "signin_otp" \? "\/api\/auth\/login-otp\/start" : "\/api\/auth\/resend"/);
+  assert.match(resend, /idempotentClientFetch\(endpoint/);
   assert.match(resend, /captchaToken: token/);
   assert.match(resend, /setStatusMessage\("New code sent\."\)/);
   assert.match(resendRoute, /requireCaptchaToken/);
@@ -181,7 +190,7 @@ test("password signup, legacy links, recovery, and Google callback authority rem
   assert.match(signupRoute, /supabase\.auth\.signUp\(\{ email, password: password\.password/);
   assert.match(signupRoute, /captchaToken: captcha\.token/);
   assert.match(signupRoute, /claimPublicAuthOperation/);
-  assert.doesNotMatch(signupRoute + login, /signInWithOtp/);
+  assert.doesNotMatch(signupRoute, /signInWithOtp/);
   assert.match(callback, /exchangeCodeForSession\(code\)/);
   assert.match(callback, /classifyRecoveryCallback/);
   assert.match(callback, /ensureCanonicalApplicationUser/);
@@ -196,6 +205,7 @@ test("hosted Confirm signup template rollout is explicit and remains external", 
   assert.match(rollout, /\{\{ \.Token \}\}/);
   assert.match(rollout, /\{\{ \.ConfirmationURL \}\}/);
   assert.match(rollout, /Leave Confirm Email enabled/);
-  assert.match(rollout, /Do not use `signInWithOtp`/);
+  assert.match(rollout, /`signInWithOtp` is used only for the privacy-safe existing-account recovery path/);
+  assert.match(rollout, /shouldCreateUser: false/);
   assert.equal(existsSync(new URL("../supabase/config.toml", import.meta.url)), false);
 });

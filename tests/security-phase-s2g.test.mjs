@@ -5,7 +5,16 @@ import { getRateLimitPolicy } from "../app/lib/security/rate-limit/config.ts";
 import { MemoryAuthAbuseTestStore } from "../app/lib/security/auth-abuse/memory-test-store.ts";
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const authRoutes = ["signup", "login", "recovery", "resend", "oauth", "update-password", "verify-signup-otp"].map((name) => `app/api/auth/${name}/route.ts`);
+const authRoutes = [
+  "app/api/auth/signup/route.ts",
+  "app/api/auth/login/route.ts",
+  "app/api/auth/login-otp/start/route.ts",
+  "app/api/auth/recovery/route.ts",
+  "app/api/auth/resend/route.ts",
+  "app/api/auth/oauth/route.ts",
+  "app/api/auth/update-password/route.ts",
+  "app/api/auth/verify-email-otp/route.ts",
+];
 
 test("browser Auth calls are mediated by same-origin application routes", () => {
   const login = source("app/login/page.tsx"); const recovery = source("app/forgot-password/page.tsx"); const update = source("app/update-password/page.tsx");
@@ -16,8 +25,8 @@ test("browser Auth calls are mediated by same-origin application routes", () => 
   assert.match(recovery, /\/api\/auth\/recovery/); assert.match(update, /\/api\/auth\/update-password/);
 });
 
-test("signup, recovery, and resend require and forward a CAPTCHA token", () => {
-  for (const path of ["app/api/auth/signup/route.ts", "app/api/auth/recovery/route.ts", "app/api/auth/resend/route.ts"]) {
+test("signup, recovery, resend, and login OTP start require and forward a CAPTCHA token", () => {
+  for (const path of ["app/api/auth/signup/route.ts", "app/api/auth/recovery/route.ts", "app/api/auth/resend/route.ts", "app/api/auth/login-otp/start/route.ts"]) {
     const route = source(path); assert.match(route, /requireCaptchaToken/); assert.match(route, /captchaToken: captcha\.token/); assert.ok(route.indexOf("requireCaptchaToken") < route.indexOf("supabase.auth."), path);
   }
 });
@@ -58,6 +67,7 @@ test("email sign-in defers CAPTCHA to the password step while server-side challe
 test("public Auth responses do not enumerate account state", () => {
   const responses = source("app/lib/security/auth-abuse/responses.ts"); const login = source("app/api/auth/login/route.ts");
   assert.match(responses, /Enter the code from your email to continue\. If you already have an account/);
+  assert.match(responses, /If that email can receive a sign-in code, it’s on the way/);
   assert.match(responses, /If an account exists for that email/); assert.match(responses, /If confirmation is still required, a new code will be sent/);
   assert.match(login, /Email or password is incorrect\./); assert.doesNotMatch(login, /email not confirmed|already registered|google-only/i);
 });
@@ -66,10 +76,12 @@ test("Auth policies use the canonical registry with the reviewed windows", () =>
   const signup = getRateLimitPolicy("AUTH_SIGNUP", { NODE_ENV: "test" }); const login = getRateLimitPolicy("AUTH_LOGIN", { NODE_ENV: "test" });
   const recovery = getRateLimitPolicy("AUTH_PASSWORD_RECOVERY", { NODE_ENV: "test" }); const resend = getRateLimitPolicy("AUTH_CONFIRMATION_RESEND", { NODE_ENV: "test" });
   const verify = getRateLimitPolicy("AUTH_CONFIRMATION_VERIFY", { NODE_ENV: "test" });
+  const loginOtp = getRateLimitPolicy("AUTH_LOGIN_OTP_START", { NODE_ENV: "test" });
   assert.deepEqual(signup.ip, { limit: 5, windowMs: 15 * 60_000 }); assert.deepEqual(signup.email, { limit: 3, windowMs: 60 * 60_000 });
   assert.deepEqual(login.ip, { limit: 20, windowMs: 15 * 60_000 }); assert.deepEqual(login.email, { limit: 10, windowMs: 15 * 60_000 });
   assert.equal(recovery.ip.limit, 5); assert.equal(recovery.email.limit, 3); assert.equal(resend.ip.limit, 5); assert.equal(resend.email.limit, 3);
   assert.deepEqual(verify.ip, { limit: 20, windowMs: 10 * 60_000 }); assert.deepEqual(verify.email, { limit: 6, windowMs: 10 * 60_000 }); assert.equal(verify.failurePolicy, "fail_closed");
+  assert.deepEqual(loginOtp.ip, { limit: 10, windowMs: 10 * 60_000 }); assert.deepEqual(loginOtp.email, { limit: 3, windowMs: 10 * 60_000 }); assert.equal(loginOtp.failurePolicy, "fail_closed");
   assert.equal(getRateLimitPolicy("AUTH_OAUTH_INITIATION", { NODE_ENV: "test" }).ip.limit, 20);
 });
 
@@ -102,14 +114,14 @@ test("all public Auth mutations require an explicit same-origin browser request"
 });
 
 test("rejected Auth requests cannot send email before CAPTCHA, limit, and replay decisions", () => {
-  for (const path of ["app/api/auth/signup/route.ts", "app/api/auth/recovery/route.ts", "app/api/auth/resend/route.ts"]) {
+  for (const path of ["app/api/auth/signup/route.ts", "app/api/auth/recovery/route.ts", "app/api/auth/resend/route.ts", "app/api/auth/login-otp/start/route.ts"]) {
     const route = source(path); const provider = route.indexOf("supabase.auth.");
     assert.ok(route.indexOf("requireCaptchaToken") < provider, path); assert.ok(route.indexOf("enforceAuthInitiationLimit") < provider, path); assert.ok(route.indexOf("claimPublicAuthOperation") < provider, path);
   }
 });
 
 test("pre-provider infrastructure failures release email-operation replay claims", () => {
-  for (const path of ["app/api/auth/signup/route.ts", "app/api/auth/recovery/route.ts", "app/api/auth/resend/route.ts"]) {
+  for (const path of ["app/api/auth/signup/route.ts", "app/api/auth/recovery/route.ts", "app/api/auth/resend/route.ts", "app/api/auth/login-otp/start/route.ts"]) {
     const route = source(path);
     assert.match(route, /if \(!supabase\) \{[\s\S]*releasePublicAuthOperation[\s\S]*authUnavailableResponse/, path);
     assert.match(route, /catch \{[\s\S]*releasePublicAuthOperation[\s\S]*authUnavailableResponse/, path);

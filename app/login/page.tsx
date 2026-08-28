@@ -14,16 +14,22 @@ import {
 } from "../components/account-access";
 import { TurnstileChallenge } from "../components/turnstile-challenge";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
+import {
+  FURVISE_EMAIL_OTP_HTML_PATTERN,
+  FURVISE_EMAIL_OTP_LENGTH,
+  isCompleteAuthEmailOtp,
+  normalizeAuthEmailOtp,
+} from "../lib/auth-email-otp";
 import { GOOGLE_AUTH_ENABLED, normalizeAuthEmail } from "../lib/auth-identity";
 import { getSafeNextPath } from "../lib/auth-routing";
 import { signInWithGoogle } from "../lib/google-auth-client";
-import { isCompleteSignupOtp, normalizeSignupOtp } from "../lib/signup-otp";
 import { getSupabaseConfigError, setBrowserSupabasePersistence } from "../lib/supabase";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 
 type AuthMode = "signin" | "signup";
 type SigninStep = "method" | "password";
 type SignupStep = "method" | "password" | "otp";
+type EmailOtpMode = "signup_confirmation" | "signin_otp";
 
 const SIGNUP_RESEND_COOLDOWN_SECONDS = 60;
 const accountLinkClass =
@@ -61,6 +67,7 @@ function LoginPageContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [signupOtp, setSignupOtp] = useState("");
+  const [emailOtpMode, setEmailOtpMode] = useState<EmailOtpMode>("signup_confirmation");
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpRecoveryOpen, setOtpRecoveryOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -122,6 +129,7 @@ function LoginPageContent() {
     resendCaptchaTokenRef.current = null;
     setPassword("");
     setSignupOtp("");
+    setEmailOtpMode("signup_confirmation");
     setOtpVerifying(false);
     setOtpRecoveryOpen(false);
     setShowPassword(false);
@@ -174,6 +182,19 @@ function LoginPageContent() {
   function closeOtpRecovery() {
     setOtpRecoveryOpen(false);
     window.requestAnimationFrame(() => otpRecoveryTriggerRef.current?.focus());
+  }
+
+  function startSignInOtpFromRecovery() {
+    const normalizedEmail = normalizeAuthEmail(email);
+    clearTransientAuthState();
+    setEmail(normalizedEmail);
+    setMode("signup");
+    setSignupStep("otp");
+    setEmailOtpMode("signin_otp");
+    resendSubmitPendingRef.current = true;
+    setResendSubmitPending(true);
+    setResendChallengeVisible(true);
+    returnViewportToTop();
   }
 
   function signInWithPasswordFromOtp() {
@@ -295,6 +316,7 @@ function LoginPageContent() {
     setPassword("");
     setShowPassword(false);
     setSignupOtp("");
+    setEmailOtpMode("signup_confirmation");
     setOtpVerifying(false);
     otpVerifyingRef.current = false;
     setResendChallengeVisible(false);
@@ -304,16 +326,16 @@ function LoginPageContent() {
   }
 
   function updateSignupOtp(value: string) {
-    const normalized = normalizeSignupOtp(value);
+    const normalized = normalizeAuthEmailOtp(value);
     setSignupOtp(normalized);
     setError("");
-    if (isCompleteSignupOtp(normalized)) void verifySignupOtp(normalized);
+    if (isCompleteAuthEmailOtp(normalized)) void verifySignupOtp(normalized);
   }
 
   function submitSignupOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isCompleteSignupOtp(signupOtp)) {
-      setError("Enter all 6 digits.");
+    if (!isCompleteAuthEmailOtp(signupOtp)) {
+      setError(`Enter all ${FURVISE_EMAIL_OTP_LENGTH} digits.`);
       otpInputRef.current?.focus();
       return;
     }
@@ -321,7 +343,7 @@ function LoginPageContent() {
   }
 
   async function verifySignupOtp(code: string) {
-    if (!isCompleteSignupOtp(code) || otpVerifyingRef.current) return;
+    if (!isCompleteAuthEmailOtp(code) || otpVerifyingRef.current) return;
     otpVerifyingRef.current = true;
     setOtpVerifying(true);
     setError("");
@@ -332,7 +354,7 @@ function LoginPageContent() {
 
     let response: Response;
     try {
-      response = await fetch("/api/auth/verify-signup-otp", {
+      response = await fetch("/api/auth/verify-email-otp", {
         body: JSON.stringify({ email: normalizeAuthEmail(email), token: code }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
@@ -425,7 +447,9 @@ function LoginPageContent() {
     setStatusMessage("");
     let response: Response;
     try {
-      response = await idempotentClientFetch("/api/auth/resend", { body: JSON.stringify({ captchaToken: token, email: normalizedEmail }), headers: { "Content-Type": "application/json" }, method: "POST" }, `auth-resend:${normalizedEmail}`);
+      const endpoint = emailOtpMode === "signin_otp" ? "/api/auth/login-otp/start" : "/api/auth/resend";
+      const idempotencyScope = emailOtpMode === "signin_otp" ? "auth-login-otp-start" : "auth-resend";
+      response = await idempotentClientFetch(endpoint, { body: JSON.stringify({ captchaToken: token, email: normalizedEmail }), headers: { "Content-Type": "application/json" }, method: "POST" }, `${idempotencyScope}:${normalizedEmail}`);
     } catch {
       resetCaptchaAfterRequest();
       setResendChallengeVisible(false);
@@ -460,9 +484,13 @@ function LoginPageContent() {
   const signinSupportingText = signinStep === "method" && isPetDeleteReauthentication
     ? "Sign in again to continue with permanent pet deletion."
     : undefined;
-  const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Create a password" : "Confirm your email";
+  const signupTitle = signupStep === "method"
+    ? "Create your account"
+    : signupStep === "password"
+      ? "Create a password"
+      : emailOtpMode === "signin_otp" ? "Confirm it’s you" : "Confirm your email";
   const signupSupportingText = signupStep === "otp"
-    ? <span>We sent a code to <strong className="break-all font-semibold text-[var(--text-primary)]">{email}</strong>.</span>
+    ? <span>We sent a code to <span className="inline-block max-w-full"><strong className="break-all font-semibold text-[var(--text-primary)]">{email}</strong>.</span></span>
     : undefined;
   const returnToEmail = mode === "signin" ? returnToSigninEmail : () => returnToSignupEmail(false);
   const passwordStep = mode === "signin" ? signinStep === "password" : signupStep === "password";
@@ -539,6 +567,7 @@ function LoginPageContent() {
         ) : (
           <SignupOtpStep
             captchaReset={captchaReset}
+            emailOtpMode={emailOtpMode}
             handleResendChallengeToken={handleResendChallengeToken}
             loading={loading}
             otp={signupOtp}
@@ -550,6 +579,7 @@ function LoginPageContent() {
             resendCooldown={resendCooldown}
             resendSubmitPending={resendSubmitPending}
             requestResendConfirmation={requestResendConfirmation}
+            startSignInOtp={startSignInOtpFromRecovery}
             submitOtp={submitSignupOtp}
             closeRecovery={closeOtpRecovery}
             openRecovery={() => setOtpRecoveryOpen(true)}
@@ -739,6 +769,7 @@ function SignupPasswordStep({
 
 function SignupOtpStep({
   captchaReset,
+  emailOtpMode,
   handleResendChallengeToken,
   loading,
   otp,
@@ -750,6 +781,7 @@ function SignupOtpStep({
   resendCooldown,
   resendSubmitPending,
   requestResendConfirmation,
+  startSignInOtp,
   closeRecovery,
   openRecovery,
   signInWithPassword,
@@ -758,6 +790,7 @@ function SignupOtpStep({
   useAnotherEmail,
 }: {
   captchaReset: number;
+  emailOtpMode: EmailOtpMode;
   handleResendChallengeToken: (token: string | null) => void;
   loading: boolean;
   otp: string;
@@ -769,6 +802,7 @@ function SignupOtpStep({
   resendCooldown: number;
   resendSubmitPending: boolean;
   requestResendConfirmation: () => void;
+  startSignInOtp: () => void;
   closeRecovery: () => void;
   openRecovery: () => void;
   signInWithPassword: () => void;
@@ -788,20 +822,20 @@ function SignupOtpStep({
             disabled={otpVerifying}
             id="signup-otp"
             inputMode="numeric"
-            maxLength={6}
+            maxLength={FURVISE_EMAIL_OTP_LENGTH}
             name="signup-otp"
             onChange={(event) => updateOtp(event.target.value)}
             onPaste={(event) => {
               event.preventDefault();
               updateOtp(event.clipboardData.getData("text"));
             }}
-            pattern="[0-9]{6}"
+            pattern={FURVISE_EMAIL_OTP_HTML_PATTERN}
             ref={otpInputRef}
             type="text"
             value={otp}
           />
           <div aria-hidden="true" className="grid h-full grid-cols-6 px-5">
-            {Array.from({ length: 6 }, (_, index) => (
+            {Array.from({ length: FURVISE_EMAIL_OTP_LENGTH }, (_, index) => (
               <span className="flex min-w-0 items-center justify-center text-[1.625rem] font-semibold tabular-nums text-[var(--deep-forest)]" key={index}>
                 {otp[index] || <span className="h-px w-5 bg-[var(--text-tertiary)]" />}
               </span>
@@ -855,6 +889,7 @@ function SignupOtpStep({
             </button>
             <h2 className="pr-12 text-center text-2xl font-semibold tracking-[-0.025em]" id="otp-recovery-title">Try another way</h2>
             <div className="mt-7 grid gap-3">
+              <button className={accountSecondaryClass} disabled={emailOtpMode === "signin_otp" && resendCooldown > 0} onClick={startSignInOtp} type="button">Send me a sign-in code</button>
               <button className={accountSecondaryClass} onClick={signInWithPassword} type="button">Sign in with password</button>
               <button className={accountSecondaryClass} onClick={useAnotherEmail} type="button">Use another email</button>
             </div>

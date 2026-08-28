@@ -1,6 +1,6 @@
 import type { RateLimitPolicyName } from "../rate-limit";
 
-export type AuthFlow = "signup" | "login" | "password_recovery" | "confirmation_resend" | "confirmation_verify" | "oauth_initiation" | "account_password_change";
+export type AuthFlow = "signup" | "login" | "login_otp_start" | "password_recovery" | "confirmation_resend" | "email_otp_verify" | "oauth_initiation" | "account_password_change";
 
 export type AuthAbuseStore = {
   check(input: { key: string; limit: number; member: string; nowMs: number; windowMs: number }): Promise<{ allowed: boolean; count: number; retryAfterMs: number }>;

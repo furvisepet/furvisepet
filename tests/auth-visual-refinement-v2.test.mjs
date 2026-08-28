@@ -59,7 +59,7 @@ test("reviewed auth copy and task headings are exact", () => {
     "Confirm your email",
   ]) assert.match(login, new RegExp(copy.replace(/[.?]/g, "\\$&")));
   assert.doesNotMatch(login, /Sign in to pick up where you left off|Signing in as|Add your pet to get started|Secure your account|Creating an account for|We sent a verification link to/);
-  assert.match(login, /signupStep === "otp"[\s\S]*We sent a code to <strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\./);
+  assert.match(login, /signupStep === "otp"[\s\S]*We sent a code to <span className="inline-block max-w-full"><strong className="break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>\.<\/span>/);
   assert.doesNotMatch(signupPassword, /Use 12 to 128 characters\./);
   assert.match(signupPassword, /Password needs at least 12 characters\./);
   assert.match(forgot, /title="Reset your password"/);
@@ -153,7 +153,8 @@ test("recovery and resend defer their APIs until a pending action receives a tok
   assert.match(handleResendToken, /if \(!resendSubmitPendingRef\.current\) return/);
   assert.equal((handleResendToken.match(/resendConfirmation\(token\)/g) || []).length, 1);
   assert.match(resend, /if \(!normalizedEmail \|\| !token/);
-  assert.match(resend, /idempotentClientFetch\("\/api\/auth\/resend"/);
+  assert.match(resend, /emailOtpMode === "signin_otp" \? "\/api\/auth\/login-otp\/start" : "\/api\/auth\/resend"/);
+  assert.match(resend, /idempotentClientFetch\(endpoint,[\s\S]*captchaToken: token/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);
 });
 

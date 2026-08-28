@@ -3,6 +3,7 @@ import {
   isConfirmedAuthUser,
   resolvePostAuthDestination,
 } from "../../../lib/auth-identity";
+import { isValidAuthEmailOtp } from "../../../lib/auth-email-otp";
 import { createServerSupabase } from "../../../lib/supabase/server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "../../../lib/security/request";
 import {
@@ -32,13 +33,13 @@ export async function POST(request: Request) {
   if (!hasOnlyKeys(body, ["email", "token"])) return otpFailure("INVALID_REQUEST", requestId, 400);
   const input = body as Record<string, unknown>;
   const email = normalizeAuthAbuseEmail(input.email);
-  const token = typeof input.token === "string" && /^[0-9]{6}$/.test(input.token) ? input.token : null;
+  const token = isValidAuthEmailOtp(input.token) ? input.token : null;
   if (!email || !token) return otpFailure("INVALID_REQUEST", requestId, 400);
 
   const limit = await enforceAuthInitiationLimit({
     captchaPresent: false,
     email,
-    flow: "confirmation_verify",
+    flow: "email_otp_verify",
     policy: "AUTH_CONFIRMATION_VERIFY",
     request,
     requestId,
