@@ -18,13 +18,14 @@ export function TurnstileChallenge({ onToken, resetSignal }: { onToken: (token: 
   const onTokenRef = useRef(onToken);
   const labelId = useId();
   const [renderFailed, setRenderFailed] = useState(false);
-  const [widgetVisible, setWidgetVisible] = useState(false);
+  const [widgetReady, setWidgetReady] = useState(false);
 
   const renderWidget = useCallback(() => {
     if (!siteKey || !elementRef.current || !window.turnstile || widgetRef.current) return;
     try {
       setRenderFailed(false);
       widgetRef.current = window.turnstile.render(elementRef.current, {
+        appearance: "interaction-only",
         callback: (token: string) => {
           setRenderFailed(false);
           onTokenRef.current(token);
@@ -37,18 +38,18 @@ export function TurnstileChallenge({ onToken, resetSignal }: { onToken: (token: 
         sitekey: siteKey,
         theme: "auto",
       });
-      setWidgetVisible(true);
+      setWidgetReady(true);
     } catch {
       widgetRef.current = null;
       onTokenRef.current(null);
-      setWidgetVisible(false);
+      setWidgetReady(false);
       setRenderFailed(true);
     }
   }, [siteKey]);
 
   const retryWidget = useCallback(() => {
     onTokenRef.current(null);
-    setWidgetVisible(false);
+    setWidgetReady(false);
     if (widgetRef.current && window.turnstile) {
       try { window.turnstile.remove(widgetRef.current); } catch { /* The failed widget may already be gone. */ }
     }
@@ -77,7 +78,7 @@ export function TurnstileChallenge({ onToken, resetSignal }: { onToken: (token: 
       widgetRef.current = null;
       elementRef.current?.replaceChildren();
       queueMicrotask(() => {
-        setWidgetVisible(false);
+        setWidgetReady(false);
         setRenderFailed(true);
       });
     }
@@ -99,9 +100,9 @@ export function TurnstileChallenge({ onToken, resetSignal }: { onToken: (token: 
   return (
     <div aria-labelledby={labelId} className="grid gap-2">
       <span className="sr-only" id={labelId}>Security check</span>
-      <Script onError={() => { onTokenRef.current(null); setWidgetVisible(false); setRenderFailed(true); }} onLoad={renderWidget} onReady={renderWidget} src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" />
+      <Script onError={() => { onTokenRef.current(null); setWidgetReady(false); setRenderFailed(true); }} onLoad={renderWidget} onReady={renderWidget} src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" strategy="afterInteractive" />
       <div ref={elementRef} />
-      {!widgetVisible && !renderFailed ? <p aria-live="polite" className="text-sm text-[var(--text-secondary)]">Loading security check...</p> : null}
+      {!widgetReady && !renderFailed ? <span aria-live="polite" className="sr-only">Preparing security check.</span> : null}
       {renderFailed ? (
         <div aria-live="polite" className="grid justify-items-start gap-2 text-sm text-[var(--text-secondary)]" role="alert">
           <p>The security check could not load. Please try again.</p>

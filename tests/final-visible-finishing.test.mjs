@@ -17,20 +17,19 @@ const products = read("app/shop/page.tsx");
 const today = read("app/dashboard/page.tsx");
 
 test("Login uses the restrained account-access layout and removes the old benefit presentation", () => {
-  assert.match(login, /title=\{mode === "signin" \? "Welcome back"/);
+  assert.match(login, /const signinTitle = signinStep === "method" \? "Welcome back" : "Enter your password"/);
   assert.match(login, /Sign in to continue caring for your pets\./);
   assert.match(login, /New to Furvise\? Create account/);
-  assert.match(login, /Your pets, notes, conversations, and Vet Visit Briefs stay private to your account\./);
-  for (const old of ["Your pet family care companion", "trustPoints", "Keep your pet's care history connected", "role=\"tablist\""]) assert.doesNotMatch(login, new RegExp(old, "i"));
+  for (const old of ["Your pet family care companion", "trustPoints", "Keep your pet's care history connected", "Your pets, notes, conversations, and Vet Visit Briefs stay private to your account.", "role=\"tablist\""]) assert.doesNotMatch(login, new RegExp(old.replace(/[.?]/g, "\\$&"), "i"));
 });
 
 test("all account flows remain wired through the shared access shell", () => {
   assert.match(login, /fetch\(endpoint, init\)/);
   assert.match(login, /endpoint = mode === "signin" \? "\/api\/auth\/login" : "\/api\/auth\/signup"/);
-  assert.match(login, /Keep me signed in/);
+  assert.doesNotMatch(login, /Keep me signed in|keepSignedIn|setKeepSignedIn/);
   assert.match(login, /href="\/forgot-password"/);
   assert.match(forgot, /"\/api\/auth\/recovery"/);
-  assert.match(update, /exchangeCodeForSession|setSession/);
+  assert.match(update, /getSession\(\)/);
   assert.match(update, /fetch\("\/api\/auth\/update-password"/);
   for (const source of [login, forgot, update]) assert.match(source, /AccountAccessLayout/);
 });

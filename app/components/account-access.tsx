@@ -6,37 +6,46 @@ export const accountInputClass =
   "min-h-12 w-full rounded-xl border border-[var(--input-border)] bg-[var(--input-background)] px-4 text-base text-[var(--text-primary)] outline-none transition placeholder:text-[var(--text-tertiary)] focus:border-[var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]";
 
 export const accountPrimaryClass =
-  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--action-primary)] px-5 text-base font-semibold text-[var(--text-inverse)] transition hover:bg-[var(--action-primary-hover)] active:bg-[var(--action-primary-active)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] disabled:cursor-wait disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)]";
-
-export const accountSignupPrimaryClass =
   "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--deep-forest)] px-5 text-base font-semibold text-[var(--warm-cream)] transition hover:bg-[var(--forest)] active:bg-[var(--deep-forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] disabled:cursor-wait disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)]";
 
 export function AccountAccessLayout({
   children,
+  showBrand = false,
+  showClose = false,
   supportingText,
   title,
-  variant = "default",
 }: {
   children: React.ReactNode;
+  showBrand?: boolean;
+  showClose?: boolean;
   supportingText: React.ReactNode;
   title: string;
-  variant?: "default" | "progressive";
 }) {
-  const progressive = variant === "progressive";
-
   return (
-    <main className="min-h-screen bg-[var(--surface-page)] text-[var(--text-primary)]">
-      <PageShell className="flex min-h-screen flex-col" preset="reading">
-        <header className="flex min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] items-center border-b border-[var(--line)] pt-[env(safe-area-inset-top,0px)]">
-          <Link aria-label="Furvise home" className="inline-flex min-h-11 min-w-11 items-center" href="/">
-            <span className="inline-flex items-center [--brand-mark-size:1.5rem] sm:[--brand-mark-size:1.75rem]">
-              <BrandMark priority showName={false} size={24} />
-            </span>
-          </Link>
-        </header>
-        <section className={progressive ? "flex flex-1 items-start justify-center py-6 sm:items-center sm:py-12" : "flex flex-1 items-center justify-center py-8 sm:py-12"}>
-          <div className={progressive ? "w-full max-w-[460px] bg-transparent py-2 sm:rounded-3xl sm:border sm:border-[var(--line)] sm:bg-[var(--surface-primary)] sm:p-8 sm:shadow-[var(--shadow-surface-1)]" : "w-full max-w-[480px] rounded-3xl border border-[var(--line)] bg-[var(--surface-primary)] p-6 shadow-[var(--shadow-surface-1)] sm:p-8"}>
-            <h1 className={progressive ? "text-[2.35rem] font-semibold leading-[1.06] tracking-[-0.035em] sm:text-[3rem]" : "text-[2.55rem] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-[3.15rem]"}>{title}</h1>
+    <main className="min-h-[100svh] bg-[var(--surface-page)] text-[var(--text-primary)]">
+      <PageShell className="flex min-h-[100svh] items-stretch justify-center px-0 sm:items-center sm:px-8 sm:py-12" preset="reading">
+        <section
+          className="relative flex min-h-[100svh] w-full flex-col overflow-x-hidden bg-[var(--surface-primary)] px-5 pb-[max(2rem,env(safe-area-inset-bottom,0px))] pt-[max(1.25rem,env(safe-area-inset-top,0px))] sm:min-h-0 sm:max-w-[500px] sm:rounded-3xl sm:border sm:border-[var(--line)] sm:p-9 sm:shadow-[var(--shadow-surface-1)]"
+          data-ui="account-access-surface"
+        >
+          {showClose ? (
+            <Link
+              aria-label="Close and return to Furvise home"
+              className="absolute right-[max(1rem,env(safe-area-inset-right,0px))] top-[max(1rem,env(safe-area-inset-top,0px))] inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-[1.75rem] font-light leading-none text-[var(--text-primary)] transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-primary)] sm:right-5 sm:top-5"
+              href="/"
+            >
+              <span aria-hidden="true">×</span>
+            </Link>
+          ) : null}
+          <div className={showClose ? "pt-12 sm:pt-10" : "pt-2 sm:pt-0"}>
+            {showBrand ? (
+              <div className="mb-6 flex justify-center" data-ui="account-access-brand">
+                <span className="inline-flex [--brand-mark-size:1.875rem] sm:[--brand-mark-size:2rem]">
+                  <BrandMark priority showName={false} size={30} />
+                </span>
+              </div>
+            ) : null}
+            <h1 className="text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] sm:text-[2.375rem]">{title}</h1>
             <p className="mt-3 text-base leading-7 text-[var(--text-secondary)] sm:text-lg">{supportingText}</p>
             <div className="mt-7">{children}</div>
           </div>

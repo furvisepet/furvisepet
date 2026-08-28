@@ -22,22 +22,29 @@ test("widget identity prevents duplicate Turnstile renders and cleanup remains h
   assert.match(challenge, /window\.turnstile\.remove\(widgetRef\.current\)/);
   assert.match(challenge, /try \{ window\.turnstile\.remove\(widgetRef\.current\); \} catch/);
   assert.match(challenge, /try \{\s*window\.turnstile\.reset\(widgetRef\.current\);\s*\} catch \{/);
-  assert.match(challenge, /queueMicrotask\(\(\) => \{\s*setWidgetVisible\(false\);\s*setRenderFailed\(true\);/);
+  assert.match(challenge, /queueMicrotask\(\(\) => \{\s*setWidgetReady\(false\);\s*setRenderFailed\(true\);/);
 });
 
 test("widget and script failures expose a retryable security-check error", () => {
-  assert.match(challenge, /onError=\{\(\) => \{ onTokenRef\.current\(null\); setWidgetVisible\(false\); setRenderFailed\(true\); \}\}/);
+  assert.match(challenge, /onError=\{\(\) => \{ onTokenRef\.current\(null\); setWidgetReady\(false\); setRenderFailed\(true\); \}\}/);
   assert.match(challenge, /"error-callback": \(\) => \{[\s\S]*onTokenRef\.current\(null\);[\s\S]*setRenderFailed\(true\)/);
   assert.match(challenge, /role="alert"/);
   assert.match(challenge, />Retry security check<\/button>/);
   assert.match(challenge, /onClick=\{retryWidget\}/);
 });
 
-test("the challenge has visible loading or retry feedback whenever authentication is blocked", () => {
-  assert.match(challenge, /!widgetVisible && !renderFailed \? <p aria-live="polite"[\s\S]*Loading security check/);
+test("the challenge keeps loading quiet for sighted users and exposes visible retry feedback", () => {
+  assert.match(challenge, /!widgetReady && !renderFailed \? <span aria-live="polite" className="sr-only">Preparing security check\.<\/span>/);
+  assert.doesNotMatch(challenge, /Loading security check/);
   assert.match(challenge, /renderFailed \? \([\s\S]*Retry security check/);
-  const signIn = login.slice(login.indexOf("function SigninForm"), login.indexOf("function SignupMethodStep"));
+  const signIn = login.slice(login.indexOf("function SigninPasswordStep"), login.indexOf("function SignupMethodStep"));
   assert.ok(signIn.indexOf("<TurnstileChallenge") < signIn.indexOf('type="submit"'));
+});
+
+test("explicit rendering uses the supported interaction-only appearance without hiding provider UI", () => {
+  assert.match(challenge, /appearance: "interaction-only"/);
+  assert.match(challenge, /<div ref=\{elementRef\} \/>/);
+  assert.doesNotMatch(challenge, /display:\s*none|visibility:\s*hidden|opacity:\s*0|clip-path|overflow-hidden|hidden[^A-Za-z]/i);
 });
 
 test("Turnstile is deferred until the signup password step while production Auth waits for a token", () => {

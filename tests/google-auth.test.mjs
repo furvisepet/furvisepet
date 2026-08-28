@@ -79,9 +79,10 @@ test("OAuth cancellation returns safely and email authentication remains availab
 test("auth card remains compact, responsive, and keyboard visible", () => {
   const layout = read("app/components/account-access.tsx");
   const login = read("app/login/page.tsx");
-  assert.match(layout, /max-w-\[480px\]/);
+  assert.match(layout, /sm:max-w-\[500px\]/);
   assert.match(layout, /w-full/);
-  assert.match(login, /min-h-12 w-full/);
+  assert.match(layout, /accountPrimaryClass[\s\S]*min-h-12 w-full/);
+  assert.match(login, /className="mx-auto flex size-14/);
   assert.match(login, /focus-visible:ring-2/);
   assert.doesNotMatch(login, /min-w-\[|w-\[5\d\dpx\]/);
 });

@@ -35,9 +35,12 @@ test("production cannot activate the explicit CAPTCHA development bypass", () =>
   assert.doesNotMatch(captcha, /bypass-token|test-token|always-pass/);
 });
 
-test("email sign-in mounts CAPTCHA immediately while server-side challenge enforcement remains layered", () => {
+test("email sign-in defers CAPTCHA to the password step while server-side challenge enforcement remains layered", () => {
   const login = source("app/login/page.tsx"); const route = source("app/api/auth/login/route.ts");
-  assert.match(login, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
+  const method = login.slice(login.indexOf("function SigninMethodStep"), login.indexOf("function SigninPasswordStep"));
+  const password = login.slice(login.indexOf("function SigninPasswordStep"), login.indexOf("function SignupMethodStep"));
+  assert.doesNotMatch(method, /TurnstileChallenge|PasswordInput/);
+  assert.match(password, /<TurnstileChallenge onToken=\{setCaptchaToken\} resetSignal=\{captchaReset\} \/>/);
   assert.doesNotMatch(login, /loginCaptchaRequired/);
   assert.match(route, /failures\.challengeRequired/); assert.match(route, /getLoginCaptchaMode\(\) === "always"/);
   assert.ok(route.indexOf("getLoginFailureState") < route.indexOf("signInWithPassword"));

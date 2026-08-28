@@ -11,8 +11,10 @@ const verificationStep = login.slice(login.indexOf("function SignupVerificationS
 const localEmailAdvance = login.slice(login.indexOf("function continueSignupWithEmail"), login.indexOf("async function submitAuth"));
 const submitAuth = login.slice(login.indexOf("async function submitAuth"), login.indexOf("async function startGoogle"));
 const resendConfirmation = login.slice(login.indexOf("async function resendConfirmation"), login.indexOf('if (authStatus === "signedIn")'));
-const clearTransientState = login.slice(login.indexOf("function clearTransientSignupState"), login.indexOf("function resetCaptchaAfterRequest"));
-const signIn = login.slice(login.indexOf("function SigninForm"), login.indexOf("function SignupMethodStep"));
+const clearTransientState = login.slice(login.indexOf("function clearTransientAuthState"), login.indexOf("function returnViewportToTop"));
+const returnToSignupEmail = login.slice(login.indexOf("function returnToSignupEmail"), login.indexOf("function continueSigninWithEmail"));
+const signinMethod = login.slice(login.indexOf("function SigninMethodStep"), login.indexOf("function SigninPasswordStep"));
+const signinPassword = login.slice(login.indexOf("function SigninPasswordStep"), login.indexOf("function SignupMethodStep"));
 
 test("normal signup starts with one local email decision and no password or security challenge", () => {
   assert.match(login, /type SignupStep = "method" \| "password" \| "verify"/);
@@ -26,13 +28,13 @@ test("normal signup starts with one local email decision and no password or secu
 });
 
 test("shared auth branding is heron-only, responsive, accessible, and safe-area aware", () => {
-  assert.match(layout, /<BrandMark priority showName=\{false\} size=\{24\} \/>/);
+  assert.match(layout, /<BrandMark priority showName=\{false\} size=\{30\} \/>/);
   assert.doesNotMatch(layout, /furvise-wordmark|FURVISE_WORDMARK_ASSET/);
-  assert.match(layout, /aria-label="Furvise home"/);
+  assert.match(layout, /aria-label="Close and return to Furvise home"/);
   assert.match(layout, /min-h-11 min-w-11/);
-  assert.match(layout, /\[--brand-mark-size:1\.5rem\] sm:\[--brand-mark-size:1\.75rem\]/);
-  assert.match(layout, /min-h-\[calc\(3\.5rem\+env\(safe-area-inset-top,0px\)\)\]/);
-  assert.match(layout, /pt-\[env\(safe-area-inset-top,0px\)\]/);
+  assert.match(layout, /\[--brand-mark-size:1\.875rem\] sm:\[--brand-mark-size:2rem\]/);
+  assert.match(layout, /min-h-\[100svh\]/);
+  assert.match(layout, /safe-area-inset-top/);
 });
 
 test("valid email advances locally after normalization without an account lookup or signup request", () => {
@@ -52,9 +54,9 @@ test("password step exposes the normalized email, exact policy, Turnstile, and f
   assert.match(passwordStep, /maxLength=\{128\}/);
   assert.match(passwordStep, /Use 12 to 128 characters\./);
   assert.match(passwordStep, /TurnstileChallenge/);
-  assert.match(passwordStep, /accountSignupPrimaryClass/);
+  assert.match(passwordStep, /accountPrimaryClass/);
   assert.match(passwordStep, /Create account/);
-  assert.match(layout, /accountSignupPrimaryClass[\s\S]*bg-\[var\(--deep-forest\)\]/);
+  assert.match(layout, /accountPrimaryClass[\s\S]*bg-\[var\(--deep-forest\)\]/);
 });
 
 test("production signup stays captcha-gated and uses the existing idempotent signup API", () => {
@@ -93,18 +95,19 @@ test("using a different email removes sensitive and transient signup state", () 
   assert.match(clearTransientState, /setStatusMessage\(""\)/);
   assert.match(clearTransientState, /setResendChallengeVisible\(false\)/);
   assert.match(clearTransientState, /setResendCooldown\(0\)/);
-  assert.match(clearTransientState, /if \(clearEmail\) setEmail\(""\)/);
-  assert.match(clearTransientState, /setSignupStep\("method"\)/);
+  assert.match(returnToSignupEmail, /if \(clearEmail\) setEmail\(""\)/);
+  assert.match(returnToSignupEmail, /setSignupStep\("method"\)/);
 });
 
 test("Google and sign-in recovery behavior remain available without signup-only consent", () => {
   assert.match(methodStep, /GoogleButton/);
   assert.match(login, /signInWithGoogle\(nextPath\)/);
-  assert.match(signIn, /Keep me signed in/);
-  assert.match(signIn, /href="\/forgot-password"/);
-  assert.match(signIn, /TurnstileChallenge/);
-  assert.match(signIn, /accountPrimaryClass/);
-  assert.doesNotMatch(signIn, /Terms|Privacy Policy/);
+  assert.doesNotMatch(login, /Keep me signed in|keepSignedIn/);
+  assert.doesNotMatch(signinMethod, /PasswordInput|TurnstileChallenge|Forgot password/);
+  assert.match(signinPassword, /href="\/forgot-password"/);
+  assert.match(signinPassword, /TurnstileChallenge/);
+  assert.match(signinPassword, /accountPrimaryClass/);
+  assert.doesNotMatch(`${signinMethod}\n${signinPassword}`, /Terms|Privacy Policy/);
   assert.match(login, /passwordResetSucceeded/);
   assert.match(login, /isPetDeleteReauthentication/);
   assert.match(login, /searchParams\.get\("next"\) \|\| searchParams\.get\("returnTo"\)/);
@@ -117,11 +120,10 @@ test("signup consent links are exact and confined to account creation", () => {
 });
 
 test("progressive auth layout is page-like on mobile and restrained on larger screens", () => {
-  assert.match(layout, /variant\?: "default" \| "progressive"/);
-  assert.match(layout, /w-full max-w-\[460px\] bg-transparent py-2 sm:rounded-3xl sm:border/);
+  assert.match(layout, /min-h-\[100svh\][\s\S]*sm:max-w-\[500px\]/);
+  assert.match(layout, /bg-\[var\(--surface-primary\)\][\s\S]*sm:rounded-3xl sm:border/);
   assert.match(layout, /sm:shadow-\[var\(--shadow-surface-1\)\]/);
-  assert.doesNotMatch(layout, /max-w-\[460px\] (?:rounded|border|bg-\[var\(--surface-primary\)\]|shadow)/);
-  assert.match(methodStep, /accountSignupPrimaryClass/);
+  assert.match(methodStep, /accountPrimaryClass/);
   assert.match(layout, /min-h-12 w-full/);
   assert.match(login, /min-h-11/);
 });
