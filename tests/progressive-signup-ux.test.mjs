@@ -6,8 +6,8 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const login = read("app/login/page.tsx");
 const layout = read("app/components/account-access.tsx");
 const methodStep = login.slice(login.indexOf("function SignupMethodStep"), login.indexOf("function SignupPasswordStep"));
-const passwordStep = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupVerificationStep"));
-const verificationStep = login.slice(login.indexOf("function SignupVerificationStep"), login.indexOf("function EmailInput"));
+const passwordStep = login.slice(login.indexOf("function SignupPasswordStep"), login.indexOf("function SignupOtpStep"));
+const otpStep = login.slice(login.indexOf("function SignupOtpStep"), login.indexOf("function EmailInput"));
 const localEmailAdvance = login.slice(login.indexOf("function continueSignupWithEmail"), login.indexOf("async function submitAuth"));
 const requestAuth = login.slice(login.indexOf("function requestAuthSubmission"), login.indexOf("function handleAuthChallengeToken"));
 const authTokenHandler = login.slice(login.indexOf("function handleAuthChallengeToken"), login.indexOf("async function submitAuth"));
@@ -21,9 +21,9 @@ const signinMethod = login.slice(login.indexOf("function SigninMethodStep"), log
 const signinPassword = login.slice(login.indexOf("function SigninPasswordStep"), login.indexOf("function SignupMethodStep"));
 
 test("normal signup starts with one local email decision and no password or security challenge", () => {
-  assert.match(login, /type SignupStep = "method" \| "password" \| "verify"/);
+  assert.match(login, /type SignupStep = "method" \| "password" \| "otp"/);
   assert.match(login, /useState<SignupStep>\("method"\)/);
-  assert.match(login, /signupStep === "method" \? "Create your account" : signupStep === "password" \? "Create a password" : "Check your email"/);
+  assert.match(login, /signupStep === "method" \? "Create your account" : signupStep === "password" \? "Create a password" : "Confirm your email"/);
   assert.doesNotMatch(login, /Secure your account/);
   assert.doesNotMatch(login, /Create your Furvise account/);
   assert.match(methodStep, /EmailInput/);
@@ -78,21 +78,21 @@ test("production signup stays captcha-gated and uses the existing idempotent sig
   assert.match(submitAuth, /captchaToken: token/);
 });
 
-test("successful signup clears the password and transitions to focused link verification", () => {
+test("successful signup clears the password and transitions to focused OTP verification", () => {
   assert.match(submitAuth, /setPassword\(""\)/);
-  assert.match(submitAuth, /setSignupStep\("verify"\)/);
+  assert.match(submitAuth, /setSignupStep\("otp"\)/);
   assert.doesNotMatch(login, /We sent a verification link to/);
-  assert.match(login, /signupStep === "verify"[\s\S]*<strong className="block break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>/);
-  assert.match(verificationStep, /"Resend email"/);
-  assert.match(verificationStep, /Use a different email/);
-  assert.doesNotMatch(verificationStep, /PasswordInput|GoogleButton|Create account/);
+  assert.match(login, /signupStep === "otp"[\s\S]*<strong className="block break-all font-semibold text-\[var\(--text-primary\)\]">\{email\}<\/strong>/);
+  assert.match(otpStep, /"Resend code"/);
+  assert.match(otpStep, /Use another email/);
+  assert.doesNotMatch(otpStep, /PasswordInput|GoogleButton|Create account/);
 });
 
 test("verification recovery reveals a captcha-gated resend with a sixty-second cooldown", () => {
-  assert.match(verificationStep, /resendChallengeVisible/);
-  assert.match(verificationStep, /resendChallengeVisible \? \([\s\S]*TurnstileChallenge/);
-  assert.match(verificationStep, /disabled=\{loading \|\| resendCooldown > 0 \|\| resendSubmitPending\}/);
-  assert.match(verificationStep, /"Resend email"/);
+  assert.match(otpStep, /resendChallengeVisible/);
+  assert.match(otpStep, /resendChallengeVisible \? \([\s\S]*TurnstileChallenge/);
+  assert.match(otpStep, /disabled=\{loading \|\| resendCooldown > 0 \|\| resendSubmitPending \|\| otpVerifying\}/);
+  assert.match(otpStep, /"Resend code"/);
   assert.match(login, /const SIGNUP_RESEND_COOLDOWN_SECONDS = 60/);
   assert.match(requestResend, /resendSubmitPendingRef\.current = true/);
   assert.match(requestResend, /setResendChallengeVisible\(true\)/);
@@ -146,7 +146,7 @@ test("progressive auth layout is page-like on mobile and restrained on larger sc
   assert.match(login, /min-h-11/);
 });
 
-test("authoritative auth routes retain CAPTCHA and confirmation-link handling", () => {
+test("authoritative auth routes retain CAPTCHA and legacy confirmation-link handling", () => {
   const signupRoute = read("app/api/auth/signup/route.ts");
   const resendRoute = read("app/api/auth/resend/route.ts");
   const callback = read("app/auth/callback/route.ts");
@@ -155,5 +155,6 @@ test("authoritative auth routes retain CAPTCHA and confirmation-link handling", 
   assert.match(callback, /exchangeCodeForSession/);
   assert.match(callback, /ensureCanonicalApplicationUser/);
   assert.match(callback, /hasPet/);
-  assert.doesNotMatch(login, /otp|one-time code|6-digit/i);
+  assert.match(login, /autoComplete="one-time-code"/);
+  assert.doesNotMatch(login, /signInWithOtp/);
 });

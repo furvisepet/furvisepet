@@ -2,6 +2,7 @@ import "server-only";
 
 export const API_BODY_LIMITS = {
   ask: 64 * 1024,
+  authOtp: 1024,
   conversation: 384 * 1024,
   productAi: 64 * 1024,
   vetBrief: 384 * 1024,

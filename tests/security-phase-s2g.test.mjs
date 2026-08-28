@@ -5,7 +5,7 @@ import { getRateLimitPolicy } from "../app/lib/security/rate-limit/config.ts";
 import { MemoryAuthAbuseTestStore } from "../app/lib/security/auth-abuse/memory-test-store.ts";
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const authRoutes = ["signup", "login", "recovery", "resend", "oauth", "update-password"].map((name) => `app/api/auth/${name}/route.ts`);
+const authRoutes = ["signup", "login", "recovery", "resend", "oauth", "update-password", "verify-signup-otp"].map((name) => `app/api/auth/${name}/route.ts`);
 
 test("browser Auth calls are mediated by same-origin application routes", () => {
   const login = source("app/login/page.tsx"); const recovery = source("app/forgot-password/page.tsx"); const update = source("app/update-password/page.tsx");
@@ -57,17 +57,19 @@ test("email sign-in defers CAPTCHA to the password step while server-side challe
 
 test("public Auth responses do not enumerate account state", () => {
   const responses = source("app/lib/security/auth-abuse/responses.ts"); const login = source("app/api/auth/login/route.ts");
-  assert.match(responses, /Check your email to continue\. If you already have an account/);
-  assert.match(responses, /If an account exists for that email/); assert.match(responses, /If confirmation is still required/);
+  assert.match(responses, /Enter the code from your email to continue\. If you already have an account/);
+  assert.match(responses, /If an account exists for that email/); assert.match(responses, /If confirmation is still required, a new code will be sent/);
   assert.match(login, /Email or password is incorrect\./); assert.doesNotMatch(login, /email not confirmed|already registered|google-only/i);
 });
 
 test("Auth policies use the canonical registry with the reviewed windows", () => {
   const signup = getRateLimitPolicy("AUTH_SIGNUP", { NODE_ENV: "test" }); const login = getRateLimitPolicy("AUTH_LOGIN", { NODE_ENV: "test" });
   const recovery = getRateLimitPolicy("AUTH_PASSWORD_RECOVERY", { NODE_ENV: "test" }); const resend = getRateLimitPolicy("AUTH_CONFIRMATION_RESEND", { NODE_ENV: "test" });
+  const verify = getRateLimitPolicy("AUTH_CONFIRMATION_VERIFY", { NODE_ENV: "test" });
   assert.deepEqual(signup.ip, { limit: 5, windowMs: 15 * 60_000 }); assert.deepEqual(signup.email, { limit: 3, windowMs: 60 * 60_000 });
   assert.deepEqual(login.ip, { limit: 20, windowMs: 15 * 60_000 }); assert.deepEqual(login.email, { limit: 10, windowMs: 15 * 60_000 });
   assert.equal(recovery.ip.limit, 5); assert.equal(recovery.email.limit, 3); assert.equal(resend.ip.limit, 5); assert.equal(resend.email.limit, 3);
+  assert.deepEqual(verify.ip, { limit: 20, windowMs: 10 * 60_000 }); assert.deepEqual(verify.email, { limit: 6, windowMs: 10 * 60_000 }); assert.equal(verify.failurePolicy, "fail_closed");
   assert.equal(getRateLimitPolicy("AUTH_OAUTH_INITIATION", { NODE_ENV: "test" }).ip.limit, 20);
 });
 

@@ -17,12 +17,13 @@ import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { GOOGLE_AUTH_ENABLED, normalizeAuthEmail } from "../lib/auth-identity";
 import { getSafeNextPath } from "../lib/auth-routing";
 import { signInWithGoogle } from "../lib/google-auth-client";
+import { isCompleteSignupOtp, normalizeSignupOtp } from "../lib/signup-otp";
 import { getSupabaseConfigError, setBrowserSupabasePersistence } from "../lib/supabase";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 
 type AuthMode = "signin" | "signup";
 type SigninStep = "method" | "password";
-type SignupStep = "method" | "password" | "verify";
+type SignupStep = "method" | "password" | "otp";
 
 const SIGNUP_RESEND_COOLDOWN_SECONDS = 60;
 const accountLinkClass =
@@ -57,6 +58,8 @@ function LoginPageContent() {
   const [signupStep, setSignupStep] = useState<SignupStep>("method");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [signupOtp, setSignupOtp] = useState("");
+  const [otpVerifying, setOtpVerifying] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState(() => searchParams.get("error") === "google_auth_failed" ? "Google sign-in couldn’t be completed. Please try again." : "");
@@ -75,13 +78,17 @@ function LoginPageContent() {
   const resendSubmitPendingRef = useRef(false);
   const authCaptchaTokenRef = useRef<string | null>(null);
   const resendCaptchaTokenRef = useRef<string | null>(null);
+  const otpInputRef = useRef<HTMLInputElement>(null);
+  const otpVerifyingRef = useRef(false);
+  const otpAbortRef = useRef<AbortController | null>(null);
   const authChecked = authStatus !== "loading";
 
   useEffect(() => {
     if (isPetDeleteReauthentication || didRedirectRef.current || authStatus !== "signedIn") return;
+    if (mode === "signup" && signupStep === "otp") return;
     didRedirectRef.current = true;
     router.replace(nextPath);
-  }, [authStatus, isPetDeleteReauthentication, nextPath, router]);
+  }, [authStatus, isPetDeleteReauthentication, mode, nextPath, router, signupStep]);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -90,11 +97,16 @@ function LoginPageContent() {
   }, [resendCooldown]);
 
   function clearTransientAuthState() {
+    otpAbortRef.current?.abort();
+    otpAbortRef.current = null;
+    otpVerifyingRef.current = false;
     authSubmitPendingRef.current = false;
     resendSubmitPendingRef.current = false;
     authCaptchaTokenRef.current = null;
     resendCaptchaTokenRef.current = null;
     setPassword("");
+    setSignupOtp("");
+    setOtpVerifying(false);
     setShowPassword(false);
     setError("");
     setStatusMessage("");
@@ -245,10 +257,78 @@ function LoginPageContent() {
     setLoading(false);
     setPassword("");
     setShowPassword(false);
+    setSignupOtp("");
+    setOtpVerifying(false);
+    otpVerifyingRef.current = false;
     setResendChallengeVisible(false);
     setResendCooldown(SIGNUP_RESEND_COOLDOWN_SECONDS);
-    setSignupStep("verify");
+    setSignupStep("otp");
     returnViewportToTop();
+  }
+
+  function updateSignupOtp(value: string) {
+    const normalized = normalizeSignupOtp(value);
+    setSignupOtp(normalized);
+    setError("");
+    if (isCompleteSignupOtp(normalized)) void verifySignupOtp(normalized);
+  }
+
+  function submitSignupOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!isCompleteSignupOtp(signupOtp)) {
+      setError("Enter all 6 digits.");
+      otpInputRef.current?.focus();
+      return;
+    }
+    void verifySignupOtp(signupOtp);
+  }
+
+  async function verifySignupOtp(code: string) {
+    if (!isCompleteSignupOtp(code) || otpVerifyingRef.current) return;
+    otpVerifyingRef.current = true;
+    setOtpVerifying(true);
+    setError("");
+    setStatusMessage("");
+    const controller = new AbortController();
+    otpAbortRef.current?.abort();
+    otpAbortRef.current = controller;
+
+    let response: Response;
+    try {
+      response = await fetch("/api/auth/verify-signup-otp", {
+        body: JSON.stringify({ email: normalizeAuthEmail(email), token: code }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+        signal: controller.signal,
+      });
+    } catch {
+      if (controller.signal.aborted) return;
+      otpVerifyingRef.current = false;
+      otpAbortRef.current = null;
+      setOtpVerifying(false);
+      setSignupOtp("");
+      setError("Furvise could not verify that code. Please try again.");
+      window.requestAnimationFrame(() => otpInputRef.current?.focus());
+      return;
+    }
+
+    if (controller.signal.aborted) return;
+    otpAbortRef.current = null;
+    const payload = await response.json().catch(() => null) as { destination?: string; error?: string; verified?: boolean } | null;
+    if (!response.ok || !payload?.verified || typeof payload.destination !== "string") {
+      otpVerifyingRef.current = false;
+      setOtpVerifying(false);
+      setSignupOtp("");
+      setError(payload?.error || "That code is invalid or expired. Try again or send a new one.");
+      window.requestAnimationFrame(() => {
+        otpInputRef.current?.focus();
+        otpInputRef.current?.select();
+      });
+      return;
+    }
+
+    didRedirectRef.current = true;
+    router.replace(getSafeNextPath(payload.destination, "/onboarding"));
   }
 
   async function startGoogle() {
@@ -313,7 +393,7 @@ function LoginPageContent() {
       resetCaptchaAfterRequest();
       setResendChallengeVisible(false);
       setLoading(false);
-      setError("Furvise could not send a new email. Please try again.");
+      setError("Furvise could not send a new code. Please try again.");
       return;
     }
     resetCaptchaAfterRequest();
@@ -321,12 +401,14 @@ function LoginPageContent() {
     const payload = await response.json().catch(() => null) as { error?: string; message?: string; retryAfterSeconds?: number } | null;
     setLoading(false);
     if (!response.ok) {
-      setError(payload?.error || "Furvise could not send a new email. Please try again.");
+      setError(payload?.error || "Furvise could not send a new code. Please try again.");
       if (response.status === 429) setResendCooldown(Math.max(SIGNUP_RESEND_COOLDOWN_SECONDS, payload?.retryAfterSeconds || SIGNUP_RESEND_COOLDOWN_SECONDS));
       return;
     }
     setResendCooldown(SIGNUP_RESEND_COOLDOWN_SECONDS);
-    setStatusMessage(payload?.message || "A new verification email is on its way.");
+    setSignupOtp("");
+    setStatusMessage("New code sent.");
+    window.requestAnimationFrame(() => otpInputRef.current?.focus());
   }
 
   if (authStatus === "signedIn" && !isPetDeleteReauthentication) {
@@ -341,8 +423,8 @@ function LoginPageContent() {
   const signinSupportingText = signinStep === "method" && isPetDeleteReauthentication
     ? "Sign in again to continue with permanent pet deletion."
     : undefined;
-  const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Create a password" : "Check your email";
-  const signupSupportingText = signupStep === "verify"
+  const signupTitle = signupStep === "method" ? "Create your account" : signupStep === "password" ? "Create a password" : "Confirm your email";
+  const signupSupportingText = signupStep === "otp"
     ? <strong className="block break-all font-semibold text-[var(--text-primary)]">{email}</strong>
     : undefined;
   const returnToEmail = mode === "signin" ? returnToSigninEmail : () => returnToSignupEmail(false);
@@ -415,14 +497,19 @@ function LoginPageContent() {
             showPassword={showPassword}
           />
         ) : (
-          <SignupVerificationStep
+          <SignupOtpStep
             captchaReset={captchaReset}
             handleResendChallengeToken={handleResendChallengeToken}
             loading={loading}
+            otp={signupOtp}
+            otpInputRef={otpInputRef}
+            otpVerifying={otpVerifying}
             resendChallengeVisible={resendChallengeVisible}
             resendCooldown={resendCooldown}
             resendSubmitPending={resendSubmitPending}
             requestResendConfirmation={requestResendConfirmation}
+            submitOtp={submitSignupOtp}
+            updateOtp={updateSignupOtp}
             useDifferentEmail={() => returnToSignupEmail(true)}
           />
         )}
@@ -601,37 +688,90 @@ function SignupPasswordStep({
   );
 }
 
-function SignupVerificationStep({
+function SignupOtpStep({
   captchaReset,
   handleResendChallengeToken,
   loading,
+  otp,
+  otpInputRef,
+  otpVerifying,
   resendChallengeVisible,
   resendCooldown,
   resendSubmitPending,
   requestResendConfirmation,
+  submitOtp,
+  updateOtp,
   useDifferentEmail,
 }: {
   captchaReset: number;
   handleResendChallengeToken: (token: string | null) => void;
   loading: boolean;
+  otp: string;
+  otpInputRef: React.RefObject<HTMLInputElement | null>;
+  otpVerifying: boolean;
   resendChallengeVisible: boolean;
   resendCooldown: number;
   resendSubmitPending: boolean;
   requestResendConfirmation: () => void;
+  submitOtp: (event: FormEvent<HTMLFormElement>) => void;
+  updateOtp: (value: string) => void;
   useDifferentEmail: () => void;
 }) {
   return (
-    <div className="mx-auto grid w-full max-w-sm justify-items-center gap-2 pt-1 text-center" data-ui="signup-verification-actions">
-      <button className={accountLinkClass} disabled={loading || resendCooldown > 0 || resendSubmitPending} onClick={requestResendConfirmation} type="button">
-        {loading ? "Sending..." : resendSubmitPending ? <AccountPendingLabel /> : "Resend email"}
-      </button>
+    <div className="mx-auto grid w-full max-w-sm justify-items-center gap-5 pt-1 text-center" data-ui="signup-otp-actions">
+      <form aria-busy={otpVerifying} className="grid w-full justify-items-center gap-3" onSubmit={submitOtp}>
+        <label className="text-sm font-semibold text-[var(--text-primary)]" htmlFor="signup-otp">Verification code</label>
+        <div className="relative w-full max-w-[20rem] rounded-2xl focus-within:outline-none focus-within:ring-2 focus-within:ring-[var(--pw-focus-ring)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--surface-primary)]" data-ui="signup-otp-input">
+          <input
+            aria-label="Verification code"
+            autoComplete="one-time-code"
+            className="absolute inset-0 z-10 h-full w-full cursor-text rounded-2xl opacity-[0.01] outline-none disabled:cursor-wait"
+            disabled={otpVerifying}
+            id="signup-otp"
+            inputMode="numeric"
+            maxLength={6}
+            name="signup-otp"
+            onChange={(event) => updateOtp(event.target.value)}
+            onPaste={(event) => {
+              event.preventDefault();
+              updateOtp(event.clipboardData.getData("text"));
+            }}
+            pattern="[0-9]{6}"
+            ref={otpInputRef}
+            type="text"
+            value={otp}
+          />
+          <div aria-hidden="true" className="grid grid-cols-6 gap-2">
+            {Array.from({ length: 6 }, (_, index) => (
+              <span
+                className={`flex aspect-square min-w-0 items-center justify-center rounded-xl border bg-[var(--input-background)] text-xl font-semibold tabular-nums text-[var(--text-primary)] transition ${index === otp.length && !otpVerifying ? "border-[var(--focus-ring)]" : "border-[var(--input-border)]"}`}
+                key={index}
+              >
+                {otp[index] || ""}
+              </span>
+            ))}
+          </div>
+        </div>
+        <p aria-live="polite" className="min-h-6 text-sm font-medium text-[var(--text-secondary)]" role="status">
+          {otpVerifying ? "Verifying…" : ""}
+        </p>
+        <button className="sr-only" disabled={otpVerifying} type="submit">Verify code</button>
+      </form>
+      <div className="grid w-full justify-items-center gap-2">
+        <p className="text-sm text-[var(--text-secondary)]">
+          Didn&apos;t get it?{" "}
+          <button className={accountLinkClass} disabled={loading || resendCooldown > 0 || resendSubmitPending || otpVerifying} onClick={requestResendConfirmation} type="button">
+            {loading ? "Sending..." : resendSubmitPending ? <AccountPendingLabel /> : "Resend code"}
+          </button>
+        </p>
+      </div>
       {resendCooldown > 0 ? <p className="text-sm text-[var(--text-secondary)]" role="status">You can resend in {resendCooldown}s.</p> : null}
       {resendChallengeVisible ? (
         <div className="mt-2 grid w-full gap-3" data-testid="resend-security-challenge">
           <TurnstileChallenge onToken={handleResendChallengeToken} resetSignal={captchaReset} />
         </div>
       ) : null}
-      <button className={accountLinkClass} onClick={useDifferentEmail} type="button">Use a different email</button>
+      <button className={accountLinkClass} disabled={otpVerifying} onClick={useDifferentEmail} type="button">Use another email</button>
     </div>
   );
 }
