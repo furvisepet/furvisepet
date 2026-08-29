@@ -10,7 +10,6 @@ import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib
 import { AppFooter } from "./app-footer";
 import { BrandMark } from "./brand-mark";
 import { PageShell, PrimaryButton } from "./product-primitives";
-import { SignedInHeader } from "./signed-in-header";
 
 type HomepageMode = "loading" | "anonymous" | "no-pets" | "with-pet";
 type VisibleHomepageMode = Exclude<HomepageMode, "loading">;
@@ -58,8 +57,8 @@ export function HomepageClient() {
   const visibleMode: VisibleHomepageMode = mode === "loading" ? "anonymous" : mode;
 
   return (
-    <main className={`min-h-screen overflow-x-hidden bg-[var(--surface-page)] text-[var(--text-primary)] ${mode === "no-pets" || mode === "with-pet" ? "app-mobile-nav-clearance" : ""}`}>
-      {mode === "no-pets" || mode === "with-pet" ? <SignedInHeader variant="homepage" /> : <PublicMarketingHeader />}
+    <main className="min-h-screen overflow-x-hidden bg-[var(--surface-page)] text-[var(--text-primary)]">
+      <PublicMarketingHeader mode={mode} />
       <Hero activePet={activePet} mode={visibleMode} petName={petName} />
       <ValueBeats />
       <TrustLine />
@@ -69,19 +68,41 @@ export function HomepageClient() {
   );
 }
 
-function PublicMarketingHeader() {
+function PublicMarketingHeader({ mode }: { mode: HomepageMode }) {
   return (
     <header className="border-b border-[var(--border-subtle)] bg-[var(--surface-page)]" data-ui="public-marketing-header">
       <PageShell className="flex min-h-[4.25rem] items-center justify-between gap-4 py-2 sm:min-h-[4.5rem]" preset="marketing">
         <Link aria-label="Furvise home" className="inline-flex min-h-11 min-w-11 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2" href="/">
           <span className="inline-flex [--brand-mark-size:1.625rem] sm:[--brand-mark-size:1.75rem]"><BrandMark priority size={26} /></span>
         </Link>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <Link className="hidden min-h-11 items-center rounded-full px-3 text-sm font-semibold text-[var(--ghost-action-foreground)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:inline-flex" href="/login">Sign in</Link>
-          <PrimaryButton className="homepage-primary-action min-h-11 px-4 sm:px-5" href={NEW_PET_LOGIN_PATH}>Get started</PrimaryButton>
-        </div>
+        <HomepageHeaderActions mode={mode} />
       </PageShell>
     </header>
+  );
+}
+
+function HomepageHeaderActions({ mode }: { mode: HomepageMode }) {
+  const actionRegionClass = "flex h-12 w-[11.5rem] shrink-0 items-center justify-end gap-1.5 sm:w-[13rem] sm:gap-2";
+  const quietActionClass = "inline-flex min-h-11 items-center rounded-full px-2 text-sm font-semibold text-[var(--ghost-action-foreground)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:px-3";
+
+  if (mode === "loading") {
+    return <div aria-hidden="true" className={actionRegionClass} data-ui="homepage-header-actions" />;
+  }
+
+  if (mode === "with-pet" || mode === "no-pets") {
+    return (
+      <div className={actionRegionClass} data-ui="homepage-header-actions">
+        <Link className={quietActionClass} href="/account">Account</Link>
+        <PrimaryButton className="homepage-primary-action min-h-11 px-3 sm:px-4" href={mode === "with-pet" ? "/dashboard" : NEW_PET_ONBOARDING_PATH}>{mode === "with-pet" ? "Go to Today" : "Add your pet"}</PrimaryButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className={actionRegionClass} data-ui="homepage-header-actions">
+      <Link className={quietActionClass} href="/login">Sign in</Link>
+      <PrimaryButton className="homepage-primary-action min-h-11 px-3 sm:px-4" href={NEW_PET_LOGIN_PATH}>Get started</PrimaryButton>
+    </div>
   );
 }
 

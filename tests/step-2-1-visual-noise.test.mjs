@@ -77,7 +77,7 @@ test("pet overflow trigger and compact menu implement the accessible interaction
 
 test("fixed mobile navigation has safe-area-aware content clearance", () => {
   assert.match(appPage, /app-mobile-nav-clearance/);
-  assert.match(homepage, /mode === "no-pets" \|\| mode === "with-pet" \? "app-mobile-nav-clearance"/);
+  assert.doesNotMatch(homepage, /app-mobile-nav-clearance/);
   assert.match(ask, /app-sticky-composer sticky \$\{hasThread \? "lg:sticky" : "lg:relative"\}/);
   assert.match(css, /--mobile-nav-height: 4\.25rem/);
   assert.match(css, /--mobile-nav-safe-area: env\(safe-area-inset-bottom, 0px\)/);

@@ -41,7 +41,7 @@ test("Ask composer is mobile-sticky above nav while preserving its prior desktop
 
 test("pages do not duplicate mobile navigation clearance geometry", () => {
   assert.doesNotMatch(pageSources, /(?:4\.25rem|safe-area-inset-bottom|mobile-nav-height\))[^\]]*\+\s*(?:1\.5rem|24px)/);
-  assert.equal((pageSources.match(/app-mobile-nav-clearance/g) || []).length, 1, "only the exceptional authenticated homepage applies the shared helper directly");
+  assert.equal((pageSources.match(/app-mobile-nav-clearance/g) || []).length, 0, "page components rely on AppPage while the marketing homepage has no app navigation clearance");
 });
 
 test("More keeps Products and account controls above navigation", () => {
