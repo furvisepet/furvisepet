@@ -93,10 +93,8 @@ test("species cartoons are absent across onboarding steps", async () => {
 test("post-create states use calm bounded layouts", async () => {
   const source = await read("app/onboarding/page.tsx");
   const activation = source.slice(source.indexOf("function PostCreateActivation"), source.indexOf("function ResumeChoice"));
-  assert.match(activation, /max-w-\[560px\]/);
-  assert.match(activation, /max-w-\[620px\]/);
   assert.match(activation, /max-w-\[500px\]/);
-  assert.match(activation, /flex-col items-center/);
+  assert.match(activation, /items-center justify-center/);
   assert.doesNotMatch(activation, /Image|confetti|Furvise home is ready/);
 });
 

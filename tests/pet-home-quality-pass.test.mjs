@@ -102,11 +102,11 @@ test("saved pet photos remain supported while onboarding omits the species masco
 
 test("completion copy, mobile clearance, and established routes remain intact", () => {
   const onboarding = read("app/onboarding/page.tsx");
-  assert.match(onboarding, /See what Furvise knows about \{pet\.name\}/);
-  assert.match(onboarding, /Ask Furvise/);
+  assert.match(onboarding, />\{pet\.name\} is ready<\/h1>/);
+  assert.match(onboarding, /Ask Furvise about \{pet\.name\}/);
   assert.match(onboarding, /Go to Today/);
   assert.match(onboarding, /const todayHref = `\/dashboard\?pet=/);
-  assert.match(onboarding, /href=\{`\/ask\?pet=/);
+  assert.match(onboarding, /`\/ask\?pet=.*&from=onboarding`/);
   assert.match(onboarding, /safe-area-inset-bottom/);
   assert.doesNotMatch(onboarding, /MobileBottomNavigation|SignedInHeader/);
   assert.match(read("app/components/app-page.tsx"), /app-mobile-nav-clearance/);
