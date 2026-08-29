@@ -50,9 +50,9 @@ test("button hierarchy has explicit readable foregrounds and disabled states", (
 });
 
 test("homepage has one hero, exactly three benefits, and authenticated CTA logic", () => {
-  assert.match(homepage, /Everything about your pet, in one caring place\./);
-  assert.match(homepage, /Takes about two minutes\./);
-  for (const benefit of ["Remember what changed", "Ask when you are unsure", "Prepare for the vet"]) assert.equal(homepage.split(benefit).length - 1, 1);
+  assert.match(homepage, /Furvise remembers your pet, so you don&apos;t start from zero\./);
+  assert.doesNotMatch(homepage, /Takes about two minutes\./);
+  for (const benefit of ["KEEP THE CONTEXT", "UPDATE WHEN SOMETHING CHANGES", "HAVE THE STORY WHEN YOU NEED IT"]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);
   assert.match(homepage, /mode === "with-pet"[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
   assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);

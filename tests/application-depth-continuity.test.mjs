@@ -62,8 +62,10 @@ test("Ask fresh state keeps starters and composer together without a redundant p
 });
 
 test("homepage ends with the final conversion section", () => {
-  assert.match(homepage, /Start with your pet's name\./);
-  assert.match(homepage, /You can add more details whenever you are ready\./);
+  const renderedHomepage = homepage.slice(homepage.indexOf("export function HomepageClient"), homepage.indexOf("function PublicMarketingHeader"));
+  assert.match(homepage, /Remember what matters\./);
+  assert.match(homepage, /Start with your pet\. Furvise can keep the story from there\./);
+  assert.ok(renderedHomepage.indexOf("<FinalCallToAction") < renderedHomepage.indexOf("<AppFooter"));
   assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
 });
 

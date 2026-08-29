@@ -92,11 +92,11 @@ test("action labels follow account-state conventions", () => {
   assert.doesNotMatch(pets, />Add a pet</);
 });
 
-test("care-summary example is clearly labeled as Rocky", () => {
+test("homepage product example is clearly illustrative and pet-specific", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /Rocky care summary example/);
-  assert.match(homepage, />Rocky</);
-  assert.match(homepage, /What should I track before the visit\?/);
+  assert.match(homepage, /Illustrative Furvise pet memory example/);
+  assert.match(homepage, />Mani</);
+  assert.match(homepage, /What should I keep an eye on before the visit\?/);
 });
 
 test("Ask localizes recent-conversation loading failures", () => {

@@ -12,9 +12,9 @@ test("global metadata uses the canonical Furvise title and clean description", (
   const metadataSource = `${layout}\n${seo}`;
 
   assert.match(seo, /https:\/\/www\.furvise\.com/);
-  assert.match(seo, /Furvise \| Pet Care History, Notes, Products, and Guidance/);
+  assert.match(seo, /Furvise \| Remember What Matters/);
   assert.match(layout, /template: "%s \| Furvise"/);
-  assert.match(seo, /helpful answers in one calm place/);
+  assert.match(seo, /questions, care updates, and history connected to each pet/);
   assert.doesNotMatch(seo, /focused AI guidance/);
   assert.doesNotMatch(metadataSource, /launching soon|technology website/i);
   assert.doesNotMatch(metadataSource, /—/);
