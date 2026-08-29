@@ -64,25 +64,26 @@ test("cartoon art and legacy questionnaire stay out of onboarding rendering", ()
   assert.match(source, /monthlyBudget: draft\.monthlyBudget/);
 });
 
-test("review and success expose the simplified hierarchy", () => {
+test("review and post-create activation expose the simplified hierarchy", () => {
   const source = read("app/onboarding/page.tsx");
   const review = source.slice(source.indexOf("function ReviewStep"), source.indexOf("function ReviewGroup"));
   assert.match(review, /title="Basic details"/);
   assert.match(review, /title="Optional context"/);
   for (const removed of ["Current food", "Main concern", "Avoid ingredients", "Preferences", "Monthly care budget"]) assert.doesNotMatch(review, new RegExp(removed));
-  const success = source.slice(source.indexOf("function SuccessStep"), source.indexOf("function ResumeChoice"));
-  assert.match(success, /Ask about \{pet\.name\}/);
-  assert.match(success, /Go to Today/);
-  assert.match(success, /View \{pet\.name\}&apos;s profile/);
-  assert.ok(success.indexOf("Ask about") < success.indexOf("Go to Today"));
+  const activation = source.slice(source.indexOf("function PostCreateActivation"), source.indexOf("function ResumeChoice"));
+  assert.match(activation, /See what Furvise knows about \{pet\.name\}/);
+  assert.match(activation, />Show me<\/PrimaryButton>/);
+  assert.match(activation, />Ask Furvise<\/PrimaryButton>/);
+  assert.match(activation, /Go to Today/);
 });
 
-test("success resets scroll without smooth behavior and focuses predictably", () => {
+test("post-create activation resets initial scroll and focuses each state predictably", () => {
   const source = read("app/onboarding/page.tsx");
-  const success = source.slice(source.indexOf("function SuccessStep"), source.indexOf("function ResumeChoice"));
-  assert.match(success, /window\.scrollTo\(\{ behavior: "auto", left: 0, top: 0 \}\)/);
-  assert.match(success, /focus\(\{ preventScroll: true \}\)/);
-  assert.doesNotMatch(success, /behavior: "smooth"/);
+  const activation = source.slice(source.indexOf("function PostCreateActivation"), source.indexOf("function ResumeChoice"));
+  assert.match(activation, /window\.scrollTo\(\{ behavior: "auto", left: 0, top: 0 \}\)/);
+  assert.match(activation, /focus\(\{ preventScroll: true \}\)/);
+  assert.match(activation, /\[view\]/);
+  assert.doesNotMatch(activation, /behavior: "smooth"/);
 });
 
 test("discard clears the active draft and replaces the route", () => {

@@ -90,13 +90,14 @@ test("species cartoons are absent across onboarding steps", async () => {
   assert.doesNotMatch(source, /next\/image|\/images\/\$\{species\}|\/images\/\$\{pet\.species\}/);
 });
 
-test("success state uses calm centered copy and bounded actions", async () => {
+test("post-create states use calm bounded layouts", async () => {
   const source = await read("app/onboarding/page.tsx");
-  const success = source.slice(source.indexOf("function SuccessStep"), source.indexOf("function ResumeChoice"));
-  assert.match(success, /max-w-\[680px\]/);
-  assert.match(success, /max-w-\[500px\]/);
-  assert.match(success, /flex-col items-center/);
-  assert.doesNotMatch(success, /Image|confetti/);
+  const activation = source.slice(source.indexOf("function PostCreateActivation"), source.indexOf("function ResumeChoice"));
+  assert.match(activation, /max-w-\[560px\]/);
+  assert.match(activation, /max-w-\[620px\]/);
+  assert.match(activation, /max-w-\[500px\]/);
+  assert.match(activation, /flex-col items-center/);
+  assert.doesNotMatch(activation, /Image|confetti|Furvise home is ready/);
 });
 
 test("name normalization is stable between steps and safe at review and creation", async () => {

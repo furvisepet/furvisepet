@@ -297,7 +297,12 @@ body {
 }
 
 .onboarding-brand {
-  --brand-mark-size: 34px;
+  --brand-mark-size: 30px;
+}
+
+.onboarding-shell {
+  --focus-ring: var(--deep-forest);
+  --focus: color-mix(in srgb, var(--deep-forest) 28%, transparent);
 }
 
 .onboarding-primary-action {

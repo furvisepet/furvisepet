@@ -19,9 +19,9 @@ import { resolvePetCreationAccessForUser, type PetCreationAccess } from "../lib/
 import { initialProfile, normalizeAvoidIngredientValues, type PetProfile } from "../lib/petwise";
 import { isPetLimitReachedError, PROFILE_ID_STORAGE_KEY, savePetProfileForUser } from "../lib/supabase";
 import { buildOnboardingInitializationKey } from "./initialization-key";
+import { buildDurableFileCloser, buildPetKnowledgeRows, type PostCreatePet } from "./post-create-knowledge";
 import { getWeightPlausibilityWarning } from "./weight-warning";
 
-type SavedPet = { id: string; name: string; species: "dog" | "cat" };
 type StepProps = { draft: AddPetDraftV2; headingRef: RefObject<HTMLHeadingElement | null>; update: (values: Partial<AddPetDraftV2>) => void };
 
 const STEP_HEADING_IDS = ["species-heading", "basic-heading", "care-heading", "review-heading"] as const;
@@ -108,7 +108,7 @@ function OnboardingGate() {
 function AddPetFlow({ draftId, initialDraft, onBlocked, user }: { draftId: string; initialDraft: AddPetDraftV2; onBlocked: (access: PetCreationAccess) => void; user: User }) {
   const router = useRouter();
   const [draft, setDraft] = useState(initialDraft);
-  const [savedPet, setSavedPet] = useState<SavedPet | null>(null);
+  const [savedPet, setSavedPet] = useState<PostCreatePet | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const stepContainerRef = useRef<HTMLDivElement>(null);
@@ -163,16 +163,31 @@ function AddPetFlow({ draftId, initialDraft, onBlocked, user }: { draftId: strin
         monthlyBudget: draft.monthlyBudget, routineNote: draft.routineNote,
       };
       const saved = await savePetProfileForUser(profile, user, null);
+      if (saved.species !== "dog" && saved.species !== "cat") throw new Error("The saved pet profile is missing its species.");
       setActivePetId(window.localStorage, saved.id);
       clearCompletedOnboardingState({ localStorage: window.localStorage, sessionStorage: window.sessionStorage }, saved.id, user.id);
-      setSavedPet({ id: saved.id, name: normalizeAddPetName(saved.name), species: draft.species });
+      setSavedPet({
+        ageExplicitlyUnknown: draft.ageUnknown,
+        age_unit: saved.age_unit,
+        age_value: saved.age_value,
+        breed: saved.breed,
+        breedExplicitlyUnknown: draft.breedUnknown,
+        id: saved.id,
+        name: normalizeAddPetName(saved.name),
+        routine_note: saved.routine_note || null,
+        sex: saved.sex || null,
+        species: saved.species,
+        weightExplicitlyUnknown: draft.weightUnknown,
+        weight_unit: saved.weight_unit,
+        weight_value: saved.weight_value,
+      });
     } catch (saveFailure) {
       if (isPetLimitReachedError(saveFailure)) { const access = await resolvePetCreationAccessForUser(user).catch(() => null); if (access) return onBlocked({ ...access, allowed: false }); }
       setError(saveFailure instanceof Error ? saveFailure.message : "Furvise could not add this pet. Please try again.");
     } finally { setSaving(false); }
   }
 
-  if (savedPet) return <SuccessStep pet={savedPet} />;
+  if (savedPet) return <PostCreateActivation pet={savedPet} />;
   const ageIsValid = !draft.ageValue.trim() || !validateApproximatePetAge(draft.ageValue, draft.ageUnit, draft.ageUnknown);
   const canContinue = draft.step === 0 ? Boolean(draft.species) : draft.step === 1 ? isValidAddPetName(draft.name) && ageIsValid : true;
   return <OnboardingShell>
@@ -304,21 +319,29 @@ function InlineUnknownChoice({ checked, onChange }: { checked: boolean; onChange
 function OptionButton({ label, onClick, selected }: { label: string; onClick: () => void; selected: boolean }) { return <button aria-pressed={selected} className={`min-h-11 min-w-0 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-semibold ${selected ? "border-[var(--border-strong)] bg-[var(--selected-background)]" : "border-[var(--line)] bg-[var(--surface-primary)]"}`} onClick={onClick} type="button">{label}</button>; }
 function Progress({ step }: { step: AddPetDraftV2["step"] }) { return <div aria-label={`Step ${step + 1} of 4`} className="flex w-full items-center gap-3"><span className="shrink-0 text-xs font-semibold text-[var(--text-secondary)]">Step {step + 1} of 4</span><div aria-valuemax={4} aria-valuemin={1} aria-valuenow={step + 1} className="grid flex-1 grid-cols-4 gap-1" role="progressbar">{[0, 1, 2, 3].map((index) => <span aria-hidden="true" className={`h-1.5 rounded-full ${index <= step ? "bg-[var(--selection-strong)]" : "bg-[var(--line)]"}`} key={index} />)}</div></div>; }
 
-function SuccessStep({ pet }: { pet: SavedPet }) {
+function PostCreateActivation({ pet }: { pet: PostCreatePet }) {
+  const [view, setView] = useState<"invitation" | "knowledge">("invitation");
   const headingRef = useRef<HTMLHeadingElement>(null);
   useLayoutEffect(() => {
-    window.scrollTo({ behavior: "auto", left: 0, top: 0 });
+    if (view === "invitation") window.scrollTo({ behavior: "auto", left: 0, top: 0 });
     headingRef.current?.focus({ preventScroll: true });
-    const frame = window.requestAnimationFrame(() => window.scrollTo({ behavior: "auto", left: 0, top: 0 }));
+    const frame = view === "invitation"
+      ? window.requestAnimationFrame(() => window.scrollTo({ behavior: "auto", left: 0, top: 0 }))
+      : 0;
     return () => window.cancelAnimationFrame(frame);
-  }, []);
-  return <OnboardingShell><section className="mx-auto flex max-w-[680px] flex-col items-center px-1 py-12 text-center sm:py-16" data-ui="add-pet-success"><div aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--selected-background)] text-2xl text-[var(--deep-forest)]">✓</div><h1 className="mt-6 max-w-xl break-words text-4xl font-bold tracking-[-0.03em] outline-none sm:text-5xl" ref={headingRef} tabIndex={-1}>{pet.name}&apos;s Furvise home is ready</h1><p className="mt-4 text-[var(--text-secondary)]">You can add more details whenever they become useful.</p><div className="mt-9 grid w-full max-w-[500px] gap-3"><PrimaryButton className={onboardingPrimaryClass} href="/ask">Ask about {pet.name}</PrimaryButton><SecondaryButton href={`/dashboard?pet=${encodeURIComponent(pet.id)}`}>Go to Today</SecondaryButton><TextButton href={`/pets/${encodeURIComponent(pet.id)}`}>View {pet.name}&apos;s profile</TextButton></div></section></OnboardingShell>;
+  }, [view]);
+  const todayHref = `/dashboard?pet=${encodeURIComponent(pet.id)}`;
+  if (view === "invitation") {
+    return <OnboardingShell><section className="mx-auto flex max-w-[560px] flex-col items-center px-1 py-12 text-center sm:py-16" data-post-create-state="invitation"><h1 className="max-w-lg break-words text-3xl font-bold tracking-[-0.03em] outline-none sm:text-4xl" ref={headingRef} tabIndex={-1}>See what Furvise knows about {pet.name}</h1><div className="mt-8 grid w-full max-w-[420px] gap-3"><PrimaryButton className={onboardingPrimaryClass} onClick={() => setView("knowledge")} type="button">Show me</PrimaryButton><TextButton className="min-h-11" href={todayHref}>Skip for now</TextButton></div></section></OnboardingShell>;
+  }
+  const rows = buildPetKnowledgeRows(pet);
+  return <OnboardingShell><section className="mx-auto w-full max-w-[620px] py-8 sm:py-12" data-post-create-state="knowledge"><h1 className="break-words text-center text-3xl font-bold tracking-[-0.03em] outline-none sm:text-4xl" ref={headingRef} tabIndex={-1}>{pet.name}</h1><dl className="mx-auto mt-7 grid w-full max-w-[500px] overflow-hidden rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface-primary)]">{rows.map(([label, value]) => <div className="grid min-w-0 gap-1 border-b border-[var(--line)] px-5 py-3.5 last:border-b-0 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-4" key={label}><dt className="text-sm font-medium text-[var(--text-secondary)]">{label}</dt><dd className="min-w-0 break-words text-[var(--text-primary)]">{value}</dd></div>)}</dl><p className="mx-auto mt-6 max-w-[500px] text-center text-sm leading-6 text-[var(--text-secondary)]">{buildDurableFileCloser(pet)}</p><div className="mx-auto mt-7 grid w-full max-w-[420px] gap-3"><PrimaryButton className={onboardingPrimaryClass} href={`/ask?pet=${encodeURIComponent(pet.id)}`}>Ask Furvise</PrimaryButton><TextButton className="min-h-11" href={todayHref}>Go to Today</TextButton></div></section></OnboardingShell>;
 }
 
 function ResumeChoice({ onCancel, onResume, onStartOver }: { onCancel: () => void; onResume: () => void; onStartOver: () => void }) { return <OnboardingShell><section className="mx-auto max-w-[700px] rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface-primary)] p-6 sm:p-8"><h1 className="text-3xl font-bold">Resume pet setup?</h1><p className="mt-3 text-[var(--text-secondary)]">An unfinished setup is saved on this device.</p><div className="mt-7 grid gap-2"><PrimaryButton className={onboardingPrimaryClass} onClick={onResume} type="button">Resume setup</PrimaryButton><SecondaryButton onClick={onStartOver} type="button">Start over</SecondaryButton><TextButton onClick={onCancel} type="button">Cancel</TextButton></div></section></OnboardingShell>; }
 
 function OnboardingShell({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh w-full overflow-x-hidden bg-[var(--surface-page)] text-[var(--text-primary)]" data-ui="quick-start-onboarding-shell"><header className="border-b border-[var(--border-subtle)] bg-[var(--surface-page)]"><div className="mx-auto flex min-h-[4.5rem] w-full max-w-[840px] items-center px-5 sm:px-8"><Link aria-label="Furvise home" href="/"><BrandMark className="onboarding-brand" priority size={34} /></Link></div></header><main className="mx-auto w-full max-w-[840px] px-5 pb-12 pt-10 sm:px-10 sm:pb-12 sm:pt-12">{children}</main></div>;
+  return <div className="onboarding-shell min-h-dvh w-full overflow-x-hidden bg-[var(--surface-page)] text-[var(--text-primary)]" data-ui="quick-start-onboarding-shell"><header className="bg-[var(--surface-page)] pt-[env(safe-area-inset-top)]"><div className="mx-auto flex min-h-14 w-full max-w-[840px] items-center justify-center px-5 sm:px-8"><Link aria-label="Furvise home" className="flex min-h-11 min-w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]" href="/"><BrandMark className="onboarding-brand" priority showName={false} size={30} /></Link></div></header><main className="mx-auto w-full max-w-[840px] px-5 pb-12 pt-6 sm:px-10 sm:pb-12 sm:pt-8">{children}</main></div>;
 }
 
 function hasEnteredDetails(draft: AddPetDraftV2) { return Boolean(draft.species || draft.name.trim() || draft.ageValue || draft.breed || draft.weightValue || draft.currentFood || draft.mainConcern || draft.avoidIngredients.length || draft.avoidIngredientsNoneKnown || draft.monthlyBudget || draft.routineNote); }

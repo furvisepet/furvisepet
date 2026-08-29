@@ -96,16 +96,18 @@ test("pet creation performs one canonical profile write and keeps failed draft s
   assert.doesNotMatch(source.slice(source.indexOf("catch (saveFailure)"), source.indexOf("finally", source.indexOf("catch (saveFailure)"))), /clearCompletedOnboardingState/);
 });
 
-test("onboarding is centered, overflow-safe, and uses the larger unclipped logo", async () => {
+test("onboarding is centered, overflow-safe, and uses the restrained heron mark", async () => {
   const [source, css] = await Promise.all([read("app/onboarding/page.tsx"), read("app/globals.css")]);
   assert.match(source, /max-w-\[840px\]/); assert.match(source, /mx-auto/); assert.match(source, /overflow-x-hidden/);
-  assert.match(source, /onboarding-brand/); assert.match(css, /--brand-mark-size: 34px/); assert.match(css, /--brand-mark-size: 40px/);
+  assert.match(source, /onboarding-brand/); assert.match(source, /showName=\{false\}/); assert.match(css, /--brand-mark-size: 30px/);
+  assert.doesNotMatch(source.slice(source.indexOf("function OnboardingShell")), /border-b/);
 });
 
-test("success content is centered and uses consistent bounded actions", async () => {
+test("post-create activation is centered and uses consistent bounded actions", async () => {
   const source = await read("app/onboarding/page.tsx");
-  assert.match(source, /max-w-\[680px\]/); assert.match(source, /flex-col items-center/); assert.match(source, /max-w-\[500px\]/);
-  assert.match(source, /Ask about \{pet\.name\}/);
+  assert.match(source, /max-w-\[560px\]/); assert.match(source, /flex-col items-center/); assert.match(source, /max-w-\[500px\]/);
+  assert.match(source, /See what Furvise knows about \{pet\.name\}/);
+  assert.match(source, />Ask Furvise<\/PrimaryButton>/);
 });
 
 test("Terms and Privacy share a full-viewport mobile legal header with Back", async () => {
