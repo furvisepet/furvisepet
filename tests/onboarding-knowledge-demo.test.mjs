@@ -79,7 +79,7 @@ test("the durable-file closer uses only the approved simple pronouns", () => {
   assert.equal(getPetObjectPronoun("male"), "him");
   assert.equal(getPetObjectPronoun("not_sure"), "them");
   assert.equal(getPetObjectPronoun(null), "them");
-  assert.equal(buildDurableFileCloser(pet({ sex: "female" })), "This is Mani's file. When something changes, add it or ask — Furvise keeps it with her, not as a one-off chat.");
+  assert.equal(buildDurableFileCloser(pet({ sex: "female" })), "This is Mani's file. When something changes, add it or ask. Furvise keeps it with her, not as a one-off chat.");
 });
 
 test("Show me is deterministic and cannot spend Ask quota or create a conversation", () => {
