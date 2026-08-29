@@ -74,7 +74,7 @@ test("image optimization retains local-only defaults and no private-network esca
   const config = source("next.config.ts");
   assert.doesNotMatch(config, /dangerouslyAllowLocalIP|remotePatterns|domains\s*:/);
   assert.match(source("app/components/brand-mark.tsx"), /from "next\/image"/);
-  assert.match(source("app/onboarding/page.tsx"), /from "next\/image"/);
+  assert.doesNotMatch(source("app/onboarding/page.tsx"), /<img\b|https?:\/\/[^"']+\.(?:png|jpe?g|webp)/i);
 });
 
 test("Dependabot and CI are least-privilege, lockfile-based, and secret-free", () => {

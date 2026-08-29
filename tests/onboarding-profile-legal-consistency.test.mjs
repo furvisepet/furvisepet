@@ -68,21 +68,23 @@ test("blank onboarding optional fields remain nullable-compatible", () => {
 
 test("onboarding has exactly four requested content steps and no photo upload", async () => {
   const source = await read("app/onboarding/page.tsx");
-  for (const component of ["SpeciesStep", "BasicDetailsStep", "CareDetailsStep", "ReviewStep"]) assert.match(source, new RegExp(`function ${component}`));
+  for (const component of ["SpeciesStep", "BasicDetailsStep", "OptionalContextStep", "ReviewStep"]) assert.match(source, new RegExp(`function ${component}`));
   assert.doesNotMatch(source, /PhotoStep|Choose photo|type="file"|saveLocalPhoto/);
   assert.match(source, /Step \{step \+ 1\} of 4/);
 });
 
-test("dog and cat selection and success use standalone species PNGs", async () => {
+test("dog and cat onboarding no longer renders standalone cartoon PNGs", async () => {
   const source = await read("app/onboarding/page.tsx");
-  assert.match(source, /src=\{`\/images\/\$\{species\}\.png`\}/);
-  assert.match(source, /src=\{`\/images\/\$\{pet\.species\}\.png`\}/);
+  assert.doesNotMatch(source, /src=\{`\/images\/\$\{species\}\.png`\}/);
+  assert.doesNotMatch(source, /src=\{`\/images\/\$\{pet\.species\}\.png`\}/);
   assert.doesNotMatch(source, /LocalPetAvatar/);
 });
 
-test("review contains every entered profile field and edit links retain the draft", async () => {
+test("review contains simplified populated fields and edit links retain the draft", async () => {
   const source = await read("app/onboarding/page.tsx");
-  for (const label of ["Species", "Name", "Age", "Sex", "Breed", "Weight", "Current food", "Main concern", "Avoid ingredients", "Monthly care budget"]) assert.match(source, new RegExp(label));
+  const review = source.slice(source.indexOf("function ReviewStep"), source.indexOf("function ReviewGroup"));
+  for (const label of ["Species", "Name", "Age", "Sex", "Breed", "Weight", "Note"]) assert.match(review, new RegExp(label));
+  for (const removed of ["Current food", "Main concern", "Avoid ingredients", "Monthly care budget"]) assert.doesNotMatch(review, new RegExp(removed));
   assert.match(source, /edit=\{\(\) => edit\(1\)\}/); assert.match(source, /edit=\{\(\) => edit\(2\)\}/);
   assert.match(source, /setDraft\(\(current\) => \(\{ \.\.\.current, \.\.\.values/);
 });
@@ -102,7 +104,8 @@ test("onboarding is centered, overflow-safe, and uses the larger unclipped logo"
 
 test("success content is centered and uses consistent bounded actions", async () => {
   const source = await read("app/onboarding/page.tsx");
-  assert.match(source, /min-h-\[calc\(100dvh-8\.5rem\)\]/); assert.match(source, /max-w-\[680px\]/); assert.match(source, /items-center justify-center/); assert.match(source, /max-w-\[500px\]/);
+  assert.match(source, /max-w-\[680px\]/); assert.match(source, /flex-col items-center/); assert.match(source, /max-w-\[500px\]/);
+  assert.match(source, /Ask about \{pet\.name\}/);
 });
 
 test("Terms and Privacy share a full-viewport mobile legal header with Back", async () => {

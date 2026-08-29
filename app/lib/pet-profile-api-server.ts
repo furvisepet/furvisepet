@@ -1,7 +1,7 @@
 import "server-only";
 
-import { validateDogProfileInput } from "./ai-analysis";
 import { getAuthenticatedApiContext } from "./authenticated-api-server";
+import { validatePetProfileSaveInput } from "./pet-profile-save-validation";
 import { normalizeAvoidIngredientValues, normalizeSpecies, normalizeWellnessGoal, parsePositiveNumber, type DogProfile } from "./petwise";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "./security/request";
 import { beginIdempotentRateLimitedOperation } from "./security/idempotency";
@@ -21,7 +21,7 @@ export async function saveProfile(request: Request, profileId: string | null) {
   if (!hasOnlyKeys(raw, ["profile"])) return Response.json({ error: "The pet profile contains unsupported fields." }, { status: 400 });
   const candidate = (raw as { profile?: unknown }).profile;
   if (!hasOnlyKeys(candidate, PROFILE_KEYS) || !profileFieldsAreBounded(candidate)) return Response.json({ error: "Review the pet profile fields and try again." }, { status: 400 });
-  const validation = validateDogProfileInput(candidate);
+  const validation = validatePetProfileSaveInput(candidate);
   if (!validation.ok) return Response.json({ error: validation.message }, { status: 400 });
   if (profileId) {
     const { data: owned } = await context.supabase.from("dog_profiles").select("id").eq("id", profileId).eq("user_id", context.userId).maybeSingle<{ id: string }>();

@@ -14,11 +14,9 @@ test("Quick Start keeps exactly four focused steps and requires species", () => 
   assert.doesNotMatch(source, /Step .* of 5/);
   assert.match(source, /draft\.step === 0 \? Boolean\(draft\.species\)/);
   assert.match(source, /disabled=\{!canContinue\}/);
-  assert.match(source, /Set up a home for your \{species\}/);
   assert.match(source, /aria-pressed=\{selected\}/);
-  assert.match(source, /src=\{`\/images\/\$\{species\}\.png`\}/);
-  assert.match(source, /alt=\{`\$\{label\} illustration`\}/);
-  assert.match(source, /h-28 w-28 object-contain sm:h-32 sm:w-32/);
+  assert.doesNotMatch(source, /Set up a home for your|\/images\/\$\{species\}/);
+  assert.match(source, /min-h-24/);
   assert.doesNotMatch(source, /◖ᴥ◗|⌃•ᴥ•⌃/);
 });
 
@@ -93,11 +91,11 @@ test("Today remains optional, personal, and capped to three recent notes", () =>
   for (const pressured of ["check in today", "daily log", "streak"]) assert.doesNotMatch(source, new RegExp(pressured, "i"));
 });
 
-test("saved pet photos remain supported while onboarding success uses the species mascot", () => {
+test("saved pet photos remain supported while onboarding omits the species mascot", () => {
   const localPhoto = read("app/components/local-photo.tsx");
   assert.match(localPhoto, /function LocalPetAvatar/);
   assert.match(localPhoto, /<PetAvatar[^>]*photoUrl=\{source\}/);
-  assert.match(read("app/onboarding/page.tsx"), /src=\{`\/images\/\$\{pet\.species\}\.png`\}/);
+  assert.doesNotMatch(read("app/onboarding/page.tsx"), /src=\{`\/images\/\$\{pet\.species\}\.png`\}/);
   assert.match(read("app/dashboard/page.tsx"), /<LocalPetIdentity/);
   assert.match(read("app/pets/[id]/page.tsx"), /<LocalPetAvatar/);
 });

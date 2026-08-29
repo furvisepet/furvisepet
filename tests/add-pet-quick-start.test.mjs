@@ -96,8 +96,8 @@ test("onboarding stays focused, suppresses app navigation, and removes photo upl
   }
 });
 
-test("success celebration respects reduced motion", () => {
-  const css = read("app/globals.css");
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(css, /\.onboarding-confetti[\s\S]*animation: none/);
+test("success uses no animated confetti or cartoon artwork", () => {
+  const [page, css] = [read("app/onboarding/page.tsx"), read("app/globals.css")];
+  assert.doesNotMatch(page + css, /onboarding-confetti|onboarding-success-pop/);
+  assert.doesNotMatch(page, /\/images\/\$\{pet\.species\}/);
 });

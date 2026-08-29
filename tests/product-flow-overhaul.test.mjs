@@ -9,11 +9,12 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 test("Add Pet is a focused Quick Start and opens Today after success", () => {
   const source = read("app/onboarding/page.tsx");
-  for (const stage of ["Who are we setting up?", "Tell us about your pet", "What should Furvise know?", "Finish setting up"]) assert.match(source, new RegExp(stage.replace(/[?]/g, "\\?")));
+  for (const stage of ["Who are we setting up?", "Tell us about your pet", "Anything Furvise should know?", "Finish setting up"]) assert.match(source, new RegExp(stage.replace(/[?]/g, "\\?")));
   assert.match(source, /function OnboardingStepShell/);
   assert.match(source, />Back<\/TextButton>/);
   assert.match(source, />Cancel<\/TextButton>/);
   assert.match(source, /Continue/);
+  assert.match(source, /Ask about \{pet\.name\}/);
   assert.match(source, /Go to Today/);
   assert.match(source, /View \{pet\.name\}&apos;s profile/);
   assert.doesNotMatch(source, /Get recommendations|Analyze profile|Generate care plan|Profile ready|100%|\/api\/analyze/);
