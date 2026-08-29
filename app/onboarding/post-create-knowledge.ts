@@ -40,7 +40,7 @@ export function getPetObjectPronoun(sex: PostCreatePet["sex"]) {
 }
 
 export function buildDurableFileCloser(pet: PostCreatePet) {
-  return `This is ${pet.name}'s file. When something changes, add it or ask — Furvise keeps it with ${getPetObjectPronoun(pet.sex)}, not as a one-off chat.`;
+  return `This is ${pet.name}'s file. When something changes, add it or ask. Furvise keeps it with ${getPetObjectPronoun(pet.sex)}, not as a one-off chat.`;
 }
 
 function formatMeasurement(value: number | null, unit: string | null) {
