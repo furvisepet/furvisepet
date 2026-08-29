@@ -77,7 +77,7 @@ test("Ask starter drafts advertise selection as compact, unfussy cards", () => {
 });
 
 test("homepage tells each benefit once and keeps pet-aware actions", () => {
-  for (const benefit of ["Remember what changed", "Ask when you are unsure", "Prepare for the vet"]) assert.equal(homepage.split(benefit).length - 1, 1);
+  for (const benefit of ["KEEP THE CONTEXT", "UPDATE WHEN SOMETHING CHANGES", "HAVE THE STORY WHEN YOU NEED IT"]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);
   assert.match(homepage, /Ask about \{petName\}/);
   assert.match(homepage, /Go to Today/);

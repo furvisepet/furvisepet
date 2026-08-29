@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 // Keep canonical domain consistent with Vercel domain redirect settings and Google Search Console property.
 export const CANONICAL_ORIGIN = "https://www.furvise.com";
 
-export const HOME_TITLE = "Furvise | Pet Care History, Notes, Products, and Guidance";
+export const HOME_TITLE = "Furvise | Remember What Matters";
 export const HOME_DESCRIPTION =
-  "Furvise keeps your pet’s care history, notes, product information, and helpful answers in one calm place.";
+  "Furvise keeps questions, care updates, and history connected to each pet so you do not start from zero.";
 export const SOCIAL_DESCRIPTION =
-  "Keep pet profiles, care updates, vet notes, and product information together in one calm place.";
+  "Furvise remembers your pet by keeping questions, care updates, and history together over time.";
 export const FURVISE_OG_IMAGE_URL = `${CANONICAL_ORIGIN}/brand/furvise-logo.svg`;
 
 export const PRIVATE_PAGE_ROBOTS: NonNullable<Metadata["robots"]> = {
@@ -54,7 +54,7 @@ export function createPublicPageMetadata({
           url: FURVISE_OG_IMAGE_URL,
           width: 3200,
           height: 800,
-          alt: "Furvise pet care history, notes, products, and guidance in a calm home for pet memories",
+          alt: "Furvise keeps each pet's questions, care updates, and history together over time",
         },
       ],
     },

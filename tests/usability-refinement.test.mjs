@@ -37,10 +37,10 @@ test("the color system exposes layered surfaces and centralized semantic roles",
   assert.doesNotMatch(globals, /html\[data-theme|prefers-color-scheme/);
 });
 
-test("homepage uses the concise welcoming care story", () => {
-  assert.match(homepage, /Everything about your pet, in one caring place\./);
-  assert.match(homepage, /Takes about two minutes\./);
-  for (const story of ["Remember what changed", "Ask when you are unsure", "Prepare for the vet"]) {
+test("homepage uses the concise remembered-context story", () => {
+  assert.match(homepage, /Furvise remembers your pet, so you don&apos;t start from zero\./);
+  assert.doesNotMatch(homepage, /Takes about two minutes\./);
+  for (const story of ["KEEP THE CONTEXT", "UPDATE WHEN SOMETHING CHANGES", "HAVE THE STORY WHEN YOU NEED IT"]) {
     assert.equal(homepage.split(story).length - 1, 1);
   }
   assert.doesNotMatch(homepage, />0[123]</);

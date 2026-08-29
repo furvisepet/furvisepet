@@ -4,15 +4,28 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
+import { activePetsOnly } from "../lib/pet-lifecycle";
 import { formatPetDisplayName } from "../lib/petwise";
 import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib/supabase";
-import { activePetsOnly } from "../lib/pet-lifecycle";
-import { AppHeader } from "./app-header";
 import { AppFooter } from "./app-footer";
-import { PageShell, PrimaryButton, SecondaryButton } from "./product-primitives";
+import { BrandMark } from "./brand-mark";
+import { PageShell, PrimaryButton } from "./product-primitives";
 import { SignedInHeader } from "./signed-in-header";
 
 type HomepageMode = "loading" | "anonymous" | "no-pets" | "with-pet";
+type VisibleHomepageMode = Exclude<HomepageMode, "loading">;
+
+const CARE_EXAMPLE_ROWS = [
+  ["Today", "Ate normally after dinner"],
+  ["Yesterday", "Paw licking looked better"],
+  ["Next Tuesday", "Vet appointment"],
+] as const;
+
+const VALUE_BEATS = [
+  ["KEEP THE CONTEXT", "Furvise keeps questions, updates, and useful details connected to the same pet."],
+  ["UPDATE WHEN SOMETHING CHANGES", "Add what matters when it happens. You do not need to journal every day."],
+  ["HAVE THE STORY WHEN YOU NEED IT", "Look back through their history, ask with context, or prepare for a vet visit."],
+] as const;
 
 export function HomepageClient() {
   const auth = useConfirmedSupabaseAuth();
@@ -42,79 +55,91 @@ export function HomepageClient() {
           ? "with-pet"
           : "no-pets";
   const petName = activePet ? formatPetDisplayName(activePet.name) : "";
-  const visibleMode: Exclude<HomepageMode, "loading"> = mode === "loading" ? "anonymous" : mode;
+  const visibleMode: VisibleHomepageMode = mode === "loading" ? "anonymous" : mode;
 
   return (
-    <main className={`min-h-screen bg-[var(--surface-page)] text-[var(--text-primary)] ${mode === "no-pets" || mode === "with-pet" ? "app-mobile-nav-clearance" : ""}`}>
-      {mode === "no-pets" || mode === "with-pet"
-        ? <SignedInHeader variant="homepage" />
-        : <AppHeader authState={mode === "loading" ? "loading" : "anonymous"} brandHref="/" sticky variant="homepage" />}
-
+    <main className={`min-h-screen overflow-x-hidden bg-[var(--surface-page)] text-[var(--text-primary)] ${mode === "no-pets" || mode === "with-pet" ? "app-mobile-nav-clearance" : ""}`}>
+      {mode === "no-pets" || mode === "with-pet" ? <SignedInHeader variant="homepage" /> : <PublicMarketingHeader />}
       <Hero activePet={activePet} mode={visibleMode} petName={petName} />
-      <Benefits />
+      <ValueBeats />
+      <TrustLine />
       <FinalCallToAction activePet={activePet} mode={visibleMode} petName={petName} />
-
       <AppFooter showSignIn={visibleMode === "anonymous"} />
     </main>
   );
 }
 
-function Hero({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: Exclude<HomepageMode, "loading">; petName: string }) {
-  const authenticated = mode === "with-pet" || mode === "no-pets";
+function PublicMarketingHeader() {
   return (
-    <PageShell className="grid items-center gap-10 pb-16 pt-12 sm:pb-20 sm:pt-18 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] lg:gap-16 lg:py-24" preset="marketing">
-      <div>
-        <p className="mb-4 inline-flex rounded-full bg-[var(--surface-supportive)] px-3 py-1.5 text-sm font-semibold text-[var(--ghost-action-foreground)]">Pet care that is easier to remember</p>
-        <h1 className="homepage-display max-w-[700px] text-[2.8rem] leading-[1.02] sm:text-[4rem]">Everything about your pet, in one caring place.</h1>
-        <p className="mt-6 max-w-[650px] text-lg leading-8 text-[var(--text-secondary)]">Keep notes, routines, food changes, questions, and vet information together so you never have to remember everything on your own.</p>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          {mode === "with-pet" && activePet ? (
-            <><PrimaryLink href="/dashboard">Go to Today</PrimaryLink><SecondaryLink href={`/ask?pet=${encodeURIComponent(activePet.id)}`}>Ask about {petName}</SecondaryLink></>
-          ) : mode === "no-pets" ? (
-            <><PrimaryLink href={NEW_PET_ONBOARDING_PATH}>Add your pet</PrimaryLink><SecondaryLink href="#how-it-works">See how Furvise works</SecondaryLink></>
-          ) : (
-            <><PrimaryLink href={NEW_PET_LOGIN_PATH}>Add your pet</PrimaryLink><SecondaryLink href="#how-it-works">See how Furvise works</SecondaryLink></>
-          )}
+    <header className="border-b border-[var(--border-subtle)] bg-[var(--surface-page)]" data-ui="public-marketing-header">
+      <PageShell className="flex min-h-[4.25rem] items-center justify-between gap-4 py-2 sm:min-h-[4.5rem]" preset="marketing">
+        <Link aria-label="Furvise home" className="inline-flex min-h-11 min-w-11 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2" href="/">
+          <span className="inline-flex [--brand-mark-size:1.625rem] sm:[--brand-mark-size:1.75rem]"><BrandMark priority size={26} /></span>
+        </Link>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Link className="hidden min-h-11 items-center rounded-full px-3 text-sm font-semibold text-[var(--ghost-action-foreground)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:inline-flex" href="/login">Sign in</Link>
+          <PrimaryButton className="homepage-primary-action min-h-11 px-4 sm:px-5" href={NEW_PET_LOGIN_PATH}>Get started</PrimaryButton>
         </div>
-        {!authenticated || mode === "no-pets" ? <p className="mt-4 text-sm font-medium text-[var(--text-tertiary)]">Takes about two minutes.</p> : null}
+      </PageShell>
+    </header>
+  );
+}
+
+function Hero({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: VisibleHomepageMode; petName: string }) {
+  return (
+    <PageShell className="grid items-center gap-10 pb-14 pt-10 sm:gap-12 sm:pb-16 sm:pt-14 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] lg:gap-16 lg:py-16" preset="marketing">
+      <div className="min-w-0">
+        <h1 className="homepage-display max-w-[680px] text-[2.65rem] leading-[1.02] sm:text-[3.4rem] lg:text-[3.75rem]">Furvise remembers your pet, so you don&apos;t start from zero.</h1>
+        <p className="mt-5 max-w-[620px] text-lg leading-8 text-[var(--text-secondary)]">Ask questions, add updates when something changes, and keep their story together over time.</p>
+        <HeroActions activePet={activePet} mode={mode} petName={petName} />
       </div>
-      <CareSummary />
+      <PetContextExample />
     </PageShell>
   );
 }
 
-function CareSummary() {
-  const rows = [
-    ["Today", "Ate normally after dinner"],
-    ["Yesterday", "Paw licking looked better"],
-    ["Next Tuesday", "Vet appointment"],
-  ];
+function HeroActions({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: VisibleHomepageMode; petName: string }) {
+  if (mode === "with-pet" && activePet) return <div className="mt-7 flex flex-wrap items-center gap-3"><MarketingPrimaryLink href="/dashboard">Go to Today</MarketingPrimaryLink><MarketingTextLink href={`/ask?pet=${encodeURIComponent(activePet.id)}`}>Ask about {petName}</MarketingTextLink></div>;
+  if (mode === "no-pets") return <div className="mt-7"><MarketingPrimaryLink href={NEW_PET_ONBOARDING_PATH}>Add your pet</MarketingPrimaryLink></div>;
+  return <div className="mt-7"><MarketingPrimaryLink href={NEW_PET_LOGIN_PATH}>Get started</MarketingPrimaryLink></div>;
+}
+
+function PetContextExample() {
   return (
-    <aside aria-label="Rocky care summary example" className="rounded-[1.75rem] border border-[var(--line)] bg-[var(--card-background)] p-6 shadow-[0_18px_50px_var(--shadow)] sm:p-7">
-      <div className="flex items-center gap-3 border-b border-[var(--line)] pb-5"><span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface-supportive)] text-lg font-bold text-[var(--ghost-action-foreground)]">R</span><div><h2 className="text-2xl font-bold">Rocky</h2><p className="text-sm text-[var(--text-secondary)]">A few things worth remembering</p></div></div>
-      <dl className="mt-2 divide-y divide-[var(--line)]">{rows.map(([date, note]) => <div className="grid gap-1 py-4 sm:grid-cols-[110px_1fr]" key={date}><dt className="text-sm font-semibold text-[var(--text-muted)]">{date}</dt><dd className="leading-6">{note}</dd></div>)}</dl>
-      <Link className="mt-3 flex min-h-14 items-center justify-between rounded-2xl bg-[var(--surface-supportive)] px-4 font-semibold text-[var(--ghost-action-foreground)] transition hover:bg-[var(--surface-hover)]" href="/login"><span><span className="block text-xs uppercase tracking-[0.08em] text-[var(--text-secondary)]">Ask Furvise</span>What should I track before the visit?</span><span aria-hidden="true">→</span></Link>
+    <aside aria-label="Illustrative Furvise pet memory example" className="mx-auto w-full max-w-[500px] rounded-[1.75rem] border border-[var(--line)] bg-[var(--surface-primary)] p-5 shadow-[var(--shadow-surface-1)] sm:p-7" data-ui="homepage-product-example">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Illustrative example</p>
+      <div className="mt-4 border-b border-[var(--line)] pb-5"><h2 className="text-2xl font-semibold tracking-[-0.025em]">Mani</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">A few things Furvise remembers</p></div>
+      <dl className="divide-y divide-[var(--line)]">{CARE_EXAMPLE_ROWS.map(([date, note]) => <div className="grid gap-1 py-3.5 sm:grid-cols-[7rem_1fr]" key={date}><dt className="text-sm font-semibold text-[var(--text-muted)]">{date}</dt><dd className="leading-6">{note}</dd></div>)}</dl>
+      <div className="mt-3 rounded-2xl bg-[var(--surface-supportive)] px-4 py-3.5 text-[var(--deep-forest)]"><span className="block text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Ask Furvise</span><span className="mt-1 block font-semibold leading-6">What should I keep an eye on before the visit?</span></div>
     </aside>
   );
 }
 
-function Benefits() {
-  const benefits = [
-    ["Remember what changed", "Save food changes, symptoms, routines, products, and the small details that are easy to forget."],
-    ["Ask when you are unsure", "Get practical guidance without repeating everything you have already recorded."],
-    ["Prepare for the vet", "Turn your notes into a clear Vet Visit Brief you can print or show from your phone."],
-  ];
-  return <section className="bg-[var(--section-background)]" id="how-it-works"><PageShell className="py-16 sm:py-20" preset="marketing"><div className="grid gap-5 md:grid-cols-3">{benefits.map(([title, copy]) => <article className="rounded-2xl border border-[var(--line)] bg-[var(--card-background)] p-6 sm:p-7" key={title}><h2 className="text-2xl font-bold tracking-[-0.025em]">{title}</h2><p className="mt-3 leading-7 text-[var(--text-secondary)]">{copy}</p></article>)}</div></PageShell></section>;
+function ValueBeats() {
+  return <section className="border-y border-[var(--line)] bg-[var(--surface-primary)]" data-ui="homepage-value-beats"><PageShell className="grid gap-8 py-14 sm:py-16 md:grid-cols-3 md:gap-10" preset="marketing">{VALUE_BEATS.map(([title, copy]) => <article className="border-t border-[var(--border-strong)] pt-5" key={title}><h2 className="text-sm font-bold tracking-[0.08em] text-[var(--deep-forest)]">{title}</h2><p className="mt-3 leading-7 text-[var(--text-secondary)]">{copy}</p></article>)}</PageShell></section>;
 }
 
-function FinalCallToAction({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: Exclude<HomepageMode, "loading">; petName: string }) {
-  return <PageShell className="py-16 sm:py-20" preset="marketing"><section><div className="rounded-[1.75rem] bg-[var(--surface-supportive)] px-6 py-10 sm:flex sm:items-center sm:justify-between sm:gap-10 sm:px-10"><div><h2 className="text-3xl font-bold tracking-[-0.03em]">{mode === "with-pet" ? `Ready when ${petName} needs you.` : "Start with your pet's name."}</h2><p className="mt-3 text-lg text-[var(--text-secondary)]">{mode === "with-pet" ? "Keep today’s details close and easy to find." : "You can add more details whenever you are ready."}</p></div><div className="mt-6 flex shrink-0 flex-wrap gap-3 sm:mt-0">{mode === "with-pet" && activePet ? <><SecondaryLink href="/dashboard">Go to Today</SecondaryLink><SecondaryLink href={`/ask?pet=${encodeURIComponent(activePet.id)}`}>Ask about {petName}</SecondaryLink></> : <SecondaryLink href={mode === "no-pets" ? NEW_PET_ONBOARDING_PATH : NEW_PET_LOGIN_PATH}>Add your pet</SecondaryLink>}</div></div></section></PageShell>;
+function TrustLine() {
+  return <PageShell className="py-9 text-center sm:py-11" preset="marketing"><p className="text-sm leading-6 text-[var(--text-muted)]">Furvise helps organize pet care information and does not replace veterinary care.</p></PageShell>;
 }
 
-function PrimaryLink({ children, href }: { children: React.ReactNode; href: string }) {
-  return <PrimaryButton className="px-6" href={href}>{children}</PrimaryButton>;
+function FinalCallToAction({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: VisibleHomepageMode; petName: string }) {
+  const authenticatedWithPet = mode === "with-pet" && activePet;
+  return (
+    <section className="border-t border-[var(--line)] bg-[var(--surface-primary)]" data-ui="homepage-final-conversion">
+      <PageShell className="py-16 text-center sm:py-20" preset="marketing">
+        <h2 className="text-3xl font-semibold tracking-[-0.035em] sm:text-[2.5rem]">{authenticatedWithPet ? `Keep ${petName}'s story together.` : "Remember what matters."}</h2>
+        <p className="mx-auto mt-3 max-w-xl text-lg leading-8 text-[var(--text-secondary)]">{authenticatedWithPet ? "Return whenever there is something worth remembering." : "Start with your pet. Furvise can keep the story from there."}</p>
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">{authenticatedWithPet ? <><MarketingPrimaryLink href="/dashboard">Go to Today</MarketingPrimaryLink><MarketingTextLink href={`/ask?pet=${encodeURIComponent(activePet.id)}`}>Ask about {petName}</MarketingTextLink></> : mode === "no-pets" ? <MarketingPrimaryLink href={NEW_PET_ONBOARDING_PATH}>Add your pet</MarketingPrimaryLink> : <MarketingPrimaryLink href={NEW_PET_LOGIN_PATH}>Get started</MarketingPrimaryLink>}</div>
+      </PageShell>
+    </section>
+  );
 }
 
-function SecondaryLink({ children, href }: { children: React.ReactNode; href: string }) {
-  return <SecondaryButton href={href}>{children}</SecondaryButton>;
+function MarketingPrimaryLink({ children, href }: { children: React.ReactNode; href: string }) {
+  return <PrimaryButton className="homepage-primary-action px-6" href={href}>{children}</PrimaryButton>;
+}
+
+function MarketingTextLink({ children, href }: { children: React.ReactNode; href: string }) {
+  return <Link className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-[var(--ghost-action-foreground)] underline-offset-4 hover:bg-[var(--surface-hover)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href={href}>{children}</Link>;
 }

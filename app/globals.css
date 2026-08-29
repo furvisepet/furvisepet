@@ -329,6 +329,19 @@ body {
   color: var(--deep-forest);
 }
 
+.homepage-primary-action {
+  background: var(--deep-forest);
+  color: var(--warm-cream);
+}
+
+.homepage-primary-action:hover {
+  background: var(--forest);
+}
+
+.homepage-primary-action [data-button-label] {
+  color: var(--warm-cream);
+}
+
 .mobile-liquid-glass-root {
   isolation: isolate;
 }
