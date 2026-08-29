@@ -43,6 +43,7 @@ import { setAskRequestActive } from "../lib/navigation/ask-request-activity";
 import { getAskErrorPresentation, type AskFailureCode } from "../lib/ask-errors";
 import { getAskCareHistoryState } from "../lib/ask-care-history-state";
 import { applySuggestedQuestionDraft, getAskMessageVariant, shouldShowSuggestedQuestions } from "../lib/ask-experience";
+import { ASK_ONBOARDING_SOURCE, buildOnboardingAskStarters, shouldShowOnboardingAskStarters } from "../lib/ask-onboarding-entry";
 import type { FurviseApplicationAction } from "../lib/application-actions/types";
 import { getPetLifecycleStatus, isActivePet } from "../lib/pet-lifecycle";
 
@@ -141,6 +142,7 @@ function AskPageContent() {
   const [error, setError] = useState("");
   const [conversationListError, setConversationListError] = useState("");
   const [requestPhase, setRequestPhase] = useState<AskRequestPhase>("idle");
+  const [onboardingEntryActive, setOnboardingEntryActive] = useState(searchParams.get("from") === ASK_ONBOARDING_SOURCE);
   const [failedRequest, setFailedRequest] = useState<FailedAskRequest | null>(null);
   const [status, setStatus] = useState("");
   const [persistenceWarning, setPersistenceWarning] = useState("");
@@ -208,6 +210,15 @@ function AskPageContent() {
   const hasThread = Boolean(thread.length);
   const requestActive = requestPhase === "submitting" || requestPhase === "receiving" || requestPhase === "retrying";
   const composerUnavailable = submitting || requestActive || !activeProfile || !selectedPet;
+  const explicitPetId = searchParams.get("pet") || "";
+  const showOnboardingStarters = !loading && shouldShowOnboardingAskStarters({
+    activeConversationId,
+    composerDraft: question,
+    explicitPetId,
+    onboardingEntryActive,
+    resolvedPetId: activeProfile?.id || "",
+    threadLength: thread.length,
+  });
 
   useEffect(() => {
     conversationEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -232,6 +243,7 @@ function AskPageContent() {
     setStatus("");
     setLoading(true);
     try {
+      dismissOnboardingEntry();
       const payload = await conversationJson(`/api/ask/conversations/${encodeURIComponent(id)}`) as { conversation?: AskConversationDetail };
       if (!payload.conversation) throw new Error("That conversation is not available.");
       const parsedThread = parseConversationDetail(payload.conversation);
@@ -275,6 +287,7 @@ function AskPageContent() {
   function switchPet(petId: string) {
     if (askRequestActiveRef.current) return;
     saveCurrentDraft();
+    dismissOnboardingEntry();
     setSelectedPet(petId);
     if (typeof window !== "undefined") {
       persistActivePetId(petId);
@@ -300,6 +313,7 @@ function AskPageContent() {
 
   function startNewQuestion() {
     if (askRequestActiveRef.current) return;
+    dismissOnboardingEntry();
     if (selectedPet && typeof window !== "undefined") window.localStorage.removeItem(getDraftKey(activeConversationId, selectedPet));
     setQuestion("");
     setThread([]);
@@ -323,6 +337,7 @@ function AskPageContent() {
   async function ask(promptValue: string, source: "composer" | "empty_state" | "response_suggestion", retry?: FailedAskRequest) {
     const prompt = promptValue.trim();
     if (!prompt || composerUnavailable || askRequestActiveRef.current) return;
+    dismissOnboardingEntry();
     const conversationIdAtSubmit = retry?.payload.conversationId || activeConversationId;
     const scope = retry?.scope || `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`;
     const logicalTurnId = retry?.logicalTurnId || crypto.randomUUID();
@@ -468,6 +483,22 @@ function AskPageContent() {
     });
   }
 
+  function draftOnboardingQuestion(suggestion: string) {
+    dismissOnboardingEntry();
+    draftSuggestedQuestion(suggestion);
+  }
+
+  function updateComposerDraft(value: string) {
+    if (value.trim()) dismissOnboardingEntry();
+    setQuestion(value);
+  }
+
+  function dismissOnboardingEntry() {
+    if (!onboardingEntryActive) return;
+    setOnboardingEntryActive(false);
+    if (selectedPet && typeof window !== "undefined") replaceAskLocation({ petId: selectedPet });
+  }
+
   function runAction(action: AnswerAction, message: Extract<ConversationMessage, { role: "furvise" }>) {
     trackAskEvent("answer_action_selected", { action, answerType: message.response.answerType });
     if (action === "copy") void copyAnswer(message);
@@ -566,7 +597,11 @@ function AskPageContent() {
           <main className="min-w-0">
             <section aria-label="Conversation with Furvise" className={`flex w-full min-w-0 flex-col ${thread.length || requestActive ? "sm:min-h-[66vh]" : ""}`} data-mobile-conversation-clearance="nav-and-composer">
               <div aria-live="polite" className="min-w-0 flex-1 space-y-5 sm:space-y-7">
-                {!thread.length && !submitting ? <EmptyConversation lifecycleStatus={activeProfile?.lifecycle_status || "active"} petName={petName} onSelect={draftSuggestedQuestion} /> : null}
+                {!thread.length && !submitting
+                  ? showOnboardingStarters
+                    ? <OnboardingAskStarters onSelect={draftOnboardingQuestion} petName={petName} />
+                    : <EmptyConversation lifecycleStatus={activeProfile?.lifecycle_status || "active"} petName={petName} onSelect={draftSuggestedQuestion} />
+                  : null}
                 {thread.map((message, index) => message.role === "user"
                   ? <UserMessage key={message.id} text={message.text} />
                   : <FurviseMessage key={message.id} lifecycleStatus={activeProfile?.lifecycle_status || "active"} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onApplicationAction={(action, decision) => applyApplicationAction(message.id, action, decision)} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} userMessage={findPreviousUserMessage(thread, index)} />)}
@@ -576,7 +611,7 @@ function AskPageContent() {
               </div>
               {latestAnswer && !requestActive && !failedRequest && shouldShowSuggestedQuestions(latestAnswer.response, findPreviousUserMessage(thread, thread.lastIndexOf(latestAnswer))) ? <SuggestedQuestions currentDraft={question} onSelect={draftSuggestedQuestion} suggestions={latestAnswer.response.suggestedQuestions} /> : null}
               <div className={`app-sticky-composer sticky ${hasThread ? "lg:sticky" : "lg:relative"} mt-3 bg-[var(--surface-page)] pt-1`} data-ask-composer-focused={composerFocused} data-ui="ask-composer-region">
-                <Composer disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onBlur={() => setComposerFocused(false)} onChange={setQuestion} onFocus={() => setComposerFocused(true)} onSubmit={submit} petName={petName} value={question} />
+                <Composer disabled={composerUnavailable} hasThread={hasThread} inputRef={composerRef} loading={requestActive} onBlur={() => setComposerFocused(false)} onChange={updateComposerDraft} onFocus={() => setComposerFocused(true)} onSubmit={submit} petName={petName} value={question} />
                 <p className="mt-1.5 text-center text-xs leading-5 text-[var(--pw-subtle)]">Furvise organizes care information and does not replace a veterinarian.</p>
               </div>
             </section>
@@ -602,6 +637,11 @@ function EmptyConversation({ lifecycleStatus, petName, onSelect }: { lifecycleSt
     <p className="mt-2 max-w-2xl leading-6 text-[var(--text-secondary)]">{lifecycleStatus === "deceased" ? "Review the history, make a timeline, or talk about what happened." : `Ask about ${petName}'s care, behavior, food, routines, or what happened today.`}</p>
     <div className="mt-4 flex max-w-4xl flex-col gap-2 sm:flex-row sm:flex-wrap">{starters.map((starter) => { const label = starter.replace("{pet}", petName); return <button aria-controls="ask-composer" className="group flex min-h-11 min-w-0 cursor-pointer items-center justify-between gap-3 rounded-lg border border-[var(--assistant-response-border)] bg-[var(--suggested-question-surface)] px-3.5 py-2.5 text-left text-sm font-semibold leading-5 text-[var(--suggested-question-foreground)] transition-colors hover:bg-[var(--suggested-question-hover)] active:bg-[var(--suggested-question-selected)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] sm:w-auto sm:flex-1" data-ui="starter-question" key={starter} onClick={() => onSelect(label)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{label}</span><span aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5">↘</span></button>; })}</div>
   </section>;
+}
+
+function OnboardingAskStarters({ onSelect, petName }: { onSelect: (prompt: string) => void; petName: string }) {
+  const starters = buildOnboardingAskStarters(petName);
+  return <section className="pb-2 pt-5 sm:pt-7" data-ui="onboarding-ask-starters"><h2 className="text-2xl font-semibold text-[var(--text-primary)]">Try one with {petName}</h2><div className="mt-4 flex max-w-4xl flex-col gap-2 sm:flex-row sm:flex-wrap">{starters.map((starter) => <button aria-controls="ask-composer" className="group flex min-h-11 min-w-0 cursor-pointer items-center justify-between gap-3 rounded-lg border border-[var(--assistant-response-border)] bg-[var(--suggested-question-surface)] px-3.5 py-2.5 text-left text-sm font-semibold leading-5 text-[var(--suggested-question-foreground)] transition-colors hover:bg-[var(--suggested-question-hover)] active:bg-[var(--suggested-question-selected)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] sm:w-auto sm:flex-1" data-ui="onboarding-starter-question" key={starter} onClick={() => onSelect(starter)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{starter}</span><span aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5">↘</span></button>)}</div></section>;
 }
 
 function UserMessage({ text }: { text: string }) {

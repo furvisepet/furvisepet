@@ -99,8 +99,8 @@ test("new pet onboarding uses four complete setup steps before direct save", () 
   const source = read("app/onboarding/page.tsx");
   for (const question of ["Who are we setting up?", "Tell us about your pet", "Anything Furvise should know?", "Finish setting up"]) assert.match(source, new RegExp(question.replace(/[?]/g, "\\?")));
   assert.match(source, /savePetProfileForUser\(profile, user, null\)/);
-  assert.match(source, /See what Furvise knows about \{pet\.name\}/);
-  assert.match(source, />Ask Furvise<\/PrimaryButton>/);
+  assert.match(source, />\{pet\.name\} is ready<\/h1>/);
+  assert.match(source, />Ask Furvise about \{pet\.name\}<\/PrimaryButton>/);
   assert.match(source, /Go to Today/);
   assert.doesNotMatch(source, /\/results\?|Profile ready|Get recommendations|Analyze profile/);
 });

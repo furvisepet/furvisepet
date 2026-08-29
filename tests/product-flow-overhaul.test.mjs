@@ -7,16 +7,15 @@ import { initialProfile } from "../app/lib/petwise.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("Add Pet is a focused Quick Start with a deterministic knowledge handoff", () => {
+test("Add Pet is a focused Quick Start with a direct Ask handoff", () => {
   const source = read("app/onboarding/page.tsx");
   for (const stage of ["Who are we setting up?", "Tell us about your pet", "Anything Furvise should know?", "Finish setting up"]) assert.match(source, new RegExp(stage.replace(/[?]/g, "\\?")));
   assert.match(source, /function OnboardingStepShell/);
   assert.match(source, />Back<\/TextButton>/);
   assert.match(source, />Cancel<\/TextButton>/);
   assert.match(source, /Continue/);
-  assert.match(source, /See what Furvise knows about \{pet\.name\}/);
-  assert.match(source, />Show me<\/PrimaryButton>/);
-  assert.match(source, />Ask Furvise<\/PrimaryButton>/);
+  assert.match(source, />\{pet\.name\} is ready<\/h1>/);
+  assert.match(source, />Ask Furvise about \{pet\.name\}<\/PrimaryButton>/);
   assert.match(source, /Go to Today/);
   assert.doesNotMatch(source, /View \{pet\.name\}&apos;s profile/);
   assert.doesNotMatch(source, /Get recommendations|Analyze profile|Generate care plan|Profile ready|100%|\/api\/analyze/);

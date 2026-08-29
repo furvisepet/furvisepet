@@ -105,9 +105,9 @@ test("onboarding is centered, overflow-safe, and uses the restrained heron mark"
 
 test("post-create activation is centered and uses consistent bounded actions", async () => {
   const source = await read("app/onboarding/page.tsx");
-  assert.match(source, /max-w-\[560px\]/); assert.match(source, /flex-col items-center/); assert.match(source, /max-w-\[500px\]/);
-  assert.match(source, /See what Furvise knows about \{pet\.name\}/);
-  assert.match(source, />Ask Furvise<\/PrimaryButton>/);
+  assert.match(source, /onboarding-success-shell/); assert.match(source, /items-center justify-center/); assert.match(source, /max-w-\[500px\]/);
+  assert.match(source, />\{pet\.name\} is ready<\/h1>/);
+  assert.match(source, />Ask Furvise about \{pet\.name\}<\/PrimaryButton>/);
 });
 
 test("Terms and Privacy share a full-viewport mobile legal header with Back", async () => {

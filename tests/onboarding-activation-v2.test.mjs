@@ -71,9 +71,8 @@ test("review and post-create activation expose the simplified hierarchy", () => 
   assert.match(review, /title="Optional context"/);
   for (const removed of ["Current food", "Main concern", "Avoid ingredients", "Preferences", "Monthly care budget"]) assert.doesNotMatch(review, new RegExp(removed));
   const activation = source.slice(source.indexOf("function PostCreateActivation"), source.indexOf("function ResumeChoice"));
-  assert.match(activation, /See what Furvise knows about \{pet\.name\}/);
-  assert.match(activation, />Show me<\/PrimaryButton>/);
-  assert.match(activation, />Ask Furvise<\/PrimaryButton>/);
+  assert.match(activation, />\{pet\.name\} is ready<\/h1>/);
+  assert.match(activation, />Ask Furvise about \{pet\.name\}<\/PrimaryButton>/);
   assert.match(activation, /Go to Today/);
 });
 
@@ -82,7 +81,7 @@ test("post-create activation resets initial scroll and focuses each state predic
   const activation = source.slice(source.indexOf("function PostCreateActivation"), source.indexOf("function ResumeChoice"));
   assert.match(activation, /window\.scrollTo\(\{ behavior: "auto", left: 0, top: 0 \}\)/);
   assert.match(activation, /focus\(\{ preventScroll: true \}\)/);
-  assert.match(activation, /\[view\]/);
+  assert.match(activation, /\}, \[\]\)/);
   assert.doesNotMatch(activation, /behavior: "smooth"/);
 });
 
