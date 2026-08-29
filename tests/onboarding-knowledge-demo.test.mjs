@@ -48,7 +48,7 @@ test("post-create invitation replaces the celebration screen and has one dominan
 });
 
 test("knowledge rows use only authoritative saved values and explicit unknown selections", () => {
-  assert.deepEqual(buildPetKnowledgeRows(pet()), [["Name", "Mani"], ["Species", "Cat"]]);
+  assert.deepEqual(buildPetKnowledgeRows(pet()), [["Species", "Cat"]]);
   assert.deepEqual(buildPetKnowledgeRows(pet({
     age_unit: "years",
     age_value: 2,
@@ -58,7 +58,6 @@ test("knowledge rows use only authoritative saved values and explicit unknown se
     weight_unit: "lb",
     weight_value: 8,
   })), [
-    ["Name", "Mani"],
     ["Species", "Cat"],
     ["Age", "2 years"],
     ["Sex", "Female"],
@@ -71,7 +70,8 @@ test("knowledge rows use only authoritative saved values and explicit unknown se
     breedExplicitlyUnknown: true,
     sex: "not_sure",
     weightExplicitlyUnknown: true,
-  })).slice(2), [["Age", "Not sure"], ["Sex", "Not sure"], ["Breed", "Not sure"], ["Weight", "Not sure"]]);
+  })).slice(1), [["Age", "Not sure"], ["Sex", "Not sure"], ["Breed", "Not sure"], ["Weight", "Not sure"]]);
+  assert.equal(buildPetKnowledgeRows(pet()).some(([label]) => label === "Name"), false);
 });
 
 test("the durable-file closer uses only the approved simple pronouns", () => {
