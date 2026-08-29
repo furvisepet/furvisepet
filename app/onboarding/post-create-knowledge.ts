@@ -18,7 +18,6 @@ export type PetKnowledgeRow = readonly [label: string, value: string];
 
 export function buildPetKnowledgeRows(pet: PostCreatePet): PetKnowledgeRow[] {
   const rows: PetKnowledgeRow[] = [
-    ["Name", pet.name],
     ["Species", pet.species === "cat" ? "Cat" : "Dog"],
   ];
   const age = formatMeasurement(pet.age_value, pet.age_unit);
@@ -41,7 +40,7 @@ export function getPetObjectPronoun(sex: PostCreatePet["sex"]) {
 }
 
 export function buildDurableFileCloser(pet: PostCreatePet) {
-  return `This is ${pet.name}'s file. When something changes, add it or ask \u2014 Furvise keeps it with ${getPetObjectPronoun(pet.sex)}, not as a one-off chat.`;
+  return `This is ${pet.name}'s file. When something changes, add it or ask — Furvise keeps it with ${getPetObjectPronoun(pet.sex)}, not as a one-off chat.`;
 }
 
 function formatMeasurement(value: number | null, unit: string | null) {
