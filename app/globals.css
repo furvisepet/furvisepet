@@ -296,36 +296,32 @@ body {
   padding-bottom: var(--mobile-nav-clearance);
 }
 
-.onboarding-success-mark {
-  position: relative;
-  animation: onboarding-success-pop 420ms var(--ease-out) both;
-}
-
-.onboarding-confetti::before,
-.onboarding-confetti::after {
-  position: absolute;
-  inset: -0.75rem;
-  content: "";
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 10% 25%, var(--selection-strong) 0 2px, transparent 3px),
-    radial-gradient(circle at 85% 18%, var(--action-primary) 0 2px, transparent 3px),
-    radial-gradient(circle at 18% 82%, var(--action-primary) 0 2px, transparent 3px),
-    radial-gradient(circle at 82% 78%, var(--selection-strong) 0 2px, transparent 3px);
-}
-
-.onboarding-confetti::after {
-  inset: -1.25rem;
-  transform: rotate(25deg);
-}
-
-@keyframes onboarding-success-pop {
-  from { opacity: 0; transform: scale(0.86); }
-  to { opacity: 1; transform: scale(1); }
-}
-
 .onboarding-brand {
   --brand-mark-size: 34px;
+}
+
+.onboarding-primary-action {
+  background: var(--deep-forest);
+  color: var(--warm-cream);
+}
+
+.onboarding-primary-action:hover {
+  background: var(--forest);
+}
+
+.onboarding-primary-action [data-button-label] {
+  color: var(--warm-cream);
+}
+
+.onboarding-primary-action:disabled,
+.onboarding-primary-action[aria-disabled="true"] {
+  background: var(--soft-sage);
+  color: var(--deep-forest);
+}
+
+.onboarding-primary-action:disabled [data-button-label],
+.onboarding-primary-action[aria-disabled="true"] [data-button-label] {
+  color: var(--deep-forest);
 }
 
 .mobile-liquid-glass-root {
@@ -401,10 +397,6 @@ body {
   .onboarding-brand {
     --brand-mark-size: 40px;
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .onboarding-success-mark { animation: none; }
 }
 
 .app-page-end-clearance {

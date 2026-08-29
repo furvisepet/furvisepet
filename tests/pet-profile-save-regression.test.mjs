@@ -38,7 +38,7 @@ const supabase = {
 
 globalThis.__petProfileSaveFixture = { idempotencyKey, ownerId, supabase };
 const mockSources = new Map([
-  ["../app/lib/ai-analysis", "export const validateDogProfileInput = value => ({ ok: true, profile: value });"],
+  ["../app/lib/pet-profile-save-validation", "export const validatePetProfileSaveInput = value => ({ ok: true, profile: value });"],
   ["../app/lib/authenticated-api-server", "export const getAuthenticatedApiContext = async () => ({ supabase: globalThis.__petProfileSaveFixture.supabase, userId: globalThis.__petProfileSaveFixture.ownerId });"],
   ["../app/lib/petwise", "export const normalizeAvoidIngredientValues = value => value; export const normalizeSpecies = value => value; export const normalizeWellnessGoal = value => value; export const parsePositiveNumber = Number;"],
   ["../app/lib/security/request", "export const API_BODY_LIMITS = { standard: 1000 }; export class RequestBoundaryError extends Error {}; export const hasOnlyKeys = () => true; export const readBoundedJson = request => request.json();"],

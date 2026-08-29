@@ -44,40 +44,40 @@ test("all steps share progress, card, and action shell", async () => {
   assert.match(source, /<Progress step=\{step\} \/>/);
   assert.match(source, /data-onboarding-step=\{step \+ 1\}/);
   assert.match(source, /max-w-\[840px\]/);
-  assert.match(source, /min-h-\[24rem\]/);
+  assert.match(source, /min-h-\[20rem\]/);
 });
 
 test("step two uses a compact responsive details grid", async () => {
   const source = await read("app/onboarding/page.tsx");
-  const step = source.slice(source.indexOf("function BasicDetailsStep"), source.indexOf("function CareDetailsStep"));
+  const step = source.slice(source.indexOf("function BasicDetailsStep"), source.indexOf("function OptionalContextStep"));
   assert.match(step, /sm:grid-cols-2/);
   assert.match(step, /Name/); assert.match(step, /Age/); assert.match(step, /Sex/); assert.match(step, /Breed/);
   assert.match(step, /mt-6 grid gap-4/);
 });
 
-test("step three groups physical details, care focus, and ingredients", async () => {
+test("step three keeps weight and one optional note", async () => {
   const source = await read("app/onboarding/page.tsx");
-  const step = source.slice(source.indexOf("function CareDetailsStep"), source.indexOf("function ReviewStep"));
-  assert.match(step, /title="Physical details"/);
-  assert.match(step, /title="Care focus"/);
-  assert.match(step, /title="Avoid ingredients"/);
-  assert.match(step, /min-\[380px\]:grid-cols-2/);
+  const step = source.slice(source.indexOf("function OptionalContextStep"), source.indexOf("function ReviewStep"));
+  assert.match(step, /Field label="Weight"/);
+  assert.match(step, /Field label="Anything else\?"/);
+  assert.match(step, /Optional\. You can always add more later\./);
+  assert.doesNotMatch(step, /Current food|Main concern|Avoid ingredients/);
 });
 
-test("review uses three compact groups with one edit action each", async () => {
+test("review uses populated simplified groups with one edit action each", async () => {
   const source = await read("app/onboarding/page.tsx");
   const review = source.slice(source.indexOf("function ReviewStep"), source.indexOf("function ReviewGroup"));
-  assert.equal(review.match(/<ReviewGroup/g)?.length, 3);
+  assert.equal(review.match(/<ReviewGroup/g)?.length, 2);
   assert.match(review, /title="Basic details"/);
-  assert.match(review, /title="Care details"/);
-  assert.match(review, /title="Preferences"/);
+  assert.match(review, /title="Optional context"/);
+  assert.doesNotMatch(review, /Current food|Main concern|Avoid ingredients|Preferences|Monthly care budget/);
   assert.doesNotMatch(review, /Not provided/);
 });
 
-test("one sticky footer keeps a dominant action and paired secondary actions", async () => {
+test("one responsive footer keeps a dominant action and paired secondary actions", async () => {
   const source = await read("app/onboarding/page.tsx");
   const shell = source.slice(source.indexOf("function OnboardingStepShell"), source.indexOf("function SpeciesStep"));
-  assert.match(shell, /sticky bottom-0/);
+  assert.match(shell, /sm:sticky sm:bottom-0/);
   assert.match(shell, /safe-area-inset-bottom/);
   assert.equal(shell.match(/<PrimaryButton/g)?.length, 2);
   assert.match(shell, /justify-between/);
@@ -85,21 +85,18 @@ test("one sticky footer keeps a dominant action and paired secondary actions", a
   assert.match(shell, />Cancel<\/TextButton>/);
 });
 
-test("species illustrations are consistently bounded across detail steps", async () => {
+test("species cartoons are absent across onboarding steps", async () => {
   const source = await read("app/onboarding/page.tsx");
-  assert.match(source, /className="h-20 w-20 shrink-0 object-contain"/);
-  assert.match(source, /height=\{80\}/);
-  assert.doesNotMatch(source, /absolute[^"]*h-20 w-20/);
+  assert.doesNotMatch(source, /next\/image|\/images\/\$\{species\}|\/images\/\$\{pet\.species\}/);
 });
 
-test("success state uses a larger centered illustration and action width", async () => {
+test("success state uses calm centered copy and bounded actions", async () => {
   const source = await read("app/onboarding/page.tsx");
   const success = source.slice(source.indexOf("function SuccessStep"), source.indexOf("function ResumeChoice"));
-  assert.match(success, /h-36 w-36/);
-  assert.match(success, /sm:h-44 sm:w-44/);
   assert.match(success, /max-w-\[680px\]/);
   assert.match(success, /max-w-\[500px\]/);
-  assert.match(success, /items-center justify-center/);
+  assert.match(success, /flex-col items-center/);
+  assert.doesNotMatch(success, /Image|confetti/);
 });
 
 test("name normalization is stable between steps and safe at review and creation", async () => {
@@ -116,5 +113,5 @@ test("mobile shell remains width bounded without horizontal overflow", async () 
   assert.match(source, /w-full overflow-x-hidden/);
   assert.match(source, /px-5/);
   assert.match(source, /min-w-0/);
-  assert.match(source, /className="w-full"/);
+  assert.match(source, /w-full/);
 });

@@ -42,12 +42,11 @@ test("pet-limit screen is calm and never restarts onboarding", () => {
   assert.doesNotMatch(screen, /\/onboarding|checkout/i);
 });
 
-test("Quick Start has four focused steps with a detailed care review", () => {
+test("Quick Start has four focused steps with a simplified optional review", () => {
   const page = read("app/onboarding/page.tsx");
   assert.match(page, /Step \{step \+ 1\} of 4/);
-  for (const copy of ["Who are we setting up?", "Tell us about your pet", "What should Furvise know?", "Finish setting up"]) assert.match(page, new RegExp(copy.replace(/[?]/g, "\\?")));
-  assert.match(page, /Monthly care budget/);
-  assert.match(page, /Avoid ingredients/);
+  for (const copy of ["Who are we setting up?", "Tell us about your pet", "Anything Furvise should know?", "Finish setting up"]) assert.match(page, new RegExp(copy.replace(/[?]/g, "\\?")));
+  assert.doesNotMatch(page, /Field label="Monthly care budget"|Field label="Avoid ingredients"/);
   assert.doesNotMatch(page, /PhotoStep|Choose photo/);
 });
 

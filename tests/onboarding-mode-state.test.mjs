@@ -97,15 +97,17 @@ test("save failures stay on the save error path and never reuse the load error b
 
 test("new pet onboarding uses four complete setup steps before direct save", () => {
   const source = read("app/onboarding/page.tsx");
-  for (const question of ["Who are we setting up?", "Tell us about your pet", "What should Furvise know?", "Finish setting up"]) assert.match(source, new RegExp(question.replace(/[?]/g, "\\?")));
+  for (const question of ["Who are we setting up?", "Tell us about your pet", "Anything Furvise should know?", "Finish setting up"]) assert.match(source, new RegExp(question.replace(/[?]/g, "\\?")));
   assert.match(source, /savePetProfileForUser\(profile, user, null\)/);
+  assert.match(source, /Ask about \{pet\.name\}/);
   assert.match(source, /Go to Today/);
   assert.doesNotMatch(source, /\/results\?|Profile ready|Get recommendations|Analyze profile/);
 });
 
-test("new pet flow includes detailed care fields before creating the pet", () => {
+test("new pet flow keeps only lightweight optional context before creating the pet", () => {
   const source = read("app/onboarding/page.tsx");
-  for (const field of ["Weight", "Current food", "Avoid ingredients", "Monthly care budget", "Main concern"]) assert.match(source, new RegExp(field));
+  for (const field of ["Weight", "Anything else?"]) assert.match(source, new RegExp(field.replace(/[?]/g, "\\?")));
+  for (const removed of ["Current food", "Avoid ingredients", "Monthly care budget", "Main concern"]) assert.doesNotMatch(source, new RegExp(`Field label="${removed}"`));
   assert.match(source, /species[\s\S]*name[\s\S]*ageValue[\s\S]*weightValue/);
   assert.doesNotMatch(source, /PhotoStep|Choose photo/);
 });
