@@ -53,7 +53,7 @@ test("one shared mobile clearance covers every requested app surface", () => {
   assert.match(css, /\.app-mobile-nav-clearance \{\s*padding-bottom: var\(--mobile-nav-clearance\);/);
   assert.match(appPage, /<main className="app-mobile-nav-clearance/);
   for (const source of [today, pets, history, ask, products, account]) assert.match(source, /<AppPage/);
-  assert.match(homepage, /app-mobile-nav-clearance/);
+  assert.doesNotMatch(homepage, /app-mobile-nav-clearance/);
 });
 
 test("Pets actions, Ask composer, and overflow all clear the bottom navigation", () => {

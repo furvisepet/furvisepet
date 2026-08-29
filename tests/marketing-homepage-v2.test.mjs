@@ -8,18 +8,34 @@ const homepage = read("app/components/homepage-client.tsx");
 const css = read("app/globals.css");
 const seo = read("app/lib/seo.ts");
 const page = read("app/page.tsx");
+const appChrome = read("app/components/authenticated-app-chrome.tsx");
+const signedInHeader = read("app/components/signed-in-header.tsx");
 
-test("anonymous marketing header is restrained, accessible, and brand-canonical", () => {
+test("one restrained marketing header owns every homepage auth state", () => {
   const header = homepage.slice(homepage.indexOf("function PublicMarketingHeader"), homepage.indexOf("function Hero("));
+  const renderedHomepage = homepage.slice(homepage.indexOf("export function HomepageClient"), homepage.indexOf("function PublicMarketingHeader"));
   assert.match(header, /data-ui="public-marketing-header"/);
   assert.match(header, /min-h-\[4\.25rem\][\s\S]*sm:min-h-\[4\.5rem\]/);
   assert.match(header, /<BrandMark priority size=\{26\}/);
   assert.match(header, /--brand-mark-size:1\.625rem[\s\S]*--brand-mark-size:1\.75rem/);
   assert.match(header, /aria-label="Furvise home"/);
   assert.match(header, /min-h-11 min-w-11/);
-  assert.match(header, /href="\/login">Sign in/);
-  assert.match(header, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
-  assert.doesNotMatch(header, /Today|Pets|History|Ask|Products|Account|hamburger/i);
+  assert.match(renderedHomepage, /<PublicMarketingHeader mode=\{mode\} \/>/);
+  assert.equal((homepage.match(/<BrandMark priority size=\{26\}/g) || []).length, 1);
+  assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|APP_NAV_ITEMS|app-mobile-nav-clearance/);
+});
+
+test("homepage header actions personalize without replacing header geometry", () => {
+  const actions = homepage.slice(homepage.indexOf("function HomepageHeaderActions"), homepage.indexOf("function Hero("));
+  assert.match(actions, /const actionRegionClass = "flex h-12 w-\[11\.5rem\][\s\S]*sm:w-\[13rem\]/);
+  assert.match(actions, /mode === "loading"[\s\S]*className=\{actionRegionClass\}/);
+  assert.match(actions, /href="\/login">Sign in/);
+  assert.match(actions, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
+  assert.match(actions, /mode === "with-pet" \|\| mode === "no-pets"/);
+  assert.match(actions, /href="\/account">Account/);
+  assert.match(actions, /mode === "with-pet" \? "\/dashboard" : NEW_PET_ONBOARDING_PATH/);
+  assert.match(actions, /mode === "with-pet" \? "Go to Today" : "Add your pet"/);
+  assert.doesNotMatch(actions, />Pets<|>History<|>Ask<|>Products<|APP_NAV_ITEMS|hamburger/i);
 });
 
 test("public hero states the exact continuity promise with one dominant action", () => {
@@ -87,10 +103,11 @@ test("responsive hierarchy is one-column first and touch-safe", () => {
 });
 
 test("signed-in routing and SEO authority remain intact", () => {
-  assert.match(homepage, /<SignedInHeader variant="homepage" \/>/);
   assert.match(homepage, /activePetsOnly\(profiles\)/);
   assert.match(homepage, /mode === "with-pet"[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*NEW_PET_ONBOARDING_PATH/);
+  assert.match(appChrome, /return <SignedInHeader \/>/);
+  assert.match(signedInHeader, /<AppHeader/);
   assert.match(page, /createPublicPageMetadata[\s\S]*path: "\/"/);
   assert.match(page, /"@type": "WebSite"[\s\S]*"@type": "Organization"/);
   assert.match(page, /brand\/furvise-logo\.svg/);

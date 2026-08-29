@@ -34,10 +34,11 @@ test("all account flows remain wired through the shared access shell", () => {
   for (const source of [login, forgot, update]) assert.match(source, /AccountAccessLayout/);
 });
 
-test("authenticated homepage and application use the same primary navigation", () => {
+test("application navigation stays in the app shell and out of the marketing homepage", () => {
   const primary = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   for (const destination of ["Today", "Pets", "History", "Ask", "Products"]) assert.match(primary, new RegExp(`label: "${destination}"`));
-  assert.match(homepage, /<SignedInHeader variant="homepage" \/>/);
+  assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|APP_NAV_ITEMS/);
+  assert.match(homepage, /<PublicMarketingHeader mode=\{mode\} \/>/);
   assert.match(header, /resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);
   assert.doesNotMatch(header, />Appearance<|openAppearance/);
   assert.match(header, />Account</);
