@@ -89,8 +89,10 @@ test("onboarding stays focused, suppresses app navigation, and removes photo upl
   assert.doesNotMatch(page, /<AppPage|<SignedInHeader|MobileBottomNavigation/);
   assert.doesNotMatch(page, /Choose photo|PhotoStep|readPhotoFile|saveLocalPhoto/);
   assert.match(page, /Create \{name\}&apos;s profile/);
+  assert.match(page, /See what Furvise knows about \{pet\.name\}/);
+  assert.match(page, /Ask Furvise/);
   assert.match(page, /Go to Today/);
-  assert.match(page, /View \{pet\.name\}&apos;s profile/);
+  assert.doesNotMatch(page, /View \{pet\.name\}&apos;s profile/);
   for (const forbidden of ["Start free trial", "Enable notifications", "Get recommendations", "Analyze profile"]) {
     assert.doesNotMatch(page, new RegExp(forbidden, "i"));
   }
