@@ -148,10 +148,12 @@ test("protected page loading paths no longer render signed-out error copy", () =
 
 test("signed-in onboarding restores and renders instead of redirecting to login", () => {
   const source = read("app/onboarding/page.tsx");
+  const surface = read("app/onboarding/onboarding-surface.tsx");
 
   assert.match(source, /if \(status !== "signedIn" \|\| !user\) return;/);
   assert.match(source, /setDraftState\(\{ draft: savedDraft, id: draftId \}\)/);
-  assert.match(source, /data-ui="quick-start-onboarding-shell"/);
+  assert.match(source, /<OnboardingViewport>/);
+  assert.match(surface, /data-ui="quick-start-onboarding-shell"/);
 });
 
 test("redirect guards fire once to prevent login onboarding ping-pong", () => {

@@ -11,20 +11,23 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 test("onboarding remains exactly four steps", () => {
   const source = read("app/onboarding/page.tsx");
-  assert.match(source, /Step \{step \+ 1\} of 4/);
-  assert.match(source, /grid-cols-4/);
+  const surface = read("app/onboarding/onboarding-surface.tsx");
+  assert.match(surface, /`Step \$\{step \+ 1\} of 4`/);
+  assert.match(surface, /grid-cols-4/);
   assert.doesNotMatch(source, /Step 5|of 5|grid-cols-5/);
 });
 
-test("post-create renders one auth-style success card without the onboarding header", () => {
+test("post-create uses the same stable onboarding surface as every step", () => {
   const source = read("app/onboarding/page.tsx");
+  const surface = read("app/onboarding/onboarding-surface.tsx");
   const activation = source.slice(source.indexOf("function PostCreateActivation"), source.indexOf("function ResumeChoice"));
-  assert.match(activation, /onboarding-success-shell/);
-  assert.match(activation, /min-h-\[100svh\][\s\S]*items-center justify-center/);
-  assert.match(activation, /data-ui="post-create-success-card"/);
-  assert.match(activation, /max-w-\[500px\][\s\S]*shadow-\[var\(--shadow-surface-1\)\][\s\S]*sm:rounded-3xl/);
-  assert.match(activation, /<BrandMark priority showName=\{false\} size=\{30\}/);
-  assert.doesNotMatch(activation, /<OnboardingShell|<header|furvise-wordmark|showName=\{true\}/);
+  assert.match(activation, /<OnboardingViewport><OnboardingSurface/);
+  assert.match(activation, /complete/);
+  assert.match(activation, /state="success"/);
+  assert.match(surface, /max-w-\[780px\]/);
+  assert.match(surface, /shadow-\[var\(--shadow-surface-1\)\]/);
+  assert.match(surface, /<BrandMark[^>]*showName=\{false\}[^>]*size=\{30\}/);
+  assert.doesNotMatch(activation, /max-w-\[500px\]|post-create-success-card|<header|furvise-wordmark|showName=\{true\}/);
 });
 
 test("success copy and routes form one focused activation", () => {

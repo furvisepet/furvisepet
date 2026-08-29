@@ -44,7 +44,8 @@ test("pet-limit screen is calm and never restarts onboarding", () => {
 
 test("Quick Start has four focused steps with a simplified optional review", () => {
   const page = read("app/onboarding/page.tsx");
-  assert.match(page, /Step \{step \+ 1\} of 4/);
+  const surface = read("app/onboarding/onboarding-surface.tsx");
+  assert.match(surface, /`Step \$\{step \+ 1\} of 4`/);
   for (const copy of ["Who are we setting up?", "Tell us about your pet", "Anything Furvise should know?", "Finish setting up"]) assert.match(page, new RegExp(copy.replace(/[?]/g, "\\?")));
   assert.doesNotMatch(page, /Field label="Monthly care budget"|Field label="Avoid ingredients"/);
   assert.doesNotMatch(page, /PhotoStep|Choose photo/);

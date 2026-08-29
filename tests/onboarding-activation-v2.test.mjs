@@ -11,8 +11,9 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 test("onboarding keeps exactly four focused steps", () => {
   const source = read("app/onboarding/page.tsx");
-  assert.match(source, /Step \{step \+ 1\} of 4/);
-  assert.match(source, /grid-cols-4/);
+  const surface = read("app/onboarding/onboarding-surface.tsx");
+  assert.match(surface, /`Step \$\{step \+ 1\} of 4`/);
+  assert.match(surface, /grid-cols-4/);
   assert.deepEqual(["SpeciesStep", "BasicDetailsStep", "OptionalContextStep", "ReviewStep"].map((name) => source.includes(`function ${name}`)), [true, true, true, true]);
   assert.doesNotMatch(source, /Step 5|of 5|grid-cols-5/);
 });

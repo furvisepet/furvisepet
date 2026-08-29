@@ -9,8 +9,9 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 test("Quick Start keeps exactly four focused steps and requires species", () => {
   const source = read("app/onboarding/page.tsx");
-  assert.match(source, /Step \{step \+ 1\} of 4/);
-  assert.match(source, /\{\[0, 1, 2, 3\]\.map/);
+  const surface = read("app/onboarding/onboarding-surface.tsx");
+  assert.match(surface, /`Step \$\{step \+ 1\} of 4`/);
+  assert.match(surface, /\{\[0, 1, 2, 3\]\.map/);
   assert.doesNotMatch(source, /Step .* of 5/);
   assert.match(source, /draft\.step === 0 \? Boolean\(draft\.species\)/);
   assert.match(source, /disabled=\{!canContinue\}/);
@@ -22,12 +23,12 @@ test("Quick Start keeps exactly four focused steps and requires species", () => 
 
 test("shared focused widths constrain onboarding and Today without touching wide profiles", () => {
   const primitives = read("app/components/product-primitives.tsx");
-  const onboarding = read("app/onboarding/page.tsx");
+  const onboardingSurface = read("app/onboarding/onboarding-surface.tsx");
   const today = read("app/dashboard/page.tsx");
   assert.match(primitives, /focusedFormLayout = "w-full max-w-\[640px\]"/);
   assert.match(primitives, /todayPrimaryLayout = "w-full"/);
   assert.match(primitives, /today: "w-full"/);
-  assert.match(onboarding, /max-w-\[840px\]/);
+  assert.match(onboardingSurface, /max-w-\[780px\]/);
   assert.match(today, /data-ui="today-primary-content"/);
   assert.doesNotMatch(read("app/pets/[id]/page.tsx"), /todayPrimaryLayout|focusedFormLayout/);
 });
@@ -102,12 +103,13 @@ test("saved pet photos remain supported while onboarding omits the species masco
 
 test("completion copy, mobile clearance, and established routes remain intact", () => {
   const onboarding = read("app/onboarding/page.tsx");
+  const surface = read("app/onboarding/onboarding-surface.tsx");
   assert.match(onboarding, />\{pet\.name\} is ready<\/h1>/);
   assert.match(onboarding, /Ask Furvise about \{pet\.name\}/);
   assert.match(onboarding, /Go to Today/);
   assert.match(onboarding, /const todayHref = `\/dashboard\?pet=/);
   assert.match(onboarding, /`\/ask\?pet=.*&from=onboarding`/);
-  assert.match(onboarding, /safe-area-inset-bottom/);
+  assert.match(surface, /safe-area-inset-bottom/);
   assert.doesNotMatch(onboarding, /MobileBottomNavigation|SignedInHeader/);
   assert.match(read("app/components/app-page.tsx"), /app-mobile-nav-clearance/);
 });
