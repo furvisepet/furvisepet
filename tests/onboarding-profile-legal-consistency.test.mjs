@@ -68,9 +68,10 @@ test("blank onboarding optional fields remain nullable-compatible", () => {
 
 test("onboarding has exactly four requested content steps and no photo upload", async () => {
   const source = await read("app/onboarding/page.tsx");
+  const surface = await read("app/onboarding/onboarding-surface.tsx");
   for (const component of ["SpeciesStep", "BasicDetailsStep", "OptionalContextStep", "ReviewStep"]) assert.match(source, new RegExp(`function ${component}`));
   assert.doesNotMatch(source, /PhotoStep|Choose photo|type="file"|saveLocalPhoto/);
-  assert.match(source, /Step \{step \+ 1\} of 4/);
+  assert.match(surface, /`Step \$\{step \+ 1\} of 4`/);
 });
 
 test("dog and cat onboarding no longer renders standalone cartoon PNGs", async () => {
@@ -97,15 +98,17 @@ test("pet creation performs one canonical profile write and keeps failed draft s
 });
 
 test("onboarding is centered, overflow-safe, and uses the restrained heron mark", async () => {
-  const [source, css] = await Promise.all([read("app/onboarding/page.tsx"), read("app/globals.css")]);
-  assert.match(source, /max-w-\[840px\]/); assert.match(source, /mx-auto/); assert.match(source, /overflow-x-hidden/);
-  assert.match(source, /onboarding-brand/); assert.match(source, /showName=\{false\}/); assert.match(css, /--brand-mark-size: 30px/);
-  assert.doesNotMatch(source.slice(source.indexOf("function OnboardingShell")), /border-b/);
+  const [source, surface] = await Promise.all([read("app/onboarding/page.tsx"), read("app/onboarding/onboarding-surface.tsx")]);
+  assert.match(surface, /max-w-\[780px\]/); assert.match(surface, /place-items-center/); assert.match(surface, /overflow-x-hidden/);
+  assert.match(surface, /onboarding-brand/); assert.match(surface, /showName=\{false\}/); assert.match(surface, /--brand-mark-size:1\.875rem/);
+  assert.doesNotMatch(surface, /<header|border-b/);
+  assert.match(source, /<OnboardingSurface/);
 });
 
 test("post-create activation is centered and uses consistent bounded actions", async () => {
   const source = await read("app/onboarding/page.tsx");
-  assert.match(source, /onboarding-success-shell/); assert.match(source, /items-center justify-center/); assert.match(source, /max-w-\[500px\]/);
+  const surface = await read("app/onboarding/onboarding-surface.tsx");
+  assert.match(source, /<OnboardingViewport><OnboardingSurface/); assert.match(surface, /place-items-center/); assert.match(surface, /max-w-\[780px\]/);
   assert.match(source, />\{pet\.name\} is ready<\/h1>/);
   assert.match(source, />Ask Furvise about \{pet\.name\}<\/PrimaryButton>/);
 });

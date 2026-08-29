@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { BrandMark } from "../components/brand-mark";
 import { PetLimitScreen } from "../components/pet-limit-screen";
 import { Notice, PrimaryButton, SecondaryButton, TextButton } from "../components/product-primitives";
 import { normalizeAddPetName, isValidAddPetName, validateApproximatePetAge } from "../lib/add-pet-validation";
@@ -19,6 +17,7 @@ import { resolvePetCreationAccessForUser, type PetCreationAccess } from "../lib/
 import { initialProfile, normalizeAvoidIngredientValues, type PetProfile } from "../lib/petwise";
 import { isPetLimitReachedError, PROFILE_ID_STORAGE_KEY, savePetProfileForUser } from "../lib/supabase";
 import { buildOnboardingInitializationKey } from "./initialization-key";
+import { OnboardingFooter, OnboardingSurface, OnboardingViewport } from "./onboarding-surface";
 import { getWeightPlausibilityWarning } from "./weight-warning";
 
 type StepProps = { draft: AddPetDraftV2; headingRef: RefObject<HTMLHeadingElement | null>; update: (values: Partial<AddPetDraftV2>) => void };
@@ -95,13 +94,13 @@ function OnboardingGate() {
   }, [initializationKey]);
 
   if (access && !access.allowed) return <PetLimitScreen access={access} />;
-  if (error) return <OnboardingShell><Notice tone="warning">{error}</Notice></OnboardingShell>;
+  if (error) return <OnboardingViewport><Notice tone="warning">{error}</Notice></OnboardingViewport>;
   if (resumeId && user) return <ResumeChoice
     onCancel={() => router.replace("/pets")}
     onResume={() => router.replace(`/onboarding?mode=quick-start&draft=${encodeURIComponent(resumeId)}`)}
     onStartOver={() => { clearNewPetOnboardingState({ localStorage: window.localStorage, sessionStorage: window.sessionStorage }, user.id); const fresh = beginAddPetDraft(window.localStorage, user.id); router.replace(`/onboarding?mode=quick-start&draft=${encodeURIComponent(fresh.id)}`); }}
   />;
-  if (!draftState || !user) return <OnboardingShell><p className="py-12 text-center text-[var(--text-secondary)]">Preparing pet setup...</p></OnboardingShell>;
+  if (!draftState || !user) return <OnboardingViewport><p className="py-12 text-center text-[var(--text-secondary)]">Preparing pet setup...</p></OnboardingViewport>;
   return <AddPetFlow draftId={draftState.id} initialDraft={draftState.draft} onBlocked={(next) => { setAccess(next); setDraftState(null); }} user={user} />;
 }
 
@@ -111,7 +110,7 @@ function AddPetFlow({ draftId, initialDraft, onBlocked, user }: { draftId: strin
   const [savedPet, setSavedPet] = useState<PostCreatePet | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const stepContainerRef = useRef<HTMLDivElement>(null);
+  const stepContentRef = useRef<HTMLDivElement>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const previousStepRef = useRef<AddPetDraftV2["step"]>(initialDraft.step);
 
@@ -120,9 +119,8 @@ function AddPetFlow({ draftId, initialDraft, onBlocked, user }: { draftId: strin
     if (previousStepRef.current === draft.step) return;
     previousStepRef.current = draft.step;
     const frame = window.requestAnimationFrame(() => {
-      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       stepHeadingRef.current?.focus({ preventScroll: true });
-      stepContainerRef.current?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+      stepContentRef.current?.scrollTo({ behavior: "auto", top: 0 });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [draft.step]);
@@ -179,7 +177,7 @@ function AddPetFlow({ draftId, initialDraft, onBlocked, user }: { draftId: strin
   if (savedPet) return <PostCreateActivation pet={savedPet} />;
   const ageIsValid = !draft.ageValue.trim() || !validateApproximatePetAge(draft.ageValue, draft.ageUnit, draft.ageUnknown);
   const canContinue = draft.step === 0 ? Boolean(draft.species) : draft.step === 1 ? isValidAddPetName(draft.name) && ageIsValid : true;
-  return <OnboardingShell>
+  return <OnboardingViewport>
     <OnboardingStepShell
       canContinue={canContinue}
       cancel={cancel}
@@ -190,7 +188,7 @@ function AddPetFlow({ draftId, initialDraft, onBlocked, user }: { draftId: strin
       name={normalizeAddPetName(draft.name)}
       saving={saving}
       step={draft.step}
-      stepContainerRef={stepContainerRef}
+      stepContentRef={stepContentRef}
     >
       {draft.step === 0 ? <SpeciesStep draft={draft} headingRef={stepHeadingRef} update={update} /> : null}
       {draft.step === 1 ? <BasicDetailsStep draft={draft} headingRef={stepHeadingRef} update={update} /> : null}
@@ -198,28 +196,29 @@ function AddPetFlow({ draftId, initialDraft, onBlocked, user }: { draftId: strin
       {draft.step === 3 ? <ReviewStep draft={draft} edit={(step) => update({ step })} headingRef={stepHeadingRef} /> : null}
       {error ? <div className="mt-5"><Notice tone="warning">{error}</Notice></div> : null}
     </OnboardingStepShell>
-  </OnboardingShell>;
+  </OnboardingViewport>;
 }
 
-function OnboardingStepShell({ canContinue, cancel, children, continueFromCurrent, createPet, goBack, headingId, name, saving, step, stepContainerRef }: {
+function OnboardingStepShell({ canContinue, cancel, children, continueFromCurrent, createPet, goBack, headingId, name, saving, step, stepContentRef }: {
   canContinue: boolean; cancel: () => void; children: React.ReactNode; continueFromCurrent: () => void; createPet: () => void;
-  goBack: () => void; headingId: string; name: string; saving: boolean; step: AddPetDraftV2["step"]; stepContainerRef: RefObject<HTMLDivElement | null>;
+  goBack: () => void; headingId: string; name: string; saving: boolean; step: AddPetDraftV2["step"]; stepContentRef: RefObject<HTMLDivElement | null>;
 }) {
-  return <div aria-labelledby={headingId} className="scroll-mt-24" data-onboarding-step={step + 1} ref={stepContainerRef}>
-    <Progress step={step} />
-    <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface-primary)] shadow-[var(--shadow-surface-1)]">
-      <div className="min-h-[20rem] p-6 sm:p-10">{children}</div>
-      <div className="z-10 border-t border-[var(--line)] bg-[var(--surface-primary)] px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 sm:sticky sm:bottom-0 sm:px-10 sm:pb-5">
-        {step === 3
-          ? <PrimaryButton className={`w-full ${onboardingPrimaryClass}`} disabled={saving} loading={saving} onClick={createPet} type="button">Create {name}&apos;s profile</PrimaryButton>
-          : <PrimaryButton className={`w-full ${onboardingPrimaryClass}`} disabled={!canContinue} onClick={continueFromCurrent} type="button">Continue</PrimaryButton>}
-        <div className={`mt-2 flex min-h-11 items-center ${step > 0 ? "justify-between" : "justify-center"}`}>
-          {step > 0 ? <TextButton className="min-h-11 px-4" disabled={saving} onClick={goBack} type="button">Back</TextButton> : null}
-          <TextButton className="min-h-11 px-4" disabled={saving} onClick={cancel} type="button">Cancel</TextButton>
-        </div>
-      </div>
-    </div>
-  </div>;
+  return <OnboardingSurface
+    contentRef={stepContentRef}
+    footer={<OnboardingFooter
+      primary={step === 3
+        ? <PrimaryButton className={`w-full ${onboardingPrimaryClass}`} disabled={saving} loading={saving} onClick={createPet} type="button">Create {name}&apos;s profile</PrimaryButton>
+        : <PrimaryButton className={`w-full ${onboardingPrimaryClass}`} disabled={!canContinue} onClick={continueFromCurrent} type="button">Continue</PrimaryButton>}
+      secondary={<div className={`flex min-h-11 items-center ${step > 0 ? "justify-between" : "justify-center"}`}>
+        {step > 0 ? <TextButton className="min-h-11 px-4" disabled={saving} onClick={goBack} type="button">Back</TextButton> : null}
+        <TextButton className="min-h-11 px-4" disabled={saving} onClick={cancel} type="button">Cancel</TextButton>
+      </div>}
+    />}
+    headingId={headingId}
+    step={step}
+  >
+    {children}
+  </OnboardingSurface>;
 }
 
 function SpeciesStep({ draft, headingRef, update }: StepProps) {
@@ -240,13 +239,13 @@ function BasicDetailsStep({ draft, headingRef, update }: StepProps) {
   const petName = normalizeAddPetName(draft.name);
   return <section aria-labelledby="basic-heading">
     <StepHeading heading={petName ? `Tell us about ${petName}` : "Tell us about your pet"} headingRef={headingRef} id="basic-heading" step={2} />
-    <div className="mt-6 grid gap-4">
+    <div className="mt-5 grid gap-3">
       <Field label="Name" required><input aria-label="Name" className={fieldClass} maxLength={80} onChange={(event) => update({ name: event.target.value })} value={draft.name} /></Field>
-      <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
-        <Field label="Age"><div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-2"><input aria-label="Age" className={fieldClass} disabled={draft.ageUnknown} inputMode="decimal" onChange={(event) => update({ ageValue: event.target.value })} value={draft.ageValue} /><select aria-label="Age unit" className={fieldClass} disabled={draft.ageUnknown} onChange={(event) => update({ ageUnit: event.target.value === "months" ? "months" : "years" })} value={draft.ageUnit}><option value="months">Months</option><option value="years">Years</option></select></div><InlineUnknownChoice checked={draft.ageUnknown} onChange={(checked) => update({ ageUnknown: checked })} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2 sm:items-start">
+        <Field label="Age"><div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-2"><input aria-label="Age" className={fieldClass} disabled={draft.ageUnknown} inputMode="decimal" onChange={(event) => update({ ageValue: event.target.value })} value={draft.ageValue} /><select aria-label="Age unit" className={fieldClass} disabled={draft.ageUnknown} onChange={(event) => update({ ageUnit: event.target.value === "months" ? "months" : "years" })} value={draft.ageUnit}><option value="months">Months</option><option value="years">Years</option></select></div><InlineUnknownChoice checked={draft.ageUnknown} onChange={(checked) => update({ ageUnknown: checked })} /></div></Field>
         <Field label="Sex"><div className="grid grid-cols-3 gap-2">{(["female", "male", "not_sure"] as const).map((sex) => <OptionButton key={sex} label={sex === "not_sure" ? "Not sure" : title(sex)} onClick={() => update({ sex })} selected={draft.sex === sex} />)}</div></Field>
       </div>
-      <Field label="Breed"><input aria-label="Breed" className={fieldClass} disabled={draft.breedUnknown} onChange={(event) => update({ breed: event.target.value })} value={draft.breed} /><InlineUnknownChoice checked={draft.breedUnknown} onChange={(checked) => update({ breedUnknown: checked })} /></Field>
+      <Field label="Breed"><div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><input aria-label="Breed" className={fieldClass} disabled={draft.breedUnknown} onChange={(event) => update({ breed: event.target.value })} value={draft.breed} /><InlineUnknownChoice checked={draft.breedUnknown} onChange={(checked) => update({ breedUnknown: checked })} /></div></Field>
     </div>
   </section>;
 }
@@ -306,8 +305,6 @@ function StepHeading({ heading, headingRef, id, step }: { heading: string; headi
 function Field({ children, label, required = false }: { children: React.ReactNode; label: string; required?: boolean }) { return <div className="grid min-w-0 gap-1.5"><span className="text-sm font-semibold">{label}{required ? <span className="sr-only"> required</span> : null}</span>{children}</div>; }
 function InlineUnknownChoice({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) { return <label className="inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 text-sm font-medium text-[var(--text-secondary)]"><input checked={checked} className="h-5 w-5 shrink-0" onChange={(event) => onChange(event.target.checked)} type="checkbox" /><span>Not sure</span></label>; }
 function OptionButton({ label, onClick, selected }: { label: string; onClick: () => void; selected: boolean }) { return <button aria-pressed={selected} className={`min-h-11 min-w-0 rounded-[var(--radius-md)] border px-3 py-2 text-sm font-semibold ${selected ? "border-[var(--border-strong)] bg-[var(--selected-background)]" : "border-[var(--line)] bg-[var(--surface-primary)]"}`} onClick={onClick} type="button">{label}</button>; }
-function Progress({ step }: { step: AddPetDraftV2["step"] }) { return <div aria-label={`Step ${step + 1} of 4`} className="flex w-full items-center gap-3"><span className="shrink-0 text-xs font-semibold text-[var(--text-secondary)]">Step {step + 1} of 4</span><div aria-valuemax={4} aria-valuemin={1} aria-valuenow={step + 1} className="grid flex-1 grid-cols-4 gap-1" role="progressbar">{[0, 1, 2, 3].map((index) => <span aria-hidden="true" className={`h-1.5 rounded-full ${index <= step ? "bg-[var(--selection-strong)]" : "bg-[var(--line)]"}`} key={index} />)}</div></div>; }
-
 function PostCreateActivation({ pet }: { pet: PostCreatePet }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useLayoutEffect(() => {
@@ -318,14 +315,18 @@ function PostCreateActivation({ pet }: { pet: PostCreatePet }) {
   }, []);
   const todayHref = `/dashboard?pet=${encodeURIComponent(pet.id)}`;
   const askHref = `/ask?pet=${encodeURIComponent(pet.id)}&from=onboarding`;
-  return <main className="onboarding-success-shell flex min-h-[100svh] w-full items-center justify-center overflow-x-hidden bg-[var(--surface-page)] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] pt-[max(0.75rem,env(safe-area-inset-top,0px))] text-[var(--text-primary)] sm:p-12" data-post-create-state="success"><section className="w-full max-w-[500px] rounded-[1.75rem] border border-[var(--line)] bg-[var(--surface-primary)] px-6 py-10 text-center shadow-[var(--shadow-surface-1)] sm:rounded-3xl sm:px-10 sm:py-12" data-ui="post-create-success-card"><div className="flex justify-center" data-ui="post-create-success-brand"><span className="inline-flex [--brand-mark-size:1.875rem] sm:[--brand-mark-size:2rem]"><BrandMark priority showName={false} size={30} /></span></div><h1 className="mt-6 break-words text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] outline-none sm:text-[2.375rem]" ref={headingRef} tabIndex={-1}>{pet.name} is ready</h1><p className="mx-auto mt-3 max-w-sm text-base leading-7 text-[var(--text-secondary)]">Start with a question. Furvise will use what you shared.</p><div className="mx-auto mt-8 grid w-full max-w-[420px] gap-3"><PrimaryButton className={onboardingPrimaryClass} href={askHref}>Ask Furvise about {pet.name}</PrimaryButton><TextButton className="min-h-11" href={todayHref}>Go to Today</TextButton></div></section></main>;
+  return <OnboardingViewport><OnboardingSurface
+    complete
+    footer={<OnboardingFooter
+      primary={<PrimaryButton className={`w-full ${onboardingPrimaryClass}`} href={askHref}>Ask Furvise about {pet.name}</PrimaryButton>}
+      secondary={<div className="flex min-h-11 items-center justify-center"><TextButton className="min-h-11 px-4" href={todayHref}>Go to Today</TextButton></div>}
+    />}
+    headingId="onboarding-success-heading"
+    state="success"
+  ><div className="flex min-h-full flex-col justify-center text-center" data-ui="post-create-success-content"><h1 className="break-words text-[2rem] font-semibold leading-[1.08] tracking-[-0.035em] outline-none sm:text-[2.375rem]" id="onboarding-success-heading" ref={headingRef} tabIndex={-1}>{pet.name} is ready</h1><p className="mx-auto mt-3 max-w-sm text-base leading-7 text-[var(--text-secondary)]">Start with a question. Furvise will use what you shared.</p></div></OnboardingSurface></OnboardingViewport>;
 }
 
-function ResumeChoice({ onCancel, onResume, onStartOver }: { onCancel: () => void; onResume: () => void; onStartOver: () => void }) { return <OnboardingShell><section className="mx-auto max-w-[700px] rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface-primary)] p-6 sm:p-8"><h1 className="text-3xl font-bold">Resume pet setup?</h1><p className="mt-3 text-[var(--text-secondary)]">An unfinished setup is saved on this device.</p><div className="mt-7 grid gap-2"><PrimaryButton className={onboardingPrimaryClass} onClick={onResume} type="button">Resume setup</PrimaryButton><SecondaryButton onClick={onStartOver} type="button">Start over</SecondaryButton><TextButton onClick={onCancel} type="button">Cancel</TextButton></div></section></OnboardingShell>; }
-
-function OnboardingShell({ children }: { children: React.ReactNode }) {
-  return <div className="onboarding-shell min-h-dvh w-full overflow-x-hidden bg-[var(--surface-page)] text-[var(--text-primary)]" data-ui="quick-start-onboarding-shell"><header className="bg-[var(--surface-page)] pt-[env(safe-area-inset-top)]"><div className="mx-auto flex min-h-14 w-full max-w-[840px] items-center justify-center px-5 sm:px-8"><Link aria-label="Furvise home" className="flex min-h-11 min-w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]" href="/"><BrandMark className="onboarding-brand" priority showName={false} size={30} /></Link></div></header><main className="mx-auto w-full max-w-[840px] px-5 pb-12 pt-6 sm:px-10 sm:pb-12 sm:pt-8">{children}</main></div>;
-}
+function ResumeChoice({ onCancel, onResume, onStartOver }: { onCancel: () => void; onResume: () => void; onStartOver: () => void }) { return <OnboardingViewport><section className="mx-auto max-w-[700px] rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface-primary)] p-6 sm:p-8"><h1 className="text-3xl font-bold">Resume pet setup?</h1><p className="mt-3 text-[var(--text-secondary)]">An unfinished setup is saved on this device.</p><div className="mt-7 grid gap-2"><PrimaryButton className={onboardingPrimaryClass} onClick={onResume} type="button">Resume setup</PrimaryButton><SecondaryButton onClick={onStartOver} type="button">Start over</SecondaryButton><TextButton onClick={onCancel} type="button">Cancel</TextButton></div></section></OnboardingViewport>; }
 
 function hasEnteredDetails(draft: AddPetDraftV2) { return Boolean(draft.species || draft.name.trim() || draft.ageValue || draft.breed || draft.weightValue || draft.currentFood || draft.mainConcern || draft.avoidIngredients.length || draft.avoidIngredientsNoneKnown || draft.monthlyBudget || draft.routineNote); }
 function title(value: string) { return value ? value[0].toUpperCase() + value.slice(1) : value; }

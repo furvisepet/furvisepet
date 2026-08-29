@@ -11,7 +11,7 @@ test("step transitions alone trigger deferred focus and scroll reset", async () 
   assert.match(source, /previousStepRef\.current === draft\.step/);
   assert.match(source, /requestAnimationFrame/);
   assert.match(source, /stepHeadingRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
-  assert.match(source, /stepContainerRef\.current\?\.scrollIntoView/);
+  assert.match(source, /stepContentRef\.current\?\.scrollTo\(\{ behavior: "auto", top: 0 \}\)/);
   assert.match(source, /\}, \[draft\.step\]\)/);
   assert.doesNotMatch(source, /\[draft, draft\.step\]/);
 });
@@ -23,11 +23,11 @@ test("draft hydration and field updates do not create an initial scroll", async 
   assert.doesNotMatch(source, /function update[\s\S]{0,240}scrollIntoView/);
 });
 
-test("reduced motion and sticky-header offset are respected", async () => {
-  const source = await read("app/onboarding/page.tsx");
-  assert.match(source, /prefers-reduced-motion: reduce/);
-  assert.match(source, /reduceMotion \? "auto" : "smooth"/);
-  assert.match(source, /scroll-mt-24/);
+test("step focus reset uses no motion and keeps the content offset", async () => {
+  const [source, surface] = await Promise.all([read("app/onboarding/page.tsx"), read("app/onboarding/onboarding-surface.tsx")]);
+  assert.match(source, /scrollTo\(\{ behavior: "auto", top: 0 \}\)/);
+  assert.doesNotMatch(source, /behavior: "smooth"|scrollIntoView/);
+  assert.match(surface, /scroll-mt-24/);
 });
 
 test("every accessible heading announces its numbered step", async () => {
@@ -40,11 +40,13 @@ test("every accessible heading announces its numbered step", async () => {
 
 test("all steps share progress, card, and action shell", async () => {
   const source = await read("app/onboarding/page.tsx");
+  const surface = await read("app/onboarding/onboarding-surface.tsx");
   assert.match(source, /function OnboardingStepShell/);
-  assert.match(source, /<Progress step=\{step\} \/>/);
-  assert.match(source, /data-onboarding-step=\{step \+ 1\}/);
-  assert.match(source, /max-w-\[840px\]/);
-  assert.match(source, /min-h-\[20rem\]/);
+  assert.match(source, /<OnboardingSurface/);
+  assert.match(surface, /<OnboardingProgress complete=\{complete\} step=\{step\} \/>/);
+  assert.match(surface, /data-onboarding-step=\{step === undefined \? undefined : step \+ 1\}/);
+  assert.match(surface, /max-w-\[780px\]/);
+  assert.match(surface, /grid-rows-\[auto_auto_minmax\(0,1fr\)_auto\]/);
 });
 
 test("step two uses a compact responsive details grid", async () => {
@@ -52,7 +54,7 @@ test("step two uses a compact responsive details grid", async () => {
   const step = source.slice(source.indexOf("function BasicDetailsStep"), source.indexOf("function OptionalContextStep"));
   assert.match(step, /sm:grid-cols-2/);
   assert.match(step, /Name/); assert.match(step, /Age/); assert.match(step, /Sex/); assert.match(step, /Breed/);
-  assert.match(step, /mt-6 grid gap-4/);
+  assert.match(step, /mt-5 grid gap-3/);
 });
 
 test("step three keeps weight and one optional note", async () => {
@@ -76,9 +78,11 @@ test("review uses populated simplified groups with one edit action each", async 
 
 test("one responsive footer keeps a dominant action and paired secondary actions", async () => {
   const source = await read("app/onboarding/page.tsx");
+  const surface = await read("app/onboarding/onboarding-surface.tsx");
   const shell = source.slice(source.indexOf("function OnboardingStepShell"), source.indexOf("function SpeciesStep"));
-  assert.match(shell, /sm:sticky sm:bottom-0/);
-  assert.match(shell, /safe-area-inset-bottom/);
+  assert.match(shell, /<OnboardingFooter/);
+  assert.match(surface, /data-ui="onboarding-footer"/);
+  assert.match(surface, /data-ui="onboarding-footer-zone"/);
   assert.equal(shell.match(/<PrimaryButton/g)?.length, 2);
   assert.match(shell, /justify-between/);
   assert.match(shell, />Back<\/TextButton>/);
@@ -92,9 +96,11 @@ test("species cartoons are absent across onboarding steps", async () => {
 
 test("post-create states use calm bounded layouts", async () => {
   const source = await read("app/onboarding/page.tsx");
+  const surface = await read("app/onboarding/onboarding-surface.tsx");
   const activation = source.slice(source.indexOf("function PostCreateActivation"), source.indexOf("function ResumeChoice"));
-  assert.match(activation, /max-w-\[500px\]/);
-  assert.match(activation, /items-center justify-center/);
+  assert.match(activation, /<OnboardingViewport><OnboardingSurface/);
+  assert.match(surface, /max-w-\[780px\]/);
+  assert.match(surface, /place-items-center/);
   assert.doesNotMatch(activation, /Image|confetti|Furvise home is ready/);
 });
 
@@ -108,9 +114,9 @@ test("name normalization is stable between steps and safe at review and creation
 });
 
 test("mobile shell remains width bounded without horizontal overflow", async () => {
-  const source = await read("app/onboarding/page.tsx");
-  assert.match(source, /w-full overflow-x-hidden/);
-  assert.match(source, /px-5/);
-  assert.match(source, /min-w-0/);
-  assert.match(source, /w-full/);
+  const [source, surface] = await Promise.all([read("app/onboarding/page.tsx"), read("app/onboarding/onboarding-surface.tsx")]);
+  assert.match(surface, /w-full place-items-center overflow-x-hidden/);
+  assert.match(surface, /max\(0\.75rem,env\(safe-area-inset-left,0px\)\)/);
+  assert.match(surface, /min-w-0/);
+  assert.match(source, /<OnboardingViewport>/);
 });

@@ -13,6 +13,7 @@ const ask = read("app/ask/page.tsx");
 const products = read("app/shop/page.tsx");
 const header = read("app/components/app-header.tsx");
 const onboarding = read("app/onboarding/page.tsx");
+const onboardingSurface = read("app/onboarding/onboarding-surface.tsx");
 const petProfile = read("app/pets/[id]/page.tsx");
 const editProfile = read("app/dogs/[id]/edit/page.tsx");
 const vetBrief = read("app/vet-brief/page.tsx");
@@ -57,7 +58,8 @@ test("Ask keyboard helper uses the intended middle dot without an encoding artif
 });
 
 test("onboarding uses a centered readable form while keeping fields left aligned", () => {
-  assert.match(onboarding, /max-w-\[840px\]/);
+  assert.match(onboardingSurface, /max-w-\[780px\]/);
+  assert.match(onboardingSurface, /place-items-center/);
   assert.match(onboarding, /function OnboardingStepShell/);
   assert.doesNotMatch(onboarding, /text-center[^\n]*BasicDetailsStep/);
 });
