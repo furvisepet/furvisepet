@@ -19,13 +19,13 @@ const mobileNavigation = homepage.slice(homepage.indexOf("const HOMEPAGE_MOBILE_
 const homepageCss = css.slice(css.indexOf(".homepage-dark-world"), css.indexOf(".mobile-liquid-glass-root"));
 const mainStory = homepage.slice(homepage.indexOf('<main className="homepage-dark-world"'), homepage.indexOf("</main>"));
 
-test("homepage uses only the four final supplied editorial illustrations and no product examples", () => {
+test("homepage uses the final corrective art map and no product examples", () => {
   assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow|product-frame|product-example|history-example|ask-context-example|Vet Visit Brief|fake (?:chat|product)|screenshot/i);
   assert.doesNotMatch(homepage, /fetch\(|\/api\/|createConversation|saveConversation|onSubmit=/);
-  for (const asset of ["cat", "deer", "hummingbird", "birds"]) {
+  for (const asset of ["heron", "deer", "cat", "hummingbird"]) {
     assert.equal(homepage.split(`/images/${asset}.png`).length - 1, 1, `${asset} is referenced once`);
   }
-  for (const retiredAsset of ["heron", "flamingo", "goat", "ostrich"]) assert.doesNotMatch(homepage, new RegExp(`/images/${retiredAsset}\\.png`));
+  for (const unusedAsset of ["flamingo", "goat", "ostrich", "birds"]) assert.doesNotMatch(homepage, new RegExp(`/images/${unusedAsset}\\.png`));
   assert.doesNotMatch(mainStory, /<video|<picture|backgroundImage/);
   assert.equal((homepage.match(/<Image/g) || []).length, 5, "the header, footer, mobile navigation, hero, and reusable chapter art use Image");
 });
@@ -33,9 +33,9 @@ test("homepage uses only the four final supplied editorial illustrations and no 
 test("editorial art is decorative, direct on forest, and limited to the approved chapters", () => {
   const hero = homepage.slice(homepage.indexOf("function WhyWeExist"), homepage.indexOf("function StoryChapter"));
   const chapterArt = homepage.slice(homepage.indexOf("function HomepageChapterArt"), homepage.indexOf("function FinalChapter"));
-  assert.match(hero, /homepage-art-cat[\s\S]*data-art="cat"[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*fill priority[\s\S]*src="\/images\/cat\.png"/);
+  assert.match(hero, /homepage-art-heron[\s\S]*data-art="heron"[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*fill priority[\s\S]*src="\/images\/heron\.png"/);
   assert.match(chapterArt, /homepage-art-\$\{art\}[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*loading="lazy"[\s\S]*sizes=\{asset\.sizes\}/);
-  for (const [id, art] of [["the-reality", "deer"], ["one-story", "hummingbird"], ["when-needed", "birds"]]) {
+  for (const [id, art] of [["the-reality", "deer"], ["one-story", "cat"], ["when-needed", "hummingbird"]]) {
     assert.match(renderedHomepage, new RegExp(`art="${art}"[^>]*id="${id}"`));
   }
   for (const id of ["track-less", "bigger-idea"]) {
@@ -49,8 +49,8 @@ test("editorial art is decorative, direct on forest, and limited to the approved
   assert.match(homepageCss, /\.homepage-chapter-art \.homepage-story-art-image \{[\s\S]*object-fit: contain;[\s\S]*object-position: center/);
   assert.doesNotMatch(homepageCss, /object-fit: cover|overflow: clip/);
   assert.doesNotMatch(artCss, /margin-(?:left|right):\s*-/);
-  for (const art of ["cat", "deer", "hummingbird", "birds"]) assert.match(homepageCss, new RegExp(`\\.homepage-art-${art} \\{`));
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter\[data-art="hummingbird"\] \.homepage-story-block \{[\s\S]*order: -1/);
+  for (const art of ["heron", "deer", "cat", "hummingbird"]) assert.match(homepageCss, new RegExp(`\\.homepage-art-${art} \\{`));
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter\[data-art="cat"\] \.homepage-story-block \{[\s\S]*order: -1/);
 });
 
 test("cream header and footer frame one continuous dark main story", () => {

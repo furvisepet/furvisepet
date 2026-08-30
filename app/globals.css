@@ -545,11 +545,11 @@ body {
   justify-self: end;
 }
 
-.homepage-art-cat {
+.homepage-art-heron {
   height: min(82svh, 46rem);
 }
 
-.homepage-art-cat .homepage-story-art-image {
+.homepage-art-heron .homepage-story-art-image {
   object-position: center bottom;
 }
 
@@ -567,21 +567,21 @@ body {
   height: min(72svh, 47.5rem);
 }
 
+.homepage-art-cat {
+  height: min(72svh, 47.5rem);
+}
+
 .homepage-art-hummingbird {
   height: min(44svh, 28rem);
 }
 
-.homepage-art-birds {
-  height: min(54svh, 30rem);
-}
-
 .homepage-story-chapter[data-art="deer"] .homepage-chapter-art,
-.homepage-story-chapter[data-art="birds"] .homepage-chapter-art {
+.homepage-story-chapter[data-art="hummingbird"] .homepage-chapter-art {
   grid-column: 1 / 7;
   justify-self: start;
 }
 
-.homepage-story-chapter[data-art="hummingbird"] .homepage-chapter-art {
+.homepage-story-chapter[data-art="cat"] .homepage-chapter-art {
   grid-column: 7 / 13;
   justify-self: end;
 }
@@ -651,16 +651,12 @@ body {
     grid-column: 7 / 13;
   }
 
-  .homepage-story-chapter[data-art="hummingbird"] .homepage-story-block {
+  .homepage-story-chapter[data-art="cat"] .homepage-story-block {
     grid-column: 1 / 7;
   }
 
-  .homepage-story-chapter[data-art="birds"] .homepage-chapter-art {
-    grid-column: 1 / 8;
-  }
-
-  .homepage-story-chapter[data-art="birds"] .homepage-story-block {
-    grid-column: 8 / 13;
+  .homepage-story-chapter[data-art="hummingbird"] .homepage-story-block {
+    grid-column: 7 / 13;
   }
 
   #track-less {
@@ -912,15 +908,15 @@ body {
     height: min(128vw, 40rem);
   }
 
+  .homepage-art-cat {
+    height: min(128vw, 40rem);
+  }
+
   .homepage-art-hummingbird {
     height: min(58vw, 32rem);
   }
 
-  .homepage-art-birds {
-    height: min(58vw, 32rem);
-  }
-
-  .homepage-story-chapter[data-art="hummingbird"] .homepage-story-block {
+  .homepage-story-chapter[data-art="cat"] .homepage-story-block {
     order: -1;
   }
 
@@ -1053,11 +1049,11 @@ body {
     height: min(128vw, 36rem);
   }
 
-  .homepage-art-hummingbird {
-    height: min(58vw, 22rem);
+  .homepage-art-cat {
+    height: min(128vw, 36rem);
   }
 
-  .homepage-art-birds {
+  .homepage-art-hummingbird {
     height: min(58vw, 22rem);
   }
 

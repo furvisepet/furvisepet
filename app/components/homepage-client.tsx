@@ -12,10 +12,10 @@ import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib
 type HomepageMode = "loading" | "anonymous" | "no-pets" | "with-pet";
 type VisibleHomepageMode = Exclude<HomepageMode, "loading">;
 type StoryActionDestination = "ask" | "history" | "pets" | "primary" | "today";
-type HomepageStoryArt = "birds" | "deer" | "hummingbird";
+type HomepageStoryArt = "cat" | "deer" | "hummingbird";
 
 const HOMEPAGE_STORY_ART = {
-  birds: { height: 1024, sizes: "(min-width: 1560px) 850px, (min-width: 1024px) 58vw, 92vw", src: "/images/birds.png", width: 1536 },
+  cat: { height: 1536, sizes: "(min-width: 1560px) 650px, (min-width: 1024px) 48vw, 92vw", src: "/images/cat.png", width: 1024 },
   deer: { height: 1536, sizes: "(min-width: 1560px) 650px, (min-width: 1024px) 48vw, 92vw", src: "/images/deer.png", width: 1024 },
   hummingbird: { height: 1024, sizes: "(min-width: 1560px) 720px, (min-width: 1024px) 48vw, 92vw", src: "/images/hummingbird.png", width: 1536 },
 } as const;
@@ -73,13 +73,13 @@ export function HomepageClient() {
         <StoryChapter action="history" activePetId={activePet?.id} art="deer" id="the-reality" mode={visibleMode} pace="standard" position="right" title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
           A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.
         </StoryChapter>
-        <StoryChapter action="pets" activePetId={activePet?.id} art="hummingbird" id="one-story" mode={visibleMode} pace="tall" position="left" title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
+        <StoryChapter action="pets" activePetId={activePet?.id} art="cat" id="one-story" mode={visibleMode} pace="tall" position="left" title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
           Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.
         </StoryChapter>
         <StoryChapter action="today" activePetId={activePet?.id} id="track-less" mode={visibleMode} pace="standard" position="right" title={<>YOU DON&apos;T HAVE TO<br />TRACK EVERYTHING.</>}>
           Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.
         </StoryChapter>
-        <StoryChapter action="ask" activePetId={activePet?.id} art="birds" id="when-needed" mode={visibleMode} pace="tall" position="right" title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
+        <StoryChapter action="ask" activePetId={activePet?.id} art="hummingbird" id="when-needed" mode={visibleMode} pace="tall" position="right" title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
           Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.
         </StoryChapter>
         <StoryChapter action="history" activePetId={activePet?.id} id="bigger-idea" mode={visibleMode} pace="spacious" position="right-wide" title={<>YOUR PET&apos;S STORY<br />SHOULDN&apos;T DISAPPEAR.</>}>
@@ -130,8 +130,8 @@ function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
           <p className="homepage-story-body">Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.</p>
           <StoryAction mode={mode} />
         </div>
-        <div aria-hidden="true" className="homepage-story-art homepage-hero-art homepage-art-cat" data-art="cat">
-          <Image alt="" aria-hidden="true" className="homepage-story-art-image" fill priority sizes="(min-width: 1560px) 780px, (min-width: 1024px) 50vw, 92vw" src="/images/cat.png" />
+        <div aria-hidden="true" className="homepage-story-art homepage-hero-art homepage-art-heron" data-art="heron">
+          <Image alt="" aria-hidden="true" className="homepage-story-art-image" fill priority sizes="(min-width: 1560px) 780px, (min-width: 1024px) 50vw, 92vw" src="/images/heron.png" />
         </div>
       </div>
     </section>
