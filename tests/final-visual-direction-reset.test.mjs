@@ -49,13 +49,13 @@ test("button hierarchy has explicit readable foregrounds and disabled states", (
   assert.match(css, /:focus-visible[\s\S]*outline: 3px solid var\(--focus\)/);
 });
 
-test("homepage has one hero, four story chapters, and authenticated CTA logic", () => {
-  assert.match(homepage, /Furvise remembers your pet, so you don&apos;t start from zero\./);
+test("homepage has one hero, six company-story chapters, and authenticated CTA logic", () => {
+  assert.match(homepage, /aria-label="Remember what matters\."/);
   assert.doesNotMatch(homepage, /Takes about two minutes\./);
-  for (const benefit of ["Keep the context.", "Add it when something changes.", "Ask without starting over.", "Have the story when you need it."]) assert.equal(homepage.split(benefit).length - 1, 1);
+  for (const benefit of ["PETS CHANGE.", "ONE STORY.", "YOU DON&apos;T HAVE TO", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);
-  assert.match(homepage, /mode === "with-pet"[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
-  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
+  assert.match(homepage, /mode === "anonymous" \? "Get started" : "Go to Today"/);
+  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
 });
 
 test("Products is primary navigation, mobile More owns utilities, and Account stays account-only", () => {

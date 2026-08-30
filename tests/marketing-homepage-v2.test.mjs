@@ -5,136 +5,150 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const homepage = read("app/components/homepage-client.tsx");
-const brand = read("app/components/brand-mark.tsx");
 const css = read("app/globals.css");
+const brand = read("app/components/brand-mark.tsx");
 const page = read("app/page.tsx");
 const seo = read("app/lib/seo.ts");
-const appChrome = read("app/components/authenticated-app-chrome.tsx");
+const appHeader = read("app/components/app-header.tsx");
 const signedInHeader = read("app/components/signed-in-header.tsx");
 
-const header = homepage.slice(homepage.indexOf("function PublicMarketingHeader"), homepage.indexOf("function Hero("));
-const hero = homepage.slice(homepage.indexOf("function Hero("), homepage.indexOf("function HeroActions"));
 const renderedHomepage = homepage.slice(homepage.indexOf("export function HomepageClient"), homepage.indexOf("function PublicMarketingHeader"));
-const homepageCss = css.slice(css.indexOf(".homepage-primary-action"), css.indexOf(".mobile-liquid-glass-root"));
+const marketingHeader = homepage.slice(homepage.indexOf("function PublicMarketingHeader"), homepage.indexOf("function WhyWeExist"));
+const desktopNavigation = homepage.slice(homepage.indexOf("const HOMEPAGE_DESKTOP_NAVIGATION"), homepage.indexOf("const HOMEPAGE_MOBILE_NAVIGATION"));
+const mobileNavigation = homepage.slice(homepage.indexOf("const HOMEPAGE_MOBILE_NAVIGATION"), homepage.indexOf("export function HomepageClient"));
+const homepageCss = css.slice(css.indexOf(".homepage-dark-world"), css.indexOf(".mobile-liquid-glass-root"));
+const mainStory = homepage.slice(homepage.indexOf('<main className="homepage-dark-world"'), homepage.indexOf("</main>"));
 
-test("one stable marketing header owns every homepage auth state", () => {
-  assert.match(renderedHomepage, /<PublicMarketingHeader mode=\{mode\} \/>/);
-  assert.equal((homepage.match(/data-ui="public-marketing-header"/g) || []).length, 1);
-  assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|APP_NAV_ITEMS|app-mobile-nav-clearance/);
-  assert.doesNotMatch(header, />Today<|>Pets<|>History<|>Ask<|>Products</);
+test("homepage removes every illustrative product example", () => {
+  assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow|product-frame|product-example|history-example|ask-context-example|Vet Visit Brief|fake (?:chat|product)|screenshot/i);
+  assert.doesNotMatch(homepage, /fetch\(|\/api\/|createConversation|saveConversation|onSubmit=/);
+  assert.equal((homepage.match(/<Image/g) || []).length, 1, "only shared mobile navigation icons use Image");
 });
 
-test("header geometry is reserved and personalized without replacement", () => {
-  const actions = homepage.slice(homepage.indexOf("function HomepageHeaderActions"), homepage.indexOf("function Hero("));
-  assert.match(header, /min-h-\[4\.25rem\][\s\S]*sm:min-h-\[4\.5rem\]/);
-  assert.match(header, /<BrandMark priority size=\{26\}/);
-  assert.match(header, /--brand-mark-size:1\.625rem[\s\S]*--brand-mark-size:1\.75rem/);
-  assert.match(actions, /const actionRegionClass = "flex h-12 w-\[11\.5rem\][\s\S]*sm:w-\[13rem\]/);
-  assert.match(actions, /mode === "loading"[\s\S]*className=\{actionRegionClass\}/);
-  assert.match(actions, /href="\/login">Sign in/);
-  assert.match(actions, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
-  assert.match(actions, /href="\/account">Account/);
-  assert.match(actions, /mode === "with-pet" \? "\/dashboard" : NEW_PET_ONBOARDING_PATH/);
-  assert.match(actions, /mode === "with-pet" \? "Go to Today" : "Add your pet"/);
-});
-
-test("header and hero share the dark Furvise marketing surface", () => {
-  assert.match(header, /bg-\[var\(--marketing-forest\)\][\s\S]*data-marketing-surface="dark"/);
-  assert.match(hero, /homepage-hero bg-\[var\(--marketing-forest\)\][\s\S]*data-marketing-surface="dark"/);
+test("cream header and footer frame one continuous dark main story", () => {
+  assert.match(homepage, /homepage-marketing-header[\s\S]*data-marketing-surface="light"/);
+  assert.match(homepage, /<main className="homepage-dark-world" data-marketing-surface="dark"/);
+  assert.match(homepage, /homepage-marketing-footer[\s\S]*data-marketing-surface="light"/);
+  assert.equal((homepage.match(/data-marketing-surface="dark"/g) || []).length, 1);
+  assert.equal((homepage.match(/data-marketing-surface="light"/g) || []).length, 2);
   assert.match(css, /--marketing-forest: #071A15/);
-  assert.match(css, /\.homepage-dark-world \{[\s\S]*background: var\(--marketing-forest\)/);
+  assert.match(homepageCss, /\.homepage-dark-world \{[\s\S]*background: var\(--marketing-forest\)/);
+  assert.doesNotMatch(mainStory, /homepage-light-story|data-marketing-surface="light"/);
 });
 
-test("hero thesis and contextual routes remain unchanged", () => {
-  assert.match(hero, /Furvise remembers your pet, so you don&apos;t start from zero\./);
-  assert.match(hero, /Ask questions, add updates when something changes, and keep their story together over time\./);
-  assert.match(homepage, /mode === "with-pet"[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
-  assert.match(homepage, /mode === "no-pets"[\s\S]*NEW_PET_ONBOARDING_PATH/);
-  assert.match(homepage, /NEW_PET_LOGIN_PATH[\s\S]*>Get started<\/MarketingPrimaryLink>/);
-  assert.doesNotMatch(hero, /marketing pill|See how Furvise works|Learn more|Takes about two minutes/i);
-});
-
-test("the old feature strip is replaced by four editorial chapters", () => {
-  assert.doesNotMatch(homepage, /VALUE_BEATS|ValueBeats|homepage-value-beats|md:grid-cols-3/);
-  for (const title of [
-    "Keep the context.",
-    "Add it when something changes.",
-    "Ask without starting over.",
-    "Have the story when you need it.",
-  ]) assert.equal(homepage.split(title).length - 1, 1);
-  assert.equal((homepage.match(/data-story-section=/g) || []).length, 3);
-  assert.match(homepage, /<ContextStory \/>[\s\S]*<UpdateStory \/>[\s\S]*<AskStory \/>[\s\S]*<HistoryVetStory \/>/);
-  assert.doesNotMatch(homepage, /feature-card|grid of cards|icon-wall/i);
-});
-
-test("the update chapter is the only intentional light major section", () => {
-  assert.equal((homepage.match(/data-marketing-surface="light"/g) || []).length, 1);
-  assert.match(homepage, /homepage-light-story[\s\S]*data-marketing-surface="light"[\s\S]*Add it when something changes\./);
-  assert.match(homepage, /Add what matters when it happens\. You do not need to journal every day\./);
-});
-
-test("large deterministic product examples use Mani and stay illustrative", () => {
-  for (const ui of ["homepage-product-example", "context-history-example", "update-history-example", "ask-context-example", "history-vet-example"]) {
-    assert.equal((homepage.match(new RegExp(`data-ui="${ui}"`, "g")) || []).length, 1);
-  }
-  assert.match(homepage, /Ate normally after dinner[\s\S]*Paw licking looked better[\s\S]*Vet appointment/);
-  assert.match(homepage, /Selected pet[\s\S]*Using Mani&apos;s profile and history/);
-  assert.match(homepage, /Vet Visit Brief[\s\S]*Preview for Mani/);
-  assert.ok((homepage.match(/Illustrative example/g) || []).length >= 1);
-  const examples = homepage.slice(homepage.indexOf("function HeroProductPanel"), homepage.indexOf("function FinalCallToAction"));
-  assert.doesNotMatch(examples, /fetch\(|\/api\/|onSubmit=|onClick=|createConversation|save(?:Data|Conversation|\()/);
-});
-
-test("trust statement and final conversion use approved exact copy", () => {
-  assert.equal(homepage.split("Furvise helps organize pet care information and does not replace veterinary care.").length - 1, 1);
-  assert.equal(homepage.split("Remember what matters.").length - 1, 1);
-  assert.equal(homepage.split("Start with your pet. Furvise can keep the story from there.").length - 1, 1);
-  assert.ok(renderedHomepage.indexOf("<FinalCallToAction") < renderedHomepage.indexOf("<MarketingFooter"));
-  const final = homepage.slice(homepage.indexOf("function FinalCallToAction"), homepage.indexOf("function MarketingPrimaryLink"));
-  assert.match(final, /NEW_PET_LOGIN_PATH[\s\S]*>Get started<\/MarketingPrimaryLink>/);
-  assert.match(final, /authenticatedWithPet[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
-});
-
-test("dark homepage branding stays local without changing shared BrandMark loading", () => {
+test("approved brand sits directly on cream without a logo patch or pill", () => {
+  assert.match(marketingHeader, /homepage-brand-link[\s\S]*<BrandMark priority size=\{28\}/);
+  assert.match(homepage, /homepage-footer-brand[\s\S]*<BrandMark size=\{26\}/);
+  assert.doesNotMatch(homepage, /homepage-brand-lockup|brand-mark-background|logo-pill|rounded-full[^\n]*BrandMark/);
+  const brandRules = homepageCss.slice(homepageCss.indexOf(".homepage-brand-link"), homepageCss.indexOf(".homepage-header-navigation-zone"));
+  assert.doesNotMatch(brandRules, /background:|padding:/);
   assert.equal((brand.match(/priority=\{priority\}/g) || []).length, 3);
   assert.doesNotMatch(brand, /data-ui="brand-mark"|loading=\{priority/);
-  assert.doesNotMatch(homepage, /AppFooter/);
-  assert.match(homepage, /function MarketingFooter[\s\S]*data-ui="homepage-marketing-footer"/);
-  assert.match(homepage, /homepage-brand-lockup[\s\S]*<BrandMark size=\{24\}/);
 });
 
-test("dark marketing actions and focus treatments are high contrast without orange", () => {
-  assert.match(homepageCss, /\.homepage-primary-action \{[\s\S]*background: var\(--marketing-text\)[\s\S]*color: var\(--marketing-forest\)/);
-  assert.match(homepageCss, /\.homepage-primary-action \[data-button-label\][\s\S]*color: var\(--marketing-forest\)/);
-  assert.match(homepageCss, /--focus-ring: var\(--soft-sage\)/);
-  assert.doesNotMatch(homepage, /warm-orange|orange|action-primary/);
-  assert.doesNotMatch(homepageCss, /warm-orange|focus-orange/);
+test("anonymous header is brand plus Sign in and Get started", () => {
+  assert.match(marketingHeader, /const anonymous = mode === "anonymous"/);
+  assert.match(marketingHeader, /href="\/login">Sign in/);
+  assert.match(marketingHeader, /href=\{NEW_PET_LOGIN_PATH\}>Get started/);
+  assert.doesNotMatch(marketingHeader, /marketing navigation|Learn more|Products/);
 });
 
-test("homepage avoids unsupported visual and positioning patterns", () => {
-  assert.doesNotMatch(homepage, /<video|autoplay|gradient|mesh|glassmorphism|purple|AI-powered|AI pet health|symptom checker|online vet|unlimited vet|join millions|revolutionary/i);
-  assert.doesNotMatch(homepageCss, /gradient|glow|backdrop-filter/);
-  assert.doesNotMatch(homepage, /testimonial|customer logo|pricing table/);
+test("authenticated desktop header exposes plain app links without old AppHeader chrome", () => {
+  for (const [href, label] of [["/dashboard", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"]]) {
+    assert.match(desktopNavigation, new RegExp(`href: "${href}", label: "${label}"`));
+  }
+  assert.doesNotMatch(desktopNavigation, /Products|\/shop/);
+  assert.match(marketingHeader, /signedIn \? \([\s\S]*homepage-desktop-navigation/);
+  assert.match(marketingHeader, /href="\/account">Account/);
+  assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|desktop-navigation-container|rounded-navigation|APP_NAV_ITEMS/);
+  assert.doesNotMatch(homepageCss.slice(homepageCss.indexOf(".homepage-desktop-navigation"), homepageCss.indexOf(".homepage-header-actions")), /background:|border:|border-radius:/);
 });
 
-test("mobile hierarchy starts one-column, stays contained, and keeps touch targets", () => {
+test("one three-zone header keeps geometry stable through auth resolution", () => {
+  assert.equal((homepage.match(/data-ui="public-marketing-header"/g) || []).length, 1);
+  for (const zone of ["homepage-header-brand-zone", "homepage-header-navigation-zone", "homepage-header-actions"]) assert.match(marketingHeader, new RegExp(zone));
+  assert.match(css, /\.homepage-header-grid \{[\s\S]*min-height: 4\.5rem;[\s\S]*grid-template-columns: minmax\(0, 1fr\) minmax\(26rem, auto\) minmax\(0, 1fr\)/);
+  assert.match(css, /\.homepage-header-navigation-zone \{[\s\S]*min-width: 26rem/);
+  assert.match(css, /\.homepage-header-actions \{[\s\S]*min-width: 12\.5rem/);
+  assert.match(homepage, /auth\.status === "loading"[\s\S]*\? "loading"/);
+});
+
+test("hero and all six company-story headlines use the approved direction", () => {
+  assert.match(homepage, /aria-label="Remember what matters\."/);
+  for (const headline of [
+    "REMEMBER",
+    "PETS CHANGE.",
+    "ONE STORY.",
+    "YOU DON&apos;T HAVE TO",
+    "WHEN YOU NEED IT,",
+    "YOUR PET&apos;S STORY",
+    "START WITH",
+  ]) assert.equal(homepage.split(headline).length - 1, 1, `${headline} appears once`);
+});
+
+test("all approved human-language chapter copy is exact", () => {
+  for (const copy of [
+    "Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.",
+    "A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.",
+    "Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.",
+    "Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.",
+    "Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.",
+    "The longer you care for a pet, the more their history matters. Furvise is being built to keep that history useful, understandable, and close when you need it.",
+    "You don&apos;t need to remember everything on day one. Just start.",
+  ]) assert.equal(homepage.split(copy).length - 1, 1, copy);
+});
+
+test("anonymous and signed-in story actions keep simple routing", () => {
+  assert.match(homepage, /mode === "anonymous" \? NEW_PET_LOGIN_PATH : "\/dashboard"/);
+  assert.match(homepage, /mode === "anonymous" \? "Get started" : "Go to Today"/);
+  assert.doesNotMatch(homepage, /secondary.*(?:button|action)|Explore platform|Learn more|Discover Furvise/i);
+});
+
+test("trust line remains exact and quiet near the final chapter", () => {
+  assert.equal(homepage.split("Furvise helps organize pet care information and does not replace veterinary care.").length - 1, 1);
+  const final = homepage.slice(homepage.indexOf("function FinalChapter"), homepage.indexOf("function StoryAction"));
+  assert.match(final, /START WITH[\s\S]*YOUR PET\.[\s\S]*homepage-trust-line/);
+});
+
+test("signed-in mobile navigation reuses Furvise routes and omits Products", () => {
+  assert.match(renderedHomepage, /\{signedIn \? <HomepageMobileNavigation \/> : null\}/);
+  assert.match(homepage, /data-ui="mobile-bottom-navigation"/);
+  assert.match(mobileNavigation, /MOBILE_NAVIGATION_ITEMS\[0\][\s\S]*MOBILE_NAVIGATION_ITEMS\[1\][\s\S]*MOBILE_NAVIGATION_ITEMS\[2\][\s\S]*MOBILE_NAVIGATION_ITEMS\[3\]/);
+  assert.match(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more[\s\S]*href: "\/account"[\s\S]*label: "More"/);
+  assert.doesNotMatch(mobileNavigation, /Products|\/shop/);
+  assert.match(homepageCss, /\.homepage-mobile-navigation \{[\s\S]*position: fixed[\s\S]*background: var\(--warm-cream\)/);
+  assert.match(css, /\.homepage-footer-mobile-clearance \{[\s\S]*var\(--mobile-nav-height\)/);
+});
+
+test("story rhythm varies by chapter and becomes content-driven on mobile", () => {
+  for (const position of ["right", "left", "left-inset", "right-wide"]) assert.match(homepage, new RegExp(`position="${position}"`));
+  for (const pace of ["standard", "tall", "spacious"]) assert.match(homepage, new RegExp(`pace="${pace}"`));
+  assert.match(homepageCss, /grid-template-columns: repeat\(12, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter,[\s\S]*min-height: auto/);
   assert.match(homepage, /overflow-x-hidden/);
-  assert.doesNotMatch(homepage, /(?<![a-z]:)grid-cols-2|grid-cols-3|grid-cols-4/);
-  assert.match(homepage, /grid items-center[\s\S]*lg:grid-cols-/);
-  assert.match(homepage, /min-h-11 min-w-11/);
-  assert.match(homepage, /homepage-primary-action min-h-11/);
-  assert.match(css, /max-width: 100vw/);
 });
 
-test("signed-in app chrome and homepage SEO authority remain intact", () => {
+test("homepage contains no feature grid or banned visual treatment", () => {
+  assert.doesNotMatch(homepage, /feature-card|feature-grid|grid-cols-3|<video|autoplay|gradient|mesh|glassmorphism|homepage-product/i);
+  assert.doesNotMatch(homepageCss, /gradient|glow|backdrop-filter|warm-orange|focus-orange/);
+  assert.doesNotMatch(homepage, /orange|purple/i);
+});
+
+test("homepage language avoids banned software and AI marketing terms", () => {
+  for (const phrase of [
+    "AI-powered", "AI pet care", "longitudinal", "context layer", "context engine", "intelligence platform",
+    "personalized insights", "health insights", "ecosystem", "solution", "revolutionary", "smart pet parenting",
+    "track your pet's health", "optimize", "seamless", "unlock", "leverage",
+  ]) assert.doesNotMatch(homepage, new RegExp(phrase, "i"));
+});
+
+test("application chrome, routes, pet authority, and SEO remain intact", () => {
   assert.match(homepage, /activePetsOnly\(profiles\)/);
-  assert.match(appChrome, /return <SignedInHeader \/>/);
+  assert.match(appHeader, /return \([\s\S]*data-ui="app-header"/);
   assert.match(signedInHeader, /<AppHeader/);
+  for (const route of ["/dashboard", "/pets", "/care-log", "/ask"]) assert.match(`${homepage}\n${appHeader}`, new RegExp(route.replace("/", "\\/")));
   assert.match(page, /createPublicPageMetadata[\s\S]*path: "\/"/);
-  assert.match(page, /"@type": "WebSite"[\s\S]*"@type": "Organization"/);
-  assert.match(page, /brand\/furvise-logo\.svg/);
   assert.match(seo, /CANONICAL_ORIGIN = "https:\/\/www\.furvise\.com"/);
-  assert.match(seo, /Furvise \| Remember What Matters/);
 });
 
 test("approved Furvise artwork remains byte-for-byte unchanged", () => {

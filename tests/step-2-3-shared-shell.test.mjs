@@ -67,7 +67,7 @@ test("semantic page-shell presets exist and every requested surface uses its map
   assert.match(ask, /<AppPage layout="focused" shell="reading">/);
   assert.match(products, /<AppPage layout="focused" shell="wide">/);
   assert.match(account, /<AppPage shell="reading">/);
-  assert.match(homepage, /preset="marketing"/);
+  assert.match(homepage, /homepage-wide-shell/);
   assert.match(accountAccess, /preset="reading"/);
 });
 
@@ -81,8 +81,8 @@ test("PageHeader supports shared titles and independent action slots", () => {
 });
 
 test("shared and homepage footers are compact, shell aligned, and use the canonical logo component", () => {
-  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
-  assert.match(homepage, /data-ui="homepage-marketing-footer"[\s\S]*<BrandMark size=\{24\} \/>/);
+  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
+  assert.match(homepage, /data-ui="homepage-marketing-footer"[\s\S]*<BrandMark size=\{26\} \/>/);
   assert.match(footer, /<BrandMark size=\{24\} \/>/);
   assert.match(footer, /href="\/privacy">Privacy/);
   assert.match(footer, /href="\/terms">Terms/);

@@ -70,18 +70,18 @@ test("account notification dot is absent by default", () => {
   assert.doesNotMatch(header, /account-dot|notification-dot|unread-dot/);
 });
 
-test("homepage explicitly implements anonymous, no-pet, and existing-pet actions", () => {
+test("homepage explicitly implements anonymous and authenticated actions", () => {
   const homepage = read("app/components/homepage-client.tsx");
   assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
-  assert.match(homepage, /mode === "no-pets"[\s\S]*Add your pet/);
-  assert.match(homepage, /mode === "with-pet"[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
+  assert.match(homepage, /mode === "anonymous" \? NEW_PET_LOGIN_PATH : "\/dashboard"/);
+  assert.match(homepage, /mode === "anonymous" \? "Get started" : "Go to Today"/);
   assert.match(homepage, /auth\.status === "loading"[\s\S]*"loading"/);
 });
 
 test("signed-in homepage branches do not render signed-out actions", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
-  assert.doesNotMatch(homepage, /mode === "with-pet"[^?]+Sign in/s);
+  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
+  assert.match(homepage, /signedIn \? <Link[\s\S]*href="\/account">Account/);
 });
 
 test("action labels follow account-state conventions", () => {
@@ -94,11 +94,10 @@ test("action labels follow account-state conventions", () => {
   assert.doesNotMatch(pets, />Add a pet</);
 });
 
-test("homepage product example is clearly illustrative and pet-specific", () => {
+test("homepage keeps product discovery inside the application", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /Illustrative Furvise pet memory example/);
-  assert.match(homepage, />Mani</);
-  assert.match(homepage, /What should I keep an eye on before the visit\?/);
+  assert.doesNotMatch(homepage, /Illustrative|Mani|ProductWindow|product-frame|Vet Visit Brief/);
+  assert.match(homepage, /ONE STORY\.[\s\S]*NOT A PILE OF NOTES\./);
 });
 
 test("Ask localizes recent-conversation loading failures", () => {
@@ -125,7 +124,7 @@ test("Pets, History, and Today empty and primary states are useful", () => {
 
 test("homepage footer follows authentication state", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  const footer = homepage.slice(homepage.indexOf("function MarketingFooter"), homepage.indexOf("function MarketingPrimaryLink"));
+  const footer = homepage.slice(homepage.indexOf("function MarketingFooter"), homepage.indexOf("function HomepageMobileNavigation"));
   assert.match(footer, /data-ui="homepage-marketing-footer"/);
   assert.match(footer, /href="\/privacy">Privacy/);
   assert.match(footer, /href="\/terms">Terms/);

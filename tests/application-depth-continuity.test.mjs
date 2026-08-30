@@ -63,10 +63,10 @@ test("Ask fresh state keeps starters and composer together without a redundant p
 
 test("homepage ends with the final conversion section", () => {
   const renderedHomepage = homepage.slice(homepage.indexOf("export function HomepageClient"), homepage.indexOf("function PublicMarketingHeader"));
-  assert.match(homepage, /Remember what matters\./);
-  assert.match(homepage, /Start with your pet\. Furvise can keep the story from there\./);
-  assert.ok(renderedHomepage.indexOf("<FinalCallToAction") < renderedHomepage.indexOf("<MarketingFooter"));
-  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
+  assert.match(homepage, /aria-label="Remember what matters\."/);
+  assert.match(homepage, /You don&apos;t need to remember everything on day one\. Just start\./);
+  assert.ok(renderedHomepage.indexOf("<FinalChapter") < renderedHomepage.indexOf("<MarketingFooter"));
+  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
 });
 
 test("primary user-facing surfaces contain no em dash or visible technical positioning", () => {
