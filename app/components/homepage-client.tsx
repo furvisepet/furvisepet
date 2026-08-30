@@ -15,9 +15,9 @@ type StoryActionDestination = "ask" | "history" | "pets" | "primary" | "today";
 type HomepageStoryArt = "cat" | "deer" | "hummingbird";
 
 const HOMEPAGE_STORY_ART = {
-  cat: { height: 1536, sizes: "(min-width: 1560px) 768px, (min-width: 1024px) 48vw, 90vw", src: "/images/cat.png", width: 1024 },
-  deer: { height: 1536, sizes: "(min-width: 1560px) 800px, (min-width: 1024px) 50vw, 90vw", src: "/images/deer.png", width: 1024 },
-  hummingbird: { height: 1024, sizes: "(min-width: 1560px) 704px, (min-width: 1024px) 44vw, 94vw", src: "/images/hummingbird.png", width: 1536 },
+  cat: { height: 1536, sizes: "(min-width: 1600px) 832px, (min-width: 1024px) 52vw, 94vw", src: "/images/cat.png", width: 1024 },
+  deer: { height: 1536, sizes: "(min-width: 1600px) 848px, (min-width: 1024px) 53vw, 94vw", src: "/images/deer.png", width: 1024 },
+  hummingbird: { height: 1024, sizes: "(min-width: 1600px) 784px, (min-width: 1024px) 49vw, 96vw", src: "/images/hummingbird.png", width: 1536 },
 } as const;
 
 const HOMEPAGE_DESKTOP_NAVIGATION = [
@@ -131,7 +131,7 @@ function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
           <StoryAction mode={mode} />
         </div>
         <div aria-hidden="true" className="homepage-story-art homepage-hero-art homepage-art-heron" data-art="heron">
-          <Image alt="" aria-hidden="true" className="homepage-story-art-image" fill priority sizes="(min-width: 1600px) 896px, (min-width: 1024px) 54vw, 92vw" src="/images/heron.png" />
+          <Image alt="" aria-hidden="true" className="homepage-story-art-image" fill priority sizes="(min-width: 1600px) 960px, (min-width: 1024px) 60vw, 96vw" src="/images/heron.png" />
         </div>
       </div>
     </section>
