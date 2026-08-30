@@ -98,9 +98,10 @@ test("all approved human-language chapter copy is exact", () => {
   ]) assert.equal(homepage.split(copy).length - 1, 1, copy);
 });
 
-test("anonymous and signed-in story actions keep simple routing", () => {
-  assert.match(homepage, /mode === "anonymous" \? NEW_PET_LOGIN_PATH : "\/dashboard"/);
-  assert.match(homepage, /mode === "anonymous" \? "Get started" : "Go to Today"/);
+test("story actions preserve anonymous, no-pet, and with-pet authority", () => {
+  assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
+  assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
+  assert.match(homepage, /href: "\/dashboard", label: "Go to Today"/);
   assert.doesNotMatch(homepage, /secondary.*(?:button|action)|Explore platform|Learn more|Discover Furvise/i);
 });
 
@@ -110,11 +111,12 @@ test("trust line remains exact and quiet near the final chapter", () => {
   assert.match(final, /START WITH[\s\S]*YOUR PET\.[\s\S]*homepage-trust-line/);
 });
 
-test("signed-in mobile navigation reuses Furvise routes and omits Products", () => {
+test("signed-in mobile navigation uses an honest Account destination and omits Products", () => {
   assert.match(renderedHomepage, /\{signedIn \? <HomepageMobileNavigation \/> : null\}/);
   assert.match(homepage, /data-ui="mobile-bottom-navigation"/);
   assert.match(mobileNavigation, /MOBILE_NAVIGATION_ITEMS\[0\][\s\S]*MOBILE_NAVIGATION_ITEMS\[1\][\s\S]*MOBILE_NAVIGATION_ITEMS\[2\][\s\S]*MOBILE_NAVIGATION_ITEMS\[3\]/);
-  assert.match(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more[\s\S]*href: "\/account"[\s\S]*label: "More"/);
+  assert.match(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more[\s\S]*href: "\/account"[\s\S]*label: "Account"/);
+  assert.doesNotMatch(mobileNavigation, /href: "\/account", label: "More"/);
   assert.doesNotMatch(mobileNavigation, /Products|\/shop/);
   assert.match(homepageCss, /\.homepage-mobile-navigation \{[\s\S]*position: fixed[\s\S]*background: var\(--warm-cream\)/);
   assert.match(css, /\.homepage-footer-mobile-clearance \{[\s\S]*var\(--mobile-nav-height\)/);

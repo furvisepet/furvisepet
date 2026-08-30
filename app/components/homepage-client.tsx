@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { NEW_PET_LOGIN_PATH } from "../lib/auth-routing";
+import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { MOBILE_NAVIGATION_ITEMS, NAVIGATION_ICON_ASSETS } from "../lib/navigation/mobile-navigation";
 import { activePetsOnly } from "../lib/pet-lifecycle";
@@ -25,7 +25,7 @@ const HOMEPAGE_MOBILE_NAVIGATION = [
   MOBILE_NAVIGATION_ITEMS[1],
   MOBILE_NAVIGATION_ITEMS[2],
   MOBILE_NAVIGATION_ITEMS[3],
-  { asset: NAVIGATION_ICON_ASSETS.more, href: "/account", label: "More", tab: "more" },
+  { asset: NAVIGATION_ICON_ASSETS.more, href: "/account", label: "Account", tab: "more" },
 ] as const;
 
 export function HomepageClient() {
@@ -157,7 +157,13 @@ function FinalChapter({ mode }: { mode: VisibleHomepageMode }) {
 }
 
 function StoryAction({ mode }: { mode: VisibleHomepageMode }) {
-  return <Link className="homepage-story-action" href={mode === "anonymous" ? NEW_PET_LOGIN_PATH : "/dashboard"}>{mode === "anonymous" ? "Get started" : "Go to Today"}</Link>;
+  const action = mode === "anonymous"
+    ? { href: NEW_PET_LOGIN_PATH, label: "Get started" }
+    : mode === "no-pets"
+      ? { href: NEW_PET_ONBOARDING_PATH, label: "Add your pet" }
+      : { href: "/dashboard", label: "Go to Today" };
+
+  return <Link className="homepage-story-action" href={action.href}>{action.label}</Link>;
 }
 
 function HeaderPrimaryLink({ children, href }: { children: React.ReactNode; href: string }) {

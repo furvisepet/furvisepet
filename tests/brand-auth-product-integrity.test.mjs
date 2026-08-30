@@ -70,11 +70,12 @@ test("account notification dot is absent by default", () => {
   assert.doesNotMatch(header, /account-dot|notification-dot|unread-dot/);
 });
 
-test("homepage explicitly implements anonymous and authenticated actions", () => {
+test("homepage explicitly preserves anonymous, no-pet, and with-pet actions", () => {
   const homepage = read("app/components/homepage-client.tsx");
   assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
-  assert.match(homepage, /mode === "anonymous" \? NEW_PET_LOGIN_PATH : "\/dashboard"/);
-  assert.match(homepage, /mode === "anonymous" \? "Get started" : "Go to Today"/);
+  assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
+  assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
+  assert.match(homepage, /href: "\/dashboard", label: "Go to Today"/);
   assert.match(homepage, /auth\.status === "loading"[\s\S]*"loading"/);
 });
 

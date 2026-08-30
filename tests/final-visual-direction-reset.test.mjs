@@ -54,7 +54,9 @@ test("homepage has one hero, six company-story chapters, and authenticated CTA l
   assert.doesNotMatch(homepage, /Takes about two minutes\./);
   for (const benefit of ["PETS CHANGE.", "ONE STORY.", "YOU DON&apos;T HAVE TO", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);
-  assert.match(homepage, /mode === "anonymous" \? "Get started" : "Go to Today"/);
+  assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
+  assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
+  assert.match(homepage, /href: "\/dashboard", label: "Go to Today"/);
   assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
 });
 
