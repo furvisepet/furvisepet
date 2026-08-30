@@ -12,6 +12,13 @@ import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib
 type HomepageMode = "loading" | "anonymous" | "no-pets" | "with-pet";
 type VisibleHomepageMode = Exclude<HomepageMode, "loading">;
 type StoryActionDestination = "ask" | "history" | "pets" | "primary" | "today";
+type HomepageStoryArt = "flamingo" | "goat" | "ostrich";
+
+const HOMEPAGE_STORY_ART = {
+  flamingo: { height: 1536, src: "/images/flamingo.png", width: 1024 },
+  goat: { height: 1536, src: "/images/goat.png", width: 1024 },
+  ostrich: { height: 1536, src: "/images/ostrich.png", width: 1024 },
+} as const;
 
 const HOMEPAGE_DESKTOP_NAVIGATION = [
   { href: "/dashboard", label: "Today" },
@@ -63,20 +70,20 @@ export function HomepageClient() {
       <PublicMarketingHeader mode={mode} />
       <main className="homepage-dark-world" data-marketing-surface="dark" data-ui="homepage-story-main">
         <WhyWeExist mode={visibleMode} />
-        <StoryChapter action="history" activePetId={activePet?.id} id="the-reality" mode={visibleMode} pace="standard" position="right" title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
+        <StoryChapter action="history" activePetId={activePet?.id} art="flamingo" id="the-reality" mode={visibleMode} pace="standard" position="right" title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
           A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.
         </StoryChapter>
-        <StoryChapter action="pets" activePetId={activePet?.id} id="one-story" mode={visibleMode} pace="tall" position="left" title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
+        <StoryChapter action="pets" activePetId={activePet?.id} art="goat" id="one-story" mode={visibleMode} pace="tall" position="left" title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
           Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.
         </StoryChapter>
         <StoryChapter action="today" activePetId={activePet?.id} id="track-less" mode={visibleMode} pace="standard" position="right" title={<>YOU DON&apos;T HAVE TO<br />TRACK EVERYTHING.</>}>
           Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.
         </StoryChapter>
-        <StoryChapter action="ask" activePetId={activePet?.id} id="when-needed" mode={visibleMode} pace="tall" position="left-inset" title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
+        <StoryChapter action="ask" activePetId={activePet?.id} art="ostrich" id="when-needed" mode={visibleMode} pace="tall" position="right" title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
           Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.
         </StoryChapter>
         <StoryChapter action="history" activePetId={activePet?.id} id="bigger-idea" mode={visibleMode} pace="spacious" position="right-wide" title={<>YOUR PET&apos;S STORY<br />SHOULDN&apos;T DISAPPEAR.</>}>
-          The longer you care for a pet, the more their history matters. Furvise is being built to keep that history useful, understandable, and close when you need it.
+          The longer you care for a pet, the more their history matters. Furvise keeps that history useful, understandable, and close when you need it.
         </StoryChapter>
         <FinalChapter mode={visibleMode} />
       </main>
@@ -123,22 +130,36 @@ function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
           <p className="homepage-story-body">Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.</p>
           <StoryAction mode={mode} />
         </div>
+        <div aria-hidden="true" className="homepage-story-art homepage-hero-art" data-art="heron">
+          <Image alt="" aria-hidden="true" className="homepage-story-art-image" fill priority sizes="(min-width: 1560px) 820px, (min-width: 1024px) 55vw, 72vw" src="/images/heron.png" />
+        </div>
       </div>
     </section>
   );
 }
 
-function StoryChapter({ action, activePetId, children, id, mode, pace, position, title }: { action: StoryActionDestination; activePetId?: string; children: React.ReactNode; id: string; mode: VisibleHomepageMode; pace: "standard" | "tall" | "spacious"; position: "left" | "left-inset" | "right" | "right-wide"; title: React.ReactNode }) {
+function StoryChapter({ action, activePetId, art, children, id, mode, pace, position, title }: { action: StoryActionDestination; activePetId?: string; art?: HomepageStoryArt; children: React.ReactNode; id: string; mode: VisibleHomepageMode; pace: "standard" | "tall" | "spacious"; position: "left" | "left-inset" | "right" | "right-wide"; title: React.ReactNode }) {
   return (
-    <section className="homepage-story-chapter" data-chapter={id} data-pace={pace} data-position={position} id={id}>
+    <section className="homepage-story-chapter" data-art={art} data-chapter={id} data-pace={pace} data-position={position} id={id}>
       <div className="homepage-wide-shell homepage-story-inner">
         <div className="homepage-story-block">
           <h2 className="homepage-story-heading">{title}</h2>
           <p className="homepage-story-body">{children}</p>
           <StoryAction activePetId={activePetId} destination={action} mode={mode} />
         </div>
+        {art ? <HomepageChapterArt art={art} /> : null}
       </div>
     </section>
+  );
+}
+
+function HomepageChapterArt({ art }: { art: HomepageStoryArt }) {
+  const asset = HOMEPAGE_STORY_ART[art];
+
+  return (
+    <div aria-hidden="true" className="homepage-story-art homepage-chapter-art" data-art={art}>
+      <Image alt="" aria-hidden="true" className="homepage-story-art-image" height={asset.height} loading="lazy" sizes="(min-width: 1560px) 720px, (min-width: 1024px) 48vw, 92vw" src={asset.src} width={asset.width} />
+    </div>
   );
 }
 

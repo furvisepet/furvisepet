@@ -19,11 +19,31 @@ const mobileNavigation = homepage.slice(homepage.indexOf("const HOMEPAGE_MOBILE_
 const homepageCss = css.slice(css.indexOf(".homepage-dark-world"), css.indexOf(".mobile-liquid-glass-root"));
 const mainStory = homepage.slice(homepage.indexOf('<main className="homepage-dark-world"'), homepage.indexOf("</main>"));
 
-test("homepage removes every illustrative product example", () => {
+test("homepage uses only the four supplied editorial illustrations and no product examples", () => {
   assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow|product-frame|product-example|history-example|ask-context-example|Vet Visit Brief|fake (?:chat|product)|screenshot/i);
   assert.doesNotMatch(homepage, /fetch\(|\/api\/|createConversation|saveConversation|onSubmit=/);
-  assert.doesNotMatch(mainStory, /<Image|<video|<picture|backgroundImage/);
-  assert.equal((homepage.match(/<Image/g) || []).length, 3, "only the two approved lockups and shared mobile navigation icons use Image");
+  for (const asset of ["heron", "flamingo", "goat", "ostrich"]) {
+    assert.equal(homepage.split(`/images/${asset}.png`).length - 1, 1, `${asset} is referenced once`);
+  }
+  assert.doesNotMatch(mainStory, /<video|<picture|backgroundImage/);
+  assert.equal((homepage.match(/<Image/g) || []).length, 5, "the header, footer, mobile navigation, hero, and reusable chapter art use Image");
+});
+
+test("editorial art is decorative, direct on forest, and limited to the approved chapters", () => {
+  const hero = homepage.slice(homepage.indexOf("function WhyWeExist"), homepage.indexOf("function StoryChapter"));
+  const chapterArt = homepage.slice(homepage.indexOf("function HomepageChapterArt"), homepage.indexOf("function FinalChapter"));
+  assert.match(hero, /data-art="heron"[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*fill priority[\s\S]*src="\/images\/heron\.png"/);
+  assert.match(chapterArt, /<Image alt="" aria-hidden="true"[\s\S]*loading="lazy"[\s\S]*sizes="\(min-width: 1560px\) 720px, \(min-width: 1024px\) 48vw, 92vw"/);
+  for (const [id, art] of [["the-reality", "flamingo"], ["one-story", "goat"], ["when-needed", "ostrich"]]) {
+    assert.match(renderedHomepage, new RegExp(`art="${art}"[^>]*id="${id}"`));
+  }
+  for (const id of ["track-less", "bigger-idea"]) {
+    const invocation = renderedHomepage.match(new RegExp(`<StoryChapter[^>]*id="${id}"[^>]*>`))?.[0] || "";
+    assert.doesNotMatch(invocation, /art=/, `${id} remains type-only`);
+  }
+  const artCss = homepageCss.slice(homepageCss.indexOf(".homepage-story-art {"), homepageCss.indexOf(".homepage-story-hero .homepage-story-inner"));
+  assert.doesNotMatch(artCss, /background|box-shadow|filter|gradient|border-radius/);
+  assert.match(homepageCss, /\.homepage-story-chapter\[data-art\] \{[\s\S]*overflow: clip/);
 });
 
 test("cream header and footer frame one continuous dark main story", () => {
@@ -97,7 +117,7 @@ test("all approved human-language chapter copy is exact", () => {
     "Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.",
     "Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.",
     "Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.",
-    "The longer you care for a pet, the more their history matters. Furvise is being built to keep that history useful, understandable, and close when you need it.",
+    "The longer you care for a pet, the more their history matters. Furvise keeps that history useful, understandable, and close when you need it.",
     "You don&apos;t need to remember everything on day one. Just start.",
   ]) assert.equal(homepage.split(copy).length - 1, 1, copy);
 });
@@ -137,7 +157,7 @@ test("signed-in mobile navigation uses an honest Account destination and omits P
 });
 
 test("story rhythm varies by chapter and becomes content-driven on mobile", () => {
-  for (const position of ["right", "left", "left-inset", "right-wide"]) assert.match(homepage, new RegExp(`position="${position}"`));
+  for (const position of ["right", "left", "right-wide"]) assert.match(homepage, new RegExp(`position="${position}"`));
   for (const pace of ["standard", "tall", "spacious"]) assert.match(homepage, new RegExp(`pace="${pace}"`));
   assert.match(homepageCss, /grid-template-columns: repeat\(12, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter,[\s\S]*min-height: auto/);
@@ -180,4 +200,8 @@ test("approved Furvise artwork remains byte-for-byte unchanged", () => {
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00");
   assert.equal(hash("public/brand/furvise-wordmark.svg"), "5ce60b7d3134b5aaf00f4a4a799f46443a9eb0fd23b04724a545ad15f7c248b8");
   assert.equal(hash("public/brand/furvise-heron.svg"), "5bc3424afd22bba0391d302494c506455df9ef3a2221525c32a033e8dda0dd0b");
+  assert.equal(hash("public/images/heron.png"), "b9ad70d152185b8561015b1697f25fb4d409c241297129229f0c754c61638793");
+  assert.equal(hash("public/images/flamingo.png"), "03cd340a13e7cecacfa7631433d817766eb941287eb48c4cfa2ef8093e271a27");
+  assert.equal(hash("public/images/goat.png"), "54eb8be2f0c1878e3bd1058510f5d976c7fede2b850d443c091c5dc0d7c76a97");
+  assert.equal(hash("public/images/ostrich.png"), "942b88b30f76d8d24e8661d01ecc064a2dd2c35beea126144fd54004b4335f3d");
 });
