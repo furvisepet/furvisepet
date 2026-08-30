@@ -23,6 +23,7 @@ export function BrandMark({
     return (
       <span
         className={`inline-flex shrink-0 items-center justify-center ${className}`}
+        data-ui="brand-mark"
         style={{
           columnGap: "6px",
           height: responsiveSize,
@@ -34,7 +35,7 @@ export function BrandMark({
             alt="Furvise"
             className="block h-full w-full object-contain"
             height={800}
-            priority={priority}
+            loading={priority ? "eager" : "lazy"}
             src={FURVISE_WORDMARK_ASSET}
             style={{
               height: "100%",
@@ -50,7 +51,7 @@ export function BrandMark({
           aria-hidden="true"
           className="block shrink-0 object-contain"
           height={2000}
-          priority={priority}
+          loading={priority ? "eager" : "lazy"}
           src={FURVISE_MASCOT_ASSET}
           style={{
             height: heronSize,
@@ -67,6 +68,7 @@ export function BrandMark({
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center ${className}`}
+      data-ui="brand-mark"
       style={{
         height: responsiveSize,
         width: responsiveSize,
@@ -77,7 +79,7 @@ export function BrandMark({
         aria-hidden="true"
         className="block shrink-0 object-contain"
         height={2000}
-        priority={priority}
+        loading={priority ? "eager" : "lazy"}
         src={FURVISE_MASCOT_ASSET}
         style={{
           height: responsiveSize,

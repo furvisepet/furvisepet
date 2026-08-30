@@ -40,7 +40,7 @@ test("the color system exposes layered surfaces and centralized semantic roles",
 test("homepage uses the concise remembered-context story", () => {
   assert.match(homepage, /Furvise remembers your pet, so you don&apos;t start from zero\./);
   assert.doesNotMatch(homepage, /Takes about two minutes\./);
-  for (const story of ["KEEP THE CONTEXT", "UPDATE WHEN SOMETHING CHANGES", "HAVE THE STORY WHEN YOU NEED IT"]) {
+  for (const story of ["Keep the context.", "Add it when something changes.", "Ask without starting over.", "Have the story when you need it."]) {
     assert.equal(homepage.split(story).length - 1, 1);
   }
   assert.doesNotMatch(homepage, />0[123]</);

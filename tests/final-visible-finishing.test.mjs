@@ -77,8 +77,8 @@ test("Ask starter drafts advertise selection as compact, unfussy cards", () => {
   assert.doesNotMatch(ask.slice(ask.indexOf("function EmptyConversation"), ask.indexOf("function UserMessage")), /rounded-2xl|shadow-/);
 });
 
-test("homepage tells each benefit once and keeps pet-aware actions", () => {
-  for (const benefit of ["KEEP THE CONTEXT", "UPDATE WHEN SOMETHING CHANGES", "HAVE THE STORY WHEN YOU NEED IT"]) assert.equal(homepage.split(benefit).length - 1, 1);
+test("homepage tells each editorial chapter once and keeps pet-aware actions", () => {
+  for (const benefit of ["Keep the context.", "Add it when something changes.", "Ask without starting over.", "Have the story when you need it."]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);
   assert.match(homepage, /Ask about \{petName\}/);
   assert.match(homepage, /Go to Today/);

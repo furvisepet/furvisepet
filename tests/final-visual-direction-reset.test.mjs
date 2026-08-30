@@ -49,10 +49,10 @@ test("button hierarchy has explicit readable foregrounds and disabled states", (
   assert.match(css, /:focus-visible[\s\S]*outline: 3px solid var\(--focus\)/);
 });
 
-test("homepage has one hero, exactly three benefits, and authenticated CTA logic", () => {
+test("homepage has one hero, four story chapters, and authenticated CTA logic", () => {
   assert.match(homepage, /Furvise remembers your pet, so you don&apos;t start from zero\./);
   assert.doesNotMatch(homepage, /Takes about two minutes\./);
-  for (const benefit of ["KEEP THE CONTEXT", "UPDATE WHEN SOMETHING CHANGES", "HAVE THE STORY WHEN YOU NEED IT"]) assert.equal(homepage.split(benefit).length - 1, 1);
+  for (const benefit of ["Keep the context.", "Add it when something changes.", "Ask without starting over.", "Have the story when you need it."]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);
   assert.match(homepage, /mode === "with-pet"[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
   assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
