@@ -43,7 +43,11 @@ test("editorial art is decorative, direct on forest, and limited to the approved
   }
   const artCss = homepageCss.slice(homepageCss.indexOf(".homepage-story-art {"), homepageCss.indexOf(".homepage-story-hero .homepage-story-inner"));
   assert.doesNotMatch(artCss, /background|box-shadow|filter|gradient|border-radius/);
-  assert.match(homepageCss, /\.homepage-story-chapter\[data-art\] \{[\s\S]*overflow: clip/);
+  assert.match(homepageCss, /\.homepage-story-chapter\[data-art\] \{[\s\S]*overflow: visible/);
+  assert.match(homepageCss, /\.homepage-story-art-image \{[\s\S]*object-fit: contain/);
+  assert.match(homepageCss, /\.homepage-chapter-art \.homepage-story-art-image \{[\s\S]*object-fit: contain;[\s\S]*object-position: center/);
+  assert.doesNotMatch(homepageCss, /object-fit: cover|overflow: clip/);
+  assert.doesNotMatch(artCss, /margin-(?:left|right):\s*-/);
 });
 
 test("cream header and footer frame one continuous dark main story", () => {
@@ -163,6 +167,8 @@ test("story rhythm varies by chapter and becomes content-driven on mobile", () =
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter,[\s\S]*min-height: auto/);
   assert.match(homepage, /overflow-x-hidden/);
   assert.match(homepageCss, /\.homepage-story-chapter \{[\s\S]*min-height: 72svh/);
+  assert.match(homepageCss, /#track-less \{[\s\S]*min-height: 58svh/);
+  assert.match(homepageCss, /#bigger-idea,[\s\S]*\.homepage-story-chapter\.homepage-final-chapter \{[\s\S]*min-height: 60svh/);
 });
 
 test("editorial type is uppercase, compact, and readable without a new font dependency", () => {

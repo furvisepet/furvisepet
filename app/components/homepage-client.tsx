@@ -131,7 +131,7 @@ function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
           <StoryAction mode={mode} />
         </div>
         <div aria-hidden="true" className="homepage-story-art homepage-hero-art" data-art="heron">
-          <Image alt="" aria-hidden="true" className="homepage-story-art-image" fill priority sizes="(min-width: 1560px) 820px, (min-width: 1024px) 55vw, 72vw" src="/images/heron.png" />
+          <Image alt="" aria-hidden="true" className="homepage-story-art-image" fill priority sizes="(min-width: 1560px) 780px, (min-width: 1024px) 50vw, 92vw" src="/images/heron.png" />
         </div>
       </div>
     </section>
