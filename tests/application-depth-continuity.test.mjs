@@ -65,8 +65,8 @@ test("homepage ends with the final conversion section", () => {
   const renderedHomepage = homepage.slice(homepage.indexOf("export function HomepageClient"), homepage.indexOf("function PublicMarketingHeader"));
   assert.match(homepage, /Remember what matters\./);
   assert.match(homepage, /Start with your pet\. Furvise can keep the story from there\./);
-  assert.ok(renderedHomepage.indexOf("<FinalCallToAction") < renderedHomepage.indexOf("<AppFooter"));
-  assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
+  assert.ok(renderedHomepage.indexOf("<FinalCallToAction") < renderedHomepage.indexOf("<MarketingFooter"));
+  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
 });
 
 test("primary user-facing surfaces contain no em dash or visible technical positioning", () => {

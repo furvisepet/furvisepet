@@ -7,7 +7,6 @@ import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { activePetsOnly } from "../lib/pet-lifecycle";
 import { formatPetDisplayName } from "../lib/petwise";
 import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib/supabase";
-import { AppFooter } from "./app-footer";
 import { BrandMark } from "./brand-mark";
 import { PageShell, PrimaryButton } from "./product-primitives";
 
@@ -59,7 +58,7 @@ export function HomepageClient() {
       <AskStory />
       <HistoryVetStory />
       <FinalCallToAction activePet={activePet} mode={visibleMode} petName={petName} />
-      <AppFooter showSignIn={visibleMode === "anonymous"} />
+      <MarketingFooter showSignIn={visibleMode === "anonymous"} />
     </main>
   );
 }
@@ -332,6 +331,25 @@ function FinalCallToAction({ activePet, mode, petName }: { activePet: DogProfile
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">{authenticatedWithPet ? <><MarketingPrimaryLink href="/dashboard">Go to Today</MarketingPrimaryLink><MarketingTextLink href={`/ask?pet=${encodeURIComponent(activePet.id)}`}>Ask about {petName}</MarketingTextLink></> : mode === "no-pets" ? <MarketingPrimaryLink href={NEW_PET_ONBOARDING_PATH}>Add your pet</MarketingPrimaryLink> : <MarketingPrimaryLink href={NEW_PET_LOGIN_PATH}>Get started</MarketingPrimaryLink>}</div>
       </PageShell>
     </section>
+  );
+}
+
+function MarketingFooter({ showSignIn }: { showSignIn: boolean }) {
+  const footerLinkClass = "inline-flex min-h-11 items-center rounded-full px-2 text-[var(--marketing-muted)] underline-offset-4 hover:bg-[var(--marketing-hover)] hover:text-[var(--marketing-text)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]";
+
+  return (
+    <footer className="border-t border-[var(--marketing-line)] bg-[var(--marketing-forest)]" data-marketing-surface="dark" data-ui="homepage-marketing-footer">
+      <PageShell className="flex flex-col gap-4 py-6 text-sm sm:flex-row sm:items-center sm:justify-between" preset="marketing">
+        <Link aria-label="Furvise home" className="homepage-brand-lockup inline-flex w-fit min-h-11 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--marketing-forest)]" href="/">
+          <span className="inline-flex [--brand-mark-size:1.5rem]"><BrandMark size={24} /></span>
+        </Link>
+        <nav aria-label="Footer navigation" className="flex min-h-11 items-center gap-1 sm:gap-3">
+          <Link className={footerLinkClass} href="/privacy">Privacy</Link>
+          <Link className={footerLinkClass} href="/terms">Terms</Link>
+          {showSignIn ? <Link className={`${footerLinkClass} font-semibold text-[var(--marketing-text)]`} href="/login">Sign in</Link> : null}
+        </nav>
+      </PageShell>
+    </footer>
   );
 }
 

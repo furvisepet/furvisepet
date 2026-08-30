@@ -370,11 +370,6 @@ body {
   color: var(--marketing-text);
 }
 
-.homepage-dark-world [data-ui="app-footer"] {
-  border-color: var(--marketing-line);
-}
-
-.homepage-dark-world [data-ui="app-footer"] [data-ui="brand-mark"],
 .homepage-brand-lockup {
   background: var(--marketing-text);
   padding: 0.35rem 0.45rem;

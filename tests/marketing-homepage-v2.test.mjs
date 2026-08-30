@@ -5,6 +5,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const homepage = read("app/components/homepage-client.tsx");
+const brand = read("app/components/brand-mark.tsx");
 const css = read("app/globals.css");
 const page = read("app/page.tsx");
 const seo = read("app/lib/seo.ts");
@@ -88,10 +89,18 @@ test("trust statement and final conversion use approved exact copy", () => {
   assert.equal(homepage.split("Furvise helps organize pet care information and does not replace veterinary care.").length - 1, 1);
   assert.equal(homepage.split("Remember what matters.").length - 1, 1);
   assert.equal(homepage.split("Start with your pet. Furvise can keep the story from there.").length - 1, 1);
-  assert.ok(renderedHomepage.indexOf("<FinalCallToAction") < renderedHomepage.indexOf("<AppFooter"));
+  assert.ok(renderedHomepage.indexOf("<FinalCallToAction") < renderedHomepage.indexOf("<MarketingFooter"));
   const final = homepage.slice(homepage.indexOf("function FinalCallToAction"), homepage.indexOf("function MarketingPrimaryLink"));
   assert.match(final, /NEW_PET_LOGIN_PATH[\s\S]*>Get started<\/MarketingPrimaryLink>/);
   assert.match(final, /authenticatedWithPet[\s\S]*Go to Today[\s\S]*Ask about \{petName\}/);
+});
+
+test("dark homepage branding stays local without changing shared BrandMark loading", () => {
+  assert.equal((brand.match(/priority=\{priority\}/g) || []).length, 3);
+  assert.doesNotMatch(brand, /data-ui="brand-mark"|loading=\{priority/);
+  assert.doesNotMatch(homepage, /AppFooter/);
+  assert.match(homepage, /function MarketingFooter[\s\S]*data-ui="homepage-marketing-footer"/);
+  assert.match(homepage, /homepage-brand-lockup[\s\S]*<BrandMark size=\{24\}/);
 });
 
 test("dark marketing actions and focus treatments are high contrast without orange", () => {

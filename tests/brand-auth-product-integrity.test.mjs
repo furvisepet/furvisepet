@@ -34,6 +34,8 @@ test("approved compact Furvise assets are composed by the shared BrandMark", () 
   assert.match(iconOnlyMark, /src=\{FURVISE_MASCOT_ASSET\}/);
   assert.doesNotMatch(iconOnlyMark, /FURVISE_WORDMARK_ASSET|FURVISE_BRAND_ASSET/);
   assert.match(brand, /import Image from "next\/image"/);
+  assert.equal((brand.match(/priority=\{priority\}/g) || []).length, 3);
+  assert.doesNotMatch(brand, /data-ui="brand-mark"|loading=\{priority/);
   assert.doesNotMatch(liveBrandReferences, /logo-header-v1\.webp|\/brand\/logo\.png|App(?:%20| )icon(?:\.png)?/i);
   assert.doesNotMatch(brand, /filter/);
   assert.match(header, /<BrandMark priority/);
@@ -78,7 +80,7 @@ test("homepage explicitly implements anonymous, no-pet, and existing-pet actions
 
 test("signed-in homepage branches do not render signed-out actions", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  assert.match(homepage, /<AppFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
+  assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} \/>/);
   assert.doesNotMatch(homepage, /mode === "with-pet"[^?]+Sign in/s);
 });
 
@@ -123,7 +125,8 @@ test("Pets, History, and Today empty and primary states are useful", () => {
 
 test("homepage footer follows authentication state", () => {
   const homepage = read("app/components/homepage-client.tsx");
-  const footer = read("app/components/app-footer.tsx");
+  const footer = homepage.slice(homepage.indexOf("function MarketingFooter"), homepage.indexOf("function MarketingPrimaryLink"));
+  assert.match(footer, /data-ui="homepage-marketing-footer"/);
   assert.match(footer, /href="\/privacy">Privacy/);
   assert.match(footer, /href="\/terms">Terms/);
   assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
