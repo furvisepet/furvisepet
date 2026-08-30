@@ -19,12 +19,13 @@ const mobileNavigation = homepage.slice(homepage.indexOf("const HOMEPAGE_MOBILE_
 const homepageCss = css.slice(css.indexOf(".homepage-dark-world"), css.indexOf(".mobile-liquid-glass-root"));
 const mainStory = homepage.slice(homepage.indexOf('<main className="homepage-dark-world"'), homepage.indexOf("</main>"));
 
-test("homepage uses only the four supplied editorial illustrations and no product examples", () => {
+test("homepage uses only the four final supplied editorial illustrations and no product examples", () => {
   assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow|product-frame|product-example|history-example|ask-context-example|Vet Visit Brief|fake (?:chat|product)|screenshot/i);
   assert.doesNotMatch(homepage, /fetch\(|\/api\/|createConversation|saveConversation|onSubmit=/);
-  for (const asset of ["heron", "flamingo", "goat", "ostrich"]) {
+  for (const asset of ["cat", "deer", "hummingbird", "birds"]) {
     assert.equal(homepage.split(`/images/${asset}.png`).length - 1, 1, `${asset} is referenced once`);
   }
+  for (const retiredAsset of ["heron", "flamingo", "goat", "ostrich"]) assert.doesNotMatch(homepage, new RegExp(`/images/${retiredAsset}\\.png`));
   assert.doesNotMatch(mainStory, /<video|<picture|backgroundImage/);
   assert.equal((homepage.match(/<Image/g) || []).length, 5, "the header, footer, mobile navigation, hero, and reusable chapter art use Image");
 });
@@ -32,9 +33,9 @@ test("homepage uses only the four supplied editorial illustrations and no produc
 test("editorial art is decorative, direct on forest, and limited to the approved chapters", () => {
   const hero = homepage.slice(homepage.indexOf("function WhyWeExist"), homepage.indexOf("function StoryChapter"));
   const chapterArt = homepage.slice(homepage.indexOf("function HomepageChapterArt"), homepage.indexOf("function FinalChapter"));
-  assert.match(hero, /data-art="heron"[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*fill priority[\s\S]*src="\/images\/heron\.png"/);
-  assert.match(chapterArt, /<Image alt="" aria-hidden="true"[\s\S]*loading="lazy"[\s\S]*sizes="\(min-width: 1560px\) 720px, \(min-width: 1024px\) 48vw, 92vw"/);
-  for (const [id, art] of [["the-reality", "flamingo"], ["one-story", "goat"], ["when-needed", "ostrich"]]) {
+  assert.match(hero, /homepage-art-cat[\s\S]*data-art="cat"[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*fill priority[\s\S]*src="\/images\/cat\.png"/);
+  assert.match(chapterArt, /homepage-art-\$\{art\}[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*loading="lazy"[\s\S]*sizes=\{asset\.sizes\}/);
+  for (const [id, art] of [["the-reality", "deer"], ["one-story", "hummingbird"], ["when-needed", "birds"]]) {
     assert.match(renderedHomepage, new RegExp(`art="${art}"[^>]*id="${id}"`));
   }
   for (const id of ["track-less", "bigger-idea"]) {
@@ -48,6 +49,8 @@ test("editorial art is decorative, direct on forest, and limited to the approved
   assert.match(homepageCss, /\.homepage-chapter-art \.homepage-story-art-image \{[\s\S]*object-fit: contain;[\s\S]*object-position: center/);
   assert.doesNotMatch(homepageCss, /object-fit: cover|overflow: clip/);
   assert.doesNotMatch(artCss, /margin-(?:left|right):\s*-/);
+  for (const art of ["cat", "deer", "hummingbird", "birds"]) assert.match(homepageCss, new RegExp(`\\.homepage-art-${art} \\{`));
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter\[data-art="hummingbird"\] \.homepage-story-block \{[\s\S]*order: -1/);
 });
 
 test("cream header and footer frame one continuous dark main story", () => {
@@ -210,4 +213,8 @@ test("approved Furvise artwork remains byte-for-byte unchanged", () => {
   assert.equal(hash("public/images/flamingo.png"), "03cd340a13e7cecacfa7631433d817766eb941287eb48c4cfa2ef8093e271a27");
   assert.equal(hash("public/images/goat.png"), "54eb8be2f0c1878e3bd1058510f5d976c7fede2b850d443c091c5dc0d7c76a97");
   assert.equal(hash("public/images/ostrich.png"), "942b88b30f76d8d24e8661d01ecc064a2dd2c35beea126144fd54004b4335f3d");
+  assert.equal(hash("public/images/cat.png"), "be7498352c359a0da98b723f8852d5177cd34e8160046bbf4f85a38db9b80d77");
+  assert.equal(hash("public/images/deer.png"), "e3d738ddd62940868c6a249a8a41d91169868a71a6fc531f33819e431cca06d5");
+  assert.equal(hash("public/images/hummingbird.png"), "6fa625213608a17eb91fd8b20176d4d9497b78c870e959c977fdfe4fa5710276");
+  assert.equal(hash("public/images/birds.png"), "0974af9c75fa907081ae03db4cf0f10f7ae31eb805df946a88a47792ba8b594d");
 });

@@ -540,19 +540,21 @@ body {
 .homepage-hero-art {
   width: 100%;
   max-width: 52rem;
-  height: min(78svh, 46rem);
   grid-column: 7 / 13;
   align-self: end;
   justify-self: end;
 }
 
-.homepage-hero-art .homepage-story-art-image {
+.homepage-art-cat {
+  height: min(82svh, 46rem);
+}
+
+.homepage-art-cat .homepage-story-art-image {
   object-position: center bottom;
 }
 
 .homepage-chapter-art {
   width: 100%;
-  height: min(72svh, 47.5rem);
   align-self: center;
 }
 
@@ -561,13 +563,25 @@ body {
   object-position: center;
 }
 
-.homepage-story-chapter[data-art="flamingo"] .homepage-chapter-art,
-.homepage-story-chapter[data-art="ostrich"] .homepage-chapter-art {
+.homepage-art-deer {
+  height: min(72svh, 47.5rem);
+}
+
+.homepage-art-hummingbird {
+  height: min(44svh, 28rem);
+}
+
+.homepage-art-birds {
+  height: min(54svh, 30rem);
+}
+
+.homepage-story-chapter[data-art="deer"] .homepage-chapter-art,
+.homepage-story-chapter[data-art="birds"] .homepage-chapter-art {
   grid-column: 1 / 7;
   justify-self: start;
 }
 
-.homepage-story-chapter[data-art="goat"] .homepage-chapter-art {
+.homepage-story-chapter[data-art="hummingbird"] .homepage-chapter-art {
   grid-column: 7 / 13;
   justify-self: end;
 }
@@ -621,6 +635,10 @@ body {
 }
 
 @media (min-width: 1024px) {
+  .homepage-story-hero .homepage-story-inner {
+    padding-block: clamp(2rem, 4vh, 3rem) clamp(3rem, 6vh, 5rem);
+  }
+
   .homepage-story-chapter[data-art]:not(.homepage-story-hero) {
     min-height: 78svh;
   }
@@ -629,13 +647,20 @@ body {
     padding-block: clamp(2rem, 4vh, 3rem);
   }
 
-  .homepage-story-chapter[data-art="flamingo"] .homepage-story-block,
-  .homepage-story-chapter[data-art="ostrich"] .homepage-story-block {
+  .homepage-story-chapter[data-art="deer"] .homepage-story-block {
     grid-column: 7 / 13;
   }
 
-  .homepage-story-chapter[data-art="goat"] .homepage-story-block {
+  .homepage-story-chapter[data-art="hummingbird"] .homepage-story-block {
     grid-column: 1 / 7;
+  }
+
+  .homepage-story-chapter[data-art="birds"] .homepage-chapter-art {
+    grid-column: 1 / 8;
+  }
+
+  .homepage-story-chapter[data-art="birds"] .homepage-story-block {
+    grid-column: 8 / 13;
   }
 
   #track-less {
@@ -883,16 +908,20 @@ body {
     justify-self: stretch;
   }
 
-  .homepage-story-chapter[data-art="flamingo"] .homepage-chapter-art {
-    height: min(112vw, 36rem);
+  .homepage-art-deer {
+    height: min(128vw, 40rem);
   }
 
-  .homepage-story-chapter[data-art="goat"] .homepage-chapter-art {
-    height: min(112vw, 36rem);
+  .homepage-art-hummingbird {
+    height: min(58vw, 32rem);
   }
 
-  .homepage-story-chapter[data-art="ostrich"] .homepage-chapter-art {
-    height: min(112vw, 36rem);
+  .homepage-art-birds {
+    height: min(58vw, 32rem);
+  }
+
+  .homepage-story-chapter[data-art="hummingbird"] .homepage-story-block {
+    order: -1;
   }
 
   .homepage-story-hero {
@@ -916,7 +945,7 @@ body {
     position: relative;
     width: 100%;
     max-width: none;
-    height: min(70vw, 24rem);
+    height: min(92vw, 23rem);
     margin-top: 2rem;
     order: 2;
     align-self: stretch;
@@ -948,7 +977,7 @@ body {
 
   .homepage-site[data-authenticated="true"] .homepage-hero-art {
     width: 100%;
-    height: min(64vw, 22rem);
+    height: min(92vw, 23rem);
   }
 
   .homepage-story-body {
@@ -1020,16 +1049,16 @@ body {
     padding-block: 2.75rem 5.25rem;
   }
 
-  .homepage-story-chapter[data-art="flamingo"] .homepage-chapter-art {
-    height: min(112vw, 32rem);
+  .homepage-art-deer {
+    height: min(128vw, 36rem);
   }
 
-  .homepage-story-chapter[data-art="goat"] .homepage-chapter-art {
-    height: min(112vw, 32rem);
+  .homepage-art-hummingbird {
+    height: min(58vw, 22rem);
   }
 
-  .homepage-story-chapter[data-art="ostrich"] .homepage-chapter-art {
-    height: min(112vw, 32rem);
+  .homepage-art-birds {
+    height: min(58vw, 22rem);
   }
 
   .homepage-final-chapter .homepage-story-inner {
@@ -1053,7 +1082,7 @@ body {
 @media (max-width: 479px) and (max-height: 720px) {
   .homepage-hero-art {
     width: 100%;
-    height: min(62vw, 17rem);
+    height: min(96vw, 25rem);
   }
 }
 
