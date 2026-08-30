@@ -80,9 +80,10 @@ test("PageHeader supports shared titles and independent action slots", () => {
   assert.match(products, /aria-labelledby="products-coming-soon-title"[\s\S]*<h1[\s\S]*id="products-coming-soon-title"/);
 });
 
-test("shared and homepage footers are compact, shell aligned, and use the canonical logo component", () => {
+test("shared and homepage footers are compact, shell aligned, and use approved logo treatments", () => {
   assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
-  assert.match(homepage, /data-ui="homepage-marketing-footer"[\s\S]*<BrandMark size=\{26\} \/>/);
+  assert.match(homepage, /data-ui="homepage-marketing-footer"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
+  assert.doesNotMatch(homepage, /<BrandMark/);
   assert.match(footer, /<BrandMark size=\{24\} \/>/);
   assert.match(footer, /href="\/privacy">Privacy/);
   assert.match(footer, /href="\/terms">Terms/);
