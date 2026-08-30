@@ -22,7 +22,8 @@ const mainStory = homepage.slice(homepage.indexOf('<main className="homepage-dar
 test("homepage removes every illustrative product example", () => {
   assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow|product-frame|product-example|history-example|ask-context-example|Vet Visit Brief|fake (?:chat|product)|screenshot/i);
   assert.doesNotMatch(homepage, /fetch\(|\/api\/|createConversation|saveConversation|onSubmit=/);
-  assert.equal((homepage.match(/<Image/g) || []).length, 1, "only shared mobile navigation icons use Image");
+  assert.doesNotMatch(mainStory, /<Image|<video|<picture|backgroundImage/);
+  assert.equal((homepage.match(/<Image/g) || []).length, 3, "only the two approved lockups and shared mobile navigation icons use Image");
 });
 
 test("cream header and footer frame one continuous dark main story", () => {
@@ -36,10 +37,11 @@ test("cream header and footer frame one continuous dark main story", () => {
   assert.doesNotMatch(mainStory, /homepage-light-story|data-marketing-surface="light"/);
 });
 
-test("approved brand sits directly on cream without a logo patch or pill", () => {
-  assert.match(marketingHeader, /homepage-brand-link[\s\S]*<BrandMark priority size=\{28\}/);
-  assert.match(homepage, /homepage-footer-brand[\s\S]*<BrandMark size=\{26\}/);
-  assert.doesNotMatch(homepage, /homepage-brand-lockup|brand-mark-background|logo-pill|rounded-full[^\n]*BrandMark/);
+test("approved premium full logo sits directly on cream without a patch or pill", () => {
+  assert.match(marketingHeader, /homepage-brand-link[\s\S]*<Image[^>]*priority[^>]*src="\/brand\/furvise-logo\.svg"/);
+  assert.match(homepage, /homepage-footer-brand[\s\S]*<Image[^>]*src="\/brand\/furvise-logo\.svg"/);
+  assert.equal((homepage.match(/src="\/brand\/furvise-logo\.svg"/g) || []).length, 2);
+  assert.doesNotMatch(homepage, /<BrandMark|homepage-brand-lockup|brand-mark-background|logo-pill|rounded-full[^\n]*homepage-full-logo/);
   const brandRules = homepageCss.slice(homepageCss.indexOf(".homepage-brand-link"), homepageCss.indexOf(".homepage-header-navigation-zone"));
   assert.doesNotMatch(brandRules, /background:|padding:/);
   assert.equal((brand.match(/priority=\{priority\}/g) || []).length, 3);
@@ -62,14 +64,16 @@ test("authenticated desktop header exposes plain app links without old AppHeader
   assert.match(marketingHeader, /href="\/account">Account/);
   assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|desktop-navigation-container|rounded-navigation|APP_NAV_ITEMS/);
   assert.doesNotMatch(homepageCss.slice(homepageCss.indexOf(".homepage-desktop-navigation"), homepageCss.indexOf(".homepage-header-actions")), /background:|border:|border-radius:/);
+  assert.match(homepageCss, /\.homepage-header-text-link,[\s\S]*font-size: 0\.8125rem;[\s\S]*font-weight: 700;[\s\S]*text-transform: uppercase/);
 });
 
-test("one three-zone header keeps geometry stable through auth resolution", () => {
+test("one slim three-zone header keeps geometry stable through auth resolution", () => {
   assert.equal((homepage.match(/data-ui="public-marketing-header"/g) || []).length, 1);
   for (const zone of ["homepage-header-brand-zone", "homepage-header-navigation-zone", "homepage-header-actions"]) assert.match(marketingHeader, new RegExp(zone));
-  assert.match(css, /\.homepage-header-grid \{[\s\S]*min-height: 4\.5rem;[\s\S]*grid-template-columns: minmax\(0, 1fr\) minmax\(26rem, auto\) minmax\(0, 1fr\)/);
-  assert.match(css, /\.homepage-header-navigation-zone \{[\s\S]*min-width: 26rem/);
-  assert.match(css, /\.homepage-header-actions \{[\s\S]*min-width: 12\.5rem/);
+  assert.match(css, /\.homepage-header-grid \{[\s\S]*height: 3\.5rem;[\s\S]*min-height: 3\.5rem;[\s\S]*grid-template-columns: minmax\(0, 1fr\) minmax\(24rem, auto\) minmax\(0, 1fr\)/);
+  assert.match(css, /\.homepage-header-navigation-zone \{[\s\S]*min-width: 24rem/);
+  assert.match(css, /\.homepage-header-actions \{[\s\S]*min-width: 11\.75rem/);
+  assert.match(css, /@media \(max-width: 479px\)[\s\S]*\.homepage-header-grid \{[\s\S]*height: 3\.375rem;[\s\S]*min-height: 3\.375rem/);
   assert.match(homepage, /auth\.status === "loading"[\s\S]*\? "loading"/);
 });
 
@@ -102,6 +106,16 @@ test("story actions preserve anonymous, no-pet, and with-pet authority", () => {
   assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
   assert.match(homepage, /href: "\/dashboard", label: "Go to Today"/);
+  for (const [id, action] of [["the-reality", "history"], ["one-story", "pets"], ["track-less", "today"], ["when-needed", "ask"], ["bigger-idea", "history"]]) {
+    assert.match(renderedHomepage, new RegExp(`action="${action}"[^>]*id="${id}"`));
+  }
+  assert.match(homepage, /buildLoginHref\("\/care-log"\), label: "View history"/);
+  assert.match(homepage, /href: "\/care-log", label: "View history"/);
+  assert.match(homepage, /href: NEW_PET_LOGIN_PATH, label: "Your pets"/);
+  assert.match(homepage, /href: "\/pets", label: "Your pets"/);
+  assert.match(homepage, /buildLoginHref\("\/ask"\), label: "Ask Furvise"/);
+  assert.match(homepage, /mode === "with-pet" && activePetId \? `\/ask\?pet=\$\{encodeURIComponent\(activePetId\)\}` : "\/ask"/);
+  assert.match(homepageCss, /\.homepage-story-action \{[\s\S]*min-height: 2\.75rem;[\s\S]*border-radius: 0\.25rem;[\s\S]*text-transform: uppercase/);
   assert.doesNotMatch(homepage, /secondary.*(?:button|action)|Explore platform|Learn more|Discover Furvise/i);
 });
 
@@ -128,6 +142,14 @@ test("story rhythm varies by chapter and becomes content-driven on mobile", () =
   assert.match(homepageCss, /grid-template-columns: repeat\(12, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter,[\s\S]*min-height: auto/);
   assert.match(homepage, /overflow-x-hidden/);
+  assert.match(homepageCss, /\.homepage-story-chapter \{[\s\S]*min-height: 72svh/);
+});
+
+test("editorial type is uppercase, compact, and readable without a new font dependency", () => {
+  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;[\s\S]*font-size: clamp\(3\.25rem, 5vw, 4\.5rem\);[\s\S]*font-weight: 800;[\s\S]*line-height: 0\.92/);
+  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.375rem, 6\.4vw, 5\.75rem\)/);
+  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 38rem;[\s\S]*font-size: clamp\(1\.0625rem, 1\.25vw, 1\.1875rem\);[\s\S]*line-height: 1\.58/);
+  assert.doesNotMatch(homepage, /@font-face|next\/font|fonts\.(?:googleapis|gstatic)/);
 });
 
 test("homepage contains no feature grid or banned visual treatment", () => {
