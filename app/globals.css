@@ -535,7 +535,7 @@ body {
 
 .homepage-story-hero .homepage-story-block {
   grid-column: 1 / 7;
-  max-width: 35rem;
+  max-width: 34rem;
 }
 
 .homepage-hero-art {
@@ -543,7 +543,7 @@ body {
 }
 
 .homepage-art-heron .homepage-story-art-image {
-  object-position: center bottom;
+  object-position: 60% bottom;
 }
 
 .homepage-chapter-art {
@@ -619,10 +619,10 @@ body {
   }
 
   .homepage-art-heron {
-    right: calc(clamp(2rem, 5vw, 6rem) - max(0px, (100vw - 1560px) / 2));
+    right: calc(clamp(0.5rem, 2.5vw, 3rem) - max(0px, (100vw - 1560px) / 2));
     bottom: 0;
-    width: min(50vw, 50rem);
-    height: min(84svh, 50rem);
+    width: min(54vw, 56rem);
+    height: min(88svh, 54rem);
   }
 
   .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-inner {
@@ -630,50 +630,59 @@ body {
   }
 
   #the-reality {
-    min-height: 84svh;
+    min-height: 86svh;
   }
 
   .homepage-art-deer {
-    top: 50%;
-    left: calc(clamp(2rem, 4vw, 5rem) - max(0px, (100vw - 1560px) / 2));
-    width: min(44vw, 45rem);
-    height: min(80svh, 48rem);
-    transform: translateY(-50%);
+    left: calc(clamp(0.5rem, 2vw, 2.5rem) - max(0px, (100vw - 1560px) / 2));
+    bottom: 0;
+    width: min(50vw, 50rem);
+    height: min(84svh, 52rem);
+  }
+
+  .homepage-art-deer .homepage-story-art-image {
+    object-position: right bottom;
   }
 
   .homepage-story-chapter[data-art="deer"] .homepage-story-block {
-    grid-column: 7 / 13;
+    grid-column: 8 / 13;
   }
 
   #one-story {
-    min-height: 82svh;
+    min-height: 84svh;
   }
 
   .homepage-art-cat {
-    right: calc(clamp(2rem, 4vw, 5rem) - max(0px, (100vw - 1560px) / 2));
+    right: calc(clamp(1rem, 3vw, 3.5rem) - max(0px, (100vw - 1560px) / 2));
     bottom: 0;
-    width: min(42vw, 43rem);
-    height: min(78svh, 46rem);
+    width: min(48vw, 48rem);
+    height: min(82svh, 50rem);
+  }
+
+  .homepage-art-cat .homepage-story-art-image {
+    object-position: left bottom;
   }
 
   .homepage-story-chapter[data-art="cat"] .homepage-story-block {
     grid-column: 1 / 7;
+    max-width: 35rem;
   }
 
   #when-needed {
-    min-height: 72svh;
+    min-height: 76svh;
   }
 
   .homepage-art-hummingbird {
     top: 50%;
-    left: calc(clamp(2rem, 5vw, 6rem) - max(0px, (100vw - 1560px) / 2));
-    width: min(38vw, 38rem);
-    height: min(52svh, 32rem);
+    left: calc(clamp(1rem, 3vw, 4rem) - max(0px, (100vw - 1560px) / 2));
+    width: min(44vw, 44rem);
+    height: auto;
+    aspect-ratio: 3 / 2;
     transform: translateY(-50%);
   }
 
   .homepage-story-chapter[data-art="hummingbird"] .homepage-story-block {
-    grid-column: 7 / 13;
+    grid-column: 8 / 13;
   }
 
   #track-less {
@@ -696,12 +705,6 @@ body {
   #bigger-idea .homepage-story-heading {
     max-width: 22ch;
     font-size: 3.25rem;
-  }
-}
-
-@media (min-width: 1024px) and (max-width: 1350px) {
-  .homepage-art-heron {
-    right: 2rem;
   }
 }
 
@@ -910,7 +913,7 @@ body {
   .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-inner {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 2rem;
+    gap: 1.5rem;
     padding-block: 3.5rem 5.5rem;
   }
 
@@ -941,8 +944,10 @@ body {
   }
 
   .homepage-art-hummingbird {
-    width: 100%;
-    height: min(58vw, 32rem);
+    width: min(94vw, 36rem);
+    height: auto;
+    aspect-ratio: 3 / 2;
+    justify-self: center;
   }
 
   .homepage-story-chapter[data-art="cat"] .homepage-story-block {
@@ -1070,7 +1075,7 @@ body {
   }
 
   .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-inner {
-    gap: 1.75rem;
+    gap: 1.25rem;
     padding-block: 2.75rem 5.25rem;
   }
 
@@ -1085,8 +1090,9 @@ body {
   }
 
   .homepage-art-hummingbird {
-    width: 100%;
-    height: min(58vw, 22rem);
+    width: min(94vw, 36rem);
+    height: auto;
+    aspect-ratio: 3 / 2;
   }
 
   .homepage-final-chapter .homepage-story-inner {
