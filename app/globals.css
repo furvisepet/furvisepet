@@ -516,7 +516,7 @@ body {
   z-index: 2;
   grid-column: 1 / span 7;
   grid-row: 1;
-  max-width: 54rem;
+  max-width: 38rem;
 }
 
 .homepage-story-art {
@@ -535,18 +535,11 @@ body {
 
 .homepage-story-hero .homepage-story-block {
   grid-column: 1 / 7;
+  max-width: 35rem;
 }
 
 .homepage-hero-art {
   width: 100%;
-  max-width: 52rem;
-  grid-column: 7 / 13;
-  align-self: end;
-  justify-self: end;
-}
-
-.homepage-art-heron {
-  height: min(82svh, 46rem);
 }
 
 .homepage-art-heron .homepage-story-art-image {
@@ -561,29 +554,6 @@ body {
 .homepage-chapter-art .homepage-story-art-image {
   object-fit: contain;
   object-position: center;
-}
-
-.homepage-art-deer {
-  height: min(72svh, 47.5rem);
-}
-
-.homepage-art-cat {
-  height: min(72svh, 47.5rem);
-}
-
-.homepage-art-hummingbird {
-  height: min(44svh, 28rem);
-}
-
-.homepage-story-chapter[data-art="deer"] .homepage-chapter-art,
-.homepage-story-chapter[data-art="hummingbird"] .homepage-chapter-art {
-  grid-column: 1 / 7;
-  justify-self: start;
-}
-
-.homepage-story-chapter[data-art="cat"] .homepage-chapter-art {
-  grid-column: 7 / 13;
-  justify-self: end;
 }
 
 .homepage-story-hero .homepage-story-inner,
@@ -635,24 +605,71 @@ body {
 }
 
 @media (min-width: 1024px) {
+  .homepage-story-chapter[data-art] .homepage-story-art,
+  .homepage-story-hero .homepage-story-art {
+    position: absolute;
+    grid-column: auto;
+    grid-row: auto;
+    align-self: auto;
+    justify-self: auto;
+  }
+
   .homepage-story-hero .homepage-story-inner {
     padding-block: clamp(2rem, 4vh, 3rem) clamp(3rem, 6vh, 5rem);
   }
 
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) {
-    min-height: 78svh;
+  .homepage-art-heron {
+    right: calc(clamp(2rem, 5vw, 6rem) - max(0px, (100vw - 1560px) / 2));
+    bottom: 0;
+    width: min(50vw, 50rem);
+    height: min(84svh, 50rem);
   }
 
   .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-inner {
     padding-block: clamp(2rem, 4vh, 3rem);
   }
 
+  #the-reality {
+    min-height: 84svh;
+  }
+
+  .homepage-art-deer {
+    top: 50%;
+    left: calc(clamp(2rem, 4vw, 5rem) - max(0px, (100vw - 1560px) / 2));
+    width: min(44vw, 45rem);
+    height: min(80svh, 48rem);
+    transform: translateY(-50%);
+  }
+
   .homepage-story-chapter[data-art="deer"] .homepage-story-block {
     grid-column: 7 / 13;
   }
 
+  #one-story {
+    min-height: 82svh;
+  }
+
+  .homepage-art-cat {
+    right: calc(clamp(2rem, 4vw, 5rem) - max(0px, (100vw - 1560px) / 2));
+    bottom: 0;
+    width: min(42vw, 43rem);
+    height: min(78svh, 46rem);
+  }
+
   .homepage-story-chapter[data-art="cat"] .homepage-story-block {
     grid-column: 1 / 7;
+  }
+
+  #when-needed {
+    min-height: 72svh;
+  }
+
+  .homepage-art-hummingbird {
+    top: 50%;
+    left: calc(clamp(2rem, 5vw, 6rem) - max(0px, (100vw - 1560px) / 2));
+    width: min(38vw, 38rem);
+    height: min(52svh, 32rem);
+    transform: translateY(-50%);
   }
 
   .homepage-story-chapter[data-art="hummingbird"] .homepage-story-block {
@@ -679,6 +696,12 @@ body {
   #bigger-idea .homepage-story-heading {
     max-width: 22ch;
     font-size: 3.25rem;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1350px) {
+  .homepage-art-heron {
+    right: 2rem;
   }
 }
 
@@ -893,10 +916,13 @@ body {
 
   .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-block,
   .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art {
+    position: relative;
     width: auto;
     margin: 0;
     grid-column: 1;
     grid-row: auto;
+    inset: auto;
+    transform: none;
   }
 
   .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art {
@@ -905,14 +931,17 @@ body {
   }
 
   .homepage-art-deer {
+    width: 100%;
     height: min(128vw, 40rem);
   }
 
   .homepage-art-cat {
+    width: 100%;
     height: min(128vw, 40rem);
   }
 
   .homepage-art-hummingbird {
+    width: 100%;
     height: min(58vw, 32rem);
   }
 
@@ -1046,14 +1075,17 @@ body {
   }
 
   .homepage-art-deer {
+    width: 100%;
     height: min(128vw, 36rem);
   }
 
   .homepage-art-cat {
+    width: 100%;
     height: min(128vw, 36rem);
   }
 
   .homepage-art-hummingbird {
+    width: 100%;
     height: min(58vw, 22rem);
   }
 

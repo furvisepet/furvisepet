@@ -53,6 +53,21 @@ test("editorial art is decorative, direct on forest, and limited to the approved
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter\[data-art="cat"\] \.homepage-story-block \{[\s\S]*order: -1/);
 });
 
+test("desktop art is independently staged while text stays grid-aligned", () => {
+  const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf(".homepage-story-body"));
+  assert.match(desktopStageCss, /\.homepage-story-chapter\[data-art\] \.homepage-story-art,[\s\S]*\.homepage-story-hero \.homepage-story-art \{[\s\S]*position: absolute;[\s\S]*grid-column: auto;[\s\S]*grid-row: auto/);
+  for (const art of ["heron", "deer", "cat", "hummingbird"]) {
+    assert.match(desktopStageCss, new RegExp(`\\.homepage-art-${art} \\{[\\s\\S]*width:`));
+  }
+  assert.match(desktopStageCss, /\.homepage-art-heron \{[\s\S]*right:[\s\S]*bottom: 0;[\s\S]*width: min\(50vw,[\s\S]*height: min\(84svh/);
+  assert.match(desktopStageCss, /\.homepage-art-deer \{[\s\S]*left:[\s\S]*width: min\(44vw,[\s\S]*height: min\(80svh/);
+  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right:[\s\S]*bottom: 0;[\s\S]*width: min\(42vw,[\s\S]*height: min\(78svh/);
+  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*left:[\s\S]*width: min\(38vw,[\s\S]*height: min\(52svh/);
+  assert.doesNotMatch(desktopStageCss, /data-art="(?:deer|cat|hummingbird)"\][^{]*\.homepage-chapter-art[^}]*grid-column:/);
+  assert.match(css, /@media \(min-width: 1024px\) and \(max-width: 1350px\) \{[\s\S]*\.homepage-art-heron \{[\s\S]*right: 2rem/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-chapter-art \{[\s\S]*position: relative;[\s\S]*inset: auto;[\s\S]*transform: none/);
+});
+
 test("cream header and footer frame one continuous dark main story", () => {
   assert.match(homepage, /homepage-marketing-header[\s\S]*data-marketing-surface="light"/);
   assert.match(homepage, /<main className="homepage-dark-world" data-marketing-surface="dark"/);
