@@ -59,10 +59,10 @@ test("desktop art is independently staged while text stays grid-aligned", () => 
   for (const art of ["heron", "deer", "cat", "hummingbird"]) {
     assert.match(desktopStageCss, new RegExp(`\\.homepage-art-${art} \\{[\\s\\S]*width:`));
   }
-  assert.match(desktopStageCss, /\.homepage-art-heron \{[\s\S]*right: calc\(-1vw[\s\S]*bottom: -2vh;[\s\S]*width: min\(60vw,[\s\S]*height: min\(88svh/);
-  assert.match(desktopStageCss, /\.homepage-art-deer \{[\s\S]*left: calc\(0px[\s\S]*bottom: 0;[\s\S]*width: min\(53vw,[\s\S]*height: min\(86svh/);
-  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: calc\(0px[\s\S]*bottom: 0;[\s\S]*width: min\(52vw,[\s\S]*height: min\(84svh/);
-  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*left: calc\(1vw[\s\S]*width: min\(49vw,[\s\S]*height: auto;[\s\S]*aspect-ratio: 3 \/ 2;[\s\S]*transform: translateY\(-50%\)/);
+  assert.match(desktopStageCss, /\.homepage-art-heron \{[\s\S]*right: -1vw;[\s\S]*bottom: -1vh;[\s\S]*width: min\(60vw,[\s\S]*height: min\(88svh/);
+  assert.match(desktopStageCss, /\.homepage-art-deer \{[\s\S]*left: -5vw;[\s\S]*bottom: -1vh;[\s\S]*width: min\(55vw,[\s\S]*height: min\(84svh/);
+  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: -3vw;[\s\S]*bottom: 0;[\s\S]*width: min\(52vw,[\s\S]*height: min\(80svh/);
+  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*top: 48%;[\s\S]*left: 0;[\s\S]*width: min\(48vw,[\s\S]*height: auto;[\s\S]*aspect-ratio: 3 \/ 2;[\s\S]*transform: translateY\(-50%\)/);
   assert.doesNotMatch(desktopStageCss, /data-art="(?:deer|cat|hummingbird)"\][^{]*\.homepage-chapter-art[^}]*grid-column:/);
   assert.doesNotMatch(css, /@media \(min-width: 1024px\) and \(max-width: 1350px\)[\s\S]*\.homepage-art-heron/);
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-chapter-art \{[\s\S]*position: relative;[\s\S]*inset: auto;[\s\S]*transform: none/);
@@ -70,10 +70,11 @@ test("desktop art is independently staged while text stays grid-aligned", () => 
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter\[data-art\]:not\(\.homepage-story-hero\) \.homepage-chapter-art\.homepage-art-cat \{[\s\S]*width: min\(100vw,[\s\S]*aspect-ratio: 2 \/ 3/);
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter\[data-art\]:not\(\.homepage-story-hero\) \.homepage-chapter-art\.homepage-art-hummingbird \{[\s\S]*width: min\(100vw,[\s\S]*aspect-ratio: 3 \/ 2/);
   assert.match(desktopStageCss, /\.homepage-story-hero \{[\s\S]*min-height: calc\(95svh - 3\.5rem\)/);
-  for (const [selector, height] of [["#the-reality", "78"], ["#one-story", "74"], ["#track-less", "50"], ["#when-needed", "68"]]) {
+  for (const [selector, height] of [["#the-reality", "76"], ["#one-story", "72"], ["#track-less", "47"], ["#when-needed", "64"]]) {
     assert.match(desktopStageCss, new RegExp(`${selector} \\{[\\s\\S]*min-height: ${height}svh`));
   }
-  assert.match(desktopStageCss, /#bigger-idea,\s*\.homepage-story-chapter\.homepage-final-chapter \{[\s\S]*min-height: 52svh/);
+  assert.match(desktopStageCss, /#bigger-idea,\s*\.homepage-story-chapter\.homepage-final-chapter \{[\s\S]*min-height: 48svh/);
+  assert.match(desktopStageCss, /#bigger-idea \.homepage-story-block \{[\s\S]*grid-column: 7 \/ 13/);
 });
 
 test("cream header and footer frame one continuous dark main story", () => {
@@ -193,8 +194,8 @@ test("story rhythm varies by chapter and becomes content-driven on mobile", () =
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter,[\s\S]*min-height: auto/);
   assert.match(homepage, /overflow-x-hidden/);
   assert.match(homepageCss, /\.homepage-story-chapter \{[\s\S]*min-height: 72svh/);
-  assert.match(homepageCss, /#track-less \{[\s\S]*min-height: 50svh/);
-  assert.match(homepageCss, /#bigger-idea,[\s\S]*\.homepage-story-chapter\.homepage-final-chapter \{[\s\S]*min-height: 52svh/);
+  assert.match(homepageCss, /#track-less \{[\s\S]*min-height: 47svh/);
+  assert.match(homepageCss, /#bigger-idea,[\s\S]*\.homepage-story-chapter\.homepage-final-chapter \{[\s\S]*min-height: 48svh/);
 });
 
 test("editorial type is uppercase, compact, and readable without a new font dependency", () => {
