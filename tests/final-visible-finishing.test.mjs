@@ -34,11 +34,13 @@ test("all account flows remain wired through the shared access shell", () => {
   for (const source of [login, forgot, update]) assert.match(source, /AccountAccessLayout/);
 });
 
-test("application navigation stays in the app shell and out of the marketing homepage", () => {
+test("application navigation stays intact while the homepage uses plain signed-in links", () => {
   const primary = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   for (const destination of ["Today", "Pets", "History", "Ask", "Products"]) assert.match(primary, new RegExp(`label: "${destination}"`));
   assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|APP_NAV_ITEMS/);
   assert.match(homepage, /<PublicMarketingHeader mode=\{mode\} \/>/);
+  assert.match(homepage, /HOMEPAGE_DESKTOP_NAVIGATION[\s\S]*Today[\s\S]*Pets[\s\S]*History[\s\S]*Ask/);
+  assert.doesNotMatch(homepage.slice(homepage.indexOf("const HOMEPAGE_DESKTOP_NAVIGATION"), homepage.indexOf("const HOMEPAGE_MOBILE_NAVIGATION")), /Products/);
   assert.match(header, /resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);
   assert.doesNotMatch(header, />Appearance<|openAppearance/);
   assert.match(header, />Account</);
@@ -77,10 +79,10 @@ test("Ask starter drafts advertise selection as compact, unfussy cards", () => {
   assert.doesNotMatch(ask.slice(ask.indexOf("function EmptyConversation"), ask.indexOf("function UserMessage")), /rounded-2xl|shadow-/);
 });
 
-test("homepage tells each benefit once and keeps pet-aware actions", () => {
-  for (const benefit of ["KEEP THE CONTEXT", "UPDATE WHEN SOMETHING CHANGES", "HAVE THE STORY WHEN YOU NEED IT"]) assert.equal(homepage.split(benefit).length - 1, 1);
+test("homepage tells each company-story chapter once and keeps authenticated actions", () => {
+  for (const benefit of ["PETS CHANGE.", "ONE STORY.", "YOU DON&apos;T HAVE TO", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) assert.equal(homepage.split(benefit).length - 1, 1);
   assert.doesNotMatch(homepage, />0[123]</);
-  assert.match(homepage, /Ask about \{petName\}/);
+  assert.doesNotMatch(homepage, /Mani|Illustrative example/);
   assert.match(homepage, /Go to Today/);
 });
 

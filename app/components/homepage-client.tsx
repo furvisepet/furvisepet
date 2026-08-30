@@ -1,29 +1,31 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
+import { MOBILE_NAVIGATION_ITEMS, NAVIGATION_ICON_ASSETS } from "../lib/navigation/mobile-navigation";
 import { activePetsOnly } from "../lib/pet-lifecycle";
-import { formatPetDisplayName } from "../lib/petwise";
 import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib/supabase";
-import { AppFooter } from "./app-footer";
 import { BrandMark } from "./brand-mark";
-import { PageShell, PrimaryButton } from "./product-primitives";
 
 type HomepageMode = "loading" | "anonymous" | "no-pets" | "with-pet";
 type VisibleHomepageMode = Exclude<HomepageMode, "loading">;
 
-const CARE_EXAMPLE_ROWS = [
-  ["Today", "Ate normally after dinner"],
-  ["Yesterday", "Paw licking looked better"],
-  ["Next Tuesday", "Vet appointment"],
+const HOMEPAGE_DESKTOP_NAVIGATION = [
+  { href: "/dashboard", label: "Today" },
+  { href: "/pets", label: "Pets" },
+  { href: "/care-log", label: "History" },
+  { href: "/ask", label: "Ask" },
 ] as const;
 
-const VALUE_BEATS = [
-  ["KEEP THE CONTEXT", "Furvise keeps questions, updates, and useful details connected to the same pet."],
-  ["UPDATE WHEN SOMETHING CHANGES", "Add what matters when it happens. You do not need to journal every day."],
-  ["HAVE THE STORY WHEN YOU NEED IT", "Look back through their history, ask with context, or prepare for a vet visit."],
+const HOMEPAGE_MOBILE_NAVIGATION = [
+  { ...MOBILE_NAVIGATION_ITEMS[0], href: "/dashboard", label: "Today" },
+  MOBILE_NAVIGATION_ITEMS[1],
+  MOBILE_NAVIGATION_ITEMS[2],
+  MOBILE_NAVIGATION_ITEMS[3],
+  { asset: NAVIGATION_ICON_ASSETS.more, href: "/account", label: "Account", tab: "more" },
 ] as const;
 
 export function HomepageClient() {
@@ -53,114 +55,151 @@ export function HomepageClient() {
         : activePet
           ? "with-pet"
           : "no-pets";
-  const petName = activePet ? formatPetDisplayName(activePet.name) : "";
   const visibleMode: VisibleHomepageMode = mode === "loading" ? "anonymous" : mode;
+  const signedIn = mode === "with-pet" || mode === "no-pets";
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[var(--surface-page)] text-[var(--text-primary)]">
+    <div className="homepage-site min-h-screen overflow-x-hidden" data-authenticated={signedIn ? "true" : "false"} data-ui="marketing-homepage">
       <PublicMarketingHeader mode={mode} />
-      <Hero activePet={activePet} mode={visibleMode} petName={petName} />
-      <ValueBeats />
-      <TrustLine />
-      <FinalCallToAction activePet={activePet} mode={visibleMode} petName={petName} />
-      <AppFooter showSignIn={visibleMode === "anonymous"} />
-    </main>
-  );
-}
-
-function PublicMarketingHeader({ mode }: { mode: HomepageMode }) {
-  return (
-    <header className="border-b border-[var(--border-subtle)] bg-[var(--surface-page)]" data-ui="public-marketing-header">
-      <PageShell className="flex min-h-[4.25rem] items-center justify-between gap-4 py-2 sm:min-h-[4.5rem]" preset="marketing">
-        <Link aria-label="Furvise home" className="inline-flex min-h-11 min-w-11 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2" href="/">
-          <span className="inline-flex [--brand-mark-size:1.625rem] sm:[--brand-mark-size:1.75rem]"><BrandMark priority size={26} /></span>
-        </Link>
-        <HomepageHeaderActions mode={mode} />
-      </PageShell>
-    </header>
-  );
-}
-
-function HomepageHeaderActions({ mode }: { mode: HomepageMode }) {
-  const actionRegionClass = "flex h-12 w-[11.5rem] shrink-0 items-center justify-end gap-1.5 sm:w-[13rem] sm:gap-2";
-  const quietActionClass = "inline-flex min-h-11 items-center rounded-full px-2 text-sm font-semibold text-[var(--ghost-action-foreground)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:px-3";
-
-  if (mode === "loading") {
-    return <div aria-hidden="true" className={actionRegionClass} data-ui="homepage-header-actions" />;
-  }
-
-  if (mode === "with-pet" || mode === "no-pets") {
-    return (
-      <div className={actionRegionClass} data-ui="homepage-header-actions">
-        <Link className={quietActionClass} href="/account">Account</Link>
-        <PrimaryButton className="homepage-primary-action min-h-11 px-3 sm:px-4" href={mode === "with-pet" ? "/dashboard" : NEW_PET_ONBOARDING_PATH}>{mode === "with-pet" ? "Go to Today" : "Add your pet"}</PrimaryButton>
-      </div>
-    );
-  }
-
-  return (
-    <div className={actionRegionClass} data-ui="homepage-header-actions">
-      <Link className={quietActionClass} href="/login">Sign in</Link>
-      <PrimaryButton className="homepage-primary-action min-h-11 px-3 sm:px-4" href={NEW_PET_LOGIN_PATH}>Get started</PrimaryButton>
+      <main className="homepage-dark-world" data-marketing-surface="dark" data-ui="homepage-story-main">
+        <WhyWeExist mode={visibleMode} />
+        <StoryChapter id="the-reality" pace="standard" position="right" title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
+          A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.
+        </StoryChapter>
+        <StoryChapter id="one-story" pace="tall" position="left" title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
+          Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.
+        </StoryChapter>
+        <StoryChapter id="track-less" pace="standard" position="right" title={<>YOU DON&apos;T HAVE TO<br />TRACK EVERYTHING.</>}>
+          Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.
+        </StoryChapter>
+        <StoryChapter id="when-needed" pace="tall" position="left-inset" title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
+          Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.
+        </StoryChapter>
+        <StoryChapter id="bigger-idea" pace="spacious" position="right-wide" title={<>YOUR PET&apos;S STORY<br />SHOULDN&apos;T DISAPPEAR.</>}>
+          The longer you care for a pet, the more their history matters. Furvise is being built to keep that history useful, understandable, and close when you need it.
+        </StoryChapter>
+        <FinalChapter mode={visibleMode} />
+      </main>
+      <MarketingFooter showSignIn={visibleMode === "anonymous"} signedIn={signedIn} />
+      {signedIn ? <HomepageMobileNavigation /> : null}
     </div>
   );
 }
 
-function Hero({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: VisibleHomepageMode; petName: string }) {
+function PublicMarketingHeader({ mode }: { mode: HomepageMode }) {
+  const signedIn = mode === "with-pet" || mode === "no-pets";
+  const anonymous = mode === "anonymous";
+
   return (
-    <PageShell className="grid items-center gap-10 pb-14 pt-10 sm:gap-12 sm:pb-16 sm:pt-14 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] lg:gap-16 lg:py-16" preset="marketing">
-      <div className="min-w-0">
-        <h1 className="homepage-display max-w-[680px] text-[2.65rem] leading-[1.02] sm:text-[3.4rem] lg:text-[3.75rem]">Furvise remembers your pet, so you don&apos;t start from zero.</h1>
-        <p className="mt-5 max-w-[620px] text-lg leading-8 text-[var(--text-secondary)]">Ask questions, add updates when something changes, and keep their story together over time.</p>
-        <HeroActions activePet={activePet} mode={mode} petName={petName} />
+    <header className="homepage-marketing-header" data-marketing-surface="light" data-ui="public-marketing-header">
+      <div className="homepage-wide-shell homepage-header-grid" data-ui="homepage-header-grid">
+        <div className="homepage-header-brand-zone">
+          <Link aria-label="Furvise home" className="homepage-brand-link" href="/">
+            <span className="inline-flex [--brand-mark-size:1.75rem] sm:[--brand-mark-size:1.875rem]"><BrandMark priority size={28} /></span>
+          </Link>
+        </div>
+        <div className="homepage-header-navigation-zone" data-ui="homepage-header-navigation-zone">
+          {signedIn ? (
+            <nav aria-label="Homepage application navigation" className="homepage-desktop-navigation" data-ui="homepage-desktop-navigation">
+              {HOMEPAGE_DESKTOP_NAVIGATION.map((item) => <Link className="homepage-header-text-link" href={item.href} key={item.href}>{item.label}</Link>)}
+            </nav>
+          ) : null}
+        </div>
+        <div className="homepage-header-actions" data-ui="homepage-header-actions">
+          {signedIn ? <Link className="homepage-header-text-link" href="/account">Account</Link> : null}
+          {anonymous ? <><Link className="homepage-header-text-link" href="/login">Sign in</Link><HeaderPrimaryLink href={NEW_PET_LOGIN_PATH}>Get started</HeaderPrimaryLink></> : null}
+        </div>
       </div>
-      <PetContextExample />
-    </PageShell>
+    </header>
   );
 }
 
-function HeroActions({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: VisibleHomepageMode; petName: string }) {
-  if (mode === "with-pet" && activePet) return <div className="mt-7 flex flex-wrap items-center gap-3"><MarketingPrimaryLink href="/dashboard">Go to Today</MarketingPrimaryLink><MarketingTextLink href={`/ask?pet=${encodeURIComponent(activePet.id)}`}>Ask about {petName}</MarketingTextLink></div>;
-  if (mode === "no-pets") return <div className="mt-7"><MarketingPrimaryLink href={NEW_PET_ONBOARDING_PATH}>Add your pet</MarketingPrimaryLink></div>;
-  return <div className="mt-7"><MarketingPrimaryLink href={NEW_PET_LOGIN_PATH}>Get started</MarketingPrimaryLink></div>;
-}
-
-function PetContextExample() {
+function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
   return (
-    <aside aria-label="Illustrative Furvise pet memory example" className="mx-auto w-full max-w-[500px] rounded-[1.75rem] border border-[var(--line)] bg-[var(--surface-primary)] p-5 shadow-[var(--shadow-surface-1)] sm:p-7" data-ui="homepage-product-example">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Illustrative example</p>
-      <div className="mt-4 border-b border-[var(--line)] pb-5"><h2 className="text-2xl font-semibold tracking-[-0.025em]">Mani</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">A few things Furvise remembers</p></div>
-      <dl className="divide-y divide-[var(--line)]">{CARE_EXAMPLE_ROWS.map(([date, note]) => <div className="grid gap-1 py-3.5 sm:grid-cols-[7rem_1fr]" key={date}><dt className="text-sm font-semibold text-[var(--text-muted)]">{date}</dt><dd className="leading-6">{note}</dd></div>)}</dl>
-      <div className="mt-3 rounded-2xl bg-[var(--surface-supportive)] px-4 py-3.5 text-[var(--deep-forest)]"><span className="block text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Ask Furvise</span><span className="mt-1 block font-semibold leading-6">What should I keep an eye on before the visit?</span></div>
-    </aside>
-  );
-}
-
-function ValueBeats() {
-  return <section className="border-y border-[var(--line)] bg-[var(--surface-primary)]" data-ui="homepage-value-beats"><PageShell className="grid gap-8 py-14 sm:py-16 md:grid-cols-3 md:gap-10" preset="marketing">{VALUE_BEATS.map(([title, copy]) => <article className="border-t border-[var(--border-strong)] pt-5" key={title}><h2 className="text-sm font-bold tracking-[0.08em] text-[var(--deep-forest)]">{title}</h2><p className="mt-3 leading-7 text-[var(--text-secondary)]">{copy}</p></article>)}</PageShell></section>;
-}
-
-function TrustLine() {
-  return <PageShell className="py-9 text-center sm:py-11" preset="marketing"><p className="text-sm leading-6 text-[var(--text-muted)]">Furvise helps organize pet care information and does not replace veterinary care.</p></PageShell>;
-}
-
-function FinalCallToAction({ activePet, mode, petName }: { activePet: DogProfileWithMemories | null; mode: VisibleHomepageMode; petName: string }) {
-  const authenticatedWithPet = mode === "with-pet" && activePet;
-  return (
-    <section className="border-t border-[var(--line)] bg-[var(--surface-primary)]" data-ui="homepage-final-conversion">
-      <PageShell className="py-16 text-center sm:py-20" preset="marketing">
-        <h2 className="text-3xl font-semibold tracking-[-0.035em] sm:text-[2.5rem]">{authenticatedWithPet ? `Keep ${petName}'s story together.` : "Remember what matters."}</h2>
-        <p className="mx-auto mt-3 max-w-xl text-lg leading-8 text-[var(--text-secondary)]">{authenticatedWithPet ? "Return whenever there is something worth remembering." : "Start with your pet. Furvise can keep the story from there."}</p>
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">{authenticatedWithPet ? <><MarketingPrimaryLink href="/dashboard">Go to Today</MarketingPrimaryLink><MarketingTextLink href={`/ask?pet=${encodeURIComponent(activePet.id)}`}>Ask about {petName}</MarketingTextLink></> : mode === "no-pets" ? <MarketingPrimaryLink href={NEW_PET_ONBOARDING_PATH}>Add your pet</MarketingPrimaryLink> : <MarketingPrimaryLink href={NEW_PET_LOGIN_PATH}>Get started</MarketingPrimaryLink>}</div>
-      </PageShell>
+    <section className="homepage-story-chapter homepage-story-hero" data-chapter="why-we-exist" data-pace="full">
+      <div className="homepage-wide-shell homepage-story-inner">
+        <div className="homepage-story-block">
+          <h1 aria-label="Remember what matters." className="homepage-story-heading homepage-hero-heading"><span>REMEMBER</span><span>WHAT</span><span>MATTERS.</span></h1>
+          <p className="homepage-story-body">Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.</p>
+          <StoryAction mode={mode} />
+        </div>
+      </div>
     </section>
   );
 }
 
-function MarketingPrimaryLink({ children, href }: { children: React.ReactNode; href: string }) {
-  return <PrimaryButton className="homepage-primary-action px-6" href={href}>{children}</PrimaryButton>;
+function StoryChapter({ children, id, pace, position, title }: { children: React.ReactNode; id: string; pace: "standard" | "tall" | "spacious"; position: "left" | "left-inset" | "right" | "right-wide"; title: React.ReactNode }) {
+  return (
+    <section className="homepage-story-chapter" data-chapter={id} data-pace={pace} data-position={position} id={id}>
+      <div className="homepage-wide-shell homepage-story-inner">
+        <div className="homepage-story-block">
+          <h2 className="homepage-story-heading">{title}</h2>
+          <p className="homepage-story-body">{children}</p>
+        </div>
+      </div>
+    </section>
+  );
 }
 
-function MarketingTextLink({ children, href }: { children: React.ReactNode; href: string }) {
-  return <Link className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-[var(--ghost-action-foreground)] underline-offset-4 hover:bg-[var(--surface-hover)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href={href}>{children}</Link>;
+function FinalChapter({ mode }: { mode: VisibleHomepageMode }) {
+  return (
+    <section className="homepage-story-chapter homepage-final-chapter" data-chapter="start" data-pace="full" data-ui="homepage-final-conversion">
+      <div className="homepage-wide-shell homepage-story-inner">
+        <div className="homepage-story-block">
+          <h2 className="homepage-story-heading">START WITH<br />YOUR PET.</h2>
+          <p className="homepage-story-body">You don&apos;t need to remember everything on day one. Just start.</p>
+          <StoryAction mode={mode} />
+          <p className="homepage-trust-line">Furvise helps organize pet care information and does not replace veterinary care.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StoryAction({ mode }: { mode: VisibleHomepageMode }) {
+  const action = mode === "anonymous"
+    ? { href: NEW_PET_LOGIN_PATH, label: "Get started" }
+    : mode === "no-pets"
+      ? { href: NEW_PET_ONBOARDING_PATH, label: "Add your pet" }
+      : { href: "/dashboard", label: "Go to Today" };
+
+  return <Link className="homepage-story-action" href={action.href}>{action.label}</Link>;
+}
+
+function HeaderPrimaryLink({ children, href }: { children: React.ReactNode; href: string }) {
+  return <Link className="homepage-header-primary-link" href={href}>{children}</Link>;
+}
+
+function MarketingFooter({ showSignIn, signedIn }: { showSignIn: boolean; signedIn: boolean }) {
+  const footerLinkClass = "homepage-footer-link";
+
+  return (
+    <footer className={signedIn ? "homepage-marketing-footer homepage-footer-mobile-clearance" : "homepage-marketing-footer"} data-marketing-surface="light" data-ui="homepage-marketing-footer">
+      <div className="homepage-wide-shell homepage-footer-inner">
+        <Link aria-label="Furvise home" className="homepage-footer-brand" href="/">
+          <span className="inline-flex [--brand-mark-size:1.625rem]"><BrandMark size={26} /></span>
+        </Link>
+        <nav aria-label="Footer navigation" className="homepage-footer-navigation">
+          <Link className={footerLinkClass} href="/privacy">Privacy</Link>
+          <Link className={footerLinkClass} href="/terms">Terms</Link>
+          {showSignIn ? <Link className={footerLinkClass} href="/login">Sign in</Link> : null}
+        </nav>
+      </div>
+    </footer>
+  );
+}
+
+function HomepageMobileNavigation() {
+  return (
+    <nav aria-label="Mobile navigation" className="homepage-mobile-navigation" data-ui="mobile-bottom-navigation">
+      <div className="homepage-mobile-navigation-inner" data-ui="homepage-mobile-navigation-dock">
+        {HOMEPAGE_MOBILE_NAVIGATION.map((item) => (
+          <Link aria-label={item.label} className="homepage-mobile-navigation-link" href={item.href} key={item.href}>
+            <span className="homepage-mobile-navigation-icon"><Image alt="" aria-hidden="true" className="object-contain" decoding="async" draggable={false} fill loading="lazy" sizes="44px" src={item.asset} /></span>
+            <span>{item.label}</span>
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
 }
