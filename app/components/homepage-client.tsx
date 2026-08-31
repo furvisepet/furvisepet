@@ -12,12 +12,13 @@ import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib
 type HomepageMode = "loading" | "anonymous" | "no-pets" | "with-pet";
 type VisibleHomepageMode = Exclude<HomepageMode, "loading">;
 type StoryActionDestination = "ask" | "history" | "pets" | "primary" | "today";
-type HomepageStoryArt = "cat" | "deer" | "hummingbird";
+type HomepageStoryArt = "cat" | "deer" | "heron" | "hummingbird";
 
 const HOMEPAGE_STORY_ART = {
-  cat: { height: 1536, sizes: "(min-width: 1600px) 832px, (min-width: 1024px) 52vw, 94vw", src: "/images/cat.png", width: 1024 },
-  deer: { height: 1536, sizes: "(min-width: 1600px) 848px, (min-width: 1024px) 53vw, 94vw", src: "/images/deer.png", width: 1024 },
-  hummingbird: { height: 1024, sizes: "(min-width: 1600px) 784px, (min-width: 1024px) 49vw, 96vw", src: "/images/hummingbird.png", width: 1536 },
+  cat: { height: 1536, sizes: "(min-width: 1600px) 768px, (min-width: 1024px) 48vw, 94vw", src: "/images/cat.png", width: 1024 },
+  deer: { height: 1536, sizes: "(min-width: 1600px) 864px, (min-width: 1024px) 54vw, 94vw", src: "/images/deer.png", width: 1024 },
+  heron: { height: 1285, sizes: "(min-width: 1600px) 832px, (min-width: 1024px) 52vw, 90vw", src: "/images/heron.png", width: 1224 },
+  hummingbird: { height: 1024, sizes: "(min-width: 1600px) 768px, (min-width: 1024px) 48vw, 96vw", src: "/images/hummingbird.png", width: 1536 },
 } as const;
 
 const HOMEPAGE_DESKTOP_NAVIGATION = [
@@ -69,22 +70,34 @@ export function HomepageClient() {
     <div className="homepage-site min-h-screen overflow-x-hidden" data-authenticated={signedIn ? "true" : "false"} data-ui="marketing-homepage">
       <PublicMarketingHeader mode={mode} />
       <main className="homepage-dark-world" data-marketing-surface="dark" data-ui="homepage-story-main">
-        <WhyWeExist mode={visibleMode} />
-        <StoryChapter action="history" activePetId={activePet?.id} art="deer" id="the-reality" mode={visibleMode} pace="standard" position="right" title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
-          A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.
-        </StoryChapter>
-        <StoryChapter action="pets" activePetId={activePet?.id} art="cat" id="one-story" mode={visibleMode} pace="tall" position="left" title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
-          Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.
-        </StoryChapter>
-        <StoryChapter action="today" activePetId={activePet?.id} id="track-less" mode={visibleMode} pace="standard" position="right" title={<>YOU DON&apos;T HAVE TO<br />TRACK EVERYTHING.</>}>
-          Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.
-        </StoryChapter>
-        <StoryChapter action="ask" activePetId={activePet?.id} art="hummingbird" id="when-needed" mode={visibleMode} pace="tall" position="right" title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
-          Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.
-        </StoryChapter>
-        <StoryChapter action="history" activePetId={activePet?.id} id="bigger-idea" mode={visibleMode} pace="spacious" position="right-wide" title={<>YOUR PET&apos;S STORY<br />SHOULDN&apos;T DISAPPEAR.</>}>
-          The longer you care for a pet, the more their history matters. Furvise keeps that history useful, understandable, and close when you need it.
-        </StoryChapter>
+        <EditorialComposition art="heron" id="remembrance" side="right">
+          <WhyWeExist mode={visibleMode} />
+          <CompositionArt art="heron" priority />
+          <StoryChapter action="history" activePetId={activePet?.id} id="the-reality" mode={visibleMode} title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
+            A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.
+          </StoryChapter>
+        </EditorialComposition>
+        <EditorialComposition art="deer" id="continuity" side="left">
+          <StoryChapter action="pets" activePetId={activePet?.id} id="one-story" mode={visibleMode} title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
+            Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.
+          </StoryChapter>
+          <CompositionArt art="deer" />
+          <StoryChapter action="today" activePetId={activePet?.id} id="track-less" mode={visibleMode} title={<>YOU DON&apos;T HAVE TO<br />TRACK EVERYTHING.</>}>
+            Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.
+          </StoryChapter>
+        </EditorialComposition>
+        <EditorialComposition art="cat" id="availability" side="right">
+          <StoryChapter action="ask" activePetId={activePet?.id} id="when-needed" mode={visibleMode} title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
+            Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.
+          </StoryChapter>
+          <CompositionArt art="cat" />
+        </EditorialComposition>
+        <EditorialComposition art="hummingbird" id="belief" side="left">
+          <StoryChapter action="history" activePetId={activePet?.id} id="bigger-idea" mode={visibleMode} title={<>YOUR PET&apos;S STORY<br />SHOULDN&apos;T DISAPPEAR.</>}>
+            The longer you care for a pet, the more their history matters. Furvise keeps that history useful, understandable, and close when you need it.
+          </StoryChapter>
+          <CompositionArt art="hummingbird" />
+        </EditorialComposition>
         <FinalChapter mode={visibleMode} />
       </main>
       <MarketingFooter showSignIn={visibleMode === "anonymous"} signedIn={signedIn} />
@@ -123,42 +136,44 @@ function PublicMarketingHeader({ mode }: { mode: HomepageMode }) {
 
 function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
   return (
-    <section className="homepage-story-chapter homepage-story-hero" data-chapter="why-we-exist" data-pace="full">
-      <div className="homepage-wide-shell homepage-story-inner">
-        <div className="homepage-story-block">
-          <h1 aria-label="Remember what matters." className="homepage-story-heading homepage-hero-heading"><span>REMEMBER</span><span>WHAT</span><span>MATTERS.</span></h1>
-          <p className="homepage-story-body">Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.</p>
-          <StoryAction mode={mode} />
-        </div>
-        <div aria-hidden="true" className="homepage-story-art homepage-hero-art homepage-art-heron" data-art="heron">
-          <Image alt="" aria-hidden="true" className="homepage-story-art-image" fill priority sizes="(min-width: 1600px) 960px, (min-width: 1024px) 60vw, 96vw" src="/images/heron.png" />
-        </div>
+    <section className="homepage-story-chapter homepage-story-row homepage-story-hero" data-chapter="why-we-exist" id="why-we-exist">
+      <div className="homepage-story-block">
+        <h1 aria-label="Remember what matters." className="homepage-story-heading homepage-hero-heading"><span>REMEMBER</span><span>WHAT</span><span>MATTERS.</span></h1>
+        <p className="homepage-story-body">Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.</p>
+        <StoryAction mode={mode} />
       </div>
     </section>
   );
 }
 
-function StoryChapter({ action, activePetId, art, children, id, mode, pace, position, title }: { action: StoryActionDestination; activePetId?: string; art?: HomepageStoryArt; children: React.ReactNode; id: string; mode: VisibleHomepageMode; pace: "standard" | "tall" | "spacious"; position: "left" | "left-inset" | "right" | "right-wide"; title: React.ReactNode }) {
+function EditorialComposition({ art, children, id, side }: { art: HomepageStoryArt; children: React.ReactNode; id: string; side: "left" | "right" }) {
   return (
-    <section className="homepage-story-chapter" data-art={art} data-chapter={id} data-pace={pace} data-position={position} id={id}>
-      <div className="homepage-wide-shell homepage-story-inner">
-        <div className="homepage-story-block">
-          <h2 className="homepage-story-heading">{title}</h2>
-          <p className="homepage-story-body">{children}</p>
-          <StoryAction activePetId={activePetId} destination={action} mode={mode} />
-        </div>
-        {art ? <HomepageChapterArt art={art} /> : null}
+    <div className="homepage-editorial-composition" data-art={art} data-composition={id} data-side={side}>
+      <div className="homepage-wide-shell homepage-editorial-grid">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function StoryChapter({ action, activePetId, children, id, mode, title }: { action: StoryActionDestination; activePetId?: string; children: React.ReactNode; id: string; mode: VisibleHomepageMode; title: React.ReactNode }) {
+  return (
+    <section className="homepage-story-chapter homepage-story-row" data-chapter={id} id={id}>
+      <div className="homepage-story-block">
+        <h2 className="homepage-story-heading">{title}</h2>
+        <p className="homepage-story-body">{children}</p>
+        <StoryAction activePetId={activePetId} destination={action} mode={mode} />
       </div>
     </section>
   );
 }
 
-function HomepageChapterArt({ art }: { art: HomepageStoryArt }) {
+function CompositionArt({ art, priority = false }: { art: HomepageStoryArt; priority?: boolean }) {
   const asset = HOMEPAGE_STORY_ART[art];
 
   return (
-    <div aria-hidden="true" className={`homepage-story-art homepage-chapter-art homepage-art-${art}`} data-art={art}>
-      <Image alt="" aria-hidden="true" className="homepage-story-art-image" height={asset.height} loading="lazy" sizes={asset.sizes} src={asset.src} width={asset.width} />
+    <div aria-hidden="true" className={`homepage-story-art homepage-composition-art homepage-art-${art}`} data-art={art}>
+      <Image alt="" aria-hidden="true" className="homepage-story-art-image" height={asset.height} loading={priority ? undefined : "lazy"} priority={priority} sizes={asset.sizes} src={asset.src} width={asset.width} />
     </div>
   );
 }

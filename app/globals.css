@@ -481,41 +481,34 @@ body {
   background: var(--forest);
 }
 
+.homepage-editorial-composition,
 .homepage-story-chapter {
   position: relative;
-  min-height: 72svh;
 }
 
-.homepage-story-chapter[data-art] {
+.homepage-editorial-composition {
   overflow: visible;
 }
 
-.homepage-story-chapter[data-pace="tall"] {
-  min-height: 80svh;
-}
-
-.homepage-story-chapter[data-pace="spacious"] {
-  min-height: 86svh;
-}
-
-.homepage-story-chapter[data-pace="full"] {
-  min-height: calc(100svh - 3.5rem);
-}
-
+.homepage-editorial-grid,
 .homepage-story-inner {
   position: relative;
   display: grid;
   min-height: inherit;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: center;
-  padding-block: clamp(5rem, 9vh, 8rem);
+}
+
+.homepage-story-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  align-items: center;
 }
 
 .homepage-story-block {
-  position: relative;
-  z-index: 2;
-  grid-column: 1 / span 7;
-  grid-row: 1;
+  width: 100%;
   max-width: 38rem;
 }
 
@@ -528,60 +521,28 @@ body {
 }
 
 .homepage-story-art-image {
+  display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
   object-fit: contain;
 }
 
 .homepage-story-hero .homepage-story-block {
-  grid-column: 1 / 7;
   max-width: 34rem;
 }
 
-.homepage-hero-art {
-  width: 100%;
-}
-
 .homepage-art-heron .homepage-story-art-image {
-  object-position: 95% bottom;
+  object-position: right center;
 }
 
-.homepage-chapter-art {
-  width: 100%;
-  align-self: center;
-}
-
-.homepage-chapter-art .homepage-story-art-image {
+.homepage-composition-art .homepage-story-art-image {
   object-fit: contain;
   object-position: center;
 }
 
-.homepage-story-hero .homepage-story-inner,
 .homepage-final-chapter .homepage-story-inner {
   align-items: end;
   padding-bottom: clamp(6rem, 13vh, 10rem);
-}
-
-.homepage-story-chapter[data-position="right"] .homepage-story-block {
-  grid-column: 7 / 13;
-  align-self: start;
-  margin-top: clamp(1rem, 5vh, 4rem);
-}
-
-.homepage-story-chapter[data-position="left"] .homepage-story-block {
-  grid-column: 1 / span 7;
-  align-self: end;
-  margin-bottom: clamp(1rem, 5vh, 4rem);
-}
-
-.homepage-story-chapter[data-position="left-inset"] .homepage-story-block {
-  grid-column: 2 / span 7;
-  align-self: center;
-}
-
-.homepage-story-chapter[data-position="right-wide"] .homepage-story-block {
-  grid-column: 6 / 13;
-  align-self: center;
 }
 
 .homepage-story-heading {
@@ -605,105 +566,128 @@ body {
 }
 
 @media (min-width: 1024px) {
-  .homepage-story-chapter[data-art] .homepage-story-art,
-  .homepage-story-hero .homepage-story-art {
+  .homepage-editorial-grid {
+    height: 100%;
+    padding-block: clamp(2rem, 4vh, 3rem);
+  }
+
+  .homepage-editorial-composition[data-composition="remembrance"] {
+    min-height: 132svh;
+  }
+
+  .homepage-editorial-composition[data-composition="continuity"] {
+    min-height: 122svh;
+  }
+
+  .homepage-editorial-composition[data-composition="availability"] {
+    min-height: 74svh;
+  }
+
+  .homepage-editorial-composition[data-composition="belief"] {
+    min-height: 68svh;
+  }
+
+  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid,
+  .homepage-editorial-composition[data-composition="continuity"] .homepage-editorial-grid {
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .homepage-editorial-composition[data-composition="availability"] .homepage-editorial-grid,
+  .homepage-editorial-composition[data-composition="belief"] .homepage-editorial-grid {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .homepage-composition-art {
     position: absolute;
+    z-index: 1;
     grid-column: auto;
     grid-row: auto;
     align-self: auto;
     justify-self: auto;
   }
 
-  .homepage-story-hero .homepage-story-inner {
-    padding-block: clamp(2rem, 4vh, 3rem) clamp(3rem, 6vh, 5rem);
+  .homepage-composition-art .homepage-story-art-image {
+    height: 100%;
   }
 
-  .homepage-story-hero {
-    min-height: calc(95svh - 3.5rem);
+  #why-we-exist,
+  #the-reality,
+  #when-needed {
+    grid-column: 1 / 6;
   }
 
-  .homepage-art-heron {
-    right: -1vw;
-    bottom: -1vh;
-    width: min(60vw, 60rem);
-    height: min(88svh, 55rem);
-  }
-
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-inner {
-    padding-block: clamp(2rem, 4vh, 3rem);
-  }
-
-  #the-reality {
-    min-height: 76svh;
-  }
-
-  .homepage-art-deer {
-    left: -5vw;
-    bottom: -1vh;
-    width: min(55vw, 55rem);
-    height: min(84svh, 53rem);
-  }
-
-  .homepage-art-deer .homepage-story-art-image {
-    object-position: right bottom;
-  }
-
-  .homepage-story-chapter[data-art="deer"] .homepage-story-block {
+  #one-story,
+  #track-less,
+  #bigger-idea {
     grid-column: 8 / 13;
   }
 
+  #why-we-exist,
   #one-story {
-    min-height: 72svh;
+    grid-row: 1;
+  }
+
+  #the-reality,
+  #track-less {
+    grid-row: 2;
+  }
+
+  #when-needed,
+  #bigger-idea {
+    grid-row: 1;
+  }
+
+  .homepage-art-heron {
+    top: 50%;
+    right: 0;
+    width: min(52vw, 52rem);
+    height: min(118svh, 74rem);
+    transform: translateY(-50%);
+  }
+
+  .homepage-art-deer {
+    top: 50%;
+    left: -3vw;
+    width: min(52vw, 52rem);
+    height: min(112svh, 70rem);
+    transform: translateY(-50%);
+  }
+
+  .homepage-art-deer .homepage-story-art-image {
+    object-position: right center;
   }
 
   .homepage-art-cat {
-    right: -3vw;
+    right: -2vw;
     bottom: 0;
-    width: min(52vw, 52rem);
-    height: min(80svh, 52rem);
+    width: min(46vw, 46rem);
+    height: min(72svh, 45rem);
   }
 
   .homepage-art-cat .homepage-story-art-image {
-    object-position: 78% bottom;
-  }
-
-  .homepage-story-chapter[data-art="cat"] .homepage-story-block {
-    grid-column: 1 / 7;
-    max-width: 35rem;
-  }
-
-  #when-needed {
-    min-height: 64svh;
+    object-position: center bottom;
   }
 
   .homepage-art-hummingbird {
-    top: 48%;
-    left: 0;
-    width: min(48vw, 48rem);
+    top: 50%;
+    left: 1vw;
+    width: min(46vw, 46rem);
     height: auto;
     aspect-ratio: 3 / 2;
     transform: translateY(-50%);
   }
 
-  .homepage-story-chapter[data-art="hummingbird"] .homepage-story-block {
-    grid-column: 8 / 13;
-  }
-
-  #track-less {
-    min-height: 47svh;
-  }
-
-  #bigger-idea,
   .homepage-story-chapter.homepage-final-chapter {
-    min-height: 48svh;
-  }
-
-  #bigger-idea .homepage-story-block {
-    grid-column: 7 / 13;
+    min-height: 50svh;
   }
 
   .homepage-final-chapter .homepage-story-inner {
+    min-height: 50svh;
     padding-block: clamp(3rem, 6vh, 4rem);
+  }
+
+  .homepage-final-chapter .homepage-story-block {
+    grid-column: 1 / 6;
   }
 
   #one-story .homepage-story-heading {
@@ -910,33 +894,30 @@ body {
     min-width: 0;
   }
 
+  .homepage-editorial-composition,
   .homepage-story-chapter,
-  .homepage-story-chapter[data-pace="tall"],
-  .homepage-story-chapter[data-pace="spacious"] {
-    min-height: auto;
-  }
-
-  .homepage-story-chapter[data-pace="full"] {
-    min-height: auto;
-  }
-
   .homepage-story-inner {
-    display: block;
     min-height: auto;
-    padding-block: 5rem;
   }
 
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-inner {
+  .homepage-editorial-composition {
+    padding-block: 2rem;
+  }
+
+  .homepage-editorial-composition[data-composition="remembrance"] {
+    padding-top: 3.625rem;
+  }
+
+  .homepage-editorial-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.25rem;
-    padding-block: 2.75rem 4rem;
+    gap: 2rem;
   }
 
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-block,
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art {
+  .homepage-story-row,
+  .homepage-composition-art {
     position: relative;
-    width: auto;
+    width: 100%;
     margin: 0;
     grid-column: 1;
     grid-row: auto;
@@ -944,74 +925,49 @@ body {
     transform: none;
   }
 
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art {
-    order: -1;
-    justify-self: stretch;
+  .homepage-story-row {
+    max-width: 42rem;
   }
 
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art.homepage-art-deer {
-    width: min(100vw, 42rem);
-    max-width: none;
-    height: auto;
-    aspect-ratio: 2 / 3;
+  .homepage-composition-art {
     justify-self: center;
   }
 
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art.homepage-art-cat {
-    width: min(100vw, 42rem);
+  .homepage-composition-art .homepage-story-art-image {
+    height: auto;
+  }
+
+  .homepage-art-heron {
+    width: min(90vw, 42rem);
+    max-width: none;
+    height: auto;
+    aspect-ratio: 1224 / 1285;
+  }
+
+  .homepage-art-deer {
+    width: min(94vw, 42rem);
     max-width: none;
     height: auto;
     aspect-ratio: 2 / 3;
-    justify-self: center;
   }
 
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art.homepage-art-hummingbird {
-    width: min(100vw, 40rem);
+  .homepage-art-cat {
+    width: min(94vw, 42rem);
+    max-width: none;
+    height: auto;
+    aspect-ratio: 2 / 3;
+  }
+
+  .homepage-art-hummingbird {
+    width: min(96vw, 42rem);
     max-width: none;
     height: auto;
     aspect-ratio: 3 / 2;
-    justify-self: center;
-  }
-
-  .homepage-story-chapter[data-art="cat"] .homepage-story-block {
-    order: -1;
-  }
-
-  .homepage-story-hero {
-    min-height: calc(100svh - 3.5rem);
-  }
-
-  .homepage-story-hero .homepage-story-inner {
-    display: flex;
-    min-height: auto;
-    flex-direction: column;
-    align-items: stretch;
-    padding-block: 3.625rem 4.25rem;
-  }
-
-  .homepage-story-hero .homepage-story-block {
-    z-index: 2;
-    width: 100%;
-  }
-
-  .homepage-hero-art {
-    position: relative;
-    width: min(100vw, 27rem);
-    max-width: none;
-    height: min(105vw, 27rem);
-    margin-top: 1.25rem;
-    order: 2;
-    align-self: center;
   }
 
   .homepage-final-chapter .homepage-story-inner {
     display: block;
-    padding-block: 6.75rem;
-  }
-
-  .homepage-story-chapter[data-position] .homepage-story-block {
-    max-width: 42rem;
-    margin: 0;
+    padding-block: 4rem;
   }
 
   .homepage-story-heading {
@@ -1022,15 +978,6 @@ body {
   .homepage-hero-heading {
     max-width: 12ch;
     font-size: clamp(3.125rem, 13vw, 5.75rem);
-  }
-
-  .homepage-site[data-authenticated="true"] .homepage-story-hero .homepage-story-inner {
-    padding-bottom: calc(4.75rem + var(--mobile-nav-height));
-  }
-
-  .homepage-site[data-authenticated="true"] .homepage-hero-art {
-    width: min(100vw, 27rem);
-    height: min(105vw, 27rem);
   }
 
   .homepage-story-body {
@@ -1076,8 +1023,8 @@ body {
     padding-inline: 0.75rem;
   }
 
-  .homepage-story-inner {
-    padding-block: 4.75rem;
+  .homepage-editorial-composition {
+    padding-block: 1.75rem;
   }
 
   #one-story .homepage-story-heading,
@@ -1093,35 +1040,12 @@ body {
     font-size: clamp(1.5625rem, 6.7vw, 1.75rem);
   }
 
-  .homepage-story-hero .homepage-story-inner {
-    padding-block: 3.25rem 3.625rem;
-  }
-
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-story-inner {
-    gap: 0.25rem;
-    padding-block: 2.25rem 4rem;
-  }
-
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art.homepage-art-deer {
-    width: min(100vw, 40rem);
-    height: auto;
-    aspect-ratio: 2 / 3;
-  }
-
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art.homepage-art-cat {
-    width: min(100vw, 40rem);
-    height: auto;
-    aspect-ratio: 2 / 3;
-  }
-
-  .homepage-story-chapter[data-art]:not(.homepage-story-hero) .homepage-chapter-art.homepage-art-hummingbird {
-    width: min(100vw, 40rem);
-    height: auto;
-    aspect-ratio: 3 / 2;
+  .homepage-editorial-composition[data-composition="remembrance"] {
+    padding-top: 3.25rem;
   }
 
   .homepage-final-chapter .homepage-story-inner {
-    padding-block: 5.875rem;
+    padding-block: 3.75rem;
   }
 
   .homepage-footer-inner {
@@ -1135,13 +1059,6 @@ body {
 
   .homepage-footer-link {
     font-size: 0.6875rem;
-  }
-}
-
-@media (max-width: 479px) and (max-height: 720px) {
-  .homepage-hero-art {
-    width: 100%;
-    height: min(96vw, 25rem);
   }
 }
 
