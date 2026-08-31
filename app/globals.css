@@ -711,13 +711,13 @@ body {
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
-    max-width: 36ch;
+    max-width: 50ch;
     margin-inline: auto;
     text-align: center;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
-    margin-top: 1.625rem;
+    margin-top: 1.875rem;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body-secondary {
@@ -1259,13 +1259,15 @@ body {
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
-    max-width: 32ch;
+    max-width: 36ch;
     margin-inline: auto;
+    font-size: 1rem;
+    line-height: 1.6;
     text-align: center;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
-    margin-top: 1.625rem;
+    margin-top: 1.875rem;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body-secondary {
