@@ -260,10 +260,10 @@ test("editorial type uses optimized Barlow Condensed headings and readable exist
   assert.match(layout, /import \{ Barlow_Condensed \} from "next\/font\/google"/);
   assert.match(layout, /Barlow_Condensed\(\{[\s\S]*display: "swap"[\s\S]*subsets: \["latin"\][\s\S]*variable: "--font-marketing-display"[\s\S]*weight: "700"/);
   assert.match(layout, /className=\{`h-full antialiased \$\{marketingDisplay\.variable\}`\}/);
-  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: var\(--font-marketing-display\)[\s\S]*font-size: clamp\(3\.25rem, 4\.5vw, 4\.5rem\);[\s\S]*font-weight: 700;[\s\S]*line-height: 0\.97/);
-  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.5rem, 6vw, 5\.75rem\);[\s\S]*line-height: 0\.94/);
+  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: var\(--font-marketing-display\)[\s\S]*font-size: clamp\(3rem, 4\.2vw, 4\.35rem\);[\s\S]*font-weight: 700;[\s\S]*line-height: 0\.97/);
+  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.25rem, 5\.7vw, 5\.5rem\);[\s\S]*line-height: 0\.94/);
   assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: 1\.125rem;[\s\S]*line-height: 1\.6/);
-  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*data-composition="manifesto"\] \.homepage-story-heading \{[\s\S]*font-size: clamp\(4rem, 6vw, 6rem\)/);
+  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*data-composition="manifesto"\] \.homepage-story-heading \{[\s\S]*font-size: clamp\(4rem, 5\.7vw, 5\.75rem\)/);
   assert.doesNotMatch(`${layout}\n${homepage}\n${css}`, /fonts\.(?:googleapis|gstatic)|@import\s+url/);
 });
 

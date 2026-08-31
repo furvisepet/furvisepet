@@ -564,7 +564,7 @@ body {
 .homepage-story-heading {
   max-width: 18ch;
   font-family: var(--font-marketing-display), "Arial Narrow", Arial, sans-serif;
-  font-size: clamp(3.25rem, 4.5vw, 4.5rem);
+  font-size: clamp(3rem, 4.2vw, 4.35rem);
   font-weight: 700;
   line-height: 0.97;
   letter-spacing: -0.018em;
@@ -572,22 +572,25 @@ body {
 }
 
 .homepage-hero-heading {
-  max-width: 12ch;
-  font-size: clamp(4.5rem, 6vw, 5.75rem);
+  max-width: 14ch;
+  font-size: clamp(4.25rem, 5.7vw, 5.5rem);
   line-height: 0.94;
 }
 
-.homepage-hero-heading span {
+.homepage-heading-line {
   display: block;
+  white-space: nowrap;
 }
 
 @media (min-width: 1024px) {
   .homepage-story-heading {
-    font-size: clamp(3.25rem, 4.5vw, 4.5rem);
+    font-size: clamp(3rem, 4.2vw, 4.35rem);
   }
 
   .homepage-hero-heading {
-    font-size: clamp(4.5rem, 6vw, 5.75rem);
+    width: max-content;
+    max-width: none;
+    font-size: clamp(4.25rem, 5.7vw, 5.5rem);
   }
 
   .homepage-viewport-stage {
@@ -694,23 +697,35 @@ body {
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
-    max-width: 48rem;
+    max-width: 38rem;
     text-align: center;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
-    max-width: 10ch;
+    max-width: none;
     margin-inline: auto;
-    font-size: clamp(4rem, 6vw, 6rem);
+    font-size: clamp(4rem, 5.7vw, 5.75rem);
     line-height: 0.96;
     letter-spacing: -0.018em;
     text-align: center;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
-    max-width: 34rem;
+    max-width: 36ch;
     margin-inline: auto;
-    text-align: left;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
+    margin-top: 1.625rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body-secondary {
+    margin-top: 1.25rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-action {
+    margin-top: 1.875rem;
   }
 
   .homepage-final-chapter,
@@ -727,7 +742,10 @@ body {
     justify-self: center;
   }
 
-  #bigger-idea .homepage-story-heading { max-width: 16ch; }
+  #bigger-idea .homepage-story-heading {
+    max-width: none;
+    font-size: clamp(3rem, 4vw, 4.1rem);
+  }
 }
 
 .homepage-story-body {
@@ -999,9 +1017,9 @@ body {
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
-    max-width: 10ch;
+    max-width: none;
     margin-inline: auto;
-    font-size: clamp(3.25rem, 15vw, 5rem);
+    font-size: clamp(2.25rem, 8.75vw, 3.25rem);
     line-height: 0.94;
     text-align: center;
   }
@@ -1019,7 +1037,7 @@ body {
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
     max-width: 32ch;
     margin-inline: auto;
-    text-align: left;
+    text-align: center;
   }
 
   .homepage-final-chapter .homepage-story-inner {
@@ -1038,12 +1056,12 @@ body {
 
   .homepage-story-heading {
     max-width: none;
-    font-size: clamp(2rem, 9vw, 3rem);
+    font-size: clamp(1.9rem, 8.5vw, 2.5rem);
   }
 
   .homepage-hero-heading {
-    max-width: 12ch;
-    font-size: clamp(2.75rem, 12vw, 4.25rem);
+    max-width: none;
+    font-size: clamp(2.5rem, 10.5vw, 3.25rem);
   }
 
   .homepage-story-body {
@@ -1087,19 +1105,6 @@ body {
 
   .homepage-header-primary-link {
     padding-inline: 0.75rem;
-  }
-
-  #one-story .homepage-story-heading,
-  #when-needed .homepage-story-heading {
-    font-size: clamp(2rem, 8.8vw, 2.5rem);
-  }
-
-  #bigger-idea .homepage-story-heading {
-    font-size: clamp(1.875rem, 8vw, 2.25rem);
-  }
-
-  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
-    font-size: clamp(3.25rem, 15vw, 4.5rem);
   }
 
   .homepage-final-chapter .homepage-story-inner {
@@ -1208,12 +1213,16 @@ body {
   #one-story .homepage-story-heading,
   #when-needed .homepage-story-heading,
   #bigger-idea .homepage-story-heading {
-    font-size: clamp(2.35rem, 10.5vw, 3rem);
+    font-size: clamp(1.9rem, 8.5vw, 2.5rem);
     line-height: 0.98;
   }
 
+  #bigger-idea .homepage-story-heading {
+    font-size: clamp(1.75rem, 7.8vw, 2.3rem);
+  }
+
   .homepage-hero-heading {
-    font-size: clamp(2.75rem, 13vw, 3.5rem);
+    font-size: clamp(2.5rem, 10.5vw, 3.25rem);
     line-height: 0.95;
   }
 
@@ -1240,15 +1249,31 @@ body {
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
     max-width: 21.25rem;
+    padding-inline: 0;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
-    font-size: clamp(2.75rem, 12vw, 3.4rem);
+    max-width: none;
+    font-size: clamp(2.1rem, 9vw, 2.8rem);
     line-height: 0.96;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
     max-width: 32ch;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
+    margin-top: 1.625rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body-secondary {
+    margin-top: 1.25rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-action {
+    margin-top: 1.875rem;
   }
 
   .homepage-final-chapter,

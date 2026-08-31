@@ -76,24 +76,24 @@ export function HomepageClient() {
         </HomepageStoryStage>
         <HomepageStoryStage art="flamingo" id="reality" screen={2} side="left">
           <CompositionArt art="flamingo" />
-          <StoryChapter action="history" activePetId={activePet?.id} id="the-reality" mode={visibleMode} title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
+          <StoryChapter action="history" activePetId={activePet?.id} id="the-reality" mode={visibleMode} title={<><span className="homepage-heading-line">PETS CHANGE.</span><span className="homepage-heading-line">MEMORY FADES.</span></>}>
             A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.
           </StoryChapter>
         </HomepageStoryStage>
         <HomepageStoryStage id="manifesto" screen={3} side="manifesto">
-          <StoryChapter action="pets" activePetId={activePet?.id} id="one-story" mode={visibleMode} secondaryCopy="You don't have to track everything. Use Furvise when something matters." title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
+          <StoryChapter action="pets" activePetId={activePet?.id} id="one-story" mode={visibleMode} secondaryCopy="You don't have to track everything. Use Furvise when something matters." title={<><span className="homepage-heading-line">ONE STORY.</span><span className="homepage-heading-line">NOT A PILE OF NOTES.</span></>}>
             Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.
           </StoryChapter>
         </HomepageStoryStage>
         <HomepageStoryStage art="cat" id="availability" screen={4} side="right">
           <CompositionArt art="cat" />
-          <StoryChapter action="ask" activePetId={activePet?.id} id="when-needed" mode={visibleMode} title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
+          <StoryChapter action="ask" activePetId={activePet?.id} id="when-needed" mode={visibleMode} title={<><span className="homepage-heading-line">WHEN YOU NEED IT,</span><span className="homepage-heading-line">IT&apos;S THERE.</span></>}>
             Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.
           </StoryChapter>
         </HomepageStoryStage>
         <HomepageStoryStage art="hummingbird" id="belief" screen={5} side="left">
           <CompositionArt art="hummingbird" />
-          <StoryChapter action="history" activePetId={activePet?.id} id="bigger-idea" mode={visibleMode} title={<>YOUR PET&apos;S STORY<br />SHOULDN&apos;T DISAPPEAR.</>}>
+          <StoryChapter action="history" activePetId={activePet?.id} id="bigger-idea" mode={visibleMode} title={<><span className="homepage-heading-line">YOUR PET&apos;S STORY</span><span className="homepage-heading-line">SHOULDN&apos;T DISAPPEAR.</span></>}>
             The longer you care for a pet, the more their history matters. Furvise keeps that history useful, understandable, and close when you need it.
           </StoryChapter>
         </HomepageStoryStage>
@@ -137,7 +137,7 @@ function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
   return (
     <section className="homepage-story-chapter homepage-story-row homepage-story-hero" data-chapter="why-we-exist" id="why-we-exist">
       <div className="homepage-story-block">
-        <h1 aria-label="Remember what matters." className="homepage-story-heading homepage-hero-heading"><span>REMEMBER</span><span>WHAT</span><span>MATTERS.</span></h1>
+        <h1 aria-label="Remember what matters." className="homepage-story-heading homepage-hero-heading"><span className="homepage-heading-line">REMEMBER WHAT</span><span className="homepage-heading-line">MATTERS.</span></h1>
         <p className="homepage-story-body">Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.</p>
         <StoryAction mode={mode} />
       </div>
@@ -183,7 +183,7 @@ function FinalChapter({ mode }: { mode: VisibleHomepageMode }) {
     <section className="homepage-story-chapter homepage-final-chapter homepage-viewport-stage" data-chapter="start" data-pace="full" data-story-screen="6" data-ui="homepage-final-conversion">
       <div className="homepage-wide-shell homepage-story-inner">
         <div className="homepage-story-block">
-          <h2 className="homepage-story-heading">START WITH<br />YOUR PET.</h2>
+          <h2 className="homepage-story-heading"><span className="homepage-heading-line">START WITH</span><span className="homepage-heading-line">YOUR PET.</span></h2>
           <p className="homepage-story-body">You don&apos;t need to remember everything on day one. Just start.</p>
           <StoryAction mode={mode} />
           <p className="homepage-trust-line">Furvise helps organize pet care information and does not replace veterinary care.</p>
