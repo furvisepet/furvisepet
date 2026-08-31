@@ -138,7 +138,7 @@ test("warm surfaces and restrained action colors are applied through shared role
   assert.match(primitives, /standard: "bg-\[var\(--card-background\)\]"/);
   assert.match(primitives, /fieldControlClass[\s\S]*bg-\[var\(--input-background\)\][\s\S]*placeholder:text-\[var\(--text-muted\)\]/);
   assert.match(primitives, /neutral: "bg-\[var\(--chip-background\)\][\s\S]*selected: "border-\[var\(--sage\)\] bg-\[var\(--chip-selected-background\)\] text-\[var\(--chip-selected-foreground\)\]/);
-  assert.match(header, /bg-\[var\(--pw-header-surface\)\][\s\S]*data-active-indicator=\{isActive\(item\.href\) \? "background"/);
+  assert.match(header, /homepage-marketing-header[\s\S]*data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
   assert.match(footer, /bg-\[var\(--footer-background\)\]/);
   assert.doesNotMatch(components, /text-\[var\(--action-primary\)\]/, "orange primary background must not be reused as body or link text");
   assert.doesNotMatch(css, /--primary-action-(?:background|foreground): var\(--(?:sage|forest|deep-forest)\)/);
@@ -169,7 +169,7 @@ test("appearance switching is absent and Products stays out of Account", () => {
   assert.doesNotMatch([header, account, layout].join("\n"), /Appearance|openAppearance|data-theme|suppressHydrationWarning|furvise-mode|appearance-mode/i);
   assert.match(layout, /data-color-scheme="light"/);
   assert.match(layout, /meta name="color-scheme" content="light"/);
-  assert.match(header, /href: "\/shop", label: "Products"/);
+  assert.doesNotMatch(header, /href: "\/shop", label: "Products"|>Products<\/Link>/);
   assert.doesNotMatch(account, /\/shop|Products/);
 });
 

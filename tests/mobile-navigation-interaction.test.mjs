@@ -14,7 +14,7 @@ const bottomDock = header.slice(bottomDockStart, header.indexOf("</nav>", bottom
 test("mobile header owns More while the dock contains exactly five ordered routes", () => {
   assert.deepEqual(
     MOBILE_NAVIGATION_ITEMS.map(({ href, label }) => [label, href]),
-    [["Today", "/today"], ["History", "/history"], ["Ask", "/ask"], ["Pets", "/pets"], ["Products", "/shop"]],
+    [["Today", "/today"], ["History", "/history"], ["Ask", "/ask"], ["Pets", "/pets"], ["Account", "/account"]],
   );
   assert.match(bottomDock, /grid-cols-5/);
   assert.doesNotMatch(bottomDock, /NAVIGATION_ICON_ASSETS\.more|mobile-more-menu|Open More menu/);
@@ -29,8 +29,8 @@ test("the mobile More control is a first-tap accessible header button", () => {
   assert.match(mobileHeader, /mobileMoreOpen \? \([\s\S]*data-ui="mobile-more-menu"[\s\S]*\) : null/);
 });
 
-test("More retains menu entries and closes without a pointer-blocking overlay", () => {
-  assert.match(mobileHeader, /href="\/shop"[\s\S]*>Products<\/Link>/);
+test("More retains account menu entries and closes without a pointer-blocking overlay", () => {
+  assert.doesNotMatch(mobileHeader, /href="\/shop"[\s\S]*>Products<\/Link>/);
   assert.match(mobileHeader, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);
   assert.match(header, /document\.addEventListener\("click", handleOutsideClick\)/);
   assert.doesNotMatch(header, /document\.addEventListener\("pointerdown", handleOutsideClick\)/);

@@ -31,7 +31,7 @@ test("mobile destinations retain the intended icon assets while desktop stays te
     ["History", "/history", expectedAssets.history],
     ["Ask", "/ask", expectedAssets.ask],
     ["Pets", "/pets", expectedAssets.pets],
-    ["Products", "/shop", expectedAssets.products],
+    ["Account", "/account", expectedAssets.more],
   ];
   assert.deepEqual(
     MOBILE_NAVIGATION_ITEMS.map(({ asset, href, label }) => [label, href, asset]),
@@ -45,7 +45,7 @@ test("mobile destinations retain the intended icon assets while desktop stays te
 
 test("the mobile dock has exactly five evenly distributed routes in the required order", () => {
   assert.equal(MOBILE_NAVIGATION_ITEMS.length, 5);
-  assert.deepEqual(MOBILE_NAVIGATION_ITEMS.map(({ label }) => label), ["Today", "History", "Ask", "Pets", "Products"]);
+  assert.deepEqual(MOBILE_NAVIGATION_ITEMS.map(({ label }) => label), ["Today", "History", "Ask", "Pets", "Account"]);
   const mobileStart = header.indexOf('<nav aria-label="Mobile navigation"');
   const mobile = header.slice(mobileStart, header.indexOf("</nav>", mobileStart) + 6);
   assert.match(mobile, /grid-cols-5/);
@@ -56,7 +56,7 @@ test("the mobile dock has exactly five evenly distributed routes in the required
   assert.match(mobile, /whitespace-nowrap/);
 });
 
-test("Products has one canonical icon path and remains outside the LiquidGlass capture target", () => {
+test("the dormant Products icon stays available while dock icons remain outside the LiquidGlass capture target", () => {
   const navigationSource = read("app/lib/navigation/mobile-navigation.ts");
   assert.equal((navigationSource.match(/\/images\/nav-products-v1\.webp/g) ?? []).length, 1);
   const mobile = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
@@ -85,8 +85,8 @@ test("navigation labels, destinations, state, and accessibility remain intact", 
     ["/pets", "Pets"],
     ["/care-log", "History"],
     ["/ask", "Ask"],
-    ["/shop", "Products"],
   ]) assert.match(header, new RegExp(`href: "${href}", label: "${label}"`));
+  assert.doesNotMatch(header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS")), /Products|\/shop/);
 
   assert.match(header, /aria-label="Primary navigation"/);
   assert.match(header, /aria-label="Mobile navigation"/);

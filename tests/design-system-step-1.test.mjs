@@ -42,7 +42,7 @@ test("inputs, chips, and navigation expose visible focus, selected, active, and 
   assert.match(primitives, /export type ChipVariant = "neutral" \| "selected" \| "category" \| "status" \| "removable"/);
   assert.match(primitives, /selected: "border-\[var\(--sage\)\] bg-\[var\(--chip-selected-background\)\] text-\[var\(--chip-selected-foreground\)\]/);
   assert.match(header, /aria-current=\{isActive\(item\.href\) \? "page" : undefined\}/);
-  assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "background"/);
+  assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
 });
 
 test("pet avatars support photos and a warm initial fallback", () => {

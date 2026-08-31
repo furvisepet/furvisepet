@@ -16,8 +16,7 @@ import { useMobileLiquidGlass } from "../lib/navigation/use-mobile-liquid-glass"
 import { isAskRequestActive, useAskRequestActive } from "../lib/navigation/ask-request-activity";
 import { useAskComposerFocus } from "../lib/navigation/ask-composer-focus";
 import { getBrowserSupabase } from "../lib/supabase";
-import { BrandMark } from "./brand-mark";
-import { appPageContainer, PrimaryButton, TextAction } from "./product-primitives";
+import { PrimaryButton, TextAction } from "./product-primitives";
 
 type HeaderAction = {
   href?: string;
@@ -76,7 +75,6 @@ export const APP_NAV_ITEMS = [
   { href: "/pets", label: "Pets" },
   { href: "/care-log", label: "History" },
   { href: "/ask", label: "Ask" },
-  { href: "/shop", label: "Products" },
 ] as const;
 
 const MOBILE_NAV_ITEMS = [
@@ -84,7 +82,7 @@ const MOBILE_NAV_ITEMS = [
   { ...MOBILE_NAVIGATION_ITEMS[1], icon: "history", label: "History" },
   { ...MOBILE_NAVIGATION_ITEMS[2], icon: "ask", label: "Ask" },
   { ...MOBILE_NAVIGATION_ITEMS[3], icon: "pets", label: "Pets" },
-  { ...MOBILE_NAVIGATION_ITEMS[4], icon: "products", label: "Products" },
+  { ...MOBILE_NAVIGATION_ITEMS[4], icon: "more", label: "Account" },
 ] as const;
 
 export function AppHeader({
@@ -215,22 +213,22 @@ export function AppHeader({
 
   return (
     <>
-      <header className={`${sticky ? "sticky top-0 z-[var(--z-sticky-controls)]" : ""} border-b border-[var(--border-subtle)] bg-[var(--pw-header-surface)] shadow-[var(--shadow-header)]`} data-ui="app-header">
-        <div className={`${appPageContainer} flex min-h-[calc(4.25rem+env(safe-area-inset-top,0px))] items-center justify-between gap-4 pt-[env(safe-area-inset-top,0px)] lg:grid lg:min-h-[4.25rem] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-4 lg:pt-0`} data-ui="header-optical-row">
-          <div className="flex min-w-0 items-center lg:justify-self-start" data-ui="desktop-brand-zone">
-            <Link aria-disabled={askRequestActive || undefined} aria-label="Furvise home" className="flex min-h-11 shrink-0 items-center rounded-[var(--radius-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2" href={brandHref} onClick={guardAppNavigation}>
-              {brandMark ?? <span className="inline-flex items-center [--brand-mark-size:2rem] lg:[--brand-mark-size:3.125rem]"><BrandMark priority size={32} /></span>}
+      <header className={`${sticky ? "sticky top-0 z-[var(--z-sticky-controls)]" : ""} homepage-marketing-header`} data-ui="app-header">
+        <div className="homepage-wide-shell homepage-header-grid" data-ui="header-optical-row">
+          <div className="homepage-header-brand-zone" data-ui="desktop-brand-zone">
+            <Link aria-disabled={askRequestActive || undefined} aria-label="Furvise home" className="homepage-brand-link" href={brandHref} onClick={guardAppNavigation}>
+              {brandMark ?? <Image alt="" aria-hidden="true" className="homepage-full-logo" height={800} priority sizes="144px" src="/brand/furvise-logo.svg" width={3200} />}
             </Link>
           </div>
 
-          <div className="hidden items-center justify-self-center lg:flex" data-ui="desktop-navigation-zone">
+          <div className="homepage-header-navigation-zone" data-ui="desktop-navigation-zone">
             {!isHomepage || resolvedAuthState === "authenticated" ? (
-              <nav aria-label="Primary navigation" className="flex items-center gap-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1" data-ui="desktop-navigation-container">
+              <nav aria-label="Primary navigation" className="homepage-desktop-navigation" data-ui="desktop-navigation-container">
                 {items.map((item) => (
                   <Link
                     aria-current={isActive(item.href) ? "page" : undefined}
-                    className={`flex min-h-11 items-center rounded-[var(--radius-sm)] px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive(item.href) ? "bg-[color-mix(in_srgb,var(--soft-sage)_88%,var(--sage)_12%)] font-semibold text-[var(--deep-forest)] shadow-[inset_0_0_0_1px_var(--sage)]" : "bg-transparent font-medium text-[var(--deep-forest)] hover:bg-[var(--surface-hover)]"}`}
-                    data-active-indicator={isActive(item.href) ? "background" : undefined}
+                    className="homepage-header-text-link app-header-navigation-link"
+                    data-active-indicator={isActive(item.href) ? "underline" : undefined}
                     href={item.href}
                     key={item.href}
                     onClick={guardAppNavigation}
@@ -243,7 +241,7 @@ export function AppHeader({
             ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 lg:justify-self-end" data-ui="desktop-account-zone">
+          <div className="homepage-header-actions" data-ui="desktop-account-zone">
             {showMobileNavigation ? (
               <div className="relative lg:hidden" data-ui="mobile-more-container" ref={mobileMoreRef}>
                 <button
@@ -263,7 +261,6 @@ export function AppHeader({
                 </button>
                 {mobileMoreOpen ? (
                   <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[var(--z-popover)] w-64 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" data-ui="mobile-more-menu" id={mobileMoreMenuId} role="menu">
-                    <Link aria-disabled={askRequestActive || undefined} className="touch-manipulation flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)]" href="/shop" onClick={(event) => { guardAppNavigation(event); if (!event.defaultPrevented) closeMobileMore(); }} role="menuitem">Products</Link>
                     {accountMenuItems.map((item) => item.type === "link" ? (
                       <Link className="touch-manipulation flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)]" href={item.href} key={item.label} onClick={() => closeMobileMore()} role="menuitem">{item.label}</Link>
                     ) : item.type === "label" ? (
@@ -285,10 +282,9 @@ export function AppHeader({
                 ) : null)}
               </div>
             ) : (
-                <details className="relative hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-1 lg:block" data-ui="desktop-account-container" ref={menuRef}>
-                  <summary aria-controls={menuId} aria-haspopup="menu" aria-label="Open account menu" className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-[var(--radius-sm)] bg-transparent px-3 text-sm font-semibold text-[var(--deep-forest)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <details className="relative hidden lg:block" data-ui="desktop-account-container" ref={menuRef}>
+                  <summary aria-controls={menuId} aria-haspopup="menu" aria-label="Open account menu" className={`homepage-header-text-link cursor-pointer list-none ${isActive("/account") ? "app-header-navigation-link" : ""}`} data-active-indicator={isActive("/account") ? "underline" : undefined}>
                     <span>Account</span>
-                    <span aria-hidden="true" className="text-xs text-[var(--text-muted)]">⌄</span>
                   </summary>
                   <div className="absolute right-0 top-[3.5rem] z-[var(--z-popover)] w-44 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" id={menuId} role="menu">
                     {accountMenuItems.map((item) => item.type === "link" ? (

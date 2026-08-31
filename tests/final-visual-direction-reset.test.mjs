@@ -62,10 +62,11 @@ test("homepage has six viewport story screens and authenticated CTA logic", () =
   assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
 });
 
-test("Products is primary navigation, mobile More owns utilities, and Account stays account-only", () => {
+test("Products is absent from primary navigation while mobile More owns account utilities", () => {
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
-  assert.match(desktop, /href: "\/shop", label: "Products"/);
-  assert.match(header, /data-ui="mobile-more-container"[\s\S]*aria-label=\{mobileMoreOpen \? "Close More menu" : "Open More menu"\}[\s\S]*href="\/shop"[\s\S]*>Products<[\s\S]*accountMenuItems\.map/);
+  assert.doesNotMatch(desktop, /\/shop|Products/);
+  assert.match(header, /data-ui="mobile-more-container"[\s\S]*aria-label=\{mobileMoreOpen \? "Close More menu" : "Open More menu"\}[\s\S]*accountMenuItems\.map/);
+  assert.doesNotMatch(header, /href="\/shop"[\s\S]*>Products/);
   assert.match(signedHeader, /href: "\/account"[\s\S]*label: "Account"/);
   assert.doesNotMatch(header, /Appearance|openAppearance/);
   assert.doesNotMatch(signedHeader, /\/shop|Browse products/);

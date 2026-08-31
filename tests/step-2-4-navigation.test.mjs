@@ -11,31 +11,29 @@ const appPage = read("app/components/app-page.tsx");
 
 test("desktop brand, routes, and Account share one optical alignment row", () => {
   assert.match(header, /data-ui="header-optical-row"/);
-  assert.match(header, /lg:grid-cols-\[minmax\(0,1fr\)_auto_minmax\(0,1fr\)\]/);
-  assert.match(header, /lg:justify-self-start" data-ui="desktop-brand-zone"/);
-  assert.match(header, /justify-self-center lg:flex" data-ui="desktop-navigation-zone"/);
-  assert.match(header, /lg:justify-self-end" data-ui="desktop-account-zone"/);
-  assert.match(header, /inline-flex items-center \[--brand-mark-size:2rem\][\s\S]*lg:\[--brand-mark-size:3\.125rem\]/);
+  assert.match(header, /homepage-wide-shell homepage-header-grid/);
+  assert.match(header, /homepage-header-brand-zone" data-ui="desktop-brand-zone"/);
+  assert.match(header, /homepage-header-navigation-zone" data-ui="desktop-navigation-zone"/);
+  assert.match(header, /homepage-header-actions" data-ui="desktop-account-zone"/);
+  assert.match(header, /className="homepage-full-logo"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
   assert.match(header, /data-ui="desktop-account-container"/);
-  assert.match(header, /aria-label="Open account menu" className="flex min-h-11/);
+  assert.match(header, /aria-label="Open account menu" className=\{`homepage-header-text-link/);
   assert.doesNotMatch(header, /(?:ml|mr|translate-x)-\[/);
 });
 
-test("desktop routes use one shared warm-neutral container and compact selected state", () => {
+test("desktop routes use the homepage text rail and quiet selected state", () => {
   const desktop = header.slice(header.indexOf('<nav aria-label="Primary navigation"'), header.indexOf('data-ui="desktop-account-zone"'));
-  assert.match(desktop, /bg-\[var\(--surface-raised\)\][\s\S]*data-ui="desktop-navigation-container"/);
-  assert.match(desktop, /flex min-h-11 items-center/);
-  assert.match(desktop, /bg-\[color-mix\(in_srgb,var\(--soft-sage\)_88%,var\(--sage\)_12%\)\]/);
-  assert.match(desktop, /shadow-\[inset_0_0_0_1px_var\(--sage\)\]/);
-  assert.match(desktop, /bg-transparent font-medium text-\[var\(--deep-forest\)\]/);
-  assert.match(desktop, /data-active-indicator=\{isActive\(item\.href\) \? "background"/);
+  assert.match(desktop, /className="homepage-desktop-navigation"[\s\S]*data-ui="desktop-navigation-container"/);
+  assert.match(desktop, /homepage-header-text-link app-header-navigation-link/);
+  assert.match(desktop, /data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
+  assert.doesNotMatch(desktop, /surface-raised|soft-sage|rounded-\[var\(--radius-md\)\]/);
   assert.doesNotMatch(desktop, /NavigationIcon|<Image|asset:/);
 });
 
 test("mobile dock has the exact icon and label destinations with a selected state", () => {
   const mobileItems = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
   let cursor = -1;
-  for (const [label, icon] of [["Today", "today"], ["History", "history"], ["Ask", "ask"], ["Pets", "pets"], ["Products", "products"]]) {
+  for (const [label, icon] of [["Today", "today"], ["History", "history"], ["Ask", "ask"], ["Pets", "pets"], ["Account", "more"]]) {
     const next = mobileItems.indexOf(`icon: "${icon}", label: "${label}"`);
     assert.ok(next > cursor, `${label} retains its required order and icon`);
     cursor = next;
@@ -57,7 +55,7 @@ test("mobile navigation is a translucent semantic floating dock with no logo or 
 test("More routes, aria state, safe area, and shared clearance remain intact", () => {
   assert.match(header, /aria-current=\{isActive\(item\.href\) \? "page" : undefined\}/);
   assert.match(header, /pb-\[var\(--mobile-nav-safe-area\)\]/);
-  assert.match(header, /href="\/shop"[\s\S]*>Products<\/Link>/);
+  assert.doesNotMatch(header, /href="\/shop"[\s\S]*>Products<\/Link>/);
   assert.match(header, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);
   assert.match(css, /--mobile-nav-height: 4\.25rem;[\s\S]*--mobile-nav-safe-area:[\s\S]*--mobile-nav-clearance:/);
   assert.match(appPage, /app-mobile-nav-clearance/);
@@ -65,7 +63,7 @@ test("More routes, aria state, safe area, and shared clearance remain intact", (
 
 test("approved brand asset remains byte-identical", () => {
   const brand = read("app/components/brand-mark.tsx");
-  assert.match(header, /<BrandMark priority size=\{32\} \/>/);
+  assert.match(header, /className="homepage-full-logo"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
   assert.match(brand, /objectFit: "contain"/);
   assert.match(brand, /height: "100%"/);
   assert.doesNotMatch(brand, /translateY|scale\(2\.75\)/);

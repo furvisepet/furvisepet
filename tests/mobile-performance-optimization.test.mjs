@@ -48,7 +48,7 @@ test("the eager compact brand mark uses responsive approved vector assets", () =
   assert.match(namedMark, /src=\{FURVISE_MASCOT_ASSET\}[\s\S]*objectFit: "contain"/);
   assert.match(iconOnlyMark, /height: responsiveSize[\s\S]*src=\{FURVISE_MASCOT_ASSET\}[\s\S]*width: responsiveSize/);
   assert.doesNotMatch(brand, /\.(?:png|jpe?g|webp)\b/i);
-  assert.match(header, /<BrandMark priority size=\{32\} \/>/);
+  assert.match(header, /className="homepage-full-logo"[\s\S]*priority[\s\S]*src="\/brand\/furvise-logo\.svg"/);
   assert.match(header, /function NavigationIcon[\s\S]*decoding="async"[\s\S]*loading="lazy"/);
   assert.doesNotMatch(header, /NavigationIcon[^\n]*priority|NavigationIcon[^\n]*eager/);
 });

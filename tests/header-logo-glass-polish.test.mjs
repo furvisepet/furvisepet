@@ -12,20 +12,21 @@ const packageLock = JSON.parse(read("package-lock.json"));
 const liquidGlassNotice = read("app/lib/vendor/liquidglass/README.md");
 const liquidGlassRuntime = read("app/lib/vendor/liquidglass/index.js");
 
-test("desktop primary navigation is text-only without changing its inventory or states", () => {
+test("desktop primary navigation is text-only with the approved application inventory and states", () => {
   const inventory = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   const desktop = header.slice(header.indexOf('<nav aria-label="Primary navigation"'), header.indexOf('data-ui="desktop-account-zone"'));
-  for (const [href, label] of [["/dashboard", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"], ["/shop", "Products"]]) {
+  for (const [href, label] of [["/dashboard", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"]]) {
     assert.match(inventory, new RegExp('href: "' + href + '", label: "' + label + '"'));
   }
   assert.doesNotMatch(inventory + "\n" + desktop, /NavigationIcon|<Image|asset:/);
   assert.match(desktop, /aria-current=\{isActive\(item\.href\) \? "page" : undefined\}/);
-  assert.match(desktop, /focus-visible:ring-2/);
+  assert.match(desktop, /homepage-header-text-link app-header-navigation-link/);
+  assert.doesNotMatch(inventory, /\/shop|Products/);
 });
 
-test("main keeps the horizontal lockup while auth places a restrained heron inside the surface", () => {
-  assert.match(header, /\[--brand-mark-size:2rem\] lg:\[--brand-mark-size:3\.125rem\]/);
-  assert.match(header, /lg:min-h-\[4\.25rem\]/);
+test("main uses the homepage lockup while auth places a restrained heron inside the surface", () => {
+  assert.match(header, /homepage-wide-shell homepage-header-grid/);
+  assert.match(header, /className="homepage-full-logo"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
   assert.doesNotMatch(accountAccess, /<header|border-b/);
   assert.match(accountAccess, /data-ui="account-access-surface"/);
   assert.match(accountAccess, /pt-\[max\(1\.25rem,env\(safe-area-inset-top,0px\)\)\]/);

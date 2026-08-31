@@ -36,7 +36,8 @@ test("all account flows remain wired through the shared access shell", () => {
 
 test("application navigation stays intact while the homepage uses plain signed-in links", () => {
   const primary = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
-  for (const destination of ["Today", "Pets", "History", "Ask", "Products"]) assert.match(primary, new RegExp(`label: "${destination}"`));
+  for (const destination of ["Today", "Pets", "History", "Ask"]) assert.match(primary, new RegExp(`label: "${destination}"`));
+  assert.doesNotMatch(primary, /Products|\/shop/);
   assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|APP_NAV_ITEMS/);
   assert.match(homepage, /<PublicMarketingHeader mode=\{mode\} \/>/);
   assert.match(homepage, /HOMEPAGE_DESKTOP_NAVIGATION[\s\S]*Today[\s\S]*Pets[\s\S]*History[\s\S]*Ask/);
@@ -46,10 +47,9 @@ test("application navigation stays intact while the homepage uses plain signed-i
   assert.match(header, />Account</);
 });
 
-test("Products is a normal feature location and not an Account action", () => {
+test("Products remains a feature location without appearing in primary navigation or Account", () => {
   assert.doesNotMatch(signedHeader, /href: "\/shop"|Browse products/);
-  assert.match(header, /href: "\/shop", label: "Products"/);
-  assert.match(header, /data-ui="mobile-more-container"[\s\S]*href="\/shop"[\s\S]*>Products</);
+  assert.doesNotMatch(header, /href: "\/shop", label: "Products"|href="\/shop"[\s\S]*>Products/);
   assert.match(products, /export default function ShopPage/);
 });
 

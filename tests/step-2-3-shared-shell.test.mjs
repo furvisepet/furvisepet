@@ -23,8 +23,8 @@ const account = read("app/account/page.tsx");
 test("desktop and mobile headers share the approved brand without duplicating it in bottom navigation", () => {
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
   assert.match(header, /data-ui="app-header"/);
-  assert.match(header, /<BrandMark priority size=\{32\} \/>/);
-  assert.match(header, /hidden items-center justify-self-center lg:flex[\s\S]*aria-label="Primary navigation"/);
+  assert.match(header, /className="homepage-full-logo"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
+  assert.match(header, /homepage-header-navigation-zone[\s\S]*aria-label="Primary navigation"/);
   assert.match(header, /aria-label="Mobile navigation"[\s\S]*data-ui="mobile-bottom-navigation"/);
   const bottomNavigation = header.slice(header.indexOf('aria-label="Mobile navigation"'));
   assert.doesNotMatch(bottomNavigation, /BrandMark|FURVISE_BRAND_ASSET|furvise-logo/);
@@ -34,7 +34,7 @@ test("desktop and mobile headers share the approved brand without duplicating it
 test("navigation destinations and order remain unchanged with a non-color active indicator", () => {
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   const mobile = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
-  for (const [source, labels] of [[desktop, ["Today", "Pets", "History", "Ask", "Products"]], [mobile, ["Today", "History", "Ask", "Pets", "Products"]]]) {
+  for (const [source, labels] of [[desktop, ["Today", "Pets", "History", "Ask"]], [mobile, ["Today", "History", "Ask", "Pets", "Account"]]]) {
     let cursor = -1;
     for (const label of labels) {
       const next = source.indexOf(`label: "${label}"`);
@@ -43,7 +43,7 @@ test("navigation destinations and order remain unchanged with a non-color active
     }
   }
   assert.match(header, /aria-current=\{isActive\(item\.href\) \? "page" : undefined\}/);
-  assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "background"/);
+  assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
 });
 
 test("mobile bottom navigation is edge aligned, safe-area aware, and paired with content clearance", () => {

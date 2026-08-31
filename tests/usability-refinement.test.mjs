@@ -19,7 +19,7 @@ test("application navigation uses the reset route labels", () => {
   for (const label of ["Today", "Pets", "History", "Ask"]) {
     assert.match(header, new RegExp(`label: "${label}"`));
   }
-  assert.match(header, /const MOBILE_NAV_ITEMS = \[[\s\S]*Today[\s\S]*History[\s\S]*Ask[\s\S]*Pets[\s\S]*Products/);
+  assert.match(header, /const MOBILE_NAV_ITEMS = \[[\s\S]*Today[\s\S]*History[\s\S]*Ask[\s\S]*Pets[\s\S]*Account/);
   assert.doesNotMatch(header, /label: "Dashboard"|label: "Care history"|label: "Ask Furvise"/);
 });
 
@@ -80,12 +80,12 @@ test("Ask fresh state uses a compact pet selector and one disclaimer", () => {
   assert.equal(ask.split("Furvise organizes care information and does not replace a veterinarian.").length - 1, 1);
 });
 
-test("Products is present in desktop and primary mobile navigation while More retains its menu", () => {
+test("Products is absent from primary navigation while Account remains in the mobile dock and More menu", () => {
   const mobileNavigation = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
-  assert.match(mobileNavigation, /icon: "products", label: "Products"/);
+  assert.match(mobileNavigation, /icon: "more", label: "Account"/);
   const desktopNavigation = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
-  assert.match(desktopNavigation, /href: "\/shop", label: "Products"/);
-  assert.match(header, /data-ui="mobile-more-container"[\s\S]*href="\/shop"[\s\S]*>Products</);
+  assert.doesNotMatch(desktopNavigation, /\/shop|Products/);
+  assert.doesNotMatch(header, /data-ui="mobile-more-container"[\s\S]*href="\/shop"[\s\S]*>Products/);
   assert.doesNotMatch(read("app/components/signed-in-header.tsx"), /href: "\/shop"|Browse products/);
 });
 
