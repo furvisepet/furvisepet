@@ -509,7 +509,7 @@ body {
 
 .homepage-story-block {
   width: 100%;
-  max-width: 38rem;
+  max-width: 32rem;
 }
 
 .homepage-story-art {
@@ -528,7 +528,7 @@ body {
 }
 
 .homepage-story-hero .homepage-story-block {
-  max-width: 34rem;
+  max-width: 32rem;
 }
 
 .homepage-art-heron .homepage-story-art-image {
@@ -541,8 +541,19 @@ body {
 }
 
 .homepage-final-chapter .homepage-story-inner {
-  align-items: end;
+  align-items: center;
   padding-bottom: clamp(6rem, 13vh, 10rem);
+}
+
+.homepage-final-chapter .homepage-story-block {
+  max-width: 34rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.homepage-final-chapter .homepage-story-body,
+.homepage-final-chapter .homepage-trust-line {
+  margin-inline: auto;
 }
 
 .homepage-story-heading {
@@ -587,9 +598,16 @@ body {
     min-height: 68svh;
   }
 
-  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid,
+  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid {
+    grid-template-rows: repeat(2, max-content);
+    align-content: center;
+    row-gap: clamp(7.25rem, 16vh, 12rem);
+  }
+
   .homepage-editorial-composition[data-composition="continuity"] .homepage-editorial-grid {
-    grid-template-rows: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, max-content);
+    align-content: center;
+    row-gap: clamp(6.5rem, 15vh, 11rem);
   }
 
   .homepage-editorial-composition[data-composition="availability"] .homepage-editorial-grid,
@@ -613,13 +631,15 @@ body {
   #why-we-exist,
   #the-reality,
   #when-needed {
-    grid-column: 1 / 6;
+    grid-column: 1 / 5;
+    margin-left: clamp(1rem, 4vw, 4.5rem);
   }
 
   #one-story,
   #track-less,
   #bigger-idea {
-    grid-column: 8 / 13;
+    grid-column: 9 / 13;
+    margin-right: clamp(1rem, 4vw, 4.5rem);
   }
 
   #why-we-exist,
@@ -658,7 +678,7 @@ body {
   }
 
   .homepage-art-cat {
-    right: -2vw;
+    right: -3vw;
     bottom: 0;
     width: min(46vw, 46rem);
     height: min(72svh, 45rem);
@@ -670,7 +690,7 @@ body {
 
   .homepage-art-hummingbird {
     top: 50%;
-    left: 1vw;
+    left: 0;
     width: min(46vw, 46rem);
     height: auto;
     aspect-ratio: 3 / 2;
@@ -687,7 +707,8 @@ body {
   }
 
   .homepage-final-chapter .homepage-story-block {
-    grid-column: 1 / 6;
+    grid-column: 1 / 13;
+    justify-self: center;
   }
 
   #one-story .homepage-story-heading {
@@ -705,10 +726,10 @@ body {
 }
 
 .homepage-story-body {
-  max-width: 38rem;
+  max-width: 30rem;
   margin-top: 1.75rem;
   font-size: clamp(1.0625rem, 1.25vw, 1.1875rem);
-  line-height: 1.58;
+  line-height: 1.6;
   color: var(--marketing-muted);
 }
 
@@ -737,7 +758,7 @@ body {
 
 .homepage-trust-line {
   max-width: 34rem;
-  margin-top: clamp(4rem, 10vh, 7rem);
+  margin-top: clamp(2rem, 4vh, 3rem);
   font-size: 0.875rem;
   line-height: 1.5rem;
   color: var(--marketing-subtle);
@@ -927,6 +948,7 @@ body {
 
   .homepage-story-row {
     max-width: 42rem;
+    padding: 0;
   }
 
   .homepage-composition-art {
@@ -968,6 +990,12 @@ body {
   .homepage-final-chapter .homepage-story-inner {
     display: block;
     padding-block: 4rem;
+  }
+
+  .homepage-final-chapter .homepage-story-block {
+    max-width: 34rem;
+    margin-inline: auto;
+    text-align: center;
   }
 
   .homepage-story-heading {

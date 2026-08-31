@@ -50,7 +50,7 @@ test("editorial art is decorative, direct on forest, and limited to the approved
 });
 
 test("desktop compositions let one independent visual span one or two grid-aligned story rows", () => {
-  const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf(".homepage-story-body"));
+  const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf("\n.homepage-story-body {"));
   assert.match(desktopStageCss, /\.homepage-composition-art \{[\s\S]*position: absolute;[\s\S]*grid-column: auto;[\s\S]*grid-row: auto/);
   for (const art of ["heron", "deer", "cat", "hummingbird"]) {
     assert.match(desktopStageCss, new RegExp(`\\.homepage-art-${art} \\{[\\s\\S]*width:`));
@@ -59,15 +59,29 @@ test("desktop compositions let one independent visual span one or two grid-align
   assert.match(desktopStageCss, /data-composition="continuity"\] \{[\s\S]*min-height: 122svh/);
   assert.match(desktopStageCss, /data-composition="availability"\] \{[\s\S]*min-height: 74svh/);
   assert.match(desktopStageCss, /data-composition="belief"\] \{[\s\S]*min-height: 68svh/);
-  assert.match(desktopStageCss, /data-composition="remembrance"\] \.homepage-editorial-grid,[\s\S]*data-composition="continuity"\] \.homepage-editorial-grid \{[\s\S]*grid-template-rows: repeat\(2/);
-  assert.match(desktopStageCss, /#why-we-exist,[\s\S]*#the-reality,[\s\S]*#when-needed \{[\s\S]*grid-column: 1 \/ 6/);
-  assert.match(desktopStageCss, /#one-story,[\s\S]*#track-less,[\s\S]*#bigger-idea \{[\s\S]*grid-column: 8 \/ 13/);
+  assert.match(desktopStageCss, /data-composition="remembrance"\] \.homepage-editorial-grid \{[\s\S]*grid-template-rows: repeat\(2, max-content\);[\s\S]*row-gap: clamp\(7\.25rem, 16vh, 12rem\)/);
+  assert.match(desktopStageCss, /data-composition="continuity"\] \.homepage-editorial-grid \{[\s\S]*grid-template-rows: repeat\(2, max-content\);[\s\S]*row-gap: clamp\(6\.5rem, 15vh, 11rem\)/);
+  assert.match(desktopStageCss, /#why-we-exist,[\s\S]*#the-reality,[\s\S]*#when-needed \{[\s\S]*grid-column: 1 \/ 5;[\s\S]*margin-left: clamp\(1rem, 4vw, 4\.5rem\)/);
+  assert.match(desktopStageCss, /#one-story,[\s\S]*#track-less,[\s\S]*#bigger-idea \{[\s\S]*grid-column: 9 \/ 13;[\s\S]*margin-right: clamp\(1rem, 4vw, 4\.5rem\)/);
   assert.match(desktopStageCss, /\.homepage-art-heron \{[\s\S]*top: 50%;[\s\S]*right: 0;[\s\S]*width: min\(52vw,[\s\S]*height: min\(118svh/);
   assert.match(desktopStageCss, /\.homepage-art-deer \{[\s\S]*top: 50%;[\s\S]*left: -3vw;[\s\S]*width: min\(52vw,[\s\S]*height: min\(112svh/);
-  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: -2vw;[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(72svh/);
-  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*top: 50%;[\s\S]*left: 1vw;[\s\S]*width: min\(46vw,[\s\S]*aspect-ratio: 3 \/ 2/);
+  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: -3vw;[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(72svh/);
+  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*top: 50%;[\s\S]*left: 0;[\s\S]*width: min\(46vw,[\s\S]*aspect-ratio: 3 \/ 2/);
   assert.match(desktopStageCss, /\.homepage-story-chapter\.homepage-final-chapter \{[\s\S]*min-height: 50svh/);
-  assert.match(desktopStageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*grid-column: 1 \/ 6/);
+  assert.match(desktopStageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*grid-column: 1 \/ 13;[\s\S]*justify-self: center/);
+});
+
+test("desktop reading rails protect the center gutter and the final chapter resolves centered", () => {
+  const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf("\n.homepage-story-body {"));
+  assert.match(homepageCss, /\.homepage-story-block \{[\s\S]*max-width: 32rem/);
+  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 30rem;[\s\S]*line-height: 1\.6/);
+  assert.match(desktopStageCss, /data-composition="remembrance"\] \.homepage-editorial-grid \{[\s\S]*align-content: center;[\s\S]*row-gap: clamp\(7\.25rem, 16vh, 12rem\)/);
+  assert.match(desktopStageCss, /data-composition="continuity"\] \.homepage-editorial-grid \{[\s\S]*align-content: center;[\s\S]*row-gap: clamp\(6\.5rem, 15vh, 11rem\)/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*align-items: center/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*max-width: 34rem;[\s\S]*margin-inline: auto;[\s\S]*text-align: center/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-body,[\s\S]*\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-inline: auto/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-top: clamp\(2rem, 4vh, 3rem\)/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-row \{[\s\S]*padding: 0/);
 });
 
 test("mobile DOM order interleaves copy and shared visuals without consecutive animals", () => {
@@ -219,7 +233,7 @@ test("story rhythm is composition-driven on desktop and content-driven on mobile
 test("editorial type is uppercase, compact, and readable without a new font dependency", () => {
   assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;[\s\S]*font-size: clamp\(3\.25rem, 5vw, 4\.5rem\);[\s\S]*font-weight: 800;[\s\S]*line-height: 0\.92/);
   assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.375rem, 6\.4vw, 5\.75rem\)/);
-  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 38rem;[\s\S]*font-size: clamp\(1\.0625rem, 1\.25vw, 1\.1875rem\);[\s\S]*line-height: 1\.58/);
+  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 30rem;[\s\S]*font-size: clamp\(1\.0625rem, 1\.25vw, 1\.1875rem\);[\s\S]*line-height: 1\.6/);
   assert.doesNotMatch(homepage, /@font-face|next\/font|fonts\.(?:googleapis|gstatic)/);
 });
 
