@@ -23,7 +23,7 @@ test("primary app routes share one outer page-container contract", () => {
   assert.match(primitives, /appPageContainer = "box-border mx-auto w-full max-w-\[1180px\] px-5 md:px-8 xl:px-12"/);
   assert.match(appPage, /<PageShell preset="app">/);
   assert.match(appPage, /appPageContentClasses\[shell\]/);
-  assert.match(header, /className=\{`\$\{appPageContainer\} flex/);
+  assert.match(header, /className="homepage-wide-shell homepage-header-grid" data-ui="header-optical-row"/);
 
   for (const source of [today, pets, history, ask, products, petProfile, editProfile, vetBrief, account]) {
     assert.match(source, /<AppPage/);

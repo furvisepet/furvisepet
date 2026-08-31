@@ -64,10 +64,10 @@ test("Pets actions, Ask composer, and overflow all clear the bottom navigation",
   assert.match(overflow, /navigationTop - VIEWPORT_GUTTER/);
 });
 
-test("More contains Products and Account and has complete dismissal behavior", () => {
+test("More contains Account controls and has complete dismissal behavior", () => {
   const more = header.slice(header.indexOf('data-ui="mobile-more-container"'), header.indexOf('{isHomepage && resolvedAuthState'));
   assert.match(more, /data-ui="mobile-more-menu"/);
-  assert.match(more, /href="\/shop"[\s\S]*>Products<\/Link>/);
+  assert.doesNotMatch(more, /href="\/shop"[\s\S]*>Products<\/Link>/);
   assert.match(more, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);
   assert.match(header, /document\.addEventListener\("click", handleOutsideClick\)/);
   assert.match(header, /event\.key !== "Escape"/);
@@ -78,8 +78,9 @@ test("More contains Products and Account and has complete dismissal behavior", (
 
 test("navigation order, desktop active treatment, and brand assets stay protected", () => {
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
-  for (const label of ["Today", "Pets", "History", "Ask", "Products"]) assert.ok(desktop.includes(`label: "${label}"`));
-  assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "background"/);
+  for (const label of ["Today", "Pets", "History", "Ask"]) assert.ok(desktop.includes(`label: "${label}"`));
+  assert.doesNotMatch(desktop, /Products|\/shop/);
+  assert.match(header, /data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
   assert.doesNotMatch(header, /isActive\(item\.href\) \? "[^"]*bg-\[var\(--selected-background\)\]/);
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00");
   assert.equal(hash("app/favicon.ico"), "617E8F6A24067E937ECAFD8C8A8DE735BF4BAC546B0378F0220C884F88C952DB");

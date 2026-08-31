@@ -74,18 +74,15 @@ test("Products uses dedicated full-bleed responsive artwork", () => {
   );
 });
 test("mobile header has a compact safe-area-aware height and responsive approved logo sizing", () => {
-  assert.match(
-    header,
-    /min-h-\[calc\(4\.25rem\+env\(safe-area-inset-top,0px\)\)\]/
-  );
-  assert.match(header, /\[--brand-mark-size:2rem\]/);
+  assert.match(header, /homepage-wide-shell homepage-header-grid/);
+  assert.match(header, /className="homepage-full-logo"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
   assert.match(
     brand,
     /if \(showName\)[\s\S]*columnGap: "6px"[\s\S]*width: `calc\(\$\{responsiveSize\} \* 4\)`/
   );
   assert.match(brand, /src=\{FURVISE_WORDMARK_ASSET\}[\s\S]*src=\{FURVISE_MASCOT_ASSET\}/);
   assert.match(brand, /height: responsiveSize,[\s\S]*width: responsiveSize,/);
-  assert.match(header, /lg:\[--brand-mark-size:3\.125rem\]/);
+  assert.match(read("app/globals.css"), /\.homepage-header-grid \{[\s\S]*height: 3\.5rem;[\s\S]*@media \(max-width: 479px\) \{[\s\S]*height: 3\.375rem/);
   assert.match(
     brand,
     /var\(--brand-mark-size, \$\{size\}px\)/
@@ -129,7 +126,7 @@ test("mobile navigation order and labels remain stable during scrolling", () => 
     header.indexOf("export function AppHeader")
   );
   let cursor = -1;
-  for (const label of ["Today", "History", "Ask", "Pets", "Products"]) {
+  for (const label of ["Today", "History", "Ask", "Pets", "Account"]) {
     const next = mobile.indexOf(`label: "${label}"`);
     assert.ok(next > cursor, `${label} stays in route order`);
     cursor = next;
@@ -206,8 +203,9 @@ test("semantic z-index levels preserve the requested hierarchy", () => {
 test("desktop navigation remains hidden below 1024px and brand assets remain unchanged", () => {
   assert.match(
     header,
-    /hidden items-center justify-self-center lg:flex[\s\S]*aria-label="Primary navigation"/
+    /homepage-header-navigation-zone[\s\S]*aria-label="Primary navigation"/
   );
+  assert.match(read("app/globals.css"), /@media \(max-width: 1023px\)[\s\S]*\.homepage-header-navigation-zone \{[\s\S]*display: none/);
   assert.match(
     header,
     /data-ui="mobile-bottom-navigation"/

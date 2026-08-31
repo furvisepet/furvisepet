@@ -71,7 +71,7 @@ test("desktop homepage is six independent viewport-sized story screens", () => {
   assert.match(desktopStageCss, /\.homepage-art-heron \{[\s\S]*right: 3vw;[\s\S]*bottom: 2vh;[\s\S]*width: min\(54vw,[\s\S]*height: min\(86svh/);
   assert.match(desktopStageCss, /\.homepage-art-flamingo \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(82svh/);
   assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(82svh/);
-  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*width: min\(46vw,[\s\S]*aspect-ratio: 3 \/ 2/);
+  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*width: min\(53vw, 52rem\);[\s\S]*aspect-ratio: 3 \/ 2/);
   assert.match(desktopStageCss, /\.homepage-final-chapter,[\s\S]*\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*min-height: 100svh/);
   assert.match(desktopStageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*grid-column: 1 \/ 13;[\s\S]*justify-self: center/);
 });
@@ -115,7 +115,7 @@ test("mobile DOM order keeps each visual inside its own story screen", () => {
   for (const [art, width] of [["heron", "80"], ["flamingo", "80"], ["cat", "82"]]) {
     assert.match(css, new RegExp(`@media \\(max-width: 1023px\\)[\\s\\S]*\\.homepage-art-${art} \\{[\\s\\S]*width: min\\(${width}vw`));
   }
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-art-hummingbird \{[\s\S]*width: min\(calc\(100vw - 2\.5rem\), 42rem\)/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-art-hummingbird \{[\s\S]*width: min\(calc\(100vw - 2rem\), 48rem\)/);
 });
 
 test("phone scenes place substantial art before copy without forced viewport slabs", () => {
@@ -126,7 +126,7 @@ test("phone scenes place substantial art before copy without forced viewport sla
   assert.match(phoneCss, /\.homepage-art-heron \{[\s\S]*width: min\(82vw,[\s\S]*height: 44svh/);
   assert.match(phoneCss, /\.homepage-art-flamingo \{[\s\S]*width: min\(86vw,[\s\S]*height: 48svh/);
   assert.match(phoneCss, /\.homepage-art-cat \{[\s\S]*width: min\(86vw,[\s\S]*height: 46svh/);
-  assert.match(phoneCss, /\.homepage-art-hummingbird \{[\s\S]*width: min\(94vw,[\s\S]*height: 40svh/);
+  assert.match(phoneCss, /\.homepage-art-hummingbird \{[\s\S]*width: min\(100vw, 44rem\);[\s\S]*height: 40svh/);
   assert.match(phoneCss, /data-composition="manifesto"\],[\s\S]*min-height: 86svh/);
   assert.match(phoneCss, /\.homepage-final-chapter,[\s\S]*min-height: 72svh/);
   assert.match(phoneCss, /\.homepage-story-body \{[\s\S]*max-width: 34ch;[\s\S]*font-size: 1rem;[\s\S]*line-height: 1\.62/);
@@ -260,10 +260,10 @@ test("editorial type uses optimized Barlow Condensed headings and readable exist
   assert.match(layout, /import \{ Barlow_Condensed \} from "next\/font\/google"/);
   assert.match(layout, /Barlow_Condensed\(\{[\s\S]*display: "swap"[\s\S]*subsets: \["latin"\][\s\S]*variable: "--font-marketing-display"[\s\S]*weight: "700"/);
   assert.match(layout, /className=\{`h-full antialiased \$\{marketingDisplay\.variable\}`\}/);
-  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: var\(--font-marketing-display\)[\s\S]*font-size: clamp\(3\.25rem, 4\.5vw, 4\.5rem\);[\s\S]*font-weight: 700;[\s\S]*line-height: 0\.97/);
-  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.5rem, 6vw, 5\.75rem\);[\s\S]*line-height: 0\.94/);
+  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: var\(--font-marketing-display\)[\s\S]*font-size: clamp\(3rem, 4\.2vw, 4\.35rem\);[\s\S]*font-weight: 700;[\s\S]*line-height: 0\.97/);
+  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.25rem, 5\.7vw, 5\.5rem\);[\s\S]*line-height: 0\.94/);
   assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: 1\.125rem;[\s\S]*line-height: 1\.6/);
-  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*data-composition="manifesto"\] \.homepage-story-heading \{[\s\S]*font-size: clamp\(4rem, 6vw, 6rem\)/);
+  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*data-composition="manifesto"\] \.homepage-story-heading \{[\s\S]*font-size: clamp\(4rem, 5\.7vw, 5\.75rem\)/);
   assert.doesNotMatch(`${layout}\n${homepage}\n${css}`, /fonts\.(?:googleapis|gstatic)|@import\s+url/);
 });
 

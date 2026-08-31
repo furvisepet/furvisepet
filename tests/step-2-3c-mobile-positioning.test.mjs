@@ -44,9 +44,9 @@ test("pages do not duplicate mobile navigation clearance geometry", () => {
   assert.equal((pageSources.match(/app-mobile-nav-clearance/g) || []).length, 0, "page components rely on AppPage while the marketing homepage has no app navigation clearance");
 });
 
-test("More keeps Products and account controls above navigation", () => {
+test("More keeps account controls above navigation without exposing Products", () => {
   const more = header.slice(header.indexOf('data-ui="mobile-more-menu"'));
-  assert.match(more, /href="\/shop"[\s\S]*>Products<\/Link>/);
+  assert.doesNotMatch(more, /href="\/shop"[\s\S]*>Products<\/Link>/);
   assert.match(more, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);
   assert.match(header, /z-\[var\(--z-bottom-navigation\)\]/);
   assert.match(header, /data-ui="mobile-more-menu"[\s\S]*role="menu"/);

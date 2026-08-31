@@ -24,7 +24,7 @@ test("mobile destinations use the approved public image assets", () => {
       { asset: "/images/nav-history-v1.webp", href: "/history", label: "History" },
       { asset: "/images/nav-ask-v1.webp", href: "/ask", label: "Ask" },
       { asset: "/images/nav-pets-v1.webp", href: "/pets", label: "Pets" },
-      { asset: "/images/nav-products-v1.webp", href: "/shop", label: "Products" },
+      { asset: "/images/nav-more-v1.webp", href: "/account", label: "Account" },
     ],
   );
   for (const item of MOBILE_NAVIGATION_ITEMS) assert.equal(existsSync(new URL(`../public${item.asset}`, import.meta.url)), true);
@@ -42,7 +42,7 @@ test("active tabs cover public aliases and established application destinations"
     ["/ask/thread", "ask"],
     ["/pets/pet-id", "pets"],
     ["/dogs/pet-id/memories", "pets"],
-    ["/shop", "products"],
+    ["/shop", "more"],
     ["/account", "more"],
     ["/vet-briefs/brief-id", "more"],
   ]) assert.equal(getActiveMobileNavigationTab(pathname), tab);

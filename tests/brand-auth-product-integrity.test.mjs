@@ -38,7 +38,7 @@ test("approved compact Furvise assets are composed by the shared BrandMark", () 
   assert.doesNotMatch(brand, /data-ui="brand-mark"|loading=\{priority/);
   assert.doesNotMatch(liveBrandReferences, /logo-header-v1\.webp|\/brand\/logo\.png|App(?:%20| )icon(?:\.png)?/i);
   assert.doesNotMatch(brand, /filter/);
-  assert.match(header, /<BrandMark priority/);
+  assert.match(header, /className="homepage-full-logo"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
   assert.doesNotMatch([header, read("app/components/homepage-client.tsx")].join("\n"), /next\.svg|vercel\.svg|triangle(?:-|_)icon|house(?:-|_)icon/i);
 });
 
