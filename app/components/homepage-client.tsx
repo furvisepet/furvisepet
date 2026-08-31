@@ -12,11 +12,11 @@ import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib
 type HomepageMode = "loading" | "anonymous" | "no-pets" | "with-pet";
 type VisibleHomepageMode = Exclude<HomepageMode, "loading">;
 type StoryActionDestination = "ask" | "history" | "pets" | "primary" | "today";
-type HomepageStoryArt = "cat" | "deer" | "heron" | "hummingbird";
+type HomepageStoryArt = "cat" | "flamingo" | "heron" | "hummingbird";
 
 const HOMEPAGE_STORY_ART = {
   cat: { height: 1536, sizes: "(min-width: 1600px) 768px, (min-width: 1024px) 48vw, 94vw", src: "/images/cat.png", width: 1024 },
-  deer: { height: 1536, sizes: "(min-width: 1600px) 864px, (min-width: 1024px) 54vw, 94vw", src: "/images/deer.png", width: 1024 },
+  flamingo: { height: 1536, sizes: "(min-width: 1600px) 768px, (min-width: 1024px) 48vw, 92vw", src: "/images/flamingo.png", width: 1024 },
   heron: { height: 1285, sizes: "(min-width: 1600px) 832px, (min-width: 1024px) 52vw, 90vw", src: "/images/heron.png", width: 1224 },
   hummingbird: { height: 1024, sizes: "(min-width: 1600px) 768px, (min-width: 1024px) 48vw, 96vw", src: "/images/hummingbird.png", width: 1536 },
 } as const;
@@ -73,15 +73,17 @@ export function HomepageClient() {
         <EditorialComposition art="heron" id="remembrance" side="right">
           <WhyWeExist mode={visibleMode} />
           <CompositionArt art="heron" priority />
+        </EditorialComposition>
+        <EditorialComposition art="flamingo" id="reality" side="left">
           <StoryChapter action="history" activePetId={activePet?.id} id="the-reality" mode={visibleMode} title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
             A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.
           </StoryChapter>
+          <CompositionArt art="flamingo" />
         </EditorialComposition>
-        <EditorialComposition art="deer" id="continuity" side="left">
+        <EditorialComposition id="continuity" side="split">
           <StoryChapter action="pets" activePetId={activePet?.id} id="one-story" mode={visibleMode} title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
             Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.
           </StoryChapter>
-          <CompositionArt art="deer" />
           <StoryChapter action="today" activePetId={activePet?.id} id="track-less" mode={visibleMode} title={<>YOU DON&apos;T HAVE TO<br />TRACK EVERYTHING.</>}>
             Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.
           </StoryChapter>
@@ -146,7 +148,7 @@ function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
   );
 }
 
-function EditorialComposition({ art, children, id, side }: { art: HomepageStoryArt; children: React.ReactNode; id: string; side: "left" | "right" }) {
+function EditorialComposition({ art, children, id, side }: { art?: HomepageStoryArt; children: React.ReactNode; id: string; side: "left" | "right" | "split" }) {
   return (
     <div className="homepage-editorial-composition" data-art={art} data-composition={id} data-side={side}>
       <div className="homepage-wide-shell homepage-editorial-grid">
