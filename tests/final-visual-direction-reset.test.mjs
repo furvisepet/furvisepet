@@ -49,10 +49,12 @@ test("button hierarchy has explicit readable foregrounds and disabled states", (
   assert.match(css, /:focus-visible[\s\S]*outline: 3px solid var\(--focus\)/);
 });
 
-test("homepage has one hero, six company-story chapters, and authenticated CTA logic", () => {
+test("homepage has six viewport story screens and authenticated CTA logic", () => {
   assert.match(homepage, /aria-label="Remember what matters\."/);
   assert.doesNotMatch(homepage, /Takes about two minutes\./);
-  for (const benefit of ["PETS CHANGE.", "ONE STORY.", "YOU DON&apos;T HAVE TO", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) assert.equal(homepage.split(benefit).length - 1, 1);
+  for (const benefit of ["PETS CHANGE.", "ONE STORY.", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) assert.equal(homepage.split(benefit).length - 1, 1);
+  assert.match(homepage, /secondaryCopy="You don't have to track everything\. Use Furvise when something matters\."/);
+  assert.doesNotMatch(homepage, /id="track-less"/);
   assert.doesNotMatch(homepage, />0[123]</);
   assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);

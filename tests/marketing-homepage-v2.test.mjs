@@ -6,6 +6,7 @@ import test from "node:test";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const homepage = read("app/components/homepage-client.tsx");
 const css = read("app/globals.css");
+const layout = read("app/layout.tsx");
 const brand = read("app/components/brand-mark.tsx");
 const page = read("app/page.tsx");
 const seo = read("app/lib/seo.ts");
@@ -19,11 +20,119 @@ const mobileNavigation = homepage.slice(homepage.indexOf("const HOMEPAGE_MOBILE_
 const homepageCss = css.slice(css.indexOf(".homepage-dark-world"), css.indexOf(".mobile-liquid-glass-root"));
 const mainStory = homepage.slice(homepage.indexOf('<main className="homepage-dark-world"'), homepage.indexOf("</main>"));
 
-test("homepage removes every illustrative product example", () => {
-  assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow|product-frame|product-example|history-example|ask-context-example|Vet Visit Brief|fake (?:chat|product)|screenshot/i);
+test("homepage uses the final corrective art map and no product examples", () => {
+  assert.doesNotMatch(homepage, /\bMani\b|Illustrative example|ProductWindow|product-frame|product-example|history-example|ask-context-example|Vet Visit Brief|fake (?:chat|product)|screenshot/i);
   assert.doesNotMatch(homepage, /fetch\(|\/api\/|createConversation|saveConversation|onSubmit=/);
-  assert.doesNotMatch(mainStory, /<Image|<video|<picture|backgroundImage/);
-  assert.equal((homepage.match(/<Image/g) || []).length, 3, "only the two approved lockups and shared mobile navigation icons use Image");
+  for (const asset of ["heron", "flamingo", "cat", "hummingbird"]) {
+    assert.equal(homepage.split(`/images/${asset}.png`).length - 1, 1, `${asset} is referenced once`);
+  }
+  for (const unusedAsset of ["deer", "goat", "ostrich", "birds"]) assert.doesNotMatch(homepage, new RegExp(`/images/${unusedAsset}\\.png`));
+  assert.doesNotMatch(mainStory, /<video|<picture|backgroundImage/);
+  assert.equal((homepage.match(/<Image/g) || []).length, 4, "the header, footer, mobile navigation, and reusable composition art use Image");
+});
+
+test("editorial art is decorative, direct on forest, and limited to the approved chapters", () => {
+  const compositionArt = homepage.slice(homepage.indexOf("function CompositionArt"), homepage.indexOf("function FinalChapter"));
+  assert.match(homepage, /heron: \{[^}]*src: "\/images\/heron\.png"/);
+  assert.match(renderedHomepage, /<CompositionArt art="heron" priority \/>/);
+  assert.match(compositionArt, /homepage-art-\$\{art\}[\s\S]*<Image alt="" aria-hidden="true"[\s\S]*loading=\{priority \? undefined : "lazy"\}[\s\S]*priority=\{priority\}[\s\S]*sizes=\{asset\.sizes\}/);
+  for (const [composition, art] of [["remembrance", "heron"], ["reality", "flamingo"], ["availability", "cat"], ["belief", "hummingbird"]]) {
+    assert.match(renderedHomepage, new RegExp(`<HomepageStoryStage art="${art}" id="${composition}"`));
+    assert.equal((renderedHomepage.match(new RegExp(`<CompositionArt art="${art}"`, "g")) || []).length, 1, `${art} renders once`);
+  }
+  assert.match(renderedHomepage, /<HomepageStoryStage id="manifesto" screen=\{3\} side="manifesto">[\s\S]*id="one-story"[\s\S]*<\/HomepageStoryStage>/);
+  assert.doesNotMatch(renderedHomepage.slice(renderedHomepage.indexOf('<HomepageStoryStage id="manifesto"'), renderedHomepage.indexOf('<HomepageStoryStage art="cat"')), /CompositionArt/);
+  const artCss = homepageCss.slice(homepageCss.indexOf(".homepage-story-art {"), homepageCss.indexOf(".homepage-final-chapter .homepage-story-inner"));
+  assert.doesNotMatch(artCss, /background|box-shadow|filter|gradient|border-radius/);
+  assert.match(homepageCss, /\.homepage-editorial-composition \{[\s\S]*overflow: visible/);
+  assert.match(homepageCss, /\.homepage-story-art-image \{[\s\S]*object-fit: contain/);
+  assert.match(homepageCss, /\.homepage-composition-art \.homepage-story-art-image \{[\s\S]*object-fit: contain;[\s\S]*object-position: center/);
+  assert.doesNotMatch(homepageCss, /object-fit: cover|overflow: clip/);
+  assert.doesNotMatch(artCss, /margin-(?:left|right):\s*-/);
+  for (const art of ["heron", "flamingo", "cat", "hummingbird"]) assert.match(homepageCss, new RegExp(`\\.homepage-art-${art} \\{`));
+});
+
+test("desktop homepage is six independent viewport-sized story screens", () => {
+  const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf("\n.homepage-story-body {"));
+  assert.match(desktopStageCss, /\.homepage-composition-art \{[\s\S]*position: absolute;[\s\S]*grid-column: auto;[\s\S]*grid-row: auto/);
+  for (const art of ["heron", "flamingo", "cat", "hummingbird"]) {
+    assert.match(desktopStageCss, new RegExp(`\\.homepage-art-${art} \\{[\\s\\S]*width:`));
+  }
+  assert.equal((renderedHomepage.match(/data-story-screen/g) || []).length, 0, "screen markers are emitted by stage components, not repeated at call sites");
+  for (const screen of [1, 2, 3, 4, 5]) assert.match(renderedHomepage, new RegExp(`screen=\\{${screen}\\}`));
+  assert.match(homepage, /data-story-screen=\{screen\}/);
+  assert.match(homepage, /data-story-screen="6"/);
+  assert.match(desktopStageCss, /\.homepage-viewport-stage \{[\s\S]*min-height: 100svh/);
+  assert.match(desktopStageCss, /\.homepage-editorial-grid \{[\s\S]*min-height: 100svh;[\s\S]*grid-template-rows: minmax\(0, 1fr\)/);
+  assert.match(desktopStageCss, /data-composition="remembrance"\],[\s\S]*data-composition="remembrance"\] \.homepage-editorial-grid \{[\s\S]*min-height: calc\(100svh - 3\.5rem\)/);
+  assert.match(desktopStageCss, /#why-we-exist,[\s\S]*#one-story,[\s\S]*#when-needed \{[\s\S]*grid-column: 1 \/ 5;[\s\S]*margin-left: clamp\(1rem, 4vw, 4\.5rem\)/);
+  assert.match(desktopStageCss, /#the-reality,[\s\S]*#bigger-idea \{[\s\S]*grid-column: 9 \/ 13;[\s\S]*margin-right: clamp\(1rem, 4vw, 4\.5rem\)/);
+  assert.match(desktopStageCss, /#one-story \{[\s\S]*grid-column: 1 \/ 13;[\s\S]*align-self: center;[\s\S]*justify-self: center/);
+  assert.match(desktopStageCss, /\.homepage-art-heron \{[\s\S]*right: 3vw;[\s\S]*bottom: 2vh;[\s\S]*width: min\(54vw,[\s\S]*height: min\(86svh/);
+  assert.match(desktopStageCss, /\.homepage-art-flamingo \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(82svh/);
+  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(82svh/);
+  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*width: min\(46vw,[\s\S]*aspect-ratio: 3 \/ 2/);
+  assert.match(desktopStageCss, /\.homepage-final-chapter,[\s\S]*\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*min-height: 100svh/);
+  assert.match(desktopStageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*grid-column: 1 \/ 13;[\s\S]*justify-self: center/);
+});
+
+test("desktop reading rails protect the center gutter and the final chapter resolves centered", () => {
+  const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf("\n.homepage-story-body {"));
+  assert.match(homepageCss, /\.homepage-story-block \{[\s\S]*max-width: 32rem/);
+  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: 1\.125rem;[\s\S]*line-height: 1\.6/);
+  assert.match(desktopStageCss, /#why-we-exist,[\s\S]*#one-story,[\s\S]*#when-needed \{[\s\S]*grid-column: 1 \/ 5/);
+  assert.match(desktopStageCss, /#the-reality,[\s\S]*#bigger-idea \{[\s\S]*grid-column: 9 \/ 13/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*align-items: center/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*max-width: 34rem;[\s\S]*margin-inline: auto;[\s\S]*text-align: center/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-body,[\s\S]*\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-inline: auto/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-top: clamp\(1\.5rem, 3vh, 2\.25rem\)/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-row \{[\s\S]*padding: 0/);
+});
+
+test("mobile DOM order keeps each visual inside its own story screen", () => {
+  const orderedMarkers = [
+    '<WhyWeExist mode={visibleMode} />',
+    '<CompositionArt art="heron" priority />',
+    '<CompositionArt art="flamingo" />',
+    'id="the-reality"',
+    'id="one-story"',
+    '<CompositionArt art="cat" />',
+    'id="when-needed"',
+    '<CompositionArt art="hummingbird" />',
+    'id="bigger-idea"',
+    '<FinalChapter mode={visibleMode} />',
+  ];
+  let cursor = -1;
+  for (const marker of orderedMarkers) {
+    const next = mainStory.indexOf(marker, cursor + 1);
+    assert.ok(next > cursor, `${marker} follows the previous mobile story element`);
+    cursor = next;
+  }
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-viewport-stage \{[\s\S]*min-height: 100svh/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-editorial-grid \{[\s\S]*min-height: 100svh;[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*align-content: center;[\s\S]*gap: clamp\(1\.5rem, 4vh, 2\.5rem\);[\s\S]*padding-block: clamp\(1\.5rem, 4vh, 2\.5rem\)/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*data-composition="remembrance"\],[\s\S]*data-composition="remembrance"\] \.homepage-editorial-grid \{[\s\S]*min-height: calc\(100svh - 3\.375rem\)/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-row,[\s\S]*\.homepage-composition-art \{[\s\S]*grid-column: 1;[\s\S]*grid-row: auto/);
+  for (const [art, width] of [["heron", "80"], ["flamingo", "80"], ["cat", "82"]]) {
+    assert.match(css, new RegExp(`@media \\(max-width: 1023px\\)[\\s\\S]*\\.homepage-art-${art} \\{[\\s\\S]*width: min\\(${width}vw`));
+  }
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-art-hummingbird \{[\s\S]*width: min\(calc\(100vw - 2\.5rem\), 42rem\)/);
+});
+
+test("phone scenes place substantial art before copy without forced viewport slabs", () => {
+  const phoneCss = css.slice(css.indexOf("@media (max-width: 767px)"), css.indexOf("\n.app-page-end-clearance"));
+  assert.match(phoneCss, /\.homepage-editorial-composition\.homepage-viewport-stage,[\s\S]*min-height: 0/);
+  assert.match(phoneCss, /data-art\] \.homepage-composition-art \{[\s\S]*grid-row: 1/);
+  assert.match(phoneCss, /data-art\] \.homepage-story-row \{[\s\S]*grid-row: 2/);
+  assert.match(phoneCss, /\.homepage-art-heron \{[\s\S]*width: min\(82vw,[\s\S]*height: 44svh/);
+  assert.match(phoneCss, /\.homepage-art-flamingo \{[\s\S]*width: min\(86vw,[\s\S]*height: 48svh/);
+  assert.match(phoneCss, /\.homepage-art-cat \{[\s\S]*width: min\(86vw,[\s\S]*height: 46svh/);
+  assert.match(phoneCss, /\.homepage-art-hummingbird \{[\s\S]*width: min\(94vw,[\s\S]*height: 40svh/);
+  assert.match(phoneCss, /data-composition="manifesto"\],[\s\S]*min-height: 86svh/);
+  assert.match(phoneCss, /\.homepage-final-chapter,[\s\S]*min-height: 72svh/);
+  assert.match(phoneCss, /\.homepage-story-body \{[\s\S]*max-width: 34ch;[\s\S]*font-size: 1rem;[\s\S]*line-height: 1\.62/);
+  assert.match(phoneCss, /data-authenticated="true"\][\s\S]*padding-bottom: calc\(var\(--mobile-nav-height\) \+ var\(--mobile-nav-safe-area\) \+ 1\.5rem\)/);
+  assert.match(phoneCss, /data-authenticated="true"\] \.homepage-art-heron \{[\s\S]*height: 42svh/);
+  assert.doesNotMatch(phoneCss, /scroll-snap|position:\s*sticky/);
 });
 
 test("cream header and footer frame one continuous dark main story", () => {
@@ -77,13 +186,12 @@ test("one slim three-zone header keeps geometry stable through auth resolution",
   assert.match(homepage, /auth\.status === "loading"[\s\S]*\? "loading"/);
 });
 
-test("hero and all six company-story headlines use the approved direction", () => {
+test("hero and all five company-story headlines use the approved direction", () => {
   assert.match(homepage, /aria-label="Remember what matters\."/);
   for (const headline of [
     "REMEMBER",
     "PETS CHANGE.",
     "ONE STORY.",
-    "YOU DON&apos;T HAVE TO",
     "WHEN YOU NEED IT,",
     "YOUR PET&apos;S STORY",
     "START WITH",
@@ -95,9 +203,9 @@ test("all approved human-language chapter copy is exact", () => {
     "Your pet has a whole life happening between vet visits. Most of it lives in your head, your camera roll, old messages, and random notes. Furvise is here to keep the important parts together.",
     "A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.",
     "Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.",
-    "Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.",
+    "You don't have to track everything. Use Furvise when something matters.",
     "Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.",
-    "The longer you care for a pet, the more their history matters. Furvise is being built to keep that history useful, understandable, and close when you need it.",
+    "The longer you care for a pet, the more their history matters. Furvise keeps that history useful, understandable, and close when you need it.",
     "You don&apos;t need to remember everything on day one. Just start.",
   ]) assert.equal(homepage.split(copy).length - 1, 1, copy);
 });
@@ -106,7 +214,7 @@ test("story actions preserve anonymous, no-pet, and with-pet authority", () => {
   assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
   assert.match(homepage, /href: "\/dashboard", label: "Go to Today"/);
-  for (const [id, action] of [["the-reality", "history"], ["one-story", "pets"], ["track-less", "today"], ["when-needed", "ask"], ["bigger-idea", "history"]]) {
+  for (const [id, action] of [["the-reality", "history"], ["one-story", "pets"], ["when-needed", "ask"], ["bigger-idea", "history"]]) {
     assert.match(renderedHomepage, new RegExp(`action="${action}"[^>]*id="${id}"`));
   }
   assert.match(homepage, /buildLoginHref\("\/care-log"\), label: "View history"/);
@@ -116,7 +224,7 @@ test("story actions preserve anonymous, no-pet, and with-pet authority", () => {
   assert.match(homepage, /buildLoginHref\("\/ask"\), label: "Ask Furvise"/);
   assert.match(homepage, /mode === "with-pet" && activePetId \? `\/ask\?pet=\$\{encodeURIComponent\(activePetId\)\}` : "\/ask"/);
   assert.match(homepageCss, /\.homepage-story-action \{[\s\S]*min-height: 2\.75rem;[\s\S]*border-radius: 0\.25rem;[\s\S]*text-transform: uppercase/);
-  assert.doesNotMatch(homepage, /secondary.*(?:button|action)|Explore platform|Learn more|Discover Furvise/i);
+  assert.doesNotMatch(homepage, /secondary (?:button|action)|Explore platform|Learn more|Discover Furvise/i);
 });
 
 test("trust line remains exact and quiet near the final chapter", () => {
@@ -136,20 +244,27 @@ test("signed-in mobile navigation uses an honest Account destination and omits P
   assert.match(css, /\.homepage-footer-mobile-clearance \{[\s\S]*var\(--mobile-nav-height\)/);
 });
 
-test("story rhythm varies by chapter and becomes content-driven on mobile", () => {
-  for (const position of ["right", "left", "left-inset", "right-wide"]) assert.match(homepage, new RegExp(`position="${position}"`));
-  for (const pace of ["standard", "tall", "spacious"]) assert.match(homepage, new RegExp(`pace="${pace}"`));
+test("story rhythm is viewport-led on desktop and mobile without scroll-jacking", () => {
+  for (const side of ["right", "left"]) assert.match(homepage, new RegExp(`side="${side}"`));
+  assert.match(homepage, /side="manifesto"/);
   assert.match(homepageCss, /grid-template-columns: repeat\(12, minmax\(0, 1fr\)\)/);
-  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-chapter,[\s\S]*min-height: auto/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-viewport-stage \{[\s\S]*min-height: 100svh/);
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*display: flex;[\s\S]*min-height: 100svh;[\s\S]*justify-content: center/);
   assert.match(homepage, /overflow-x-hidden/);
-  assert.match(homepageCss, /\.homepage-story-chapter \{[\s\S]*min-height: 72svh/);
+  assert.match(homepageCss, /\.homepage-editorial-composition,[\s\S]*\.homepage-story-chapter \{[\s\S]*position: relative/);
+  assert.doesNotMatch(homepageCss, /scroll-snap|scroll-behavior:\s*auto|position:\s*sticky/);
+  assert.doesNotMatch(homepage, /data-position|data-pace="(?:standard|tall|spacious)"/);
 });
 
-test("editorial type is uppercase, compact, and readable without a new font dependency", () => {
-  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;[\s\S]*font-size: clamp\(3\.25rem, 5vw, 4\.5rem\);[\s\S]*font-weight: 800;[\s\S]*line-height: 0\.92/);
-  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.375rem, 6\.4vw, 5\.75rem\)/);
-  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 38rem;[\s\S]*font-size: clamp\(1\.0625rem, 1\.25vw, 1\.1875rem\);[\s\S]*line-height: 1\.58/);
-  assert.doesNotMatch(homepage, /@font-face|next\/font|fonts\.(?:googleapis|gstatic)/);
+test("editorial type uses optimized Barlow Condensed headings and readable existing-sans body copy", () => {
+  assert.match(layout, /import \{ Barlow_Condensed \} from "next\/font\/google"/);
+  assert.match(layout, /Barlow_Condensed\(\{[\s\S]*display: "swap"[\s\S]*subsets: \["latin"\][\s\S]*variable: "--font-marketing-display"[\s\S]*weight: "700"/);
+  assert.match(layout, /className=\{`h-full antialiased \$\{marketingDisplay\.variable\}`\}/);
+  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: var\(--font-marketing-display\)[\s\S]*font-size: clamp\(3\.25rem, 4\.5vw, 4\.5rem\);[\s\S]*font-weight: 700;[\s\S]*line-height: 0\.97/);
+  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.5rem, 6vw, 5\.75rem\);[\s\S]*line-height: 0\.94/);
+  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: 1\.125rem;[\s\S]*line-height: 1\.6/);
+  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*data-composition="manifesto"\] \.homepage-story-heading \{[\s\S]*font-size: clamp\(4rem, 6vw, 6rem\)/);
+  assert.doesNotMatch(`${layout}\n${homepage}\n${css}`, /fonts\.(?:googleapis|gstatic)|@import\s+url/);
 });
 
 test("homepage contains no feature grid or banned visual treatment", () => {
@@ -180,4 +295,12 @@ test("approved Furvise artwork remains byte-for-byte unchanged", () => {
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00");
   assert.equal(hash("public/brand/furvise-wordmark.svg"), "5ce60b7d3134b5aaf00f4a4a799f46443a9eb0fd23b04724a545ad15f7c248b8");
   assert.equal(hash("public/brand/furvise-heron.svg"), "5bc3424afd22bba0391d302494c506455df9ef3a2221525c32a033e8dda0dd0b");
+  assert.equal(hash("public/images/heron.png"), "b9ad70d152185b8561015b1697f25fb4d409c241297129229f0c754c61638793");
+  assert.equal(hash("public/images/flamingo.png"), "03cd340a13e7cecacfa7631433d817766eb941287eb48c4cfa2ef8093e271a27");
+  assert.equal(hash("public/images/goat.png"), "54eb8be2f0c1878e3bd1058510f5d976c7fede2b850d443c091c5dc0d7c76a97");
+  assert.equal(hash("public/images/ostrich.png"), "942b88b30f76d8d24e8661d01ecc064a2dd2c35beea126144fd54004b4335f3d");
+  assert.equal(hash("public/images/cat.png"), "be7498352c359a0da98b723f8852d5177cd34e8160046bbf4f85a38db9b80d77");
+  assert.equal(hash("public/images/deer.png"), "e3d738ddd62940868c6a249a8a41d91169868a71a6fc531f33819e431cca06d5");
+  assert.equal(hash("public/images/hummingbird.png"), "6fa625213608a17eb91fd8b20176d4d9497b78c870e959c977fdfe4fa5710276");
+  assert.equal(hash("public/images/birds.png"), "0974af9c75fa907081ae03db4cf0f10f7ae31eb805df946a88a47792ba8b594d");
 });

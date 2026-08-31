@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Barlow_Condensed } from "next/font/google";
 import { ActionVisualAudit } from "./components/action-visual-audit";
 import { AuthenticatedAppChrome } from "./components/authenticated-app-chrome";
 import { AskComposerFocusProvider } from "./lib/navigation/ask-composer-focus";
@@ -10,6 +11,14 @@ import {
   SOCIAL_DESCRIPTION,
 } from "./lib/seo";
 import "./globals.css";
+
+const marketingDisplay = Barlow_Condensed({
+  display: "swap",
+  fallback: ["Arial Narrow", "Arial", "sans-serif"],
+  subsets: ["latin"],
+  variable: "--font-marketing-display",
+  weight: "700",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(CANONICAL_ORIGIN),
@@ -83,7 +92,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className="h-full antialiased"
+      className={`h-full antialiased ${marketingDisplay.variable}`}
       data-color-scheme="light"
       data-scroll-behavior="smooth"
     >

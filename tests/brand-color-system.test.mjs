@@ -193,7 +193,7 @@ test("approved SVG artwork is pinned, vector, transparent, and separate from UI 
   const otherPinnedAssets = new Map([
     ["app/favicon.ico", "617e8f6a24067e937ecafd8c8a8de735bf4bac546b0378f0220c884f88c952db"],
     ["public/images/dog.png", "2365277fbeadafe581fb4cb29d68226aac1b0f092903a134e06bd39f3649bab0"],
-    ["public/images/cat.png", "9fe25f03e30cfb9ffa8aae86aa1d1bb0518b84e9c75ccabc7053e2af0c7a8e17"],
+    ["public/images/cat.png", "be7498352c359a0da98b723f8852d5177cd34e8160046bbf4f85a38db9b80d77"],
   ]);
   for (const [file, expectedHash] of otherPinnedAssets) {
     assert.ok(existsSync(path.join(root, file)), `${file} must remain present`);

@@ -481,78 +481,94 @@ body {
   background: var(--forest);
 }
 
+.homepage-editorial-composition,
 .homepage-story-chapter {
   position: relative;
-  min-height: 72svh;
 }
 
-.homepage-story-chapter[data-pace="tall"] {
-  min-height: 80svh;
+.homepage-editorial-composition {
+  overflow: visible;
 }
 
-.homepage-story-chapter[data-pace="spacious"] {
-  min-height: 86svh;
-}
-
-.homepage-story-chapter[data-pace="full"] {
-  min-height: calc(100svh - 3.5rem);
-}
-
+.homepage-editorial-grid,
 .homepage-story-inner {
+  position: relative;
   display: grid;
   min-height: inherit;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: center;
-  padding-block: clamp(5rem, 9vh, 8rem);
+}
+
+.homepage-story-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  align-items: center;
 }
 
 .homepage-story-block {
-  grid-column: 1 / span 7;
-  max-width: 54rem;
+  width: 100%;
+  max-width: 32rem;
 }
 
-.homepage-story-hero .homepage-story-inner,
+.homepage-story-art {
+  position: relative;
+  z-index: 1;
+  grid-row: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.homepage-story-art-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.homepage-story-hero .homepage-story-block {
+  max-width: 32rem;
+}
+
+.homepage-art-heron .homepage-story-art-image {
+  object-position: right center;
+}
+
+.homepage-composition-art .homepage-story-art-image {
+  object-fit: contain;
+  object-position: center;
+}
+
 .homepage-final-chapter .homepage-story-inner {
-  align-items: end;
-  padding-bottom: clamp(6rem, 13vh, 10rem);
+  align-items: center;
 }
 
-.homepage-story-chapter[data-position="right"] .homepage-story-block {
-  grid-column: 7 / 13;
-  align-self: start;
-  margin-top: clamp(1rem, 5vh, 4rem);
+.homepage-final-chapter .homepage-story-block {
+  max-width: 34rem;
+  margin-inline: auto;
+  text-align: center;
 }
 
-.homepage-story-chapter[data-position="left"] .homepage-story-block {
-  grid-column: 1 / span 7;
-  align-self: end;
-  margin-bottom: clamp(1rem, 5vh, 4rem);
-}
-
-.homepage-story-chapter[data-position="left-inset"] .homepage-story-block {
-  grid-column: 2 / span 7;
-  align-self: center;
-}
-
-.homepage-story-chapter[data-position="right-wide"] .homepage-story-block {
-  grid-column: 6 / 13;
-  align-self: center;
+.homepage-final-chapter .homepage-story-body,
+.homepage-final-chapter .homepage-trust-line {
+  margin-inline: auto;
 }
 
 .homepage-story-heading {
   max-width: 18ch;
-  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
-  font-size: clamp(3.25rem, 5vw, 4.5rem);
-  font-weight: 800;
-  line-height: 0.92;
-  letter-spacing: -0.05em;
+  font-family: var(--font-marketing-display), "Arial Narrow", Arial, sans-serif;
+  font-size: clamp(3.25rem, 4.5vw, 4.5rem);
+  font-weight: 700;
+  line-height: 0.97;
+  letter-spacing: -0.018em;
   color: var(--marketing-text);
 }
 
 .homepage-hero-heading {
   max-width: 12ch;
-  font-size: clamp(4.375rem, 6.4vw, 5.75rem);
-  line-height: 0.89;
+  font-size: clamp(4.5rem, 6vw, 5.75rem);
+  line-height: 0.94;
 }
 
 .homepage-hero-heading span {
@@ -560,26 +576,164 @@ body {
 }
 
 @media (min-width: 1024px) {
-  #one-story .homepage-story-heading {
-    font-size: clamp(3.25rem, 4.4vw, 3.875rem);
+  .homepage-story-heading {
+    font-size: clamp(3.25rem, 4.5vw, 4.5rem);
   }
 
-  #track-less .homepage-story-heading {
-    font-size: clamp(3.25rem, 4vw, 3.5rem);
+  .homepage-hero-heading {
+    font-size: clamp(4.5rem, 6vw, 5.75rem);
   }
 
-  #bigger-idea .homepage-story-heading {
-    max-width: 22ch;
-    font-size: 3.25rem;
+  .homepage-viewport-stage {
+    min-height: 100svh;
   }
+
+  .homepage-editorial-grid {
+    min-height: 100svh;
+    grid-template-rows: minmax(0, 1fr);
+    padding-block: clamp(1.5rem, 3vh, 2.5rem);
+  }
+
+  .homepage-editorial-composition[data-composition="remembrance"],
+  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid {
+    min-height: calc(100svh - 3.5rem);
+  }
+
+  .homepage-composition-art {
+    position: absolute;
+    z-index: 1;
+    grid-column: auto;
+    grid-row: auto;
+    align-self: auto;
+    justify-self: auto;
+  }
+
+  .homepage-composition-art .homepage-story-art-image {
+    height: 100%;
+  }
+
+  #why-we-exist,
+  #one-story,
+  #when-needed {
+    grid-column: 1 / 5;
+    margin-left: clamp(1rem, 4vw, 4.5rem);
+  }
+
+  #the-reality,
+  #bigger-idea {
+    grid-column: 9 / 13;
+    margin-right: clamp(1rem, 4vw, 4.5rem);
+    justify-self: end;
+  }
+
+  #why-we-exist,
+  #the-reality,
+  #one-story,
+  #when-needed,
+  #bigger-idea {
+    grid-row: 1;
+  }
+
+  #one-story {
+    grid-column: 1 / 13;
+    align-self: center;
+    justify-self: center;
+    margin-inline: auto;
+  }
+
+  #when-needed {
+    grid-column: 1 / 6;
+  }
+
+  #bigger-idea {
+    grid-column: 8 / 13;
+  }
+
+  .homepage-art-heron {
+    right: 3vw;
+    bottom: 2vh;
+    width: min(54vw, 56rem);
+    height: min(86svh, 54rem);
+  }
+
+  .homepage-art-flamingo {
+    left: clamp(2.5rem, 4vw, 5rem);
+    bottom: 0;
+    width: min(46vw, 46rem);
+    height: min(82svh, 52rem);
+  }
+
+  .homepage-art-flamingo .homepage-story-art-image {
+    object-position: left center;
+  }
+
+  .homepage-art-cat {
+    right: clamp(2.5rem, 4vw, 5rem);
+    bottom: 0;
+    width: min(46vw, 48rem);
+    height: min(82svh, 51rem);
+  }
+
+  .homepage-art-cat .homepage-story-art-image {
+    object-position: center bottom;
+  }
+
+  .homepage-art-hummingbird {
+    top: 50%;
+    left: clamp(2.5rem, 4vw, 5rem);
+    width: min(46vw, 46rem);
+    height: auto;
+    aspect-ratio: 3 / 2;
+    transform: translateY(-50%);
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
+    max-width: 48rem;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
+    max-width: 10ch;
+    margin-inline: auto;
+    font-size: clamp(4rem, 6vw, 6rem);
+    line-height: 0.96;
+    letter-spacing: -0.018em;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
+    max-width: 34rem;
+    margin-inline: auto;
+    text-align: left;
+  }
+
+  .homepage-final-chapter,
+  .homepage-final-chapter .homepage-story-inner {
+    min-height: 100svh;
+  }
+
+  .homepage-final-chapter .homepage-story-inner {
+    padding-block: clamp(3rem, 6vh, 4rem);
+  }
+
+  .homepage-final-chapter .homepage-story-block {
+    grid-column: 1 / 13;
+    justify-self: center;
+  }
+
+  #bigger-idea .homepage-story-heading { max-width: 16ch; }
 }
 
 .homepage-story-body {
-  max-width: 38rem;
+  max-width: 36ch;
   margin-top: 1.75rem;
-  font-size: clamp(1.0625rem, 1.25vw, 1.1875rem);
-  line-height: 1.58;
+  font-size: 1.125rem;
+  line-height: 1.6;
   color: var(--marketing-muted);
+}
+
+.homepage-story-body-secondary {
+  margin-top: 1rem;
 }
 
 .homepage-story-action {
@@ -607,10 +761,14 @@ body {
 
 .homepage-trust-line {
   max-width: 34rem;
-  margin-top: clamp(4rem, 10vh, 7rem);
+  margin-top: clamp(2rem, 4vh, 3rem);
   font-size: 0.875rem;
   line-height: 1.5rem;
   color: var(--marketing-subtle);
+}
+
+.homepage-final-chapter .homepage-trust-line {
+  margin-top: clamp(1.5rem, 3vh, 2.25rem);
 }
 
 .homepage-footer-inner {
@@ -760,61 +918,132 @@ body {
     min-width: 0;
   }
 
-  .homepage-story-chapter,
-  .homepage-story-chapter[data-pace="tall"],
-  .homepage-story-chapter[data-pace="spacious"] {
-    min-height: auto;
+  .homepage-viewport-stage {
+    min-height: 100svh;
   }
 
-  .homepage-story-chapter[data-pace="full"] {
-    min-height: auto;
+  .homepage-editorial-composition {
+    padding-block: 0;
   }
 
-  .homepage-story-inner {
-    display: block;
-    min-height: auto;
-    padding-block: 5.5rem;
+  .homepage-editorial-grid {
+    display: grid;
+    min-height: 100svh;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: clamp(1.5rem, 4vh, 2.5rem);
+    padding-block: clamp(1.5rem, 4vh, 2.5rem);
   }
 
-  .homepage-story-hero {
-    min-height: calc(100svh - 3.5rem);
+  .homepage-editorial-composition[data-composition="remembrance"],
+  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid {
+    min-height: calc(100svh - 3.375rem);
   }
 
-  .homepage-story-hero .homepage-story-inner {
-    display: flex;
-    min-height: calc(100svh - 3.5rem);
-    align-items: flex-end;
-    padding-block: 4rem 4.75rem;
+  .homepage-story-row,
+  .homepage-composition-art {
+    position: relative;
+    width: 100%;
+    margin: 0;
+    grid-column: 1;
+    grid-row: auto;
+    inset: auto;
+    transform: none;
+  }
+
+  .homepage-story-row {
+    max-width: 42rem;
+    padding: 0;
+  }
+
+  .homepage-composition-art {
+    justify-self: center;
+  }
+
+  .homepage-composition-art .homepage-story-art-image {
+    height: auto;
+  }
+
+  .homepage-art-heron {
+    width: min(80vw, 36rem);
+    max-width: none;
+    height: auto;
+    aspect-ratio: 1224 / 1285;
+  }
+
+  .homepage-art-flamingo {
+    width: min(80vw, 34rem);
+    max-width: none;
+    height: auto;
+    aspect-ratio: 2 / 3;
+  }
+
+  .homepage-art-cat {
+    width: min(82vw, 36rem);
+    max-width: none;
+    height: auto;
+    aspect-ratio: 2 / 3;
+  }
+
+  .homepage-art-hummingbird {
+    width: min(calc(100vw - 2.5rem), 42rem);
+    max-width: none;
+    height: auto;
+    aspect-ratio: 3 / 2;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
+    max-width: 10ch;
+    margin-inline: auto;
+    font-size: clamp(3.25rem, 15vw, 5rem);
+    line-height: 0.94;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-row {
+    justify-self: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
+    max-width: 34rem;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
+    max-width: 32ch;
+    margin-inline: auto;
+    text-align: left;
   }
 
   .homepage-final-chapter .homepage-story-inner {
-    display: block;
-    padding-block: 7.5rem;
+    display: flex;
+    min-height: 100svh;
+    align-items: center;
+    justify-content: center;
+    padding-block: 4rem;
   }
 
-  .homepage-story-chapter[data-position] .homepage-story-block {
-    max-width: 42rem;
-    margin: 0;
+  .homepage-final-chapter .homepage-story-block {
+    max-width: 34rem;
+    margin-inline: auto;
+    text-align: center;
   }
 
   .homepage-story-heading {
     max-width: none;
-    font-size: clamp(2.125rem, 8.8vw, 4.5rem);
+    font-size: clamp(2rem, 9vw, 3rem);
   }
 
   .homepage-hero-heading {
     max-width: 12ch;
-    font-size: clamp(3.125rem, 13vw, 5.75rem);
-  }
-
-  .homepage-site[data-authenticated="true"] .homepage-story-hero .homepage-story-inner {
-    padding-bottom: calc(4.75rem + var(--mobile-nav-height));
+    font-size: clamp(2.75rem, 12vw, 4.25rem);
   }
 
   .homepage-story-body {
-    margin-top: 1.5rem;
-    font-size: clamp(0.96875rem, 4.1vw, 1.0625rem);
-    line-height: 1.58;
+    margin-top: 1.25rem;
+    font-size: clamp(0.96875rem, 4.1vw, 1.03125rem);
+    line-height: 1.6;
   }
 
   .homepage-mobile-navigation {
@@ -854,29 +1083,21 @@ body {
     padding-inline: 0.75rem;
   }
 
-  .homepage-story-inner {
-    padding-block: 5.25rem;
-  }
-
   #one-story .homepage-story-heading,
   #when-needed .homepage-story-heading {
-    font-size: clamp(1.75rem, 7.4vw, 1.9375rem);
-  }
-
-  #track-less .homepage-story-heading {
-    font-size: clamp(1.875rem, 8vw, 2.125rem);
+    font-size: clamp(2rem, 8.8vw, 2.5rem);
   }
 
   #bigger-idea .homepage-story-heading {
-    font-size: clamp(1.5625rem, 6.7vw, 1.75rem);
+    font-size: clamp(1.875rem, 8vw, 2.25rem);
   }
 
-  .homepage-story-hero .homepage-story-inner {
-    padding-block: 3.5rem 4rem;
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
+    font-size: clamp(3.25rem, 15vw, 4.5rem);
   }
 
   .homepage-final-chapter .homepage-story-inner {
-    padding-block: 6.5rem;
+    padding-block: 3.75rem;
   }
 
   .homepage-footer-inner {
@@ -890,6 +1111,159 @@ body {
 
   .homepage-footer-link {
     font-size: 0.6875rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .homepage-editorial-composition.homepage-viewport-stage,
+  .homepage-editorial-composition .homepage-editorial-grid,
+  .homepage-editorial-composition[data-composition="remembrance"],
+  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid {
+    min-height: 0;
+  }
+
+  .homepage-editorial-composition .homepage-editorial-grid {
+    align-content: start;
+    gap: clamp(1.25rem, 3vh, 1.75rem);
+    padding-block: clamp(1.25rem, 3vh, 1.5rem) clamp(2.5rem, 6vh, 3.5rem);
+  }
+
+  .homepage-editorial-composition[data-art] .homepage-editorial-grid {
+    grid-template-rows: auto auto;
+  }
+
+  .homepage-editorial-composition[data-art] .homepage-composition-art {
+    grid-row: 1;
+  }
+
+  .homepage-editorial-composition[data-art] .homepage-story-row {
+    grid-row: 2;
+  }
+
+  .homepage-story-row,
+  .homepage-story-block {
+    max-width: 34rem;
+  }
+
+  .homepage-composition-art {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .homepage-composition-art .homepage-story-art-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .homepage-art-heron {
+    width: min(82vw, 32rem);
+    height: 44svh;
+    aspect-ratio: auto;
+    justify-self: center;
+  }
+
+  .homepage-art-heron .homepage-story-art-image {
+    object-position: center right;
+  }
+
+  .homepage-art-flamingo {
+    width: min(86vw, 34rem);
+    height: 48svh;
+    aspect-ratio: auto;
+  }
+
+  .homepage-art-flamingo .homepage-story-art-image {
+    object-position: center bottom;
+  }
+
+  .homepage-art-cat {
+    width: min(86vw, 34rem);
+    height: 46svh;
+    aspect-ratio: auto;
+  }
+
+  .homepage-art-cat .homepage-story-art-image {
+    object-position: center right;
+  }
+
+  .homepage-art-hummingbird {
+    width: min(94vw, 38rem);
+    height: 40svh;
+    aspect-ratio: auto;
+  }
+
+  .homepage-art-hummingbird .homepage-story-art-image {
+    object-position: center;
+  }
+
+  .homepage-story-heading,
+  #one-story .homepage-story-heading,
+  #when-needed .homepage-story-heading,
+  #bigger-idea .homepage-story-heading {
+    font-size: clamp(2.35rem, 10.5vw, 3rem);
+    line-height: 0.98;
+  }
+
+  .homepage-hero-heading {
+    font-size: clamp(2.75rem, 13vw, 3.5rem);
+    line-height: 0.95;
+  }
+
+  .homepage-story-body {
+    max-width: 34ch;
+    margin-top: 1.125rem;
+    font-size: 1rem;
+    line-height: 1.62;
+  }
+
+  .homepage-story-action {
+    margin-top: 1.625rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"],
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-editorial-grid {
+    min-height: 86svh;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-editorial-grid {
+    align-content: center;
+    padding-block: 2rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
+    max-width: 21.25rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
+    font-size: clamp(2.75rem, 12vw, 3.4rem);
+    line-height: 0.96;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
+    max-width: 32ch;
+  }
+
+  .homepage-final-chapter,
+  .homepage-final-chapter .homepage-story-inner {
+    min-height: 72svh;
+  }
+
+  .homepage-final-chapter .homepage-story-inner {
+    padding-block: 3rem;
+  }
+
+  .homepage-final-chapter .homepage-trust-line {
+    margin-top: 1.5rem;
+  }
+
+  .homepage-site[data-authenticated="true"] .homepage-editorial-composition[data-art] .homepage-editorial-grid {
+    padding-bottom: calc(var(--mobile-nav-height) + var(--mobile-nav-safe-area) + 1.5rem);
+  }
+
+  .homepage-site[data-authenticated="true"] .homepage-art-heron {
+    height: 42svh;
   }
 }
 
