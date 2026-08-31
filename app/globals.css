@@ -1114,6 +1114,159 @@ body {
   }
 }
 
+@media (max-width: 767px) {
+  .homepage-editorial-composition.homepage-viewport-stage,
+  .homepage-editorial-composition .homepage-editorial-grid,
+  .homepage-editorial-composition[data-composition="remembrance"],
+  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid {
+    min-height: 0;
+  }
+
+  .homepage-editorial-composition .homepage-editorial-grid {
+    align-content: start;
+    gap: clamp(1.25rem, 3vh, 1.75rem);
+    padding-block: clamp(1.25rem, 3vh, 1.5rem) clamp(2.5rem, 6vh, 3.5rem);
+  }
+
+  .homepage-editorial-composition[data-art] .homepage-editorial-grid {
+    grid-template-rows: auto auto;
+  }
+
+  .homepage-editorial-composition[data-art] .homepage-composition-art {
+    grid-row: 1;
+  }
+
+  .homepage-editorial-composition[data-art] .homepage-story-row {
+    grid-row: 2;
+  }
+
+  .homepage-story-row,
+  .homepage-story-block {
+    max-width: 34rem;
+  }
+
+  .homepage-composition-art {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .homepage-composition-art .homepage-story-art-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .homepage-art-heron {
+    width: min(82vw, 32rem);
+    height: 44svh;
+    aspect-ratio: auto;
+    justify-self: center;
+  }
+
+  .homepage-art-heron .homepage-story-art-image {
+    object-position: center right;
+  }
+
+  .homepage-art-flamingo {
+    width: min(86vw, 34rem);
+    height: 48svh;
+    aspect-ratio: auto;
+  }
+
+  .homepage-art-flamingo .homepage-story-art-image {
+    object-position: center bottom;
+  }
+
+  .homepage-art-cat {
+    width: min(86vw, 34rem);
+    height: 46svh;
+    aspect-ratio: auto;
+  }
+
+  .homepage-art-cat .homepage-story-art-image {
+    object-position: center right;
+  }
+
+  .homepage-art-hummingbird {
+    width: min(94vw, 38rem);
+    height: 40svh;
+    aspect-ratio: auto;
+  }
+
+  .homepage-art-hummingbird .homepage-story-art-image {
+    object-position: center;
+  }
+
+  .homepage-story-heading,
+  #one-story .homepage-story-heading,
+  #when-needed .homepage-story-heading,
+  #bigger-idea .homepage-story-heading {
+    font-size: clamp(2.35rem, 10.5vw, 3rem);
+    line-height: 0.98;
+  }
+
+  .homepage-hero-heading {
+    font-size: clamp(2.75rem, 13vw, 3.5rem);
+    line-height: 0.95;
+  }
+
+  .homepage-story-body {
+    max-width: 34ch;
+    margin-top: 1.125rem;
+    font-size: 1rem;
+    line-height: 1.62;
+  }
+
+  .homepage-story-action {
+    margin-top: 1.625rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"],
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-editorial-grid {
+    min-height: 86svh;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-editorial-grid {
+    align-content: center;
+    padding-block: 2rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
+    max-width: 21.25rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
+    font-size: clamp(2.75rem, 12vw, 3.4rem);
+    line-height: 0.96;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
+    max-width: 32ch;
+  }
+
+  .homepage-final-chapter,
+  .homepage-final-chapter .homepage-story-inner {
+    min-height: 72svh;
+  }
+
+  .homepage-final-chapter .homepage-story-inner {
+    padding-block: 3rem;
+  }
+
+  .homepage-final-chapter .homepage-trust-line {
+    margin-top: 1.5rem;
+  }
+
+  .homepage-site[data-authenticated="true"] .homepage-editorial-composition[data-art] .homepage-editorial-grid {
+    padding-bottom: calc(var(--mobile-nav-height) + var(--mobile-nav-safe-area) + 1.5rem);
+  }
+
+  .homepage-site[data-authenticated="true"] .homepage-art-heron {
+    height: 42svh;
+  }
+}
+
 .app-page-end-clearance {
   padding-bottom: var(--space-12);
 }

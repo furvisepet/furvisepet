@@ -118,6 +118,23 @@ test("mobile DOM order keeps each visual inside its own story screen", () => {
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-art-hummingbird \{[\s\S]*width: min\(calc\(100vw - 2\.5rem\), 42rem\)/);
 });
 
+test("phone scenes place substantial art before copy without forced viewport slabs", () => {
+  const phoneCss = css.slice(css.indexOf("@media (max-width: 767px)"), css.indexOf("\n.app-page-end-clearance"));
+  assert.match(phoneCss, /\.homepage-editorial-composition\.homepage-viewport-stage,[\s\S]*min-height: 0/);
+  assert.match(phoneCss, /data-art\] \.homepage-composition-art \{[\s\S]*grid-row: 1/);
+  assert.match(phoneCss, /data-art\] \.homepage-story-row \{[\s\S]*grid-row: 2/);
+  assert.match(phoneCss, /\.homepage-art-heron \{[\s\S]*width: min\(82vw,[\s\S]*height: 44svh/);
+  assert.match(phoneCss, /\.homepage-art-flamingo \{[\s\S]*width: min\(86vw,[\s\S]*height: 48svh/);
+  assert.match(phoneCss, /\.homepage-art-cat \{[\s\S]*width: min\(86vw,[\s\S]*height: 46svh/);
+  assert.match(phoneCss, /\.homepage-art-hummingbird \{[\s\S]*width: min\(94vw,[\s\S]*height: 40svh/);
+  assert.match(phoneCss, /data-composition="manifesto"\],[\s\S]*min-height: 86svh/);
+  assert.match(phoneCss, /\.homepage-final-chapter,[\s\S]*min-height: 72svh/);
+  assert.match(phoneCss, /\.homepage-story-body \{[\s\S]*max-width: 34ch;[\s\S]*font-size: 1rem;[\s\S]*line-height: 1\.62/);
+  assert.match(phoneCss, /data-authenticated="true"\][\s\S]*padding-bottom: calc\(var\(--mobile-nav-height\) \+ var\(--mobile-nav-safe-area\) \+ 1\.5rem\)/);
+  assert.match(phoneCss, /data-authenticated="true"\] \.homepage-art-heron \{[\s\S]*height: 42svh/);
+  assert.doesNotMatch(phoneCss, /scroll-snap|position:\s*sticky/);
+});
+
 test("cream header and footer frame one continuous dark main story", () => {
   assert.match(homepage, /homepage-marketing-header[\s\S]*data-marketing-surface="light"/);
   assert.match(homepage, /<main className="homepage-dark-world" data-marketing-surface="dark"/);
