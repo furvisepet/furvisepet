@@ -542,7 +542,6 @@ body {
 
 .homepage-final-chapter .homepage-story-inner {
   align-items: center;
-  padding-bottom: clamp(6rem, 13vh, 10rem);
 }
 
 .homepage-final-chapter .homepage-story-block {
@@ -577,37 +576,27 @@ body {
 }
 
 @media (min-width: 1024px) {
+  .homepage-story-heading {
+    font-size: clamp(3.5rem, 4.4vw, 4.5rem);
+  }
+
+  .homepage-hero-heading {
+    font-size: clamp(4.25rem, 5.8vw, 5.75rem);
+  }
+
+  .homepage-viewport-stage {
+    min-height: 100svh;
+  }
+
   .homepage-editorial-grid {
-    height: 100%;
-    padding-block: clamp(2rem, 4vh, 3rem);
-  }
-
-  .homepage-editorial-composition[data-composition="remembrance"] {
-    min-height: 92svh;
-  }
-
-  .homepage-editorial-composition[data-composition="reality"] {
-    min-height: 78svh;
-  }
-
-  .homepage-editorial-composition[data-composition="continuity"] {
-    min-height: 66svh;
-  }
-
-  .homepage-editorial-composition[data-composition="availability"] {
-    min-height: 74svh;
-  }
-
-  .homepage-editorial-composition[data-composition="belief"] {
-    min-height: 68svh;
-  }
-
-  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid,
-  .homepage-editorial-composition[data-composition="reality"] .homepage-editorial-grid,
-  .homepage-editorial-composition[data-composition="continuity"] .homepage-editorial-grid,
-  .homepage-editorial-composition[data-composition="availability"] .homepage-editorial-grid,
-  .homepage-editorial-composition[data-composition="belief"] .homepage-editorial-grid {
+    min-height: 100svh;
     grid-template-rows: minmax(0, 1fr);
+    padding-block: clamp(1.5rem, 3vh, 2.5rem);
+  }
+
+  .homepage-editorial-composition[data-composition="remembrance"],
+  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid {
+    min-height: calc(100svh - 3.5rem);
   }
 
   .homepage-composition-art {
@@ -631,7 +620,6 @@ body {
   }
 
   #the-reality,
-  #track-less,
   #bigger-idea {
     grid-column: 9 / 13;
     margin-right: clamp(1rem, 4vw, 4.5rem);
@@ -640,36 +628,28 @@ body {
   #why-we-exist,
   #the-reality,
   #one-story,
-  #track-less,
   #when-needed,
   #bigger-idea {
     grid-row: 1;
   }
 
   #one-story {
-    align-self: start;
-    margin-top: clamp(2rem, 7vh, 4.5rem);
-  }
-
-  #track-less {
-    align-self: end;
-    margin-bottom: clamp(2rem, 6vh, 4rem);
+    grid-column: 1 / 8;
+    align-self: center;
   }
 
   .homepage-art-heron {
-    top: 50%;
-    right: -1vw;
-    width: min(52vw, 52rem);
-    height: min(88svh, 55rem);
-    transform: translateY(-50%);
+    right: 3vw;
+    bottom: 2vh;
+    width: min(54vw, 56rem);
+    height: min(86svh, 54rem);
   }
 
   .homepage-art-flamingo {
-    top: 50%;
     left: -1vw;
-    width: min(48vw, 48rem);
-    height: min(76svh, 47.5rem);
-    transform: translateY(-50%);
+    bottom: 0;
+    width: min(50vw, 50rem);
+    height: min(84svh, 52rem);
   }
 
   .homepage-art-flamingo .homepage-story-art-image {
@@ -677,10 +657,10 @@ body {
   }
 
   .homepage-art-cat {
-    right: 0;
+    right: 2vw;
     bottom: 0;
-    width: min(44vw, 44rem);
-    height: min(72svh, 45rem);
+    width: min(48vw, 48rem);
+    height: min(82svh, 51rem);
   }
 
   .homepage-art-cat .homepage-story-art-image {
@@ -690,18 +670,28 @@ body {
   .homepage-art-hummingbird {
     top: 50%;
     left: 0;
-    width: min(40vw, 42rem);
+    width: min(50vw, 48rem);
     height: auto;
     aspect-ratio: 3 / 2;
     transform: translateY(-50%);
   }
 
-  .homepage-story-chapter.homepage-final-chapter {
-    min-height: 50svh;
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
+    max-width: 44rem;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
+    max-width: 10ch;
+    font-size: clamp(4.5rem, 7vw, 7rem);
+    line-height: 0.94;
+  }
+
+  .homepage-final-chapter,
+  .homepage-final-chapter .homepage-story-inner {
+    min-height: 100svh;
   }
 
   .homepage-final-chapter .homepage-story-inner {
-    min-height: 50svh;
     padding-block: clamp(3rem, 6vh, 4rem);
   }
 
@@ -710,17 +700,19 @@ body {
     justify-self: center;
   }
 
-  #bigger-idea .homepage-story-heading {
-    max-width: 22ch;
-  }
+  #bigger-idea .homepage-story-heading { max-width: 16ch; }
 }
 
 .homepage-story-body {
-  max-width: 34ch;
+  max-width: 36ch;
   margin-top: 1.75rem;
   font-size: clamp(1.0625rem, 1.15vw, 1.125rem);
   line-height: 1.62;
   color: var(--marketing-muted);
+}
+
+.homepage-story-body-secondary {
+  margin-top: 1rem;
 }
 
 .homepage-story-action {
@@ -905,28 +897,26 @@ body {
     min-width: 0;
   }
 
-  .homepage-editorial-composition,
-  .homepage-story-chapter,
-  .homepage-story-inner {
-    min-height: auto;
+  .homepage-viewport-stage {
+    min-height: 100svh;
   }
 
   .homepage-editorial-composition {
-    padding-block: 1.5rem;
-  }
-
-  .homepage-editorial-composition[data-composition="remembrance"] {
-    padding-top: 3.25rem;
+    padding-block: 0;
   }
 
   .homepage-editorial-grid {
     display: grid;
+    min-height: 100svh;
     grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
+    align-content: center;
+    gap: clamp(1.5rem, 4vh, 2.5rem);
+    padding-block: clamp(1.5rem, 4vh, 2.5rem);
   }
 
-  .homepage-editorial-composition[data-composition="continuity"] .homepage-editorial-grid {
-    gap: 4rem;
+  .homepage-editorial-composition[data-composition="remembrance"],
+  .homepage-editorial-composition[data-composition="remembrance"] .homepage-editorial-grid {
+    min-height: calc(100svh - 3.375rem);
   }
 
   .homepage-story-row,
@@ -954,35 +944,44 @@ body {
   }
 
   .homepage-art-heron {
-    width: min(90vw, 42rem);
+    width: min(80vw, 36rem);
     max-width: none;
     height: auto;
     aspect-ratio: 1224 / 1285;
   }
 
   .homepage-art-flamingo {
-    width: min(92vw, 42rem);
+    width: min(80vw, 34rem);
     max-width: none;
     height: auto;
     aspect-ratio: 2 / 3;
   }
 
   .homepage-art-cat {
-    width: min(94vw, 42rem);
+    width: min(82vw, 36rem);
     max-width: none;
     height: auto;
     aspect-ratio: 2 / 3;
   }
 
   .homepage-art-hummingbird {
-    width: min(96vw, 42rem);
+    width: min(98vw, 42rem);
     max-width: none;
     height: auto;
     aspect-ratio: 3 / 2;
   }
 
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
+    max-width: 10ch;
+    font-size: clamp(3.25rem, 15vw, 5rem);
+    line-height: 0.94;
+  }
+
   .homepage-final-chapter .homepage-story-inner {
-    display: block;
+    display: flex;
+    min-height: 100svh;
+    align-items: center;
+    justify-content: center;
     padding-block: 4rem;
   }
 
@@ -1045,16 +1044,8 @@ body {
     padding-inline: 0.75rem;
   }
 
-  .homepage-editorial-composition {
-    padding-block: 1.5rem;
-  }
-
   #one-story .homepage-story-heading,
   #when-needed .homepage-story-heading {
-    font-size: clamp(2rem, 8.8vw, 2.5rem);
-  }
-
-  #track-less .homepage-story-heading {
     font-size: clamp(2rem, 8.8vw, 2.5rem);
   }
 
@@ -1062,8 +1053,8 @@ body {
     font-size: clamp(1.875rem, 8vw, 2.25rem);
   }
 
-  .homepage-editorial-composition[data-composition="remembrance"] {
-    padding-top: 3rem;
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
+    font-size: clamp(3.25rem, 15vw, 4.5rem);
   }
 
   .homepage-final-chapter .homepage-story-inner {

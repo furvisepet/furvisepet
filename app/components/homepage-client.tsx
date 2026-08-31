@@ -70,36 +70,33 @@ export function HomepageClient() {
     <div className="homepage-site min-h-screen overflow-x-hidden" data-authenticated={signedIn ? "true" : "false"} data-ui="marketing-homepage">
       <PublicMarketingHeader mode={mode} />
       <main className="homepage-dark-world" data-marketing-surface="dark" data-ui="homepage-story-main">
-        <EditorialComposition art="heron" id="remembrance" side="right">
+        <HomepageStoryStage art="heron" id="remembrance" screen={1} side="right">
           <WhyWeExist mode={visibleMode} />
           <CompositionArt art="heron" priority />
-        </EditorialComposition>
-        <EditorialComposition art="flamingo" id="reality" side="left">
+        </HomepageStoryStage>
+        <HomepageStoryStage art="flamingo" id="reality" screen={2} side="left">
+          <CompositionArt art="flamingo" />
           <StoryChapter action="history" activePetId={activePet?.id} id="the-reality" mode={visibleMode} title={<>PETS CHANGE.<br />MEMORY FADES.</>}>
             A food change. A rough night. Something they kept doing. Something that finally got better. Months later, those little details are usually the ones you&apos;re trying hardest to remember.
           </StoryChapter>
-          <CompositionArt art="flamingo" />
-        </EditorialComposition>
-        <EditorialComposition id="continuity" side="split">
-          <StoryChapter action="pets" activePetId={activePet?.id} id="one-story" mode={visibleMode} title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
+        </HomepageStoryStage>
+        <HomepageStoryStage id="manifesto" screen={3} side="manifesto">
+          <StoryChapter action="pets" activePetId={activePet?.id} id="one-story" mode={visibleMode} secondaryCopy="You don't have to track everything. Use Furvise when something matters." title={<>ONE STORY.<br />NOT A PILE OF NOTES.</>}>
             Tell Furvise when something changes. Ask when you&apos;re unsure. It keeps what you share connected to the same pet, so the next time you come back, you&apos;re not starting over.
           </StoryChapter>
-          <StoryChapter action="today" activePetId={activePet?.id} id="track-less" mode={visibleMode} title={<>YOU DON&apos;T HAVE TO<br />TRACK EVERYTHING.</>}>
-            Furvise isn&apos;t another thing you need to update every day. Use it when something matters. We&apos;ll help keep the story from getting scattered.
-          </StoryChapter>
-        </EditorialComposition>
-        <EditorialComposition art="cat" id="availability" side="right">
+        </HomepageStoryStage>
+        <HomepageStoryStage art="cat" id="availability" screen={4} side="right">
+          <CompositionArt art="cat" />
           <StoryChapter action="ask" activePetId={activePet?.id} id="when-needed" mode={visibleMode} title={<>WHEN YOU NEED IT,<br />IT&apos;S THERE.</>}>
             Look back at what changed. Ask without explaining everything again. Walk into a vet visit without trying to rebuild the last few months from memory.
           </StoryChapter>
-          <CompositionArt art="cat" />
-        </EditorialComposition>
-        <EditorialComposition art="hummingbird" id="belief" side="left">
+        </HomepageStoryStage>
+        <HomepageStoryStage art="hummingbird" id="belief" screen={5} side="left">
+          <CompositionArt art="hummingbird" />
           <StoryChapter action="history" activePetId={activePet?.id} id="bigger-idea" mode={visibleMode} title={<>YOUR PET&apos;S STORY<br />SHOULDN&apos;T DISAPPEAR.</>}>
             The longer you care for a pet, the more their history matters. Furvise keeps that history useful, understandable, and close when you need it.
           </StoryChapter>
-          <CompositionArt art="hummingbird" />
-        </EditorialComposition>
+        </HomepageStoryStage>
         <FinalChapter mode={visibleMode} />
       </main>
       <MarketingFooter showSignIn={visibleMode === "anonymous"} signedIn={signedIn} />
@@ -148,9 +145,9 @@ function WhyWeExist({ mode }: { mode: VisibleHomepageMode }) {
   );
 }
 
-function EditorialComposition({ art, children, id, side }: { art?: HomepageStoryArt; children: React.ReactNode; id: string; side: "left" | "right" | "split" }) {
+function HomepageStoryStage({ art, children, id, screen, side }: { art?: HomepageStoryArt; children: React.ReactNode; id: string; screen: number; side: "left" | "manifesto" | "right" }) {
   return (
-    <div className="homepage-editorial-composition" data-art={art} data-composition={id} data-side={side}>
+    <div className="homepage-editorial-composition homepage-viewport-stage" data-art={art} data-composition={id} data-side={side} data-story-screen={screen}>
       <div className="homepage-wide-shell homepage-editorial-grid">
         {children}
       </div>
@@ -158,12 +155,13 @@ function EditorialComposition({ art, children, id, side }: { art?: HomepageStory
   );
 }
 
-function StoryChapter({ action, activePetId, children, id, mode, title }: { action: StoryActionDestination; activePetId?: string; children: React.ReactNode; id: string; mode: VisibleHomepageMode; title: React.ReactNode }) {
+function StoryChapter({ action, activePetId, children, id, mode, secondaryCopy, title }: { action: StoryActionDestination; activePetId?: string; children: React.ReactNode; id: string; mode: VisibleHomepageMode; secondaryCopy?: React.ReactNode; title: React.ReactNode }) {
   return (
     <section className="homepage-story-chapter homepage-story-row" data-chapter={id} id={id}>
       <div className="homepage-story-block">
         <h2 className="homepage-story-heading">{title}</h2>
         <p className="homepage-story-body">{children}</p>
+        {secondaryCopy ? <p className="homepage-story-body homepage-story-body-secondary">{secondaryCopy}</p> : null}
         <StoryAction activePetId={activePetId} destination={action} mode={mode} />
       </div>
     </section>
@@ -182,7 +180,7 @@ function CompositionArt({ art, priority = false }: { art: HomepageStoryArt; prio
 
 function FinalChapter({ mode }: { mode: VisibleHomepageMode }) {
   return (
-    <section className="homepage-story-chapter homepage-final-chapter" data-chapter="start" data-pace="full" data-ui="homepage-final-conversion">
+    <section className="homepage-story-chapter homepage-final-chapter homepage-viewport-stage" data-chapter="start" data-pace="full" data-story-screen="6" data-ui="homepage-final-conversion">
       <div className="homepage-wide-shell homepage-story-inner">
         <div className="homepage-story-block">
           <h2 className="homepage-story-heading">START WITH<br />YOUR PET.</h2>

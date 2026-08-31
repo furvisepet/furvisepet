@@ -40,9 +40,11 @@ test("the color system exposes layered surfaces and centralized semantic roles",
 test("homepage uses the final human company story", () => {
   assert.match(homepage, /aria-label="Remember what matters\."/);
   assert.doesNotMatch(homepage, /Takes about two minutes\./);
-  for (const story of ["PETS CHANGE.", "ONE STORY.", "YOU DON&apos;T HAVE TO", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) {
+  for (const story of ["PETS CHANGE.", "ONE STORY.", "WHEN YOU NEED IT,", "YOUR PET&apos;S STORY", "START WITH"]) {
     assert.equal(homepage.split(story).length - 1, 1);
   }
+  assert.match(homepage, /secondaryCopy="You don't have to track everything\. Use Furvise when something matters\."/);
+  assert.doesNotMatch(homepage, /id="track-less"/);
   assert.doesNotMatch(homepage, />0[123]</);
   assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow/);
 });
