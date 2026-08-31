@@ -558,16 +558,16 @@ body {
 .homepage-story-heading {
   max-width: 18ch;
   font-family: var(--font-marketing-display), "Arial Narrow", Arial, sans-serif;
-  font-size: clamp(2.75rem, 4.2vw, 3.75rem);
+  font-size: clamp(3.25rem, 4.5vw, 4.5rem);
   font-weight: 700;
-  line-height: 0.96;
-  letter-spacing: -0.025em;
+  line-height: 0.97;
+  letter-spacing: -0.018em;
   color: var(--marketing-text);
 }
 
 .homepage-hero-heading {
   max-width: 12ch;
-  font-size: clamp(3.75rem, 5.4vw, 4.875rem);
+  font-size: clamp(4.5rem, 6vw, 5.75rem);
   line-height: 0.94;
 }
 
@@ -577,11 +577,11 @@ body {
 
 @media (min-width: 1024px) {
   .homepage-story-heading {
-    font-size: clamp(3.5rem, 4.4vw, 4.5rem);
+    font-size: clamp(3.25rem, 4.5vw, 4.5rem);
   }
 
   .homepage-hero-heading {
-    font-size: clamp(4.25rem, 5.8vw, 5.75rem);
+    font-size: clamp(4.5rem, 6vw, 5.75rem);
   }
 
   .homepage-viewport-stage {
@@ -623,6 +623,7 @@ body {
   #bigger-idea {
     grid-column: 9 / 13;
     margin-right: clamp(1rem, 4vw, 4.5rem);
+    justify-self: end;
   }
 
   #why-we-exist,
@@ -634,8 +635,18 @@ body {
   }
 
   #one-story {
-    grid-column: 1 / 8;
+    grid-column: 1 / 13;
     align-self: center;
+    justify-self: center;
+    margin-inline: auto;
+  }
+
+  #when-needed {
+    grid-column: 1 / 6;
+  }
+
+  #bigger-idea {
+    grid-column: 8 / 13;
   }
 
   .homepage-art-heron {
@@ -646,10 +657,10 @@ body {
   }
 
   .homepage-art-flamingo {
-    left: -1vw;
+    left: clamp(2.5rem, 4vw, 5rem);
     bottom: 0;
-    width: min(50vw, 50rem);
-    height: min(84svh, 52rem);
+    width: min(46vw, 46rem);
+    height: min(82svh, 52rem);
   }
 
   .homepage-art-flamingo .homepage-story-art-image {
@@ -657,9 +668,9 @@ body {
   }
 
   .homepage-art-cat {
-    right: 2vw;
+    right: clamp(2.5rem, 4vw, 5rem);
     bottom: 0;
-    width: min(48vw, 48rem);
+    width: min(46vw, 48rem);
     height: min(82svh, 51rem);
   }
 
@@ -669,21 +680,31 @@ body {
 
   .homepage-art-hummingbird {
     top: 50%;
-    left: 0;
-    width: min(50vw, 48rem);
+    left: clamp(2.5rem, 4vw, 5rem);
+    width: min(46vw, 46rem);
     height: auto;
     aspect-ratio: 3 / 2;
     transform: translateY(-50%);
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
-    max-width: 44rem;
+    max-width: 48rem;
+    text-align: center;
   }
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
     max-width: 10ch;
-    font-size: clamp(4.5rem, 7vw, 7rem);
-    line-height: 0.94;
+    margin-inline: auto;
+    font-size: clamp(4rem, 6vw, 6rem);
+    line-height: 0.96;
+    letter-spacing: -0.018em;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
+    max-width: 34rem;
+    margin-inline: auto;
+    text-align: left;
   }
 
   .homepage-final-chapter,
@@ -706,8 +727,8 @@ body {
 .homepage-story-body {
   max-width: 36ch;
   margin-top: 1.75rem;
-  font-size: clamp(1.0625rem, 1.15vw, 1.125rem);
-  line-height: 1.62;
+  font-size: 1.125rem;
+  line-height: 1.6;
   color: var(--marketing-muted);
 }
 
@@ -747,7 +768,7 @@ body {
 }
 
 .homepage-final-chapter .homepage-trust-line {
-  margin-top: clamp(2rem, 4vh, 3rem);
+  margin-top: clamp(1.5rem, 3vh, 2.25rem);
 }
 
 .homepage-footer-inner {
@@ -965,7 +986,7 @@ body {
   }
 
   .homepage-art-hummingbird {
-    width: min(98vw, 42rem);
+    width: min(calc(100vw - 2.5rem), 42rem);
     max-width: none;
     height: auto;
     aspect-ratio: 3 / 2;
@@ -973,8 +994,26 @@ body {
 
   .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-heading {
     max-width: 10ch;
+    margin-inline: auto;
     font-size: clamp(3.25rem, 15vw, 5rem);
     line-height: 0.94;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-row {
+    justify-self: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-block {
+    max-width: 34rem;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .homepage-editorial-composition[data-composition="manifesto"] .homepage-story-body {
+    max-width: 32ch;
+    margin-inline: auto;
+    text-align: left;
   }
 
   .homepage-final-chapter .homepage-story-inner {

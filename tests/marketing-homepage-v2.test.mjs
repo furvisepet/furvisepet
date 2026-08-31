@@ -67,11 +67,11 @@ test("desktop homepage is six independent viewport-sized story screens", () => {
   assert.match(desktopStageCss, /data-composition="remembrance"\],[\s\S]*data-composition="remembrance"\] \.homepage-editorial-grid \{[\s\S]*min-height: calc\(100svh - 3\.5rem\)/);
   assert.match(desktopStageCss, /#why-we-exist,[\s\S]*#one-story,[\s\S]*#when-needed \{[\s\S]*grid-column: 1 \/ 5;[\s\S]*margin-left: clamp\(1rem, 4vw, 4\.5rem\)/);
   assert.match(desktopStageCss, /#the-reality,[\s\S]*#bigger-idea \{[\s\S]*grid-column: 9 \/ 13;[\s\S]*margin-right: clamp\(1rem, 4vw, 4\.5rem\)/);
-  assert.match(desktopStageCss, /#one-story \{[\s\S]*grid-column: 1 \/ 8;[\s\S]*align-self: center/);
+  assert.match(desktopStageCss, /#one-story \{[\s\S]*grid-column: 1 \/ 13;[\s\S]*align-self: center;[\s\S]*justify-self: center/);
   assert.match(desktopStageCss, /\.homepage-art-heron \{[\s\S]*right: 3vw;[\s\S]*bottom: 2vh;[\s\S]*width: min\(54vw,[\s\S]*height: min\(86svh/);
-  assert.match(desktopStageCss, /\.homepage-art-flamingo \{[\s\S]*left: -1vw;[\s\S]*bottom: 0;[\s\S]*width: min\(50vw,[\s\S]*height: min\(84svh/);
-  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: 2vw;[\s\S]*bottom: 0;[\s\S]*width: min\(48vw,[\s\S]*height: min\(82svh/);
-  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*left: 0;[\s\S]*width: min\(50vw,[\s\S]*aspect-ratio: 3 \/ 2/);
+  assert.match(desktopStageCss, /\.homepage-art-flamingo \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(82svh/);
+  assert.match(desktopStageCss, /\.homepage-art-cat \{[\s\S]*right: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*bottom: 0;[\s\S]*width: min\(46vw,[\s\S]*height: min\(82svh/);
+  assert.match(desktopStageCss, /\.homepage-art-hummingbird \{[\s\S]*left: clamp\(2\.5rem, 4vw, 5rem\);[\s\S]*width: min\(46vw,[\s\S]*aspect-ratio: 3 \/ 2/);
   assert.match(desktopStageCss, /\.homepage-final-chapter,[\s\S]*\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*min-height: 100svh/);
   assert.match(desktopStageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*grid-column: 1 \/ 13;[\s\S]*justify-self: center/);
 });
@@ -79,13 +79,13 @@ test("desktop homepage is six independent viewport-sized story screens", () => {
 test("desktop reading rails protect the center gutter and the final chapter resolves centered", () => {
   const desktopStageCss = css.slice(css.indexOf("@media (min-width: 1024px)"), css.indexOf("\n.homepage-story-body {"));
   assert.match(homepageCss, /\.homepage-story-block \{[\s\S]*max-width: 32rem/);
-  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*line-height: 1\.62/);
+  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: 1\.125rem;[\s\S]*line-height: 1\.6/);
   assert.match(desktopStageCss, /#why-we-exist,[\s\S]*#one-story,[\s\S]*#when-needed \{[\s\S]*grid-column: 1 \/ 5/);
   assert.match(desktopStageCss, /#the-reality,[\s\S]*#bigger-idea \{[\s\S]*grid-column: 9 \/ 13/);
   assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-inner \{[\s\S]*align-items: center/);
   assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-block \{[\s\S]*max-width: 34rem;[\s\S]*margin-inline: auto;[\s\S]*text-align: center/);
   assert.match(homepageCss, /\.homepage-final-chapter \.homepage-story-body,[\s\S]*\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-inline: auto/);
-  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-top: clamp\(2rem, 4vh, 3rem\)/);
+  assert.match(homepageCss, /\.homepage-final-chapter \.homepage-trust-line \{[\s\S]*margin-top: clamp\(1\.5rem, 3vh, 2\.25rem\)/);
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-row \{[\s\S]*padding: 0/);
 });
 
@@ -112,9 +112,10 @@ test("mobile DOM order keeps each visual inside its own story screen", () => {
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-editorial-grid \{[\s\S]*min-height: 100svh;[\s\S]*grid-template-columns: minmax\(0, 1fr\);[\s\S]*align-content: center;[\s\S]*gap: clamp\(1\.5rem, 4vh, 2\.5rem\);[\s\S]*padding-block: clamp\(1\.5rem, 4vh, 2\.5rem\)/);
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*data-composition="remembrance"\],[\s\S]*data-composition="remembrance"\] \.homepage-editorial-grid \{[\s\S]*min-height: calc\(100svh - 3\.375rem\)/);
   assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-story-row,[\s\S]*\.homepage-composition-art \{[\s\S]*grid-column: 1;[\s\S]*grid-row: auto/);
-  for (const [art, width] of [["heron", "80"], ["flamingo", "80"], ["cat", "82"], ["hummingbird", "98"]]) {
+  for (const [art, width] of [["heron", "80"], ["flamingo", "80"], ["cat", "82"]]) {
     assert.match(css, new RegExp(`@media \\(max-width: 1023px\\)[\\s\\S]*\\.homepage-art-${art} \\{[\\s\\S]*width: min\\(${width}vw`));
   }
+  assert.match(css, /@media \(max-width: 1023px\)[\s\S]*\.homepage-art-hummingbird \{[\s\S]*width: min\(calc\(100vw - 2\.5rem\), 42rem\)/);
 });
 
 test("cream header and footer frame one continuous dark main story", () => {
@@ -242,10 +243,10 @@ test("editorial type uses optimized Barlow Condensed headings and readable exist
   assert.match(layout, /import \{ Barlow_Condensed \} from "next\/font\/google"/);
   assert.match(layout, /Barlow_Condensed\(\{[\s\S]*display: "swap"[\s\S]*subsets: \["latin"\][\s\S]*variable: "--font-marketing-display"[\s\S]*weight: "700"/);
   assert.match(layout, /className=\{`h-full antialiased \$\{marketingDisplay\.variable\}`\}/);
-  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: var\(--font-marketing-display\)[\s\S]*font-size: clamp\(2\.75rem, 4\.2vw, 3\.75rem\);[\s\S]*font-weight: 700;[\s\S]*line-height: 0\.96/);
-  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(3\.75rem, 5\.4vw, 4\.875rem\);[\s\S]*line-height: 0\.94/);
-  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: clamp\(1\.0625rem, 1\.15vw, 1\.125rem\);[\s\S]*line-height: 1\.62/);
-  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*data-composition="manifesto"\] \.homepage-story-heading \{[\s\S]*font-size: clamp\(4\.5rem, 7vw, 7rem\)/);
+  assert.match(homepageCss, /\.homepage-story-heading \{[\s\S]*font-family: var\(--font-marketing-display\)[\s\S]*font-size: clamp\(3\.25rem, 4\.5vw, 4\.5rem\);[\s\S]*font-weight: 700;[\s\S]*line-height: 0\.97/);
+  assert.match(homepageCss, /\.homepage-hero-heading \{[\s\S]*font-size: clamp\(4\.5rem, 6vw, 5\.75rem\);[\s\S]*line-height: 0\.94/);
+  assert.match(homepageCss, /\.homepage-story-body \{[\s\S]*max-width: 36ch;[\s\S]*font-size: 1\.125rem;[\s\S]*line-height: 1\.6/);
+  assert.match(css, /@media \(min-width: 1024px\)[\s\S]*data-composition="manifesto"\] \.homepage-story-heading \{[\s\S]*font-size: clamp\(4rem, 6vw, 6rem\)/);
   assert.doesNotMatch(`${layout}\n${homepage}\n${css}`, /fonts\.(?:googleapis|gstatic)|@import\s+url/);
 });
 
