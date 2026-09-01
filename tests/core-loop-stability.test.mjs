@@ -40,7 +40,8 @@ test("pet profile is a durable file without duplicated Ask, Today, or Products a
   const source = read("app/pets/[id]/page.tsx");
 
   assert.match(source, /loadCanonicalRememberedDetailsForUser/);
-  assert.match(source, /WHAT FURVISE REMEMBERS/);
+  assert.match(source, /title="What Furvise remembers"/);
+  assert.match(source, /title="Recent updates"/);
   assert.match(source, /href=\{`\/vet-brief\?pet=\$\{encodeURIComponent\(profile\.id\)\}`\}/);
   assert.doesNotMatch(source, /\/results\?|\/ask\?pet=|\/shop\?petId=|Products for/);
 });

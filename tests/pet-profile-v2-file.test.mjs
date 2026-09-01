@@ -17,8 +17,8 @@ function profile(overrides = {}) {
   };
 }
 
-test("pet profile loads only the owned profile and canonical remembered-details authorities", () => {
-  assert.match(page, /Promise\.all\(\[[\s\S]*loadDogProfileForUser\(params\.id, user\)[\s\S]*loadCanonicalRememberedDetailsForUser\(params\.id, user\)/);
+test("pet profile loads the owned profile, canonical memories, and only three recent updates", () => {
+  assert.match(page, /Promise\.all\(\[[\s\S]*loadDogProfileForUser\(params\.id, user\)[\s\S]*loadCanonicalRememberedDetailsForUser\(params\.id, user\)[\s\S]*listRecentCareEntriesForPet\(params\.id, 3/);
   for (const retiredLoad of [
     "listCareEntriesForPet",
     "loadDogProductFeedbackForUser",
@@ -28,11 +28,10 @@ test("pet profile loads only the owned profile and canonical remembered-details 
   ]) assert.doesNotMatch(page, new RegExp(retiredLoad));
 });
 
-test("pet profile exposes only durable profile actions and preserves secured deletion", () => {
-  assert.match(page, /EDIT PET/);
+test("pet profile exposes one Edit action, one Vet Brief action, and no administration section", () => {
+  assert.equal((page.match(/EDIT PET/g) || []).length, 1);
   assert.match(page, /\/vet-brief\?pet=/);
-  assert.match(page, /buildPetDeletionReauthenticationHref\(profile\.id\)/);
-  assert.match(page, /deleteDogProfileForUser\(profile\.id, user\)/);
+  assert.doesNotMatch(page, /MANAGE PET|Delete pet|deleteDogProfileForUser|buildPetDeletionReauthenticationHref/);
   for (const duplicate of [
     "Today's snapshot",
     "Today’s snapshot",
@@ -41,14 +40,13 @@ test("pet profile exposes only durable profile actions and preserves secured del
     "Ask Furvise",
     "View full history",
     "Active concerns",
-    "Recent updates",
     "Products for",
     "More actions",
     "LocalPetAvatar",
   ]) assert.doesNotMatch(page, new RegExp(duplicate));
 });
 
-test("About renders only known durable fields and never exposes monthly budget", () => {
+test("Details renders only known durable fields and never exposes monthly budget", () => {
   assert.deepEqual(buildPetProfileAboutDetails(profile()), []);
   assert.deepEqual(buildPetProfileAboutDetails(profile({
     breed: "Golden Retriever",
@@ -63,18 +61,27 @@ test("About renders only known durable fields and never exposes monthly budget",
   ]);
   assert.deepEqual(buildPetProfileAboutDetails(profile({ breed: "Unknown", current_food: "Not provided", routine_note: "Not sure" })), []);
   assert.doesNotMatch(page, /monthly budget|monthly_budget/i);
-  assert.match(page, /There isn&apos;t much here yet\./);
-  assert.match(page, /Add details when you know them\./);
+  assert.match(page, /title="Details"/);
+  assert.match(page, /Not much saved yet\./);
+  assert.match(page, /Add the basics when you know them\./);
 });
 
-test("remembered details stay pet-scoped, bounded, honest, and line-based", () => {
+test("remembered details stay pet-scoped, bounded, honest, and card-based", () => {
   assert.match(page, /rememberedDetails\.pet\.map/);
   assert.match(page, /rememberedFacts\.slice\(0, 5\)/);
-  assert.match(page, /rememberedFacts\.length > 5 \? "VIEW ALL" : "MANAGE REMEMBERED DETAILS"/);
   assert.match(page, /Nothing remembered yet\./);
-  assert.match(page, /Things you tell Furvise over time can appear here\./);
+  assert.match(page, /When you tell Furvise something worth keeping, it can show up here\./);
   assert.match(page, /divide-y divide-\[var\(--line\)\]/);
+  assert.match(page, /rounded-\[var\(--radius-lg\)\][\s\S]*bg-\[var\(--surface-primary\)\]/);
   assert.doesNotMatch(page, /confidence|provenance|memory type/i);
+});
+
+test("Recent updates is bounded, newest-first through shared authority, and honest when empty", () => {
+  assert.match(page, /listRecentCareEntriesForPet\(params\.id, 3/);
+  assert.match(page, /recentEntries\.map/);
+  assert.match(page, /formatTodayTimelineDate\(entry\.occurred_at\)/);
+  assert.match(page, /Nothing on \$\{name\}’s file yet\./);
+  assert.match(page, /Updates you save in Today will show up here\./);
 });
 
 test("lifecycle, focus, and responsive file geometry stay deliberate", () => {

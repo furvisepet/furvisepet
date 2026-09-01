@@ -93,7 +93,7 @@ test("the pet deletion route verifies exact claims before idempotency or deletio
   assert.match(route, /PRIVATE_CACHE_HEADERS/);
 });
 
-test("reauthentication returns to the exact pet but never resumes deletion automatically", () => {
+test("secured pet deletion remains available at the API boundary but is absent from the simplified profile", () => {
   const routing = read("app/lib/auth-routing.ts");
   const login = read("app/login/page.tsx");
   const detail = read("app/pets/[id]/page.tsx");
@@ -101,7 +101,7 @@ test("reauthentication returns to the exact pet but never resumes deletion autom
   assert.match(routing, /`\/pets\/\$\{encodeURIComponent\(petId\)\}`/);
   assert.match(routing, /reauth=pet-delete/);
   assert.match(client, /code: payload\?\.code/);
-  assert.match(detail, /router\.push\(buildPetDeletionReauthenticationHref\(profile\.id\)\)/);
+  assert.doesNotMatch(detail, /Delete pet|deleteDogProfileForUser|buildPetDeletionReauthenticationHref/);
   assert.match(login, /isPetDeleteReauthentication \|\| didRedirectRef\.current/);
   assert.match(login, /Permanent deletion will still require a new confirmation/);
   assert.doesNotMatch(login, /deleteDogProfileForUser|method:\s*["']DELETE["']/);

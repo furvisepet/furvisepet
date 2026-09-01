@@ -5,21 +5,18 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppPage } from "../../components/app-page";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
-import { clearActivePetId } from "../../lib/active-pet";
-import { buildPetDeletionReauthenticationHref } from "../../lib/auth-routing";
 import { useAppDataVersion } from "../../lib/navigation/app-data-freshness";
-import { clearEditPetOnboardingDraft } from "../../lib/onboarding-drafts";
 import { formatPetDirectoryMetadata } from "../../lib/pets-directory";
 import { buildPetProfileAboutDetails } from "../../lib/pet-profile-file";
 import { formatPetDisplayName } from "../../lib/petwise";
 import { buildRememberedDetails } from "../../lib/remembered-details";
+import { formatTodayTimelineDate } from "../../lib/today";
 import {
-  deleteDogProfileForUser,
-  getCurrentUser,
   getSupabaseConfigError,
-  isRecentAuthenticationRequiredError,
+  listRecentCareEntriesForPet,
   loadCanonicalRememberedDetailsForUser,
   loadDogProfileForUser,
+  type CareEntryRow,
   type CanonicalRememberedDetailsRows,
   type DogProfileRow,
 } from "../../lib/supabase";
@@ -42,9 +39,9 @@ export default function PetProfilePage() {
   const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
   const [profile, setProfile] = useState<DogProfileRow | null>(null);
   const [rememberedRows, setRememberedRows] = useState<CanonicalRememberedDetailsRows>({ canonical: [], legacy: [] });
+  const [recentEntries, setRecentEntries] = useState<CareEntryRow[]>([]);
   const [state, setState] = useState<LoadState>(configError ? "error" : "loading");
   const [error, setError] = useState(configError);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (configError || authStatus !== "signedIn" || !authUser) return;
@@ -55,13 +52,15 @@ export default function PetProfilePage() {
       setState("loading");
       setError("");
       try {
-        const [profileRow, memoryRows] = await Promise.all([
+        const [profileRow, memoryRows, entries] = await Promise.all([
           loadDogProfileForUser(params.id, user),
           loadCanonicalRememberedDetailsForUser(params.id, user),
+          listRecentCareEntriesForPet(params.id, 3, { getCurrentUser: async () => user }),
         ]);
         if (!active) return;
         setProfile(profileRow);
         setRememberedRows(memoryRows);
+        setRecentEntries(entries);
         setState("ready");
       } catch (loadError) {
         if (!active) return;
@@ -80,30 +79,6 @@ export default function PetProfilePage() {
     petName: profile ? formatPetDisplayName(profile.name) : "Your pet",
   }), [profile, rememberedRows]);
 
-  async function deleteProfile() {
-    if (!profile || deleting) return;
-    const name = formatPetDisplayName(profile.name);
-    if (!window.confirm(`Delete ${name}'s profile? This cannot be undone.`)) return;
-    setDeleting(true);
-    setError("");
-    try {
-      const user = await getCurrentUser();
-      if (!user) throw new Error("Please sign in again before deleting this profile.");
-      await deleteDogProfileForUser(profile.id, user);
-      clearEditPetOnboardingDraft(window.localStorage, profile.id);
-      clearActivePetId(window.localStorage, profile.id);
-      router.replace("/pets");
-    } catch (deleteError) {
-      if (isRecentAuthenticationRequiredError(deleteError)) {
-        setDeleting(false);
-        router.push(buildPetDeletionReauthenticationHref(profile.id));
-        return;
-      }
-      setError(deleteError instanceof Error ? deleteError.message : "Furvise could not delete that profile.");
-      setDeleting(false);
-    }
-  }
-
   return (
     <AppPage>
       <div className="mx-auto min-w-0 max-w-[860px] overflow-x-hidden" data-ui="pet-profile-file">
@@ -111,10 +86,9 @@ export default function PetProfilePage() {
         {state === "error" ? <ProfileError error={error} /> : null}
         {state === "ready" && profile ? (
           <PetFile
-            deleting={deleting}
-            onDelete={deleteProfile}
             onDismissSuccess={() => router.replace(`/pets/${encodeURIComponent(profile.id)}`, { scroll: false })}
             profile={profile}
+            recentEntries={recentEntries}
             rememberedFacts={rememberedDetails.pet.map((detail) => ({ fact: detail.fact, id: `${detail.source}:${detail.id}` }))}
             successMessage={searchParams.get("added") === "1" ? `${formatPetDisplayName(profile.name)} was added.` : ""}
           />
@@ -125,17 +99,15 @@ export default function PetProfilePage() {
 }
 
 function PetFile({
-  deleting,
-  onDelete,
   onDismissSuccess,
   profile,
+  recentEntries,
   rememberedFacts,
   successMessage,
 }: {
-  deleting: boolean;
-  onDelete: () => void;
   onDismissSuccess: () => void;
   profile: DogProfileRow;
+  recentEntries: CareEntryRow[];
   rememberedFacts: Array<{ fact: string; id: string }>;
   successMessage: string;
 }) {
@@ -144,7 +116,6 @@ function PetFile({
   const about = buildPetProfileAboutDetails(profile);
   const lifecycleStatus = profile.lifecycle_status || "active";
   const editHref = `/pets/${profile.id}/edit`;
-  const memoriesHref = `/pets/${profile.id}/memories`;
 
   return (
     <>
@@ -165,65 +136,62 @@ function PetFile({
         </div>
       </header>
 
-      <FileSection title="ABOUT">
-        {about.length ? (
-          <dl className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
-            {about.map(({ label, value }) => (
-              <div className="grid gap-1 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6" key={label}>
-                <dt className="text-sm font-medium text-[var(--text-secondary)]">{label}</dt>
-                <dd className="break-words text-base leading-7 text-[var(--text-primary)]">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : (
-          <div>
-            <p className="text-lg font-medium text-[var(--text-primary)]">There isn&apos;t much here yet.</p>
-            <p className="mt-2 leading-7 text-[var(--text-secondary)]">Add details when you know them.</p>
-            <Link className={`${textActionClasses} mt-4`} href={editHref}>EDIT PET</Link>
-          </div>
-        )}
-      </FileSection>
+      <div className="mt-10 grid min-w-0 gap-5 lg:grid-cols-2 sm:mt-12" data-ui="pet-profile-cards">
+        <ProfileCard title="Details">
+          {about.length ? (
+            <dl className="divide-y divide-[var(--line)]">
+              {about.map(({ label, value }) => (
+                <div className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-5" key={label}>
+                  <dt className="text-sm font-medium text-[var(--text-secondary)]">{label}</dt>
+                  <dd className="break-words text-base leading-7 text-[var(--text-primary)]">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <EmptyCardCopy body="Add the basics when you know them." title="Not much saved yet." />
+          )}
+        </ProfileCard>
 
-      <FileSection title="WHAT FURVISE REMEMBERS">
-        {rememberedFacts.length ? (
-          <>
-            <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
-              {rememberedFacts.slice(0, 5).map((memory) => <li className="py-4 text-base leading-7 text-[var(--text-primary)]" key={memory.id}>{memory.fact}</li>)}
+        <ProfileCard title="What Furvise remembers">
+          {rememberedFacts.length ? (
+            <ul className="divide-y divide-[var(--line)]">
+              {rememberedFacts.slice(0, 5).map((memory) => <li className="py-3 first:pt-0 last:pb-0 text-base leading-7 text-[var(--text-primary)]" key={memory.id}>{memory.fact}</li>)}
             </ul>
-            <Link className={`${textActionClasses} mt-4`} href={memoriesHref}>{rememberedFacts.length > 5 ? "VIEW ALL" : "MANAGE REMEMBERED DETAILS"}</Link>
-          </>
-        ) : (
-          <div>
-            <p className="text-lg font-medium text-[var(--text-primary)]">Nothing remembered yet.</p>
-            <p className="mt-2 leading-7 text-[var(--text-secondary)]">Things you tell Furvise over time can appear here.</p>
-          </div>
-        )}
-      </FileSection>
+          ) : (
+            <EmptyCardCopy body="When you tell Furvise something worth keeping, it can show up here." title="Nothing remembered yet." />
+          )}
+        </ProfileCard>
 
-      <FileSection title="MANAGE PET">
-        <div className="flex flex-col items-start gap-2">
-          <Link className={textActionClasses} href={editHref}>Edit pet</Link>
-          <button
-            className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--danger-text)] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] disabled:cursor-wait disabled:text-[var(--disabled-text)]"
-            disabled={deleting}
-            onClick={onDelete}
-            type="button"
-          >
-            {deleting ? "Deleting..." : "Delete pet"}
-          </button>
-        </div>
-      </FileSection>
+        <ProfileCard className="lg:col-span-2" title="Recent updates">
+          {recentEntries.length ? (
+            <ul className="divide-y divide-[var(--line)]">
+              {recentEntries.map((entry) => (
+                <li className="py-3 first:pt-0 last:pb-0" key={entry.id}>
+                  <p className="text-sm text-[var(--text-secondary)]">{formatTodayTimelineDate(entry.occurred_at)}</p>
+                  <p className="mt-1 break-words text-base leading-7 text-[var(--text-primary)]">{entry.note}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyCardCopy body="Updates you save in Today will show up here." title={`Nothing on ${name}’s file yet.`} />
+          )}
+        </ProfileCard>
+      </div>
     </>
   );
 }
 
-function FileSection({ children, title }: { children: React.ReactNode; title: string }) {
+function ProfileCard({ children, className = "", title }: { children: React.ReactNode; className?: string; title: string }) {
   return (
-    <section className="mt-10 min-w-0 border-t border-[var(--line)] pt-8 sm:mt-12 sm:pt-10">
-      <h2 className="mb-5 text-sm font-bold tracking-[0.08em] text-[var(--text-primary)]">{title}</h2>
+    <section className={`min-w-0 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-5 shadow-[var(--shadow-surface-1)] sm:p-6 ${className}`}>
+      <h2 className="mb-5 text-xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h2>
       {children}
     </section>
   );
+}
+
+function EmptyCardCopy({ body, title }: { body: string; title: string }) {
+  return <div><p className="text-lg font-medium text-[var(--text-primary)]">{title}</p><p className="mt-2 leading-7 text-[var(--text-secondary)]">{body}</p></div>;
 }
 
 function ProfileSkeleton() {
@@ -232,8 +200,10 @@ function ProfileSkeleton() {
       <div className="h-5 w-20 rounded bg-[var(--surface-raised)]" />
       <div className="mt-6 h-12 w-64 rounded bg-[var(--surface-raised)]" />
       <div className="mt-3 h-6 w-52 rounded bg-[var(--surface-raised)]" />
-      <div className="mt-12 h-px bg-[var(--line)]" />
-      <div className="mt-8 h-28 rounded bg-[var(--surface-raised)]" />
+      <div className="mt-12 grid gap-5 lg:grid-cols-2">
+        <div className="h-48 rounded-[var(--radius-lg)] bg-[var(--surface-raised)]" />
+        <div className="h-48 rounded-[var(--radius-lg)] bg-[var(--surface-raised)]" />
+      </div>
     </div>
   );
 }

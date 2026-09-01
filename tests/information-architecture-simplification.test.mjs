@@ -56,14 +56,15 @@ test("profile field states distinguish known, none-known, unknown, and missing",
   assert.equal(buildProfileCompleteness(row({ avoid_ingredients: [] })).missingFields.includes("avoid ingredients"), false);
 });
 
-test("pet profile is a durable file that limits its remembered-fact preview", () => {
+test("pet profile is a compact pet home with bounded memories and recent updates", () => {
   const page = read("app/pets/[id]/page.tsx");
-  assert.match(page, /title="ABOUT"/);
-  assert.match(page, /title="WHAT FURVISE REMEMBERS"/);
+  assert.match(page, /title="Details"/);
+  assert.match(page, /title="What Furvise remembers"/);
+  assert.match(page, /title="Recent updates"/);
   assert.match(page, /rememberedFacts\.slice\(0, 5\)/);
-  assert.doesNotMatch(page, /Today.?s snapshot|Furvise guidance|Recent updates|listCareEntriesForPet/);
+  assert.match(page, /listRecentCareEntriesForPet\(params\.id, 3/);
+  assert.doesNotMatch(page, /Today.?s snapshot|Furvise guidance|listCareEntriesForPet/);
   assert.doesNotMatch(page, /\/results\?/);
-  assert.match(page, /\/memories/);
 });
 
 test("History titles are deterministic and date groups are chronological", () => {
