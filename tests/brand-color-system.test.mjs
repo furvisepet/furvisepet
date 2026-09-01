@@ -146,16 +146,20 @@ test("warm surfaces and restrained action colors are applied through shared role
 test("focus authority stays forest or scoped sage without orange leakage", () => {
   const css = read("app/globals.css");
   const today = read("app/today/today.module.css");
+  const productSources = walk("app").filter((file) => /\.(?:tsx|css)$/.test(file)).map((file) => read(file)).join("\n");
   const semanticScheme = css.slice(css.indexOf(":root"), css.indexOf("@theme inline"));
   assert.match(semanticScheme, /--focus-ring: var\(--forest\)/);
   assert.match(semanticScheme, /--focus: var\(--focus-ring\)/);
+  assert.match(semanticScheme, /--pw-focus-ring: var\(--focus\)/);
   assert.doesNotMatch(semanticScheme, /--focus(?:-ring)?:\s*(?:var\(--(?:focus-orange|warm-orange(?:-hover|-active)?)\)|#(?:C9560C|F47A22|FA8A36|EF6E17))/i);
+  assert.doesNotMatch(semanticScheme, /--pw-focus-ring:\s*(?:var\(--(?:focus-orange|warm-orange(?:-hover|-active)?|pw-primary|action-primary)\)|#(?:C9560C|F47A22|FA8A36|EF6E17))/i);
   assert.match(css, /\.homepage-dark-world \{[\s\S]*--focus-ring: var\(--soft-sage\);[\s\S]*--focus: var\(--soft-sage\)/);
   assert.match(css, /\.onboarding-shell \{[\s\S]*--focus-ring: var\(--deep-forest\)/);
-  assert.match(css, /:focus-visible \{[\s\S]*outline: 3px solid var\(--focus\)/);
+  assert.match(css, /:focus-visible \{[\s\S]*outline: 2px solid var\(--focus\)(?: !important)?;[\s\S]*outline-offset: 2px(?: !important)?;[\s\S]*box-shadow: none/);
   assert.doesNotMatch(`${css}\n${today}`, /(?:focus|focus-visible|outline|focus-ring)[^;{}]*(?:#C9560C|#F47A22|#FA8A36|#EF6E17|focus-orange)/i);
+  assert.doesNotMatch(productSources, /focus(?:-visible|-within)?:[\w-]+-\[var\(--(?:pw-primary|action-primary|primary-action|warm-orange(?:-hover|-active)?|accent-apricot)\)\]/i);
   assert.match(today, /\.rememberInput:focus,[\s\S]*?border-color: var\(--forest\);[\s\S]*?box-shadow: none;/);
-  assert.doesNotMatch(today, /:focus[^{]*\{[^}]*box-shadow:\s*0 0 0/i);
+  assert.match(today, /\.detailsToggle:focus-visible,[\s\S]*?\.petSwitcher select:focus-visible \{[\s\S]*?outline: 2px solid var\(--forest\);[\s\S]*?outline-offset: 2px;[\s\S]*?box-shadow: none;/);
 });
 
 test("components consume semantic tokens and do not introduce ordinary colors", () => {

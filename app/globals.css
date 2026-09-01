@@ -1406,8 +1406,9 @@ textarea:disabled {
 }
 
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 3px solid var(--focus) !important;
-  outline-offset: 3px !important;
+  outline: 2px solid var(--focus) !important;
+  outline-offset: 2px !important;
+  box-shadow: none !important;
 }
 
 ::selection {

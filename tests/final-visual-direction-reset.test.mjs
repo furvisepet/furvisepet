@@ -46,7 +46,7 @@ test("button hierarchy has explicit readable foregrounds and disabled states", (
   assert.match(primitives, /primary: "bg-\[var\(--action-primary\)\] text-\[var\(--text-inverse\)\]/);
   assert.match(primitives, /secondary: "border border-\[var\(--secondary-action-border\)\] bg-\[var\(--secondary-action\)\] text-\[var\(--secondary-action-text\)\]/);
   assert.match(primitives, /disabled:bg-\[var\(--disabled-surface\)\] disabled:text-\[var\(--disabled-text\)\]/);
-  assert.match(css, /:focus-visible[\s\S]*outline: 3px solid var\(--focus\)/);
+  assert.match(css, /:focus-visible[\s\S]*outline: 2px solid var\(--focus\)/);
 });
 
 test("homepage has six viewport story screens and authenticated CTA logic", () => {

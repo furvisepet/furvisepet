@@ -375,4 +375,4 @@ type CareEntryRowLike = {
 };
 
 const inputClass =
-  "w-full rounded-2xl border border-[color-mix(in_srgb,var(--pw-border)_78%,transparent)] bg-[var(--pw-input)] px-4 py-3 text-base font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface-elevated)] disabled:border-[var(--pw-border)] disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]";
+  "w-full rounded-2xl border border-[color-mix(in_srgb,var(--pw-border)_78%,transparent)] bg-[var(--pw-input)] px-4 py-3 text-base font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-focus-ring)] focus:bg-[var(--pw-surface-elevated)] disabled:border-[var(--pw-border)] disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]";
