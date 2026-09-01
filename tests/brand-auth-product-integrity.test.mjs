@@ -59,7 +59,7 @@ test("the warm forest, sage, cream, and orange palette drives the permanent ligh
   assert.match(scheme, /--page-background: var\(--warm-canvas\)/);
   assert.match(scheme, /--primary-action-background: var\(--warm-orange\)/);
   assert.match(scheme, /--secondary-action-background: var\(--warm-cream\)/);
-  assert.match(scheme, /--focus-ring: var\(--focus-orange\)/);
+  assert.match(scheme, /--focus-ring: var\(--forest\)/);
   assert.doesNotMatch(css, /data-theme|prefers-color-scheme|brand-dark-surface/);
 });
 

@@ -37,7 +37,6 @@ const palette = {
   "muted-ink": "#5F7266",
   "disabled-neutral": "#E4E0D6",
   "disabled-ink": "#52645A",
-  "focus-orange": "#C9560C",
   "danger-red": "#A53B32",
   "success-green": "#276B3D",
   "warning-amber": "#8A4B0F",
@@ -89,7 +88,7 @@ test("the permanent warm-light color system maps every required semantic role", 
     "chip-background": "raised-neutral",
     "chip-selected-background": "soft-sage",
     "chip-selected-foreground": "deep-forest",
-    "focus-ring": "focus-orange",
+    "focus-ring": "forest",
     "disabled-background": "disabled-neutral",
     "disabled-foreground": "disabled-ink",
     "destructive": "danger-red",
@@ -117,7 +116,7 @@ test("text, button, input, navigation, focus, selection, and disabled pairs meet
     ["navigation", palette["forest"], palette["warm-cream"], 4.5],
     ["selected navigation", palette["deep-forest"], palette["soft-sage"], 4.5],
     ["selected chip", palette["deep-forest"], palette["soft-sage"], 4.5],
-    ["focus", palette["focus-orange"], palette["warm-canvas"], 3],
+    ["focus", palette.forest, palette["warm-canvas"], 3],
     ["disabled control", palette["disabled-ink"], palette["disabled-neutral"], 4.5],
     ["footer", palette["secondary-ink"], palette["raised-neutral"], 4.5],
     ["assistant strong", palette["warm-cream"], palette["deep-ink-blue"], 4.5],
@@ -142,6 +141,21 @@ test("warm surfaces and restrained action colors are applied through shared role
   assert.match(footer, /bg-\[var\(--footer-background\)\]/);
   assert.doesNotMatch(components, /text-\[var\(--action-primary\)\]/, "orange primary background must not be reused as body or link text");
   assert.doesNotMatch(css, /--primary-action-(?:background|foreground): var\(--(?:sage|forest|deep-forest)\)/);
+});
+
+test("focus authority stays forest or scoped sage without orange leakage", () => {
+  const css = read("app/globals.css");
+  const today = read("app/today/today.module.css");
+  const semanticScheme = css.slice(css.indexOf(":root"), css.indexOf("@theme inline"));
+  assert.match(semanticScheme, /--focus-ring: var\(--forest\)/);
+  assert.match(semanticScheme, /--focus: var\(--focus-ring\)/);
+  assert.doesNotMatch(semanticScheme, /--focus(?:-ring)?:\s*(?:var\(--(?:focus-orange|warm-orange(?:-hover|-active)?)\)|#(?:C9560C|F47A22|FA8A36|EF6E17))/i);
+  assert.match(css, /\.homepage-dark-world \{[\s\S]*--focus-ring: var\(--soft-sage\);[\s\S]*--focus: var\(--soft-sage\)/);
+  assert.match(css, /\.onboarding-shell \{[\s\S]*--focus-ring: var\(--deep-forest\)/);
+  assert.match(css, /:focus-visible \{[\s\S]*outline: 3px solid var\(--focus\)/);
+  assert.doesNotMatch(`${css}\n${today}`, /(?:focus|focus-visible|outline|focus-ring)[^;{}]*(?:#C9560C|#F47A22|#FA8A36|#EF6E17|focus-orange)/i);
+  assert.match(today, /\.rememberInput:focus,[\s\S]*?border-color: var\(--forest\);[\s\S]*?box-shadow: none;/);
+  assert.doesNotMatch(today, /:focus[^{]*\{[^}]*box-shadow:\s*0 0 0/i);
 });
 
 test("components consume semantic tokens and do not introduce ordinary colors", () => {

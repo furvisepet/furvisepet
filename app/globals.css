@@ -25,7 +25,6 @@
   --muted-ink: #5F7266;
   --disabled-neutral: #E4E0D6;
   --disabled-ink: #52645A;
-  --focus-orange: #C9560C;
   --danger-red: #A53B32;
   --success-green: #276B3D;
   --warning-amber: #8A4B0F;
@@ -84,7 +83,7 @@
   --chip-background: var(--raised-neutral);
   --chip-selected-background: var(--soft-sage);
   --chip-selected-foreground: var(--deep-forest);
-  --focus-ring: var(--focus-orange);
+  --focus-ring: var(--forest);
   --disabled-background: var(--disabled-neutral);
   --disabled-foreground: var(--disabled-ink);
   --destructive: var(--danger-red);

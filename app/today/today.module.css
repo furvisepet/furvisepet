@@ -104,15 +104,13 @@
 
 .detailsToggle:focus-visible {
   border-radius: var(--radius-sm);
-  outline: 2px solid var(--sage);
-  outline-offset: 0.2rem;
 }
 
 .rememberInput:focus,
 .metadataFields select:focus,
 .metadataFields input:focus {
-  border-color: var(--sage);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 28%, transparent);
+  border-color: var(--forest);
+  box-shadow: none;
 }
 
 .metadataFields {
@@ -170,11 +168,6 @@
 
 .primaryAction:hover:not(:disabled) {
   background: var(--today-action-hover);
-}
-
-.primaryAction:focus-visible {
-  outline: 2px solid var(--sage);
-  outline-offset: 0.2rem;
 }
 
 .primaryAction:disabled {
