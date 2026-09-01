@@ -141,7 +141,7 @@ test("Today, homepage, History, profile, Vet Brief, and export honor retained li
   assert.match(read("app/today/page.tsx"), /activePetsOnly\(profileRows\)/);
   assert.match(read("app/components/homepage-client.tsx"), /activePetsOnly\(profiles\)/);
   assert.match(read("app/components/care-log-workspace.tsx"), /canCreateUpdate[\s\S]*isActivePet/);
-  assert.match(read("app/pets/[id]/page.tsx"), /lifecycleStatus === "active" && concerns\.length/);
+  assert.match(read("app/pets/[id]/page.tsx"), /lifecycleStatus === "active" \? <Link[\s\S]*VET BRIEF/);
   assert.match(read("app/lib/vet-brief/builder.ts"), /lifecycle_status \|\| "active"\) !== "active"/);
   assert.match(read("app/lib/operations/user-data-export.ts"), /pet_profile_lifecycle_events/);
 });

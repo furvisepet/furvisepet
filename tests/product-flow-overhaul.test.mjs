@@ -39,8 +39,9 @@ test("intentional none-known and unknown answers count as answered", () => {
 
 test("profile header has no readiness badge and keeps useful identity metadata", () => {
   const page = read("app/pets/[id]/page.tsx");
-  assert.match(page, /Updated \$\{formatShortDate\(model\.latestUpdateAt\)\}/);
-  assert.match(page, /model\.headerSummary/);
+  assert.match(page, /formatPetDirectoryMetadata\(profile\)/);
+  assert.match(page, /<h1[^>]*>\{name\}<\/h1>/);
+  assert.doesNotMatch(page, /Updated \$\{|model\.headerSummary/);
   assert.doesNotMatch(page, /Getting to know|formatProfileStatusDisplay|Profile ready|StatusPill label=\{model\.completeness|>100%</);
 });
 

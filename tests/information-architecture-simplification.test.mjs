@@ -56,15 +56,12 @@ test("profile field states distinguish known, none-known, unknown, and missing",
   assert.equal(buildProfileCompleteness(row({ avoid_ingredients: [] })).missingFields.includes("avoid ingredients"), false);
 });
 
-test("pet dashboard is canonical and limits its recent-update preview", () => {
+test("pet profile is a durable file that limits its remembered-fact preview", () => {
   const page = read("app/pets/[id]/page.tsx");
-  const model = read("app/lib/pet-profile.ts");
-  assert.match(page, /title="Today’s snapshot"/);
-  assert.match(page, /title="Furvise guidance"/);
-  assert.match(page, /title="Pet details"/);
-  assert.match(page, /id="saved-details"/);
-  assert.match(page, /title="Recent updates"/);
-  assert.match(model, /recentEntries: recentEntries\.slice\(0, 5\)/);
+  assert.match(page, /title="ABOUT"/);
+  assert.match(page, /title="WHAT FURVISE REMEMBERS"/);
+  assert.match(page, /rememberedFacts\.slice\(0, 5\)/);
+  assert.doesNotMatch(page, /Today.?s snapshot|Furvise guidance|Recent updates|listCareEntriesForPet/);
   assert.doesNotMatch(page, /\/results\?/);
   assert.match(page, /\/memories/);
 });

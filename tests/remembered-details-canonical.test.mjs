@@ -146,8 +146,8 @@ test("Remembered Details and profile summary query furvise_memories and use the 
   assert.match(page, /loadCanonicalRememberedDetailsForUser/);
   assert.match(profile, /loadCanonicalRememberedDetailsForUser/);
   assert.match(page, /Useful details Furvise learns from your conversations/);
-  assert.match(profile, /details\.all\.length/);
-  assert.match(profile, /slice\(0, 2\)/);
+  assert.match(profile, /rememberedDetails\.pet\.map/);
+  assert.match(profile, /rememberedFacts\.slice\(0, 5\)/);
 });
 
 test("memory controls preserve lifecycle and enforce authenticated ownership", async () => {
