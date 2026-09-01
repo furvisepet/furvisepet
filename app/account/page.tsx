@@ -146,7 +146,7 @@ export default function AccountPage() {
             Country
           </label>
           <select
-            className="mt-2 w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 py-3 text-base font-semibold text-[var(--pw-text)] outline-none transition focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface-elevated)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]"
+            className="mt-2 w-full rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-4 py-3 text-base font-semibold text-[var(--pw-text)] outline-none transition focus:border-[var(--pw-focus-ring)] focus:bg-[var(--pw-surface-elevated)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]"
             disabled={loading || saving}
             id="product-country"
             name="product-country"

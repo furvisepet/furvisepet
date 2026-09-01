@@ -353,7 +353,7 @@ function RecentUpdates({ entries, petId, petName }: { entries: CareEntryRow[]; p
         <div className="divide-y divide-[var(--pw-border)]">
           {entries.map((entry) => (
             <Link
-              className="block min-w-0 rounded-2xl px-2 py-4 transition hover:bg-[var(--pw-card-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]"
+              className="block min-w-0 rounded-2xl px-2 py-4 transition hover:bg-[var(--pw-card-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]"
               href={`/care-log?pet=${petId}&entry=${entry.id}`}
               key={entry.id}
             >

@@ -379,7 +379,7 @@ export default function EditDogProfilePage() {
                 </Field>
 
                 <Field id="budget" label="Monthly care budget">
-                  <div className="flex min-w-0 overflow-hidden rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] focus-within:border-[var(--pw-primary)] focus-within:bg-[var(--pw-surface)]">
+                  <div className="flex min-w-0 overflow-hidden rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] focus-within:border-[var(--pw-focus-ring)] focus-within:bg-[var(--pw-surface)]">
                     <span className="flex shrink-0 items-center px-3.5 text-base font-semibold text-[var(--pw-muted)]">
                       $
                     </span>
@@ -428,7 +428,7 @@ export default function EditDogProfilePage() {
 }
 
 const inputClass =
-  "min-h-11 w-full min-w-0 rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3.5 py-2.5 text-base font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-primary)] focus:bg-[var(--pw-surface)] disabled:border-[var(--pw-border)] disabled:bg-[var(--pw-card-muted)] disabled:text-[var(--pw-subtle)] disabled:opacity-100";
+  "min-h-11 w-full min-w-0 rounded-2xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3.5 py-2.5 text-base font-semibold text-[var(--pw-text)] outline-none transition placeholder:text-[var(--pw-placeholder)] focus:border-[var(--pw-focus-ring)] focus:bg-[var(--pw-surface)] disabled:border-[var(--pw-border)] disabled:bg-[var(--pw-card-muted)] disabled:text-[var(--pw-subtle)] disabled:opacity-100";
 
 function Field({
   children,
@@ -460,7 +460,7 @@ function CheckRow({
     <label className="mt-2 flex min-w-0 items-start gap-2.5 rounded-2xl bg-[var(--pw-card-muted)] px-3 py-2.5 text-sm text-[var(--pw-muted)]">
       <input
         checked={checked}
-        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]"
+        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]"
         onChange={(event) => onChange(event.target.checked)}
         type="checkbox"
       />

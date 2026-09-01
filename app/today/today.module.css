@@ -102,15 +102,26 @@
   color: var(--today-text-primary);
 }
 
-.detailsToggle:focus-visible {
-  border-radius: var(--radius-sm);
-}
-
 .rememberInput:focus,
 .metadataFields select:focus,
 .metadataFields input:focus {
   border-color: var(--forest);
   box-shadow: none;
+}
+
+.detailsToggle:focus-visible,
+.rememberInput:focus-visible,
+.metadataFields select:focus-visible,
+.metadataFields input:focus-visible,
+.primaryAction:focus-visible,
+.petSwitcher select:focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.detailsToggle:focus-visible {
+  border-radius: var(--radius-sm);
 }
 
 .metadataFields {

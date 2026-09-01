@@ -263,7 +263,7 @@ function getDefaultRange() { const to = new Date(); const from = new Date(to); f
 async function validateDraftScope(petId: string) { await authenticatedJson(`/api/vet-briefs/draft?pet=${encodeURIComponent(petId)}`); }
 function documentGlobal() { return window.document; }
 
-const inputClass = "min-h-11 w-full rounded-xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3 text-base font-normal text-[var(--pw-text)] outline-none focus:border-[var(--pw-primary)] focus-visible:ring-2 focus-visible:ring-[var(--pw-primary)]";
+const inputClass = "min-h-11 w-full rounded-xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3 text-base font-normal text-[var(--pw-text)] outline-none focus:border-[var(--pw-focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
 const sectionTitle = "text-lg font-semibold text-[var(--pw-heading)]";
 const primaryButtonCompact = "inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--pw-primary)] px-4 text-sm font-semibold text-[var(--pw-primary-foreground)] disabled:bg-[var(--pw-disabled-background)] disabled:text-[var(--pw-disabled-text)]";
 const secondaryButton = "inline-flex min-h-10 items-center justify-center rounded-full border border-[var(--pw-border-strong)] px-4 text-sm font-semibold text-[var(--pw-text)]";
