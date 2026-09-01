@@ -353,12 +353,13 @@ test("profile overview route keeps mobile layout from overflowing", () => {
   assert.doesNotMatch(source, /overflow-x-auto/);
 });
 
-test("profile file removes duplicate workflows and keeps quiet empty states", () => {
+test("profile home removes duplicate workflows and keeps warm card empty states", () => {
   const source = readFileSync(new URL("../app/pets/[id]/page.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(source, />\s*Log update\s*<|View full history|\/care-log\?pet=|Products for|\/shop\?petId=|Ask Furvise|\/ask\?pet=/);
   assert.match(source, /Nothing remembered yet\./);
-  assert.match(source, /Things you tell Furvise over time can appear here\./);
-  assert.match(source, /MANAGE REMEMBERED DETAILS/);
-  assert.match(source, /There isn&apos;t much here yet\./);
-  assert.match(source, /href=\{memoriesHref\}/);
+  assert.match(source, /When you tell Furvise something worth keeping, it can show up here\./);
+  assert.match(source, /Not much saved yet\./);
+  assert.match(source, /Add the basics when you know them\./);
+  assert.match(source, /Updates you save in Today will show up here\./);
+  assert.doesNotMatch(source, /MANAGE PET|Delete pet|MANAGE REMEMBERED DETAILS/);
 });

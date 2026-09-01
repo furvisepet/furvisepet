@@ -53,13 +53,13 @@ test("stale legacy state is cleared before a new versioned draft begins", () => 
   assert.match(drafts, /catch \{[\s\S]*return null/);
 });
 
-test("successful save, cancellation, sign-out, and deletion clear drafts", () => {
+test("successful save, cancellation, and sign-out clear drafts while edit-draft cleanup remains available", () => {
   const page = read("app/onboarding/page.tsx");
-  const pets = read("app/pets/page.tsx") + read("app/pets/[id]/page.tsx");
+  const drafts = read("app/lib/onboarding-drafts.ts");
   assert.match(page, /clearCompletedOnboardingState\([\s\S]*saved\.id/);
   assert.match(page, /function cancel\(\)[\s\S]*clearNewPetOnboardingState/);
   assert.match(read("app/components/signed-in-header.tsx"), /clearNewPetOnboardingState/);
-  assert.match(pets, /clearEditPetOnboardingDraft\(window\.localStorage, profile\.id\)/);
+  assert.match(drafts, /clearCompletedOnboardingState[\s\S]*clearEditPetOnboardingDraft\(storage\.localStorage, profileId\)/);
 });
 
 test("edit mode delegates to the requested pet profile editor", () => {
