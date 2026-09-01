@@ -49,11 +49,11 @@ test("homepage uses the final human company story", () => {
   assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow/);
 });
 
-test("Today has one primary update moment and a quiet profile reminder", () => {
-  assert.match(today, /<TodayGreeting \/>/);
-  assert.match(today, /Anything worth remembering\?/);
-  assert.match(today, /Make \{petName\}&apos;s guidance more specific/);
-  assert.doesNotMatch(today, /Next best action|missing-field|Products for/);
+test("Today is a timeline with equal Remember and Ask surfaces", () => {
+  assert.match(today, /data-ui="today-v2-timeline"/);
+  assert.match(today, /WHAT HAPPENED\?/);
+  assert.match(today, /ASK ABOUT \{selectedProfile\.name\.toLocaleUpperCase\(\)\}/);
+  assert.doesNotMatch(today, /TodayGreeting|Make .*guidance|Next best action|missing-field|Products for/);
 });
 
 test("Pets renders personal summaries instead of database labels", () => {

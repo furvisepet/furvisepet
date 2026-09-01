@@ -3,31 +3,34 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const today = read("app/dashboard/page.tsx");
+const css = read("app/dashboard/today-v2.module.css");
 
-test("Today categories wrap responsively and expose pressed state", () => {
-  const today = read("app/dashboard/page.tsx");
-  const primitives = read("app/components/product-primitives.tsx");
-  assert.match(today, /grid-cols-1 gap-2 min-\[360px\]:grid-cols-2 sm:flex sm:flex-wrap/);
-  assert.match(today, /pressed=\{selected\}/);
-  assert.match(primitives, /aria-pressed=\{pressed\}/);
-  assert.match(primitives, /pressed \? <span aria-hidden="true"/);
+test("Today details are progressive instead of a visible category wall", () => {
+  assert.match(today, />Add details<\/button>/);
+  assert.match(today, /detailsOpen \? \([\s\S]*CARE_ENTRY_CATEGORIES\.map/);
+  assert.match(today, /data-ui="today-v2-details"/);
+  assert.doesNotMatch(today, /TODAY_EVENT_ACTIONS\.map|today-quick-update-grid|Choose a category/);
 });
 
-test("Today completion card renders only genuinely missing checklist items", () => {
-  const today = read("app/dashboard/page.tsx");
-  assert.match(today, /PROFILE_CHECKLIST_FIELDS\.filter\(\(item\) => missingItems\.some/);
-  assert.match(today, /profileNeedsCompletion = profileChecklist\.length > 0/);
-  assert.match(today, /Make \{petName\}&apos;s guidance more specific/);
-  const completionCard = today.match(/<section aria-labelledby="today-focus-heading"[\s\S]*?<\/section>/)?.[0];
-  assert.ok(completionCard);
-  assert.doesNotMatch(completionCard, /Getting to know|item\.complete|Profile incomplete|Limited context|percentage/i);
+test("existing owner-device photo behavior stays available quietly", () => {
+  assert.match(today, />\{rememberPhoto \? "Photo added" : "Add photo"\}<\/button>/);
+  assert.match(today, /readPhotoFile\(file\)/);
+  assert.match(today, /saveLocalPhoto\("care", entry\.id, rememberPhoto\)/);
+  assert.doesNotMatch(today, /photo_url|storage\.from|upload\(/);
 });
 
-test("shared Add update action remains readable and bottom-nav clearance stays shared", () => {
-  const today = read("app/dashboard/page.tsx");
-  const primitives = read("app/components/product-primitives.tsx");
-  assert.match(today, /<PrimaryButton[\s\S]*disabled=\{!quickEntryDraft \|\| quickSaving\}[\s\S]*>Add update<\/PrimaryButton>/);
-  assert.match(primitives, /export function PrimaryButton/);
-  assert.match(primitives, /disabled:cursor-not-allowed[\s\S]*disabled:bg-\[var\(--disabled-surface\)\]/);
+test("continuous layout is centered, card-free, and mobile reachable", () => {
+  assert.match(css, /\.page \{[\s\S]*max-width: 52rem;[\s\S]*margin-inline: auto/);
+  assert.match(css, /\.liveEdge \{[\s\S]*border-top: 1px solid var\(--border-subtle\)/);
+  assert.match(css, /@media \(max-width: 639px\)/);
   assert.match(read("app/components/app-page.tsx"), /app-mobile-nav-clearance/);
+  assert.doesNotMatch(css, /shadow-surface|shadow-floating|border-radius: var\(--radius-lg\)|border-radius: var\(--radius-xl\)/);
+});
+
+test("Today controls meet mobile touch and overflow requirements", () => {
+  assert.match(css, /\.primaryAction \{[\s\S]*min-height: 2\.75rem/);
+  assert.match(css, /\.quietAction \{[\s\S]*min-height: 2\.75rem/);
+  assert.match(css, /\.rememberInput,[\s\S]*width: 100%/);
+  assert.match(css, /\.details select,[\s\S]*min-width: 0/);
 });
