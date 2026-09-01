@@ -58,7 +58,7 @@ test("homepage has six viewport story screens and authenticated CTA logic", () =
   assert.doesNotMatch(homepage, />0[123]</);
   assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
-  assert.match(homepage, /href: "\/dashboard", label: "Go to Today"/);
+  assert.match(homepage, /href: "\/today", label: "Go to Today"/);
   assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
 });
 

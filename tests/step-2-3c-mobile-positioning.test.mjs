@@ -9,7 +9,7 @@ const header = read("app/components/app-header.tsx");
 const ask = read("app/ask/page.tsx");
 const overflow = read("app/components/pet-overflow-menu.tsx");
 const pageSources = [
-  "app/dashboard/page.tsx",
+  "app/today/page.tsx",
   "app/pets/page.tsx",
   "app/components/care-log-workspace.tsx",
   "app/ask/page.tsx",

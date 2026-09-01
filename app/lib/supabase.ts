@@ -454,6 +454,32 @@ export async function listCareEntriesForPet(
   return projectEffectiveHistoryForUser(data || [], user.id, supabase);
 }
 
+export async function listRecentCareEntriesForPet(
+  petProfileId: string,
+  limit: number,
+  deps: CareLogHelperDeps = {},
+) {
+  const supabase = deps.getClient?.() ?? getBrowserSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const user = await requireCurrentUser(deps.getCurrentUser);
+  await ensurePetOwnership(petProfileId, user, deps.getClient);
+
+  const safeLimit = Math.max(1, Math.min(10, Math.floor(limit)));
+  const { data, error } = await supabase
+    .from("pet_care_entries")
+    .select()
+    .eq("pet_profile_id", petProfileId)
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .order("occurred_at", { ascending: false })
+    .limit(safeLimit)
+    .returns<CareEntryRow[]>();
+
+  if (error) throw normalizeCareDatabaseError(error, "care entries");
+  return projectEffectiveHistoryForUser(data || [], user.id, supabase);
+}
+
 export async function listActiveConcernsForPet(petProfileId: string, deps: CareLogHelperDeps = {}) {
   const supabase = deps.getClient?.() ?? getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");

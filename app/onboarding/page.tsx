@@ -313,7 +313,7 @@ function PostCreateActivation({ pet }: { pet: PostCreatePet }) {
     const frame = window.requestAnimationFrame(() => window.scrollTo({ behavior: "auto", left: 0, top: 0 }));
     return () => window.cancelAnimationFrame(frame);
   }, []);
-  const todayHref = `/dashboard?pet=${encodeURIComponent(pet.id)}`;
+  const todayHref = `/today?pet=${encodeURIComponent(pet.id)}`;
   const askHref = `/ask?pet=${encodeURIComponent(pet.id)}&from=onboarding`;
   return <OnboardingViewport><OnboardingSurface
     complete

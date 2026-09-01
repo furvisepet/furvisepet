@@ -12,7 +12,7 @@ export function buildPetDeletionReauthenticationHref(petId: string) {
   return `${buildLoginHref(petPath)}&reauth=pet-delete`;
 }
 
-export function getSafeNextPath(value: string | null | undefined, fallback = "/dashboard") {
+export function getSafeNextPath(value: string | null | undefined, fallback = "/today") {
   const candidate = value?.trim() || "";
 
   if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//") || candidate.startsWith("/\\")) {

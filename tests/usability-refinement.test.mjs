@@ -7,7 +7,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const header = read("app/components/app-header.tsx");
 const primitives = read("app/components/product-primitives.tsx");
 const homepage = read("app/components/homepage-client.tsx");
-const today = read("app/dashboard/page.tsx");
+const today = read("app/today/page.tsx");
 const pets = read("app/pets/page.tsx");
 const history = read("app/components/care-log-workspace.tsx");
 const ask = read("app/ask/page.tsx");
@@ -49,10 +49,11 @@ test("homepage uses the final human company story", () => {
   assert.doesNotMatch(homepage, /Mani|Illustrative example|ProductWindow/);
 });
 
-test("Today is a timeline with equal Remember and Ask surfaces", () => {
-  assert.match(today, /data-ui="today-v2-timeline"/);
-  assert.match(today, /WHAT HAPPENED\?/);
-  assert.match(today, /ASK ABOUT \{selectedProfile\.name\.toLocaleUpperCase\(\)\}/);
+test("Today is a recent file with one focused Remember surface", () => {
+  assert.match(today, /data-ui="today-present-file"/);
+  assert.match(today, /Anything you want Furvise to remember\?/);
+  assert.match(today, /data-ui="today-recent"/);
+  assert.doesNotMatch(today, /ASK ABOUT|Full story/);
   assert.doesNotMatch(today, /TodayGreeting|Make .*guidance|Next best action|missing-field|Products for/);
 });
 

@@ -5,7 +5,7 @@ import { useEffect } from "react";
 
 export const ACTION_AUDIT_ROUTES = new Map([
   ["/", "Homepage"],
-  ["/dashboard", "Today"],
+  ["/today", "Today"],
   ["/pets", "Pets"],
   ["/care-log", "History"],
   ["/ask", "Ask"],

@@ -30,6 +30,6 @@ export function buildOnboardingHeaderControls({
 
   return {
     actions: [],
-    backFallbackHref: userEmail ? "/dashboard" : "/",
+    backFallbackHref: userEmail ? "/today" : "/",
   };
 }

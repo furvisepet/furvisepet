@@ -75,7 +75,7 @@ test("homepage explicitly preserves anonymous, no-pet, and with-pet actions", ()
   assert.match(homepage, /showSignIn=\{visibleMode === "anonymous"\}/);
   assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
-  assert.match(homepage, /href: "\/dashboard", label: "Go to Today"/);
+  assert.match(homepage, /href: "\/today", label: "Go to Today"/);
   assert.match(homepage, /auth\.status === "loading"[\s\S]*"loading"/);
 });
 
@@ -111,7 +111,7 @@ test("Ask localizes recent-conversation loading failures", () => {
 test("Pets, History, and Today empty and primary states are useful", () => {
   const pets = read("app/pets/page.tsx");
   const history = read("app/components/care-log-workspace.tsx");
-  const today = read("app/dashboard/page.tsx");
+  const today = read("app/today/page.tsx");
   assert.match(pets, /Start \{name\}&apos;s care history/);
   assert.match(pets, /Add a note about food, appetite, routines, symptoms/);
   assert.match(pets, /Add update[\s\S]*Ask about \{name\}/);
@@ -119,8 +119,9 @@ test("Pets, History, and Today empty and primary states are useful", () => {
   assert.match(history, /Start your pets' history/);
   assert.match(history, /Add first update[\s\S]*Ask about/);
   assert.match(today, /disabled=\{!rememberDraft \|\| rememberSaving\}[\s\S]*"REMEMBER"/);
-  assert.match(today, /placeholder="What happened\?"/);
-  assert.match(today, /placeholder=\{`Ask anything about \$\{selectedProfile\.name\}\.\.\.`\}/);
+  assert.match(today, /placeholder=\{TODAY_REMEMBER_EXAMPLES\[exampleIndex\]\}/);
+  assert.match(today, /<span>Category<\/span>[\s\S]*<span>When<\/span>/);
+  assert.doesNotMatch(today, /ASK ABOUT|Full story/);
   assert.match(today, /createCareEntry\(/);
 });
 
