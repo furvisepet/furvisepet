@@ -36,14 +36,15 @@ test("results shows a friendly error for a missing or unauthorized route profile
   assert.match(source, /\{loadError\}/);
 });
 
-test("pet profile is a durable file without duplicated Ask, Today, or Products actions", () => {
+test("pet profile keeps durable content primary and scopes activation links to its empty state", () => {
   const source = read("app/pets/[id]/page.tsx");
 
   assert.match(source, /loadCanonicalRememberedDetailsForUser/);
   assert.match(source, /title="What Furvise remembers"/);
   assert.match(source, /title="Recent updates"/);
-  assert.match(source, /href=\{`\/vet-brief\?pet=\$\{encodeURIComponent\(profile\.id\)\}`\}/);
-  assert.doesNotMatch(source, /\/results\?|\/ask\?pet=|\/shop\?petId=|Products for/);
+  assert.match(source, /href=\{`\/vet-brief\?pet=\$\{encodedPetId\}`\}/);
+  assert.match(source, /isEmptyFile[\s\S]*\/today\?pet=\$\{encodedPetId\}[\s\S]*\/ask\?pet=\$\{encodedPetId\}/);
+  assert.doesNotMatch(source, /\/results\?|\/shop\?petId=|Products for/);
 });
 
 test("core Supabase migration enforces ownership RLS for profiles, care, memories, and feedback", () => {
