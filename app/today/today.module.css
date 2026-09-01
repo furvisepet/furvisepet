@@ -43,7 +43,7 @@
   padding-inline: 0.75rem;
   color: var(--today-text-primary);
   font: inherit;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .composer {
@@ -142,7 +142,7 @@
   color: var(--today-text-primary);
   font: inherit;
   outline: none;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .metadataFields select option {

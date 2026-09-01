@@ -39,22 +39,22 @@
   --marketing-line: rgba(255, 253, 247, 0.15);
   --marketing-hover: rgba(255, 253, 247, 0.09);
 
-  /* Today-only dark product roles. */
-  --today-canvas: var(--marketing-forest);
-  --today-surface: #0D241D;
-  --today-text-primary: var(--warm-cream);
-  --today-text-secondary: #B7C9BD;
-  --today-text-muted: #9FB5A7;
-  --today-control-border: rgba(143, 207, 154, 0.44);
-  --today-line-strong: rgba(255, 253, 247, 0.18);
-  --today-line-subtle: rgba(255, 253, 247, 0.15);
-  --today-action-background: var(--warm-cream);
-  --today-action-foreground: var(--marketing-forest);
-  --today-action-hover: color-mix(in srgb, var(--warm-cream) 90%, var(--sage));
-  --today-disabled-background: rgba(255, 253, 247, 0.13);
-  --today-disabled-border: rgba(255, 253, 247, 0.16);
-  --today-disabled-foreground: #91A69A;
-  --today-danger: #F1B8AE;
+  /* Today-only warm product roles. */
+  --today-canvas: var(--warm-canvas);
+  --today-surface: var(--warm-cream);
+  --today-text-primary: var(--deep-forest);
+  --today-text-secondary: var(--secondary-ink);
+  --today-text-muted: var(--muted-ink);
+  --today-control-border: rgba(18, 63, 39, 0.38);
+  --today-line-strong: rgba(18, 63, 39, 0.2);
+  --today-line-subtle: rgba(18, 63, 39, 0.14);
+  --today-action-background: var(--deep-forest);
+  --today-action-foreground: var(--warm-cream);
+  --today-action-hover: var(--forest);
+  --today-disabled-background: var(--disabled-neutral);
+  --today-disabled-border: rgba(18, 63, 39, 0.16);
+  --today-disabled-foreground: var(--disabled-ink);
+  --today-danger: var(--danger-red);
 
   /* Permanent single-scheme semantic color roles. */
   --page-background: var(--warm-canvas);
