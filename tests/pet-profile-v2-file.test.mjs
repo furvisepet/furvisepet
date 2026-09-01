@@ -28,7 +28,7 @@ test("pet profile loads the owned profile, canonical memories, and only three re
   ]) assert.doesNotMatch(page, new RegExp(retiredLoad));
 });
 
-test("pet profile exposes one Edit action, one Vet Brief action, and no administration section", () => {
+test("pet profile exposes one primary Edit action, one Vet Brief action, and no administration section", () => {
   assert.equal((page.match(/EDIT PET/g) || []).length, 1);
   assert.match(page, /\/vet-brief\?pet=/);
   assert.doesNotMatch(page, /MANAGE PET|Delete pet|deleteDogProfileForUser|buildPetDeletionReauthenticationHref/);
@@ -37,7 +37,6 @@ test("pet profile exposes one Edit action, one Vet Brief action, and no administ
     "Today’s snapshot",
     "Furvise guidance",
     "Add update",
-    "Ask Furvise",
     "View full history",
     "Active concerns",
     "Products for",
@@ -66,13 +65,15 @@ test("Details renders only known durable fields and never exposes monthly budget
   assert.match(page, /Add the basics when you know them\./);
 });
 
-test("remembered details stay pet-scoped, bounded, honest, and card-based", () => {
+test("remembered details stay pet-scoped, bounded, honest, and editorial", () => {
   assert.match(page, /rememberedDetails\.pet\.map/);
+  assert.doesNotMatch(page, /rememberedDetails\.owner\.map/);
   assert.match(page, /rememberedFacts\.slice\(0, 5\)/);
   assert.match(page, /Nothing remembered yet\./);
-  assert.match(page, /When you tell Furvise something worth keeping, it can show up here\./);
+  assert.match(page, /When you tell Furvise something useful, like routines, food preferences, sensitivities, or other important context, it can show up here\./);
   assert.match(page, /divide-y divide-\[var\(--line\)\]/);
-  assert.match(page, /rounded-\[var\(--radius-lg\)\][\s\S]*bg-\[var\(--surface-primary\)\]/);
+  assert.match(page, /function EditorialSection/);
+  assert.doesNotMatch(page, /lg:grid-cols-2|pet-profile-cards|function ProfileCard/);
   assert.doesNotMatch(page, /confidence|provenance|memory type/i);
 });
 
@@ -80,8 +81,17 @@ test("Recent updates is bounded, newest-first through shared authority, and hone
   assert.match(page, /listRecentCareEntriesForPet\(params\.id, 3/);
   assert.match(page, /recentEntries\.map/);
   assert.match(page, /formatTodayTimelineDate\(entry\.occurred_at\)/);
-  assert.match(page, /Nothing on \$\{name\}’s file yet\./);
-  assert.match(page, /Updates you save in Today will show up here\./);
+  assert.match(page, /\$\{name\} doesn’t have any updates yet\./);
+  assert.match(page, /What you save in Today will show up here\./);
+});
+
+test("the genuine empty file is rewarding, single-column, and safely actionable", () => {
+  assert.match(page, /const isEmptyFile = about\.length === 0 && rememberedFacts\.length === 0 && recentEntries\.length === 0/);
+  assert.match(page, /\{name\}’s file is just getting started\./);
+  assert.match(page, /Details[\s\S]*Add the basics when you know them[\s\S]*What Furvise remembers[\s\S]*Recent updates/);
+  assert.match(page, /href=\{`\/today\?pet=\$\{encodedPetId\}`\}/);
+  assert.match(page, /href=\{`\/ask\?pet=\$\{encodedPetId\}`\}/);
+  assert.doesNotMatch(page, /lg:grid-cols-2/);
 });
 
 test("lifecycle, focus, and responsive file geometry stay deliberate", () => {
