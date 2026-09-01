@@ -353,17 +353,12 @@ test("profile overview route keeps mobile layout from overflowing", () => {
   assert.doesNotMatch(source, /overflow-x-auto/);
 });
 
-test("profile overview source removes duplicate log actions and keeps quiet empty states", () => {
+test("profile file removes duplicate workflows and keeps quiet empty states", () => {
   const source = readFileSync(new URL("../app/pets/[id]/page.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(source, />\s*Log update\s*</);
-  assert.match(source, /View full history/);
-  assert.match(source, /href=\{`\/care-log\?pet=\$\{profile\.id\}&new=1`\}/);
-  assert.match(source, /No remembered details yet\./);
-  assert.match(source, /Products for \{name\}/);
-  assert.match(source, /\/shop\?petId=/);
-  assert.match(source, /<PrimaryButton href=\{askHref\}>Ask Furvise<\/PrimaryButton>/);
-  assert.match(source, /The more Furvise knows about \{petName\}, the more specific its guidance can be\./);
-  assert.match(source, /Nothing needs your attention right now\./);
-  assert.doesNotMatch(source, /\/results\?/);
-  assert.match(source, /View remembered details/);
+  assert.doesNotMatch(source, />\s*Log update\s*<|View full history|\/care-log\?pet=|Products for|\/shop\?petId=|Ask Furvise|\/ask\?pet=/);
+  assert.match(source, /Nothing remembered yet\./);
+  assert.match(source, /Things you tell Furvise over time can appear here\./);
+  assert.match(source, /MANAGE REMEMBERED DETAILS/);
+  assert.match(source, /There isn&apos;t much here yet\./);
+  assert.match(source, /href=\{memoriesHref\}/);
 });

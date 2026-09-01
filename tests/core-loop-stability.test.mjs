@@ -36,14 +36,13 @@ test("results shows a friendly error for a missing or unauthorized route profile
   assert.match(source, /\{loadError\}/);
 });
 
-test("pet profile guidance stays canonical and Products links carry petId", () => {
+test("pet profile is a durable file without duplicated Ask, Today, or Products actions", () => {
   const source = read("app/pets/[id]/page.tsx");
 
-  assert.match(source, /const shopHref = `\/shop\?petId=\$\{encodeURIComponent\(profile\.id\)\}`;/);
-  assert.doesNotMatch(source, /\/results\?profileId/);
-  assert.match(source, /href=\{`\/ask\?pet=\$\{petId\}`\}/);
-  assert.match(source, /href=\{`\/shop\?petId=\$\{encodeURIComponent\(profile\.id\)\}`\}/);
-  assert.match(source, /Products for \{name\}/);
+  assert.match(source, /loadCanonicalRememberedDetailsForUser/);
+  assert.match(source, /WHAT FURVISE REMEMBERS/);
+  assert.match(source, /href=\{`\/vet-brief\?pet=\$\{encodeURIComponent\(profile\.id\)\}`\}/);
+  assert.doesNotMatch(source, /\/results\?|\/ask\?pet=|\/shop\?petId=|Products for/);
 });
 
 test("core Supabase migration enforces ownership RLS for profiles, care, memories, and feedback", () => {

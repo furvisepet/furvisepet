@@ -57,7 +57,8 @@ test("Today keeps optional metadata, real timeline labels, and shared mobile cle
   assert.match(today, /<span>When<\/span>[\s\S]*type="datetime-local"/);
   assert.match(today, /Add details|detailsOpen/);
   assert.match(today, /formatTodayTimelineDate\(entry\.occurred_at\)/);
-  for (const path of ["app/components/care-timeline.tsx", "app/pets/[id]/page.tsx"]) assert.match(read(path), /CareEntryMetadata/);
+  assert.match(read("app/components/care-timeline.tsx"), /CareEntryMetadata/);
+  assert.doesNotMatch(read("app/pets/[id]/page.tsx"), /CareEntryMetadata|listCareEntriesForPet/);
   assert.match(read("app/components/app-page.tsx"), /app-mobile-nav-clearance/);
 });
 

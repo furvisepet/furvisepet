@@ -93,14 +93,14 @@ test("Today remains optional, personal, and capped to ten recent notes", () => {
   for (const pressured of ["check in today", "daily log", "streak"]) assert.doesNotMatch(source, new RegExp(pressured, "i"));
 });
 
-test("saved pet photos remain supported outside Today while onboarding omits the species mascot", () => {
+test("saved pet photos remain supported by shared infrastructure while simple product files omit avatars", () => {
   const localPhoto = read("app/components/local-photo.tsx");
   assert.match(localPhoto, /function LocalPetAvatar/);
   assert.match(localPhoto, /<PetAvatar[^>]*photoUrl=\{source\}/);
   assert.doesNotMatch(read("app/onboarding/page.tsx"), /src=\{`\/images\/\$\{pet\.species\}\.png`\}/);
   assert.doesNotMatch(read("app/today/page.tsx"), /saveLocalPhoto|readPhotoFile|type="file"/);
   assert.doesNotMatch(read("app/today/page.tsx"), /<LocalPetIdentity/);
-  assert.match(read("app/pets/[id]/page.tsx"), /<LocalPetAvatar/);
+  assert.doesNotMatch(read("app/pets/[id]/page.tsx"), /<LocalPetAvatar/);
 });
 
 test("completion copy, mobile clearance, and established routes remain intact", () => {

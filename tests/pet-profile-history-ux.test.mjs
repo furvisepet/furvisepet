@@ -17,10 +17,10 @@ function profile(overrides = {}) {
   };
 }
 
-test("pet header removes readiness status and retains updated date", () => {
+test("pet header removes readiness and updated-date status while keeping durable identity", () => {
   const page = read("app/pets/[id]/page.tsx");
-  assert.match(page, /Updated \$\{formatShortDate\(model\.latestUpdateAt\)\}/);
-  assert.doesNotMatch(page, /formatProfileStatusDisplay|Getting to know|Profile ready|StatusPill label=\{model\.completeness/);
+  assert.match(page, /formatPetDirectoryMetadata\(profile\)/);
+  assert.doesNotMatch(page, /Updated \$\{|formatShortDate|formatProfileStatusDisplay|Getting to know|Profile ready|StatusPill label=\{model\.completeness/);
 });
 
 test("pet subtitle omits unknown values and keeps separators correct", () => {
@@ -32,9 +32,9 @@ test("pet subtitle omits unknown values and keeps separators correct", () => {
   assert.equal(formatPetProfileSubtitle(profile({ age_value: null, breed: null, species: null, weight_value: null })), "");
 });
 
-test("pet profile uses an accessible All pets breadcrumb and omits deficit copy", () => {
+test("pet profile uses an accessible Pets breadcrumb and omits deficit copy", () => {
   const page = read("app/pets/[id]/page.tsx");
-  assert.match(page, /href="\/pets"[\s\S]*← All pets/);
+  assert.match(page, /href="\/pets"[\s\S]*← Pets/);
   assert.match(page, /min-h-11[\s\S]*focus-visible:ring-2/);
   assert.doesNotMatch(page, /Back to pets|Breed unknown|Weight unknown|Not provided|Limited context/);
 });
