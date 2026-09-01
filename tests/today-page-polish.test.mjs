@@ -23,7 +23,7 @@ test("legacy dashboard links permanently preserve query parameters", () => {
 });
 
 test("Today removes duplicate workflows and old dashboard clutter", () => {
-  for (const removed of ["Furvise is getting to know", "Monthly care budget", "Ingredients to avoid", "Complete profile", "Everything seems normal", "Add details", "Add photo", "ASK ABOUT", "Full story"]) {
+  for (const removed of ["Furvise is getting to know", "Monthly care budget", "Ingredients to avoid", "Complete profile", "Everything seems normal", "Add photo", "ASK ABOUT", "Full story"]) {
     assert.doesNotMatch(today, new RegExp(removed, "i"));
   }
   assert.doesNotMatch(today, /placeholder="What happened\?"/i);
@@ -44,8 +44,9 @@ test("Today is a restrained, responsive file rather than a card dashboard", () =
   assert.match(css, /\.primaryAction \{[\s\S]*background: var\(--today-action-background\);[\s\S]*color: var\(--today-action-foreground\)/);
   assert.match(read("app/components/app-page.tsx"), /data-app-canvas=\{shell\}/);
   assert.match(read("app/globals.css"), /\[data-app-canvas="today"\] \{[\s\S]*background: var\(--today-canvas\)/);
-  assert.match(css, /\.recentTable \{[\s\S]*border-collapse: collapse/);
-  assert.match(css, /@media \(max-width: 639px\)[\s\S]*\.recentTable tr \{[\s\S]*display: grid/);
+  assert.match(css, /\.recentList \{[\s\S]*list-style: none/);
+  assert.match(css, /\.recentNote \{[\s\S]*overflow-wrap: anywhere/);
+  assert.doesNotMatch(today, /<table|<thead|<th/);
   assert.doesNotMatch(css, /shadow-surface|shadow-floating|border-radius: var\(--radius-lg\)|border-radius: var\(--radius-xl\)/);
   assert.doesNotMatch(`${today}\n${css}`, /heron|flamingo|hummingbird|gradient|â€”|Â·/);
 });

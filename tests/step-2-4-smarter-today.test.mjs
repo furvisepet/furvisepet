@@ -29,8 +29,9 @@ test("Today recent entries are real, newest-first, pet-scoped, and capped at ten
 
 test("Remember examples are exact, calm, and never use the repeated old placeholder", () => {
   assert.equal(TODAY_REMEMBER_EXAMPLES.length, 10);
-  assert.equal(TODAY_REMEMBER_EXAMPLES[0], "Milo skipped breakfast but ate dinner normally.");
-  assert.equal(TODAY_REMEMBER_EXAMPLES[9], "He seemed nervous during the car ride.");
+  assert.equal(TODAY_REMEMBER_EXAMPLES[0], "Skipped breakfast but ate dinner normally.");
+  assert.equal(TODAY_REMEMBER_EXAMPLES[9], "Seemed nervous during the car ride.");
+  assert.ok(TODAY_REMEMBER_EXAMPLES.every((example) => !/\b(?:he|her|hers|him|his|she)\b/i.test(example)));
   assert.ok(!TODAY_REMEMBER_EXAMPLES.includes("What happened?"));
 });
 

@@ -6,12 +6,14 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const today = read("app/today/page.tsx");
 const css = read("app/today/today.module.css");
 
-test("category and occurrence time are always-visible production fields", () => {
+test("category and occurrence time are progressively revealed production fields", () => {
   assert.match(today, /<span>Category<\/span>[\s\S]*CARE_ENTRY_CATEGORIES\.map/);
   assert.match(today, /<span>When<\/span>[\s\S]*type="datetime-local"/);
   assert.match(today, /category: rememberCategory/);
   assert.match(today, /occurredAt: rememberOccurredAt/);
-  assert.doesNotMatch(today, /detailsOpen|Add details|<details/);
+  assert.match(today, /useState\(false\)[\s\S]*aria-expanded=\{detailsOpen\}[\s\S]*Add details/);
+  assert.match(today, /\{detailsOpen \? \([\s\S]*className=\{styles\.metadataFields\}/);
+  assert.doesNotMatch(today, /<details/);
 });
 
 test("Today contains no photo or Ask handoff surface", () => {

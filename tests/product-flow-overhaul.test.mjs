@@ -44,10 +44,11 @@ test("profile header has no readiness badge and keeps useful identity metadata",
   assert.doesNotMatch(page, /Getting to know|formatProfileStatusDisplay|Profile ready|StatusPill label=\{model\.completeness|>100%</);
 });
 
-test("Today remembers one note with visible optional metadata", () => {
+test("Today remembers one note with progressively revealed optional metadata", () => {
   const page = read("app/today/page.tsx");
   assert.match(page, /Anything you want Furvise to remember\?/);
   assert.match(page, /<span>Category<\/span>[\s\S]*<span>When<\/span>/);
+  assert.match(page, /\{detailsOpen \? \([\s\S]*metadataFields/);
   assert.doesNotMatch(page, /Everything seems normal|TODAY_EVENT_ACTIONS\.map/);
   const submitStart = page.indexOf("async function saveRememberedNote");
   const submit = page.slice(submitStart, page.indexOf("\n  return (\n", submitStart));
