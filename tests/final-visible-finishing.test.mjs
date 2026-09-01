@@ -14,7 +14,7 @@ const history = read("app/components/care-log-workspace.tsx");
 const pets = read("app/pets/page.tsx");
 const ask = read("app/ask/page.tsx");
 const products = read("app/shop/page.tsx");
-const today = read("app/dashboard/page.tsx");
+const today = read("app/today/page.tsx");
 
 test("Login uses the restrained account-access layout and removes the old benefit presentation", () => {
   assert.match(login, /const signinTitle = signinStep === "method" \? "Welcome back" : "Enter your password"/);

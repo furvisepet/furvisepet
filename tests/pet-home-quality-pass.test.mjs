@@ -24,13 +24,13 @@ test("Quick Start keeps exactly four focused steps and requires species", () => 
 test("shared focused widths constrain onboarding and Today without touching wide profiles", () => {
   const primitives = read("app/components/product-primitives.tsx");
   const onboardingSurface = read("app/onboarding/onboarding-surface.tsx");
-  const today = read("app/dashboard/page.tsx");
+  const today = read("app/today/page.tsx");
   assert.match(primitives, /focusedFormLayout = "w-full max-w-\[640px\]"/);
   assert.match(primitives, /todayPrimaryLayout = "w-full"/);
   assert.match(primitives, /today: "w-full"/);
   assert.match(onboardingSurface, /max-w-\[780px\]/);
-  assert.match(today, /data-ui="today-v2-file"/);
-  assert.match(read("app/dashboard/today-v2.module.css"), /max-width: 52rem/);
+  assert.match(today, /data-ui="today-present-file"/);
+  assert.match(read("app/today/today.module.css"), /max-width: 64rem/);
   assert.doesNotMatch(read("app/pets/[id]/page.tsx"), /todayPrimaryLayout|focusedFormLayout/);
 });
 
@@ -82,24 +82,24 @@ test("Today greeting is local-time aware and hydration safe", () => {
   assert.match(read("app/components/today-greeting.tsx"), /useSyncExternalStore\(subscribe, getBrowserGreeting, getServerGreeting\)/);
 });
 
-test("Today remains optional, personal, and capped to three recent notes", () => {
-  const source = read("app/dashboard/page.tsx");
-  const rows = [0, 1, 2, 3].map((index) => ({ id: String(index), occurred_at: `2026-07-2${index}T12:00:00Z`, pet_profile_id: "pet" }));
-  assert.equal(buildTodayRecentEntries(rows, "pet").length, 3);
-  assert.match(source, /WHAT HAPPENED\?/);
+test("Today remains optional, personal, and capped to ten recent notes", () => {
+  const source = read("app/today/page.tsx");
+  const rows = Array.from({ length: 12 }, (_, index) => ({ id: String(index), occurred_at: `2026-08-${String(index + 1).padStart(2, "0")}T12:00:00Z`, pet_profile_id: "pet" }));
+  assert.equal(buildTodayRecentEntries(rows, "pet").length, 10);
+  assert.match(source, /Anything you want Furvise to remember\?/);
   assert.match(source, /Nothing on the file yet\./);
-  assert.match(source, /Full story/);
+  assert.doesNotMatch(source, /Full story|ASK ABOUT/);
   assert.doesNotMatch(source, /Everything seems normal/);
   for (const pressured of ["check in today", "daily log", "streak"]) assert.doesNotMatch(source, new RegExp(pressured, "i"));
 });
 
-test("saved pet photos remain supported while onboarding omits the species mascot", () => {
+test("saved pet photos remain supported outside Today while onboarding omits the species mascot", () => {
   const localPhoto = read("app/components/local-photo.tsx");
   assert.match(localPhoto, /function LocalPetAvatar/);
   assert.match(localPhoto, /<PetAvatar[^>]*photoUrl=\{source\}/);
   assert.doesNotMatch(read("app/onboarding/page.tsx"), /src=\{`\/images\/\$\{pet\.species\}\.png`\}/);
-  assert.match(read("app/dashboard/page.tsx"), /saveLocalPhoto\("care"/);
-  assert.doesNotMatch(read("app/dashboard/page.tsx"), /<LocalPetIdentity/);
+  assert.doesNotMatch(read("app/today/page.tsx"), /saveLocalPhoto|readPhotoFile|type="file"/);
+  assert.doesNotMatch(read("app/today/page.tsx"), /<LocalPetIdentity/);
   assert.match(read("app/pets/[id]/page.tsx"), /<LocalPetAvatar/);
 });
 
@@ -109,7 +109,7 @@ test("completion copy, mobile clearance, and established routes remain intact", 
   assert.match(onboarding, />\{pet\.name\} is ready<\/h1>/);
   assert.match(onboarding, /Ask Furvise about \{pet\.name\}/);
   assert.match(onboarding, /Go to Today/);
-  assert.match(onboarding, /const todayHref = `\/dashboard\?pet=/);
+  assert.match(onboarding, /const todayHref = `\/today\?pet=/);
   assert.match(onboarding, /`\/ask\?pet=.*&from=onboarding`/);
   assert.match(surface, /safe-area-inset-bottom/);
   assert.doesNotMatch(onboarding, /MobileBottomNavigation|SignedInHeader/);

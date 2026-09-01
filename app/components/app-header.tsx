@@ -71,7 +71,7 @@ type AppHeaderProps = {
 };
 
 export const APP_NAV_ITEMS = [
-  { href: "/dashboard", label: "Today" },
+  { href: "/today", label: "Today" },
   { href: "/pets", label: "Pets" },
   { href: "/care-log", label: "History" },
   { href: "/ask", label: "Ask" },
@@ -117,7 +117,7 @@ export function AppHeader({
   const items = variant === "site" || resolvedAuthState === "authenticated" ? APP_NAV_ITEMS : navItems ?? [];
   const resolvedHomepageActions = homepageActions ?? (
     resolvedAuthState === "authenticated"
-      ? [{ href: "/dashboard", label: "Today", variant: "secondary" as const }, { href: NEW_PET_ONBOARDING_PATH, label: "Add pet", variant: "primary" as const }]
+      ? [{ href: "/today", label: "Today", variant: "secondary" as const }, { href: NEW_PET_ONBOARDING_PATH, label: "Add pet", variant: "primary" as const }]
       : resolvedAuthState === "anonymous"
         ? [{ href: "/login", label: "Sign in", variant: "secondary" as const }, { href: NEW_PET_LOGIN_PATH, label: "Add your pet", variant: "secondary" as const }]
         : []

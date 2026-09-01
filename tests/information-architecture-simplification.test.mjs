@@ -30,7 +30,7 @@ function row(overrides = {}) {
 test("new pet creation bypasses analysis and opens a direct-use success state", () => {
   const source = read("app/onboarding/page.tsx");
   assert.ok(source.indexOf("setSavedPet") > source.indexOf("savePetProfileForUser"));
-  assert.match(source, /`\/dashboard\?pet=\$\{encodeURIComponent\(pet\.id\)\}`/);
+  assert.match(source, /`\/today\?pet=\$\{encodeURIComponent\(pet\.id\)\}`/);
   assert.doesNotMatch(source, /\/api\/analyze|Get recommendations|Analyze profile/);
   assert.match(read("app/pets/[id]/page.tsx"), /was added\./);
 });
@@ -98,7 +98,7 @@ test("primary navigation omits retired duplicate destinations and core destinati
   const header = read("app/components/app-header.tsx");
   const navBlock = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.doesNotMatch(navBlock, /results|memories|summary/i);
-  for (const route of ["app/dashboard/page.tsx", "app/ask/page.tsx", "app/shop/page.tsx", "app/vet-brief/page.tsx"]) {
+  for (const route of ["app/today/page.tsx", "app/ask/page.tsx", "app/shop/page.tsx", "app/vet-brief/page.tsx"]) {
     assert.equal(existsSync(new URL(`../${route}`, import.meta.url)), true, route);
   }
 });

@@ -6,7 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const primitives = read("app/components/product-primitives.tsx");
 const audit = read("app/components/action-visual-audit.tsx");
 const layout = read("app/layout.tsx");
-const today = read("app/dashboard/page.tsx");
+const today = read("app/today/page.tsx");
 const pets = read("app/pets/page.tsx");
 const history = read("app/components/care-log-workspace.tsx");
 
@@ -29,7 +29,7 @@ test("shared button labels own an explicit readable foreground in every state", 
 
 test("the development visual audit enumerates every requested route and action rule", () => {
   for (const [path, name] of [
-    ["/dashboard", "Today"],
+    ["/today", "Today"],
     ["/pets", "Pets"],
     ["/care-log", "History"],
     ["/ask", "Ask"],
@@ -55,13 +55,13 @@ test("all formerly blank pills preserve their intended labels through shared var
   assert.match(history, /<SecondaryButton[^>]*>\{emptyHistoryName \? `Ask about \$\{emptyHistoryName\}` : "Ask about your pets"\}<\/SecondaryButton>/);
   assert.match(pets, /<SoftButton href=\{`\/care-log\?pet=\$\{profile\.id\}&new=1`\}>Add update<\/SoftButton><SecondaryButton href=\{`\/ask\?pet=\$\{profile\.id\}`\}>Ask about \{name\}<\/SecondaryButton>/);
   assert.ok(pets.split("<SoftButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SoftButton>").length - 1 >= 2);
-  assert.match(today, /placeholder=\{`Ask anything about \$\{selectedProfile\.name\}\.\.\.`\}/);
-  assert.match(today, />ASK<\/button>/);
+  assert.match(today, /placeholder=\{TODAY_REMEMBER_EXAMPLES\[exampleIndex\]\}/);
+  assert.match(today, />[\s\S]*\{rememberSaving \? "REMEMBERING" : "REMEMBER"\}[\s\S]*<\/button>/);
 });
 
 test("safe page-level pill actions no longer duplicate shared primary or secondary utility stacks", () => {
-  assert.match(today, /className=\{styles\.primaryAction\} disabled=\{!rememberDraft \|\| rememberSaving\} type="submit">/);
-  assert.match(read("app/dashboard/today-v2.module.css"), /background: var\(--deep-forest\)/);
+  assert.match(today, /className=\{styles\.primaryAction\} data-ui="today-remember-action" disabled=\{!rememberDraft \|\| rememberSaving\} type="submit">/);
+  assert.match(read("app/today/today.module.css"), /background: var\(--deep-forest\)/);
   assert.match(history, /<SecondaryButton href=\{`\/vet-brief/);
   assert.match(history, /<PrimaryButton[\s\S]*onClick=\{openCreate\}[\s\S]*Add update[\s\S]*<\/PrimaryButton>/);
   assert.doesNotMatch(history, /<button[^>]*bg-\[var\(--pw-primary\)\]/);

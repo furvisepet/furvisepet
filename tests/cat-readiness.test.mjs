@@ -46,7 +46,7 @@ test("generic pet routes reuse compatibility implementations", () => {
 
   const petList = read("app/pets/page.tsx");
   const petProfile = read("app/pets/[id]/page.tsx");
-  const dashboard = read("app/dashboard/page.tsx");
+  const dashboard = read("app/today/page.tsx");
   const results = read("app/results/page.tsx");
   assert.doesNotMatch(petList + petProfile + dashboard + results, /`\/dogs\/\$\{/);
   assert.match(petList + petProfile + dashboard + results, /`\/pets\/\$\{/);

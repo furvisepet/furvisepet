@@ -6,7 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const appPage = read("app/components/app-page.tsx");
 const primitives = read("app/components/product-primitives.tsx");
 const header = read("app/components/app-header.tsx");
-const today = read("app/dashboard/page.tsx");
+const today = read("app/today/page.tsx");
 const pets = read("app/pets/page.tsx");
 const history = read("app/components/care-log-workspace.tsx");
 const ask = read("app/ask/page.tsx");
@@ -29,7 +29,7 @@ test("shared focused and workspace layouts use semantic outer application shells
 });
 
 test("Today keeps profile completion out of the present-tense file", () => {
-  assert.match(today, /data-ui="today-v2-file"/);
+  assert.match(today, /data-ui="today-present-file"/);
   assert.match(today, /Nothing on the file yet\./);
   assert.match(today, /When something matters, put it here\./);
   assert.doesNotMatch(today, /Monthly care budget|profile checklist|Ingredients to avoid|Complete profile/);

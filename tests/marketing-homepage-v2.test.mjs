@@ -165,7 +165,7 @@ test("anonymous header is brand plus Sign in and Get started", () => {
 });
 
 test("authenticated desktop header exposes plain app links without old AppHeader chrome", () => {
-  for (const [href, label] of [["/dashboard", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"]]) {
+  for (const [href, label] of [["/today", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"]]) {
     assert.match(desktopNavigation, new RegExp(`href: "${href}", label: "${label}"`));
   }
   assert.doesNotMatch(desktopNavigation, /Products|\/shop/);
@@ -213,7 +213,7 @@ test("all approved human-language chapter copy is exact", () => {
 test("story actions preserve anonymous, no-pet, and with-pet authority", () => {
   assert.match(homepage, /mode === "anonymous"[\s\S]*href: NEW_PET_LOGIN_PATH, label: "Get started"/);
   assert.match(homepage, /mode === "no-pets"[\s\S]*href: NEW_PET_ONBOARDING_PATH, label: "Add your pet"/);
-  assert.match(homepage, /href: "\/dashboard", label: "Go to Today"/);
+  assert.match(homepage, /href: "\/today", label: "Go to Today"/);
   for (const [id, action] of [["the-reality", "history"], ["one-story", "pets"], ["when-needed", "ask"], ["bigger-idea", "history"]]) {
     assert.match(renderedHomepage, new RegExp(`action="${action}"[^>]*id="${id}"`));
   }
@@ -285,7 +285,7 @@ test("application chrome, routes, pet authority, and SEO remain intact", () => {
   assert.match(homepage, /activePetsOnly\(profiles\)/);
   assert.match(appHeader, /return \([\s\S]*data-ui="app-header"/);
   assert.match(signedInHeader, /<AppHeader/);
-  for (const route of ["/dashboard", "/pets", "/care-log", "/ask"]) assert.match(`${homepage}\n${appHeader}`, new RegExp(route.replace("/", "\\/")));
+  for (const route of ["/today", "/pets", "/care-log", "/ask"]) assert.match(`${homepage}\n${appHeader}`, new RegExp(route.replace("/", "\\/")));
   assert.match(page, /createPublicPageMetadata[\s\S]*path: "\/"/);
   assert.match(seo, /CANONICAL_ORIGIN = "https:\/\/www\.furvise\.com"/);
 });

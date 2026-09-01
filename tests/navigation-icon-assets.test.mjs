@@ -81,7 +81,7 @@ test("navigation images use bounded object-contain rendering without artwork-dam
 
 test("navigation labels, destinations, state, and accessibility remain intact", () => {
   for (const [href, label] of [
-    ["/dashboard", "Today"],
+    ["/today", "Today"],
     ["/pets", "Pets"],
     ["/care-log", "History"],
     ["/ask", "Ask"],

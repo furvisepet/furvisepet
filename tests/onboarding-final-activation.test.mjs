@@ -37,7 +37,7 @@ test("success copy and routes form one focused activation", () => {
   assert.match(activation, /Start with a question\. Furvise will use what you shared\./);
   assert.match(activation, /`\/ask\?pet=\$\{encodeURIComponent\(pet\.id\)\}&from=onboarding`/);
   assert.match(activation, />Ask Furvise about \{pet\.name\}<\/PrimaryButton>/);
-  assert.match(activation, /`\/dashboard\?pet=\$\{encodeURIComponent\(pet\.id\)\}`/);
+  assert.match(activation, /`\/today\?pet=\$\{encodeURIComponent\(pet\.id\)\}`/);
   assert.match(activation, />Go to Today<\/TextButton>/);
   assert.equal(activation.match(/<PrimaryButton/g)?.length, 1);
   assert.doesNotMatch(activation, /Show me|Skip for now|View profile|checkmark|confetti|\u2713|\u2014/iu);

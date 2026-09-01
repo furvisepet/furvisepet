@@ -26,7 +26,7 @@ test("authenticated onboarding header keeps navigation actions out of header con
     controls.actions.map((action) => action.label),
     [],
   );
-  assert.equal(controls.backFallbackHref, "/dashboard");
+  assert.equal(controls.backFallbackHref, "/today");
 });
 
 test("anonymous onboarding header keeps sign-in out of header controls", () => {

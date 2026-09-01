@@ -25,7 +25,7 @@ test("signed-out Add pet links target login with next onboarding", () => {
 
 test("signed-in Add pet actions go directly to new-pet onboarding", () => {
   for (const path of [
-    "app/dashboard/page.tsx",
+    "app/today/page.tsx",
     "app/pets/page.tsx",
     "app/components/care-log-workspace.tsx",
   ]) {
@@ -117,7 +117,7 @@ test("protected pages redirect signed-out users to login with current path next"
   assert.match(authSession, /router\.replace\(buildLoginHref\(nextPath\)\);/);
 
   for (const path of [
-    "app/dashboard/page.tsx",
+    "app/today/page.tsx",
     "app/ask/page.tsx",
     "app/components/care-log-workspace.tsx",
     "app/pets/page.tsx",
@@ -134,7 +134,7 @@ test("protected pages redirect signed-out users to login with current path next"
 
 test("protected page loading paths no longer render signed-out error copy", () => {
   for (const path of [
-    "app/dashboard/page.tsx",
+    "app/today/page.tsx",
     "app/ask/page.tsx",
     "app/components/care-log-workspace.tsx",
     "app/pets/page.tsx",

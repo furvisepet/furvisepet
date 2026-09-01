@@ -22,14 +22,14 @@ const HOMEPAGE_STORY_ART = {
 } as const;
 
 const HOMEPAGE_DESKTOP_NAVIGATION = [
-  { href: "/dashboard", label: "Today" },
+  { href: "/today", label: "Today" },
   { href: "/pets", label: "Pets" },
   { href: "/care-log", label: "History" },
   { href: "/ask", label: "Ask" },
 ] as const;
 
 const HOMEPAGE_MOBILE_NAVIGATION = [
-  { ...MOBILE_NAVIGATION_ITEMS[0], href: "/dashboard", label: "Today" },
+  { ...MOBILE_NAVIGATION_ITEMS[0], href: "/today", label: "Today" },
   MOBILE_NAVIGATION_ITEMS[1],
   MOBILE_NAVIGATION_ITEMS[2],
   MOBILE_NAVIGATION_ITEMS[3],
@@ -205,7 +205,7 @@ function resolveStoryAction({ activePetId, destination, mode }: { activePetId?: 
       ? { href: NEW_PET_LOGIN_PATH, label: "Get started" }
       : mode === "no-pets"
         ? { href: NEW_PET_ONBOARDING_PATH, label: "Add your pet" }
-        : { href: "/dashboard", label: "Go to Today" };
+        : { href: "/today", label: "Go to Today" };
   }
 
   if (destination === "history") {

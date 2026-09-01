@@ -15,7 +15,7 @@ const liquidGlassRuntime = read("app/lib/vendor/liquidglass/index.js");
 test("desktop primary navigation is text-only with the approved application inventory and states", () => {
   const inventory = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   const desktop = header.slice(header.indexOf('<nav aria-label="Primary navigation"'), header.indexOf('data-ui="desktop-account-zone"'));
-  for (const [href, label] of [["/dashboard", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"]]) {
+  for (const [href, label] of [["/today", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"]]) {
     assert.match(inventory, new RegExp('href: "' + href + '", label: "' + label + '"'));
   }
   assert.doesNotMatch(inventory + "\n" + desktop, /NavigationIcon|<Image|asset:/);

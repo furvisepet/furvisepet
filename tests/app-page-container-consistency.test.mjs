@@ -6,7 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 
 const primitives = read("app/components/product-primitives.tsx");
 const appPage = read("app/components/app-page.tsx");
-const today = read("app/dashboard/page.tsx");
+const today = read("app/today/page.tsx");
 const pets = read("app/pets/page.tsx");
 const history = read("app/components/care-log-workspace.tsx");
 const ask = read("app/ask/page.tsx");

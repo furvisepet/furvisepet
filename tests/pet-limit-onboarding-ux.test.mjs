@@ -22,7 +22,7 @@ test("Quick Start mounts only after the shared entitlement gate allows access", 
 });
 
 test("all Add Pet entry points use the guarded onboarding constant", () => {
-  for (const path of ["app/pets/page.tsx", "app/dashboard/page.tsx", "app/components/care-log-workspace.tsx", "app/components/homepage-client.tsx", "app/components/app-header.tsx"]) assert.match(read(path), /NEW_PET_(?:ONBOARDING|LOGIN)_PATH/, path);
+  for (const path of ["app/pets/page.tsx", "app/today/page.tsx", "app/components/care-log-workspace.tsx", "app/components/homepage-client.tsx", "app/components/app-header.tsx"]) assert.match(read(path), /NEW_PET_(?:ONBOARDING|LOGIN)_PATH/, path);
   assert.match(read("app/lib/auth-routing.ts"), /NEW_PET_ONBOARDING_PATH = "\/onboarding\?mode=new"/);
 });
 
@@ -51,10 +51,11 @@ test("Quick Start has four focused steps with a simplified optional review", () 
   assert.doesNotMatch(page, /PhotoStep|Choose photo/);
 });
 
-test("Today keeps progressive metadata, real timeline links, and shared mobile clearance", () => {
-  const today = read("app/dashboard/page.tsx");
-  assert.match(today, />Add details<\/button>/);
-  assert.match(today, /detailsOpen \? \([\s\S]*CARE_ENTRY_CATEGORIES\.map/);
+test("Today keeps visible metadata, real timeline labels, and shared mobile clearance", () => {
+  const today = read("app/today/page.tsx");
+  assert.match(today, /<span>Category<\/span>[\s\S]*CARE_ENTRY_CATEGORIES\.map/);
+  assert.match(today, /<span>When<\/span>[\s\S]*type="datetime-local"/);
+  assert.doesNotMatch(today, /Add details|detailsOpen/);
   assert.match(today, /formatTodayTimelineDate\(entry\.occurred_at\)/);
   for (const path of ["app/components/care-timeline.tsx", "app/pets/[id]/page.tsx"]) assert.match(read(path), /CareEntryMetadata/);
   assert.match(read("app/components/app-page.tsx"), /app-mobile-nav-clearance/);

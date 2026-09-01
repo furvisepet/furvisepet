@@ -3,6 +3,18 @@ import { formatPetDisplayName, formatSpecies } from "./petwise";
 import { isKnownConversationalCareNoise } from "./intelligence/care-history-policy.ts";
 
 export const SERVER_SAFE_GREETING = "Welcome back";
+export const TODAY_REMEMBER_EXAMPLES = [
+  "Milo skipped breakfast but ate dinner normally.",
+  "She started licking her left paw again.",
+  "The new food seems to be sitting better.",
+  "He threw up once after breakfast.",
+  "Started the new medication tonight.",
+  "Energy was lower than usual this morning.",
+  "Vet visit went well. Weight was 24 lb.",
+  "She slept through the night without coughing.",
+  "Stool was softer than usual after dinner.",
+  "He seemed nervous during the car ride.",
+] as const;
 export const TODAY_EVENT_ACTIONS = [
   { category: "food", id: "food_changed", label: "Food changed", title: "Food change" },
   { category: "symptom", id: "new_symptom", label: "New symptom", title: "Symptom" },
@@ -80,14 +92,15 @@ export function buildTodayRecentEntries<T extends CareEntryRow>(entries: T[], pr
     .filter((entry) => entry.pet_profile_id === profileId)
     .filter((entry) => !entry.intelligence_source_message_id || !isKnownConversationalCareNoise(`${entry.title || ""} ${entry.note}`))
     .sort((left, right) => new Date(right.occurred_at).getTime() - new Date(left.occurred_at).getTime())
-    .slice(0, 3);
+    .slice(0, 10);
 }
 
-export function formatTodayPetContext(profile: Pick<DogProfileWithMemories, "age_unit" | "age_value" | "name" | "species">) {
+export function formatTodayPetContext(profile: Pick<DogProfileWithMemories, "age_unit" | "age_value" | "name" | "sex" | "species">) {
   const age = profile.age_value === null
     ? ""
     : `${formatNumber(profile.age_value)} ${formatAgeUnit(profile.age_value, profile.age_unit)}`;
-  return [formatPetDisplayName(profile.name), profile.species ? formatSpecies(profile.species) : "", age]
+  const sex = profile.sex === "female" ? "Female" : profile.sex === "male" ? "Male" : "";
+  return [formatPetDisplayName(profile.name), profile.species ? formatSpecies(profile.species) : "", sex, age]
     .filter(Boolean)
     .join(" · ");
 }
@@ -98,10 +111,11 @@ export function formatTodayTimelineDate(value: string, now = new Date()) {
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const difference = Math.round((today - day) / 86_400_000);
-  if (difference === 0) return "Today";
-  if (difference === 1) return "Yesterday";
-  if (difference > 1 && difference < 7) return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
-  return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(date);
+  const time = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date);
+  if (difference === 0) return `Today, ${time}`;
+  if (difference === 1) return `Yesterday, ${time}`;
+  const calendarDate = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(date);
+  return `${calendarDate}, ${time}`;
 }
 
 function formatNumber(value: number) {

@@ -156,9 +156,9 @@ export default function DogFeedbackPage() {
 
             <Link
               className="mt-6 inline-flex rounded-full bg-[var(--pw-primary)] px-5 py-3 text-sm font-semibold text-[var(--pw-primary-foreground)] transition hover:bg-[var(--pw-primary-hover)]"
-              href="/dashboard"
+              href="/today"
             >
-              Back to dashboard
+              Back to Today
             </Link>
           </section>
         )}

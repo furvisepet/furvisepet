@@ -21,7 +21,7 @@ test("successful Ask state mutations publish one scoped freshness version", asyn
 
 test("Today, Pets, profiles, Remembered Details, and History refetch on a new version", async () => {
   const paths = [
-    "app/dashboard/page.tsx",
+    "app/today/page.tsx",
     "app/pets/page.tsx",
     "app/pets/[id]/page.tsx",
     "app/dogs/[id]/memories/page.tsx",
