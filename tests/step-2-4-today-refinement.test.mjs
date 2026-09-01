@@ -21,7 +21,7 @@ test("Today contains no photo or Ask handoff surface", () => {
 
 test("continuous layout is wide, line-based, and mobile reachable", () => {
   assert.match(css, /\.page \{[\s\S]*max-width: 64rem;[\s\S]*margin-inline: auto/);
-  assert.match(css, /\.recent \{[\s\S]*border-top: 1px solid var\(--border-subtle\)/);
+  assert.match(css, /\.recent \{[\s\S]*border-top: 1px solid var\(--today-line-strong\)/);
   assert.match(css, /@media \(max-width: 639px\)/);
   assert.match(read("app/components/app-page.tsx"), /app-mobile-nav-clearance/);
   assert.doesNotMatch(css, /shadow-surface|shadow-floating/);

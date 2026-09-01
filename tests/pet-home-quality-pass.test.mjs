@@ -87,7 +87,7 @@ test("Today remains optional, personal, and capped to ten recent notes", () => {
   const rows = Array.from({ length: 12 }, (_, index) => ({ id: String(index), occurred_at: `2026-08-${String(index + 1).padStart(2, "0")}T12:00:00Z`, pet_profile_id: "pet" }));
   assert.equal(buildTodayRecentEntries(rows, "pet").length, 10);
   assert.match(source, /Anything you want Furvise to remember\?/);
-  assert.match(source, /Nothing on the file yet\./);
+  assert.doesNotMatch(source, /Nothing on the file yet\./);
   assert.doesNotMatch(source, /Full story|ASK ABOUT/);
   assert.doesNotMatch(source, /Everything seems normal/);
   for (const pressured of ["check in today", "daily log", "streak"]) assert.doesNotMatch(source, new RegExp(pressured, "i"));

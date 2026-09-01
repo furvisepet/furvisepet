@@ -15,6 +15,88 @@ export const TODAY_REMEMBER_EXAMPLES = [
   "Stool was softer than usual after dinner.",
   "He seemed nervous during the car ride.",
 ] as const;
+
+export type TodayRecentState = {
+  entries: CareEntryRow[];
+  error: string;
+  hasResolved: boolean;
+  petId: string;
+  requestId: number;
+  status: "idle" | "loading" | "refreshing" | "ready" | "error";
+};
+
+export function createTodayRecentState(): TodayRecentState {
+  return {
+    entries: [],
+    error: "",
+    hasResolved: false,
+    petId: "",
+    requestId: 0,
+    status: "idle",
+  };
+}
+
+export function selectTodayRecentPet(state: TodayRecentState, petId: string): TodayRecentState {
+  if (state.petId === petId) return state;
+  return {
+    entries: [],
+    error: "",
+    hasResolved: false,
+    petId,
+    requestId: state.requestId,
+    status: petId ? "loading" : "idle",
+  };
+}
+
+export function startTodayRecentRequest(state: TodayRecentState, petId: string, requestId: number): TodayRecentState {
+  const selected = selectTodayRecentPet(state, petId);
+  return {
+    ...selected,
+    error: "",
+    requestId,
+    status: selected.hasResolved ? "refreshing" : "loading",
+  };
+}
+
+export function resolveTodayRecentRequest(
+  state: TodayRecentState,
+  petId: string,
+  requestId: number,
+  entries: CareEntryRow[],
+): TodayRecentState {
+  if (state.petId !== petId || state.requestId !== requestId) return state;
+  return {
+    ...state,
+    entries: buildTodayRecentEntries(entries, petId),
+    error: "",
+    hasResolved: true,
+    status: "ready",
+  };
+}
+
+export function failTodayRecentRequest(state: TodayRecentState, petId: string, requestId: number, error: string): TodayRecentState {
+  if (state.petId !== petId || state.requestId !== requestId) return state;
+  return {
+    ...state,
+    error,
+    status: "error",
+  };
+}
+
+export function prependConfirmedTodayEntry(state: TodayRecentState, petId: string, entry: CareEntryRow): TodayRecentState {
+  if (state.petId !== petId) return state;
+  return {
+    ...state,
+    entries: buildTodayRecentEntries([entry, ...state.entries], petId),
+    error: "",
+    hasResolved: true,
+    status: "ready",
+  };
+}
+
+export function getTodayVisibleRecentEntries(state: TodayRecentState, petId: string) {
+  return state.petId === petId ? state.entries : [];
+}
 export const TODAY_EVENT_ACTIONS = [
   { category: "food", id: "food_changed", label: "Food changed", title: "Food change" },
   { category: "symptom", id: "new_symptom", label: "New symptom", title: "Symptom" },

@@ -14,7 +14,7 @@ export function AppPage({
 }) {
   return (
     <AppShell>
-      <main className="app-mobile-nav-clearance min-w-0 pt-8 sm:pt-12 lg:pt-14">
+      <main className="app-mobile-nav-clearance min-w-0 pt-8 sm:pt-12 lg:pt-14" data-app-canvas={shell}>
         <PageShell preset="app">
           <div className={`${appPageContentClasses[shell]} ${layout === "focused" ? focusedLayout : workspaceLayout}`} data-app-page-content={shell}>{children}</div>
         </PageShell>

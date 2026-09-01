@@ -12,7 +12,7 @@ test("Today V3 is the canonical present-tense file", () => {
   assert.match(today, /formatTodayPetContext\(selectedProfile\)/);
   assert.match(today, /Anything you want Furvise to remember\?/);
   assert.match(today, /data-ui="today-remember-composer"[\s\S]*data-ui="today-recent"/);
-  assert.match(today, /Nothing on the file yet\.[\s\S]*When something matters, put it here\./);
+  assert.doesNotMatch(today, /Nothing on the file yet|When something matters, put it here/);
   assert.doesNotMatch(today, />TODAY<|className=\{styles\.todayTitle\}/);
 });
 
@@ -35,13 +35,15 @@ test("Remember reuses one authoritative write and stays on Today", () => {
   const handlerStart = today.indexOf("async function saveRememberedNote");
   const handler = today.slice(handlerStart, today.indexOf("\n  return (\n", handlerStart));
   assert.equal((handler.match(/createCareEntry\(/g) || []).length, 1);
-  assert.match(handler, /await createCareEntry\([\s\S]*setEntries\([\s\S]*setRememberNote\(""\)[\s\S]*setRememberCategory\("general"\)[\s\S]*setRememberOccurredAt\(toLocalDateTimeInputValue\(\)\)/);
+  assert.match(handler, /await createCareEntry\([\s\S]*prependConfirmedTodayEntry\([\s\S]*setRememberNote\(""\)[\s\S]*setRememberCategory\("general"\)[\s\S]*setRememberOccurredAt\(toLocalDateTimeInputValue\(\)\)/);
   assert.doesNotMatch(handler, /location\.|router\.|redirect/);
 });
 
 test("Today is a restrained, responsive file rather than a card dashboard", () => {
   assert.match(css, /\.page \{[\s\S]*max-width: 64rem;[\s\S]*margin-inline: auto/);
-  assert.match(css, /\.primaryAction \{[\s\S]*background: var\(--deep-forest\);[\s\S]*color: var\(--warm-cream\)/);
+  assert.match(css, /\.primaryAction \{[\s\S]*background: var\(--today-action-background\);[\s\S]*color: var\(--today-action-foreground\)/);
+  assert.match(read("app/components/app-page.tsx"), /data-app-canvas=\{shell\}/);
+  assert.match(read("app/globals.css"), /\[data-app-canvas="today"\] \{[\s\S]*background: var\(--today-canvas\)/);
   assert.match(css, /\.recentTable \{[\s\S]*border-collapse: collapse/);
   assert.match(css, /@media \(max-width: 639px\)[\s\S]*\.recentTable tr \{[\s\S]*display: grid/);
   assert.doesNotMatch(css, /shadow-surface|shadow-floating|border-radius: var\(--radius-lg\)|border-radius: var\(--radius-xl\)/);
