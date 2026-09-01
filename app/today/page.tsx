@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppPage } from "../components/app-page";
 import { LoadingState, Notice } from "../components/product-primitives";
 import { getActivePetId, setActivePetId } from "../lib/active-pet";
@@ -16,9 +16,15 @@ import { useAppDataVersion } from "../lib/navigation/app-data-freshness";
 import { activePetsOnly } from "../lib/pet-lifecycle";
 import {
   buildTodayEntryDraft,
-  buildTodayRecentEntries,
+  createTodayRecentState,
+  failTodayRecentRequest,
   formatTodayPetContext,
   formatTodayTimelineDate,
+  getTodayVisibleRecentEntries,
+  prependConfirmedTodayEntry,
+  resolveTodayRecentRequest,
+  selectTodayRecentPet,
+  startTodayRecentRequest,
   TODAY_REMEMBER_EXAMPLES,
 } from "../lib/today";
 import {
@@ -27,7 +33,6 @@ import {
   listRecentCareEntriesForPet,
   loadDogProfilesWithMemories,
   type CareEntryInput,
-  type CareEntryRow,
   type DogProfileWithMemories,
 } from "../lib/supabase";
 import styles from "./today.module.css";
@@ -37,12 +42,10 @@ export default function TodayPage() {
   const configError = getSupabaseConfigError();
   const { status: authStatus, user } = useRequireConfirmedSupabaseAuth();
   const [profiles, setProfiles] = useState<DogProfileWithMemories[]>([]);
-  const [entries, setEntries] = useState<CareEntryRow[]>([]);
+  const [recentState, setRecentState] = useState(createTodayRecentState);
   const [selectedPetId, setSelectedPetId] = useState("");
   const [loading, setLoading] = useState(!configError);
-  const [recentLoading, setRecentLoading] = useState(!configError);
   const [error, setError] = useState("");
-  const [recentError, setRecentError] = useState("");
   const [rememberNote, setRememberNote] = useState("");
   const [rememberCategory, setRememberCategory] = useState<CareEntryInput["category"]>("general");
   const [rememberOccurredAt, setRememberOccurredAt] = useState(() => toLocalDateTimeInputValue());
@@ -50,6 +53,7 @@ export default function TodayPage() {
   const [rememberError, setRememberError] = useState("");
   const [exampleIndex, setExampleIndex] = useState(0);
   const rememberSavingRef = useRef(false);
+  const recentRequestIdRef = useRef(0);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -72,9 +76,7 @@ export default function TodayPage() {
           : activeProfiles[0]?.id || "";
         setProfiles(activeProfiles);
         setSelectedPetId(nextPetId);
-        setEntries([]);
-        setRecentError("");
-        setRecentLoading(Boolean(nextPetId));
+        setRecentState((current) => selectTodayRecentPet(current, nextPetId));
         if (nextPetId) setActivePetId(window.localStorage, nextPetId);
       })
       .catch((loadError) => {
@@ -90,33 +92,30 @@ export default function TodayPage() {
   useEffect(() => {
     if (!selectedPetId || authStatus !== "signedIn") return;
     let active = true;
+    const requestId = ++recentRequestIdRef.current;
+    setRecentState((current) => startTodayRecentRequest(current, selectedPetId, requestId));
     listRecentCareEntriesForPet(selectedPetId, 10)
       .then((entryRows) => {
-        if (active) setEntries(entryRows);
+        if (active) setRecentState((current) => resolveTodayRecentRequest(current, selectedPetId, requestId, entryRows));
       })
       .catch((loadError) => {
-        if (active) setRecentError(loadError instanceof Error ? loadError.message : "Recent notes could not be loaded.");
-      })
-      .finally(() => {
-        if (active) setRecentLoading(false);
+        if (active) {
+          const message = loadError instanceof Error ? loadError.message : "Recent notes could not be loaded.";
+          setRecentState((current) => failTodayRecentRequest(current, selectedPetId, requestId, message));
+        }
       });
     return () => { active = false; };
-  }, [authStatus, selectedPetId]);
+  }, [appDataVersion, authStatus, selectedPetId]);
 
   const selectedProfile = profiles.find((profile) => profile.id === selectedPetId) ?? profiles[0] ?? null;
-  const recentEntries = useMemo(
-    () => selectedProfile ? buildTodayRecentEntries(entries, selectedProfile.id) : [],
-    [entries, selectedProfile],
-  );
+  const recentEntries = selectedProfile ? getTodayVisibleRecentEntries(recentState, selectedProfile.id) : [];
   const rememberDraft = buildTodayEntryDraft(null, rememberNote);
 
   function switchProfile(petId: string) {
     if (petId === selectedPetId) return;
     setSelectedPetId(petId);
     setActivePetId(window.localStorage, petId);
-    setEntries([]);
-    setRecentError("");
-    setRecentLoading(true);
+    setRecentState((current) => selectTodayRecentPet(current, petId));
     setRememberError("");
   }
 
@@ -133,7 +132,7 @@ export default function TodayPage() {
         occurredAt: rememberOccurredAt,
         petProfileId: selectedProfile.id,
       });
-      setEntries((current) => buildTodayRecentEntries([entry, ...current], selectedProfile.id));
+      setRecentState((current) => prependConfirmedTodayEntry(current, selectedProfile.id, entry));
       setRememberNote("");
       setRememberCategory("general");
       setRememberOccurredAt(toLocalDateTimeInputValue());
@@ -173,13 +172,6 @@ export default function TodayPage() {
               ) : null}
             </div>
 
-            {!recentLoading && !recentError && recentEntries.length === 0 ? (
-              <div className={styles.fileEmpty} data-ui="today-empty-file">
-                <p>Nothing on the file yet.</p>
-                <p>When something matters, put it here.</p>
-              </div>
-            ) : null}
-
             <section aria-labelledby="remember-heading" className={styles.composer} data-ui="today-remember-composer">
               <h1 className={styles.question} id="remember-heading">Anything you want Furvise to remember?</h1>
               <form onSubmit={saveRememberedNote}>
@@ -210,8 +202,8 @@ export default function TodayPage() {
               </form>
             </section>
 
-            {recentError ? <div className={styles.recentNotice}><Notice tone="warning">Recent notes are temporarily unavailable. You can still remember something new.</Notice></div> : null}
-            {!recentLoading && !recentError && recentEntries.length ? (
+            {recentState.error ? <div className={styles.recentNotice}><Notice tone="warning">Recent notes are temporarily unavailable. You can still remember something new.</Notice></div> : null}
+            {recentEntries.length ? (
               <section aria-labelledby="recent-heading" className={styles.recent} data-ui="today-recent">
                 <h2 className={styles.recentHeading} id="recent-heading">RECENT</h2>
                 <table className={styles.recentTable}>

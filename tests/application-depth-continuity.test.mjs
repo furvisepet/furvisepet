@@ -30,8 +30,7 @@ test("shared focused and workspace layouts use semantic outer application shells
 
 test("Today keeps profile completion out of the present-tense file", () => {
   assert.match(today, /data-ui="today-present-file"/);
-  assert.match(today, /Nothing on the file yet\./);
-  assert.match(today, /When something matters, put it here\./);
+  assert.doesNotMatch(today, /Nothing on the file yet|When something matters, put it here/);
   assert.doesNotMatch(today, /Monthly care budget|profile checklist|Ingredients to avoid|Complete profile/);
 });
 

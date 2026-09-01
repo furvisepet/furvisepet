@@ -39,6 +39,23 @@
   --marketing-line: rgba(255, 253, 247, 0.15);
   --marketing-hover: rgba(255, 253, 247, 0.09);
 
+  /* Today-only dark product roles. */
+  --today-canvas: var(--marketing-forest);
+  --today-surface: #0D241D;
+  --today-text-primary: var(--warm-cream);
+  --today-text-secondary: #B7C9BD;
+  --today-text-muted: #9FB5A7;
+  --today-control-border: rgba(143, 207, 154, 0.44);
+  --today-line-strong: rgba(255, 253, 247, 0.18);
+  --today-line-subtle: rgba(255, 253, 247, 0.15);
+  --today-action-background: var(--warm-cream);
+  --today-action-foreground: var(--marketing-forest);
+  --today-action-hover: color-mix(in srgb, var(--warm-cream) 90%, var(--sage));
+  --today-disabled-background: rgba(255, 253, 247, 0.13);
+  --today-disabled-border: rgba(255, 253, 247, 0.16);
+  --today-disabled-foreground: #91A69A;
+  --today-danger: #F1B8AE;
+
   /* Permanent single-scheme semantic color roles. */
   --page-background: var(--warm-canvas);
   --section-background: var(--soft-canvas);
@@ -269,6 +286,17 @@
   --pw-section-prepare: var(--surface-interactive);
   --pw-section-history: var(--surface-interactive);
   --pw-section-note: var(--surface-interactive);
+}
+
+[data-app-canvas="today"] {
+  min-height: calc(100svh - 54px);
+  background: var(--today-canvas);
+}
+
+@media (min-width: 1024px) {
+  [data-app-canvas="today"] {
+    min-height: calc(100svh - 56px);
+  }
 }
 
 @theme inline {

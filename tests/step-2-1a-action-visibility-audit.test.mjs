@@ -61,7 +61,7 @@ test("all formerly blank pills preserve their intended labels through shared var
 
 test("safe page-level pill actions no longer duplicate shared primary or secondary utility stacks", () => {
   assert.match(today, /className=\{styles\.primaryAction\} data-ui="today-remember-action" disabled=\{!rememberDraft \|\| rememberSaving\} type="submit">/);
-  assert.match(read("app/today/today.module.css"), /background: var\(--deep-forest\)/);
+  assert.match(read("app/today/today.module.css"), /background: var\(--today-action-background\)/);
   assert.match(history, /<SecondaryButton href=\{`\/vet-brief/);
   assert.match(history, /<PrimaryButton[\s\S]*onClick=\{openCreate\}[\s\S]*Add update[\s\S]*<\/PrimaryButton>/);
   assert.doesNotMatch(history, /<button[^>]*bg-\[var\(--pw-primary\)\]/);
