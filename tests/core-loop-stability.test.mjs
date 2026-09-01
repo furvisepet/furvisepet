@@ -36,15 +36,13 @@ test("results shows a friendly error for a missing or unauthorized route profile
   assert.match(source, /\{loadError\}/);
 });
 
-test("pet profile keeps durable content primary and scopes activation links to its empty state", () => {
+test("pet profile is a single authorized facts surface", () => {
   const source = read("app/pets/[id]/page.tsx");
 
-  assert.match(source, /loadCanonicalRememberedDetailsForUser/);
-  assert.match(source, /title="What Furvise remembers"/);
-  assert.match(source, /title="Recent updates"/);
-  assert.match(source, /href=\{`\/vet-brief\?pet=\$\{encodedPetId\}`\}/);
-  assert.match(source, /isEmptyFile[\s\S]*\/today\?pet=\$\{encodedPetId\}[\s\S]*\/ask\?pet=\$\{encodedPetId\}/);
-  assert.doesNotMatch(source, /\/results\?|\/shop\?petId=|Products for/);
+  assert.match(source, /loadDogProfileForUser\(params\.id, user\)/);
+  assert.match(source, /buildPetProfileFactRows\(profile\)/);
+  assert.match(source, /href=\{`\/pets\/\$\{encodeURIComponent\(profile\.id\)\}\/edit`\}/);
+  assert.doesNotMatch(source, /loadCanonicalRememberedDetailsForUser|listRecentCareEntriesForPet|\/vet-brief\?|\/today\?pet=|\/ask\?pet=|\/results\?|\/shop\?petId=|Products for/);
 });
 
 test("core Supabase migration enforces ownership RLS for profiles, care, memories, and feedback", () => {

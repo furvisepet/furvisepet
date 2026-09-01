@@ -353,16 +353,10 @@ test("profile overview route keeps mobile layout from overflowing", () => {
   assert.doesNotMatch(source, /overflow-x-auto/);
 });
 
-test("profile home uses a warm editorial beginning with deliberate activation links", () => {
+test("profile home contains only identity, Edit, and durable facts", () => {
   const source = readFileSync(new URL("../app/pets/[id]/page.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(source, />\s*Log update\s*<|View full history|\/care-log\?pet=|Products for|\/shop\?petId=/);
-  assert.match(source, /isEmptyFile[\s\S]*Start here[\s\S]*Add \$\{name\}’s details[\s\S]*Save a first update[\s\S]*Ask Furvise about \$\{name\}/);
-  assert.match(source, /\{name\}’s file is just getting started\./);
-  assert.match(source, /the important things will gather here\./);
-  assert.match(source, /Nothing remembered yet\./);
-  assert.match(source, /When you tell Furvise something useful, like routines, food preferences, sensitivities, or other important context, it can show up here\./);
-  assert.match(source, /Not much saved yet\./);
-  assert.match(source, /Add the basics when you know them\./);
-  assert.match(source, /What you save in Today will show up here\./);
-  assert.doesNotMatch(source, /MANAGE PET|Delete pet|MANAGE REMEMBERED DETAILS/);
+  assert.match(source, /formatPetDirectoryMetadata\(profile\)/);
+  assert.match(source, /buildPetProfileFactRows\(profile\)/);
+  assert.equal((source.match(/EDIT PET/g) || []).length, 1);
+  assert.doesNotMatch(source, />\s*Log update\s*<|View full history|\/care-log\?pet=|Products for|\/shop\?petId=|Start here|What Furvise remembers|Recent updates|VET BRIEF|MANAGE PET|Delete pet|MANAGE REMEMBERED DETAILS/);
 });

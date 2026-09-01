@@ -136,7 +136,7 @@ test("legacy malformed owner pet-food keys project to the named pet and never le
   assert.equal(details.all.some((item) => /petfoodpreference/i.test(item.fact)), false);
 });
 
-test("Remembered Details and profile summary query furvise_memories and use the shared adapter", async () => {
+test("Remembered Details owns canonical memory queries while the V1 pet profile stays fact-only", async () => {
   const [supabase, page, profile] = await Promise.all([
     readFile(new URL("../app/lib/supabase.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/dogs/[id]/memories/page.tsx", import.meta.url), "utf8"),
@@ -144,10 +144,10 @@ test("Remembered Details and profile summary query furvise_memories and use the 
   ]);
   assert.match(supabase, /from\("furvise_memories"\)/);
   assert.match(page, /loadCanonicalRememberedDetailsForUser/);
-  assert.match(profile, /loadCanonicalRememberedDetailsForUser/);
   assert.match(page, /Useful details Furvise learns from your conversations/);
-  assert.match(profile, /rememberedDetails\.pet\.map/);
-  assert.match(profile, /rememberedFacts\.slice\(0, 5\)/);
+  assert.match(profile, /loadDogProfileForUser/);
+  assert.match(profile, /buildPetProfileFactRows/);
+  assert.doesNotMatch(profile, /loadCanonicalRememberedDetailsForUser|rememberedDetails|rememberedFacts/);
 });
 
 test("memory controls preserve lifecycle and enforce authenticated ownership", async () => {
