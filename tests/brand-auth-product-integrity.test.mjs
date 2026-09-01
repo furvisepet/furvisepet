@@ -118,8 +118,9 @@ test("Pets, History, and Today empty and primary states are useful", () => {
   assert.match(history, /Start \$\{emptyHistoryName\}'s history/);
   assert.match(history, /Start your pets' history/);
   assert.match(history, /Add first update[\s\S]*Ask about/);
-  assert.match(today, /disabled=\{!quickEntryDraft \|\| quickSaving\}[\s\S]*>Add update<\/PrimaryButton>/);
-  assert.match(today, /placeholder="A change in appetite, behavior, food, symptoms, medication, routine, or anything else…"/);
+  assert.match(today, /disabled=\{!rememberDraft \|\| rememberSaving\}[\s\S]*"REMEMBER"/);
+  assert.match(today, /placeholder="What happened\?"/);
+  assert.match(today, /placeholder=\{`Ask anything about \$\{selectedProfile\.name\}\.\.\.`\}/);
   assert.match(today, /createCareEntry\(/);
 });
 

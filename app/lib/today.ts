@@ -1,5 +1,5 @@
 import type { CareEntryRow, DogProfileWithMemories } from "./supabase";
-import { formatPetDisplayName } from "./petwise";
+import { formatPetDisplayName, formatSpecies } from "./petwise";
 import { isKnownConversationalCareNoise } from "./intelligence/care-history-policy.ts";
 
 export const SERVER_SAFE_GREETING = "Welcome back";
@@ -81,6 +81,36 @@ export function buildTodayRecentEntries<T extends CareEntryRow>(entries: T[], pr
     .filter((entry) => !entry.intelligence_source_message_id || !isKnownConversationalCareNoise(`${entry.title || ""} ${entry.note}`))
     .sort((left, right) => new Date(right.occurred_at).getTime() - new Date(left.occurred_at).getTime())
     .slice(0, 3);
+}
+
+export function formatTodayPetContext(profile: Pick<DogProfileWithMemories, "age_unit" | "age_value" | "name" | "species">) {
+  const age = profile.age_value === null
+    ? ""
+    : `${formatNumber(profile.age_value)} ${formatAgeUnit(profile.age_value, profile.age_unit)}`;
+  return [formatPetDisplayName(profile.name), profile.species ? formatSpecies(profile.species) : "", age]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function formatTodayTimelineDate(value: string, now = new Date()) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Recently";
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const difference = Math.round((today - day) / 86_400_000);
+  if (difference === 0) return "Today";
+  if (difference === 1) return "Yesterday";
+  if (difference > 1 && difference < 7) return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
+  return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(date);
+}
+
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(1)));
+}
+
+function formatAgeUnit(value: number, unit: string | null) {
+  const normalized = unit === "months" ? "month" : "year";
+  return value === 1 ? normalized : `${normalized}s`;
 }
 
 export function buildTodayFocus({ entries, now = new Date(), profile }: TodayFocusInput): TodayFocus {

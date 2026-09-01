@@ -44,14 +44,12 @@ test("profile header has no readiness badge and keeps useful identity metadata",
   assert.doesNotMatch(page, /Getting to know|formatProfileStatusDisplay|Profile ready|StatusPill label=\{model\.completeness|>100%</);
 });
 
-test("Today creates one categorized row and keeps normal logging optional", () => {
+test("Today remembers one note and keeps details optional", () => {
   const page = read("app/dashboard/page.tsx");
-  const model = read("app/lib/today.ts");
-  assert.match(page, /Anything worth remembering\?/);
-  assert.match(model, /TODAY_EVENT_ACTIONS/);
-  assert.match(model, /Everything seemed normal today\./);
-  for (const removed of ["Ate normally", "Drank normally", "Energy normal", "Stool normal", "Mood normal"]) assert.doesNotMatch(page + model, new RegExp(removed));
-  const submit = page.slice(page.indexOf("async function saveQuickUpdate"), page.indexOf("function focusQuickNote"));
+  assert.match(page, /WHAT HAPPENED\?/);
+  assert.match(page, />Add details<\/button>/);
+  assert.doesNotMatch(page, /Everything seems normal|TODAY_EVENT_ACTIONS\.map/);
+  const submit = page.slice(page.indexOf("async function saveRememberedNote"), page.indexOf("function openDetails"));
   assert.equal((submit.match(/createCareEntry\(/g) || []).length, 1);
 });
 

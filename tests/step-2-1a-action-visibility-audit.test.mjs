@@ -55,12 +55,13 @@ test("all formerly blank pills preserve their intended labels through shared var
   assert.match(history, /<SecondaryButton[^>]*>\{emptyHistoryName \? `Ask about \$\{emptyHistoryName\}` : "Ask about your pets"\}<\/SecondaryButton>/);
   assert.match(pets, /<SoftButton href=\{`\/care-log\?pet=\$\{profile\.id\}&new=1`\}>Add update<\/SoftButton><SecondaryButton href=\{`\/ask\?pet=\$\{profile\.id\}`\}>Ask about \{name\}<\/SecondaryButton>/);
   assert.ok(pets.split("<SoftButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SoftButton>").length - 1 >= 2);
-  assert.match(today, /<SecondaryButton href=\{`\/ask\?pet=\$\{encodeURIComponent\(selectedProfile\.id\)\}`\}>Ask about \{petName\}<\/SecondaryButton>/);
+  assert.match(today, /placeholder=\{`Ask anything about \$\{selectedProfile\.name\}\.\.\.`\}/);
+  assert.match(today, />ASK<\/button>/);
 });
 
 test("safe page-level pill actions no longer duplicate shared primary or secondary utility stacks", () => {
-  assert.match(today, /<PrimaryButton[^>]*disabled=\{!quickEntryDraft \|\| quickSaving\}[^>]*loading=\{quickSaving\}[^>]*type="submit">/);
-  assert.doesNotMatch(today, /<button[^>]*bg-\[var\(--action-primary\)\]/);
+  assert.match(today, /className=\{styles\.primaryAction\} disabled=\{!rememberDraft \|\| rememberSaving\} type="submit">/);
+  assert.match(read("app/dashboard/today-v2.module.css"), /background: var\(--deep-forest\)/);
   assert.match(history, /<SecondaryButton href=\{`\/vet-brief/);
   assert.match(history, /<PrimaryButton[\s\S]*onClick=\{openCreate\}[\s\S]*Add update[\s\S]*<\/PrimaryButton>/);
   assert.doesNotMatch(history, /<button[^>]*bg-\[var\(--pw-primary\)\]/);

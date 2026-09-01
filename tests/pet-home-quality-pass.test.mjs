@@ -29,7 +29,8 @@ test("shared focused widths constrain onboarding and Today without touching wide
   assert.match(primitives, /todayPrimaryLayout = "w-full"/);
   assert.match(primitives, /today: "w-full"/);
   assert.match(onboardingSurface, /max-w-\[780px\]/);
-  assert.match(today, /data-ui="today-primary-content"/);
+  assert.match(today, /data-ui="today-v2-file"/);
+  assert.match(read("app/dashboard/today-v2.module.css"), /max-width: 52rem/);
   assert.doesNotMatch(read("app/pets/[id]/page.tsx"), /todayPrimaryLayout|focusedFormLayout/);
 });
 
@@ -85,10 +86,10 @@ test("Today remains optional, personal, and capped to three recent notes", () =>
   const source = read("app/dashboard/page.tsx");
   const rows = [0, 1, 2, 3].map((index) => ({ id: String(index), occurred_at: `2026-07-2${index}T12:00:00Z`, pet_profile_id: "pet" }));
   assert.equal(buildTodayRecentEntries(rows, "pet").length, 3);
-  assert.match(source, /Anything worth remembering\?/);
-  assert.match(source, /Everything seems normal/);
-  assert.match(source, /View full history/);
-  assert.match(source, /story starts with the first note/);
+  assert.match(source, /WHAT HAPPENED\?/);
+  assert.match(source, /Nothing on the file yet\./);
+  assert.match(source, /Full story/);
+  assert.doesNotMatch(source, /Everything seems normal/);
   for (const pressured of ["check in today", "daily log", "streak"]) assert.doesNotMatch(source, new RegExp(pressured, "i"));
 });
 
@@ -97,7 +98,8 @@ test("saved pet photos remain supported while onboarding omits the species masco
   assert.match(localPhoto, /function LocalPetAvatar/);
   assert.match(localPhoto, /<PetAvatar[^>]*photoUrl=\{source\}/);
   assert.doesNotMatch(read("app/onboarding/page.tsx"), /src=\{`\/images\/\$\{pet\.species\}\.png`\}/);
-  assert.match(read("app/dashboard/page.tsx"), /<LocalPetIdentity/);
+  assert.match(read("app/dashboard/page.tsx"), /saveLocalPhoto\("care"/);
+  assert.doesNotMatch(read("app/dashboard/page.tsx"), /<LocalPetIdentity/);
   assert.match(read("app/pets/[id]/page.tsx"), /<LocalPetAvatar/);
 });
 

@@ -28,14 +28,11 @@ test("shared focused and workspace layouts use semantic outer application shells
   assert.match(history, /<AppPage layout="workspace"/);
 });
 
-test("Today profile completion keeps optional details in one gentle prompt", () => {
-  assert.doesNotMatch(today, /item\.key !== "monthly_budget"/);
-  assert.match(today, /Monthly care budget/);
-  assert.doesNotMatch(today, /A few details would make future guidance more specific\./);
-  assert.match(today, /profile checklist/);
-  assert.match(today, /Breed[\s\S]*Current food[\s\S]*Ingredients to avoid[\s\S]*Weight/);
-  assert.match(today, /story starts with the first note\./);
-  assert.match(today, /even if it seems small today\./);
+test("Today keeps profile completion out of the present-tense file", () => {
+  assert.match(today, /data-ui="today-v2-file"/);
+  assert.match(today, /Nothing on the file yet\./);
+  assert.match(today, /When something matters, put it here\./);
+  assert.doesNotMatch(today, /Monthly care budget|profile checklist|Ingredients to avoid|Complete profile/);
 });
 
 test("Pets shows each care goal once and adds useful one-pet depth", () => {

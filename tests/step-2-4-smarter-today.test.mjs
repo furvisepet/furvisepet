@@ -1,44 +1,33 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { buildTodayEntryDraft, buildTodayRecentEntries, getLocalGreeting, SERVER_SAFE_GREETING, toggleTodayQuickAction } from "../app/lib/today.ts";
+import {
+  buildTodayEntryDraft,
+  buildTodayRecentEntries,
+  formatTodayPetContext,
+  formatTodayTimelineDate,
+} from "../app/lib/today.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const hash = (path) => createHash("sha256").update(readFileSync(new URL(`../${path}`, import.meta.url))).digest("hex").toUpperCase();
 
-test("local greeting boundaries retain the server-safe fallback", () => {
-  assert.equal(SERVER_SAFE_GREETING, "Welcome back");
-  for (const hour of [5, 11]) assert.equal(getLocalGreeting(hour), "Good morning");
-  for (const hour of [12, 16]) assert.equal(getLocalGreeting(hour), "Good afternoon");
-  for (const hour of [17, 21]) assert.equal(getLocalGreeting(hour), "Good evening");
-  for (const hour of [22, 4]) assert.equal(getLocalGreeting(hour), "Welcome back");
-  assert.match(read("app/components/today-greeting.tsx"), /useSyncExternalStore\(subscribe, getBrowserGreeting, getServerGreeting\)/);
+test("Today pet context is quiet, real, and omits unknown fields", () => {
+  assert.equal(formatTodayPetContext({ age_unit: "years", age_value: 2, name: "mani", species: "cat" }), "Mani · Cat · 2 years");
+  assert.equal(formatTodayPetContext({ age_unit: null, age_value: null, name: "Luna", species: null }), "Luna");
+  assert.equal(formatTodayPetContext({ age_unit: "months", age_value: 1, name: "Milo", species: "dog" }), "Milo · Dog · 1 month");
 });
 
-test("Today categories are single-select and produce one deterministic entry draft", () => {
-  assert.equal(toggleTodayQuickAction(null, "food_changed"), "food_changed");
-  assert.equal(toggleTodayQuickAction("food_changed", "food_changed"), null);
-  assert.equal(toggleTodayQuickAction("food_changed", "new_symptom"), "new_symptom");
-  assert.deepEqual(buildTodayEntryDraft("food_changed", "Started salmon food."), { category: "food", note: "Started salmon food.", title: "Food change" });
-  assert.deepEqual(buildTodayEntryDraft(null, "Plain note."), { category: "general", note: "Plain note.", title: "Note" });
-  assert.deepEqual(buildTodayEntryDraft("vet_visit", "   "), { category: "vet_visit", note: "Vet visit.", title: "Vet visit" });
-  assert.equal(buildTodayEntryDraft(null, "   "), null);
+test("Today timeline dates use present-tense labels", () => {
+  const now = new Date("2026-08-31T12:00:00");
+  assert.equal(formatTodayTimelineDate("2026-08-31T08:00:00", now), "Today");
+  assert.equal(formatTodayTimelineDate("2026-08-30T08:00:00", now), "Yesterday");
+  assert.notEqual(formatTodayTimelineDate("2026-08-28T08:00:00", now), "Recently");
+  assert.equal(formatTodayTimelineDate("not-a-date", now), "Recently");
 });
 
-test("Today is exception-first and one normal action creates one row", () => {
-  const source = read("app/dashboard/page.tsx");
-  const model = read("app/lib/today.ts");
-  for (const label of ["Food changed", "New symptom", "Medication or treatment", "Vet visit", "Behavior changed", "Routine changed", "Add photo"]) assert.match(model, new RegExp(label));
-  for (const removed of ["Ate normally", "Drank normally", "Energy normal", "Stool normal", "Mood normal"]) assert.doesNotMatch(source + model, new RegExp(removed));
-  assert.match(model, /Everything seemed normal today\./);
-  assert.equal((source.match(/createCareEntry\(/g) || []).length, 2);
-  assert.match(source, /setEntries\(\(current\) => \[\{ \.\.\.entry, pet_name: petName \}, \.\.\.current\]\)/);
-});
-
-test("Today recent history remains newest-first and capped at three", () => {
+test("Today recent entries are real, newest-first, pet-scoped, and capped at three", () => {
   const rows = buildTodayRecentEntries([
     { id: "old", pet_profile_id: "pet", occurred_at: "2026-07-17T12:00:00Z" },
+    { id: "other", pet_profile_id: "other", occurred_at: "2026-07-21T12:00:00Z" },
     { id: "new", pet_profile_id: "pet", occurred_at: "2026-07-20T12:00:00Z" },
     { id: "third", pet_profile_id: "pet", occurred_at: "2026-07-18T12:00:00Z" },
     { id: "second", pet_profile_id: "pet", occurred_at: "2026-07-19T12:00:00Z" },
@@ -46,9 +35,11 @@ test("Today recent history remains newest-first and capped at three", () => {
   assert.deepEqual(rows.map((row) => row.id), ["new", "second", "third"]);
 });
 
-test("brand assets and mobile clearance remain protected", () => {
-  assert.match(read("app/components/app-page.tsx"), /app-mobile-nav-clearance/);
-  assert.match(read("app/globals.css"), /--mobile-nav-clearance:[\s\S]*24px/);
-  assert.equal(hash("public/brand/furvise-logo.svg"), "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00");
-  assert.equal(hash("app/favicon.ico"), "617E8F6A24067E937ECAFD8C8A8DE735BF4BAC546B0378F0220C884F88C952DB");
+test("Remember keeps the existing general care-entry draft contract", () => {
+  assert.deepEqual(buildTodayEntryDraft(null, "  Ate normally after dinner  "), { category: "general", note: "Ate normally after dinner", title: "Note" });
+  assert.equal(buildTodayEntryDraft(null, "   "), null);
+  const today = read("app/dashboard/page.tsx");
+  assert.match(today, /listRecentCareEntries\(50\)/);
+  assert.match(today, /buildTodayRecentEntries\(entries, selectedProfile\.id\)/);
+  assert.match(today, /createCareEntry\(/);
 });

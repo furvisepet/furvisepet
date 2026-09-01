@@ -24,6 +24,7 @@ import {
   parseAskConversationResponse,
 } from "../lib/ask.mjs";
 import { buildAskRequestPayload, type AskRequestPayload } from "../lib/ask-request-contract";
+import { persistAskDraft, readAskDraft, removeAskDraft } from "../lib/ask-draft";
 import { resolveAskPetSelection } from "../lib/ask-pet-selection";
 import { getActivePetId, setActivePetId } from "../lib/active-pet";
 import { trackAskEvent } from "../lib/ask-analytics";
@@ -179,7 +180,7 @@ function AskPageContent() {
         if (requestedConversation && history.some((item) => item.id === requestedConversation)) {
           await openConversation(requestedConversation, history);
         } else if (petId) {
-          setQuestion(readDraft(getDraftKey(null, petId)));
+          setQuestion(readAskDraft(window.localStorage, null, petId));
         }
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : "Furvise could not open Ask.");
@@ -195,7 +196,7 @@ function AskPageContent() {
 
   useEffect(() => {
     if (!selectedPet || typeof window === "undefined") return;
-    window.localStorage.setItem(getDraftKey(activeConversationId, selectedPet), question);
+    persistAskDraft(window.localStorage, activeConversationId, selectedPet, question);
   }, [activeConversationId, question, selectedPet]);
 
   const activeProfile = profiles.find((profile) => profile.id === selectedPet) || null;
@@ -272,7 +273,7 @@ function AskPageContent() {
             userMessageId: lastMessage.id,
           }
         : null);
-      setQuestion(readDraft(getDraftKey(payload.conversation.id, payload.conversation.petId)));
+      setQuestion(readAskDraft(window.localStorage, payload.conversation.id, payload.conversation.petId));
       setHistoryOpen(false);
       trackAskEvent("conversation_reopened");
       if (!known.some((item) => item.id === id)) await refreshConversations();
@@ -298,7 +299,7 @@ function AskPageContent() {
     setThread([]);
     setFailedRequest(null);
     setRequestPhase("idle");
-    setQuestion(readDraft(getDraftKey(null, petId)));
+    setQuestion(readAskDraft(window.localStorage, null, petId));
     setError("");
     setPersistenceWarning("");
     setStatus("");
@@ -314,7 +315,7 @@ function AskPageContent() {
   function startNewQuestion() {
     if (askRequestActiveRef.current) return;
     dismissOnboardingEntry();
-    if (selectedPet && typeof window !== "undefined") window.localStorage.removeItem(getDraftKey(activeConversationId, selectedPet));
+    if (selectedPet && typeof window !== "undefined") removeAskDraft(window.localStorage, activeConversationId, selectedPet);
     setQuestion("");
     setThread([]);
     setActiveConversationId(null);
@@ -419,7 +420,7 @@ function AskPageContent() {
   }
 
   function saveCurrentDraft() {
-    if (selectedPet && typeof window !== "undefined") window.localStorage.setItem(getDraftKey(activeConversationId, selectedPet), question);
+    if (selectedPet && typeof window !== "undefined") persistAskDraft(window.localStorage, activeConversationId, selectedPet, question);
   }
 
   async function renameConversation() {
@@ -842,7 +843,6 @@ function parseCarePersistence(value: unknown): CarePersistence | null { if (!val
 function parseStateSuggestion(value: unknown): StateSuggestion | null { if (!value || typeof value !== "object") return null; const draft = value as Partial<StateSuggestion>; if (typeof draft.id !== "string" || typeof draft.title !== "string" || !draft.type || !["history", "memory", "concern_resolution", "concern_opening"].includes(draft.type)) return null; return { applyStatus: draft.applyStatus, careEntryId: typeof draft.careEntryId === "string" ? draft.careEntryId : null, concernId: typeof draft.concernId === "string" ? draft.concernId : null, id: draft.id, type: draft.type, title: draft.title, details: typeof draft.details === "string" ? draft.details : null, status: draft.status }; }
 function parseStoredSaveMetadata(value: unknown): AskSaveMetadata | null { if (!value || typeof value !== "object") return null; const draft = value as Partial<AskSaveMetadata>; if (typeof draft.answerType !== "string" || typeof draft.saveCategory !== "string" || typeof draft.saveDetail !== "string" || typeof draft.saveTitle !== "string" || typeof draft.saveable !== "boolean") return null; return { answerType: draft.answerType, cannotAnswerFromSavedData: Boolean(draft.cannotAnswerFromSavedData), saveCategory: draft.saveCategory as CareEntryCategory, saveDetail: draft.saveDetail.slice(0, 500), saveDetailPreview: typeof draft.saveDetailPreview === "string" ? draft.saveDetailPreview.slice(0, 220) : "", saveDisabledReason: typeof draft.saveDisabledReason === "string" ? draft.saveDisabledReason : "", saveTitle: draft.saveTitle.slice(0, 120), saveable: draft.saveable, usedSavedFactsCount: typeof draft.usedSavedFactsCount === "number" ? Math.max(0, draft.usedSavedFactsCount) : 0 }; }
 
-function getDraftKey(conversationId: string | null, petId: string) { return `furvise:ask-draft:${conversationId || `new:${petId}`}`; }
 function replaceAskLocation({ conversationId, petId }: { conversationId?: string; petId?: string }) {
   const params = new URLSearchParams();
   if (conversationId) params.set("conversation", conversationId);
@@ -851,7 +851,6 @@ function replaceAskLocation({ conversationId, petId }: { conversationId?: string
 }
 function readStoredActivePetId() { try { return typeof window === "undefined" ? "" : getActivePetId(window.localStorage); } catch { return ""; } }
 function persistActivePetId(petId: string) { try { if (typeof window !== "undefined") setActivePetId(window.localStorage, petId); } catch { /* Selection remains valid for this mounted Ask session. */ } }
-function readDraft(key: string) { try { return typeof window === "undefined" ? "" : window.localStorage.getItem(key) || ""; } catch { return ""; } }
 function createMessageId(role: string) { return `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 class AskRequestError extends Error { constructor(public code: AskFailureCode, message = "", public retryAfterSeconds?: number) { super(message); } }
 class SuggestionApplyError extends Error { constructor(public code: string, message = "") { super(message); this.name = "SuggestionApplyError"; } }
