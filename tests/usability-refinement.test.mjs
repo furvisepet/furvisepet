@@ -57,12 +57,11 @@ test("Today is a recent file with one focused Remember surface", () => {
   assert.doesNotMatch(today, /TodayGreeting|Make .*guidance|Next best action|missing-field|Products for/);
 });
 
-test("Pets renders personal summaries instead of database labels", () => {
-  assert.match(pets, /Care goal/);
-  assert.match(pets, /Most recent update:/);
-  assert.match(pets, /Open profile/);
-  assert.match(pets, /Add update/);
-  assert.doesNotMatch(pets, />Species<|Profile status|buildProfileStatus/);
+test("Pets renders a simple pet directory instead of dashboard summaries", () => {
+  assert.match(pets, /The pets Furvise remembers with you\./);
+  assert.match(pets, /aria-label=\{`Open \$\{name\}`\}/);
+  assert.match(pets, />OPEN<\/span>/);
+  assert.doesNotMatch(pets, /Care goal|Most recent update|Add update|Ask about|Vet brief/);
 });
 
 test("History has compact filters and the intentional empty state", () => {

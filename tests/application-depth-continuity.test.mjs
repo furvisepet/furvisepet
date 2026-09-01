@@ -34,11 +34,10 @@ test("Today keeps profile completion out of the present-tense file", () => {
   assert.doesNotMatch(today, /Monthly care budget|profile checklist|Ingredients to avoid|Complete profile/);
 });
 
-test("Pets shows each care goal once and adds useful one-pet depth", () => {
-  assert.equal(pets.split("Care goal").length - 1, 1);
-  assert.doesNotMatch(pets, /General wellness/);
-  assert.match(pets, /Start \{name\}&apos;s care history/);
-  assert.match(pets, /Latest conversation/);
+test("Pets stays a directory while deeper workflows remain on their own routes", () => {
+  assert.match(pets, /data-ui="pet-directory-list"/);
+  assert.match(pets, /href=\{`\/pets\/\$\{profile\.id\}`\}/);
+  assert.doesNotMatch(pets, /Care goal|Latest conversation|Add update|Ask about/);
 });
 
 test("empty History hides low-value controls and gives the timeline a first action", () => {

@@ -53,22 +53,20 @@ test("Products remains a feature location without appearing in primary navigatio
   assert.match(products, /export default function ShopPage/);
 });
 
-test("History keeps one empty-state primary while repeated Pets updates are soft", () => {
+test("History keeps one empty-state primary while Pets stays a single-action directory", () => {
   const historyEmpty = history.slice(history.indexOf('entries.length === 0'), history.indexOf('visibleEntries.length === 0'));
   assert.equal(historyEmpty.split("<PrimaryButton").length - 1, 1);
   assert.equal(historyEmpty.split("<SecondaryButton").length - 1, 1);
   assert.match(historyEmpty, /Add first update[\s\S]*Ask about/);
-  const petEmpty = pets.slice(pets.indexOf("function PetStartHistory"), pets.indexOf("function PetHistoryDepth"));
-  assert.equal(petEmpty.split("<SoftButton").length - 1, 1);
-  assert.equal(petEmpty.split("<SecondaryButton").length - 1, 1);
-  assert.match(petEmpty, /Add update[\s\S]*Ask about \{name\}/);
+  assert.match(pets, /data-ui="pet-directory-list"/);
+  assert.doesNotMatch(pets, /SoftButton|SecondaryButton|Add update|Ask about/);
 });
 
-test("shared text actions have minimum targets and visible hover and focus treatment", () => {
+test("shared text actions and pet rows have minimum targets and visible focus treatment", () => {
   assert.match(primitives, /export function TextAction/);
   assert.match(primitives, /data-ui="text-action"/);
   assert.match(primitives, /min-h-12[\s\S]*hover:bg-\[var\(--ghost-action-hover\)\][\s\S]*focus-visible:ring-2/);
-  assert.match(pets, /<TextAction arrow href=\{`\/pets\/\$\{profile\.id\}`\}>Open profile<\/TextAction>/);
+  assert.match(pets, /grid min-h-24[\s\S]*focus-visible:ring-2[\s\S]*href=\{`\/pets\/\$\{profile\.id\}`\}/);
 });
 
 test("Ask starter drafts advertise selection as compact, unfussy cards", () => {

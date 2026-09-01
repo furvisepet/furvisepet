@@ -79,7 +79,7 @@ test("login and warm empty states keep the requested actions", () => {
   assert.doesNotMatch(login, /Keep me signed in|Your pets, notes, conversations, and Vet Visit Briefs stay private to your account\./);
   assert.doesNotMatch(login, /pet family care companion|role="tablist"|benefit-card/i);
   assert.match(history, /Add first update[\s\S]*<SecondaryButton[\s\S]*Ask about/);
-  assert.match(pets, /Start \{name\}&apos;s care history[\s\S]*Add update[\s\S]*<SecondaryButton[\s\S]*Ask about \{name\}/);
+  assert.match(pets, /No pets here yet\.[\s\S]*Start with the pet you want Furvise to remember\.[\s\S]*ADD YOUR PET/);
   const starters = ask.slice(ask.indexOf("function EmptyConversation"), ask.indexOf("function UserMessage"));
   assert.match(starters, /data-ui="starter-question"/);
   assert.match(starters, /cursor-pointer[\s\S]*hover:bg-\[var\(--suggested-question-hover\)\]/);

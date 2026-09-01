@@ -96,13 +96,11 @@ test("the pet deletion route verifies exact claims before idempotency or deletio
 test("reauthentication returns to the exact pet but never resumes deletion automatically", () => {
   const routing = read("app/lib/auth-routing.ts");
   const login = read("app/login/page.tsx");
-  const list = read("app/pets/page.tsx");
   const detail = read("app/pets/[id]/page.tsx");
   const client = read("app/lib/supabase.ts");
   assert.match(routing, /`\/pets\/\$\{encodeURIComponent\(petId\)\}`/);
   assert.match(routing, /reauth=pet-delete/);
   assert.match(client, /code: payload\?\.code/);
-  assert.match(list, /router\.push\(buildPetDeletionReauthenticationHref\(profile\.id\)\)/);
   assert.match(detail, /router\.push\(buildPetDeletionReauthenticationHref\(profile\.id\)\)/);
   assert.match(login, /isPetDeleteReauthentication \|\| didRedirectRef\.current/);
   assert.match(login, /Permanent deletion will still require a new confirmation/);

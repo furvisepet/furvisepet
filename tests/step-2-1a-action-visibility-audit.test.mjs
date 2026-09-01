@@ -50,11 +50,12 @@ test("the development visual audit enumerates every requested route and action r
   assert.match(layout, /process\.env\.NODE_ENV === "development" \? <ActionVisualAudit \/>/);
 });
 
-test("all formerly blank pills preserve their intended labels through shared variants", () => {
+test("all primary task surfaces preserve visible action labels", () => {
   assert.match(history, /canCreateUpdate \? <PrimaryButton onClick=\{openCreate\}>Add first update<\/PrimaryButton> : null/);
   assert.match(history, /<SecondaryButton[^>]*>\{emptyHistoryName \? `Ask about \$\{emptyHistoryName\}` : "Ask about your pets"\}<\/SecondaryButton>/);
-  assert.match(pets, /<SoftButton href=\{`\/care-log\?pet=\$\{profile\.id\}&new=1`\}>Add update<\/SoftButton><SecondaryButton href=\{`\/ask\?pet=\$\{profile\.id\}`\}>Ask about \{name\}<\/SecondaryButton>/);
-  assert.ok(pets.split("<SoftButton href={`/care-log?pet=${profile.id}&new=1`}>Add update</SoftButton>").length - 1 >= 2);
+  assert.match(pets, /href=\{NEW_PET_ONBOARDING_PATH\}>[\s\S]*ADD PET[\s\S]*<\/Link>/);
+  assert.match(pets, />OPEN<\/span>/);
+  assert.doesNotMatch(pets, /Add update|Ask about|Vet brief/);
   assert.match(today, /placeholder=\{TODAY_REMEMBER_EXAMPLES\[exampleIndex\]\}/);
   assert.match(today, />[\s\S]*\{rememberSaving \? "REMEMBERING" : "REMEMBER"\}[\s\S]*<\/button>/);
 });

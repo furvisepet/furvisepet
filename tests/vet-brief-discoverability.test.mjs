@@ -5,8 +5,8 @@ import test from "node:test";
 const petsPage = readFileSync(new URL("../app/pets/page.tsx", import.meta.url), "utf8");
 const vetBriefServer = readFileSync(new URL("../app/lib/vet-brief/server.ts", import.meta.url), "utf8");
 
-test("active pets expose a direct Vet brief action", () => {
-  assert.match(petsPage, /href=\{`\/vet-brief\?pet=\$\{profile\.id\}`\}>Vet brief/);
+test("the Pets directory leaves Vet brief discovery to deeper product surfaces", () => {
+  assert.doesNotMatch(petsPage, /vet-brief|Vet brief/);
 });
 
 test("Vet Brief remains server-authorized as a Plus capability", () => {
