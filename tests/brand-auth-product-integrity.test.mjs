@@ -91,7 +91,7 @@ test("action labels follow account-state conventions", () => {
   assert.match(copy, /addPet: "Add pet"/);
   assert.match(copy, /addYourPet: "Add your pet"/);
   assert.match(copy, /addYourFirstPet: "Add your first pet"/);
-  assert.match(pets, />Add pet<\/PrimaryButton>/);
+  assert.match(pets, />[\s\S]*ADD PET[\s\S]*<\/Link>/);
   assert.doesNotMatch(pets, />Add a pet</);
 });
 
@@ -108,13 +108,14 @@ test("Ask localizes recent-conversation loading failures", () => {
   assert.doesNotMatch(ask, /Get practical guidance using|profile, recent notes/);
 });
 
-test("Pets, History, and Today empty and primary states are useful", () => {
+test("Pets, History, and Today keep focused empty and primary states", () => {
   const pets = read("app/pets/page.tsx");
   const history = read("app/components/care-log-workspace.tsx");
   const today = read("app/today/page.tsx");
-  assert.match(pets, /Start \{name\}&apos;s care history/);
-  assert.match(pets, /Add a note about food, appetite, routines, symptoms/);
-  assert.match(pets, /Add update[\s\S]*Ask about \{name\}/);
+  assert.match(pets, /No pets here yet\./);
+  assert.match(pets, /Start with the pet you want Furvise to remember\./);
+  assert.match(pets, /ADD YOUR PET/);
+  assert.doesNotMatch(pets, /Add update|Ask about|Vet brief/);
   assert.match(history, /Start \$\{emptyHistoryName\}'s history/);
   assert.match(history, /Start your pets' history/);
   assert.match(history, /Add first update[\s\S]*Ask about/);

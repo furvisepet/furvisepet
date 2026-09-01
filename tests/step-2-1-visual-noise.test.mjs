@@ -57,8 +57,8 @@ test("meaningless decorative dots and empty marker containers are removed", () =
   assert.doesNotMatch(homepage, /mb-5 block h-2\.5 w-10 rounded-full/);
 });
 
-test("pet overflow trigger and compact menu implement the accessible interaction contract", () => {
-  assert.match(pets, /<PetOverflowMenu[^>]*name=\{name\}/);
+test("pet directory omits management while the reusable overflow menu keeps its interaction contract", () => {
+  assert.doesNotMatch(pets, /PetOverflowMenu/);
   assert.doesNotMatch(pets, />More<span|<summary/);
   assert.match(overflow, /aria-label=\{`More actions for \$\{name\}`\}/);
   assert.match(overflow, /aria-controls=\{open \? menuId : undefined\}/);

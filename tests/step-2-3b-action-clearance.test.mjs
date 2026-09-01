@@ -34,16 +34,11 @@ test("Soft is pale sage, restrained, and does not share Primary elevation", () =
   assert.doesNotMatch(primitives.match(/soft: "([^"]+)"/)?.[1] || "", /action-primary|warm-orange|shadow-surface/);
 });
 
-test("Pets uses variants for its complete action hierarchy without page color recipes", () => {
-  assert.match(pets, /actions=\{profiles\.length \? <PrimaryButton[^>]*>Add pet<\/PrimaryButton>/);
-  const summary = pets.slice(pets.indexOf("function PetSummary"));
-  const careHistory = pets.slice(pets.indexOf("function PetStartHistory"), pets.indexOf("function PetHistoryDepth"));
-  assert.match(summary, /<SoftButton[^>]*>Add update<\/SoftButton>/);
-  assert.match(summary, /<SecondaryButton[^>]*>Ask about \{name\}<\/SecondaryButton>/);
-  assert.match(summary, /<TextAction[^>]*>Open profile<\/TextAction>/);
-  assert.match(careHistory, /<SoftButton[^>]*>Add update<\/SoftButton>/);
-  assert.match(careHistory, /<SecondaryButton[^>]*>Ask about \{name\}<\/SecondaryButton>/);
-  assert.doesNotMatch(pets, /bg-(?:orange|green|sage)|bg-\[var\(--(?:pw-primary|action-primary|soft-action|sage|soft-sage|warm-orange)\)\]|#[0-9a-f]{3,8}/i);
+test("Pets uses a forest add action and one semantic link per directory row", () => {
+  assert.match(pets, /actions=\{profiles\.length \? <Link[^>]*>[\s\S]*ADD PET[\s\S]*<\/Link>/);
+  assert.match(pets, /bg-\[var\(--deep-forest\)\][\s\S]*text-\[color:var\(--warm-cream\)\]/);
+  assert.match(pets, /aria-label=\{`Open \$\{name\}`\}[\s\S]*href=\{`\/pets\/\$\{profile\.id\}`\}/);
+  assert.doesNotMatch(pets, /PrimaryButton|SecondaryButton|SoftButton|TextAction|warm-orange|action-primary|#[0-9a-f]{3,8}/i);
 });
 
 test("one shared mobile clearance covers every requested app surface", () => {
