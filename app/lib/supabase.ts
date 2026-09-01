@@ -20,6 +20,7 @@ import {
 } from "./account-country";
 import {
   normalizeCareDatabaseError,
+  prepareCareEntryInputForTransport,
   prepareCareEntryForInsert,
   prepareCareEntryForUpdate,
 } from "./care-log.mjs";
@@ -544,8 +545,9 @@ async function projectEffectiveHistoryForUser<T extends CareEntryRow>(entries: T
 
 export async function createCareEntry(input: CareEntryInput, deps: CareLogHelperDeps = {}) {
   if (!deps.getClient && !deps.getCurrentUser) {
+    const transportInput = prepareCareEntryInputForTransport(input) as CareEntryInput;
     const response = await authenticatedApiFetch("/api/care-entries", {
-      body: JSON.stringify({ input }),
+      body: JSON.stringify({ input: transportInput }),
       headers: { "content-type": "application/json" },
       method: "POST",
     });
@@ -575,8 +577,9 @@ export async function createCareEntryUnlessDuplicate(
   deps: CareLogHelperDeps = {},
 ): Promise<CreateCareEntryUnlessDuplicateResult> {
   if (!deps.getClient && !deps.getCurrentUser) {
+    const transportInput = prepareCareEntryInputForTransport(input) as CareEntryInput;
     const response = await authenticatedApiFetch("/api/care-entries", {
-      body: JSON.stringify({ dedupe: true, input }),
+      body: JSON.stringify({ dedupe: true, input: transportInput }),
       headers: { "content-type": "application/json" },
       method: "POST",
     });
@@ -624,8 +627,9 @@ export async function updateCareEntry(
   deps: CareLogHelperDeps = {},
 ) {
   if (!deps.getClient && !deps.getCurrentUser) {
+    const transportInput = prepareCareEntryInputForTransport(input) as CareEntryInput;
     const response = await authenticatedApiFetch(`/api/care-entries/${entryId}`, {
-      body: JSON.stringify({ input }),
+      body: JSON.stringify({ input: transportInput }),
       headers: { "content-type": "application/json" },
       method: "PATCH",
     });

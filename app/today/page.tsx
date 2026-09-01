@@ -51,6 +51,7 @@ export default function TodayPage() {
   const [rememberOccurredAt, setRememberOccurredAt] = useState(() => toLocalDateTimeInputValue());
   const [rememberSaving, setRememberSaving] = useState(false);
   const [rememberError, setRememberError] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [exampleIndex, setExampleIndex] = useState(0);
   const rememberSavingRef = useRef(false);
   const recentRequestIdRef = useRef(0);
@@ -136,6 +137,7 @@ export default function TodayPage() {
       setRememberNote("");
       setRememberCategory("general");
       setRememberOccurredAt(toLocalDateTimeInputValue());
+      setDetailsOpen(false);
     } catch (saveError) {
       setRememberError(saveError instanceof Error ? saveError.message : "Furvise could not remember this yet.");
     } finally {
@@ -183,18 +185,29 @@ export default function TodayPage() {
                   placeholder={TODAY_REMEMBER_EXAMPLES[exampleIndex]}
                   value={rememberNote}
                 />
-                <div className={styles.metadataFields}>
-                  <label>
-                    <span>Category</span>
-                    <select onChange={(event) => setRememberCategory(event.target.value as CareEntryInput["category"])} value={rememberCategory}>
-                      {CARE_ENTRY_CATEGORIES.map((category) => <option key={category} value={category}>{formatCareEntryCategory(category)}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <span>When</span>
-                    <input onChange={(event) => setRememberOccurredAt(event.target.value)} type="datetime-local" value={rememberOccurredAt} />
-                  </label>
-                </div>
+                <button
+                  aria-controls="today-remember-details"
+                  aria-expanded={detailsOpen}
+                  className={styles.detailsToggle}
+                  onClick={() => setDetailsOpen((current) => !current)}
+                  type="button"
+                >
+                  {detailsOpen ? "Hide details" : "Add details"}
+                </button>
+                {detailsOpen ? (
+                  <div className={styles.metadataFields} id="today-remember-details">
+                    <label>
+                      <span>Category</span>
+                      <select onChange={(event) => setRememberCategory(event.target.value as CareEntryInput["category"])} value={rememberCategory}>
+                        {CARE_ENTRY_CATEGORIES.map((category) => <option key={category} value={category}>{formatCareEntryCategory(category)}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      <span>When</span>
+                      <input onChange={(event) => setRememberOccurredAt(event.target.value)} type="datetime-local" value={rememberOccurredAt} />
+                    </label>
+                  </div>
+                ) : null}
                 <button className={styles.primaryAction} data-ui="today-remember-action" disabled={!rememberDraft || rememberSaving} type="submit">
                   {rememberSaving ? "REMEMBERING" : "REMEMBER"}
                 </button>
@@ -206,20 +219,18 @@ export default function TodayPage() {
             {recentEntries.length ? (
               <section aria-labelledby="recent-heading" className={styles.recent} data-ui="today-recent">
                 <h2 className={styles.recentHeading} id="recent-heading">RECENT</h2>
-                <table className={styles.recentTable}>
-                  <thead>
-                    <tr><th scope="col">When</th><th scope="col">What happened</th><th scope="col">Category</th></tr>
-                  </thead>
-                  <tbody>
-                    {recentEntries.map((entry) => (
-                      <tr key={entry.id}>
-                        <td><time dateTime={entry.occurred_at}>{formatTodayTimelineDate(entry.occurred_at)}</time></td>
-                        <td>{entry.note}</td>
-                        <td>{formatCareEntryCategory(entry.category)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <ol className={styles.recentList}>
+                  {recentEntries.map((entry) => (
+                    <li className={styles.recentEntry} key={entry.id}>
+                      <p className={styles.recentMetadata}>
+                        <time dateTime={entry.occurred_at}>{formatTodayTimelineDate(entry.occurred_at)}</time>
+                        <span aria-hidden="true"> · </span>
+                        <span>{formatCareEntryCategory(entry.category)}</span>
+                      </p>
+                      <p className={styles.recentNote}>{entry.note}</p>
+                    </li>
+                  ))}
+                </ol>
               </section>
             ) : null}
           </>

@@ -168,6 +168,15 @@ export function toLocalDateTimeInputValue(date = new Date()) {
   return localDate.toISOString().slice(0, 16);
 }
 
+export function prepareCareEntryInputForTransport(input) {
+  const occurredAt = typeof input?.occurredAt === "string" ? input.occurredAt.trim() : "";
+  const instant = new Date(occurredAt);
+  return {
+    ...input,
+    occurredAt: Number.isNaN(instant.getTime()) ? occurredAt : instant.toISOString(),
+  };
+}
+
 export function sortCareEntriesNewestFirst(entries) {
   return [...entries].sort(compareCareEntriesNewestFirst);
 }

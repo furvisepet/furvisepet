@@ -4,16 +4,16 @@ import { isKnownConversationalCareNoise } from "./intelligence/care-history-poli
 
 export const SERVER_SAFE_GREETING = "Welcome back";
 export const TODAY_REMEMBER_EXAMPLES = [
-  "Milo skipped breakfast but ate dinner normally.",
-  "She started licking her left paw again.",
+  "Skipped breakfast but ate dinner normally.",
+  "Started licking the left paw again.",
   "The new food seems to be sitting better.",
-  "He threw up once after breakfast.",
+  "Threw up once after breakfast.",
   "Started the new medication tonight.",
   "Energy was lower than usual this morning.",
   "Vet visit went well. Weight was 24 lb.",
-  "She slept through the night without coughing.",
+  "Slept through the night without coughing.",
   "Stool was softer than usual after dinner.",
-  "He seemed nervous during the car ride.",
+  "Seemed nervous during the car ride.",
 ] as const;
 
 export type TodayRecentState = {
