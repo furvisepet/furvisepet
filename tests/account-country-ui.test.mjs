@@ -2,27 +2,46 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("account settings displays and persists Product country manual override", () => {
+test("Account no longer loads or exposes Product country while stored data and APIs remain intact", () => {
   const accountPage = readFileSync("app/account/page.tsx", "utf8");
+  const supabaseClient = readFileSync("app/lib/supabase.ts", "utf8");
 
-  assert.match(accountPage, /Product country/);
-  assert.match(accountPage, /Used to show region-relevant product suggestions\. You can change this anytime\./);
-  assert.match(accountPage, /<option value="CA">Canada<\/option>/);
-  assert.match(accountPage, /<option value="US">United States<\/option>/);
-  assert.match(accountPage, /updateUserProductCountryForUser\(selectedCountry, user\)/);
-  assert.match(accountPage, /getAccountCountrySourceLabel/);
+  assert.doesNotMatch(accountPage, /Product country|Shopping region|product-country|selectedCountry/);
+  assert.doesNotMatch(accountPage, /loadUserProfileForUser|detectAccountProductCountry|updateUserProductCountryForUser|getAccountCountrySourceLabel/);
+  assert.match(supabaseClient, /country: "US" \| "CA" \| null/);
+  assert.match(supabaseClient, /export async function updateUserProductCountryForUser/);
+  const countryRoute = readFileSync("app/api/account/product-country/route.ts", "utf8");
+  const countryModel = readFileSync("app/lib/account-country.ts", "utf8");
+  assert.match(countryRoute, /\.upsert\(buildManualAccountCountryUpdate\(\{ country, userId: context\.userId \}\)/);
+  assert.match(countryModel, /country_source: "manual"/);
 });
 
-test("signed-out account redirects before rendering editable settings controls", () => {
+test("signed-out account redirects before rendering the account directory", () => {
   const accountPage = readFileSync("app/account/page.tsx", "utf8");
   const signedOutBranchStart = accountPage.indexOf('authStatus !== "signedIn"');
-  const editableSettingsStart = accountPage.indexOf('<h2 className="text-lg font-semibold text-[var(--pw-heading)]">Product country</h2>');
+  const directoryStart = accountPage.indexOf('aria-label="Account settings"');
 
   assert.ok(signedOutBranchStart >= 0);
-  assert.ok(editableSettingsStart > signedOutBranchStart);
+  assert.ok(directoryStart > signedOutBranchStart);
   assert.match(accountPage, /useRequireConfirmedSupabaseAuth\(\)/);
   assert.match(accountPage, /Redirecting to sign in/);
-  assert.match(accountPage, /disabled=\{loading \|\| saving\}/);
+});
+
+test("Account is a full-width directory for membership, security, data, legal, sign out, and protected deletion", () => {
+  const accountPage = readFileSync("app/account/page.tsx", "utf8");
+  assert.match(accountPage, /title="ACCOUNT"/);
+  assert.match(accountPage, /user\?\.email/);
+  assert.match(accountPage, /href="\/membership"/);
+  assert.match(accountPage, /href="\/settings\/security"/);
+  assert.match(accountPage, /href="\/privacy"/);
+  assert.match(accountPage, /href="\/terms"/);
+  assert.match(accountPage, /signOutOfFurvise/);
+  assert.match(accountPage, /data-ui="delete-account-disclosure"/);
+  assert.match(accountPage, /deleteConfirmation !== "DELETE"/);
+  assert.match(accountPage, /idempotentClientFetch\([\s\S]*"\/api\/account\/delete"/);
+  assert.match(accountPage, /formatProviderSummary\(connectedProviders\)/);
+  assert.match(accountPage, /formatMembershipSummary\(payload\)/);
+  assert.doesNotMatch(accountPage, /rounded-3xl|shadow-\[/);
 });
 
 test("Results ignores product country and does not render a region product empty state", () => {

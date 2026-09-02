@@ -3,11 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "./app-header";
-import { getBrowserSupabase, setBrowserSupabasePersistence } from "../lib/supabase";
-import { clearNewPetOnboardingState } from "../lib/onboarding-drafts";
-import { clearActivePetId } from "../lib/active-pet";
-import { clearAskClientState } from "../lib/ask-conversations";
-import { enforceVetBriefDraftAccountBoundary } from "../lib/vet-brief/client-drafts";
+import { getBrowserSupabase } from "../lib/supabase";
+import { signOutOfFurvise } from "../lib/sign-out";
 
 type AuthState = "loading" | "anonymous" | "authenticated";
 
@@ -58,15 +55,7 @@ export function SignedInHeader({ variant = "site" }: { variant?: "homepage" | "s
     setSigningOut(true);
     setSignOutError("");
     try {
-      const { data: currentAuth } = await client.auth.getUser();
-      const { error } = await client.auth.signOut();
-      if (error) throw error;
-      clearNewPetOnboardingState({ localStorage: window.localStorage, sessionStorage: window.sessionStorage }, currentAuth.user?.id || "");
-      clearActivePetId(window.localStorage);
-      clearAskClientState(window.localStorage);
-      clearAskClientState(window.sessionStorage);
-      enforceVetBriefDraftAccountBoundary(window.localStorage, null);
-      setBrowserSupabasePersistence(null);
+      await signOutOfFurvise(client);
       setAuthState("anonymous");
       router.replace("/");
       router.refresh();

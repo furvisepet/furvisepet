@@ -4,20 +4,19 @@ import test from "node:test";
 
 const membership = readFileSync(new URL("../app/membership/page.tsx", import.meta.url), "utf8");
 
-test("Membership promises only current plan limits and shared quality", () => {
-  assert.match(membership, /15 Ask per month/);
-  assert.match(membership, /55 thoughtful Ask messages every month/);
-  assert.match(membership, /One pet/);
+test("Membership promises only current plan limits and one shared-quality clarification", () => {
+  assert.match(membership, /FREE_ASK_ALLOWANCE/);
+  assert.match(membership, /PLUS_ASK_ALLOWANCE/);
+  assert.match(membership, /"1 pet"/);
   assert.match(membership, /Up to 10 pets/);
-  assert.match(membership, /same Furvise reasoning and safety standards/i);
+  assert.match(membership, /Plus gives you more room to use Furvise\. It does not change Furvise&apos;s safety standards\./);
 });
 
-test("desktop and mobile comparisons share one truthful row source", () => {
-  assert.match(membership, /data-ui="mobile-membership-comparison"/);
-  assert.match(membership, /data-ui="desktop-membership-comparison"/);
-  assert.equal((membership.match(/rows\.map/g) || []).length, 2);
-  assert.match(membership, /\["Care history and tracking", "Included", "Included"\]/);
-  assert.match(membership, /\["Reasoning and safety standards", "Same Furvise quality", "Same Furvise quality"\]/);
+test("plan features appear once in stacked plan sections", () => {
+  assert.match(membership, /aria-label="Furvise membership plans"/);
+  assert.match(membership, /"Care history"/);
+  assert.match(membership, /PLAN_CAPABILITIES\.plus\.vetPrepExports \? \["Vet Brief"\]/);
+  assert.doesNotMatch(membership, /Compare plans|Care history and tracking|same reasoning and safety standards/i);
 });
 
 test("Membership contains no unbuilt or falsely exclusive paid promises", () => {

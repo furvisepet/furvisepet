@@ -1,10 +1,9 @@
 "use client";
 
-import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppPage } from "../components/app-page";
-import { PageHeader, PrimaryButton, SecondaryButton } from "../components/product-primitives";
+import { PageHeader, PrimaryButton } from "../components/product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import type { BillingPresentation } from "../lib/billing/billing-presentation";
 import type { EffectiveEntitlements } from "../lib/billing/entitlement-types";
@@ -14,8 +13,8 @@ import {
   shouldManageExistingSubscription,
   type BillingSubscriptionStatus,
 } from "../lib/billing/launch-plans";
+import { PLAN_CAPABILITIES } from "../lib/billing/plan-limits";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
-import { canUseSameSiteNavigationHistory } from "../lib/navigation/safe-back";
 import { getBrowserSupabase } from "../lib/supabase";
 
 type AskUsage = {
@@ -34,8 +33,9 @@ type MembershipPayload = {
   entitlements: EffectiveEntitlements;
 };
 
+const forestButtonClass = "![--text-inverse:var(--warm-cream)] !bg-[var(--deep-forest)] hover:!bg-[var(--forest)] disabled:!bg-[var(--disabled-surface)] aria-disabled:!bg-[var(--disabled-surface)]";
+
 export default function MembershipPage() {
-  const router = useRouter();
   const { status: authStatus } = useRequireConfirmedSupabaseAuth();
   const [membership, setMembership] = useState<MembershipPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,10 +66,11 @@ export default function MembershipPage() {
     setBillingBusy(destination);
     setError("");
     try {
-      const response = await idempotentClientFetch(`/api/billing/${destination}`, {
-        headers: await authorizationHeaders(),
-        method: "POST",
-      }, `billing-${destination}`);
+      const response = await idempotentClientFetch(
+        `/api/billing/${destination}`,
+        { headers: await authorizationHeaders(), method: "POST" },
+        `billing-${destination}`,
+      );
       const body = await response.json().catch(() => null) as { error?: string; url?: string } | null;
       if (!response.ok || !body?.url) throw new Error(body?.error || "Billing is temporarily unavailable.");
       window.location.assign(body.url);
@@ -98,40 +99,25 @@ export default function MembershipPage() {
   const billingDestination = isPlus || shouldManageExistingSubscription(subscriptionStatus) ? "portal" : "checkout";
   const confirming = checkoutState === "success" && !isPlus && !isInternalQa;
 
-  function goBack() {
-    if (canUseSameSiteNavigationHistory({
-      currentOrigin: window.location.origin,
-      currentPathname: window.location.pathname,
-      historyLength: window.history.length,
-      referrer: document.referrer,
-    })) {
-      router.back();
-      return;
-    }
-    router.push("/account");
-  }
-
   return (
     <AppPage shell="reading">
-      <SecondaryButton className="mb-5 w-fit px-3" onClick={goBack} type="button">
-        <span aria-hidden="true">←</span> Back
-      </SecondaryButton>
-      <PageHeader
-        supportingText="Choose the plan that gives you the right amount of room to ask, track, and care for your pets."
-        title="Membership"
-      />
+      <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href="/account">← Account</Link>
+      <div className="mt-5">
+        <PageHeader supportingText="Choose how much room you need in Furvise." title="MEMBERSHIP" />
+      </div>
+
       {authStatus !== "signedIn" ? (
-        <StatusCard>{authStatus === "loading" ? "Loading membership..." : "Redirecting to sign in..."}</StatusCard>
+        <StatusBand>{authStatus === "loading" ? "Loading membership..." : "Redirecting to sign in..."}</StatusBand>
       ) : loading && !membership ? (
-        <StatusCard>Loading your membership and Ask allowance...</StatusCard>
+        <StatusBand>Loading your membership and Ask allowance...</StatusBand>
       ) : !membership ? (
-        <StatusCard>
+        <StatusBand>
           <p className="font-semibold text-[var(--text-primary)]">Membership is temporarily unavailable.</p>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">{error || "Furvise could not verify your plan. Your access has not changed."}</p>
-          <PrimaryButton className="mt-4" loading={billingBusy === "refresh"} onClick={() => void refreshMembership()} type="button">Try again</PrimaryButton>
-        </StatusCard>
+          <PrimaryButton className={`${forestButtonClass} mt-4`} loading={billingBusy === "refresh"} onClick={() => void refreshMembership()} type="button">Try again</PrimaryButton>
+        </StatusBand>
       ) : (
-        <>
+        <div className="pb-12">
           <MembershipSummary entitlements={membership.entitlements} usage={membership.askUsage} />
 
           {!isInternalQa ? (
@@ -144,88 +130,59 @@ export default function MembershipPage() {
           ) : null}
 
           {confirming ? (
-            <section className="mt-6 rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-supportive)] p-5 shadow-[var(--shadow-surface-1)]" role="status">
+            <StatusBand>
               <h2 className="font-bold text-[var(--text-primary)]">We&apos;re confirming your Furvise Plus subscription.</h2>
               <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">Checkout is complete. Plus will appear after Stripe confirms the subscription.</p>
-              <PrimaryButton className="mt-4 w-full sm:w-auto" loading={billingBusy === "refresh"} onClick={() => void refreshMembership()} type="button">Refresh status</PrimaryButton>
-            </section>
+              <PrimaryButton className={`${forestButtonClass} mt-4 w-full sm:w-auto`} loading={billingBusy === "refresh"} onClick={() => void refreshMembership()} type="button">Refresh status</PrimaryButton>
+            </StatusBand>
           ) : checkoutState === "cancelled" && !isPlus ? (
-            <p className="mt-6 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] px-4 py-3 text-sm text-[var(--text-secondary)]" role="status">Checkout was cancelled. Your Free membership has not changed.</p>
+            <StatusBand>Checkout was cancelled. Your Free membership has not changed.</StatusBand>
           ) : null}
 
-          {error ? <p className="mt-6 rounded-[var(--radius-md)] border border-[var(--pw-danger-border)] bg-[var(--danger-surface)] px-4 py-3 text-sm font-semibold text-[var(--danger-text)]" role="alert">{error}</p> : null}
+          {error ? <p className="mt-8 border-y border-[var(--danger-text)] py-4 text-sm font-semibold text-[var(--danger-text)]" role="alert">{error}</p> : null}
 
-          <section className="mt-10 grid gap-5 lg:grid-cols-2" aria-label="Furvise membership plans">
-            <PlanCard
-              current={!isInternalQa && !isPlus}
-              image="/images/paywall_free.png"
-              imageAlt="A Furvise pup waiting under a small rain cloud"
-              title="Free"
-            >
-              <p className="text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">15 Ask per month</p>
-              <FeatureList items={["One pet", "Care history and tracking", "The same Furvise reasoning and safety standards"]} />
-              {!isInternalQa && !isPlus ? <SecondaryButton className="mt-auto w-full" disabled type="button">Current plan</SecondaryButton> : null}
-            </PlanCard>
-
-            <PlanCard
-              accent
-              current={!isInternalQa && isPlus}
-              image="/images/paywall_paid.png"
-              imageAlt="A happy Furvise pup waving among warm sparkles"
-              title="Furvise Plus"
-            >
-              <div>
-                <p className="text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">{membership.billingPresentation.priceLabel}</p>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">Monthly billing only · Cancel anytime</p>
-              </div>
-              <FeatureList items={[
-                "55 thoughtful Ask messages every month",
-                "Up to 10 pets",
-                "Care history and tracking",
-                "The same Furvise reasoning and safety standards",
-              ]} />
-              {!isInternalQa ? (
-                <PrimaryButton
-                  className="mt-auto w-full"
-                  disabled={billingBusy !== null}
-                  loading={billingBusy === billingDestination}
-                  onClick={() => void openBilling(billingDestination)}
-                  type="button"
-                >
-                  {billingDestination === "portal" ? "Manage billing" : "Upgrade to Furvise Plus"}
-                </PrimaryButton>
-              ) : (
-                <p className="mt-auto rounded-[var(--radius-md)] bg-[var(--surface-supportive)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">Consumer billing actions are hidden for internal testing access.</p>
-              )}
-            </PlanCard>
+          <section className="mt-16 border-y border-[var(--line)]" aria-label="Furvise membership plans">
+            <PlanSection
+              actions={!isInternalQa && !isPlus ? <PlanState>Current plan</PlanState> : null}
+              features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet", "Care history"]}
+              price="$0"
+              title="FREE"
+            />
+            <PlanSection
+              actions={!isInternalQa ? (
+                isPlus ? (
+                  <div className="flex flex-col gap-3 sm:items-end">
+                    <PlanState>Current plan</PlanState>
+                    <PrimaryButton className={forestButtonClass} disabled={billingBusy !== null} loading={billingBusy === "portal"} onClick={() => void openBilling("portal")} type="button">Manage billing</PrimaryButton>
+                  </div>
+                ) : (
+                  <PrimaryButton className={forestButtonClass} disabled={billingBusy !== null} loading={billingBusy === billingDestination} onClick={() => void openBilling(billingDestination)} type="button">
+                    {billingDestination === "portal" ? "Manage billing" : "Upgrade to Plus"}
+                  </PrimaryButton>
+                )
+              ) : null}
+              features={plusFeatures()}
+              price={membership.billingPresentation.priceLabel}
+              title="PLUS"
+            />
           </section>
 
-          <Comparison />
-          <p className="mb-12 mt-6 text-center text-sm leading-6 text-[var(--text-secondary)]">Free and Plus use the same Furvise reasoning and safety standards. Plus adds room for more pets and Ask messages, not a different quality of care guidance.</p>
-        </>
+          {isInternalQa ? <p className="mt-6 text-sm leading-6 text-[var(--text-secondary)]">Consumer billing actions are hidden for internal testing access.</p> : null}
+          <p className="mt-12 max-w-3xl border-t border-[var(--line)] pt-6 text-sm leading-6 text-[var(--text-secondary)]">Plus gives you more room to use Furvise. It does not change Furvise&apos;s safety standards.</p>
+        </div>
       )}
     </AppPage>
   );
 }
 
-function BillingStatusNotice({
-  isPlus,
-  loading,
-  onManage,
-  status,
-}: {
-  isPlus: boolean;
-  loading: boolean;
-  onManage: () => void;
-  status?: BillingSubscriptionStatus;
-}) {
+function BillingStatusNotice({ isPlus, loading, onManage, status }: { isPlus: boolean; loading: boolean; onManage: () => void; status?: BillingSubscriptionStatus }) {
   const message = billingStatusMessage(status, isPlus);
   if (!message) return null;
   return (
-    <section className="mt-6 rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-supportive)] p-5 shadow-[var(--shadow-surface-1)]" role="status">
+    <section className="mt-8 border-y border-[var(--border-strong)] bg-[var(--surface-supportive)] px-4 py-5" role="status">
       <h2 className="font-bold text-[var(--text-primary)]">{message.title}</h2>
-      <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{message.body}</p>
-      <PrimaryButton className="mt-4 w-full sm:w-auto" loading={loading} onClick={onManage} type="button">Manage billing</PrimaryButton>
+      <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{message.body}</p>
+      <PrimaryButton className={`${forestButtonClass} mt-4 w-full sm:w-auto`} loading={loading} onClick={onManage} type="button">Manage billing</PrimaryButton>
     </section>
   );
 }
@@ -233,33 +190,12 @@ function BillingStatusNotice({
 function billingStatusMessage(status: BillingSubscriptionStatus | undefined, isPlus: boolean) {
   if (status === "past_due") {
     return isPlus
-      ? {
-          title: "Your payment needs attention.",
-          body: "Your Plus access is temporarily still available while payment recovery is in progress. Update your payment method to keep Plus active.",
-        }
-      : {
-          title: "Your Plus payment is still overdue.",
-          body: "Plus access is paused. Open billing to update your payment method and resolve the subscription before trying to upgrade again.",
-        };
+      ? { title: "Your payment needs attention.", body: "Your Plus access is temporarily still available while payment recovery is in progress. Update your payment method to keep Plus active." }
+      : { title: "Your Plus payment is still overdue.", body: "Plus access is paused. Open billing to update your payment method and resolve the subscription before trying to upgrade again." };
   }
-  if (status === "unpaid") {
-    return {
-      title: "Your Plus payment could not be recovered.",
-      body: "Plus access is paused. Open billing to update your payment method and resolve the existing subscription.",
-    };
-  }
-  if (status === "incomplete") {
-    return {
-      title: "Your Plus setup is not finished yet.",
-      body: "There is already a subscription in progress. Open billing to finish resolving it instead of starting another checkout.",
-    };
-  }
-  if (status === "paused") {
-    return {
-      title: "Your Furvise subscription is paused.",
-      body: "Open billing to review the existing subscription before starting another checkout.",
-    };
-  }
+  if (status === "unpaid") return { title: "Your Plus payment could not be recovered.", body: "Plus access is paused. Open billing to update your payment method and resolve the existing subscription." };
+  if (status === "incomplete") return { title: "Your Plus setup is not finished yet.", body: "There is already a subscription in progress. Open billing to finish resolving it instead of starting another checkout." };
+  if (status === "paused") return { title: "Your Furvise subscription is paused.", body: "Open billing to review the existing subscription before starting another checkout." };
   return null;
 }
 
@@ -270,95 +206,74 @@ function MembershipSummary({ entitlements, usage }: { entitlements: EffectiveEnt
   const remaining = Math.min(limit, Math.max(0, usage.remaining));
   const used = Math.max(0, limit - remaining);
   const percentage = Math.min(100, Math.round((used / limit) * 100));
-  const planName = internalQa ? "Internal testing access" : plus ? "Furvise Plus" : "Furvise Free";
-  const periodVerb = plus && !internalQa ? (usage.cancelAtPeriodEnd ? "Ends" : "Renews") : "Resets";
+
+  if (internalQa) {
+    return (
+      <section className="mt-12 border-y border-[var(--line)] py-7" data-ui="internal-testing-access">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Internal testing access</p>
+        <p className="mt-3 text-2xl font-semibold text-[var(--text-primary)]">{remaining.toLocaleString()} Ask remaining</p>
+      </section>
+    );
+  }
+
+  const periodVerb = plus ? (usage.cancelAtPeriodEnd ? "Ends" : "Renews") : "Resets";
   return (
-    <section className="mt-8 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-6 shadow-[var(--shadow-surface-1)] sm:p-7">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+    <section className="mt-12 border-y border-[var(--line)] py-8" data-ui="current-membership">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Your plan</p>
+      <div className="mt-4 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Current membership</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">{planName}</h2>
-          <p className="mt-2 text-[var(--text-secondary)]">{limit.toLocaleString()} Ask per month</p>
+          <h2 className="text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] sm:text-5xl">{plus ? "FURVISE PLUS" : "FREE"}</h2>
+          <p className="mt-4 text-xl text-[var(--text-primary)]">{remaining.toLocaleString()} of {limit.toLocaleString()} Ask remaining</p>
         </div>
-        <div className="sm:text-right">
-          <p className="text-3xl font-bold text-[var(--deep-forest)]">{remaining.toLocaleString()}</p>
-          <p className="text-sm text-[var(--text-secondary)]">Ask remaining</p>
-        </div>
+        <p className="text-sm text-[var(--text-secondary)]">{periodVerb} {formatBillingDate(usage.resetAt)}</p>
       </div>
-      <div className="mt-6 h-2.5 overflow-hidden rounded-full bg-[var(--surface-supportive)]" role="progressbar" aria-label="Ask allowance used" aria-valuemax={limit} aria-valuemin={0} aria-valuenow={used}>
-        <div className="h-full rounded-full bg-[var(--action-primary)] transition-[width]" style={{ width: `${percentage}%` }} />
+      <div className="mt-7 h-1 overflow-hidden bg-[var(--surface-supportive)]" role="progressbar" aria-label="Ask allowance used" aria-valuemax={limit} aria-valuemin={0} aria-valuenow={used}>
+        <div className="h-full bg-[var(--forest)] transition-[width]" style={{ width: `${percentage}%` }} />
       </div>
-      <div className="mt-3 flex flex-wrap justify-between gap-2 text-sm text-[var(--text-secondary)]">
-        <span>{used.toLocaleString()} used</span>
-        <span>{periodVerb} {formatBillingDate(usage.resetAt)}</span>
-      </div>
-      {usage.cancelAtPeriodEnd && plus ? <p className="mt-5 rounded-[var(--radius-md)] bg-[var(--surface-supportive)] px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">Your cancellation is scheduled. Plus remains available through {formatBillingDate(usage.resetAt)}.</p> : null}
-      {internalQa ? <p className="mt-5 text-sm leading-6 text-[var(--text-secondary)]">Expanded testing access remains separate from consumer billing and does not create a Plus subscription.</p> : null}
+      {usage.cancelAtPeriodEnd && plus ? <p className="mt-6 border-t border-[var(--line)] pt-5 text-sm font-semibold text-[var(--text-primary)]">Your cancellation is scheduled. Plus remains available through {formatBillingDate(usage.resetAt)}.</p> : null}
     </section>
   );
 }
 
-function PlanCard({ accent = false, children, current, image, imageAlt, title }: { accent?: boolean; children: React.ReactNode; current: boolean; image: string; imageAlt: string; title: string }) {
+function PlanSection({ actions, features, price, title }: { actions?: React.ReactNode; features: string[]; price: string; title: string }) {
   return (
-    <article className={`flex min-h-full flex-col overflow-hidden rounded-[var(--radius-lg)] border bg-[var(--surface-primary)] shadow-[var(--shadow-surface-1)] ${accent ? "border-[var(--action-primary)]" : "border-[var(--border-subtle)]"}`}>
-      <div className={`relative flex h-52 items-center justify-center overflow-hidden ${accent ? "bg-[var(--surface-supportive)]" : "bg-[var(--surface-secondary)]"}`}>
-        <Image alt={imageAlt} className="h-48 w-48 object-contain" height={1280} sizes="192px" src={image} width={1280} />
+    <article className="grid gap-7 border-b border-[var(--line)] py-10 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)_auto] sm:items-start sm:py-12">
+      <div>
+        <h2 className="text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] sm:text-5xl">{title}</h2>
+        <p className="mt-3 text-2xl font-medium text-[var(--text-primary)]">{price}</p>
       </div>
-      <div className="flex flex-1 flex-col gap-5 p-6 sm:p-7">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">{title}</h2>
-          {current ? <span className="rounded-full bg-[var(--surface-supportive)] px-3 py-1 text-xs font-bold text-[var(--deep-forest)]">Current plan</span> : null}
-        </div>
-        {children}
-      </div>
+      <FeatureList items={features} />
+      <div className="sm:justify-self-end">{actions}</div>
     </article>
   );
 }
 
+function PlanState({ children }: { children: React.ReactNode }) {
+  return <p className="inline-flex min-h-11 items-center text-sm font-bold uppercase tracking-[0.08em] text-[var(--text-secondary)]">{children}</p>;
+}
+
 function FeatureList({ items }: { items: string[] }) {
-  return <ul className="grid gap-3 text-sm leading-6 text-[var(--text-secondary)]">{items.map((item) => <li className="flex gap-2" key={item}><span aria-hidden="true" className="font-bold text-[var(--deep-forest)]">✓</span><span>{item}</span></li>)}</ul>;
+  return <ul className="grid gap-3 text-base leading-7 text-[var(--text-secondary)]">{items.map((item) => <li key={item}>{item}</li>)}</ul>;
 }
 
-function Comparison() {
-  const rows = [
-    ["Ask allowance", `${FREE_ASK_ALLOWANCE} / month`, `${PLUS_ASK_ALLOWANCE} / month`],
-    ["Pets", "1", "Up to 10"],
-    ["Care history and tracking", "Included", "Included"],
-    ["Reasoning and safety standards", "Same Furvise quality", "Same Furvise quality"],
+function plusFeatures() {
+  return [
+    `${PLUS_ASK_ALLOWANCE} Ask each month`,
+    "Up to 10 pets",
+    "Care history",
+    ...(PLAN_CAPABILITIES.plus.vetPrepExports ? ["Vet Brief"] : []),
   ];
-  return (
-    <section className="mt-12 pb-4">
-      <h2 className="text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)]">Compare plans</h2>
-      <div className="mt-5 grid gap-3 sm:hidden" data-ui="mobile-membership-comparison">
-        {rows.map(([feature, free, plus]) => (
-          <article className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-4 shadow-[var(--shadow-surface-1)]" key={feature}>
-            <h3 className="font-bold text-[var(--text-primary)]">{feature}</h3>
-            <dl className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 text-sm leading-6">
-              <div className="min-w-0"><dt className="font-semibold text-[var(--text-secondary)]">Free</dt><dd className="mt-1 break-words text-[var(--text-secondary)]">{free}</dd></div>
-              <div className="min-w-0"><dt className="font-semibold text-[var(--deep-forest)]">Furvise Plus</dt><dd className="mt-1 break-words font-semibold text-[var(--deep-forest)]">{plus}</dd></div>
-            </dl>
-          </article>
-        ))}
-      </div>
-      <div className="mt-5 hidden overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] shadow-[var(--shadow-surface-1)] sm:block" data-ui="desktop-membership-comparison">
-        <table className="w-full min-w-[620px] border-collapse text-left text-sm">
-          <thead><tr className="border-b border-[var(--border-subtle)]"><th className="p-4 font-semibold text-[var(--text-secondary)]">Feature</th><th className="p-4 text-base font-bold text-[var(--text-primary)]">Free</th><th className="p-4 text-base font-bold text-[var(--text-primary)]">Furvise Plus</th></tr></thead>
-          <tbody>{rows.map(([feature, free, plus]) => <tr className="border-b border-[var(--border-subtle)] last:border-0" key={feature}><th className="p-4 font-semibold text-[var(--text-primary)]">{feature}</th><td className="p-4 text-[var(--text-secondary)]">{free}</td><td className="p-4 font-semibold text-[var(--deep-forest)]">{plus}</td></tr>)}</tbody>
-        </table>
-      </div>
-    </section>
-  );
 }
 
-function StatusCard({ children }: { children: React.ReactNode }) {
-  return <div className="mt-8 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] p-5 text-[var(--text-secondary)] shadow-[var(--shadow-surface-1)]" role="status">{children}</div>;
+function StatusBand({ children }: { children: React.ReactNode }) {
+  return <div className="mt-10 border-y border-[var(--line)] py-5 text-[var(--text-secondary)]" role="status">{children}</div>;
 }
 
 function formatBillingDate(value?: string) {
   if (!value) return "at the next allowance period";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "at the next allowance period";
-  return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
 function readCheckoutState() {

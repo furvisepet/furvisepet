@@ -12,6 +12,7 @@ const conversationRoute = read("app/api/ask/conversations/[id]/route.ts");
 const conversationListRoute = read("app/api/ask/conversations/route.ts");
 const migration = read("supabase/migrations/20260727010000_add_ask_request_idempotency.sql");
 const signedInHeader = read("app/components/signed-in-header.tsx");
+const signOutHelper = read("app/lib/sign-out.ts");
 const appHeader = read("app/components/app-header.tsx");
 
 test("Ask blocks empty and duplicate submissions while exposing a visible request state", () => {
@@ -124,10 +125,11 @@ test("saved conversations load chronologically and Recent conversations is recov
 });
 
 test("sign out clears user-specific browser state and redirects safely", () => {
-  assert.match(signedInHeader, /await client\.auth\.signOut\(\)/);
-  assert.match(signedInHeader, /clearNewPetOnboardingState/);
-  assert.match(signedInHeader, /clearActivePetId/);
-  assert.match(signedInHeader, /clearAskClientState\(window\.localStorage\)/);
+  assert.match(signedInHeader, /await signOutOfFurvise\(client\)/);
+  assert.match(signOutHelper, /await client\.auth\.signOut\(\)/);
+  assert.match(signOutHelper, /clearNewPetOnboardingState/);
+  assert.match(signOutHelper, /clearActivePetId/);
+  assert.match(signOutHelper, /clearAskClientState\(window\.localStorage\)/);
   assert.match(signedInHeader, /router\.replace\("\/"\)/);
   assert.match(signedInHeader, /window\.location\.replace\("\/"\)/);
   assert.match(signedInHeader, /Couldn't sign out\. Please try again\./);

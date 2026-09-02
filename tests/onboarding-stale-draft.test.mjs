@@ -58,7 +58,8 @@ test("successful save, cancellation, and sign-out clear drafts while edit-draft 
   const drafts = read("app/lib/onboarding-drafts.ts");
   assert.match(page, /clearCompletedOnboardingState\([\s\S]*saved\.id/);
   assert.match(page, /function cancel\(\)[\s\S]*clearNewPetOnboardingState/);
-  assert.match(read("app/components/signed-in-header.tsx"), /clearNewPetOnboardingState/);
+  assert.match(read("app/components/signed-in-header.tsx"), /signOutOfFurvise/);
+  assert.match(read("app/lib/sign-out.ts"), /clearNewPetOnboardingState/);
   assert.match(drafts, /clearCompletedOnboardingState[\s\S]*clearEditPetOnboardingDraft\(storage\.localStorage, profileId\)/);
 });
 

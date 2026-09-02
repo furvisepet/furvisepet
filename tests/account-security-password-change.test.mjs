@@ -60,8 +60,20 @@ test("OAuth-only users are identified without inventing a current password", () 
   assert.equal(hasEmailPasswordProvider({ app_metadata: { provider: "google", providers: ["google"] } }), false);
   assert.equal(hasEmailPasswordProvider({ app_metadata: { provider: "email", providers: ["email", "google"] } }), true);
   const page = read("app/settings/security/page.tsx");
-  assert.match(page, /there is no current Furvise password to enter/);
+  assert.match(page, /No Furvise password is set\./);
+  assert.match(page, /send a secure link to your verified email/);
   assert.match(page, /href="\/forgot-password"/);
+});
+
+test("Security owns connected sign-in method presentation and Google identity linking", () => {
+  const page = read("app/settings/security/page.tsx");
+  const account = read("app/account/page.tsx");
+  assert.match(page, /getConnectedAuthProviders\(user\)/);
+  assert.match(page, /client\.auth\.linkIdentity/);
+  assert.match(page, /buildOAuthCallbackUrl\(window\.location\.origin, "\/settings\/security"\)/);
+  assert.match(page, /label="Google"/);
+  assert.match(page, /label="Email"/);
+  assert.doesNotMatch(account, /linkIdentity|Connect Google/);
 });
 
 test("the signed-in endpoint is strict, same-origin, authenticated, bounded, and idempotent", () => {
