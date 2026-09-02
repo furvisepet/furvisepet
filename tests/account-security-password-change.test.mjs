@@ -61,7 +61,7 @@ test("OAuth-only users are identified without inventing a current password", () 
   assert.equal(hasEmailPasswordProvider({ app_metadata: { provider: "email", providers: ["email", "google"] } }), true);
   const page = read("app/settings/security/page.tsx");
   assert.match(page, /label="Email & password"/);
-  assert.match(page, /state=\{emailPasswordUser \? "Connected" : "Not set up"\}/);
+  assert.match(page, /state=\{passwordCapabilityLoading[\s\S]*emailPasswordUser \? "Connected" : "Not set up"\}/);
   assert.match(page, />Set up<\/Link>/);
   assert.match(page, /sends a secure password link to your verified email/);
   assert.match(page, /href="\/forgot-password\?mode=setup"/);

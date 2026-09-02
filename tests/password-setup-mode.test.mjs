@@ -49,7 +49,7 @@ test("setup back and close return to Login and Security", () => {
 });
 
 test("connected password users retain the existing hardened change-password path", () => {
-  assert.match(security, /state=\{emailPasswordUser \? "Connected" : "Not set up"\}/);
+  assert.match(security, /state=\{passwordCapabilityLoading[\s\S]*emailPasswordUser \? "Connected" : "Not set up"\}/);
   assert.match(security, /emailPasswordUser \? \([\s\S]*setShowPasswordForm\(true\)[\s\S]*Change password/);
   assert.match(security, /data-ui="change-password-form"/);
   assert.match(security, /TurnstileChallenge/);

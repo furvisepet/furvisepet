@@ -99,6 +99,7 @@ export type PetProductFeedbackRow = DogProductFeedbackRow;
 
 export type UserProfileRow = {
   user_id: string;
+  password_auth_enabled_at: string | null;
   country: "US" | "CA" | null;
   country_source: AccountCountrySource | null;
   country_detected_at: string | null;
@@ -329,6 +330,21 @@ export async function loadUserProfileForUser(user: User) {
 
   if (error) throw friendlyDatabaseError(error, "account profile");
   return normalizeUserProfileRow(data);
+}
+
+export async function loadCurrentPasswordAuthCapability() {
+  const supabase = getBrowserSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("password_auth_enabled_at")
+    .maybeSingle<Pick<UserProfileRow, "password_auth_enabled_at">>();
+
+  if (error) throw friendlyDatabaseError(error, "password capability");
+  return typeof data?.password_auth_enabled_at === "string"
+    ? data.password_auth_enabled_at
+    : null;
 }
 
 export async function updateUserProductCountryForUser(country: string, user: User) {
@@ -1100,6 +1116,8 @@ function normalizeUserProfileRow(row: unknown): UserProfileRow | null {
     country_updated_at:
       typeof profile.country_updated_at === "string" ? profile.country_updated_at : null,
     created_at: typeof profile.created_at === "string" ? profile.created_at : null,
+    password_auth_enabled_at:
+      typeof profile.password_auth_enabled_at === "string" ? profile.password_auth_enabled_at : null,
     updated_at: typeof profile.updated_at === "string" ? profile.updated_at : null,
     user_id: typeof profile.user_id === "string" ? profile.user_id : "",
   };
