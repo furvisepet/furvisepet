@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppPage } from "../../components/app-page";
-import { LoadingState, PageHeader } from "../../components/product-primitives";
+import { LoadingState, PageHeader, PrimaryButton, SecondaryButton } from "../../components/product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
 import { useAppDataVersion } from "../../lib/navigation/app-data-freshness";
 import { formatPetDirectoryMetadata } from "../../lib/pets-directory";
@@ -17,9 +17,6 @@ import {
 } from "../../lib/supabase";
 
 type LoadState = "loading" | "ready" | "error";
-
-const strongActionClasses =
-  "inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--deep-forest)] bg-[var(--deep-forest)] px-5 text-sm font-semibold text-[color:var(--warm-cream)] transition-colors hover:bg-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]";
 
 export default function PetProfilePage() {
   const appDataVersion = useAppDataVersion();
@@ -68,12 +65,19 @@ export default function PetProfilePage() {
 function PetFacts({ profile }: { profile: DogProfileRow }) {
   const name = formatPetDisplayName(profile.name);
   const metadata = formatPetDirectoryMetadata(profile);
+  const petId = encodeURIComponent(profile.id);
+
   const facts = buildPetProfileFactRows(profile);
 
   return (
     <>
       <PageHeader
-        actions={<Link className={strongActionClasses} href={`/pets/${encodeURIComponent(profile.id)}/edit`}><span className="text-[color:var(--warm-cream)]">EDIT PET</span></Link>}
+        actions={(
+          <>
+            <SecondaryButton href={`/pets/${petId}/edit`}>EDIT PET</SecondaryButton>
+            <PrimaryButton href={`/vet-brief?pet=${petId}&source=pet-profile`}>VET BRIEF</PrimaryButton>
+          </>
+        )}
         eyebrow="PETS"
         supportingText={metadata}
         title={name}
@@ -97,7 +101,7 @@ function PetFacts({ profile }: { profile: DogProfileRow }) {
 function ProfileError({ error }: { error: string }) {
   return (
     <PageHeader
-      actions={<Link className={strongActionClasses} href="/pets"><span className="text-[color:var(--warm-cream)]">RETURN TO PETS</span></Link>}
+      actions={<PrimaryButton href="/pets">RETURN TO PETS</PrimaryButton>}
       eyebrow="PETS"
       supportingText={error || "Furvise could not open this pet profile. It may not exist or may belong to another account."}
       title="Pet profile unavailable"
