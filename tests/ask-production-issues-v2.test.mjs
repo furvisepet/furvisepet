@@ -151,8 +151,8 @@ test("assistant-offer follow-ups normalize to draftable owner-perspective questi
 });
 
 test("empty Ask and mobile conversation presentation stay compact and clear of navigation", () => {
-  assert.match(page, /What's up with \$\{petName\}\?/);
-  assert.match(page, /Ask about \$\{petName\}'s care, behavior, food, routines, or what happened today/);
+  assert.match(page, /Not sure where to start\?/);
+  assert.match(page, /Try one of these, or say it your own way\./);
   assert.equal((read("app/ask/page.tsx").match(/^\s+".*",$/gm) || []).filter((line) => /changed recently|keep an eye|prepare for/.test(line)).length, 3);
   assert.doesNotMatch(page, /Ask about something funny|Nothing is sent until you press Ask/);
   assert.match(page, /data-mobile-conversation-clearance="nav-and-composer"/);

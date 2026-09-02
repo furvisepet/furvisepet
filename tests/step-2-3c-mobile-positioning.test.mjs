@@ -36,7 +36,7 @@ test("Ask composer is mobile-sticky above nav while preserving its prior desktop
   assert.match(ask, /app-sticky-composer sticky \$\{hasThread \? "lg:sticky" : "lg:relative"\}/);
   assert.match(css, /\.app-sticky-composer \{[\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)[\s\S]*var\(--mobile-sticky-gap\)/);
   assert.match(css, /@media \(min-width: 1024px\)[\s\S]*\.app-sticky-composer \{\s*bottom: var\(--space-3\);/);
-  assert.match(ask, /data-ui="ask-composer-region"[\s\S]*<Composer[\s\S]*Furvise organizes care information and does not replace a veterinarian/);
+  assert.match(ask, /data-ui="ask-composer-region"[\s\S]*<Composer[\s\S]*Furvise helps keep your pet&apos;s story together\. It does not replace veterinary care/);
 });
 
 test("pages do not duplicate mobile navigation clearance geometry", () => {

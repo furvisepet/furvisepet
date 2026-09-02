@@ -73,11 +73,11 @@ test("History has compact filters and the intentional empty state", () => {
 });
 
 test("Ask fresh state uses a compact pet selector and one disclaimer", () => {
-  assert.match(ask, /What's up with \$\{petName\}\?/);
-  assert.match(ask, /Ask about \$\{petName\}'s care, behavior, food, routines, or what happened today\./);
+  assert.match(ask, /Not sure where to start\?/);
+  assert.match(ask, /Try one of these, or say it your own way\./);
   assert.match(ask, /function CompactPetSelector/);
   assert.doesNotMatch(ask, /function PetContextRail|Known context|Make this more specific/);
-  assert.equal(ask.split("Furvise organizes care information and does not replace a veterinarian.").length - 1, 1);
+  assert.equal(ask.split("Furvise helps keep your pet&apos;s story together. It does not replace veterinary care.").length - 1, 1);
 });
 
 test("Products is absent while Account remains in the mobile More menu", () => {

@@ -59,7 +59,7 @@ test("Ask conversation contract drops invalid auxiliary actions without dropping
 
 test("Ask workspace keeps one composer, chronological thread, compact pet selection, and one general disclaimer", () => {
   const page = readFileSync(new URL("../app/ask/page.tsx", import.meta.url), "utf8");
-  const disclaimer = "Furvise organizes care information and does not replace a veterinarian.";
+  const disclaimer = "Furvise helps keep your pet&apos;s story together. It does not replace veterinary care.";
   assert.match(page, /thread\.map/);
   assert.match(page, /role: "user"/);
   assert.match(page, /role: "furvise"/);
