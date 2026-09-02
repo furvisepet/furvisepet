@@ -116,13 +116,16 @@ export default function EditDogProfilePage() {
   }
 
   return (
-    <AppPage layout="focused">
-      <div className="mx-auto w-full max-w-[680px] min-w-0 pb-10 sm:pb-14">
-        <header className="border-b border-[var(--line)] pb-7 sm:pb-9">
-          <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]" href={profileHref}>
+    <AppPage>
+      <div className="mx-auto w-full max-w-[1180px] min-w-0 pb-10 sm:pb-16 lg:pb-20">
+        <header>
+          <Link className="inline-flex min-h-11 items-center text-xs font-bold uppercase tracking-[0.09em] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]" href={profileHref}>
             <span aria-hidden="true">←</span>&nbsp;{petName}
           </Link>
-          <h1 className="mt-4 text-[2.25rem] font-bold leading-[1.08] tracking-[-0.035em] text-[var(--text-primary)] sm:text-[2.625rem]">Edit {petName}</h1>
+          <h1 className="mt-5 text-[2.25rem] font-bold leading-[1.04] tracking-[-0.035em] text-[var(--text-primary)] sm:text-[2.75rem] lg:text-[3rem]">Edit {petName}</h1>
+          <p className="mt-3 max-w-[42rem] text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
+            Change the details Furvise should use for {petName}.
+          </p>
         </header>
 
         {configError ? (
