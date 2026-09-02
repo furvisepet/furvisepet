@@ -8,6 +8,7 @@ import {
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const header = read("app/components/app-header.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 
 const expectedAssets = {
   ask: "/images/nav-ask-v1.webp",
@@ -39,7 +40,8 @@ test("mobile destinations retain the intended icon assets while desktop stays te
 
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.doesNotMatch(desktop, /asset:|NAVIGATION_ICON_ASSETS|<Image|NavigationIcon/);
-  assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\}/);
+  assert.doesNotMatch(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\}/);
+  assert.match(accountUtility, /aria-label="Open account menu"/);
 });
 
 test("the mobile dock has exactly four evenly distributed routes in the required order", () => {
@@ -89,9 +91,9 @@ test("navigation labels, destinations, state, and accessibility remain intact", 
 
   assert.match(header, /aria-label="Primary navigation"/);
   assert.match(header, /aria-label="Mobile navigation"/);
-  assert.match(header, /aria-label=\{mobileMoreOpen \? "Close More menu" : "Open More menu"\}/);
-  assert.match(header, /aria-expanded=\{mobileMoreOpen\}/);
-  assert.match(header, /aria-controls=\{mobileMoreMenuId\}/);
+  assert.match(accountUtility, /aria-label="Open account menu"/);
+  assert.match(accountUtility, /aria-controls=\{menuId\}/);
+  assert.match(accountUtility, /aria-haspopup="menu"/);
   assert.match(header, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(header, /focus-visible:ring-2/);
 });

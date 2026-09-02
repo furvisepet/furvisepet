@@ -60,8 +60,10 @@ test("OAuth-only users are identified without inventing a current password", () 
   assert.equal(hasEmailPasswordProvider({ app_metadata: { provider: "google", providers: ["google"] } }), false);
   assert.equal(hasEmailPasswordProvider({ app_metadata: { provider: "email", providers: ["email", "google"] } }), true);
   const page = read("app/settings/security/page.tsx");
-  assert.match(page, /No Furvise password is set\./);
-  assert.match(page, /send a secure link to your verified email/);
+  assert.match(page, /label="Email & password"/);
+  assert.match(page, /state=\{emailPasswordUser \? "Connected" : "Not set up"\}/);
+  assert.match(page, />Set up<\/Link>/);
+  assert.match(page, /sends a secure password link to your verified email/);
   assert.match(page, /href="\/forgot-password"/);
 });
 
@@ -72,7 +74,8 @@ test("Security owns connected sign-in method presentation and Google identity li
   assert.match(page, /client\.auth\.linkIdentity/);
   assert.match(page, /buildOAuthCallbackUrl\(window\.location\.origin, "\/settings\/security"\)/);
   assert.match(page, /label="Google"/);
-  assert.match(page, /label="Email"/);
+  assert.match(page, /label="Email & password"/);
+  assert.match(page, />Change password<\/button>/);
   assert.doesNotMatch(account, /linkIdentity|Connect Google/);
 });
 
@@ -149,12 +152,14 @@ test("Security is a private, navigable account surface and update-password stays
   const header = read("app/components/signed-in-header.tsx");
   const privateRoutes = read("app/lib/security/private-routes.ts");
   const navigation = read("app/lib/navigation/mobile-navigation.ts");
+  const settingsShell = read("app/components/account-settings-shell.tsx");
   const page = read("app/settings/security/page.tsx");
-  assert.match(header, /href: "\/settings\/security"[\s\S]*label: "Security"/);
+  assert.doesNotMatch(header, /href: "\/settings\/security"[\s\S]*label: "Security"/);
+  assert.match(settingsShell, /href: "\/settings\/security", label: "Login & security"/);
   assert.match(privateRoutes, /"\/settings"/);
   assert.match(navigation, /"\/settings"/);
   assert.match(page, /Current password/);
   assert.match(page, /Confirm new password/);
   assert.match(page, /Show/);
-  assert.doesNotMatch(`${header}\n${navigation}\n${read("app/account/page.tsx")}`, /href[:=]\s*["']\/update-password/);
+  assert.doesNotMatch(`${header}\n${navigation}\n${settingsShell}\n${read("app/account/page.tsx")}`, /href[:=]\s*["']\/update-password/);
 });

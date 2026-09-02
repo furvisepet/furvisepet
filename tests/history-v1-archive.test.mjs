@@ -12,6 +12,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const archive = read("app/components/history-archive.tsx");
 const data = read("app/lib/supabase.ts");
 const header = read("app/components/app-header.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 
 test("global History is a read-only archive without duplicated product jobs", () => {
   assert.match(archive, /HISTORY/);
@@ -75,11 +76,12 @@ test("date filters use real instants and History preserves browser-local wall cl
   assert.match(formatted, /12:15 AM/);
 });
 
-test("desktop navigation remains ordered while mobile Account stays in the top-right menu only", () => {
+test("desktop navigation remains ordered while the account utility stays in the top-right only", () => {
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.match(desktop, /\/today[\s\S]*\/pets[\s\S]*\/history[\s\S]*\/ask/);
   const dock = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
   assert.match(dock, /grid-cols-4/);
   assert.doesNotMatch(dock, /label: "Account"|href: "\/account"/);
-  assert.match(header, /data-ui="mobile-more-container"[\s\S]*NAVIGATION_ICON_ASSETS\.more/);
+  assert.match(header, /data-ui="desktop-account-zone"[\s\S]*<AccountUtility/);
+  assert.match(accountUtility, /data-ui="account-utility"/);
 });

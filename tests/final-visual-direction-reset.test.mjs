@@ -6,6 +6,7 @@ import test from "node:test";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const header = read("app/components/app-header.tsx");
 const signedHeader = read("app/components/signed-in-header.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 const homepage = read("app/components/homepage-client.tsx");
 const brand = read("app/components/brand-mark.tsx");
 const css = read("app/globals.css");
@@ -62,15 +63,15 @@ test("homepage has six viewport story screens and authenticated CTA logic", () =
   assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
 });
 
-test("Products is absent from primary navigation while mobile More owns account utilities", () => {
+test("Products is absent from primary navigation while the shared account utility owns account actions", () => {
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.doesNotMatch(desktop, /\/shop|Products/);
-  assert.match(header, /data-ui="mobile-more-container"[\s\S]*aria-label=\{mobileMoreOpen \? "Close More menu" : "Open More menu"\}[\s\S]*accountMenuItems\.map/);
+  assert.match(header, /<AccountUtility email=\{accountEmail\} \/>/);
   assert.doesNotMatch(header, /href="\/shop"[\s\S]*>Products/);
-  assert.match(signedHeader, /href: "\/account"[\s\S]*label: "Account"/);
+  assert.match(accountUtility, /href="\/account" label="Account settings"/);
   assert.doesNotMatch(header, /Appearance|openAppearance/);
   assert.doesNotMatch(signedHeader, /\/shop|Browse products/);
-  assert.match(signedHeader, /label: "Account"[\s\S]*label: signingOut \? "Signing out\.\.\." : "Sign out"/);
+  assert.match(accountUtility, /Account settings[\s\S]*Membership[\s\S]*Privacy[\s\S]*Terms[\s\S]*Sign out/);
 });
 
 test("login and warm empty states keep the requested actions", () => {

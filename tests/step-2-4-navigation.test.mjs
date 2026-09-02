@@ -8,16 +8,17 @@ const hash = (path) => createHash("sha256").update(readFileSync(new URL(`../${pa
 const header = read("app/components/app-header.tsx");
 const css = read("app/globals.css");
 const appPage = read("app/components/app-page.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 
-test("desktop brand, routes, and Account share one optical alignment row", () => {
+test("desktop brand, routes, and account utility share one optical alignment row", () => {
   assert.match(header, /data-ui="header-optical-row"/);
   assert.match(header, /homepage-wide-shell homepage-header-grid/);
   assert.match(header, /homepage-header-brand-zone" data-ui="desktop-brand-zone"/);
   assert.match(header, /homepage-header-navigation-zone" data-ui="desktop-navigation-zone"/);
   assert.match(header, /homepage-header-actions" data-ui="desktop-account-zone"/);
   assert.match(header, /className="homepage-full-logo"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
-  assert.match(header, /data-ui="desktop-account-container"/);
-  assert.match(header, /aria-label="Open account menu" className=\{`homepage-header-text-link/);
+  assert.match(header, /<AccountUtility email=\{accountEmail\} \/>/);
+  assert.match(accountUtility, /aria-label="Open account menu"/);
   assert.doesNotMatch(header, /(?:ml|mr|translate-x)-\[/);
 });
 
@@ -38,7 +39,7 @@ test("mobile dock has the exact icon and label destinations with a selected stat
     assert.ok(next > cursor, `${label} retains its required order and icon`);
     cursor = next;
   }
-  assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\}/);
+  assert.doesNotMatch(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\}/);
   assert.match(header, /flex min-h-11[\s\S]*flex-col[\s\S]*<NavigationIcon asset=\{item\.asset\} \/>[\s\S]*\{item\.label\}<\/span>/);
   assert.match(header, /data-active-indicator=\{active \? "icon-capsule"/);
   assert.match(header, /active \? "bg-\[var\(--selected-navigation-background\)\]"/);
@@ -52,11 +53,12 @@ test("mobile navigation is a translucent semantic floating dock with no logo or 
   assert.doesNotMatch(mobileNav, /BrandMark|furvise-logo|action-primary|orange/i);
 });
 
-test("More routes, aria state, safe area, and shared clearance remain intact", () => {
+test("account utility routes, aria state, safe area, and shared clearance remain intact", () => {
   assert.match(header, /aria-current=\{isActive\(item\.href\) \? "page" : undefined\}/);
   assert.match(header, /pb-\[var\(--mobile-nav-safe-area\)\]/);
   assert.doesNotMatch(header, /href="\/shop"[\s\S]*>Products<\/Link>/);
-  assert.match(header, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);
+  assert.match(accountUtility, /Account settings[\s\S]*Membership[\s\S]*Privacy[\s\S]*Terms[\s\S]*Sign out/);
+  assert.match(accountUtility, /aria-controls=\{menuId\}[\s\S]*aria-haspopup="menu"/);
   assert.match(css, /--mobile-nav-height: 4\.25rem;[\s\S]*--mobile-nav-safe-area:[\s\S]*--mobile-nav-clearance:/);
   assert.match(appPage, /app-mobile-nav-clearance/);
 });

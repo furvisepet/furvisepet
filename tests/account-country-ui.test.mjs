@@ -16,31 +16,30 @@ test("Account no longer loads or exposes Product country while stored data and A
   assert.match(countryModel, /country_source: "manual"/);
 });
 
-test("signed-out account redirects before rendering the account directory", () => {
+test("signed-out account redirects before rendering account identity", () => {
   const accountPage = readFileSync("app/account/page.tsx", "utf8");
-  const signedOutBranchStart = accountPage.indexOf('authStatus !== "signedIn"');
-  const directoryStart = accountPage.indexOf('aria-label="Account settings"');
+  const signedOutBranchStart = accountPage.indexOf('status !== "signedIn"');
+  const identityStart = accountPage.indexOf('aria-labelledby="account-email-heading"');
 
   assert.ok(signedOutBranchStart >= 0);
-  assert.ok(directoryStart > signedOutBranchStart);
+  assert.ok(identityStart > signedOutBranchStart);
   assert.match(accountPage, /useRequireConfirmedSupabaseAuth\(\)/);
   assert.match(accountPage, /Redirecting to sign in/);
 });
 
-test("Account is a full-width directory for membership, security, data, legal, sign out, and protected deletion", () => {
+test("Account details is identity-only inside the shared settings hierarchy", () => {
   const accountPage = readFileSync("app/account/page.tsx", "utf8");
-  assert.match(accountPage, /title="ACCOUNT"/);
+  const shell = readFileSync("app/components/account-settings-shell.tsx", "utf8");
+  const dataPrivacy = readFileSync("app/settings/data-privacy/page.tsx", "utf8");
+  assert.match(accountPage, /AccountSettingsShell title="ACCOUNT DETAILS"/);
   assert.match(accountPage, /user\?\.email/);
-  assert.match(accountPage, /href="\/membership"/);
-  assert.match(accountPage, /href="\/settings\/security"/);
-  assert.match(accountPage, /href="\/privacy"/);
-  assert.match(accountPage, /href="\/terms"/);
-  assert.match(accountPage, /signOutOfFurvise/);
-  assert.match(accountPage, /data-ui="delete-account-disclosure"/);
-  assert.match(accountPage, /deleteConfirmation !== "DELETE"/);
-  assert.match(accountPage, /idempotentClientFetch\([\s\S]*"\/api\/account\/delete"/);
-  assert.match(accountPage, /formatProviderSummary\(connectedProviders\)/);
-  assert.match(accountPage, /formatMembershipSummary\(payload\)/);
+  assert.doesNotMatch(accountPage, /Membership|Security|Privacy|Terms|Sign out|Delete account|idempotentClientFetch/);
+  assert.match(shell, /Account details[\s\S]*Login & security[\s\S]*Data & privacy/);
+  assert.doesNotMatch(shell, /Membership|Privacy Policy|Terms/);
+  assert.match(dataPrivacy, /"\/api\/account\/export"/);
+  assert.match(dataPrivacy, /"\/api\/account\/delete"/);
+  assert.match(dataPrivacy, /deleteConfirmation !== "DELETE"/);
+  assert.match(dataPrivacy, /data-ui="delete-account-confirmation"/);
   assert.doesNotMatch(accountPage, /rounded-3xl|shadow-\[/);
 });
 

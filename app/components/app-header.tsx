@@ -3,13 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import {
   getActiveMobileNavigationTab,
   MOBILE_NAVIGATION_ITEMS,
-  NAVIGATION_ICON_ASSETS,
   shouldShowMobileNavigation,
 } from "../lib/navigation/mobile-navigation";
 import { useMobileLiquidGlass } from "../lib/navigation/use-mobile-liquid-glass";
@@ -17,6 +16,7 @@ import { isAskRequestActive, useAskRequestActive } from "../lib/navigation/ask-r
 import { useAskComposerFocus } from "../lib/navigation/ask-composer-focus";
 import { getBrowserSupabase } from "../lib/supabase";
 import { PrimaryButton, TextAction } from "./product-primitives";
+import { AccountUtility } from "./account-utility";
 
 type HeaderAction = {
   href?: string;
@@ -26,27 +26,6 @@ type HeaderAction = {
   variant?: "primary" | "secondary";
 };
 
-type HeaderMenuLinkItem = {
-  type: "link";
-  href: string;
-  label: string;
-  tone?: "default" | "danger";
-};
-
-type HeaderMenuButtonItem = {
-  type: "button";
-  label: string;
-  disabled?: boolean;
-  onClick: () => void;
-  tone?: "default" | "danger";
-};
-
-type HeaderMenuLabelItem = {
-  type: "label";
-  label: string;
-};
-
-type HeaderMenuItem = HeaderMenuLinkItem | HeaderMenuButtonItem | HeaderMenuLabelItem;
 type HeaderAuthState = "loading" | "anonymous" | "authenticated";
 
 type AppHeaderProps = {
@@ -56,10 +35,8 @@ type AppHeaderProps = {
   brandHref?: string;
   brandMark?: React.ReactNode;
   compact?: boolean;
-  accountMenuItems?: HeaderMenuItem[];
-  accountError?: string;
+  accountEmail?: string;
   authState?: HeaderAuthState;
-  homepageMenuItems?: HeaderMenuItem[];
   homepagePolish?: boolean;
   currentPage?: "home" | "dashboard";
   navItems?: { href: string; label: string }[];
@@ -85,8 +62,7 @@ const MOBILE_NAV_ITEMS = [
 ] as const;
 
 export function AppHeader({
-  accountError = "",
-  accountMenuItems = [],
+  accountEmail = "",
   authState,
   brandHref = "/",
   brandMark,
@@ -99,15 +75,9 @@ export function AppHeader({
   const askRequestActive = useAskRequestActive();
   const { composerFocused } = useAskComposerFocus();
   const [localAuthState, setLocalAuthState] = useState<HeaderAuthState>(authState ?? "anonymous");
-  const menuRef = useRef<HTMLDetailsElement>(null);
-  const mobileMoreRef = useRef<HTMLDivElement>(null);
-  const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
   const mobileGlassRootRef = useRef<HTMLElement>(null);
   const mobileGlassRef = useRef<HTMLDivElement>(null);
   const mobileNavigationDockRef = useRef<HTMLDivElement>(null);
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const menuId = useId();
-  const mobileMoreMenuId = useId();
   const isHomepage = variant === "homepage" && pathname === "/";
   const resolvedAuthState = authState ?? localAuthState;
   const activeMobileTab = getActiveMobileNavigationTab(pathname);
@@ -141,39 +111,10 @@ export function AppHeader({
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  function closeMenu() {
-    if (menuRef.current) menuRef.current.open = false;
-  }
-
   function guardAppNavigation(event: ReactMouseEvent<HTMLAnchorElement>) {
     if (!isAskRequestActive()) return;
     event.preventDefault();
   }
-
-  function closeMobileMore(restoreFocus = false) {
-    setMobileMoreOpen(false);
-    if (restoreFocus) requestAnimationFrame(() => mobileMoreButtonRef.current?.focus());
-  }
-
-  useEffect(() => {
-    function handleOutsideClick(event: MouseEvent) {
-      if (mobileMoreRef.current?.contains(event.target as Node)) return;
-      setMobileMoreOpen(false);
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape" || !mobileMoreOpen) return;
-      event.preventDefault();
-      closeMobileMore(true);
-    }
-
-    document.addEventListener("click", handleOutsideClick);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("click", handleOutsideClick);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [mobileMoreOpen]);
 
   useEffect(() => {
     if (!showMobileNavigation) {
@@ -241,38 +182,9 @@ export function AppHeader({
           </div>
 
           <div className="homepage-header-actions" data-ui="desktop-account-zone">
-            {showMobileNavigation ? (
-              <div className="relative lg:hidden" data-ui="mobile-more-container" ref={mobileMoreRef}>
-                <button
-                  aria-controls={mobileMoreMenuId}
-                  aria-expanded={mobileMoreOpen}
-                  aria-haspopup="menu"
-                  aria-label={mobileMoreOpen ? "Close More menu" : "Open More menu"}
-                  className={`touch-manipulation inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-md)] bg-transparent active:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${activeMobileTab === "more" ? "bg-[var(--selected-navigation-background)]" : "hover:bg-[var(--surface-hover)]"}`}
-                  data-active-indicator={activeMobileTab === "more" ? "icon-capsule" : undefined}
-                  onClick={() => setMobileMoreOpen((open) => !open)}
-                  ref={mobileMoreButtonRef}
-                  type="button"
-                >
-                  <span className="inline-flex h-8 w-10 items-center justify-center overflow-hidden rounded-[var(--radius-pill)]">
-                    <NavigationIcon asset={NAVIGATION_ICON_ASSETS.more} />
-                  </span>
-                </button>
-                {mobileMoreOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[var(--z-popover)] w-64 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" data-ui="mobile-more-menu" id={mobileMoreMenuId} role="menu">
-                    {accountMenuItems.map((item) => item.type === "link" ? (
-                      <Link className="touch-manipulation flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-primary)]" href={item.href} key={item.label} onClick={() => closeMobileMore()} role="menuitem">{item.label}</Link>
-                    ) : item.type === "label" ? (
-                      <div className="truncate border-y border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]" key={item.label} role="none">{item.label}</div>
-                    ) : (
-                      <button className={`touch-manipulation flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-medium active:bg-[var(--surface-primary)] disabled:cursor-not-allowed disabled:text-[var(--disabled-text)] ${item.tone === "danger" ? "mt-1 border-t border-[var(--border-subtle)] text-[var(--danger-text)]" : "text-[var(--text-primary)]"}`} disabled={item.disabled} key={item.label} onClick={item.onClick} role="menuitem" type="button">{item.label}</button>
-                    ))}
-                    {accountError ? <p className="px-3 py-2 text-xs leading-5 text-[var(--danger-text)]" role="alert">{accountError}</p> : null}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            {isHomepage && resolvedAuthState !== "authenticated" ? (
+            {resolvedAuthState === "authenticated" ? (
+              <AccountUtility email={accountEmail} />
+            ) : isHomepage ? (
               <div className="hidden items-center gap-2 lg:flex">
                 {resolvedHomepageActions.map((action, index) => action.href ? action.variant === "primary" ? (
                   <PrimaryButton className="min-h-11 px-4" href={action.href} key={`${action.label}-${index}`}>{action.label}</PrimaryButton>
@@ -281,22 +193,7 @@ export function AppHeader({
                 ) : null)}
               </div>
             ) : (
-                <details className="relative hidden lg:block" data-ui="desktop-account-container" ref={menuRef}>
-                  <summary aria-controls={menuId} aria-haspopup="menu" aria-label="Open account menu" className={`homepage-header-text-link cursor-pointer list-none ${isActive("/account") ? "app-header-navigation-link" : ""}`} data-active-indicator={isActive("/account") ? "underline" : undefined}>
-                    <span>Account</span>
-                  </summary>
-                  <div className="absolute right-0 top-[3.5rem] z-[var(--z-popover)] w-44 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-1.5 shadow-[var(--shadow-floating)]" id={menuId} role="menu">
-                    {accountMenuItems.map((item) => item.type === "link" ? (
-                      <Link className="flex min-h-10 items-center rounded-lg px-3 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href={item.href} key={item.label} onClick={closeMenu} role="menuitem">{item.label}</Link>
-                    ) : item.type === "label" ? (
-                      <div className="truncate border-b border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]" key={item.label} role="none">{item.label}</div>
-                    ) : (
-                      <button className={`flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)] ${item.tone === "danger" ? "mt-1 border-t border-[var(--border-subtle)] text-[var(--danger-text)]" : "text-[var(--text-primary)]"}`} disabled={item.disabled} key={item.label} onClick={item.onClick} role="menuitem" type="button">{item.label}</button>
-                    ))}
-                    {accountError ? <p className="px-3 py-2 text-xs leading-5 text-[var(--danger-text)]" role="alert">{accountError}</p> : null}
-                    {!accountMenuItems.length && resolvedAuthState === "anonymous" ? <Link className="flex min-h-10 items-center rounded-lg px-3 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]" href="/login" role="menuitem">Sign in</Link> : null}
-                  </div>
-                </details>
+              <Link className="homepage-header-text-link" href="/login">Sign in</Link>
             )}
           </div>
         </div>

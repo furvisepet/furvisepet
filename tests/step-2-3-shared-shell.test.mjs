@@ -19,6 +19,8 @@ const history = read("app/components/history-archive.tsx");
 const ask = read("app/ask/page.tsx");
 const products = read("app/shop/page.tsx");
 const account = read("app/account/page.tsx");
+const accountShell = read("app/components/account-settings-shell.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 
 test("desktop and mobile headers share the approved brand without duplicating it in bottom navigation", () => {
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
@@ -28,7 +30,8 @@ test("desktop and mobile headers share the approved brand without duplicating it
   assert.match(header, /aria-label="Mobile navigation"[\s\S]*data-ui="mobile-bottom-navigation"/);
   const bottomNavigation = header.slice(header.indexOf('aria-label="Mobile navigation"'));
   assert.doesNotMatch(bottomNavigation, /BrandMark|FURVISE_BRAND_ASSET|furvise-logo/);
-  assert.match(header, />Account</);
+  assert.match(header, /<AccountUtility email=\{accountEmail\} \/>/);
+  assert.match(accountUtility, /aria-label="Open account menu"/);
 });
 
 test("navigation destinations and order remain unchanged with a non-color active indicator", () => {
@@ -66,7 +69,8 @@ test("semantic page-shell presets exist and every requested surface uses its map
   assert.match(history, /<AppPage layout="workspace" shell="wide">/);
   assert.match(ask, /<AppPage layout="focused" shell="reading">/);
   assert.match(products, /<AppPage layout="focused" shell="wide">/);
-  assert.match(account, /<AppPage shell="reading">/);
+  assert.match(account, /<AccountSettingsShell/);
+  assert.match(accountShell, /<AppPage shell="reading">/);
   assert.match(homepage, /homepage-wide-shell/);
   assert.match(accountAccess, /preset="reading"/);
 });
@@ -76,7 +80,7 @@ test("PageHeader supports shared titles and independent action slots", () => {
   assert.match(primitives, /primaryAction\?: ReactNode/);
   assert.match(primitives, /secondaryAction\?: ReactNode/);
   assert.match(primitives, /data-ui="page-header-actions"/);
-  for (const source of [pets, ask, account]) assert.match(source, /<PageHeader/);
+  for (const source of [pets, ask, accountShell]) assert.match(source, /<PageHeader/);
   assert.match(history, /<h1[^>]*>HISTORY<\/h1>/);
   assert.match(today, /data-ui="today-present-file"/);
   assert.doesNotMatch(today, /<PageHeader/);

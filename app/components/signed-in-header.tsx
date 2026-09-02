@@ -1,19 +1,14 @@
 ﻿"use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppHeader } from "./app-header";
 import { getBrowserSupabase } from "../lib/supabase";
-import { signOutOfFurvise } from "../lib/sign-out";
 
 type AuthState = "loading" | "anonymous" | "authenticated";
 
 export function SignedInHeader({ variant = "site" }: { variant?: "homepage" | "site" }) {
-  const router = useRouter();
   const [authState, setAuthState] = useState<AuthState>("loading");
-  const [signingOut, setSigningOut] = useState(false);
   const [accountIdentity, setAccountIdentity] = useState("");
-  const [signOutError, setSignOutError] = useState("");
 
   useEffect(() => {
     const client = getBrowserSupabase();
@@ -49,75 +44,9 @@ export function SignedInHeader({ variant = "site" }: { variant?: "homepage" | "s
     };
   }, []);
 
-  async function signOut() {
-    const client = getBrowserSupabase();
-    if (!client || signingOut) return;
-    setSigningOut(true);
-    setSignOutError("");
-    try {
-      await signOutOfFurvise(client);
-      setAuthState("anonymous");
-      router.replace("/");
-      router.refresh();
-      window.location.replace("/");
-    } catch {
-      setSignOutError("Couldn't sign out. Please try again.");
-    } finally {
-      setSigningOut(false);
-    }
-  }
-
-  const accountMenuItems =
-    authState === "authenticated"
-      ? [
-          ...(accountIdentity ? [{ type: "label" as const, label: accountIdentity }] : []),
-          {
-            type: "link" as const,
-            href: "/account",
-            label: "Account",
-          },
-          {
-            type: "link" as const,
-            href: "/membership",
-            label: "Membership",
-          },
-          {
-            type: "link" as const,
-            href: "/settings/security",
-            label: "Security",
-          },
-          {
-            type: "link" as const,
-            href: "/privacy",
-            label: "Privacy",
-          },
-          {
-            type: "link" as const,
-            href: "/terms",
-            label: "Terms",
-          },
-          {
-            type: "button" as const,
-            disabled: signingOut,
-            label: signingOut ? "Signing out..." : "Sign out",
-            onClick: signOut,
-            tone: "danger" as const,
-          },
-        ]
-      : authState === "anonymous"
-      ? [
-          {
-            type: "link" as const,
-            href: "/login",
-            label: "Sign in",
-          },
-        ]
-      : [];
-
   return (
     <AppHeader
-      accountError={signOutError}
-      accountMenuItems={accountMenuItems}
+      accountEmail={accountIdentity}
       authState={authState}
       brandHref="/"
       homepagePolish

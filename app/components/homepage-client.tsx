@@ -8,6 +8,7 @@ import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { MOBILE_NAVIGATION_ITEMS } from "../lib/navigation/mobile-navigation";
 import { activePetsOnly } from "../lib/pet-lifecycle";
 import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib/supabase";
+import { AccountUtility } from "./account-utility";
 
 type HomepageMode = "loading" | "anonymous" | "no-pets" | "with-pet";
 type VisibleHomepageMode = Exclude<HomepageMode, "loading">;
@@ -67,7 +68,7 @@ export function HomepageClient() {
 
   return (
     <div className="homepage-site min-h-screen overflow-x-hidden" data-authenticated={signedIn ? "true" : "false"} data-ui="marketing-homepage">
-      <PublicMarketingHeader mode={mode} />
+      <PublicMarketingHeader email={auth.user?.email} mode={mode} />
       <main className="homepage-dark-world" data-marketing-surface="dark" data-ui="homepage-story-main">
         <HomepageStoryStage art="heron" id="remembrance" screen={1} side="right">
           <WhyWeExist mode={visibleMode} />
@@ -104,7 +105,7 @@ export function HomepageClient() {
   );
 }
 
-function PublicMarketingHeader({ mode }: { mode: HomepageMode }) {
+function PublicMarketingHeader({ email, mode }: { email?: string | null; mode: HomepageMode }) {
   const signedIn = mode === "with-pet" || mode === "no-pets";
   const anonymous = mode === "anonymous";
 
@@ -124,7 +125,7 @@ function PublicMarketingHeader({ mode }: { mode: HomepageMode }) {
           ) : null}
         </div>
         <div className="homepage-header-actions" data-ui="homepage-header-actions">
-          {signedIn ? <Link className="homepage-header-text-link" href="/account">Account</Link> : null}
+          {signedIn ? <AccountUtility email={email} /> : null}
           {anonymous ? <><Link className="homepage-header-text-link" href="/login">Sign in</Link><HeaderPrimaryLink href={NEW_PET_LOGIN_PATH}>Get started</HeaderPrimaryLink></> : null}
         </div>
       </div>

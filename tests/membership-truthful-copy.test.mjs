@@ -12,7 +12,7 @@ test("Membership promises only current plan limits and one shared-quality clarif
   assert.match(membership, /Plus gives you more room to use Furvise\. It does not change Furvise&apos;s safety standards\./);
 });
 
-test("plan features appear once in stacked plan sections", () => {
+test("plan features appear once in consumer pricing cards", () => {
   assert.match(membership, /aria-label="Furvise membership plans"/);
   assert.match(membership, /"Care history"/);
   assert.match(membership, /PLAN_CAPABILITIES\.plus\.vetPrepExports \? \["Vet Brief"\]/);

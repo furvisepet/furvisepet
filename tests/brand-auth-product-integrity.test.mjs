@@ -64,7 +64,7 @@ test("the warm forest, sage, cream, and orange palette drives the permanent ligh
 });
 
 test("account notification dot is absent by default", () => {
-  const header = read("app/components/app-header.tsx");
+  const header = read("app/components/account-utility.tsx");
   const summary = header.slice(header.indexOf('aria-label="Open account menu"'), header.indexOf("</summary>"));
   assert.doesNotMatch(summary, /rounded-full bg-\[var\(--action-primary\)\]/);
   assert.doesNotMatch(header, /account-dot|notification-dot|unread-dot/);
@@ -82,7 +82,7 @@ test("homepage explicitly preserves anonymous, no-pet, and with-pet actions", ()
 test("signed-in homepage branches do not render signed-out actions", () => {
   const homepage = read("app/components/homepage-client.tsx");
   assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
-  assert.match(homepage, /signedIn \? <Link[\s\S]*href="\/account">Account/);
+  assert.match(homepage, /signedIn \? <AccountUtility email=\{email\} \/>/);
 });
 
 test("action labels follow account-state conventions", () => {
