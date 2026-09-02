@@ -34,6 +34,18 @@ function recoveryFragment(overrides = {}) {
   return `#${parameters}`;
 }
 
+test("recovery confirmation uses neutral copy for setup and reset journeys", () => {
+  const page = read("app/reset-password/confirm/page.tsx");
+  assert.match(page, /title="Continue to choose a password"/);
+  assert.match(page, /supportingText="For your security, this link is used only after you choose to continue\."/);
+  assert.match(page, /text="Preparing your secure password link\.\.\."/);
+  assert.match(page, /text="Your secure password link is ready\."/);
+  assert.match(page, />Continue<\/button>/);
+  assert.match(page, /text="This password link can't be used\. Request a new link and try again\."/);
+  assert.match(page, />Request a new link<\/Link>/);
+  assert.doesNotMatch(page, /Confirm your password reset|recovery link is used only|password reset request is ready|Continue to reset password|password reset link can|Request a new reset link/);
+});
+
 test("the initial email-link page and HEAD rendering cannot consume recovery", () => {
   const page = read("app/reset-password/confirm/page.tsx");
   const layout = read("app/reset-password/confirm/layout.tsx");
