@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppPage } from "../../components/app-page";
@@ -66,7 +65,6 @@ function PetFacts({ profile }: { profile: DogProfileRow }) {
   const name = formatPetDisplayName(profile.name);
   const metadata = formatPetDirectoryMetadata(profile);
   const petId = encodeURIComponent(profile.id);
-
   const facts = buildPetProfileFactRows(profile);
 
   return (
