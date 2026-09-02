@@ -165,7 +165,7 @@ test("anonymous header is brand plus Sign in and Get started", () => {
 });
 
 test("authenticated desktop header exposes plain app links without old AppHeader chrome", () => {
-  for (const [href, label] of [["/today", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"]]) {
+  for (const [href, label] of [["/today", "Today"], ["/pets", "Pets"], ["/history", "History"], ["/ask", "Ask"]]) {
     assert.match(desktopNavigation, new RegExp(`href: "${href}", label: "${label}"`));
   }
   assert.doesNotMatch(desktopNavigation, /Products|\/shop/);
@@ -217,8 +217,8 @@ test("story actions preserve anonymous, no-pet, and with-pet authority", () => {
   for (const [id, action] of [["the-reality", "history"], ["one-story", "pets"], ["when-needed", "ask"], ["bigger-idea", "history"]]) {
     assert.match(renderedHomepage, new RegExp(`action="${action}"[^>]*id="${id}"`));
   }
-  assert.match(homepage, /buildLoginHref\("\/care-log"\), label: "View history"/);
-  assert.match(homepage, /href: "\/care-log", label: "View history"/);
+  assert.match(homepage, /buildLoginHref\("\/history"\), label: "View history"/);
+  assert.match(homepage, /href: "\/history", label: "View history"/);
   assert.match(homepage, /href: NEW_PET_LOGIN_PATH, label: "Your pets"/);
   assert.match(homepage, /href: "\/pets", label: "Your pets"/);
   assert.match(homepage, /buildLoginHref\("\/ask"\), label: "Ask Furvise"/);
@@ -233,12 +233,12 @@ test("trust line remains exact and quiet near the final chapter", () => {
   assert.match(final, /START WITH[\s\S]*YOUR PET\.[\s\S]*homepage-trust-line/);
 });
 
-test("signed-in mobile navigation uses an honest Account destination and omits Products", () => {
+test("signed-in mobile navigation uses four mission destinations and keeps Account in the top rail", () => {
   assert.match(renderedHomepage, /\{signedIn \? <HomepageMobileNavigation \/> : null\}/);
   assert.match(homepage, /data-ui="mobile-bottom-navigation"/);
   assert.match(mobileNavigation, /MOBILE_NAVIGATION_ITEMS\[0\][\s\S]*MOBILE_NAVIGATION_ITEMS\[1\][\s\S]*MOBILE_NAVIGATION_ITEMS\[2\][\s\S]*MOBILE_NAVIGATION_ITEMS\[3\]/);
-  assert.match(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more[\s\S]*href: "\/account"[\s\S]*label: "Account"/);
-  assert.doesNotMatch(mobileNavigation, /href: "\/account", label: "More"/);
+  assert.doesNotMatch(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more|href: "\/account"|label: "Account"/);
+  assert.match(marketingHeader, /href="\/account">Account/);
   assert.doesNotMatch(mobileNavigation, /Products|\/shop/);
   assert.match(homepageCss, /\.homepage-mobile-navigation \{[\s\S]*position: fixed[\s\S]*background: var\(--warm-cream\)/);
   assert.match(css, /\.homepage-footer-mobile-clearance \{[\s\S]*var\(--mobile-nav-height\)/);
@@ -285,7 +285,7 @@ test("application chrome, routes, pet authority, and SEO remain intact", () => {
   assert.match(homepage, /activePetsOnly\(profiles\)/);
   assert.match(appHeader, /return \([\s\S]*data-ui="app-header"/);
   assert.match(signedInHeader, /<AppHeader/);
-  for (const route of ["/today", "/pets", "/care-log", "/ask"]) assert.match(`${homepage}\n${appHeader}`, new RegExp(route.replace("/", "\\/")));
+  for (const route of ["/today", "/pets", "/history", "/ask"]) assert.match(`${homepage}\n${appHeader}`, new RegExp(route.replace("/", "\\/")));
   assert.match(page, /createPublicPageMetadata[\s\S]*path: "\/"/);
   assert.match(seo, /CANONICAL_ORIGIN = "https:\/\/www\.furvise\.com"/);
 });

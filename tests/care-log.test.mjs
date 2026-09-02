@@ -790,7 +790,7 @@ test("dashboard helpers render real care activity and keep no-update messaging",
     petNameById: new Map(),
   });
   assert.equal(noCare.emptyMessage, "No care updates have been logged yet.");
-  assert.equal(getPetCareLogHref("pet-1"), "/care-log?pet=pet-1");
+  assert.equal(getPetCareLogHref("pet-1"), "/history?pet=pet-1");
 });
 
 test("validateCareEntryDraft enforces required fields", () => {

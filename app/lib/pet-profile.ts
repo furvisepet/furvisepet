@@ -129,7 +129,7 @@ export function buildPetProfileNextStep({
 
   if (guidance?.vetAttention.needed && guidance.vetAttention.urgency === "urgent") {
     return {
-      actionHref: `/care-log?pet=${profile.id}`,
+      actionHref: `/history?pet=${profile.id}`,
       actionLabel: "Open care history",
       description:
         guidance.vetAttention.reason ||
@@ -141,7 +141,7 @@ export function buildPetProfileNextStep({
 
   if (recentSevereSymptom) {
     return {
-      actionHref: `/care-log?pet=${profile.id}&entry=${recentSevereSymptom.id}`,
+      actionHref: `/history?pet=${profile.id}&entry=${recentSevereSymptom.id}`,
       actionLabel: "View severe update",
       description:
         "Furvise does not diagnose. Severe symptoms should be reviewed with a veterinarian, especially if they continue or worsen.",
@@ -181,7 +181,7 @@ export function buildPetProfileNextStep({
   const symptomFollowUp = findMeaningfulSymptomFollowUp(entries, now);
   if (symptomFollowUp) {
     return {
-      actionHref: `/care-log?pet=${profile.id}&entry=${symptomFollowUp.id}`,
+      actionHref: `/history?pet=${profile.id}&entry=${symptomFollowUp.id}`,
       actionLabel: "View symptom update",
       description: `${formatCareEntryCategory(symptomFollowUp.category)} was recorded recently: ${formatCareNotePreview(symptomFollowUp.note, 80)}`,
       kind: "meaningful_symptom_follow_up",
@@ -192,7 +192,7 @@ export function buildPetProfileNextStep({
   const routineFollowUp = findRoutineCareFollowUp(entries, now);
   if (routineFollowUp) {
     return {
-      actionHref: `/care-log?pet=${profile.id}&entry=${routineFollowUp.id}`,
+      actionHref: `/history?pet=${profile.id}&entry=${routineFollowUp.id}`,
       actionLabel: "View update",
       description: `${formatCareEntryCategory(routineFollowUp.category)} was recorded recently: ${formatCareNotePreview(routineFollowUp.note, 80)}`,
       kind: "recent_care_follow_up",
@@ -211,7 +211,7 @@ export function buildPetProfileNextStep({
   }
 
   return {
-    actionHref: `/care-log?pet=${profile.id}`,
+    actionHref: `/history?pet=${profile.id}`,
     actionLabel: "Open care history",
     description: "No urgent care concerns or missing required profile details are recorded.",
     kind: "no_action_needed",

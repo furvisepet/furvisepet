@@ -126,7 +126,7 @@ test("mobile navigation order and labels remain stable during scrolling", () => 
     header.indexOf("export function AppHeader")
   );
   let cursor = -1;
-  for (const label of ["Today", "History", "Ask", "Pets", "Account"]) {
+  for (const label of ["Today", "History", "Ask", "Pets"]) {
     const next = mobile.indexOf(`label: "${label}"`);
     assert.ok(next > cursor, `${label} stays in route order`);
     cursor = next;

@@ -33,7 +33,7 @@ test("desktop routes use the homepage text rail and quiet selected state", () =>
 test("mobile dock has the exact icon and label destinations with a selected state", () => {
   const mobileItems = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
   let cursor = -1;
-  for (const [label, icon] of [["Today", "today"], ["History", "history"], ["Ask", "ask"], ["Pets", "pets"], ["Account", "more"]]) {
+  for (const [label, icon] of [["Today", "today"], ["History", "history"], ["Ask", "ask"], ["Pets", "pets"]]) {
     const next = mobileItems.indexOf(`icon: "${icon}", label: "${label}"`);
     assert.ok(next > cursor, `${label} retains its required order and icon`);
     cursor = next;
@@ -46,7 +46,7 @@ test("mobile dock has the exact icon and label destinations with a selected stat
 
 test("mobile navigation is a translucent semantic floating dock with no logo or orange", () => {
   const mobileNav = header.slice(header.indexOf('<nav aria-label="Mobile navigation"'));
-  assert.match(mobileNav, /mx-4 mb-2 grid[\s\S]*grid-cols-5[\s\S]*askCompactNavigation \? "h-\[var\(--mobile-nav-compact-height\)\] p-1" : "h-\[var\(--mobile-nav-expanded-height\)\] p-1\.5"/);
+  assert.match(mobileNav, /mx-4 mb-2 grid[\s\S]*grid-cols-4[\s\S]*askCompactNavigation \? "h-\[var\(--mobile-nav-compact-height\)\] p-1" : "h-\[var\(--mobile-nav-expanded-height\)\] p-1\.5"/);
   assert.match(mobileNav, /mobile-liquid-glass[\s\S]*rounded-\[var\(--radius-xl\)\]/);
   assert.match(css, /\.mobile-liquid-glass-scene \{[\s\S]*linear-gradient[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
   assert.doesNotMatch(mobileNav, /BrandMark|furvise-logo|action-primary|orange/i);

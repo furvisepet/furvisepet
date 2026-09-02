@@ -14,7 +14,7 @@ export function AskUsageNotice({ lifecycleStatus = "active", petId, usage }: { l
         <p className="mt-2 text-sm text-[var(--text-secondary)]">Share the full picture in each Ask for more personalized answers and a more useful pet history.</p>
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
           {usage.planId === "free" ? <Link className={noticeLink} href="/membership">Upgrade to Plus</Link> : null}
-          <Link className={noticeLink} href="/care-log">View care history</Link>
+          <Link className={noticeLink} href="/history">View history</Link>
           <Link className={noticeLink} href={`/pets/${encodedPet}/edit`}>Update pet details</Link>
           <Link className={noticeLink} href={`/vet-brief?pet=${encodedPet}&source=ask-limit`}>{lifecycleStatus === "deceased" ? "Prepare care summary" : "Prepare vet brief"}</Link>
         </div>

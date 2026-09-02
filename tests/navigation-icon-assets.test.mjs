@@ -31,7 +31,6 @@ test("mobile destinations retain the intended icon assets while desktop stays te
     ["History", "/history", expectedAssets.history],
     ["Ask", "/ask", expectedAssets.ask],
     ["Pets", "/pets", expectedAssets.pets],
-    ["Account", "/account", expectedAssets.more],
   ];
   assert.deepEqual(
     MOBILE_NAVIGATION_ITEMS.map(({ asset, href, label }) => [label, href, asset]),
@@ -43,12 +42,12 @@ test("mobile destinations retain the intended icon assets while desktop stays te
   assert.match(header, /asset=\{NAVIGATION_ICON_ASSETS\.more\}/);
 });
 
-test("the mobile dock has exactly five evenly distributed routes in the required order", () => {
-  assert.equal(MOBILE_NAVIGATION_ITEMS.length, 5);
-  assert.deepEqual(MOBILE_NAVIGATION_ITEMS.map(({ label }) => label), ["Today", "History", "Ask", "Pets", "Account"]);
+test("the mobile dock has exactly four evenly distributed routes in the required order", () => {
+  assert.equal(MOBILE_NAVIGATION_ITEMS.length, 4);
+  assert.deepEqual(MOBILE_NAVIGATION_ITEMS.map(({ label }) => label), ["Today", "History", "Ask", "Pets"]);
   const mobileStart = header.indexOf('<nav aria-label="Mobile navigation"');
   const mobile = header.slice(mobileStart, header.indexOf("</nav>", mobileStart) + 6);
-  assert.match(mobile, /grid-cols-5/);
+  assert.match(mobile, /grid-cols-4/);
   assert.match(mobile, /MOBILE_NAV_ITEMS\.map/);
   assert.doesNotMatch(mobile, /NAVIGATION_ICON_ASSETS\.more|Open More menu/);
   assert.match(mobile, /mx-4[\s\S]*p-1\.5[\s\S]*px-1/);
@@ -72,7 +71,7 @@ test("navigation images use bounded object-contain rendering without artwork-dam
   assert.match(header, /className="object-contain"/);
   assert.match(header, /fill/);
   assert.match(header, /sizes=\"100%\"/);
-  assert.match(header, /grid-cols-5/);
+  assert.match(header, /grid-cols-4/);
   assert.match(header, /min-h-11 min-w-0/);
   assert.match(header, /inline-flex shrink-0[^"]*overflow-hidden[\s\S]*askCompactNavigation \? "h-8 w-10" : "h-10 w-12"/);
   assert.match(header, /alt=""[\s\S]*aria-hidden="true"/);
@@ -83,7 +82,7 @@ test("navigation labels, destinations, state, and accessibility remain intact", 
   for (const [href, label] of [
     ["/today", "Today"],
     ["/pets", "Pets"],
-    ["/care-log", "History"],
+    ["/history", "History"],
     ["/ask", "Ask"],
   ]) assert.match(header, new RegExp(`href: "${href}", label: "${label}"`));
   assert.doesNotMatch(header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS")), /Products|\/shop/);

@@ -18,7 +18,6 @@ export const MOBILE_NAVIGATION_ITEMS = [
   { asset: NAVIGATION_ICON_ASSETS.history, href: "/history", label: "History", matches: ["/history", "/care-log"], tab: "history" },
   { asset: NAVIGATION_ICON_ASSETS.ask, href: "/ask", label: "Ask", matches: ["/ask"], tab: "ask" },
   { asset: NAVIGATION_ICON_ASSETS.pets, href: "/pets", label: "Pets", matches: ["/pets", "/dogs"], tab: "pets" },
-  { asset: NAVIGATION_ICON_ASSETS.more, href: "/account", label: "Account", matches: ["/account"], tab: "more" },
 ] as const;
 
 const MORE_ROUTE_PREFIXES = ["/account", "/privacy", "/settings", "/shop", "/terms", "/vet-brief", "/vet-briefs"] as const;

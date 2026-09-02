@@ -15,7 +15,7 @@ const accountAccess = read("app/components/account-access.tsx");
 const css = read("app/globals.css");
 const today = read("app/today/page.tsx");
 const pets = read("app/pets/page.tsx");
-const history = read("app/components/care-log-workspace.tsx");
+const history = read("app/components/history-archive.tsx");
 const ask = read("app/ask/page.tsx");
 const products = read("app/shop/page.tsx");
 const account = read("app/account/page.tsx");
@@ -34,7 +34,7 @@ test("desktop and mobile headers share the approved brand without duplicating it
 test("navigation destinations and order remain unchanged with a non-color active indicator", () => {
   const desktop = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   const mobile = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
-  for (const [source, labels] of [[desktop, ["Today", "Pets", "History", "Ask"]], [mobile, ["Today", "History", "Ask", "Pets", "Account"]]]) {
+  for (const [source, labels] of [[desktop, ["Today", "Pets", "History", "Ask"]], [mobile, ["Today", "History", "Ask", "Pets"]]]) {
     let cursor = -1;
     for (const label of labels) {
       const next = source.indexOf(`label: "${label}"`);
@@ -49,7 +49,7 @@ test("navigation destinations and order remain unchanged with a non-color active
 test("mobile bottom navigation is edge aligned, safe-area aware, and paired with content clearance", () => {
   assert.match(header, /fixed inset-x-0 bottom-0/);
   assert.match(header, /pb-\[var\(--mobile-nav-safe-area\)\]/);
-  assert.match(header, /grid-cols-5/);
+  assert.match(header, /grid-cols-4/);
   assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)[\s\S]*24px/);
   assert.match(css, /\.app-mobile-nav-clearance[\s\S]*var\(--mobile-nav-clearance\)/);
   assert.match(css, /\.app-sticky-composer[\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)/);
@@ -63,7 +63,7 @@ test("semantic page-shell presets exist and every requested surface uses its map
   assert.match(primitives, /pageShellGutters = "px-5 sm:px-8 lg:px-10 xl:px-12"/);
   assert.match(today, /<AppPage layout="workspace" shell="today">/);
   assert.match(pets, /<AppPage layout="workspace" shell="standard">/);
-  assert.match(history, /<AppPage layout="workspace" shell="reading">/);
+  assert.match(history, /<AppPage layout="workspace" shell="wide">/);
   assert.match(ask, /<AppPage layout="focused" shell="reading">/);
   assert.match(products, /<AppPage layout="focused" shell="wide">/);
   assert.match(account, /<AppPage shell="reading">/);
@@ -76,7 +76,8 @@ test("PageHeader supports shared titles and independent action slots", () => {
   assert.match(primitives, /primaryAction\?: ReactNode/);
   assert.match(primitives, /secondaryAction\?: ReactNode/);
   assert.match(primitives, /data-ui="page-header-actions"/);
-  for (const source of [pets, history, ask, account]) assert.match(source, /<PageHeader/);
+  for (const source of [pets, ask, account]) assert.match(source, /<PageHeader/);
+  assert.match(history, /<h1[^>]*>HISTORY<\/h1>/);
   assert.match(today, /data-ui="today-present-file"/);
   assert.doesNotMatch(today, /<PageHeader/);
   assert.match(products, /aria-labelledby="products-coming-soon-title"[\s\S]*<h1[\s\S]*id="products-coming-soon-title"/);

@@ -31,7 +31,7 @@ test("the development visual audit enumerates every requested route and action r
   for (const [path, name] of [
     ["/today", "Today"],
     ["/pets", "Pets"],
-    ["/care-log", "History"],
+    ["/history", "History"],
     ["/ask", "Ask"],
     ["/shop", "Products"],
     ["/", "Homepage"],

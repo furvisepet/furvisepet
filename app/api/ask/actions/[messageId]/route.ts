@@ -35,5 +35,5 @@ export async function POST(request: Request, routeContext: RouteContext) {
 function unavailable() { return Response.json({ error: "That action is no longer available." }, { status: 404 }); }
 function revalidateActionViews(petId: string) {
   revalidatePath("/pets"); revalidatePath(`/pets/${petId}`); revalidatePath(`/dogs/${petId}/memories`);
-  revalidatePath("/care-log"); revalidatePath("/vet-brief");
+  revalidatePath("/history"); revalidatePath("/care-log"); revalidatePath("/vet-brief");
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { buildLoginHref, NEW_PET_LOGIN_PATH, NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
-import { MOBILE_NAVIGATION_ITEMS, NAVIGATION_ICON_ASSETS } from "../lib/navigation/mobile-navigation";
+import { MOBILE_NAVIGATION_ITEMS } from "../lib/navigation/mobile-navigation";
 import { activePetsOnly } from "../lib/pet-lifecycle";
 import { loadDogProfilesWithMemories, type DogProfileWithMemories } from "../lib/supabase";
 
@@ -24,7 +24,7 @@ const HOMEPAGE_STORY_ART = {
 const HOMEPAGE_DESKTOP_NAVIGATION = [
   { href: "/today", label: "Today" },
   { href: "/pets", label: "Pets" },
-  { href: "/care-log", label: "History" },
+  { href: "/history", label: "History" },
   { href: "/ask", label: "Ask" },
 ] as const;
 
@@ -33,7 +33,6 @@ const HOMEPAGE_MOBILE_NAVIGATION = [
   MOBILE_NAVIGATION_ITEMS[1],
   MOBILE_NAVIGATION_ITEMS[2],
   MOBILE_NAVIGATION_ITEMS[3],
-  { asset: NAVIGATION_ICON_ASSETS.more, href: "/account", label: "Account", tab: "more" },
 ] as const;
 
 export function HomepageClient() {
@@ -210,8 +209,8 @@ function resolveStoryAction({ activePetId, destination, mode }: { activePetId?: 
 
   if (destination === "history") {
     return mode === "anonymous"
-      ? { href: buildLoginHref("/care-log"), label: "View history" }
-      : { href: "/care-log", label: "View history" };
+      ? { href: buildLoginHref("/history"), label: "View history" }
+      : { href: "/history", label: "View history" };
   }
 
   if (destination === "pets") {

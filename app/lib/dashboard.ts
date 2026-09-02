@@ -21,7 +21,7 @@ export type DashboardNextStepItem = {
 };
 
 export function getPetCareLogHref(profileId: string) {
-  return `/care-log?pet=${profileId}`;
+  return `/history?pet=${profileId}`;
 }
 
 export function buildDashboardCareEntries(
@@ -117,7 +117,7 @@ export function buildNextSteps(
       analysisResult.analysis.vetAttention.urgency === "urgent"
     ) {
       steps.push({
-        actionHref: `/care-log?pet=${profile.id}`,
+        actionHref: `/history?pet=${profile.id}`,
         actionLabel: "Open care history",
         description:
           analysisResult.analysis.vetAttention.reason ||
@@ -130,7 +130,7 @@ export function buildNextSteps(
 
     if (severeSymptom) {
       steps.push({
-        actionHref: `/care-log?pet=${profile.id}&entry=${severeSymptom.id}`,
+        actionHref: `/history?pet=${profile.id}&entry=${severeSymptom.id}`,
         actionLabel: "View severe update",
         description:
           "Furvise does not diagnose. Severe symptoms should be reviewed with a veterinarian.",
