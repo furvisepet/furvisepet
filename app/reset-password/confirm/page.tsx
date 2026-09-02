@@ -47,24 +47,24 @@ export default function ResetPasswordConfirmPage() {
 
   return (
     <AccountAccessLayout
-      supportingText="For your security, the recovery link is used only after you choose to continue."
-      title="Confirm your password reset"
+      supportingText="For your security, this link is used only after you choose to continue."
+      title="Continue to choose a password"
     >
-      {state === "loading" ? <AccountStatus text="Preparing your secure reset..." /> : null}
+      {state === "loading" ? <AccountStatus text="Preparing your secure password link..." /> : null}
       {state === "ready" ? (
         <div className="space-y-5">
-          <AccountStatus text="Your password reset request is ready. Continue when you are ready to choose a new password." />
+          <AccountStatus text="Your secure password link is ready." />
           <form action="/api/auth/recovery/continue" encType="application/x-www-form-urlencoded" method="post">
             <input name="token_hash" type="hidden" value={tokenHash} />
             <input name="type" type="hidden" value="recovery" />
-            <button className={accountPrimaryClass} type="submit">Continue to reset password</button>
+            <button className={accountPrimaryClass} type="submit">Continue</button>
           </form>
         </div>
       ) : null}
       {state !== "loading" && state !== "ready" ? (
         <div className="space-y-5">
-          <AccountStatus tone="danger" text="This password reset link can’t be used. Request a new link and try again." />
-          <Link className={accountPrimaryClass} href="/forgot-password" prefetch={false}>Request a new reset link</Link>
+          <AccountStatus tone="danger" text="This password link can't be used. Request a new link and try again." />
+          <Link className={accountPrimaryClass} href="/forgot-password" prefetch={false}>Request a new link</Link>
         </div>
       ) : null}
     </AccountAccessLayout>
