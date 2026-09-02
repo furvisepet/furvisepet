@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { resolveBillingPresentationForMarket } from "../app/lib/billing/billing-presentation.ts";
 import { shouldManageExistingSubscription } from "../app/lib/billing/launch-plans.ts";
-import { canUseSameSiteNavigationHistory } from "../app/lib/navigation/safe-back.ts";
 
 const read = (path) => readFileSync(path, "utf8");
 const page = read("app/membership/page.tsx");
@@ -14,37 +12,25 @@ const entitlementsRoute = read("app/api/account/entitlements/route.ts");
 const checkout = read("app/api/billing/checkout/route.ts");
 const portal = read("app/api/billing/portal/route.ts");
 
-test("Membership is a private Furvise page with the supplied plan artwork", () => {
+test("Membership is a private Furvise page without decorative pricing artwork", () => {
   const layout = read("app/membership/layout.tsx");
   assert.match(layout, /createPrivatePageMetadata\("Membership"\)/);
   assert.match(layout, /PrivateRouteLayout/);
-  assert.match(page, /title="Membership"/);
-  assert.match(page, /Choose the plan that gives you the right amount of room to ask, track, and care for your pets\./);
-  assert.match(page, /image="\/images\/paywall_free\.png"/);
-  assert.match(page, /image="\/images\/paywall_paid\.png"/);
-  assert.match(page, /import Image from "next\/image"/);
-  for (const asset of ["public/images/paywall_free.png", "public/images/paywall_paid.png"]) {
-    assert.equal(existsSync(asset), true, `${asset} exists`);
-    assert.doesNotThrow(() => execFileSync("git", ["ls-files", "--error-unmatch", asset], { stdio: "pipe" }), `${asset} is deployment-tracked`);
-  }
+  assert.match(page, /title="MEMBERSHIP"/);
+  assert.match(page, /Choose how much room you need in Furvise\./);
+  assert.doesNotMatch(page, /paywall_free|paywall_paid|next\/image/);
 });
 
-test("Membership Back uses only usable same-site history and otherwise falls back to Account", () => {
-  assert.match(page, />←<\/span> Back/);
-  assert.match(page, /canUseSameSiteNavigationHistory\(\{/);
-  assert.match(page, /router\.back\(\)/);
-  assert.match(page, /router\.push\("\/account"\)/);
+test("Membership Back routes directly to Account without an untrusted return target", () => {
+  assert.match(page, /href="\/account">← Account<\/Link>/);
   assert.doesNotMatch(page, /searchParams.*(?:return|redirect|next)|router\.(?:push|replace)\([^)]*searchParams/);
-  assert.equal(canUseSameSiteNavigationHistory({ currentOrigin: "https://furvise.com", currentPathname: "/membership", historyLength: 2, referrer: "https://furvise.com/account" }), true);
-  assert.equal(canUseSameSiteNavigationHistory({ currentOrigin: "https://furvise.com", currentPathname: "/membership", historyLength: 2, referrer: "https://example.com/sale" }), false);
-  assert.equal(canUseSameSiteNavigationHistory({ currentOrigin: "https://furvise.com", currentPathname: "/membership", historyLength: 1, referrer: "" }), false);
 });
 
 test("Free and Plus show canonical Ask allowances and remaining usage without new accounting", () => {
   assert.match(page, /FREE_ASK_ALLOWANCE/);
   assert.match(page, /PLUS_ASK_ALLOWANCE/);
-  assert.match(page, /15 Ask per month/);
-  assert.match(page, /55 thoughtful Ask messages every month/);
+  assert.match(page, /`\$\{FREE_ASK_ALLOWANCE\} Ask each month`/);
+  assert.match(page, /`\$\{PLUS_ASK_ALLOWANCE\} Ask each month`/);
   assert.match(page, /const used = Math\.max\(0, limit - remaining\)/);
   assert.match(page, /Ask remaining/);
   assert.match(page, /get_my_ask_allowance_status|\/api\/account\/entitlements/);
@@ -65,7 +51,7 @@ test("Membership billing actions preserve checkout, recovery, portal, confirmati
   assert.match(page, /Your Plus setup is not finished yet\./);
   assert.match(page, /Your Furvise subscription is paused\./);
   assert.match(page, /onClick=\{\(\) => void openBilling\(billingDestination\)\}/);
-  assert.match(page, /Upgrade to Furvise Plus/);
+  assert.match(page, /Upgrade to Plus/);
   assert.match(page, /Manage billing/);
   assert.match(page, /We&apos;re confirming your Furvise Plus subscription/);
   assert.match(page, /Plus will appear after Stripe confirms the subscription/);
@@ -75,9 +61,12 @@ test("Membership billing actions preserve checkout, recovery, portal, confirmati
   assert.match(page, /Consumer billing actions are hidden for internal testing access/);
 });
 
-test("Account contains no Membership or paywall presentation", () => {
-  assert.doesNotMatch(account, />Membership<\/h2>|href="\/membership"|\/api\/account\/entitlements/);
-  assert.doesNotMatch(account, /askUsage|entitlements|id="plans"|openBilling\(|Manage billing|Upgrade to Plus|CA\$5\.49|US\$5\.49/);
+test("Account links to Membership with a real entitlement summary but does not duplicate pricing", () => {
+  assert.match(account, /href="\/membership"/);
+  assert.match(account, /\/api\/account\/entitlements/);
+  assert.match(account, /Internal testing access/);
+  assert.match(account, /Furvise Plus/);
+  assert.doesNotMatch(account, /openBilling\(|Manage billing|Upgrade to Plus|CA\$5\.49|US\$5\.49/);
 });
 
 test("localized billing presentation shows exactly one supported market price", () => {
@@ -159,12 +148,10 @@ test("Membership is available from the account menu and quota recovery links", (
   assert.match(read("app/ask/page.tsx"), /href="\/membership">Upgrade to Plus/);
 });
 
-test("plan comparison is stacked on mobile and tabular without clipping on larger screens", () => {
-  assert.match(page, /data-ui="mobile-membership-comparison"/);
-  assert.match(page, /mt-5 grid gap-3 sm:hidden/);
-  assert.match(page, /grid-cols-\[minmax\(0,1fr\)_minmax\(0,1fr\)\]/);
-  assert.match(page, /data-ui="desktop-membership-comparison"/);
-  assert.match(page, /hidden overflow-hidden[\s\S]*sm:block/);
+test("plans are full-width stacked sections with no duplicate comparison surface", () => {
+  assert.match(page, /aria-label="Furvise membership plans"/);
+  assert.match(page, /border-b border-\[var\(--line\)\] py-10/);
+  assert.doesNotMatch(page, /lg:grid-cols-2|Compare plans|membership-comparison|<table/);
   assert.doesNotMatch(page, /overflow-x-auto/);
 });
 
@@ -172,4 +159,11 @@ test("Membership is protected and intentionally non-indexable", () => {
   assert.match(read("app/lib/security/private-routes.ts"), /"\/membership"/);
   assert.match(read("app/membership/layout.tsx"), /createPrivatePageMetadata\("Membership"\)/);
   assert.match(read("app/robots.ts"), /"\/membership"/);
+});
+
+test("Membership uses the canonical authenticated shell without becoming a bottom-nav destination", () => {
+  const navigation = read("app/lib/navigation/mobile-navigation.ts");
+  assert.match(navigation, /AUTHENTICATED_APP_NAVIGATION_PREFIXES[\s\S]*"\/membership"/);
+  assert.match(navigation, /MORE_ROUTE_PREFIXES = \[[^\]]*"\/membership"/);
+  assert.doesNotMatch(navigation, /MOBILE_NAVIGATION_ITEMS = \[[\s\S]*href: "\/membership"/);
 });

@@ -144,9 +144,12 @@ test("OAuth callback exchanges PKCE code on the server and validates redirects",
 test("restored private pages revalidate after logout instead of trusting bfcache state", () => {
   const authSession = read("app/lib/auth-session.ts");
   const header = read("app/components/signed-in-header.tsx");
+  const signOut = read("app/lib/sign-out.ts");
   assert.match(authSession, /window\.addEventListener\("pageshow", revalidateRestoredPage\)/);
   assert.match(authSession, /event\.persisted/);
   assert.match(authSession, /client\.auth\.getUser\(\)/);
-  assert.match(header, /client\.auth\.signOut\(\)/);
+  assert.match(header, /signOutOfFurvise\(client\)/);
+  assert.match(signOut, /client\.auth\.signOut\(\)/);
+  assert.match(signOut, /clearAskClientState\(window\.(?:localStorage|sessionStorage)\)/);
   assert.match(header, /window\.location\.replace\("\/"\)/);
 });

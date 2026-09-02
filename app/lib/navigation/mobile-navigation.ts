@@ -20,7 +20,7 @@ export const MOBILE_NAVIGATION_ITEMS = [
   { asset: NAVIGATION_ICON_ASSETS.pets, href: "/pets", label: "Pets", matches: ["/pets", "/dogs"], tab: "pets" },
 ] as const;
 
-const MORE_ROUTE_PREFIXES = ["/account", "/privacy", "/settings", "/shop", "/terms", "/vet-brief", "/vet-briefs"] as const;
+const MORE_ROUTE_PREFIXES = ["/account", "/membership", "/privacy", "/settings", "/shop", "/terms", "/vet-brief", "/vet-briefs"] as const;
 const AUTHENTICATED_APP_NAVIGATION_PREFIXES = [
   "/account",
   "/ask",
@@ -28,6 +28,7 @@ const AUTHENTICATED_APP_NAVIGATION_PREFIXES = [
   "/dashboard",
   "/dogs",
   "/history",
+  "/membership",
   "/pets",
   "/products",
   "/results",

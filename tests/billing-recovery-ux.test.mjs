@@ -35,5 +35,5 @@ test("nonterminal recovery states keep the existing subscription currency and ro
   assert.match(membership, /Your Plus payment could not be recovered\./);
   assert.match(membership, /Your Plus setup is not finished yet\./);
   assert.match(membership, /Your Furvise subscription is paused\./);
-  assert.match(membership, /billingDestination === "portal" \? "Manage billing" : "Upgrade to Furvise Plus"/);
+  assert.match(membership, /billingDestination === "portal" \? "Manage billing" : "Upgrade to Plus"/);
 });
