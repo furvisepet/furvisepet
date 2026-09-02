@@ -7,7 +7,7 @@ export const ACTION_AUDIT_ROUTES = new Map([
   ["/", "Homepage"],
   ["/today", "Today"],
   ["/pets", "Pets"],
-  ["/care-log", "History"],
+  ["/history", "History"],
   ["/ask", "Ask"],
   ["/shop", "Products"],
 ]);

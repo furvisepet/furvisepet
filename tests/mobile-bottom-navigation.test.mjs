@@ -24,7 +24,6 @@ test("mobile destinations use the approved public image assets", () => {
       { asset: "/images/nav-history-v1.webp", href: "/history", label: "History" },
       { asset: "/images/nav-ask-v1.webp", href: "/ask", label: "Ask" },
       { asset: "/images/nav-pets-v1.webp", href: "/pets", label: "Pets" },
-      { asset: "/images/nav-more-v1.webp", href: "/account", label: "Account" },
     ],
   );
   for (const item of MOBILE_NAVIGATION_ITEMS) assert.equal(existsSync(new URL(`../public${item.asset}`, import.meta.url)), true);
@@ -118,7 +117,8 @@ test("persistent navigation icons are low-priority and do not remount by pathnam
   assert.match(header, /sizes="100%"/);
 });
 
-test("History alias reuses the established care-history implementation", () => {
-  assert.match(read("app/history/page.tsx"), /redirect\("\/care-log"\)/);
+test("History is canonical while the legacy care-log route preserves query parameters", () => {
+  assert.match(read("app/history/page.tsx"), /<HistoryArchive/);
+  assert.match(read("app/care-log/page.tsx"), /permanentRedirect\(query \? `\/history\?\$\{query\}` : "\/history"\)/);
   assert.match(read("app/history/layout.tsx"), /PrivateRouteLayout/);
 });

@@ -73,7 +73,7 @@ type AppHeaderProps = {
 export const APP_NAV_ITEMS = [
   { href: "/today", label: "Today" },
   { href: "/pets", label: "Pets" },
-  { href: "/care-log", label: "History" },
+  { href: "/history", label: "History" },
   { href: "/ask", label: "Ask" },
 ] as const;
 
@@ -82,7 +82,6 @@ const MOBILE_NAV_ITEMS = [
   { ...MOBILE_NAVIGATION_ITEMS[1], icon: "history", label: "History" },
   { ...MOBILE_NAVIGATION_ITEMS[2], icon: "ask", label: "Ask" },
   { ...MOBILE_NAVIGATION_ITEMS[3], icon: "pets", label: "Pets" },
-  { ...MOBILE_NAVIGATION_ITEMS[4], icon: "more", label: "Account" },
 ] as const;
 
 export function AppHeader({
@@ -309,7 +308,7 @@ export function AppHeader({
         <nav aria-label="Mobile navigation" className="mobile-liquid-glass-root fixed inset-x-0 bottom-0 z-[var(--z-bottom-navigation)] pb-[var(--mobile-nav-safe-area)] lg:hidden" data-liquid-glass-static="" data-state={askCompactNavigation ? "ask-compact" : "stable"} data-ui="mobile-bottom-navigation" ref={mobileGlassRootRef}>
           <span aria-hidden="true" className="mobile-liquid-glass-scene" />
           <div aria-hidden="true" className="mobile-liquid-glass" data-liquid-glass-skip-content="" ref={mobileGlassRef} />
-          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-5 rounded-[var(--radius-xl)] sm:mx-auto ${askCompactNavigation ? "h-[var(--mobile-nav-compact-height)] p-1" : "h-[var(--mobile-nav-expanded-height)] p-1.5"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock" ref={mobileNavigationDockRef}>
+          <div className={`mobile-liquid-glass-content mx-4 mb-2 grid max-w-2xl grid-cols-4 rounded-[var(--radius-xl)] sm:mx-auto ${askCompactNavigation ? "h-[var(--mobile-nav-compact-height)] p-1" : "h-[var(--mobile-nav-expanded-height)] p-1.5"}`} data-liquid-glass-ignore="" data-ui="mobile-navigation-dock" ref={mobileNavigationDockRef}>
             {MOBILE_NAV_ITEMS.map((item) => {
               const active = activeMobileTab === item.tab;
               return (

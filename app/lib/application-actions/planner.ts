@@ -212,8 +212,8 @@ function actionPresentation(kind: FurviseActionKind, petId: string, petName: str
     case "navigation.open_memories": return view("Open remembered details", `/dogs/${encoded}/memories`);
     case "memory.list": return view("Show remembered details", `/dogs/${encoded}/memories`);
     case "memory.edit_detail": return view("Edit remembered details", `/dogs/${encoded}/memories`);
-    case "navigation.open_care_history": return view(`Open ${petName}'s care history`, `/care-log?pet=${encoded}`);
-    case "care_history.query": return view(`Review ${petName}'s care history`, `/care-log?pet=${encoded}`);
+    case "navigation.open_care_history": return view(`Open ${petName}'s history`, `/history?pet=${encoded}`);
+    case "care_history.query": return view(`Review ${petName}'s history`, `/history?pet=${encoded}`);
     case "navigation.open_vet_brief": return view("Open Vet Briefs", `/vet-briefs?pet=${encoded}`);
     case "vet_brief.prepare": return view("Prepare a care summary", `/vet-brief?pet=${encoded}&source=ask`);
     case "pet.update_profile": return mutation(`Update ${formatField(actionInput.field)}`, `Change ${petName}'s ${formatField(actionInput.field)} to ${actionInput.value || "the requested value"}.`);

@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { HistoryArchive } from "../components/history-archive";
 
-export default function HistoryAliasPage() {
-  redirect("/care-log");
+export default function HistoryPage() {
+  return <Suspense fallback={null}><HistoryArchive /></Suspense>;
 }

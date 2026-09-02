@@ -91,6 +91,10 @@ export function formatCareEntrySeverity(severity) {
   return CARE_ENTRY_SEVERITY_LABELS[severity] || humanizeValue(severity);
 }
 
+/**
+ * @param {string} value
+ * @param {string | string[] | undefined} locale
+ */
 export function formatCareEntryTimestamp(value, locale = undefined) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
@@ -206,7 +210,7 @@ export function buildDashboardCareSectionState({
   }
 
   return {
-    actionHref: "/care-log",
+    actionHref: "/history",
     entries: buildDashboardCareEntries(entries, petNameById),
     emptyMessage: "No care updates have been logged yet.",
     hasPets: true,

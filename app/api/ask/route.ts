@@ -2243,7 +2243,7 @@ function didPersistEffectiveState(intelligencePersistence: IntelligencePersisten
 }
 
 function revalidateAskStateViews(petIds: string[]) {
-  for (const path of ["/dashboard", "/today", "/pets", "/care-log"]) revalidatePath(path);
+  for (const path of ["/dashboard", "/today", "/pets", "/history", "/care-log"]) revalidatePath(path);
   for (const petId of new Set(petIds.filter(Boolean))) {
     revalidatePath(`/pets/${petId}`);
     revalidatePath(`/pets/${petId}/care`);

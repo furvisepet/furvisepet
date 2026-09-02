@@ -15,7 +15,7 @@ const liquidGlassRuntime = read("app/lib/vendor/liquidglass/index.js");
 test("desktop primary navigation is text-only with the approved application inventory and states", () => {
   const inventory = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   const desktop = header.slice(header.indexOf('<nav aria-label="Primary navigation"'), header.indexOf('data-ui="desktop-account-zone"'));
-  for (const [href, label] of [["/today", "Today"], ["/pets", "Pets"], ["/care-log", "History"], ["/ask", "Ask"]]) {
+  for (const [href, label] of [["/today", "Today"], ["/pets", "Pets"], ["/history", "History"], ["/ask", "Ask"]]) {
     assert.match(inventory, new RegExp('href: "' + href + '", label: "' + label + '"'));
   }
   assert.doesNotMatch(inventory + "\n" + desktop, /NavigationIcon|<Image|asset:/);
@@ -42,7 +42,7 @@ test("main uses the homepage lockup while auth places a restrained heron inside 
   assert.match(read("app/components/brand-mark.tsx"), /objectFit: "contain"/);
 });
 
-test("mobile keeps five dock icons above LiquidGlass and More in the header", () => {
+test("mobile keeps four dock icons above LiquidGlass and Account in the header", () => {
   const mobileStart = header.indexOf('<nav aria-label="Mobile navigation"');
   const mobile = header.slice(mobileStart, header.indexOf("</nav>", mobileStart) + 6);
   assert.match(mobile, /<NavigationIcon asset=\{item\.asset\} \/>/);
@@ -52,7 +52,7 @@ test("mobile keeps five dock icons above LiquidGlass and More in the header", ()
   assert.match(mobile, /mobile-liquid-glass-scene/);
   assert.match(mobile, /ref=\{mobileGlassRootRef\}/);
   assert.match(mobile, /ref=\{mobileGlassRef\}/);
-  assert.match(mobile, /grid-cols-5/);
+  assert.match(mobile, /grid-cols-4/);
   assert.match(mobile, /data-liquid-glass-ignore=""[\s\S]*<NavigationIcon/);
   assert.match(css, /\.mobile-liquid-glass-scene \{[\s\S]*linear-gradient[\s\S]*box-shadow:[\s\S]*backdrop-filter: blur\(24px\) saturate\(155%\)/);
   assert.match(css, /\.mobile-liquid-glass \{[\s\S]*background: transparent/);

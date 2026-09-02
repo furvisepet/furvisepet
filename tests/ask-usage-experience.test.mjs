@@ -12,7 +12,7 @@ test("Ask usage notice stays hidden until the allowance is exhausted", () => {
   assert.match(notice, /if \(usage\.remaining === 0\)[\s\S]*return null/);
   assert.match(notice, /You&apos;ve used the/);
   assert.match(notice, /Share the full picture in each Ask/);
-  for (const label of ["Upgrade to Plus", "View care history", "Update pet details", "Prepare vet brief"]) assert.match(notice, new RegExp(label));
+  for (const label of ["Upgrade to Plus", "View history", "Update pet details", "Prepare vet brief"]) assert.match(notice, new RegExp(label));
   assert.doesNotMatch(notice, /warning|danger|alert/i);
 });
 

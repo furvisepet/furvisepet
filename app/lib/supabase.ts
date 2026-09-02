@@ -27,6 +27,7 @@ import {
 import type { PetConcern } from "./ai/concern-engine";
 import type { FurviseMemoryRow } from "./intelligence/types";
 import { projectEffectiveCareHistory, type HistoryProjectionMemory } from "./effective-history.ts";
+import { normalizeHistorySearch } from "./history-archive.ts";
 import { idempotentClientFetch } from "./security/idempotency/client.ts";
 
 export const PROFILE_ID_STORAGE_KEY = "petwise:dog-profile-id";
@@ -152,6 +153,23 @@ export type CareEntryRow = {
 
 export type CareEntryWithPetName = CareEntryRow & {
   pet_name: string;
+};
+
+export type HistoryArchivePet = Pick<DogProfileRow, "id" | "name">;
+
+export type HistoryArchiveQuery = {
+  category?: string;
+  from?: string | null;
+  limit?: number;
+  offset?: number;
+  petId?: string;
+  search?: string;
+};
+
+export type HistoryArchivePage = {
+  entries: CareEntryWithPetName[];
+  hasMore: boolean;
+  nextOffset: number;
 };
 
 export type CreateCareEntryUnlessDuplicateResult =
@@ -531,6 +549,93 @@ export async function listRecentCareEntries(limit: number, deps: CareLogHelperDe
     ...entry,
     pet_name: petNameById.get(entry.pet_profile_id) || "Unknown pet",
   }));
+}
+
+export async function listHistoryArchivePets(deps: CareLogHelperDeps = {}) {
+  const supabase = deps.getClient?.() ?? getBrowserSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const user = await requireCurrentUser(deps.getCurrentUser);
+  const { data, error } = await supabase
+    .from("dog_profiles")
+    .select("id, name")
+    .eq("user_id", user.id)
+    .order("name", { ascending: true })
+    .returns<HistoryArchivePet[]>();
+  if (error) throw friendlyDatabaseError(error, "saved pets");
+  return data || [];
+}
+
+export async function hasAnyHistoryArchiveEntries(deps: CareLogHelperDeps = {}) {
+  const supabase = deps.getClient?.() ?? getBrowserSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const user = await requireCurrentUser(deps.getCurrentUser);
+  const { data, error } = await supabase
+    .from("pet_care_entries")
+    .select("id")
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .limit(1)
+    .returns<Array<{ id: string }>>();
+  if (error) throw normalizeCareDatabaseError(error, "care entries");
+  return Boolean(data?.length);
+}
+
+export async function queryHistoryArchive(
+  input: HistoryArchiveQuery,
+  deps: CareLogHelperDeps = {},
+): Promise<HistoryArchivePage> {
+  const supabase = deps.getClient?.() ?? getBrowserSupabase();
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const user = await requireCurrentUser(deps.getCurrentUser);
+  const limit = Math.max(1, Math.min(50, Math.floor(input.limit || 50)));
+  const offset = Math.max(0, Math.floor(input.offset || 0));
+  const search = normalizeHistorySearch(String(input.search || ""));
+
+  let query = supabase
+    .from("pet_care_entries")
+    .select()
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+
+  if (input.petId) {
+    await ensurePetOwnership(input.petId, user, deps.getClient);
+    query = query.eq("pet_profile_id", input.petId);
+  }
+  if (input.category) query = query.eq("category", input.category);
+  if (input.from) query = query.gte("occurred_at", input.from);
+  if (search) query = query.or(`note.ilike.%${search}%,title.ilike.%${search}%`);
+
+  const { data, error } = await query
+    .order("occurred_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit)
+    .returns<CareEntryRow[]>();
+  if (error) throw normalizeCareDatabaseError(error, "care entries");
+
+  const rawEntries = data || [];
+  const pageRows = rawEntries.slice(0, limit);
+  const effectiveEntries = await projectEffectiveHistoryForUser(pageRows, user.id, supabase);
+  const petIds = [...new Set(effectiveEntries.map((entry) => entry.pet_profile_id))];
+  const petNameById = new Map<string, string>();
+  if (petIds.length) {
+    const { data: pets, error: petsError } = await supabase
+      .from("dog_profiles")
+      .select("id, name")
+      .in("id", petIds)
+      .eq("user_id", user.id)
+      .returns<HistoryArchivePet[]>();
+    if (petsError) throw friendlyDatabaseError(petsError, "saved pets");
+    (pets || []).forEach((pet) => petNameById.set(pet.id, pet.name));
+  }
+
+  return {
+    entries: effectiveEntries.map((entry) => ({
+      ...entry,
+      pet_name: petNameById.get(entry.pet_profile_id) || "Pet",
+    })),
+    hasMore: rawEntries.length > limit,
+    nextOffset: offset + rawEntries.length,
+  };
 }
 
 async function projectEffectiveHistoryForUser<T extends CareEntryRow>(entries: T[], userId: string, supabase: SupabaseClient) {

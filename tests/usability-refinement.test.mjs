@@ -80,9 +80,10 @@ test("Ask fresh state uses a compact pet selector and one disclaimer", () => {
   assert.equal(ask.split("Furvise organizes care information and does not replace a veterinarian.").length - 1, 1);
 });
 
-test("Products is absent from primary navigation while Account remains in the mobile dock and More menu", () => {
+test("Products is absent while Account remains in the mobile More menu", () => {
   const mobileNavigation = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
-  assert.match(mobileNavigation, /icon: "more", label: "Account"/);
+  assert.doesNotMatch(mobileNavigation, /icon: "more", label: "Account"/);
+  assert.match(header, /data-ui="mobile-more-container"/);
   const desktopNavigation = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.doesNotMatch(desktopNavigation, /\/shop|Products/);
   assert.doesNotMatch(header, /data-ui="mobile-more-container"[\s\S]*href="\/shop"[\s\S]*>Products/);

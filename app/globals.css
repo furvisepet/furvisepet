@@ -852,7 +852,7 @@ body {
   height: var(--mobile-nav-height);
   max-width: 42rem;
   margin-inline: auto;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .homepage-mobile-navigation-link {

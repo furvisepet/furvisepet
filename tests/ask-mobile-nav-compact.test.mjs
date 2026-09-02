@@ -23,7 +23,7 @@ test("normal navigation has labels while focused Ask uses compact icon-only pres
   assert.match(nav, /askCompactNavigation \? "h-8 w-10" : "h-10 w-12"/);
   assert.match(nav, /aria-label=\{item\.label\}/);
   assert.match(nav, /aria-current=\{active \? "page" : undefined\}/);
-  assert.match(nav, /grid-cols-5/);
+  assert.match(nav, /grid-cols-4/);
   assert.match(nav, /min-h-11/);
 });
 
