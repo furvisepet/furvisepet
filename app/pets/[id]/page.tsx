@@ -57,7 +57,7 @@ export default function PetProfilePage() {
 
   return (
     <AppPage>
-      <div className="mx-auto min-w-0 max-w-[860px] overflow-x-hidden" data-ui="pet-profile-facts">
+      <div className="w-full min-w-0 overflow-x-hidden" data-ui="pet-profile-facts">
         {state === "loading" ? <ProfileSkeleton /> : null}
         {state === "error" ? <ProfileError error={error} /> : null}
         {state === "ready" && profile ? <PetFacts profile={profile} /> : null}
@@ -84,7 +84,7 @@ function PetFacts({ profile }: { profile: DogProfileRow }) {
         <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-secondary)]" id="pet-details-heading">Details</h2>
         <dl className="mt-5 divide-y divide-[var(--line)] border-y border-[var(--line)]">
           {facts.map(({ label, value }) => (
-            <div className="grid min-w-0 gap-1 py-4 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-baseline sm:gap-8 sm:py-5" key={label}>
+            <div className="grid min-w-0 gap-1 py-4 sm:grid-cols-[14rem_minmax(0,1fr)] sm:items-baseline sm:gap-8 sm:py-5" key={label}>
               <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">{label}</dt>
               <dd className="min-w-0 break-words text-base font-medium leading-7 text-[var(--text-primary)] sm:text-lg">{value}</dd>
             </div>

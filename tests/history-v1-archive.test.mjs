@@ -47,6 +47,14 @@ test("History offers the exact V1 filters and honest empty states", () => {
   assert.doesNotMatch(archive, /rounded-3xl|shadow-\[0_8px|category pill/i);
 });
 
+test("History controls use the neutral product input surface instead of mint", () => {
+  const controls = archive.slice(archive.indexOf("const controlClass"), archive.indexOf("export function HistoryArchive"));
+  assert.match(controls, /bg-\[var\(--input-background\)\]/);
+  assert.match(controls, /border-\[var\(--input-border\)\]/);
+  assert.match(controls, /focus-visible:border-\[var\(--forest\)\]/);
+  assert.doesNotMatch(controls, /surface-interactive|pale-sage|soft-sage|orange/i);
+});
+
 test("History search normalization is bounded and removes PostgREST filter syntax", () => {
   assert.equal(normalizeHistorySearch("  Chicken, (left paw).*  "), "Chicken left paw");
   assert.equal(normalizeHistorySearch("a".repeat(200)).length, 120);

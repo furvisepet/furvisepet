@@ -27,7 +27,7 @@ import {
   type HistoryArchivePet,
 } from "../lib/supabase";
 
-const controlClass = "min-h-12 w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-[var(--surface-interactive)] px-3.5 text-base text-[var(--text-primary)] focus-visible:border-[var(--forest)] focus-visible:outline-none";
+const controlClass = "min-h-12 w-full rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-background)] px-3.5 text-base text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus-visible:border-[var(--forest)]";
 
 export function HistoryArchive() {
   const searchParams = useSearchParams();

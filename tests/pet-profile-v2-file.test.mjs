@@ -88,8 +88,9 @@ test("the profile has one Edit action and no duplicated feature workflows", () =
 
 test("details use one responsive spec list with no cards or orange", () => {
   assert.match(page, /<dl className="mt-5 divide-y/);
-  assert.match(page, /sm:grid-cols-\[12rem_minmax\(0,1fr\)\]/);
-  assert.match(page, /max-w-\[860px\]/);
+  assert.match(page, /sm:grid-cols-\[14rem_minmax\(0,1fr\)\]/);
+  assert.match(page, /w-full min-w-0 overflow-x-hidden/);
+  assert.doesNotMatch(page, /max-w-\[860px\]/);
   assert.match(page, /min-w-0/);
   assert.match(page, /overflow-x-hidden/);
   assert.doesNotMatch(page, /lg:grid-cols|rounded-\[1\.5rem\]|shadow-|orange|#C9560C|#F47A22|#FA8A36|#EF6E17/i);
