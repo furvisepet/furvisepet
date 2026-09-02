@@ -1,105 +1,102 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { buildPetProfileAboutDetails } from "../app/lib/pet-profile-file.ts";
+import { buildPetProfileFactRows } from "../app/lib/pet-profile-file.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const page = read("app/pets/[id]/page.tsx");
 
 function profile(overrides = {}) {
   return {
+    age_unit: "years",
+    age_value: 2,
     breed: null,
     current_food: null,
+    name: "tommy",
     routine_note: null,
+    sex: "male",
+    species: "dog",
     weight_unit: "lb",
     weight_value: null,
     ...overrides,
   };
 }
 
-test("pet profile loads the owned profile, canonical memories, and only three recent updates", () => {
-  assert.match(page, /Promise\.all\(\[[\s\S]*loadDogProfileForUser\(params\.id, user\)[\s\S]*loadCanonicalRememberedDetailsForUser\(params\.id, user\)[\s\S]*listRecentCareEntriesForPet\(params\.id, 3/);
-  for (const retiredLoad of [
+test("pet profile loads exactly one owner-scoped profile source", () => {
+  assert.match(page, /const profileRow = await loadDogProfileForUser\(params\.id, user\)/);
+  assert.doesNotMatch(page, /Promise\.all|loadDogProfileWithMemoriesForUser|loadCanonicalRememberedDetailsForUser|listRecentCareEntriesForPet/);
+  for (const unnecessaryLoad of [
     "listCareEntriesForPet",
     "loadDogProductFeedbackForUser",
     "listActiveConcernsForPet",
     "readStoredGuidanceSnapshot",
-    "buildPetProfileOverviewModel",
-  ]) assert.doesNotMatch(page, new RegExp(retiredLoad));
+    "loadAskConversations",
+  ]) assert.doesNotMatch(page, new RegExp(unnecessaryLoad));
 });
 
-test("pet profile exposes one primary Edit action, one Vet Brief action, and no administration section", () => {
+test("fact rows render durable values in the requested order", () => {
+  assert.deepEqual(buildPetProfileFactRows(profile({
+    breed: "Golden Retriever",
+    current_food: "Purina Pro Plan",
+    routine_note: "Eats around 7 AM",
+    weight_value: 24,
+  })), [
+    { label: "Name", value: "Tommy" },
+    { label: "Species", value: "Dog" },
+    { label: "Sex", value: "Male" },
+    { label: "Age", value: "2 years" },
+    { label: "Breed", value: "Golden Retriever" },
+    { label: "Weight", value: "24 lb" },
+    { label: "Current food", value: "Purina Pro Plan" },
+    { label: "Routine", value: "Eats around 7 AM" },
+  ]);
+});
+
+test("unknown and missing facts are omitted without filler", () => {
+  assert.deepEqual(buildPetProfileFactRows(profile({
+    age_value: null,
+    breed: "Unknown",
+    current_food: "Not provided",
+    routine_note: "Not sure",
+    sex: "not_sure",
+    species: null,
+    weight_value: null,
+  })), [{ label: "Name", value: "Tommy" }]);
+  assert.doesNotMatch(page, /Unknown|Not recorded|N\/A|Not much saved yet|Add the basics/);
+});
+
+test("the profile has one Edit action and no duplicated feature workflows", () => {
   assert.equal((page.match(/EDIT PET/g) || []).length, 1);
-  assert.match(page, /\/vet-brief\?pet=/);
-  assert.doesNotMatch(page, /MANAGE PET|Delete pet|deleteDogProfileForUser|buildPetDeletionReauthenticationHref/);
-  for (const duplicate of [
+  assert.match(page, /href=\{`\/pets\/\$\{encodeURIComponent\(profile\.id\)\}\/edit`\}/);
+  for (const removedSurface of [
+    "VET BRIEF",
+    "Ask Furvise",
+    "Add update",
+    "Recent updates",
     "Today's snapshot",
     "Today’s snapshot",
     "Furvise guidance",
-    "Add update",
-    "View full history",
+    "Start here",
+    "What Furvise remembers",
     "Active concerns",
     "Products for",
-    "More actions",
+    "Manage pet",
+    "Delete pet",
     "LocalPetAvatar",
-  ]) assert.doesNotMatch(page, new RegExp(duplicate));
+  ]) assert.doesNotMatch(page, new RegExp(removedSurface, "i"));
 });
 
-test("Details renders only known durable fields and never exposes monthly budget", () => {
-  assert.deepEqual(buildPetProfileAboutDetails(profile()), []);
-  assert.deepEqual(buildPetProfileAboutDetails(profile({
-    breed: "Golden Retriever",
-    current_food: "Salmon kibble",
-    routine_note: "Usually eats around 7 AM",
-    weight_value: 24,
-  })), [
-    { label: "Breed", value: "Golden Retriever" },
-    { label: "Weight", value: "24 lb" },
-    { label: "Routine", value: "Usually eats around 7 AM" },
-    { label: "Current food", value: "Salmon kibble" },
-  ]);
-  assert.deepEqual(buildPetProfileAboutDetails(profile({ breed: "Unknown", current_food: "Not provided", routine_note: "Not sure" })), []);
-  assert.doesNotMatch(page, /monthly budget|monthly_budget/i);
-  assert.match(page, /title="Details"/);
-  assert.match(page, /Not much saved yet\./);
-  assert.match(page, /Add the basics when you know them\./);
-});
-
-test("remembered details stay pet-scoped, bounded, honest, and editorial", () => {
-  assert.match(page, /rememberedDetails\.pet\.map/);
-  assert.doesNotMatch(page, /rememberedDetails\.owner\.map/);
-  assert.match(page, /rememberedFacts\.slice\(0, 5\)/);
-  assert.match(page, /Nothing remembered yet\./);
-  assert.match(page, /When you tell Furvise something useful, like routines, food preferences, sensitivities, or other important context, it can show up here\./);
-  assert.match(page, /divide-y divide-\[var\(--line\)\]/);
-  assert.match(page, /function EditorialSection/);
-  assert.doesNotMatch(page, /lg:grid-cols-2|pet-profile-cards|function ProfileCard/);
-  assert.doesNotMatch(page, /confidence|provenance|memory type/i);
-});
-
-test("Recent updates is bounded, newest-first through shared authority, and honest when empty", () => {
-  assert.match(page, /listRecentCareEntriesForPet\(params\.id, 3/);
-  assert.match(page, /recentEntries\.map/);
-  assert.match(page, /formatTodayTimelineDate\(entry\.occurred_at\)/);
-  assert.match(page, /\$\{name\} doesn’t have any updates yet\./);
-  assert.match(page, /What you save in Today will show up here\./);
-});
-
-test("the genuine empty file is rewarding, single-column, and safely actionable", () => {
-  assert.match(page, /const isEmptyFile = about\.length === 0 && rememberedFacts\.length === 0 && recentEntries\.length === 0/);
-  assert.match(page, /\{name\}’s file is just getting started\./);
-  assert.match(page, /Details[\s\S]*Add the basics when you know them[\s\S]*What Furvise remembers[\s\S]*Recent updates/);
-  assert.match(page, /href=\{`\/today\?pet=\$\{encodedPetId\}`\}/);
-  assert.match(page, /href=\{`\/ask\?pet=\$\{encodedPetId\}`\}/);
-  assert.doesNotMatch(page, /lg:grid-cols-2/);
-});
-
-test("lifecycle, focus, and responsive file geometry stay deliberate", () => {
-  assert.match(page, /formatPetDirectoryMetadata\(profile\)/);
-  assert.match(page, /lifecycleStatus === "active" \? <Link[\s\S]*VET BRIEF/);
+test("details use one responsive spec list with no cards or orange", () => {
+  assert.match(page, /<dl className="mt-5 divide-y/);
+  assert.match(page, /sm:grid-cols-\[12rem_minmax\(0,1fr\)\]/);
   assert.match(page, /max-w-\[860px\]/);
   assert.match(page, /min-w-0/);
   assert.match(page, /overflow-x-hidden/);
-  assert.match(page, /focus-visible:ring-\[var\(--focus-ring\)\]/);
-  assert.doesNotMatch(page, /orange|#C9560C|#F47A22|#FA8A36|#EF6E17/i);
+  assert.doesNotMatch(page, /lg:grid-cols|rounded-\[1\.5rem\]|shadow-|orange|#C9560C|#F47A22|#FA8A36|#EF6E17/i);
+  assert.doesNotMatch(page, /monthly budget|monthly_budget/i);
+});
+
+test("lifecycle metadata remains delegated to the shared authority", () => {
+  assert.match(page, /formatPetDirectoryMetadata\(profile\)/);
+  assert.match(page, /formatPetDisplayName\(profile\.name\)/);
 });

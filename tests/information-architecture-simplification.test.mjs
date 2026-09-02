@@ -27,12 +27,12 @@ function row(overrides = {}) {
   };
 }
 
-test("new pet creation bypasses analysis and opens a direct-use success state", () => {
+test("new pet creation bypasses analysis and opens the pet's live file", () => {
   const source = read("app/onboarding/page.tsx");
   assert.ok(source.indexOf("setSavedPet") > source.indexOf("savePetProfileForUser"));
   assert.match(source, /`\/today\?pet=\$\{encodeURIComponent\(pet\.id\)\}`/);
   assert.doesNotMatch(source, /\/api\/analyze|Get recommendations|Analyze profile/);
-  assert.match(read("app/pets/[id]/page.tsx"), /was added\./);
+  assert.doesNotMatch(read("app/pets/[id]/page.tsx"), /was added\.|marketing|recommendations/i);
 });
 
 test("duplicate summary redirects and remembered details preserve pet identity", () => {
@@ -56,15 +56,12 @@ test("profile field states distinguish known, none-known, unknown, and missing",
   assert.equal(buildProfileCompleteness(row({ avoid_ingredients: [] })).missingFields.includes("avoid ingredients"), false);
 });
 
-test("pet profile is a compact pet home with bounded memories and recent updates", () => {
+test("pet profile is a compact fact file without duplicated product surfaces", () => {
   const page = read("app/pets/[id]/page.tsx");
-  assert.match(page, /title="Details"/);
-  assert.match(page, /title="What Furvise remembers"/);
-  assert.match(page, /title="Recent updates"/);
-  assert.match(page, /rememberedFacts\.slice\(0, 5\)/);
-  assert.match(page, /listRecentCareEntriesForPet\(params\.id, 3/);
-  assert.doesNotMatch(page, /Today.?s snapshot|Furvise guidance|listCareEntriesForPet/);
-  assert.doesNotMatch(page, /\/results\?/);
+  assert.match(page, /buildPetProfileFactRows\(profile\)/);
+  assert.match(page, /pet-details-heading/);
+  assert.match(page, /<dl className="mt-5 divide-y/);
+  assert.doesNotMatch(page, /What Furvise remembers|Recent updates|Today.?s snapshot|Furvise guidance|listCareEntriesForPet|\/results\?|\/ask\?|\/vet-brief\?/);
 });
 
 test("History titles are deterministic and date groups are chronological", () => {
