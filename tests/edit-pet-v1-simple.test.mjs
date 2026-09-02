@@ -109,10 +109,17 @@ test("save and cancel return to the canonical pet profile", () => {
   assert.match(form, /href=\{cancelHref\}/);
 });
 
-test("the form uses a single calm product rail with forest actions and mobile-safe controls", () => {
-  assert.match(page, /max-w-\[680px\]/);
+test("the form uses a full-canvas product rail with forest actions and mobile-safe controls", () => {
+  assert.match(route, /max-w-\[1180px\]/);
+  assert.match(route, /Change the details Furvise should use for \{petName\}\./);
+  assert.match(form, /label="Basic details"/);
+  assert.match(form, /label="Care context"/);
+  assert.match(form, /md:grid-cols-2/);
+  assert.match(form, /gap-x-10/);
   assert.match(page, /grid-cols-\[minmax\(0,1fr\)_minmax\(7\.5rem,0\.48fr\)\]/);
   assert.match(page, /bg-\[var\(--deep-forest\)\][\s\S]*text-\[color:var\(--warm-cream\)\][\s\S]*SAVE CHANGES/);
   assert.match(page, /min-h-12/);
+  assert.match(form, /flex-col[\s\S]*sm:flex-row-reverse[\s\S]*sm:justify-between/);
+  assert.equal((form.match(/<FormSection/g) || []).length, 2);
   assert.doesNotMatch(page, /rounded-\[1\.5rem\]|shadow-\[0_18px|orange|#C9560C|#F47A22|#FA8A36|#EF6E17/i);
 });
