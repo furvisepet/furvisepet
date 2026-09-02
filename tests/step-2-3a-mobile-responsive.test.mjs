@@ -20,19 +20,19 @@ const menu = read("app/components/pet-overflow-menu.tsx");
 test("Products uses dedicated full-bleed responsive artwork", () => {
   assert.match(
     primitives,
-    /mobileTitleClass[\s\S]*text-\[2\.125rem\][\s\S]*text-\[2\.25rem\]/
+    /appPageTitleClass = "app-page-title"/
   );
   assert.match(
     primitives,
-    /leading-\[1\.08\][\s\S]*md:text-\[2\.625rem\]/
+    /titleId\?: string[\s\S]*className=\{appPageTitleClass\}/
   );
   assert.match(
     primitives,
-    /supportingText[\s\S]*text-base[\s\S]*sm:text-lg/
+    /supportingText[\s\S]*className=\{appPageSubtitleClass\}/
   );
   assert.match(
     css,
-    /body[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.5;/
+    /body[\s\S]*font-size: 16px;[\s\S]*line-height: 1\.6;/
   );
   assert.match(
     products,
@@ -221,6 +221,6 @@ test("desktop navigation remains hidden below 1024px and brand assets remain unc
   );
   assert.equal(
     hash("app/favicon.ico"),
-    "617E8F6A24067E937ECAFD8C8A8DE735BF4BAC546B0378F0220C884F88C952DB"
+    "7645741D1A690C78A6A235C21FB57B93533AB2C86BE3437F8AB28180497220E3"
   );
 });

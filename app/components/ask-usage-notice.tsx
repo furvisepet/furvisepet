@@ -6,7 +6,7 @@ export function AskUsageNotice({ lifecycleStatus = "active", petId, usage }: { l
     const encodedPet = encodeURIComponent(petId);
     const resetDate = formatResetDate(usage.resetAt);
     return (
-      <section aria-label="AI credit allowance" className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] p-4">
+      <section aria-label="AI credit allowance" className="mb-8 rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] p-4">
         <p className="font-semibold text-[var(--text-primary)]">
           You&apos;ve used the {usage.limit} Ask included in your {usage.planId === "plus" ? "Furvise Plus" : "Free"} allowance.
           {resetDate ? ` Your allowance resets ${resetDate}.` : " Your pet profiles, history, and saved details are still available."}

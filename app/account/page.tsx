@@ -14,7 +14,7 @@ export default function AccountPage() {
         </p>
       ) : (
         <section className="mt-10" aria-labelledby="account-email-heading">
-          <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]" id="account-email-heading">Email address</h2>
+          <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]" id="account-email-heading">Email address</h3>
           <p className="mt-3 break-words text-xl font-medium text-[var(--text-primary)]">{user?.email || "Email unavailable"}</p>
         </section>
       )}

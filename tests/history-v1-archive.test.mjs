@@ -16,7 +16,8 @@ const accountUtility = read("app/components/account-utility.tsx");
 
 test("global History is a read-only archive without duplicated product jobs", () => {
   assert.match(archive, /HISTORY/);
-  assert.match(archive, /Find anything you&apos;ve saved about your pets\./);
+  assert.match(archive, /Find something you've saved\./);
+  assert.match(archive, /Search across your pets and past updates\./);
   assert.match(archive, /Search history\.\.\./);
   for (const forbidden of ["Add update", "Add first update", "Ask about", "Prepare vet brief", "Prepare care summary"]) {
     assert.doesNotMatch(archive, new RegExp(forbidden, "i"));

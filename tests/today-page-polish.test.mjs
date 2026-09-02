@@ -13,7 +13,8 @@ test("Today V3 is the canonical present-tense file", () => {
   assert.match(today, /Anything you want Furvise to remember\?/);
   assert.match(today, /data-ui="today-remember-composer"[\s\S]*data-ui="today-recent"/);
   assert.doesNotMatch(today, /Nothing on the file yet|When something matters, put it here/);
-  assert.doesNotMatch(today, />TODAY<|className=\{styles\.todayTitle\}/);
+  assert.match(today, /eyebrow="TODAY"/);
+  assert.doesNotMatch(today, /className=\{styles\.todayTitle\}/);
 });
 
 test("legacy dashboard links permanently preserve query parameters", () => {
@@ -40,7 +41,8 @@ test("Remember reuses one authoritative write and stays on Today", () => {
 });
 
 test("Today is a restrained, responsive file rather than a card dashboard", () => {
-  assert.match(css, /\.page \{[\s\S]*max-width: 64rem;[\s\S]*margin-inline: auto/);
+  assert.match(css, /\.page \{[\s\S]*width: 100%/);
+  assert.doesNotMatch(css, /max-width: 64rem|margin-inline: auto/);
   assert.match(css, /\.primaryAction \{[\s\S]*background: var\(--today-action-background\);[\s\S]*color: var\(--today-action-foreground\)/);
   assert.match(read("app/components/app-page.tsx"), /data-app-canvas=\{shell\}/);
   assert.match(read("app/globals.css"), /\[data-app-canvas="today"\] \{[\s\S]*background: var\(--today-canvas\)/);

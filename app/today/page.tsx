@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AppPage } from "../components/app-page";
-import { LoadingState, Notice } from "../components/product-primitives";
+import { LoadingState, Notice, PageHeader } from "../components/product-primitives";
 import { getActivePetId, setActivePetId } from "../lib/active-pet";
 import { NEW_PET_ONBOARDING_PATH } from "../lib/auth-routing";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
@@ -149,33 +149,35 @@ export default function TodayPage() {
   return (
     <AppPage layout="workspace" shell="today">
       <div className={styles.page} data-ui="today-present-file">
+        {loading || configError || error ? <PageHeader eyebrow="TODAY" title="Anything you want Furvise to remember?" /> : null}
         {configError || error ? <Notice tone="warning">{configError || error}</Notice> : null}
         {loading ? <LoadingState label="Loading Today" /> : null}
 
         {!loading && !configError && !error && profiles.length === 0 ? (
           <section className={styles.noPet}>
-            <h1>Start with your pet</h1>
-            <p>Add a pet before starting their file.</p>
+            <PageHeader eyebrow="TODAY" supportingText="Add a pet before starting their file." title="Start with your pet" />
             <Link className={styles.primaryAction} data-ui="today-add-pet-action" href={NEW_PET_ONBOARDING_PATH}>ADD YOUR PET</Link>
           </section>
         ) : null}
 
         {!loading && selectedProfile ? (
           <>
-            <div className={styles.petContextRow}>
-              <p className={styles.petContext}>{formatTodayPetContext(selectedProfile)}</p>
-              {profiles.length > 1 ? (
+            <PageHeader
+              actions={profiles.length > 1 ? (
                 <label className={styles.petSwitcher}>
                   <span className="sr-only">Pet shown on Today</span>
                   <select onChange={(event) => switchProfile(event.target.value)} value={selectedProfile.id}>
                     {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
                   </select>
                 </label>
-              ) : null}
-            </div>
+              ) : undefined}
+              eyebrow="TODAY"
+              supportingText={formatTodayPetContext(selectedProfile)}
+              title="Anything you want Furvise to remember?"
+              titleId="remember-heading"
+            />
 
             <section aria-labelledby="remember-heading" className={styles.composer} data-ui="today-remember-composer">
-              <h1 className={styles.question} id="remember-heading">Anything you want Furvise to remember?</h1>
               <form onSubmit={saveRememberedNote}>
                 <label className="sr-only" htmlFor="today-remember-note">Something worth remembering</label>
                 <textarea

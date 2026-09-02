@@ -7,7 +7,6 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const publicDirectory = path.join(repositoryRoot, "public");
 const heronSource = path.join(publicDirectory, "brand", "furvise-heron.svg");
 const warmCream = { r: 247, g: 244, b: 232, alpha: 1 };
-const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
 
 async function renderIcon(size, markScale, background) {
   const markSize = Math.round(size * markScale);
@@ -70,7 +69,7 @@ function createIco(images) {
 const faviconImages = await Promise.all(
   [16, 32, 48, 64].map(async (size) => ({
     size,
-    buffer: await renderIcon(size, 0.875, transparent),
+    buffer: await renderIcon(size, size === 16 ? 0.68 : size === 32 ? 0.72 : 0.74, warmCream),
   })),
 );
 const favicon = createIco(faviconImages);

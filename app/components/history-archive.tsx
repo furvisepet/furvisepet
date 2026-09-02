@@ -3,7 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppPage } from "./app-page";
-import { Notice } from "./product-primitives";
+import { LoadingState, Notice, PageHeader } from "./product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import {
   CARE_ENTRY_CATEGORIES,
@@ -164,15 +164,16 @@ export function HistoryArchive() {
   return (
     <AppPage layout="workspace" shell="wide">
       <div className="w-full" data-ui="history-archive">
-        <header>
-          <h1 className="text-4xl font-semibold tracking-[-0.035em] text-[var(--text-primary)] sm:text-5xl">HISTORY</h1>
-          <p className="mt-3 text-base leading-7 text-[var(--text-secondary)] sm:text-lg">Find anything you&apos;ve saved about your pets.</p>
-        </header>
+        <PageHeader
+          eyebrow="HISTORY"
+          supportingText="Search across your pets and past updates."
+          title="Find something you've saved."
+        />
 
-        {error ? <div className="mt-8"><Notice tone="warning">{error}</Notice></div> : null}
+        {error ? <Notice tone="warning">{error}</Notice> : null}
 
         {hasAnyHistory ? (
-          <section aria-label="Search and filter History" className="mt-10 border-y border-[var(--line)] py-6">
+          <section aria-label="Search and filter History" className="border-y border-[var(--line)] py-6">
             <label>
               <span className="sr-only">Search history</span>
               <input className={`${controlClass} text-lg`} onChange={(event) => setSearch(event.target.value)} placeholder="Search history..." type="search" value={search} />
@@ -196,7 +197,7 @@ export function HistoryArchive() {
           </section>
         ) : null}
 
-        {loading && !entries.length ? <p className="mt-10 text-sm text-[var(--text-secondary)]" role="status">Loading History...</p> : null}
+        {loading && !entries.length ? <LoadingState label="Loading History" /> : null}
         {!loading && hasAnyHistory === false ? <HistoryEmpty /> : null}
         {!loading && hasAnyHistory && !entries.length ? (
           <section className="mt-12" data-ui="history-no-results">
@@ -250,7 +251,7 @@ function HistoryResults({ entries, onOpen }: { entries: CareEntryWithPetName[]; 
 }
 
 function HistoryEmpty() {
-  return <section className="mt-12" data-ui="history-empty"><h2 className="text-2xl font-semibold text-[var(--text-primary)]">No history yet.</h2><p className="mt-3 text-base leading-7 text-[var(--text-secondary)]">Things you save in Today will appear here.</p></section>;
+  return <section data-ui="history-empty"><h2 className="app-section-title">No history yet.</h2><p className="mt-3 text-base leading-7 text-[var(--text-secondary)]">Things you save in Today will appear here.</p></section>;
 }
 
 function setOrDelete(params: URLSearchParams, key: string, value: string) {

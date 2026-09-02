@@ -88,7 +88,7 @@ export default function DataPrivacyPage() {
       ) : (
         <div className="pb-6">
           <section className="border-b border-[var(--line)] py-10" aria-labelledby="download-data-heading">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)]" id="download-data-heading">DOWNLOAD YOUR DATA</h2>
+            <h3 className="app-section-title" id="download-data-heading">DOWNLOAD YOUR DATA</h3>
             <p className="mt-3 max-w-[640px] leading-7 text-[var(--text-secondary)]">Get a copy of the information stored in your Furvise account.</p>
             <PrimaryButton className={`${forestButtonClass} mt-6 w-full sm:w-auto`} disabled={exporting || deleting} loading={exporting} onClick={() => void exportAccountData()} type="button">
               {exporting ? "Preparing download..." : "Download data"}
@@ -96,10 +96,10 @@ export default function DataPrivacyPage() {
           </section>
 
           <section className="py-10" aria-labelledby="delete-account-heading">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)]" id="delete-account-heading">DELETE ACCOUNT</h2>
+            <h3 className="app-section-title" id="delete-account-heading">DELETE ACCOUNT</h3>
             <p className="mt-3 max-w-[640px] leading-7 text-[var(--text-secondary)]">Permanently delete your Furvise account and its data.</p>
             {!deleteOpen ? (
-              <button className="mt-6 inline-flex min-h-12 items-center rounded-full border border-[var(--danger-text)] px-5 text-sm font-semibold text-[var(--danger-text)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => setDeleteOpen(true)} type="button">Delete account</button>
+              <button className="mt-6 inline-flex min-h-12 items-center rounded-[var(--radius-sm)] border border-[var(--danger-text)] px-5 text-sm font-semibold text-[var(--danger-text)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => setDeleteOpen(true)} type="button">Delete account</button>
             ) : (
               <div className="mt-7 max-w-[640px] border-y border-[var(--line)] py-7" data-ui="delete-account-confirmation">
                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">Confirm permanent deletion</h3>

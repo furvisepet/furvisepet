@@ -63,7 +63,7 @@ test("semantic page-shell presets exist and every requested surface uses its map
   for (const [preset, width] of [["reading", "1180"], ["standard", "1180"], ["today", "1180"], ["wide", "1180"], ["marketing", "1240"]]) {
     assert.match(primitives, new RegExp(`${preset}: "max-w-\\[${width}px\\]"`));
   }
-  assert.match(primitives, /pageShellGutters = "px-5 sm:px-8 lg:px-10 xl:px-12"/);
+  assert.match(primitives, /appPageContainer = "box-border mx-auto w-\[calc\(100%_-_2\.5rem\)\] max-w-\[1180px\] sm:w-\[calc\(100%_-_4rem\)\] lg:w-\[calc\(100%_-_6rem\)\]"/);
   assert.match(today, /<AppPage layout="workspace" shell="today">/);
   assert.match(pets, /<AppPage layout="workspace" shell="standard">/);
   assert.match(history, /<AppPage layout="workspace" shell="wide">/);
@@ -80,10 +80,9 @@ test("PageHeader supports shared titles and independent action slots", () => {
   assert.match(primitives, /primaryAction\?: ReactNode/);
   assert.match(primitives, /secondaryAction\?: ReactNode/);
   assert.match(primitives, /data-ui="page-header-actions"/);
-  for (const source of [pets, ask, accountShell]) assert.match(source, /<PageHeader/);
-  assert.match(history, /<h1[^>]*>HISTORY<\/h1>/);
+  for (const source of [today, pets, history, ask, accountShell]) assert.match(source, /<PageHeader/);
+  assert.match(history, /eyebrow="HISTORY"[\s\S]*title="Find something you've saved\."/);
   assert.match(today, /data-ui="today-present-file"/);
-  assert.doesNotMatch(today, /<PageHeader/);
   assert.match(products, /aria-labelledby="products-coming-soon-title"[\s\S]*<h1[\s\S]*id="products-coming-soon-title"/);
 });
 
@@ -102,7 +101,7 @@ test("theme switching stays removed and protected brand assets remain byte-ident
     "public/brand/furvise-logo.svg": "15103E452559F4F29B0492A6731782ECD680992F62798BE95DDC7ABA544F3B00",
     "public/brand/furvise-wordmark.svg": "5CE60B7D3134B5AAF00F4A4A799F46443A9EB0FD23B04724A545AD15F7C248B8",
     "public/brand/furvise-heron.svg": "5BC3424AFD22BBA0391D302494C506455DF9EF3A2221525C32A033E8DDA0DD0B",
-    "app/favicon.ico": "617E8F6A24067E937ECAFD8C8A8DE735BF4BAC546B0378F0220C884F88C952DB",
+    "app/favicon.ico": "7645741D1A690C78A6A235C21FB57B93533AB2C86BE3437F8AB28180497220E3",
   };
   for (const [path, digest] of Object.entries(expected)) assert.equal(hash(path), digest, `${path} must not change`);
   const combined = [css, header, read("app/layout.tsx")].join("\n");

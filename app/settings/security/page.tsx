@@ -102,7 +102,7 @@ export default function SecuritySettingsPage() {
       ) : (
         <div className="pb-12">
           <section className="mt-10" aria-labelledby="sign-in-methods-heading">
-            <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]" id="sign-in-methods-heading">Sign-in methods</h2>
+            <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]" id="sign-in-methods-heading">Sign-in methods</h3>
             <div className="mt-4 border-y border-[var(--line)]">
               {(GOOGLE_AUTH_ENABLED || googleConnected) ? (
                 <SignInMethodRow
@@ -136,7 +136,7 @@ export default function SecuritySettingsPage() {
             <p className="mt-7 max-w-[640px] text-sm leading-6 text-[var(--text-secondary)]">Set up sends a secure password link to your verified email. Your Google sign-in remains available.</p>
           ) : showPasswordForm ? (
             <section className="mt-12 max-w-[720px] border-t border-[var(--line)] pt-8" aria-labelledby="change-password-heading" data-ui="change-password-form">
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]" id="change-password-heading">CHANGE PASSWORD</h2>
+              <h3 className="app-section-title" id="change-password-heading">CHANGE PASSWORD</h3>
               <div className="mt-6">
                   <form className="grid gap-5" onSubmit={submit}>
                     <PasswordInput autoComplete="current-password" label="Current password" minLength={1} name="current-password" onChange={(value) => changePasswordValue(setCurrentPassword, value)} onToggle={() => toggleVisibility("current")} value={currentPassword} visible={visible.current} />
