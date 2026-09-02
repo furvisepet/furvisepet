@@ -118,7 +118,7 @@ test("request IDs are indexed safely on the existing message table", () => {
 test("saved conversations load chronologically and Recent conversations is recoverable", () => {
   assert.match(conversationRoute, /order\("sequence_number", \{ ascending: true \}\)/);
   assert.match(page, /No conversations yet/);
-  assert.match(page, /Questions you ask Furvise will appear here/);
+  assert.match(page, /Questions and things you tell Furvise will show up here\./);
   assert.match(page, /event\.key === "Escape"/);
   assert.match(page, /onMouseDown=.*onClose/);
 });

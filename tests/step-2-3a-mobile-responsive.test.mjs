@@ -152,7 +152,7 @@ test("Ask keeps composer and disclaimer in one nav-aware sticky region", () => {
   );
   assert.match(
     ask,
-    /<Composer[\s\S]*Furvise organizes care information and does not replace a veterinarian/
+    /<Composer[\s\S]*Furvise helps keep your pet&apos;s story together\. It does not replace veterinary care/
   );
   assert.match(
     ask,

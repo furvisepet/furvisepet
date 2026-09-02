@@ -332,6 +332,22 @@ body {
   padding-bottom: var(--mobile-nav-clearance);
 }
 
+.ask-v1-product-world {
+  --action-primary: var(--deep-forest);
+  --action-primary-hover: var(--forest);
+  --action-primary-active: var(--deep-forest);
+  --text-inverse: var(--warm-cream);
+  --pw-primary: var(--deep-forest);
+  --pw-primary-hover: var(--forest);
+  --pw-primary-active: var(--deep-forest);
+  --pw-primary-foreground: var(--warm-cream);
+  --assistant-response-border: var(--input-border);
+  --suggested-question-surface: var(--input-background);
+  --suggested-question-hover: var(--surface-supportive);
+  --suggested-question-selected: var(--selected-background);
+  --suggested-question-foreground: var(--deep-forest);
+}
+
 .onboarding-brand {
   --brand-mark-size: 30px;
 }

@@ -14,7 +14,7 @@ test("conversation titles are concise and human", () => {
 test("Ask exposes separate new-question, history, pet-switch, and thread-open actions", () => {
   const page = read("app/ask/page.tsx");
   assert.match(page, />New question</);
-  assert.match(page, />Recent conversations</);
+  assert.match(page, />Conversations</);
   assert.match(page, /function switchPet/);
   assert.match(page, /function openConversation/);
   assert.match(page, /Start a new question\?/);
@@ -39,11 +39,11 @@ test("Ask persists chronological conversations with owner RLS", () => {
 test("Ask fresh and follow-up states differ and formal print is absent", () => {
   const page = read("app/ask/page.tsx");
   const contract = read("app/lib/ask.mjs");
-  assert.match(page, /What's up with \$\{petName\}\?/);
-  assert.match(page, /Ask about \$\{petName\}'s care, behavior, food, routines, or what happened today\./);
+  assert.match(page, /Not sure where to start\?/);
+  assert.match(page, /Try one of these, or say it your own way\./);
   assert.doesNotMatch(page, /Ask about something funny|Nothing is sent until you press Ask/);
-  assert.match(page, /Ask anything about \$\{petName\}\\u2026/);
-  assert.match(page, /Ask a follow-up about \$\{petName\}\\u2026/);
+  assert.match(page, /Ask or tell Furvise anything about \$\{petName\}\\u2026/);
+  assert.match(page, /Ask or tell Furvise more about \$\{petName\}\\u2026/);
   assert.match(page, /Prepare vet brief/);
   assert.doesNotMatch(page, /window\.print|>Print</);
   assert.doesNotMatch(contract, /"print"/);
