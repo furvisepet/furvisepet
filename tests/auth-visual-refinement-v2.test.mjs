@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const login = read("app/login/page.tsx");
-const forgot = read("app/forgot-password/page.tsx");
+const forgot = read("app/forgot-password/password-email-form.tsx") + "\n" + read("app/forgot-password/page.tsx");
 const resetConfirm = read("app/reset-password/confirm/page.tsx");
 const updatePassword = read("app/update-password/page.tsx");
 const layout = read("app/components/account-access.tsx");
@@ -63,7 +63,7 @@ test("reviewed auth copy and task headings are exact", () => {
   assert.doesNotMatch(login, /We sent a code to/);
   assert.doesNotMatch(signupPassword, /Use 12 to 128 characters\./);
   assert.match(signupPassword, /Password needs at least 12 characters\./);
-  assert.match(forgot, /title="Reset your password"/);
+  assert.match(forgot, /title=\{setupMode \? "Set up a password" : "Reset your password"\}/);
   assert.doesNotMatch(forgot, /Enter your email and we’ll send you a reset link\./);
   assert.match(updatePassword, /title="Choose a new password"/);
   assert.doesNotMatch(updatePassword, /Set a new password for your Furvise account|Set a new password for \$\{email\}|Use 12 to 128 characters/);
@@ -100,8 +100,10 @@ test("password steps use safe Back semantics while Close and shared branding rem
   assert.match(login, /backLabel="Back to email"/);
   assert.match(login, /onBack=\{passwordStep \? returnToEmail : undefined\}/);
   assert.match(layout, /aria-label=\{backLabel\}/);
-  assert.match(layout, /aria-label="Close and return to Furvise home"/);
-  assert.match(layout, /href="\/"/);
+  assert.match(layout, /closeLabel = "Close and return to Furvise home"/);
+  assert.match(layout, /aria-label=\{closeLabel\}/);
+  assert.match(layout, /closeHref = "\/"/);
+  assert.match(layout, /href=\{closeHref\}/);
   assert.match(layout, /accountCornerControlClass =[\s\S]*min-h-11 min-w-11/);
   assert.match(layout, /accountCornerControlClass =[\s\S]*rounded-full border border-\[var\(--line\)\]/);
   assert.doesNotMatch(`${signinPassword}\n${signupPassword}`, /Change email/);
@@ -111,7 +113,8 @@ test("password steps use safe Back semantics while Close and shared branding rem
   assert.match(signupBack, /clearTransientAuthState\(\)[\s\S]*if \(clearEmail\) setEmail\(""\)[\s\S]*setSignupStep\("method"\)/);
   assert.match(login, /const returnToEmail = mode === "signin" \? returnToSigninEmail : \(\) => returnToSignupEmail\(false\)/);
   assert.match(login, /useAnotherEmail=\{useAnotherEmailFromOtp\}/);
-  assert.match(forgot, /href="\/login">Back to sign in<\/Link>/);
+  assert.match(forgot, /setupMode \? "\/settings\/security" : "\/login"/);
+  assert.match(forgot, /setupMode \? "Back to Login & Security" : "Back to sign in"/);
 });
 
 test("Auth challenge mounts on submit and one valid token resumes exactly one guarded request", () => {

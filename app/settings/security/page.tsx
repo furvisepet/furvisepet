@@ -119,7 +119,7 @@ export default function SecuritySettingsPage() {
                 action={emailPasswordUser ? (
                   <button className="inline-flex min-h-11 items-center font-bold uppercase tracking-[0.06em] text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => setShowPasswordForm(true)} type="button">Change password</button>
                 ) : (
-                  <Link className="inline-flex min-h-11 items-center font-bold uppercase tracking-[0.06em] text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href="/forgot-password">Set up</Link>
+                  <Link className="inline-flex min-h-11 items-center font-bold uppercase tracking-[0.06em] text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href="/forgot-password?mode=setup">Set up</Link>
                 )}
                 label="Email & password"
                 state={emailPasswordUser ? "Connected" : "Not set up"}

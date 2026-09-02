@@ -122,8 +122,10 @@ test("auth surface removes the nav bar and keeps universal branding inside the m
   assert.match(layout, /<BrandMark priority showName=\{false\} size=\{30\} \/>/);
   assert.match(layout, /className="text-center" data-ui="account-access-intro"/);
   assert.doesNotMatch(layout, /showBrand|centeredIntro/);
-  assert.match(layout, /aria-label="Close and return to Furvise home"/);
-  assert.match(layout, /href="\/"/);
+  assert.match(layout, /closeLabel = "Close and return to Furvise home"/);
+  assert.match(layout, /aria-label=\{closeLabel\}/);
+  assert.match(layout, /closeHref = "\/"/);
+  assert.match(layout, /href=\{closeHref\}/);
   assert.match(layout, /min-h-11 min-w-11/);
   assert.match(layout, /safe-area-inset-top/);
   assert.match(layout, /safe-area-inset-bottom/);
@@ -143,7 +145,7 @@ test("all auth primaries use the shared forest treatment and retired sign-in clu
 
 test("recovery, reauthentication, safe redirects, and callback authority remain wired", () => {
   const callback = read("app/auth/callback/route.ts");
-  const forgot = read("app/forgot-password/page.tsx");
+  const forgot = read("app/forgot-password/page.tsx") + "\n" + read("app/forgot-password/password-email-form.tsx");
   const loginRoute = read("app/api/auth/login/route.ts");
   assert.match(login, /passwordResetSucceeded/);
   assert.match(login, /isPetDeleteReauthentication/);

@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const login = read("app/login/page.tsx");
-const forgot = read("app/forgot-password/page.tsx");
+const forgot = read("app/forgot-password/page.tsx") + "\n" + read("app/forgot-password/password-email-form.tsx");
 const update = read("app/update-password/page.tsx");
 const header = read("app/components/app-header.tsx");
 const signedHeader = read("app/components/signed-in-header.tsx");

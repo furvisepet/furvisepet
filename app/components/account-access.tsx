@@ -14,6 +14,8 @@ const accountCornerControlClass =
 export function AccountAccessLayout({
   backLabel = "Back",
   children,
+  closeHref = "/",
+  closeLabel = "Close and return to Furvise home",
   compact = false,
   onBack,
   supportingText,
@@ -21,6 +23,8 @@ export function AccountAccessLayout({
 }: {
   backLabel?: string;
   children: React.ReactNode;
+  closeHref?: string;
+  closeLabel?: string;
   compact?: boolean;
   onBack?: () => void;
   supportingText?: React.ReactNode;
@@ -48,9 +52,9 @@ export function AccountAccessLayout({
             </button>
           ) : null}
           <Link
-            aria-label="Close and return to Furvise home"
+            aria-label={closeLabel}
             className={`${accountCornerControlClass} right-[max(1rem,env(safe-area-inset-right,0px))] text-xl font-light leading-none sm:right-5`}
-            href="/"
+            href={closeHref}
           >
             <span aria-hidden="true">×</span>
           </Link>

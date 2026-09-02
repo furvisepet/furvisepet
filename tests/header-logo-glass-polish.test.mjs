@@ -31,7 +31,8 @@ test("main uses the homepage lockup while auth places a restrained heron inside 
   assert.doesNotMatch(accountAccess, /<header|border-b/);
   assert.match(accountAccess, /data-ui="account-access-surface"/);
   assert.match(accountAccess, /pt-\[max\(1\.25rem,env\(safe-area-inset-top,0px\)\)\]/);
-  assert.match(accountAccess, /aria-label="Close and return to Furvise home"/);
+  assert.match(accountAccess, /closeLabel = "Close and return to Furvise home"/);
+  assert.match(accountAccess, /aria-label=\{closeLabel\}/);
   assert.match(accountAccess, /min-h-11 min-w-11/);
   assert.match(accountAccess, /\[--brand-mark-size:1\.875rem\] sm:\[--brand-mark-size:2rem\]/);
   assert.match(accountAccess, /<BrandMark priority showName=\{false\} size=\{30\} \/>/);

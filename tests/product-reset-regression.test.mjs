@@ -15,19 +15,19 @@ test("the document is permanently warm-light without preference or hydration dep
   assert.doesNotMatch(css, /data-theme|prefers-color-scheme/i);
 });
 test("forgot-password keeps the reset request and safe return flow", () => {
-  const page = read("app/forgot-password/page.tsx");
+  const page = read("app/forgot-password/page.tsx") + "\n" + read("app/forgot-password/password-email-form.tsx");
 
   assert.match(page, /idempotentClientFetch\("\/api\/auth\/recovery"/);
   assert.match(page, /TurnstileChallenge/);
   assert.match(page, /type="email"/);
   assert.match(page, /required/);
   assert.match(page, /Send reset link/);
-  assert.match(page, /href="\/login"/);
+  assert.match(page, /setupMode \? "\/settings\/security" : "\/login"/);
 });
 
 test("signup and recovery keep their existing CAPTCHA submission behavior", () => {
   const login = read("app/login/page.tsx");
-  const recovery = read("app/forgot-password/page.tsx");
+  const recovery = read("app/forgot-password/page.tsx") + "\n" + read("app/forgot-password/password-email-form.tsx");
 
   assert.match(login, /mode === "signin" \? "\/api\/auth\/login" : "\/api\/auth\/signup"/);
   assert.match(login, /idempotentClientFetch\(endpoint, init, `auth-signup:/);
