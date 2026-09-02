@@ -18,6 +18,7 @@ const petProfile = read("app/pets/[id]/page.tsx");
 const editProfile = read("app/dogs/[id]/edit/page.tsx");
 const vetBrief = read("app/vet-brief/page.tsx");
 const account = read("app/account/page.tsx");
+const accountShell = read("app/components/account-settings-shell.tsx");
 
 test("primary app routes share one outer page-container contract", () => {
   assert.match(primitives, /appPageContainer = "box-border mx-auto w-full max-w-\[1180px\] px-5 md:px-8 xl:px-12"/);
@@ -25,9 +26,10 @@ test("primary app routes share one outer page-container contract", () => {
   assert.match(appPage, /appPageContentClasses\[shell\]/);
   assert.match(header, /className="homepage-wide-shell homepage-header-grid" data-ui="header-optical-row"/);
 
-  for (const source of [today, pets, history, ask, products, petProfile, editProfile, vetBrief, account]) {
+  for (const source of [today, pets, history, ask, products, petProfile, editProfile, vetBrief, accountShell]) {
     assert.match(source, /<AppPage/);
   }
+  assert.match(account, /<AccountSettingsShell/);
 });
 
 test("authenticated shell aliases no longer create separate standard and wide widths", () => {

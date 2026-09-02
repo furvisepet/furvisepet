@@ -30,7 +30,7 @@ test("an arbitrary cancel_at does not masquerade as period-end cancellation", ()
 
 test("Membership labels scheduled Plus access as ending and uses the browser timezone", () => {
   const source = readFileSync(new URL("../app/membership/page.tsx", import.meta.url), "utf8");
-  assert.match(source, /usage\.cancelAtPeriodEnd\s*\?\s*"Ends"\s*:\s*"Renews"/);
+  assert.match(source, /usage\.cancelAtPeriodEnd \? "Ends" : "Renews"/);
   assert.doesNotMatch(source, /timeZone:\s*"UTC"/);
-  assert.match(source, /Your cancellation is scheduled\. Plus remains available through/);
+  assert.match(source, /title: "Your cancellation is scheduled\."[\s\S]*Plus remains available through/);
 });

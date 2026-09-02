@@ -17,12 +17,12 @@ test("Membership is a private Furvise page without decorative pricing artwork", 
   assert.match(layout, /createPrivatePageMetadata\("Membership"\)/);
   assert.match(layout, /PrivateRouteLayout/);
   assert.match(page, /title="MEMBERSHIP"/);
-  assert.match(page, /Choose how much room you need in Furvise\./);
+  assert.match(page, /Choose the plan that fits how much Furvise you use\./);
   assert.doesNotMatch(page, /paywall_free|paywall_paid|next\/image/);
 });
 
-test("Membership Back routes directly to Account without an untrusted return target", () => {
-  assert.match(page, /href="\/account">← Account<\/Link>/);
+test("Membership remains independent from the Account Settings hierarchy", () => {
+  assert.doesNotMatch(page, /AccountSettingsShell|href="\/account"/);
   assert.doesNotMatch(page, /searchParams.*(?:return|redirect|next)|router\.(?:push|replace)\([^)]*searchParams/);
 });
 
@@ -31,7 +31,7 @@ test("Free and Plus show canonical Ask allowances and remaining usage without ne
   assert.match(page, /PLUS_ASK_ALLOWANCE/);
   assert.match(page, /`\$\{FREE_ASK_ALLOWANCE\} Ask each month`/);
   assert.match(page, /`\$\{PLUS_ASK_ALLOWANCE\} Ask each month`/);
-  assert.match(page, /const used = Math\.max\(0, limit - remaining\)/);
+  assert.match(page, /const remaining = Math\.min\(limit, Math\.max\(0, usage\.remaining\)\)/);
   assert.match(page, /Ask remaining/);
   assert.match(page, /get_my_ask_allowance_status|\/api\/account\/entitlements/);
   assert.doesNotMatch(page, /reserve_ai_credit|complete_ai_credit|ai_usage_events/);
@@ -55,17 +55,15 @@ test("Membership billing actions preserve checkout, recovery, portal, confirmati
   assert.match(page, /Manage billing/);
   assert.match(page, /We&apos;re confirming your Furvise Plus subscription/);
   assert.match(page, /Plus will appear after Stripe confirms the subscription/);
-  assert.match(page, /Your cancellation is scheduled\. Plus remains available through/);
+  assert.match(page, /title: "Your cancellation is scheduled\."[\s\S]*Plus remains available through/);
   assert.match(page, /Refresh status/);
   assert.match(page, /entitlements\.accessRole === "internal_qa"/);
-  assert.match(page, /Consumer billing actions are hidden for internal testing access/);
+  assert.match(page, /isInternalQa \? \([\s\S]*<InternalAccessCard/);
+  assert.match(page, /Testing access is separate from consumer billing/);
 });
 
-test("Account links to Membership with a real entitlement summary but does not duplicate pricing", () => {
-  assert.match(account, /href="\/membership"/);
-  assert.match(account, /\/api\/account\/entitlements/);
-  assert.match(account, /Internal testing access/);
-  assert.match(account, /Furvise Plus/);
+test("Account details does not duplicate Membership pricing or state", () => {
+  assert.doesNotMatch(account, /href="\/membership"|\/api\/account\/entitlements|Internal testing access|Furvise Plus/);
   assert.doesNotMatch(account, /openBilling\(|Manage billing|Upgrade to Plus|CA\$5\.49|US\$5\.49/);
 });
 
@@ -142,16 +140,17 @@ test("checkout and portal return to Membership without client-selected price or 
 });
 
 test("Membership is available from the account menu and quota recovery links", () => {
-  assert.match(read("app/components/signed-in-header.tsx"), /href: "\/membership",\s*label: "Membership"/);
+  assert.match(read("app/components/account-utility.tsx"), /href="\/membership" label="Membership"/);
   assert.match(read("app/components/ask-usage-notice.tsx"), /href="\/membership">Upgrade to Plus/);
   assert.match(read("app/components/pet-limit-screen.tsx"), /href="\/membership">See plan options/);
   assert.match(read("app/ask/page.tsx"), /href="\/membership">Upgrade to Plus/);
 });
 
-test("plans are full-width stacked sections with no duplicate comparison surface", () => {
+test("consumer plans use two responsive pricing cards with no duplicate comparison surface", () => {
   assert.match(page, /aria-label="Furvise membership plans"/);
-  assert.match(page, /border-b border-\[var\(--line\)\] py-10/);
-  assert.doesNotMatch(page, /lg:grid-cols-2|Compare plans|membership-comparison|<table/);
+  assert.match(page, /data-ui="membership-plan-cards"/);
+  assert.match(page, /lg:grid-cols-2/);
+  assert.doesNotMatch(page, /Compare plans|membership-comparison|<table/);
   assert.doesNotMatch(page, /overflow-x-auto/);
 });
 

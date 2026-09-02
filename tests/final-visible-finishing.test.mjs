@@ -39,12 +39,12 @@ test("application navigation stays intact while the homepage uses plain signed-i
   for (const destination of ["Today", "Pets", "History", "Ask"]) assert.match(primary, new RegExp(`label: "${destination}"`));
   assert.doesNotMatch(primary, /Products|\/shop/);
   assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|APP_NAV_ITEMS/);
-  assert.match(homepage, /<PublicMarketingHeader mode=\{mode\} \/>/);
+  assert.match(homepage, /<PublicMarketingHeader email=\{auth\.user\?\.email\} mode=\{mode\} \/>/);
   assert.match(homepage, /HOMEPAGE_DESKTOP_NAVIGATION[\s\S]*Today[\s\S]*Pets[\s\S]*History[\s\S]*Ask/);
   assert.doesNotMatch(homepage.slice(homepage.indexOf("const HOMEPAGE_DESKTOP_NAVIGATION"), homepage.indexOf("const HOMEPAGE_MOBILE_NAVIGATION")), /Products/);
-  assert.match(header, /resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);
+  assert.match(header, /variant === "site" \|\| resolvedAuthState === "authenticated" \? APP_NAV_ITEMS/);
   assert.doesNotMatch(header, />Appearance<|openAppearance/);
-  assert.match(header, />Account</);
+  assert.match(header, /<AccountUtility email=\{accountEmail\} \/>/);
 });
 
 test("Products remains a feature location without appearing in primary navigation or Account", () => {

@@ -170,7 +170,7 @@ test("authenticated desktop header exposes plain app links without old AppHeader
   }
   assert.doesNotMatch(desktopNavigation, /Products|\/shop/);
   assert.match(marketingHeader, /signedIn \? \([\s\S]*homepage-desktop-navigation/);
-  assert.match(marketingHeader, /href="\/account">Account/);
+  assert.match(marketingHeader, /<AccountUtility email=\{email\} \/>/);
   assert.doesNotMatch(homepage, /SignedInHeader|AppHeader|desktop-navigation-container|rounded-navigation|APP_NAV_ITEMS/);
   assert.doesNotMatch(homepageCss.slice(homepageCss.indexOf(".homepage-desktop-navigation"), homepageCss.indexOf(".homepage-header-actions")), /background:|border:|border-radius:/);
   assert.match(homepageCss, /\.homepage-header-text-link,[\s\S]*font-size: 0\.8125rem;[\s\S]*font-weight: 700;[\s\S]*text-transform: uppercase/);
@@ -238,7 +238,7 @@ test("signed-in mobile navigation uses four mission destinations and keeps Accou
   assert.match(homepage, /data-ui="mobile-bottom-navigation"/);
   assert.match(mobileNavigation, /MOBILE_NAVIGATION_ITEMS\[0\][\s\S]*MOBILE_NAVIGATION_ITEMS\[1\][\s\S]*MOBILE_NAVIGATION_ITEMS\[2\][\s\S]*MOBILE_NAVIGATION_ITEMS\[3\]/);
   assert.doesNotMatch(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more|href: "\/account"|label: "Account"/);
-  assert.match(marketingHeader, /href="\/account">Account/);
+  assert.match(marketingHeader, /<AccountUtility email=\{email\} \/>/);
   assert.doesNotMatch(mobileNavigation, /Products|\/shop/);
   assert.match(homepageCss, /\.homepage-mobile-navigation \{[\s\S]*position: fixed[\s\S]*background: var\(--warm-cream\)/);
   assert.match(css, /\.homepage-footer-mobile-clearance \{[\s\S]*var\(--mobile-nav-height\)/);

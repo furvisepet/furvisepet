@@ -14,12 +14,14 @@ const ask = read("app/ask/page.tsx");
 const products = read("app/shop/page.tsx");
 const vetBrief = read("app/vet-brief/page.tsx");
 const globals = read("app/globals.css");
+const accountUtility = read("app/components/account-utility.tsx");
 
 test("application navigation uses the reset route labels", () => {
   for (const label of ["Today", "Pets", "History", "Ask"]) {
     assert.match(header, new RegExp(`label: "${label}"`));
   }
-  assert.match(header, /const MOBILE_NAV_ITEMS = \[[\s\S]*Today[\s\S]*History[\s\S]*Ask[\s\S]*Pets[\s\S]*Account/);
+  assert.match(header, /const MOBILE_NAV_ITEMS = \[[\s\S]*Today[\s\S]*History[\s\S]*Ask[\s\S]*Pets/);
+  assert.doesNotMatch(header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader")), /Account/);
   assert.doesNotMatch(header, /label: "Dashboard"|label: "Care history"|label: "Ask Furvise"/);
 });
 
@@ -80,13 +82,14 @@ test("Ask fresh state uses a compact pet selector and one disclaimer", () => {
   assert.equal(ask.split("Furvise helps keep your pet&apos;s story together. It does not replace veterinary care.").length - 1, 1);
 });
 
-test("Products is absent while Account remains in the mobile More menu", () => {
+test("Products is absent while Account settings remains in the shared utility menu", () => {
   const mobileNavigation = header.slice(header.indexOf("const MOBILE_NAV_ITEMS"), header.indexOf("export function AppHeader"));
   assert.doesNotMatch(mobileNavigation, /icon: "more", label: "Account"/);
-  assert.match(header, /data-ui="mobile-more-container"/);
+  assert.match(header, /<AccountUtility email=\{accountEmail\} \/>/);
+  assert.match(accountUtility, /href="\/account" label="Account settings"/);
   const desktopNavigation = header.slice(header.indexOf("export const APP_NAV_ITEMS"), header.indexOf("const MOBILE_NAV_ITEMS"));
   assert.doesNotMatch(desktopNavigation, /\/shop|Products/);
-  assert.doesNotMatch(header, /data-ui="mobile-more-container"[\s\S]*href="\/shop"[\s\S]*>Products/);
+  assert.doesNotMatch(accountUtility, /href="\/shop"|Products/);
   assert.doesNotMatch(read("app/components/signed-in-header.tsx"), /href: "\/shop"|Browse products/);
 });
 

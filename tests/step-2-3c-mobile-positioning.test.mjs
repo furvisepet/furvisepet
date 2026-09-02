@@ -8,6 +8,7 @@ const appPage = read("app/components/app-page.tsx");
 const header = read("app/components/app-header.tsx");
 const ask = read("app/ask/page.tsx");
 const overflow = read("app/components/pet-overflow-menu.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 const pageSources = [
   "app/today/page.tsx",
   "app/pets/page.tsx",
@@ -44,13 +45,12 @@ test("pages do not duplicate mobile navigation clearance geometry", () => {
   assert.equal((pageSources.match(/app-mobile-nav-clearance/g) || []).length, 0, "page components rely on AppPage while the marketing homepage has no app navigation clearance");
 });
 
-test("More keeps account controls above navigation without exposing Products", () => {
-  const more = header.slice(header.indexOf('data-ui="mobile-more-menu"'));
-  assert.doesNotMatch(more, /href="\/shop"[\s\S]*>Products<\/Link>/);
-  assert.match(more, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);
+test("the account utility keeps account controls above navigation without exposing Products", () => {
+  assert.doesNotMatch(accountUtility, /href="\/shop"|Products/);
+  assert.match(accountUtility, /href="\/account" label="Account settings"/);
   assert.match(header, /z-\[var\(--z-bottom-navigation\)\]/);
-  assert.match(header, /data-ui="mobile-more-menu"[\s\S]*role="menu"/);
-  assert.match(header, /z-\[var\(--z-popover\)\]/);
+  assert.match(accountUtility, /id=\{menuId\} role="menu"/);
+  assert.match(accountUtility, /z-\[var\(--z-popover\)\]/);
   assert.match(overflow, /z-\[var\(--z-popover\)\]/);
   assert.match(overflow, /navigationTop - VIEWPORT_GUTTER/);
   assert.match(css, /--z-sticky-controls: 20;[\s\S]*--z-bottom-navigation: 30;[\s\S]*--z-popover: 40;/);

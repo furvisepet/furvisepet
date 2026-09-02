@@ -10,6 +10,7 @@ import {
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const header = read("app/components/app-header.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 const mobileNavigationStart = header.indexOf('<nav aria-label="Mobile navigation"');
 const mobileNavigation = header.slice(mobileNavigationStart, header.indexOf("</nav>", mobileNavigationStart) + 6);
 const rootLayout = read("app/layout.tsx");
@@ -27,7 +28,7 @@ test("mobile destinations use the approved public image assets", () => {
     ],
   );
   for (const item of MOBILE_NAVIGATION_ITEMS) assert.equal(existsSync(new URL(`../public${item.asset}`, import.meta.url)), true);
-  assert.match(header, /NAVIGATION_ICON_ASSETS\.more/);
+  assert.match(accountUtility, /aria-label="Open account menu"/);
   assert.doesNotMatch(mobileNavigation, /\/images\/(?:cat|dog)\.png/);
   assert.match(header, /import Image from "next\/image"/);
 });
@@ -107,7 +108,7 @@ test("the glass dock uses semantic color roles and reserves safe page space", ()
 test("persistent navigation icons are low-priority and do not remount by pathname", () => {
   assert.match(mobileNavigation, /<NavigationIcon asset=\{item\.asset\} \/>/);
   assert.doesNotMatch(mobileNavigation, /NAVIGATION_ICON_ASSETS\.more/);
-  assert.match(header, /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} \/>/);
+  assert.match(header, /<AccountUtility email=\{accountEmail\} \/>/);
   assert.match(header, /loading="lazy"/);
   assert.match(header, /decoding="async"/);
   assert.doesNotMatch(mobileNavigation, /key=\{pathname\}|opacity-0|animate-opacity/);

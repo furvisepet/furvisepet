@@ -12,6 +12,7 @@ const conversationRoute = read("app/api/ask/conversations/[id]/route.ts");
 const conversationListRoute = read("app/api/ask/conversations/route.ts");
 const migration = read("supabase/migrations/20260727010000_add_ask_request_idempotency.sql");
 const signedInHeader = read("app/components/signed-in-header.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 const signOutHelper = read("app/lib/sign-out.ts");
 const appHeader = read("app/components/app-header.tsx");
 
@@ -125,17 +126,17 @@ test("saved conversations load chronologically and Recent conversations is recov
 });
 
 test("sign out clears user-specific browser state and redirects safely", () => {
-  assert.match(signedInHeader, /await signOutOfFurvise\(client\)/);
+  assert.match(accountUtility, /await signOutOfFurvise\(client\)/);
   assert.match(signOutHelper, /await client\.auth\.signOut\(\)/);
   assert.match(signOutHelper, /clearNewPetOnboardingState/);
   assert.match(signOutHelper, /clearActivePetId/);
   assert.match(signOutHelper, /clearAskClientState\(window\.localStorage\)/);
-  assert.match(signedInHeader, /router\.replace\("\/"\)/);
-  assert.match(signedInHeader, /window\.location\.replace\("\/"\)/);
-  assert.match(signedInHeader, /Couldn't sign out\. Please try again\./);
-  assert.match(signedInHeader, /Signing out/);
-  assert.match(appHeader, /accountError/);
-  assert.match(signedInHeader, /label: "Privacy"/);
+  assert.match(accountUtility, /window\.location\.replace\("\/"\)/);
+  assert.match(accountUtility, /Couldn't sign out\. Please try again\./);
+  assert.match(accountUtility, /Signing out/);
+  assert.match(appHeader, /<AccountUtility email=\{accountEmail\} \/>/);
+  assert.match(accountUtility, /href="\/privacy" label="Privacy"/);
+  assert.doesNotMatch(signedInHeader, /signOutOfFurvise|window\.location\.replace/);
 });
 
 test("Ask client state clearing removes drafts without touching unrelated keys", () => {

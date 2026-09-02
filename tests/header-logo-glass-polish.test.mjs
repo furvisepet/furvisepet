@@ -4,6 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const header = read("app/components/app-header.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 const accountAccess = read("app/components/account-access.tsx");
 const css = read("app/globals.css");
 const liquidGlassHook = read("app/lib/navigation/use-mobile-liquid-glass.ts");
@@ -42,12 +43,13 @@ test("main uses the homepage lockup while auth places a restrained heron inside 
   assert.match(read("app/components/brand-mark.tsx"), /objectFit: "contain"/);
 });
 
-test("mobile keeps four dock icons above LiquidGlass and Account in the header", () => {
+test("mobile keeps four dock icons above LiquidGlass and the account utility in the header", () => {
   const mobileStart = header.indexOf('<nav aria-label="Mobile navigation"');
   const mobile = header.slice(mobileStart, header.indexOf("</nav>", mobileStart) + 6);
   assert.match(mobile, /<NavigationIcon asset=\{item\.asset\} \/>/);
   assert.doesNotMatch(mobile, /NAVIGATION_ICON_ASSETS\.more/);
-  assert.match(header.slice(0, header.indexOf('<nav aria-label="Mobile navigation"')), /<NavigationIcon asset=\{NAVIGATION_ICON_ASSETS\.more\} \/>/);
+  assert.match(header.slice(0, header.indexOf('<nav aria-label="Mobile navigation"')), /<AccountUtility email=\{accountEmail\} \/>/);
+  assert.match(accountUtility, /aria-label="Open account menu"/);
   assert.match(mobile, /mobile-liquid-glass-root/);
   assert.match(mobile, /mobile-liquid-glass-scene/);
   assert.match(mobile, /ref=\{mobileGlassRootRef\}/);

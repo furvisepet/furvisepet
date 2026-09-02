@@ -17,6 +17,8 @@ const products = read("app/shop/page.tsx");
 const account = read("app/account/page.tsx");
 const homepage = read("app/components/homepage-client.tsx");
 const overflow = read("app/components/pet-overflow-menu.tsx");
+const accountShell = read("app/components/account-settings-shell.tsx");
+const accountUtility = read("app/components/account-utility.tsx");
 
 test("one semantic Primary mapping owns orange action states", () => {
   assert.equal((css.match(/--primary-action-background:/g) || []).length, 1);
@@ -47,7 +49,8 @@ test("one shared mobile clearance covers every requested app surface", () => {
   assert.match(css, /--mobile-nav-clearance: calc\([\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)[\s\S]*24px/);
   assert.match(css, /\.app-mobile-nav-clearance \{\s*padding-bottom: var\(--mobile-nav-clearance\);/);
   assert.match(appPage, /<main className="app-mobile-nav-clearance/);
-  for (const source of [today, pets, history, ask, products, account]) assert.match(source, /<AppPage/);
+  for (const source of [today, pets, history, ask, products, accountShell]) assert.match(source, /<AppPage/);
+  assert.match(account, /<AccountSettingsShell/);
   assert.doesNotMatch(homepage, /app-mobile-nav-clearance/);
 });
 
@@ -59,16 +62,15 @@ test("Pets actions, Ask composer, and overflow all clear the bottom navigation",
   assert.match(overflow, /navigationTop - VIEWPORT_GUTTER/);
 });
 
-test("More contains Account controls and has complete dismissal behavior", () => {
-  const more = header.slice(header.indexOf('data-ui="mobile-more-container"'), header.indexOf('{isHomepage && resolvedAuthState'));
-  assert.match(more, /data-ui="mobile-more-menu"/);
-  assert.doesNotMatch(more, /href="\/shop"[\s\S]*>Products<\/Link>/);
-  assert.match(more, /accountMenuItems\.map[\s\S]*href=\{item\.href\}/);
-  assert.match(header, /document\.addEventListener\("click", handleOutsideClick\)/);
-  assert.match(header, /event\.key !== "Escape"/);
-  assert.match(header, /mobileMoreButtonRef\.current\?\.focus\(\)/);
-  assert.match(more, /top-\[calc\(100%\+0\.5rem\)\]/);
-  assert.match(more, /aria-expanded=\{mobileMoreOpen\}/);
+test("the account utility contains account controls and complete dismissal behavior", () => {
+  assert.match(accountUtility, /data-ui="account-utility"/);
+  assert.doesNotMatch(accountUtility, /href="\/shop"|Products/);
+  assert.match(accountUtility, /href="\/account" label="Account settings"/);
+  assert.match(accountUtility, /document\.addEventListener\("click", closeMenu\)/);
+  assert.match(accountUtility, /event\.key !== "Escape"/);
+  assert.match(accountUtility, /summaryRef\.current\?\.focus\(\)/);
+  assert.match(accountUtility, /top-\[calc\(100%\+0\.5rem\)\]/);
+  assert.match(accountUtility, /aria-controls=\{menuId\}/);
 });
 
 test("navigation order, desktop active treatment, and brand assets stay protected", () => {

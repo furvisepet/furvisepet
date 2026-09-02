@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
-import { AppPage } from "../../components/app-page";
+import { AccountSettingsShell } from "../../components/account-settings-shell";
 import { AccountStatus } from "../../components/account-access";
-import { Field, PageHeader, PrimaryButton } from "../../components/product-primitives";
+import { Field, PrimaryButton, SecondaryButton } from "../../components/product-primitives";
 import { TurnstileChallenge } from "../../components/turnstile-challenge";
 import { GOOGLE_AUTH_ENABLED, buildOAuthCallbackUrl, getConnectedAuthProviders } from "../../lib/auth-identity";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
@@ -24,6 +24,7 @@ export default function SecuritySettingsPage() {
   const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaReset, setCaptchaReset] = useState(0);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const idempotencyKey = useRef<string | null>(null);
@@ -93,33 +94,36 @@ export default function SecuritySettingsPage() {
   }
 
   return (
-    <AppPage shell="reading">
-      <Link className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href="/account">← Account</Link>
-      <div className="mt-5">
-        <PageHeader supportingText="Manage how you sign in to Furvise." title="SECURITY" />
-      </div>
-
+    <AccountSettingsShell description="Manage how you sign in to Furvise." title="LOGIN & SECURITY">
       {status !== "signedIn" ? (
-        <p className="mt-10 border-y border-[var(--line)] py-5 text-[var(--text-secondary)]" role="status">
+        <p className="mt-8 border-y border-[var(--line)] py-5 text-[var(--text-secondary)]" role="status">
           {status === "loading" ? "Checking your account..." : "Redirecting to sign in..."}
         </p>
       ) : (
         <div className="pb-12">
-          <section className="mt-12" aria-labelledby="sign-in-methods-heading">
+          <section className="mt-10" aria-labelledby="sign-in-methods-heading">
             <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]" id="sign-in-methods-heading">Sign-in methods</h2>
             <div className="mt-4 border-y border-[var(--line)]">
               {(GOOGLE_AUTH_ENABLED || googleConnected) ? (
                 <SignInMethodRow
                   action={!googleConnected && GOOGLE_AUTH_ENABLED ? (
                     <button className="inline-flex min-h-11 items-center font-bold uppercase tracking-[0.06em] text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" disabled={connectingGoogle} onClick={() => void connectGoogle()} type="button">
-                      {connectingGoogle ? "Connecting..." : "Connect Google"}
+                      {connectingGoogle ? "Connecting..." : "Connect"}
                     </button>
                   ) : null}
                   label="Google"
                   state={googleConnected ? "Connected" : "Not connected"}
                 />
               ) : null}
-              <SignInMethodRow label="Email" state={emailPasswordUser ? "Connected" : "Not connected"} />
+              <SignInMethodRow
+                action={emailPasswordUser ? (
+                  <button className="inline-flex min-h-11 items-center font-bold uppercase tracking-[0.06em] text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => setShowPasswordForm(true)} type="button">Change password</button>
+                ) : (
+                  <Link className="inline-flex min-h-11 items-center font-bold uppercase tracking-[0.06em] text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href="/forgot-password">Set up</Link>
+                )}
+                label="Email & password"
+                state={emailPasswordUser ? "Connected" : "Not set up"}
+              />
             </div>
           </section>
 
@@ -128,44 +132,41 @@ export default function SecuritySettingsPage() {
             {error ? <AccountStatus text={error} tone="danger" /> : null}
           </div>
 
-          <section className="mt-14" aria-labelledby="password-heading">
-            <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]" id="password-heading">Password</h2>
-            <div className="mt-4 border-t border-[var(--line)] pt-7">
-              {!emailPasswordUser ? (
-                <div className="max-w-[720px]">
-                  <h3 className="text-2xl font-semibold tracking-[-0.025em] text-[var(--text-primary)]">No Furvise password is set.</h3>
-                  <p className="mt-3 max-w-2xl leading-7 text-[var(--text-secondary)]">If you&apos;d like one, we&apos;ll send a secure link to your verified email.</p>
-                  <PrimaryButton className={`${forestButtonClass} mt-6 w-full sm:w-auto`} href="/forgot-password">Send password email</PrimaryButton>
-                </div>
-              ) : (
-                <div className="max-w-[720px]">
+          {!emailPasswordUser ? (
+            <p className="mt-7 max-w-[640px] text-sm leading-6 text-[var(--text-secondary)]">Set up sends a secure password link to your verified email. Your Google sign-in remains available.</p>
+          ) : showPasswordForm ? (
+            <section className="mt-12 max-w-[720px] border-t border-[var(--line)] pt-8" aria-labelledby="change-password-heading" data-ui="change-password-form">
+              <h2 className="text-xl font-semibold text-[var(--text-primary)]" id="change-password-heading">CHANGE PASSWORD</h2>
+              <div className="mt-6">
                   <form className="grid gap-5" onSubmit={submit}>
                     <PasswordInput autoComplete="current-password" label="Current password" minLength={1} name="current-password" onChange={(value) => changePasswordValue(setCurrentPassword, value)} onToggle={() => toggleVisibility("current")} value={currentPassword} visible={visible.current} />
                     <PasswordInput autoComplete="new-password" label="New password" name="new-password" onChange={(value) => changePasswordValue(setNewPassword, value)} onToggle={() => toggleVisibility("new")} value={newPassword} visible={visible.new} />
                     <PasswordInput autoComplete="new-password" label="Confirm new password" name="confirm-password" onChange={(value) => changePasswordValue(setConfirmPassword, value)} onToggle={() => toggleVisibility("confirmation")} value={confirmPassword} visible={visible.confirmation} />
                     <p className="text-sm leading-6 text-[var(--text-secondary)]">Use 12 to 128 characters. Spaces and password-manager generated passwords are supported.</p>
                     <TurnstileChallenge onToken={setCaptchaToken} resetSignal={captchaReset} />
-                    <PrimaryButton className={`${forestButtonClass} w-full sm:w-auto`} disabled={saving || (process.env.NODE_ENV === "production" && !captchaToken)} loading={saving} type="submit">{saving ? "Changing password..." : "Change password"}</PrimaryButton>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                      <PrimaryButton className={`${forestButtonClass} w-full sm:w-auto`} disabled={saving || (process.env.NODE_ENV === "production" && !captchaToken)} loading={saving} type="submit">{saving ? "Changing password..." : "Change password"}</PrimaryButton>
+                      <SecondaryButton className="w-full sm:w-auto" disabled={saving} onClick={() => setShowPasswordForm(false)} type="button">Cancel</SecondaryButton>
+                    </div>
                   </form>
                   <p className="mt-8 border-t border-[var(--line)] pt-5 text-sm leading-6 text-[var(--text-secondary)]">
                     Forgot your current password? <Link className="font-semibold text-[var(--forest)] underline underline-offset-4" href="/forgot-password">Request a password email</Link>.
                   </p>
-                </div>
-              )}
-            </div>
-          </section>
+              </div>
+            </section>
+          ) : null}
         </div>
       )}
-    </AppPage>
+    </AccountSettingsShell>
   );
 }
 
 function SignInMethodRow({ action, label, state }: { action?: React.ReactNode; label: string; state: string }) {
   return (
     <div className="grid min-h-[4.75rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-1 border-b border-[var(--line)] py-4 last:border-b-0 sm:grid-cols-[minmax(12rem,0.8fr)_minmax(0,1.2fr)_auto]">
-      <h3 className="text-sm font-bold uppercase tracking-[0.08em] text-[var(--text-primary)]">{label}</h3>
-      <p className="col-span-2 text-sm text-[var(--text-secondary)] sm:col-span-1 sm:text-right">{state}</p>
-      {action || <span />}
+      <h3 className="col-start-1 row-start-1 text-sm font-bold uppercase tracking-[0.08em] text-[var(--text-primary)]">{label}</h3>
+      <p className="col-start-1 row-start-2 text-sm text-[var(--text-secondary)] sm:col-start-2 sm:row-start-1 sm:text-right">{state}</p>
+      <div className="col-start-2 row-span-2 row-start-1 self-center justify-self-end sm:col-start-3 sm:row-span-1">{action || null}</div>
     </div>
   );
 }
