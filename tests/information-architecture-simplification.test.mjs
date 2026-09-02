@@ -56,12 +56,13 @@ test("profile field states distinguish known, none-known, unknown, and missing",
   assert.equal(buildProfileCompleteness(row({ avoid_ingredients: [] })).missingFields.includes("avoid ingredients"), false);
 });
 
-test("pet profile is a compact fact file without duplicated product surfaces", () => {
+test("pet profile stays a compact fact file with one Vet Brief handoff", () => {
   const page = read("app/pets/[id]/page.tsx");
   assert.match(page, /buildPetProfileFactRows\(profile\)/);
   assert.match(page, /pet-details-heading/);
   assert.match(page, /<dl className="mt-5 divide-y/);
-  assert.doesNotMatch(page, /What Furvise remembers|Recent updates|Today.?s snapshot|Furvise guidance|listCareEntriesForPet|\/results\?|\/ask\?|\/vet-brief\?/);
+  assert.match(page, /href=\{`\/vet-brief\?pet=\$\{petId\}&source=pet-profile`\}/);
+  assert.doesNotMatch(page, /What Furvise remembers|Recent updates|Today.?s snapshot|Furvise guidance|listCareEntriesForPet|\/results\?|\/ask\?/);
 });
 
 test("History titles are deterministic and date groups are chronological", () => {
