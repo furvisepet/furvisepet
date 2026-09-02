@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { AppPage } from "../../../components/app-page";
+import { PageHeader } from "../../../components/product-primitives";
 import { SimplePetProfileForm } from "../../../components/simple-pet-profile-form";
 import { useRequireConfirmedSupabaseAuth } from "../../../lib/auth-session";
 import { buildSimplePetProfileUpdate, validateSimplePetProfile } from "../../../lib/edit-pet-profile";
@@ -118,15 +118,11 @@ export default function EditDogProfilePage() {
   return (
     <AppPage>
       <div className="mx-auto w-full max-w-[1180px] min-w-0 pb-10 sm:pb-16 lg:pb-20">
-        <header>
-          <Link className="inline-flex min-h-11 items-center text-xs font-bold uppercase tracking-[0.09em] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]" href={profileHref}>
-            <span aria-hidden="true">←</span>&nbsp;{petName}
-          </Link>
-          <h1 className="mt-5 text-[2.25rem] font-bold leading-[1.04] tracking-[-0.035em] text-[var(--text-primary)] sm:text-[2.75rem] lg:text-[3rem]">Edit {petName}</h1>
-          <p className="mt-3 max-w-[42rem] text-base leading-7 text-[var(--text-secondary)] sm:text-lg">
-            Change the details Furvise should use for {petName}.
-          </p>
-        </header>
+        <PageHeader
+          eyebrow="PETS"
+          supportingText={`Change the details Furvise uses for ${petName}.`}
+          title={`EDIT ${petName.toUpperCase()}`}
+        />
 
         {configError ? (
           <StatusMessage tone="error">{configError}</StatusMessage>

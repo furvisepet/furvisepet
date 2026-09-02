@@ -37,7 +37,8 @@ test("the permanent warm-light color system keeps the approved action hierarchy"
   assert.match(css, /--page-background: var\(--warm-canvas\)/);
   assert.match(css, /--surface-primary: var\(--card-background\)/);
   assert.match(css, /--surface-raised: var\(--raised-card-background\)/);
-  assert.match(css, /--primary-action-background: var\(--warm-orange\)/);
+  assert.match(css, /--primary-action-background: var\(--deep-forest\)/);
+  assert.match(css, /--primary-action-foreground: var\(--warm-cream\)/);
   assert.match(css, /--secondary-action-background: var\(--warm-cream\)/);
   assert.doesNotMatch(css, /html\[data-theme|prefers-color-scheme|brand-dark-surface/);
   assert.doesNotMatch(css, /--surface-page: #000(?:000)?/i);

@@ -67,13 +67,13 @@
   --text-primary: var(--primary-ink);
   --text-secondary: var(--secondary-ink);
   --text-muted: var(--muted-ink);
-  --text-inverse: var(--primary-ink);
+  --text-inverse: var(--warm-cream);
   --border-subtle: rgba(18, 63, 39, 0.14);
   --border-strong: rgba(18, 63, 39, 0.55);
-  --primary-action-background: var(--warm-orange);
-  --primary-action-foreground: var(--primary-ink);
-  --primary-action-hover: var(--warm-orange-hover);
-  --primary-action-active: var(--warm-orange-active);
+  --primary-action-background: var(--deep-forest);
+  --primary-action-foreground: var(--warm-cream);
+  --primary-action-hover: var(--forest);
+  --primary-action-active: var(--deep-forest);
   --secondary-action-background: var(--warm-cream);
   --secondary-action-foreground: var(--deep-forest);
   --secondary-action-border: var(--border-strong);
@@ -133,7 +133,7 @@
   --accent-sage-hover: var(--soft-sage);
   --accent-sage-pressed: var(--sage);
   --accent-sky: var(--forest);
-  --accent-apricot: var(--warm-orange);
+  --accent-apricot: var(--sage);
   --accent-lavender: var(--sage);
   --accent-yellow: var(--soft-orange);
   --accent-rose: var(--danger-red);
@@ -235,9 +235,9 @@
   --pw-primary-active: var(--action-primary-active);
   --pw-primary-foreground: var(--text-inverse);
   --pw-primary-soft: var(--selection);
-  --pw-accent: var(--accent-apricot);
-  --pw-accent-hover: color-mix(in srgb, var(--accent-apricot) 88%, var(--neutral-cream));
-  --pw-accent-foreground: var(--ink-on-light);
+  --pw-accent: var(--forest);
+  --pw-accent-hover: var(--deep-forest);
+  --pw-accent-foreground: var(--warm-cream);
   --pw-secondary: var(--accent-sky);
   --pw-selected-background: var(--selected-background);
   --pw-selected-border: var(--selection-strong);
@@ -302,7 +302,7 @@
   --color-background: var(--surface-page);
   --color-foreground: var(--text-primary);
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-display: Georgia, "Times New Roman", serif;
+  --font-display: var(--font-marketing-display), "Arial Narrow", Arial, sans-serif;
 }
 
 *,
@@ -325,7 +325,77 @@ body {
   color: var(--text-primary);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 16px;
+  line-height: 1.6;
+}
+
+.app-page-eyebrow {
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
   line-height: 1.5;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.app-page-title {
+  max-width: 100%;
+  color: var(--text-primary);
+  font-family: var(--font-marketing-display), "Arial Narrow", Arial, sans-serif;
+  font-size: clamp(2.5rem, 10vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.018em;
+  overflow-wrap: anywhere;
+}
+
+.app-page-subtitle {
+  max-width: 42.5rem;
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+  font-size: clamp(1rem, 2.5vw, 1.0625rem);
+  line-height: 1.55;
+}
+
+.app-section-title {
+  color: var(--text-primary);
+  font-family: var(--font-marketing-display), "Arial Narrow", Arial, sans-serif;
+  font-size: clamp(1.5rem, 3vw, 1.875rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.012em;
+}
+
+.app-plan-name,
+.app-plan-price {
+  font-family: var(--font-marketing-display), "Arial Narrow", Arial, sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.018em;
+}
+
+.app-plan-name {
+  font-size: 1.875rem;
+}
+
+.app-plan-price {
+  font-size: clamp(2.5rem, 5vw, 3rem);
+}
+
+.app-loading-state {
+  padding-top: var(--space-1);
+}
+
+@media (min-width: 768px) {
+  .app-page-title {
+    font-size: clamp(3rem, 3.6vw, 4rem);
+    line-height: 0.98;
+  }
+
+  .app-page-subtitle {
+    font-size: 1.125rem;
+  }
 }
 
 .app-mobile-nav-clearance {

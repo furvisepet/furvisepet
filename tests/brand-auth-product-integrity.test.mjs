@@ -52,12 +52,13 @@ test("manifest and metadata declare the approved browser and installed-app icons
   }
 });
 
-test("the warm forest, sage, cream, and orange palette drives the permanent light color system", () => {
+test("the warm forest, sage, and cream palette drives the permanent light color system", () => {
   const css = read("app/globals.css");
   const scheme = css.slice(css.indexOf(":root"), css.indexOf("@theme inline"));
   assert.match(scheme, /color-scheme: light/);
   assert.match(scheme, /--page-background: var\(--warm-canvas\)/);
-  assert.match(scheme, /--primary-action-background: var\(--warm-orange\)/);
+  assert.match(scheme, /--primary-action-background: var\(--deep-forest\)/);
+  assert.match(scheme, /--primary-action-foreground: var\(--warm-cream\)/);
   assert.match(scheme, /--secondary-action-background: var\(--warm-cream\)/);
   assert.match(scheme, /--focus-ring: var\(--forest\)/);
   assert.doesNotMatch(css, /data-theme|prefers-color-scheme|brand-dark-surface/);

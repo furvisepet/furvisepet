@@ -21,7 +21,7 @@ const account = read("app/account/page.tsx");
 const accountShell = read("app/components/account-settings-shell.tsx");
 
 test("primary app routes share one outer page-container contract", () => {
-  assert.match(primitives, /appPageContainer = "box-border mx-auto w-full max-w-\[1180px\] px-5 md:px-8 xl:px-12"/);
+  assert.match(primitives, /appPageContainer = "box-border mx-auto w-\[calc\(100%_-_2\.5rem\)\] max-w-\[1180px\] sm:w-\[calc\(100%_-_4rem\)\] lg:w-\[calc\(100%_-_6rem\)\]"/);
   assert.match(appPage, /<PageShell preset="app">/);
   assert.match(appPage, /appPageContentClasses\[shell\]/);
   assert.match(header, /className="homepage-wide-shell homepage-header-grid" data-ui="header-optical-row"/);

@@ -30,7 +30,8 @@ test("shared focused widths constrain onboarding and Today without touching wide
   assert.match(primitives, /today: "w-full"/);
   assert.match(onboardingSurface, /max-w-\[780px\]/);
   assert.match(today, /data-ui="today-present-file"/);
-  assert.match(read("app/today/today.module.css"), /max-width: 64rem/);
+  assert.match(read("app/today/today.module.css"), /\.page \{[\s\S]*width: 100%/);
+  assert.doesNotMatch(read("app/today/today.module.css"), /max-width: 64rem/);
   assert.doesNotMatch(read("app/pets/[id]/page.tsx"), /todayPrimaryLayout|focusedFormLayout/);
 });
 

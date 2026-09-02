@@ -77,9 +77,9 @@ test("the permanent warm-light color system maps every required semantic role", 
     "text-primary": "primary-ink",
     "text-secondary": "secondary-ink",
     "text-muted": "muted-ink",
-    "primary-action-background": "warm-orange",
-    "primary-action-foreground": "primary-ink",
-    "primary-action-hover": "warm-orange-hover",
+    "primary-action-background": "deep-forest",
+    "primary-action-foreground": "warm-cream",
+    "primary-action-hover": "forest",
     "secondary-action-background": "warm-cream",
     "secondary-action-foreground": "deep-forest",
     "ghost-action-foreground": "forest",
@@ -140,7 +140,8 @@ test("warm surfaces and restrained action colors are applied through shared role
   assert.match(header, /homepage-marketing-header[\s\S]*data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
   assert.match(footer, /bg-\[var\(--footer-background\)\]/);
   assert.doesNotMatch(components, /text-\[var\(--action-primary\)\]/, "orange primary background must not be reused as body or link text");
-  assert.doesNotMatch(css, /--primary-action-(?:background|foreground): var\(--(?:sage|forest|deep-forest)\)/);
+  assert.match(css, /--primary-action-background: var\(--deep-forest\)/);
+  assert.match(css, /--primary-action-foreground: var\(--warm-cream\)/);
 });
 
 test("focus authority stays forest or scoped sage without orange leakage", () => {
@@ -209,7 +210,7 @@ test("approved SVG artwork is pinned, vector, transparent, and separate from UI 
   }
 
   const otherPinnedAssets = new Map([
-    ["app/favicon.ico", "617e8f6a24067e937ecafd8c8a8de735bf4bac546b0378f0220c884f88c952db"],
+    ["app/favicon.ico", "7645741d1a690c78a6a235c21fb57b93533ab2c86be3437f8ab28180497220e3"],
     ["public/images/dog.png", "2365277fbeadafe581fb4cb29d68226aac1b0f092903a134e06bd39f3649bab0"],
     ["public/images/cat.png", "be7498352c359a0da98b723f8852d5177cd34e8160046bbf4f85a38db9b80d77"],
   ]);

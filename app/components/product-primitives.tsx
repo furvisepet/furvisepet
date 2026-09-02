@@ -22,7 +22,7 @@ export const pageShellClasses = {
 } as const satisfies Record<PageShellPreset, string>;
 
 export const pageShellGutters = "px-5 sm:px-8 lg:px-10 xl:px-12";
-export const appPageContainer = "box-border mx-auto w-full max-w-[1180px] px-5 md:px-8 xl:px-12";
+export const appPageContainer = "box-border mx-auto w-[calc(100%_-_2.5rem)] max-w-[1180px] sm:w-[calc(100%_-_4rem)] lg:w-[calc(100%_-_6rem)]";
 export const appPageContentClasses = {
   reading: "w-full",
   standard: "w-full",
@@ -34,6 +34,10 @@ export const workspaceLayout = "w-full";
 export const readingColumn = "w-full max-w-[760px]";
 export const focusedFormLayout = "w-full max-w-[640px]";
 export const todayPrimaryLayout = "w-full";
+export const appPageEyebrowClass = "app-page-eyebrow";
+export const appPageTitleClass = "app-page-title";
+export const appPageSubtitleClass = "app-page-subtitle";
+export const appSectionTitleClass = "app-section-title";
 
 export function PageShell({
   children,
@@ -59,27 +63,26 @@ export function PageHeader({
   primaryAction,
   secondaryAction,
   title,
+  titleId,
   supportingText,
-  mobileTitleSize = "default",
 }: {
   actions?: ReactNode;
   eyebrow?: ReactNode;
   primaryAction?: ReactNode;
   secondaryAction?: ReactNode;
   title: ReactNode;
+  titleId?: string;
   supportingText?: ReactNode;
-  mobileTitleSize?: "default" | "compact";
 }) {
   const resolvedActions = actions ?? (primaryAction || secondaryAction ? <>{secondaryAction}{primaryAction}</> : null);
-  const mobileTitleClass = mobileTitleSize === "compact" ? "text-[2.125rem]" : "text-[2.25rem]";
   return (
-    <header className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" data-ui="page-header">
-      <div className="min-w-0 max-w-[760px]">
-        {eyebrow ? <p className="mb-2 text-sm font-medium text-[var(--text-secondary)]">{eyebrow}</p> : null}
-        <h1 className={`${mobileTitleClass} font-bold leading-[1.08] tracking-[-0.035em] text-[var(--text-primary)] md:text-[2.625rem]`}>
+    <header className="app-page-header mb-8 grid gap-5 sm:mb-10 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end lg:mb-12" data-ui="page-header">
+      <div className="min-w-0 max-w-[920px]">
+        {eyebrow ? <p className={appPageEyebrowClass}>{eyebrow}</p> : null}
+        <h1 className={appPageTitleClass} id={titleId}>
           {title}
         </h1>
-        {supportingText ? <p className="mt-2 max-w-[680px] text-base leading-7 text-[var(--text-secondary)] sm:mt-2.5 sm:text-lg">{supportingText}</p> : null}
+        {supportingText ? <p className={appPageSubtitleClass}>{supportingText}</p> : null}
       </div>
       {resolvedActions ? <div className="flex flex-wrap items-center gap-2 sm:justify-end" data-ui="page-header-actions">{resolvedActions}</div> : null}
     </header>
@@ -101,7 +104,7 @@ export function Section({
 }) {
   return (
     <section className={`${compact ? "py-5 sm:py-7" : "py-8 sm:py-10"} ${className}`}>
-      {title ? <h2 className="text-xl font-bold tracking-[-0.02em] text-[var(--text-primary)] sm:text-2xl">{title}</h2> : null}
+      {title ? <h2 className={appSectionTitleClass}>{title}</h2> : null}
       {supportingText ? <p className="mt-2 max-w-[680px] leading-7 text-[var(--text-secondary)]">{supportingText}</p> : null}
       {children}
     </section>
@@ -119,7 +122,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export const textActionClass =
-  "group inline-flex min-h-12 cursor-pointer items-center gap-1.5 rounded-[var(--radius-md)] px-3 text-sm font-semibold text-[var(--ghost-action-text)] transition-colors hover:bg-[var(--ghost-action-hover)] hover:text-[var(--text-primary)] active:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]";
+  "group inline-flex min-h-12 cursor-pointer items-center gap-1.5 rounded-[var(--radius-sm)] px-3 text-sm font-semibold text-[var(--ghost-action-text)] transition-colors hover:bg-[var(--ghost-action-hover)] hover:text-[var(--text-primary)] active:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]";
 
 export const buttonVariantClasses = {
   primary: "bg-[var(--action-primary)] text-[var(--text-inverse)] shadow-[var(--shadow-surface-1)] hover:bg-[var(--action-primary-hover)] active:bg-[var(--action-primary-active)]",
@@ -129,7 +132,7 @@ export const buttonVariantClasses = {
 } as const satisfies Record<ButtonVariant, string>;
 
 export const buttonBaseClasses =
-  "group relative inline-flex min-h-12 items-center justify-center rounded-full border border-transparent px-5 text-sm font-semibold leading-5 transition-[background-color,color,border-color,box-shadow,transform] duration-[var(--motion-fast)] ease-[var(--ease-out)] hover:-translate-y-px active:translate-y-0 active:shadow-none focus-visible:outline-none disabled:cursor-not-allowed disabled:translate-y-0 disabled:border-[var(--border-subtle)] disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)] disabled:shadow-none disabled:hover:translate-y-0 aria-disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:translate-y-0 aria-disabled:border-[var(--border-subtle)] aria-disabled:bg-[var(--disabled-surface)] aria-disabled:text-[var(--disabled-text)] aria-disabled:shadow-none";
+  "group relative inline-flex min-h-12 items-center justify-center rounded-[var(--radius-sm)] border border-transparent px-5 text-sm font-semibold leading-5 transition-[background-color,color,border-color,box-shadow,transform] duration-[var(--motion-fast)] ease-[var(--ease-out)] hover:-translate-y-px active:translate-y-0 active:shadow-none focus-visible:outline-none disabled:cursor-not-allowed disabled:translate-y-0 disabled:border-[var(--border-subtle)] disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)] disabled:shadow-none disabled:hover:translate-y-0 aria-disabled:pointer-events-none aria-disabled:cursor-not-allowed aria-disabled:translate-y-0 aria-disabled:border-[var(--border-subtle)] aria-disabled:bg-[var(--disabled-surface)] aria-disabled:text-[var(--disabled-text)] aria-disabled:shadow-none";
 
 export const buttonLabelVariantClasses = {
   primary: "text-[color:var(--text-inverse)]",
@@ -198,7 +201,7 @@ export function TextAction({
 }
 
 export const fieldControlClass =
-  "min-h-[3.25rem] w-full rounded-[var(--radius-md)] border border-[var(--input-border)] bg-[var(--input-background)] px-4 text-base text-[var(--text-primary)] shadow-[inset_0_1px_0_var(--border-subtle)] outline-none transition-[border-color,background-color,box-shadow] placeholder:text-[var(--text-muted)] hover:border-[var(--border-strong)] focus:border-[var(--focus-ring)] focus:bg-[var(--surface-hover)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus-ring)_24%,transparent)] disabled:border-[var(--border-subtle)] disabled:bg-[var(--surface-primary)] disabled:text-[var(--disabled-text)] lg:min-h-12";
+  "min-h-12 w-full rounded-[var(--radius-sm)] border border-[var(--input-border)] bg-[var(--input-background)] px-4 text-base text-[var(--text-primary)] shadow-[inset_0_1px_0_var(--border-subtle)] outline-none transition-[border-color,background-color,box-shadow] placeholder:text-[var(--text-muted)] hover:border-[var(--border-strong)] focus:border-[var(--focus-ring)] focus:bg-[var(--warm-cream)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--focus-ring)_24%,transparent)] disabled:border-[var(--border-subtle)] disabled:bg-[var(--disabled-surface)] disabled:text-[var(--disabled-text)]";
 
 function FieldLabel({ children, hint, label }: { children: ReactNode; hint?: ReactNode; label: ReactNode }) {
   return (
@@ -302,7 +305,7 @@ export function Drawer({ children, label }: { children: ReactNode; label: string
 export function EmptyState({ action, className = "", description, title }: { action?: ReactNode; className?: string; description: ReactNode; title: string }) {
   return (
     <div className={`max-w-[680px] rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--surface-primary)] px-6 py-9 shadow-[var(--shadow-surface-1)] sm:px-8 sm:py-10 ${className}`} data-card-variant="empty">
-      <h2 className="text-[1.35rem] font-semibold tracking-[-0.015em] text-[var(--text-primary)]">{title}</h2>
+      <h2 className={appSectionTitleClass}>{title}</h2>
       <p className="mt-2 max-w-[560px] text-[1.02rem] leading-7 text-[var(--text-secondary)]">{description}</p>
       {action ? <div className="mt-5">{action}</div> : null}
     </div>
@@ -383,11 +386,8 @@ export function DocumentStatus({ status }: { status: "Draft" | "Confirmed" | "Ne
 
 export function LoadingState({ label = "Loading" }: { label?: string }) {
   return (
-    <div aria-label={label} className="max-w-[620px] animate-pulse py-8" role="status">
-      <span className="sr-only">{label}</span>
-      <div className="h-3 w-28 rounded-full bg-[var(--line)]" />
-      <div className="mt-4 h-3 w-full rounded-full bg-[var(--line)]" />
-      <div className="mt-2 h-3 w-3/4 rounded-full bg-[var(--line)]" />
+    <div aria-label={label} className="app-loading-state min-h-24 max-w-[620px] text-sm leading-6 text-[var(--text-secondary)]" role="status">
+      <p>{label}...</p>
     </div>
   );
 }

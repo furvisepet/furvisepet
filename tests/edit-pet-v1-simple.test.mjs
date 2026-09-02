@@ -105,13 +105,12 @@ test("save and cancel return to the canonical pet profile", () => {
   assert.match(route, /buildSimplePetProfileUpdate\(savedProfile, profile\)/);
   assert.match(route, /saveDogProfileForUser\(nextProfile, user, petId\)/);
   assert.match(route, /router\.push\(profileHref\)/);
-  assert.match(route, /href=\{profileHref\}/);
   assert.match(form, /href=\{cancelHref\}/);
 });
 
 test("the form uses a full-canvas product rail with forest actions and mobile-safe controls", () => {
   assert.match(route, /max-w-\[1180px\]/);
-  assert.match(route, /Change the details Furvise should use for \{petName\}\./);
+  assert.match(route, /Change the details Furvise uses for \$\{petName\}\./);
   assert.match(form, /label="Basic details"/);
   assert.match(form, /label="Care context"/);
   assert.match(form, /md:grid-cols-2/);

@@ -32,8 +32,8 @@ type MembershipPayload = {
   entitlements: EffectiveEntitlements;
 };
 
-const forestButtonClass = "![--text-inverse:var(--warm-cream)] !bg-[var(--deep-forest)] hover:!bg-[var(--forest)] disabled:!bg-[var(--disabled-surface)] aria-disabled:!bg-[var(--disabled-surface)]";
-const creamButtonClass = "![--text-inverse:var(--deep-forest)] !bg-[var(--warm-cream)] hover:!bg-[var(--surface-overlay)] disabled:!bg-[color-mix(in_srgb,var(--warm-cream)_35%,transparent)] disabled:![--text-inverse:var(--warm-cream)]";
+const forestButtonClass = "!rounded-full ![--text-inverse:var(--warm-cream)] !bg-[var(--deep-forest)] hover:!bg-[var(--forest)] disabled:!bg-[var(--disabled-surface)] aria-disabled:!bg-[var(--disabled-surface)]";
+const creamButtonClass = "!rounded-full ![--text-inverse:var(--deep-forest)] !bg-[var(--warm-cream)] hover:!bg-[var(--surface-overlay)] disabled:!bg-[color-mix(in_srgb,var(--warm-cream)_35%,transparent)] disabled:![--text-inverse:var(--warm-cream)]";
 
 export default function MembershipPage() {
   const { status: authStatus } = useRequireConfirmedSupabaseAuth();
@@ -101,7 +101,7 @@ export default function MembershipPage() {
 
   return (
     <AppPage shell="reading">
-      <PageHeader supportingText="Choose the plan that fits how much Furvise you use." title="MEMBERSHIP" />
+      <PageHeader eyebrow="ACCOUNT" supportingText="Choose the plan that fits how much Furvise you use." title="MEMBERSHIP" />
 
       {authStatus !== "signedIn" ? (
         <StatusBand>{authStatus === "loading" ? "Loading membership..." : "Redirecting to sign in..."}</StatusBand>
@@ -138,7 +138,7 @@ export default function MembershipPage() {
 
           {error ? <p className="mt-8 border-y border-[var(--danger-text)] py-4 text-sm font-semibold text-[var(--danger-text)]" role="alert">{error}</p> : null}
 
-          <section className="mt-12 grid gap-6 lg:grid-cols-2" aria-label="Furvise membership plans" data-ui="membership-plan-cards">
+          <section className="grid gap-6 lg:grid-cols-2" aria-label="Furvise membership plans" data-ui="membership-plan-cards">
             <PlanCard
               current={!isPlus}
               features={[`${FREE_ASK_ALLOWANCE} Ask each month`, "1 pet", "Care history"]}
@@ -191,10 +191,10 @@ function PlanCard({
   return (
     <article className={`flex min-h-[34rem] flex-col rounded-[var(--radius-lg)] border p-7 sm:p-9 ${premium ? "border-[var(--deep-forest)] bg-[var(--deep-forest)] text-[var(--warm-cream)]" : "border-[var(--border-strong)] bg-[var(--surface-overlay)] text-[var(--text-primary)]"}`} data-current-plan={current || undefined} data-plan={title.toLowerCase()}>
       <div className="flex items-start justify-between gap-4">
-        <h2 className="text-3xl font-semibold tracking-[-0.035em]">{title}</h2>
+        <h2 className="app-plan-name">{title}</h2>
         {current && premium ? <span className="rounded-full border border-[color-mix(in_srgb,var(--warm-cream)_45%,transparent)] px-3 py-1 text-xs font-bold uppercase tracking-[0.08em]">Current plan</span> : null}
       </div>
-      <p className="mt-7 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">{price}</p>
+      <p className="app-plan-price mt-7">{price}</p>
       <p className={`mt-4 min-h-14 leading-7 ${premium ? "text-[color-mix(in_srgb,var(--warm-cream)_78%,transparent)]" : "text-[var(--text-secondary)]"}`}>{value}</p>
 
       {usage ? <UsageSummary premium={premium} usage={usage} /> : null}
@@ -224,8 +224,8 @@ function UsageSummary({ premium, usage }: { premium: boolean; usage: AskUsage })
 
 function InternalAccessCard({ usage }: { usage: AskUsage }) {
   return (
-    <section className="mt-12 max-w-2xl rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-overlay)] p-8 sm:p-10" data-ui="internal-testing-access">
-      <h2 className="text-2xl font-semibold tracking-[-0.025em] text-[var(--text-primary)]">INTERNAL TESTING ACCESS</h2>
+    <section className="max-w-2xl rounded-[var(--radius-lg)] border border-[var(--border-strong)] bg-[var(--surface-overlay)] p-8 sm:p-10" data-ui="internal-testing-access">
+      <h2 className="app-section-title">INTERNAL TESTING ACCESS</h2>
       <p className="mt-7 text-3xl font-semibold text-[var(--text-primary)]">{Math.max(0, usage.remaining).toLocaleString()} Ask remaining</p>
       <p className="mt-4 leading-7 text-[var(--text-secondary)]">Testing access is separate from consumer billing.</p>
     </section>
@@ -236,7 +236,7 @@ function BillingStatusNotice({ cancelAtPeriodEnd, isPlus, loading, onManage, res
   const message = billingStatusMessage(status, isPlus, cancelAtPeriodEnd, resetAt);
   if (!message) return null;
   return (
-    <section className="mt-8 border-y border-[var(--border-strong)] bg-[var(--surface-supportive)] px-4 py-5" role="status">
+    <section className="mb-8 border-y border-[var(--border-strong)] bg-[var(--surface-supportive)] px-4 py-5" role="status">
       <h2 className="font-bold text-[var(--text-primary)]">{message.title}</h2>
       <p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--text-secondary)]">{message.body}</p>
       {message.manage ? <PrimaryButton className={`${forestButtonClass} mt-4 w-full sm:w-auto`} loading={loading} onClick={onManage} type="button">Manage billing</PrimaryButton> : null}
@@ -267,7 +267,7 @@ function plusFeatures() {
 }
 
 function StatusBand({ children }: { children: React.ReactNode }) {
-  return <div className="mt-10 border-y border-[var(--line)] py-5 text-[var(--text-secondary)]" role="status">{children}</div>;
+  return <div className="mb-8 border-y border-[var(--line)] py-5 text-[var(--text-secondary)]" role="status">{children}</div>;
 }
 
 function formatBillingDate(value?: string) {

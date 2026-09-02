@@ -8,7 +8,7 @@ const css = read("app/globals.css");
 
 test("Ask uses the approved human new-question copy with dynamic pet context", () => {
   for (const copy of [
-    "WHAT'S ON YOUR MIND ABOUT ${petName.toUpperCase()}?",
+    "WHAT'S ON YOUR MIND ABOUT ${activeProfile ? petName.toUpperCase() : \"YOUR PET\"}?",
     "Ask a question, tell Furvise what changed, or just share something that's on your mind.",
     "Not sure where to start?",
     "Try one of these, or say it your own way.",

@@ -23,7 +23,7 @@ export function SimplePetProfileForm({
   saving: boolean;
 }) {
   return (
-    <form className="min-w-0 pt-10 sm:pt-12 lg:pt-14" noValidate onSubmit={onSubmit}>
+    <form className="min-w-0" noValidate onSubmit={onSubmit}>
       {error ? <StatusMessage>{error}</StatusMessage> : null}
       <FormSection label="Basic details">
         <div className="grid min-w-0 gap-x-10 gap-y-7 md:grid-cols-2 lg:gap-x-14 lg:gap-y-8">

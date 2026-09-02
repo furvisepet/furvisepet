@@ -56,8 +56,9 @@ function PetsDirectory({
       <div data-ui="pets-directory">
         <PageHeader
           actions={profiles.length ? <Link className={addPetActionClasses} href={NEW_PET_ONBOARDING_PATH}><span className="text-[color:var(--warm-cream)]">ADD PET</span></Link> : undefined}
+          eyebrow="PETS"
           supportingText="The pets Furvise remembers with you."
-          title="Pets"
+          title="Your pets"
         />
 
         {error ? <div className="mt-8"><Notice tone="warning">{error}</Notice></div> : null}
@@ -66,7 +67,7 @@ function PetsDirectory({
         {!loading && !error && profiles.length === 0 ? <NoPets /> : null}
 
         {!loading && profiles.length ? (
-          <ul className="mt-10 divide-y divide-[var(--line)] border-y border-[var(--line)]" data-ui="pet-directory-list">
+          <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]" data-ui="pet-directory-list">
             {profiles.map((profile) => <PetDirectoryRow key={profile.id} profile={profile} />)}
           </ul>
         ) : null}
@@ -77,8 +78,8 @@ function PetsDirectory({
 
 function NoPets() {
   return (
-    <section className="mt-12 max-w-[560px]" data-ui="pets-empty-state">
-      <h2 className="text-2xl font-semibold tracking-[-0.02em] text-[var(--text-primary)]">No pets here yet.</h2>
+    <section className="max-w-[560px]" data-ui="pets-empty-state">
+      <h2 className="app-section-title">No pets here yet.</h2>
       <p className="mt-3 text-base leading-7 text-[var(--text-secondary)]">Start with the pet you want Furvise to remember.</p>
       <Link className={`${addPetActionClasses} mt-6`} href={NEW_PET_ONBOARDING_PATH}><span className="text-[color:var(--warm-cream)]">ADD YOUR PET</span></Link>
     </section>

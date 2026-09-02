@@ -32,9 +32,9 @@ test("pet subtitle omits unknown values and keeps separators correct", () => {
   assert.equal(formatPetProfileSubtitle(profile({ age_value: null, breed: null, species: null, weight_value: null })), "");
 });
 
-test("pet profile uses an accessible Pets breadcrumb and omits deficit copy", () => {
+test("pet profile uses the canonical Pets page orientation and omits deficit copy", () => {
   const page = read("app/pets/[id]/page.tsx");
-  assert.match(page, /href="\/pets"[\s\S]*← Pets/);
+  assert.match(page, /<PageHeader[\s\S]*eyebrow="PETS"/);
   assert.match(page, /min-h-11[\s\S]*focus-visible:ring-2/);
   assert.doesNotMatch(page, /Back to pets|Breed unknown|Weight unknown|Not provided|Limited context/);
 });

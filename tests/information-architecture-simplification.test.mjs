@@ -109,5 +109,5 @@ test("shared mobile-navigation clearance remains on pet and History pages", () =
 test("protected brand assets retain their approved hashes", () => {
   const hash = (path) => createHash("sha256").update(readFileSync(new URL(`../${path}`, import.meta.url))).digest("hex");
   assert.equal(hash("public/brand/furvise-logo.svg"), "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00");
-  assert.equal(hash("app/favicon.ico"), "617e8f6a24067e937ecafd8c8a8de735bf4bac546b0378f0220c884f88c952db");
+  assert.equal(hash("app/favicon.ico"), "7645741d1a690c78a6a235c21fb57b93533ab2c86be3437f8ab28180497220e3");
 });

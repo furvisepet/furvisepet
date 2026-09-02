@@ -28,7 +28,7 @@ import { persistAskDraft, readAskDraft, removeAskDraft } from "../lib/ask-draft"
 import { resolveAskPetSelection } from "../lib/ask-pet-selection";
 import { getActivePetId, setActivePetId } from "../lib/active-pet";
 import { trackAskEvent } from "../lib/ask-analytics";
-import { deriveConversationTitle, formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
+import { formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
 import { toLocalDateTimeInputValue } from "../lib/care-log.mjs";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import {
@@ -128,7 +128,6 @@ function AskPageContent() {
   const [selectedPet, setSelectedPet] = useState(searchParams.get("pet") || "");
   const [conversations, setConversations] = useState<AskConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [activeTitle, setActiveTitle] = useState("New question");
   const [thread, setThread] = useState<ConversationMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -254,7 +253,6 @@ function AskPageContent() {
         replaceAskLocation({ conversationId: payload.conversation.id });
       }
       setActiveConversationId(payload.conversation.id);
-      setActiveTitle(payload.conversation.title);
       setThread(parsedThread);
       const lastMessage = parsedThread.at(-1);
       const retryScope = `ask:${payload.conversation.petId}:${payload.conversation.id}`;
@@ -295,7 +293,6 @@ function AskPageContent() {
       replaceAskLocation({ petId });
     }
     setActiveConversationId(null);
-    setActiveTitle("New question");
     setThread([]);
     setFailedRequest(null);
     setRequestPhase("idle");
@@ -322,7 +319,6 @@ function AskPageContent() {
     setFailedRequest(null);
     setRequestPhase("idle");
     if (selectedPet && typeof window !== "undefined") replaceAskLocation({ petId: selectedPet });
-    setActiveTitle("New question");
     setPendingNewQuestion(false);
     setError("");
     setPersistenceWarning("");
@@ -390,7 +386,6 @@ function AskPageContent() {
       if (!conversationIdAtSubmit && payload.conversationId) {
         setActiveConversationId(payload.conversationId);
         if (typeof window !== "undefined") replaceAskLocation({ conversationId: payload.conversationId });
-        setActiveTitle(deriveConversationTitle(prompt, petName));
         trackAskEvent("conversation_started", { source });
       }
       if (!standaloneEmergency) await refreshConversations().catch(() => undefined);
@@ -428,7 +423,6 @@ function AskPageContent() {
     try {
       await conversationJson(`/api/ask/conversations/${encodeURIComponent(renameTarget.id)}`, { method: "PATCH", body: JSON.stringify({ title: renameDraft.trim() }) });
       setConversations((items) => items.map((item) => item.id === renameTarget.id ? { ...item, title: renameDraft.trim() } : item));
-      if (activeConversationId === renameTarget.id) setActiveTitle(renameDraft.trim());
       setRenameTarget(null);
       setStatus("Conversation renamed.");
     } catch (renameError) {
@@ -580,8 +574,9 @@ function AskPageContent() {
             <button className={secondaryButton} disabled={requestActive} onClick={() => setHistoryOpen(true)} type="button">Conversations</button>
             {activeConversationId || thread.length ? <button className={secondaryButton} disabled={requestActive} onClick={requestNewQuestion} type="button">New question</button> : null}
           </nav>}
-          supportingText={activeProfile?.lifecycle_status === "deceased" ? "Review the history, make a timeline, or talk about what happened." : "Ask a question, tell Furvise what changed, or just share something that's on your mind."}
-          title={activeConversationId ? activeTitle : `WHAT'S ON YOUR MIND ABOUT ${petName.toUpperCase()}?`}
+          eyebrow="ASK"
+          supportingText="Ask a question, tell Furvise what changed, or just share something that's on your mind."
+          title={`WHAT'S ON YOUR MIND ABOUT ${activeProfile ? petName.toUpperCase() : "YOUR PET"}?`}
         />
         {usage && selectedPet ? <AskUsageNotice lifecycleStatus={activeProfile?.lifecycle_status || "active"} petId={selectedPet} usage={usage} /> : null}
       </header>
@@ -594,7 +589,7 @@ function AskPageContent() {
       {persistenceWarning ? <Status text={persistenceWarning} tone="warn" /> : null}
 
       {!loading && activeProfile ? (
-        <div className="mt-7 min-w-0">
+        <div className="min-w-0">
           <CompactPetSelector activeProfile={activeProfile} disabled={requestActive} onChange={switchPet} profiles={selectableProfiles} selectedPet={selectedPet} />
           <main className="min-w-0">
             <section aria-label="Conversation with Furvise" className={`flex w-full min-w-0 flex-col ${thread.length || requestActive ? "sm:min-h-[66vh]" : ""}`} data-mobile-conversation-clearance="nav-and-composer">
@@ -636,7 +631,7 @@ function EmptyConversation({ lifecycleStatus, petName, onSelect }: { lifecycleSt
     ? ["Show me what you remember about {pet}.", "Summarize {pet}'s care history.", "Help me make a timeline of what happened."]
     : emptyStarters;
   return <section className="pb-2 pt-5 sm:pt-7">
-    <h2 className="text-2xl font-semibold text-[var(--text-primary)]">{lifecycleStatus === "deceased" ? `Remembering ${petName}` : "Not sure where to start?"}</h2>
+    <h2 className="app-section-title">{lifecycleStatus === "deceased" ? `Remembering ${petName}` : "Not sure where to start?"}</h2>
     <p className="mt-2 max-w-2xl leading-6 text-[var(--text-secondary)]">{lifecycleStatus === "deceased" ? "Review the history, make a timeline, or talk about what happened." : "Try one of these, or say it your own way."}</p>
     <div className="mt-4 flex max-w-4xl flex-col gap-2 sm:flex-row sm:flex-wrap">{starters.map((starter) => { const label = starter.replace("{pet}", petName); return <button aria-controls="ask-composer" className="group flex min-h-11 min-w-0 cursor-pointer items-center justify-between gap-3 rounded-lg border border-[var(--assistant-response-border)] bg-[var(--suggested-question-surface)] px-3.5 py-2.5 text-left text-sm font-semibold leading-5 text-[var(--suggested-question-foreground)] transition-colors hover:bg-[var(--suggested-question-hover)] active:bg-[var(--suggested-question-selected)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)] sm:w-auto sm:flex-1" data-ui="starter-question" key={starter} onClick={() => onSelect(label)} type="button"><span className="min-w-0 [overflow-wrap:anywhere]">{label}</span><span aria-hidden="true" className="shrink-0 transition-transform group-hover:translate-x-0.5">↘</span></button>; })}</div>
   </section>;
@@ -895,8 +890,8 @@ function Status({ action, text, tone = "neutral" }: { action?: { label: string; 
 
 const inputClass = "min-h-11 w-full rounded-xl border border-[var(--pw-border-strong)] bg-[var(--pw-input)] px-3 text-sm text-[var(--pw-text)] outline-none focus:border-[var(--pw-focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
 const suggestionButton = "flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--assistant-response-border)] px-4 py-3 text-left text-sm font-semibold leading-5 text-[var(--suggested-question-foreground)] transition-colors hover:bg-[var(--suggested-question-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
-const secondaryButton = "inline-flex min-h-10 items-center justify-center rounded-full border border-[var(--pw-border-strong)] bg-transparent px-3.5 text-sm font-semibold text-[var(--pw-text)] hover:border-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
+const secondaryButton = "inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--pw-border-strong)] bg-transparent px-3.5 text-sm font-semibold text-[var(--pw-text)] hover:border-[var(--pw-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
 const quietButton = "inline-flex min-h-9 items-center rounded-lg px-2 text-xs font-semibold text-[var(--pw-muted)] hover:bg-[var(--pw-card-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]";
-const modalSecondaryButton = "inline-flex min-h-11 items-center justify-center rounded-full border border-[var(--pw-border-strong)] px-5 text-sm font-semibold text-[var(--pw-text)]";
-const dangerButton = "inline-flex min-h-11 items-center justify-center rounded-full bg-[var(--pw-danger)] px-5 text-sm font-semibold text-[var(--pw-danger-foreground)] hover:bg-[var(--pw-danger-hover)]";
+const modalSecondaryButton = "inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--pw-border-strong)] px-5 text-sm font-semibold text-[var(--pw-text)]";
+const dangerButton = "inline-flex min-h-11 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--pw-danger)] px-5 text-sm font-semibold text-[var(--pw-danger-foreground)] hover:bg-[var(--pw-danger-hover)]";
 const sectionHeading = "text-sm font-semibold text-[var(--assistant-response-accent)]";
