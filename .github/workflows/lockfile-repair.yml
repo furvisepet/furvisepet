@@ -1,0 +1,38 @@
+name: One-time lockfile repair
+
+on:
+  push:
+    branches:
+      - codex/vet-brief-profile-entry
+    paths:
+      - .github/workflows/lockfile-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/vet-brief-profile-entry
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Update only fast-uri in the lockfile
+        run: npm update fast-uri --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify patched version
+        run: node -e "const lock=require('./package-lock.json'); const v=lock.packages?.['node_modules/fast-uri']?.version; if(v!=='3.1.6'){throw new Error('Expected fast-uri 3.1.6, got '+v)}"
+      - name: Commit lockfile repair
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile did not change" >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Fix fast-uri audit blocker"
+          git push origin HEAD:codex/vet-brief-profile-entry
