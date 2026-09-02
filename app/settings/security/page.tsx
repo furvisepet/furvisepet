@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AccountSettingsShell } from "../../components/account-settings-shell";
 import { AccountStatus } from "../../components/account-access";
 import { Field, PrimaryButton, SecondaryButton } from "../../components/product-primitives";
 import { TurnstileChallenge } from "../../components/turnstile-challenge";
 import { GOOGLE_AUTH_ENABLED, buildOAuthCallbackUrl, getConnectedAuthProviders } from "../../lib/auth-identity";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
-import { getBrowserSupabase } from "../../lib/supabase";
+import { getBrowserSupabase, loadCurrentPasswordAuthCapability } from "../../lib/supabase";
+import { hasPasswordAuthCapability } from "../../lib/password-capability";
 
 type PasswordField = "current" | "new" | "confirmation";
 
@@ -27,10 +28,35 @@ export default function SecuritySettingsPage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [passwordCapability, setPasswordCapability] = useState<{
+    enabledAt: string | null;
+    loadFailed: boolean;
+    userId: string;
+  } | null>(null);
   const idempotencyKey = useRef<string | null>(null);
   const providers = getConnectedAuthProviders(user);
-  const emailPasswordUser = providers.includes("email");
+  const emailProviderMetadataPresent = providers.includes("email");
+  const currentCapability = passwordCapability?.userId === user?.id ? passwordCapability : null;
+  const passwordCapabilityLoading = status === "signedIn"
+    && Boolean(user)
+    && !emailProviderMetadataPresent
+    && !currentCapability;
+  const passwordCapabilityLoadFailed = Boolean(currentCapability?.loadFailed);
+  const emailPasswordUser = hasPasswordAuthCapability(user, currentCapability?.enabledAt);
   const googleConnected = providers.includes("google");
+
+  useEffect(() => {
+    if (status !== "signedIn" || !user || emailProviderMetadataPresent) return;
+    let active = true;
+    void loadCurrentPasswordAuthCapability()
+      .then((enabledAt) => {
+        if (active) setPasswordCapability({ enabledAt, loadFailed: false, userId: user.id });
+      })
+      .catch(() => {
+        if (active) setPasswordCapability({ enabledAt: null, loadFailed: true, userId: user.id });
+      });
+    return () => { active = false; };
+  }, [emailProviderMetadataPresent, status, user]);
 
   function changePasswordValue(setter: (value: string) => void, value: string) {
     idempotencyKey.current = null;
@@ -116,13 +142,13 @@ export default function SecuritySettingsPage() {
                 />
               ) : null}
               <SignInMethodRow
-                action={emailPasswordUser ? (
+                action={passwordCapabilityLoading || passwordCapabilityLoadFailed ? null : emailPasswordUser ? (
                   <button className="inline-flex min-h-11 items-center font-bold uppercase tracking-[0.06em] text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => setShowPasswordForm(true)} type="button">Change password</button>
                 ) : (
                   <Link className="inline-flex min-h-11 items-center font-bold uppercase tracking-[0.06em] text-[var(--forest)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" href="/forgot-password?mode=setup">Set up</Link>
                 )}
                 label="Email & password"
-                state={emailPasswordUser ? "Connected" : "Not set up"}
+                state={passwordCapabilityLoading ? "Checking..." : passwordCapabilityLoadFailed ? "Unavailable" : emailPasswordUser ? "Connected" : "Not set up"}
               />
             </div>
           </section>
@@ -132,7 +158,9 @@ export default function SecuritySettingsPage() {
             {error ? <AccountStatus text={error} tone="danger" /> : null}
           </div>
 
-          {!emailPasswordUser ? (
+          {passwordCapabilityLoadFailed ? (
+            <AccountStatus text="Furvise could not confirm your password status. Refresh the page and try again." tone="danger" />
+          ) : !passwordCapabilityLoading && !emailPasswordUser ? (
             <p className="mt-7 max-w-[640px] text-sm leading-6 text-[var(--text-secondary)]">Set up sends a secure password link to your verified email. Your Google sign-in remains available.</p>
           ) : showPasswordForm ? (
             <section className="mt-12 max-w-[720px] border-t border-[var(--line)] pt-8" aria-labelledby="change-password-heading" data-ui="change-password-form">

@@ -12,6 +12,8 @@ import {
 } from "../../../lib/security/auth-abuse/recovery-authorization";
 import { performRecoveryPasswordUpdate } from "../../../lib/security/auth-abuse/recovery-completion.mjs";
 import { finalizeTemporaryRecoverySession } from "../../../lib/security/auth-abuse/recovery-session-cleanup.mjs";
+import { reconcilePasswordAuthCapabilityAfterRecovery } from "../../../lib/password-capability";
+import { recordPasswordAuthCapability } from "../../../lib/security/password-capability-admin";
 import { claimRecoveryAuthorization, consumeRecoveryAuthorization, releaseRecoveryAuthorization } from "../../../lib/security/auth-abuse/recovery-authorization";
 import {
   RECOVERY_HANDOFF_COOKIE,
@@ -106,14 +108,23 @@ export async function POST(request: Request) {
       },
     });
     if (result.outcome === "completed" || result.outcome === "reconciliation_required") {
+      const capabilityReconciliation = await reconcilePasswordAuthCapabilityAfterRecovery({
+        outcome: result.outcome,
+        recordCapability: (enabledAt) => recordPasswordAuthCapability(userId, enabledAt),
+      });
       await closeTemporaryRecoverySession(supabase);
+      const reconciliationRequired = result.outcome === "reconciliation_required"
+        || capabilityReconciliation === "reconciliation_required";
+      const resultCode = capabilityReconciliation === "reconciliation_required"
+        ? "PASSWORD_CAPABILITY_RECONCILIATION_REQUIRED"
+        : result.outcome === "completed" ? "PASSWORD_UPDATED" : "PASSWORD_UPDATED_RECONCILED";
       emitResult(
         "password_recovery_completed",
-        result.outcome === "completed" ? "PASSWORD_UPDATED" : "PASSWORD_UPDATED_RECONCILED",
+        resultCode,
         requestId,
         startedAt,
         userId,
-        result.outcome === "completed" ? "info" : "high",
+        reconciliationRequired ? "high" : "info",
       );
       return authJson({ code: "PASSWORD_UPDATED", message: "Your password was updated.", requestId });
     }

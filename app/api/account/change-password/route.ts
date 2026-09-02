@@ -10,6 +10,7 @@ import {
   passwordsMatch,
   performAccountPasswordChange,
 } from "../../../lib/security/account-password-change.mjs";
+import { hasPasswordAuthCapability } from "../../../lib/password-capability";
 
 const ROUTE = "/api/account/change-password";
 
@@ -59,7 +60,17 @@ export async function POST(request: Request) {
   } catch {
     return passwordResponse("AUTH_UNAVAILABLE", "Account security is temporarily unavailable.", requestId, 503);
   }
+  let passwordAuthEnabledAt: string | null = null;
   if (!hasEmailPasswordProvider(user)) {
+    const { data: capability, error: capabilityError } = await supabase.from("user_profiles")
+      .select("password_auth_enabled_at")
+      .maybeSingle<{ password_auth_enabled_at: string | null }>();
+    if (capabilityError) {
+      return passwordResponse("AUTH_UNAVAILABLE", "Account security is temporarily unavailable.", requestId, 503);
+    }
+    passwordAuthEnabledAt = capability?.password_auth_enabled_at || null;
+  }
+  if (!hasPasswordAuthCapability(user, passwordAuthEnabledAt)) {
     return passwordResponse("PASSWORD_RESET_REQUIRED", "Use a verified password-reset email to set a password for this account.", requestId, 409);
   }
   if (!user.email) return passwordResponse("AUTH_UNAVAILABLE", "Account security is temporarily unavailable.", requestId, 503);
