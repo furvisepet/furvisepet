@@ -38,7 +38,8 @@ test("normal signup starts with one email decision and lazily protects account r
 test("shared auth branding is heron-only, responsive, accessible, and safe-area aware", () => {
   assert.match(layout, /<BrandMark priority showName=\{false\} size=\{30\} \/>/);
   assert.doesNotMatch(layout, /furvise-wordmark|FURVISE_WORDMARK_ASSET/);
-  assert.match(layout, /aria-label="Close and return to Furvise home"/);
+  assert.match(layout, /closeLabel = "Close and return to Furvise home"/);
+  assert.match(layout, /aria-label=\{closeLabel\}/);
   assert.match(layout, /min-h-11 min-w-11/);
   assert.match(layout, /\[--brand-mark-size:1\.875rem\] sm:\[--brand-mark-size:2rem\]/);
   assert.match(layout, /min-h-\[100svh\]/);

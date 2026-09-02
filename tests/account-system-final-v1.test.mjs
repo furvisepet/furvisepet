@@ -51,7 +51,7 @@ test("Login and security exposes actionable provider states without changing pas
   assert.match(security, /label="Google"[\s\S]*googleConnected \? "Connected" : "Not connected"/);
   assert.match(security, /client\.auth\.linkIdentity/);
   assert.match(security, /label="Email & password"[\s\S]*emailPasswordUser \? "Connected" : "Not set up"/);
-  assert.match(security, /href="\/forgot-password">Set up/);
+  assert.match(security, /href="\/forgot-password\?mode=setup">Set up/);
   assert.match(security, /setShowPasswordForm\(true\)/);
   assert.match(security, /data-ui="change-password-form"/);
   assert.match(security, /TurnstileChallenge/);

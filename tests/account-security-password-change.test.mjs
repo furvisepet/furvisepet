@@ -64,7 +64,7 @@ test("OAuth-only users are identified without inventing a current password", () 
   assert.match(page, /state=\{emailPasswordUser \? "Connected" : "Not set up"\}/);
   assert.match(page, />Set up<\/Link>/);
   assert.match(page, /sends a secure password link to your verified email/);
-  assert.match(page, /href="\/forgot-password"/);
+  assert.match(page, /href="\/forgot-password\?mode=setup"/);
 });
 
 test("Security owns connected sign-in method presentation and Google identity linking", () => {

@@ -18,7 +18,7 @@ const authRoutes = [
 ];
 
 test("browser Auth calls are mediated by same-origin application routes", () => {
-  const login = source("app/login/page.tsx"); const recovery = source("app/forgot-password/page.tsx"); const update = source("app/update-password/page.tsx");
+  const login = source("app/login/page.tsx"); const recovery = source("app/forgot-password/page.tsx") + source("app/forgot-password/password-email-form.tsx"); const update = source("app/update-password/page.tsx");
   assert.doesNotMatch(login, /auth\.signUp|auth\.signInWithPassword|auth\.resend/);
   assert.doesNotMatch(recovery, /resetPasswordForEmail/);
   assert.doesNotMatch(update, /auth\.updateUser/);
@@ -34,7 +34,7 @@ test("signup, recovery, resend, and login OTP start require and forward a CAPTCH
 });
 
 test("CAPTCHA tokens remain transient and reset after every protected client submission", () => {
-  const widget = source("app/components/turnstile-challenge.tsx"); const login = source("app/login/page.tsx"); const recovery = source("app/forgot-password/page.tsx");
+  const widget = source("app/components/turnstile-challenge.tsx"); const login = source("app/login/page.tsx"); const recovery = source("app/forgot-password/page.tsx") + source("app/forgot-password/password-email-form.tsx");
   assert.match(widget, /expired-callback/); assert.match(widget, /error-callback/); assert.match(widget, /turnstile\.reset/);
   assert.match(login, /setCaptchaToken\(null\)/); assert.match(recovery, /setCaptchaToken\(null\)/);
   assert.doesNotMatch(widget + login + recovery, /localStorage|sessionStorage|document\.cookie/);
