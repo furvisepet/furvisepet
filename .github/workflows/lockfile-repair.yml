@@ -24,7 +24,7 @@ jobs:
       - name: Update only fast-uri in the lockfile
         run: npm update fast-uri --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Verify patched version
-        run: node -e "const lock=require('./package-lock.json'); const v=lock.packages?.['node_modules/fast-uri']?.version; if(v!=='3.1.6'){throw new Error('Expected fast-uri 3.1.6, got '+v)}"
+        run: node -e "const lock=require('./package-lock.json'); const v=lock.packages?.['node_modules/fast-uri']?.version; const [major,minor,patch]=String(v||'0.0.0').split('.').map(Number); if(major!==3 || minor!==1 || patch<6){throw new Error('Expected patched fast-uri 3.1.6 or newer within 3.1.x, got '+v)}"
       - name: Commit lockfile repair
         run: |
           if git diff --quiet -- package-lock.json; then
