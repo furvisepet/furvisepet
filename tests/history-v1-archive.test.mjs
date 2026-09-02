@@ -52,7 +52,13 @@ test("History search normalization is bounded and removes PostgREST filter synta
   assert.equal(normalizeHistorySearch("a".repeat(200)).length, 120);
 });
 
-test("date filters use real instants and History preserves browser-local wall clock formatting", () => {
+test("date filters use real instants and History preserves browser-local wall clock formatting", (context) => {
+  const previousTimezone = process.env.TZ;
+  process.env.TZ = "America/Los_Angeles";
+  context.after(() => {
+    if (previousTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTimezone;
+  });
   const now = new Date("2026-09-01T12:00:00-07:00");
   assert.equal(getHistoryFromInstant("year", now), "2026-01-01T08:00:00.000Z");
   assert.equal(getHistoryFromInstant("7d", now), "2026-08-25T19:00:00.000Z");
