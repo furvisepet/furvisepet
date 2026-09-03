@@ -26,6 +26,7 @@ test("Ask exposes separate new-question, history, pet-switch, and thread-open ac
 
 test("Ask persists chronological conversations with owner RLS", () => {
   const migration = read("supabase/migrations/20260724030000_add_ask_conversations.sql");
+  const authorityMigration = read("supabase/migrations/20260903203626_add_ask_conversation_service_authority.sql");
   const collection = read("app/api/ask/conversations/route.ts");
   const messages = read("app/api/ask/conversations/[id]/messages/route.ts");
   assert.match(migration, /create table if not exists public\.ask_conversations/);
@@ -33,7 +34,8 @@ test("Ask persists chronological conversations with owner RLS", () => {
   assert.match(migration, /enable row level security/);
   assert.match(migration, /user_id = auth\.uid\(\)/);
   assert.match(collection, /deriveConversationTitle/);
-  assert.match(messages, /sequence_number: sequence \+ 1/);
+  assert.match(messages, /appendAskConversationExchange/);
+  assert.match(authorityMigration, /next_sequence_number[\s\S]*for update/);
 });
 
 test("Ask fresh and follow-up states differ and formal print is absent", () => {

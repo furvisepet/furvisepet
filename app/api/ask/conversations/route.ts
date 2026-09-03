@@ -7,6 +7,10 @@ import {
   type AskMessageRow,
 } from "../../../lib/ask-conversation-server";
 import { deriveConversationTitle } from "../../../lib/ask-conversations";
+import {
+  createAskConversationExchange,
+  type AskConversationCreateAuthorityRow,
+} from "../../../lib/ask-conversation-authority";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idempotency";
 
@@ -58,10 +62,11 @@ export async function POST(request: Request) {
 
   const { data: profile } = await context.supabase
     .from("dog_profiles")
-    .select("id, name")
+    .select("id, name, lifecycle_status")
     .eq("id", petId)
     .eq("user_id", context.userId)
-    .maybeSingle<{ id: string; name: string | null }>();
+    .neq("lifecycle_status", "archived")
+    .maybeSingle<{ id: string; name: string | null; lifecycle_status: string }>();
   if (!profile) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
 
   const gate = await beginIdempotentRateLimitedOperation({ operationType: "conversation.create", payload: { legacyMessages, petId, question, response }, policy: "CONVERSATION_WRITE", request, route: "/api/ask/conversations", supabase: context.supabase, userId: context.userId });
@@ -79,53 +84,67 @@ export async function POST(request: Request) {
   const preview = latestResponse?.role === "furvise"
     ? latestResponse.response.directAnswer.slice(0, 220)
     : firstQuestion.slice(0, 220);
-  const now = new Date().toISOString();
-    let { data: conversation, error: conversationError } = await context.supabase
-    .from("ask_conversations")
-    .insert({
-      idempotency_key: gate.operation.key,
-      last_activity_at: now,
-      pet_profile_id: petId,
-      preview,
-      status: "active",
-      title: deriveConversationTitle(firstQuestion, profile.name || "your pet"),
-      user_id: context.userId,
-    })
-    .select("id, user_id, pet_profile_id, title, preview, status, last_activity_at, dog_profiles(name)")
-    .single<AskConversationRow>();
-    if (conversationError?.code === "23505") {
-      const replay = await context.supabase.from("ask_conversations").select("id, user_id, pet_profile_id, title, preview, status, last_activity_at, dog_profiles(name)").eq("user_id", context.userId).eq("idempotency_key", gate.operation.key).maybeSingle<AskConversationRow>();
-      conversation = replay.data; conversationError = replay.error;
-    }
-  if (conversationError || !conversation) return Response.json({ error: "The conversation could not be saved." }, { status: 503 });
-
-  const rows = messages.map((message, index) => ({
-    context_used: message.role === "furvise" ? message.contextUsed : null,
-    conversation_id: conversation.id,
-    response_data: message.role === "furvise" ? message.response : null,
-    request_id: gate.operation.key,
-    role: message.role,
-    save_metadata: message.role === "furvise" ? message.saveMetadata : null,
-    sequence_number: index + 1,
-    user_id: context.userId,
-    user_text: message.role === "user" ? message.text : null,
-  }));
-  let { data: savedMessages, error: messagesError } = await context.supabase
-    .from("ask_conversation_messages")
-    .insert(rows)
-    .select("id, role, user_text, response_data, save_metadata, context_used, created_at")
-    .order("sequence_number", { ascending: true })
-    .returns<AskMessageRow[]>();
-  if (messagesError?.code === "23505") {
-    const replay = await context.supabase.from("ask_conversation_messages").select("id, role, user_text, response_data, save_metadata, context_used, created_at").eq("conversation_id", conversation.id).eq("user_id", context.userId).eq("request_id", gate.operation.key).order("sequence_number").returns<AskMessageRow[]>();
-    savedMessages = replay.data; messagesError = replay.error;
-  }
-  if (messagesError) {
-    await context.supabase.from("ask_conversations").delete().eq("id", conversation.id).eq("user_id", context.userId);
+  const userMessage = messages.find((message) => message.role === "user");
+  const furviseMessage = messages.find((message) => message.role === "furvise");
+  if (messages.length !== 2 || !userMessage || userMessage.role !== "user" || !furviseMessage || furviseMessage.role !== "furvise") {
     return Response.json({ error: "The conversation could not be saved." }, { status: 503 });
   }
+  const title = deriveConversationTitle(firstQuestion, profile.name || "your pet");
+  const { data, error } = await createAskConversationExchange({
+    contextUsed: furviseMessage.contextUsed,
+    petId,
+    preview,
+    requestId: gate.operation.key,
+    responseData: furviseMessage.response,
+    saveMetadata: furviseMessage.saveMetadata,
+    title,
+    userId: context.userId,
+    userText: userMessage.text,
+  });
+  const rows = validCreateAuthorityRows(data);
+  if (error || rows.length !== 2) return Response.json({ error: "The conversation could not be saved." }, { status: 503 });
+  const first = rows[0];
+  const conversation: AskConversationRow = {
+    id: first.conversation_id,
+    user_id: context.userId,
+    pet_profile_id: petId,
+    title: first.conversation_title,
+    preview: first.conversation_preview,
+    status: first.conversation_status,
+    last_activity_at: first.conversation_last_activity_at,
+    dog_profiles: { name: profile.name },
+  };
+  const savedMessages: AskMessageRow[] = rows.map((row) => ({
+    id: row.message_id,
+    role: row.message_role,
+    user_text: row.message_user_text,
+    response_data: row.message_response_data,
+    save_metadata: row.message_save_metadata,
+    context_used: row.message_context_used,
+    created_at: row.message_created_at,
+  }));
     return Response.json({ conversation: toConversationDetail(conversation, savedMessages || []) }, { status: 201 });
   });
+}
+
+function validCreateAuthorityRows(value: unknown): AskConversationCreateAuthorityRow[] {
+  if (!Array.isArray(value)) return [];
+  const rows = value.filter((row): row is AskConversationCreateAuthorityRow => Boolean(
+    row && typeof row === "object"
+    && typeof row.conversation_id === "string"
+    && typeof row.conversation_title === "string"
+    && typeof row.conversation_preview === "string"
+    && (row.conversation_status === "active" || row.conversation_status === "archived")
+    && typeof row.conversation_last_activity_at === "string"
+    && typeof row.message_id === "string"
+    && (row.message_role === "user" || row.message_role === "furvise")
+    && typeof row.message_created_at === "string"
+    && Number.isInteger(row.message_sequence_number)
+  ));
+  if (rows.length !== 2 || rows[0].message_role !== "user" || rows[0].message_sequence_number !== 1
+    || rows[1].message_role !== "furvise" || rows[1].message_sequence_number !== 2
+    || rows[0].conversation_id !== rows[1].conversation_id) return [];
+  return rows;
 }
 
 function conversationBodyError(error: unknown) {

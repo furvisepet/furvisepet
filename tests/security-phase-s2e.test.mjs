@@ -14,9 +14,9 @@ test("framework, CSS, and image dependency remediations stay pinned to reviewed 
   assert.equal(packageJson.devDependencies["eslint-config-next"], "16.2.12");
   assert.equal(packageJson.devDependencies["@tailwindcss/postcss"], "^4.3.3");
   assert.equal(packageJson.devDependencies.tailwindcss, "^4.3.3");
-  assert.deepEqual(packageJson.overrides.next, { postcss: "8.5.18", sharp: "0.35.3" });
+  assert.deepEqual(packageJson.overrides.next, { postcss: "8.5.25", sharp: "0.35.3" });
   assert.equal(lock.packages["node_modules/next"].version, "16.2.12");
-  assert.equal(lock.packages["node_modules/next/node_modules/postcss"].version, "8.5.18");
+  assert.equal(lock.packages["node_modules/next/node_modules/postcss"].version, "8.5.25");
   assert.equal(lock.packages["node_modules/sharp"].version, "0.35.3");
 });
 
@@ -52,7 +52,7 @@ test("patched Sharp native bindings load with the remediated libvips", () => {
 
 test("the patched PostCSS and Tailwind pipeline compiles repository CSS", async () => {
   const postcss = require("postcss");
-  assert.equal(postcss().version, "8.5.25");
+  assert.equal(postcss().version, "8.5.27");
   const result = await postcss().process(".furvise { color: #123f27 }", { from: undefined });
   assert.match(result.css, /furvise/);
   assert.match(source("postcss.config.mjs"), /@tailwindcss\/postcss/);

@@ -152,7 +152,7 @@ test("a released Ask attempt receives a new ledger UUID without changing message
   assert.notEqual(first, second);
   const route = read("app/api/ask/route.ts");
   assert.match(route, /const attemptId = deriveAskAttemptId\(logicalTurnId, idempotency\.operation\.ownerToken\)/);
-  assert.match(route, /request_id: requestId/);
+  assert.match(route, /beginAskConversationTurn\(\{[\s\S]{0,300}requestId,/);
   assert.match(route, /completeAiCredit\(\{ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId/);
 });
 

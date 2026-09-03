@@ -47,7 +47,7 @@ test("Ask reconciliation update is assistant-only, owner-bound, and column-limit
 });
 
 test("Ask writes and replay reads the reconciled persistence fields", () => {
-  assert.match(askRoute, /update\(\{ care_persistence: carePersistence, response_data: canonicalResponse \}\)/);
+  assert.match(askRoute, /finalizeAskAssistantResponse\(\{[\s\S]*carePersistence,[\s\S]*responseData: canonicalResponse/);
   assert.match(askRoute, /select\("id, conversation_id, request_id, role, sequence_number, user_text, response_data, save_metadata, context_used, care_persistence"\)/);
   assert.match(askRoute, /existingRequest\?\.assistantMessage\?\.response_data/);
 });

@@ -124,7 +124,7 @@ function toStoredMessage(row: AskMessageRow, suggestion: AskSuggestionRow | null
   };
 }
 
-// Do not render tenant-writable action receipts as completed after a reload.
+// Do not render historically tenant-authored presentation receipts as completed after a reload.
 // A terminal claim is returned only by the capability confirmation endpoint.
 export function presentationOnlyAskResponse(value: unknown, trustedActions: unknown[]) {
   if (!value || typeof value !== "object") return value;

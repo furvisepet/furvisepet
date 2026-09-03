@@ -26,6 +26,7 @@ export const REQUIRED_SECURITY_MIGRATION_NAMES = [
   "align_billing_checkout_currency_authority",
   "add_billing_payment_recovery_grace",
   "harden_postgrest_service_authority",
+  "restrict_ask_conversation_mutation_authority",
 ] as const;
 
 export type SecurityCompatibilitySnapshot = {
