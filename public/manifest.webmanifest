@@ -1,7 +1,7 @@
 {
   "name": "Furvise",
   "short_name": "Furvise",
-  "description": "Pet care history, notes, products, and guidance.",
+  "description": "Furvise keeps your pet's questions, changes, routines, and history connected over time.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

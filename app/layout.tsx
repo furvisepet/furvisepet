@@ -5,10 +5,12 @@ import { AuthenticatedAppChrome } from "./components/authenticated-app-chrome";
 import { AskComposerFocusProvider } from "./lib/navigation/ask-composer-focus";
 import {
   CANONICAL_ORIGIN,
+  FURVISE_OG_IMAGE_ALT,
   FURVISE_OG_IMAGE_URL,
   HOME_DESCRIPTION,
   HOME_TITLE,
   SOCIAL_DESCRIPTION,
+  canonicalUrl,
 } from "./lib/seo";
 import "./globals.css";
 
@@ -31,11 +33,11 @@ export const metadata: Metadata = {
   keywords: [
     "pet care app",
     "pet care history",
-    "dog care notes",
-    "cat care notes",
-    "pet product guidance",
-    "pet health notes",
-    "vet prep notes",
+    "pet context over time",
+    "dog care history",
+    "cat care history",
+    "pet care memory",
+    "vet visit preparation",
   ],
   robots: {
     index: true,
@@ -46,13 +48,13 @@ export const metadata: Metadata = {
     description: SOCIAL_DESCRIPTION,
     siteName: "Furvise",
     type: "website",
-    url: CANONICAL_ORIGIN,
+    url: canonicalUrl(),
     images: [
       {
         url: FURVISE_OG_IMAGE_URL,
-        width: 3200,
-        height: 800,
-        alt: "Furvise pet care history, notes, products, and guidance",
+        width: 1200,
+        height: 630,
+        alt: FURVISE_OG_IMAGE_ALT,
       },
     ],
   },

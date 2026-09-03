@@ -95,5 +95,5 @@ test("the bottom-left N is the disabled Next development indicator, not Furvise 
 
 test("approved branding preserves the canonical SVG source set", () => {
   assert.match(brand, /FURVISE_BRAND_ASSET = "\/brand\/furvise-logo\.svg"/);
-  assert.deepEqual(readdirSync(new URL("../public/brand/", import.meta.url)).sort(), ["furvise-heron.svg", "furvise-logo.svg", "furvise-wordmark.svg"]);
+  assert.deepEqual(readdirSync(new URL("../public/brand/", import.meta.url)).sort(), ["furvise-heron.svg", "furvise-logo.svg", "furvise-social.png", "furvise-wordmark.svg"]);
 });

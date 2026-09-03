@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { HomepageClient } from "./components/homepage-client";
 import {
   CANONICAL_ORIGIN,
+  HOME_DESCRIPTION,
   HOME_TITLE,
+  ORGANIZATION_DESCRIPTION,
   SOCIAL_DESCRIPTION,
   canonicalUrl,
   createPublicPageMetadata,
@@ -11,8 +13,9 @@ import {
 export const metadata: Metadata = {
   ...createPublicPageMetadata({
     title: HOME_TITLE,
-    description: SOCIAL_DESCRIPTION,
+    description: HOME_DESCRIPTION,
     path: "/",
+    socialDescription: SOCIAL_DESCRIPTION,
   }),
   title: { absolute: HOME_TITLE },
 };
@@ -23,7 +26,7 @@ const structuredData = [
     "@type": "WebSite",
     name: "Furvise",
     url: canonicalUrl(),
-    description: SOCIAL_DESCRIPTION,
+    description: HOME_DESCRIPTION,
   },
   {
     "@context": "https://schema.org",
@@ -31,6 +34,7 @@ const structuredData = [
     name: "Furvise",
     url: canonicalUrl(),
     logo: `${CANONICAL_ORIGIN}/brand/furvise-logo.svg`,
+    description: ORGANIZATION_DESCRIPTION,
   },
 ];
 

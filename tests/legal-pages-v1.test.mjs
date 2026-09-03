@@ -89,9 +89,9 @@ test("legal copy omits obsolete product-country and unsupported location claims"
 
 test("metadata and cross-navigation remain canonical", () => {
   assert.match(privacy, /title: "Privacy"[\s\S]*path: "\/privacy"/);
-  assert.match(privacy, /Learn what information Furvise uses, how pet and account data support the service, and the controls available to you\./);
+  assert.match(privacy, /Learn how Furvise uses pet and account information, how that information supports the service, and the controls available to you\./);
   assert.match(terms, /title: "Terms of Use"[\s\S]*path: "\/terms"/);
-  assert.match(terms, /Read the terms for using Furvise, including account, AI guidance, membership, and veterinary-care limitations\./);
+  assert.match(terms, /Read the terms for using Furvise, including accounts, AI-assisted information, membership, billing, and veterinary-care limitations\./);
   assert.match(privacy, /href: "\/terms", label: "Terms"/);
   assert.match(privacy, /href: "\/account", label: "Account settings", signedInOnly: true/);
   assert.match(terms, /href: "\/privacy", label: "Privacy"/);

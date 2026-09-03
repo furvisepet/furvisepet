@@ -12,9 +12,9 @@ test("global metadata uses the canonical Furvise title and clean description", (
   const metadataSource = `${layout}\n${seo}`;
 
   assert.match(seo, /https:\/\/www\.furvise\.com/);
-  assert.match(seo, /Furvise \| Remember What Matters/);
+  assert.match(seo, /Furvise \| Your Pet's Story, Understood Over Time/);
   assert.match(layout, /template: "%s \| Furvise"/);
-  assert.match(seo, /questions, care updates, and history connected to each pet/);
+  assert.match(seo, /questions, changes, routines, and history connected over time/);
   assert.doesNotMatch(seo, /focused AI guidance/);
   assert.doesNotMatch(metadataSource, /launching soon|technology website/i);
   assert.doesNotMatch(metadataSource, /—/);
@@ -95,7 +95,7 @@ test("manifest and metadata use only existing approved Furvise brand assets", ()
 
   assert.equal(manifest.name, "Furvise");
   assert.equal(manifest.short_name, "Furvise");
-  assert.equal(manifest.description, "Pet care history, notes, products, and guidance.");
+  assert.equal(manifest.description, "Furvise keeps your pet's questions, changes, routines, and history connected over time.");
   assert.deepEqual(
     manifest.icons.map((icon) => icon.src),
     ["/favicon.ico", "/android-192.png", "/android-512.png", "/maskable-icon-512.png"],
@@ -103,12 +103,12 @@ test("manifest and metadata use only existing approved Furvise brand assets", ()
   assert.equal(existsSync(path.join(root, "public/favicon.svg")), false);
   assert.match(layout, /\/favicon\.ico/);
   assert.match(layout, /favicon-16\.png[\s\S]*favicon-32\.png[\s\S]*apple-touch-icon\.png/);
-  assert.match(seo, /\/brand\/furvise-logo\.svg/);
-  assert.doesNotMatch(seo, /furvise-og/);
+  assert.match(seo, /\/brand\/furvise-social\.png/);
 
   for (const asset of [
     "app/favicon.ico",
     "public/brand/furvise-logo.svg",
+    "public/brand/furvise-social.png",
     "public/brand/furvise-wordmark.svg",
     "public/brand/furvise-heron.svg",
     "public/favicon-16.png",
@@ -153,6 +153,8 @@ test("private app routes use shared noindex metadata", () => {
     "results",
     "shop",
     "update-password",
+    "vet-brief",
+    "vet-briefs",
   ]) {
     const layout = read(`app/${route}/layout.tsx`);
     assert.match(layout, /createPrivatePageMetadata/);
@@ -169,5 +171,6 @@ test("home JSON-LD is limited to WebSite and Organization", () => {
   assert.match(page, /"@type": "WebSite"/);
   assert.match(page, /"@type": "Organization"/);
   assert.match(page, /brand\/furvise-logo\.svg/);
+  assert.match(page, /description: ORGANIZATION_DESCRIPTION/);
   assert.doesNotMatch(page, /MedicalBusiness|VeterinaryCare|AggregateRating|Review|Offer/);
 });

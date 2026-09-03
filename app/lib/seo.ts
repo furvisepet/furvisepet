@@ -3,12 +3,17 @@ import type { Metadata } from "next";
 // Keep canonical domain consistent with Vercel domain redirect settings and Google Search Console property.
 export const CANONICAL_ORIGIN = "https://www.furvise.com";
 
-export const HOME_TITLE = "Furvise | Remember What Matters";
+export const HOME_TITLE = "Furvise | Your Pet's Story, Understood Over Time";
 export const HOME_DESCRIPTION =
-  "Furvise keeps questions, care updates, and history connected to each pet so you do not start from zero.";
+  "Furvise keeps your pet's questions, changes, routines, and history connected over time, so what happened before can inform what matters now.";
 export const SOCIAL_DESCRIPTION =
-  "Furvise remembers your pet by keeping questions, care updates, and history together over time.";
-export const FURVISE_OG_IMAGE_URL = `${CANONICAL_ORIGIN}/brand/furvise-logo.svg`;
+  "An AI that follows your pet's story, not just the latest question. Furvise keeps important context connected over time.";
+export const ORGANIZATION_DESCRIPTION =
+  "Furvise is a pet-care intelligence service that keeps each pet's questions, changes, routines, and history connected over time.";
+export const FURVISE_OG_IMAGE_PATH = "/brand/furvise-social.png";
+export const FURVISE_OG_IMAGE_URL = `${CANONICAL_ORIGIN}${FURVISE_OG_IMAGE_PATH}`;
+export const FURVISE_OG_IMAGE_ALT =
+  "Furvise logo with the words Remember what matters and Your pet's story, understood over time";
 
 export const PRIVATE_PAGE_ROBOTS: NonNullable<Metadata["robots"]> = {
   index: false,
@@ -31,10 +36,12 @@ export function canonicalUrl(path = "/") {
 export function createPublicPageMetadata({
   description,
   path,
+  socialDescription = description,
   title,
 }: {
   description: string;
   path: string;
+  socialDescription?: string;
   title: string;
 }): Metadata {
   const url = canonicalUrl(path);
@@ -45,23 +52,23 @@ export function createPublicPageMetadata({
     alternates: { canonical: url },
     openGraph: {
       title,
-      description,
+      description: socialDescription,
       url,
       siteName: "Furvise",
       type: "website",
       images: [
         {
           url: FURVISE_OG_IMAGE_URL,
-          width: 3200,
-          height: 800,
-          alt: "Furvise keeps each pet's questions, care updates, and history together over time",
+          width: 1200,
+          height: 630,
+          alt: FURVISE_OG_IMAGE_ALT,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description,
+      description: socialDescription,
       images: [FURVISE_OG_IMAGE_URL],
     },
     robots: {
