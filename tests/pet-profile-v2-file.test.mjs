@@ -65,11 +65,13 @@ test("unknown and missing facts are omitted without filler", () => {
   assert.doesNotMatch(page, /Unknown|Not recorded|N\/A|Not much saved yet|Add the basics/);
 });
 
-test("the profile has one Edit action and no duplicated feature workflows", () => {
+test("the profile keeps Edit plus one pet-scoped Vet Brief workflow", () => {
   assert.equal((page.match(/EDIT PET/g) || []).length, 1);
-  assert.match(page, /href=\{`\/pets\/\$\{encodeURIComponent\(profile\.id\)\}\/edit`\}/);
+  assert.equal((page.match(/VET BRIEF/g) || []).length, 1);
+  assert.match(page, /const petId = encodeURIComponent\(profile\.id\)/);
+  assert.match(page, /href=\{`\/pets\/\$\{petId\}\/edit`\}/);
+  assert.match(page, /href=\{`\/vet-brief\?pet=\$\{petId\}&source=pet-profile`\}/);
   for (const removedSurface of [
-    "VET BRIEF",
     "Ask Furvise",
     "Add update",
     "Recent updates",

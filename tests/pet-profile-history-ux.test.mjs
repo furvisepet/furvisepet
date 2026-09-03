@@ -32,10 +32,13 @@ test("pet subtitle omits unknown values and keeps separators correct", () => {
   assert.equal(formatPetProfileSubtitle(profile({ age_value: null, breed: null, species: null, weight_value: null })), "");
 });
 
-test("pet profile uses the canonical Pets page orientation and omits deficit copy", () => {
+test("pet profile uses the canonical Pets page orientation and shared accessible actions", () => {
   const page = read("app/pets/[id]/page.tsx");
+  const primitives = read("app/components/product-primitives.tsx");
   assert.match(page, /<PageHeader[\s\S]*eyebrow="PETS"/);
-  assert.match(page, /min-h-11[\s\S]*focus-visible:ring-2/);
+  assert.match(page, /<SecondaryButton[\s\S]*EDIT PET<\/SecondaryButton>/);
+  assert.match(page, /<PrimaryButton[\s\S]*VET BRIEF<\/PrimaryButton>/);
+  assert.match(primitives, /buttonBaseClasses[\s\S]*min-h-12[\s\S]*focus-visible:outline-none/);
   assert.doesNotMatch(page, /Back to pets|Breed unknown|Weight unknown|Not provided|Limited context/);
 });
 

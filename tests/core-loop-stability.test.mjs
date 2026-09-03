@@ -36,13 +36,15 @@ test("results shows a friendly error for a missing or unauthorized route profile
   assert.match(source, /\{loadError\}/);
 });
 
-test("pet profile is a single authorized facts surface", () => {
+test("pet profile is a single authorized facts surface with a Vet Brief handoff", () => {
   const source = read("app/pets/[id]/page.tsx");
 
   assert.match(source, /loadDogProfileForUser\(params\.id, user\)/);
   assert.match(source, /buildPetProfileFactRows\(profile\)/);
-  assert.match(source, /href=\{`\/pets\/\$\{encodeURIComponent\(profile\.id\)\}\/edit`\}/);
-  assert.doesNotMatch(source, /loadCanonicalRememberedDetailsForUser|listRecentCareEntriesForPet|\/vet-brief\?|\/today\?pet=|\/ask\?pet=|\/results\?|\/shop\?petId=|Products for/);
+  assert.match(source, /const petId = encodeURIComponent\(profile\.id\)/);
+  assert.match(source, /href=\{`\/pets\/\$\{petId\}\/edit`\}/);
+  assert.match(source, /href=\{`\/vet-brief\?pet=\$\{petId\}&source=pet-profile`\}/);
+  assert.doesNotMatch(source, /loadCanonicalRememberedDetailsForUser|listRecentCareEntriesForPet|\/today\?pet=|\/ask\?pet=|\/results\?|\/shop\?petId=|Products for/);
 });
 
 test("core Supabase migration enforces ownership RLS for profiles, care, memories, and feedback", () => {
