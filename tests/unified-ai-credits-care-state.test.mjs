@@ -360,7 +360,7 @@ test("suggestion actions are state-only and never touch the AI ledger", () => {
 test("Ask reserves before generation and completes only after a saved assistant answer", () => {
   const reserve = askRoute.indexOf("await reserveAiCredit({");
   const generation = askRoute.indexOf("runFurviseIntelligence", reserve);
-  const assistantInsert = askRoute.indexOf('.from("ask_conversation_messages")', askRoute.indexOf("async function persistAssistantAnswer"));
+  const assistantInsert = askRoute.indexOf("completeAskConversationTurn({", askRoute.indexOf("async function persistAssistantAnswer"));
   const complete = askRoute.indexOf("completeAiCredit", assistantInsert);
   assert.ok(reserve > -1 && reserve < generation);
   assert.ok(assistantInsert > generation && assistantInsert < complete);

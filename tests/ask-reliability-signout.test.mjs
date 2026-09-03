@@ -95,7 +95,7 @@ test("Ask API verifies pet ownership and persists the user message before genera
 
 test("assistant persistence failure releases credit and returns a retryable saved-question error", () => {
   const persistence = route.slice(route.indexOf("async function persistAssistantAnswer"), route.indexOf("async function persistPendingSuggestion"));
-  assert.match(persistence, /persist_assistant_message[\s\S]*safeReleaseAiCredit[\s\S]*askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503/);
+  assert.match(persistence, /completeAskConversationTurn\([\s\S]*safeReleaseAiCredit[\s\S]*askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503/);
   assert.match(persistence, /persistence_failed[\s\S]*safeReleaseAiCredit[\s\S]*askFailure\("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503/);
   assert.doesNotMatch(persistence.slice(0, persistence.indexOf('logAskStage("assistant message persisted"')), /completeAiCredit/);
 });

@@ -120,6 +120,12 @@ import {
   type PendingLifecycleTurnResolution,
 } from "../../lib/ai/pending-lifecycle.ts";
 import { getPetLifecycleStatus } from "../../lib/pet-lifecycle.ts";
+import {
+  beginAskConversationTurn,
+  completeAskConversationTurn,
+  finalizeAskAssistantResponse,
+  updateAskAssistantResponse,
+} from "../../lib/ask-conversation-authority.ts";
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/ask-errors.ts";
 
@@ -242,7 +248,7 @@ export async function POST(request: Request) {
     return askFailure("INVALID_MESSAGE", "Choose a pet before asking Furvise.", 400, {}, "request_validation");
   }
 
-  const profileQuery = supabase.from("dog_profiles").select("*").eq("user_id", userId);
+  const profileQuery = supabase.from("dog_profiles").select("*").eq("user_id", userId).neq("lifecycle_status", "archived");
   const { data: profiles, error: profileError } =
     petId === "all"
       ? await profileQuery.returns<DogProfileRow[]>()
@@ -1446,7 +1452,6 @@ async function ensureConversationAndUserMessage({
   userId: string;
 }): Promise<PreparedAskRequest> {
   let activeConversationId = conversationId;
-  let createdConversation = false;
 
   if (activeConversationId) {
     const { data, error } = await supabase
@@ -1459,68 +1464,38 @@ async function ensureConversationAndUserMessage({
     if (error) throw new AskApiError("DATABASE_ERROR", "Furvise could not open this conversation.", 503, "conversation_find", error);
     if (!data) throw new AskApiError("PET_NOT_FOUND", "That conversation is not available for this pet.", 404, "conversation_find");
     logAskStage("conversation found", { requestId });
-  } else {
-    const now = new Date().toISOString();
-    const { data, error } = await supabase
-      .from("ask_conversations")
-      .insert({
-        last_activity_at: now,
-        pet_profile_id: petId,
-        preview: question.slice(0, 220),
-        status: "active",
-        title: deriveConversationTitle(question, petName),
-        user_id: userId,
-      })
-      .select("id")
-      .single<{ id: string }>();
-    if (error || !data) throw new AskApiError("DATABASE_ERROR", "Furvise could not start this conversation.", 503, "conversation_create", error);
-    activeConversationId = data.id;
-    createdConversation = true;
-    logAskStage("conversation created", { requestId });
   }
 
-  const { data: lastMessage, error: sequenceError } = await supabase
-    .from("ask_conversation_messages")
-    .select("sequence_number")
-    .eq("conversation_id", activeConversationId)
-    .eq("user_id", userId)
-    .order("sequence_number", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ sequence_number: number }>();
-  if (sequenceError) {
-    if (createdConversation) await deleteEmptyConversation(supabase, activeConversationId, userId);
-    throw new AskApiError("DATABASE_ERROR", "Furvise could not save this conversation.", 503, "persist_user_message", sequenceError);
-  }
-
-  const sequence = (lastMessage?.sequence_number || 0) + 1;
-  const { data: userMessage, error: userMessageError } = await supabase
-    .from("ask_conversation_messages")
-    .insert({
-      conversation_id: activeConversationId,
-      request_id: requestId,
-      role: "user",
-      sequence_number: sequence,
-      user_id: userId,
-      user_text: question,
-    })
-    .select("id, sequence_number")
-    .single<{ id: string; sequence_number: number }>();
-
-  if (userMessageError || !userMessage) {
+  const { data, error } = await beginAskConversationTurn({
+    conversationId: activeConversationId || null,
+    petId,
+    preview: question.slice(0, 220),
+    requestId,
+    title: deriveConversationTitle(question, petName),
+    userId,
+    userText: question,
+  });
+  const prepared = Array.isArray(data) && data.length === 1 ? data[0] as Record<string, unknown> : null;
+  if (error || !prepared || typeof prepared.conversation_id !== "string"
+    || typeof prepared.user_message_id !== "string" || !Number.isInteger(prepared.user_sequence_number)) {
     const replay = await loadPersistedRequest({ petId, requestId, supabase, userId });
     if (replay) {
-      if (createdConversation && replay.conversationId !== activeConversationId) {
-        await deleteEmptyConversation(supabase, activeConversationId, userId);
-      }
       logAskStage("user message reused", { requestId });
       return replay;
     }
-    if (createdConversation) await deleteEmptyConversation(supabase, activeConversationId, userId);
-    throw new AskApiError("DATABASE_ERROR", "Furvise could not save this conversation.", 503, "persist_user_message", userMessageError);
+    throw new AskApiError("DATABASE_ERROR", activeConversationId
+      ? "Furvise could not save this conversation."
+      : "Furvise could not start this conversation.", 503, activeConversationId ? "persist_user_message" : "conversation_create", error);
   }
 
+  activeConversationId = prepared.conversation_id;
+  if (!conversationId) logAskStage("conversation created", { requestId });
   logAskStage("user message persisted", { requestId });
-  return { conversationId: activeConversationId, userMessageId: userMessage.id, userSequence: userMessage.sequence_number };
+  return {
+    conversationId: activeConversationId,
+    userMessageId: prepared.user_message_id,
+    userSequence: prepared.user_sequence_number as number,
+  };
 }
 
 async function persistAssistantAnswer({
@@ -1601,42 +1576,21 @@ async function persistAssistantAnswer({
     turnLifecycle.optionalFailure(component);
     logAskServerError(`optional_${component}`, error, { conversationId, petId, requestId }, 200);
   };
-  const { data: lastMessage, error: sequenceError } = await supabase
-    .from("ask_conversation_messages")
-    .select("sequence_number")
-    .eq("conversation_id", conversationId)
-    .eq("user_id", userId)
-    .order("sequence_number", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ sequence_number: number }>();
-  if (sequenceError) {
-    logAskServerError("persist_assistant_message", sequenceError, { requestId }, 200);
-    const released = creditReserved
-      ? await safeReleaseAiCredit({ logicalRequestId: requestId, payloadHash, requestId: creditRequestId, userId })
-      : false;
-    turnLifecycle.credit(creditReserved ? released ? "released" : "release_pending" : "not_required");
-    if (creditReserved) turnLifecycle.settlement("release", released ? "reconciled" : "pending");
-    turnLifecycle.fail("assistant_persistence", true);
-    emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
-    return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "persist_assistant_message");
-  }
-
-  let { data: assistantMessage, error: messageError } = await supabase
-    .from("ask_conversation_messages")
-    .insert({
-      context_used: contextUsed,
-      conversation_id: conversationId,
-      request_id: requestId,
-      response_data: responseWithTurn,
-      intelligence_validation: intelligenceResult?.answerValidation || null,
-      persistence_governance: persistenceGovernance,
-      role: "furvise",
-      save_metadata: saveMetadata,
-      sequence_number: (lastMessage?.sequence_number || preparedRequest.userSequence) + 1,
-      user_id: userId,
-    })
-    .select("id")
-    .single<{ id: string }>();
+  let completion = await completeAskConversationTurn({
+    contextUsed,
+    conversationId,
+    intelligenceValidation: intelligenceResult?.answerValidation || null,
+    persistenceGovernance,
+    preview: response.directAnswer.slice(0, 220),
+    requestId,
+    responseData: responseWithTurn,
+    saveMetadata,
+    userId,
+    userMessageId,
+  });
+  let completionRow = validAssistantCompletionRow(completion.data);
+  let assistantMessage = completionRow ? { id: completionRow.assistant_message_id } : null;
+  let messageError = completion.error;
 
   if (messageError || !assistantMessage) {
     const existing = await loadPersistedRequestByConversation({ conversationId, requestId, supabase, userId });
@@ -1656,24 +1610,21 @@ async function persistAssistantAnswer({
       return completedResponseFromPersisted(existing, replayUsage);
     }
     logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
-    const retryResult = await supabase
-      .from("ask_conversation_messages")
-      .insert({
-        context_used: contextUsed,
-        conversation_id: conversationId,
-        request_id: requestId,
-        response_data: responseWithTurn,
-        intelligence_validation: intelligenceResult?.answerValidation || null,
-        persistence_governance: persistenceGovernance,
-        role: "furvise",
-        save_metadata: saveMetadata,
-        sequence_number: (lastMessage?.sequence_number || preparedRequest.userSequence) + 1,
-        user_id: userId,
-      })
-      .select("id")
-      .single<{ id: string }>();
-    assistantMessage = retryResult.data;
-    messageError = retryResult.error;
+    completion = await completeAskConversationTurn({
+      contextUsed,
+      conversationId,
+      intelligenceValidation: intelligenceResult?.answerValidation || null,
+      persistenceGovernance,
+      preview: response.directAnswer.slice(0, 220),
+      requestId,
+      responseData: responseWithTurn,
+      saveMetadata,
+      userId,
+      userMessageId,
+    });
+    completionRow = validAssistantCompletionRow(completion.data);
+    assistantMessage = completionRow ? { id: completionRow.assistant_message_id } : null;
+    messageError = completion.error;
     if (!assistantMessage || messageError) {
       logAskServerError("persistence_failed", messageError, { conversationId, requestId }, 200);
       const released = creditReserved
@@ -1690,8 +1641,8 @@ async function persistAssistantAnswer({
   logAskStage("assistant message persisted", { requestId });
   turnLifecycle.transition("ANSWER_PERSISTED");
 
-  // Persist immutable server authority before exposing any display action ids. The
-  // row below is intentionally presentation-only and can safely be tenant-writable.
+  // Persist immutable capability authority before exposing display action ids.
+  // The presentation row remains non-executable and is updated only by the API.
   const proposedActions = parseStoredApplicationActions(response.applicationActions);
   if (proposedActions.length) {
     try {
@@ -1705,15 +1656,14 @@ async function persistAssistantAnswer({
       });
       response = { ...response, applicationActions: capabilityActions };
       responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
-      const persisted = await supabase.from("ask_conversation_messages").update({ response_data: responseWithTurn })
-        .eq("id", assistantMessage.id).eq("user_id", userId).select("id").maybeSingle<{ id: string }>();
-      if (persisted.error || !persisted.data) throw new Error("ACTION_CAPABILITY_PRESENTATION_UPDATE_FAILED");
+      const persisted = await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
+      if (persisted.error || persisted.data !== true) throw new Error("ACTION_CAPABILITY_PRESENTATION_UPDATE_FAILED");
     } catch (error) {
       // Fail closed: a response-data proposal is never executable without its capability.
       const unavailableActions = proposedActions.map((action) => ({ ...action, status: "failed" as const, resultMessage: null, errorMessage: "That action could not be prepared safely." }));
       response = { ...response, applicationActions: unavailableActions };
       responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
-      await supabase.from("ask_conversation_messages").update({ response_data: responseWithTurn }).eq("id", assistantMessage.id).eq("user_id", userId);
+      await updateAskAssistantResponse({ messageId: assistantMessage.id, responseData: responseWithTurn, userId });
       logAskServerError("action_capability_creation", error, { conversationId, petId, requestId }, 200);
     }
   }
@@ -1751,19 +1701,6 @@ async function persistAssistantAnswer({
       onFailure: optionalFailure,
     });
   }
-
-  await runOptionalAskSubsystem({
-    component: "conversation_metadata",
-    fallback: null,
-    operation: async () => {
-      const { error } = await supabase.from("ask_conversations")
-        .update({ last_activity_at: new Date().toISOString(), preview: response.directAnswer.slice(0, 220) })
-        .eq("id", conversationId).eq("user_id", userId);
-      if (error) throw error;
-      return null;
-    },
-    onFailure: optionalFailure,
-  });
 
   let intelligencePersistence: IntelligencePersistenceSummary | null = null;
   let intelligencePersistenceWarning = "";
@@ -1904,9 +1841,13 @@ async function persistAssistantAnswer({
     component: "conversation_metadata",
     fallback: null,
     operation: async () => {
-      const { error } = await supabase.from("ask_conversation_messages")
-        .update({ care_persistence: carePersistence, response_data: canonicalResponse }).eq("id", assistantMessage.id).eq("user_id", userId);
-      if (error) throw error;
+      const { data, error } = await finalizeAskAssistantResponse({
+        carePersistence,
+        messageId: assistantMessage.id,
+        responseData: canonicalResponse,
+        userId,
+      });
+      if (error || data !== true) throw error || new Error("ASK_RESPONSE_FINALIZE_FAILED");
       return null;
     },
     onFailure: optionalFailure,
@@ -2361,8 +2302,12 @@ function completedResponseFromPersisted(state: PersistedRequestState, usage: AiC
   });
 }
 
-async function deleteEmptyConversation(supabase: SupabaseClient, conversationId: string, userId: string) {
-  await supabase.from("ask_conversations").delete().eq("id", conversationId).eq("user_id", userId);
+function validAssistantCompletionRow(value: unknown): { assistant_message_id: string } | null {
+  if (!Array.isArray(value) || value.length !== 1) return null;
+  const row = value[0] as Record<string, unknown>;
+  return typeof row?.assistant_message_id === "string"
+    ? { assistant_message_id: row.assistant_message_id }
+    : null;
 }
 
 function askFailure(code: InternalAskFailureCode, message: string, status: number, extra: Record<string, unknown> = {}, debugStage = "") {

@@ -21,7 +21,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:security": "node --test tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs tests/security-phase-s2f.test.mjs tests/security-phase-s2g.test.mjs tests/security-phase-s2h.test.mjs tests/password-capability-state.test.mjs",
+    "test:security": "node --test tests/security-phase-s2a.test.mjs tests/security-phase-s2b.test.mjs tests/security-phase-s2c.test.mjs tests/security-phase-s2d.test.mjs tests/security-phase-s2e.test.mjs tests/security-phase-s2f.test.mjs tests/security-phase-s2g.test.mjs tests/security-phase-s2h.test.mjs tests/password-capability-state.test.mjs tests/ask-conversation-authority-lock.test.mjs",
     "test": "node --test"
   },
   "dependencies": {
@@ -49,7 +49,7 @@
   },
   "overrides": {
     "next": {
-      "postcss": "8.5.18",
+      "postcss": "8.5.25",
       "sharp": "0.35.3"
     }
   }

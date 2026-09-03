@@ -1,6 +1,7 @@
 import { getAskConversationRequestContext, loadActionCapabilitiesForMessages, reconcileAskSuggestions, toConversationDetail, type AskConversationRow, type AskMessageRow, type AskSuggestionRow } from "../../../../lib/ask-conversation-server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../../../lib/security/idempotency";
+import { deleteAskConversation, renameAskConversation } from "../../../../lib/ask-conversation-authority";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const context = await getAskConversationRequestContext(request);
@@ -71,9 +72,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const gate = await beginIdempotentRateLimitedOperation({ operationType: "conversation.rename", payload: { conversationId: id, title }, policy: "CONVERSATION_WRITE", request, route: "/api/ask/conversations/[id]", supabase: context.supabase, userId: context.userId });
   if ("response" in gate) return gate.response;
   return gate.operation.execute(async () => {
-    const { data, error } = await context.supabase
-      .from("ask_conversations").update({ title }).eq("id", id).eq("user_id", context.userId).select("id").maybeSingle<{ id: string }>();
-    if (error || !data) return Response.json({ error: "That conversation could not be renamed." }, { status: 404 });
+    const { data, error } = await renameAskConversation({ conversationId: id, title, userId: context.userId });
+    if (error || data !== true) return Response.json({ error: "That conversation could not be renamed." }, { status: 404 });
     return Response.json({ title });
   });
 }
@@ -88,7 +88,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   return gate.operation.execute(async () => {
     const { data: ownedConversation } = await context.supabase.from("ask_conversations").select("id").eq("id", id).eq("user_id", context.userId).maybeSingle<{ id: string }>();
     if (!ownedConversation) return Response.json({ error: "That conversation could not be deleted." }, { status: 404 });
-    const { error } = await context.supabase.from("ask_conversations").delete().eq("id", id).eq("user_id", context.userId);
+    const { error } = await deleteAskConversation({ conversationId: id, userId: context.userId });
     if (error) return Response.json({ error: "That conversation could not be deleted." }, { status: 503 });
     return new Response(null, { status: 204 });
   });

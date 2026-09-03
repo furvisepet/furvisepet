@@ -373,7 +373,7 @@ test("provider completion, credits, and idempotent replay are tied to durable as
   assert.match(route, /finalizeAiAdmissionAfterPersistence/);
   assert.match(route, /if \(!response\.ok\)[\s\S]*failAiAdmission\([\s\S]*ASK_ANSWER_NOT_PERSISTED/);
   assert.match(route, /if \(creditReserved\) \{[\s\S]{0,260}safeReleaseAiCredit/);
-  assert.match(route, /request_id: requestId/);
+  assert.match(route, /completeAskConversationTurn\(\{[\s\S]{0,500}requestId,/);
 });
 
 test("pending lifecycle deterministic paths run before provider admission and defer all death persistence", () => {
