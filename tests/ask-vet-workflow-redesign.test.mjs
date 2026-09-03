@@ -26,7 +26,7 @@ test("Ask exposes separate new-question, history, pet-switch, and thread-open ac
 
 test("Ask persists chronological conversations with owner RLS", () => {
   const migration = read("supabase/migrations/20260724030000_add_ask_conversations.sql");
-  const authorityMigration = read("supabase/migrations/20260903100852_restrict_ask_conversation_mutation_authority.sql");
+  const authorityMigration = read("supabase/migrations/20260903203626_add_ask_conversation_service_authority.sql");
   const collection = read("app/api/ask/conversations/route.ts");
   const messages = read("app/api/ask/conversations/[id]/messages/route.ts");
   assert.match(migration, /create table if not exists public\.ask_conversations/);
