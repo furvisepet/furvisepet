@@ -64,14 +64,14 @@ test("urgent safety continues to render care-first Results UI without product co
   assert.doesNotMatch(resultsPage, /Products paused/);
 });
 
-test("privacy page includes approximate country copy", () => {
+test("privacy page limits approximate region or country to platform or network metadata", () => {
   const privacyPage = readFileSync("app/privacy/page.tsx", "utf8");
   const footer = readFileSync("app/components/app-footer.tsx", "utf8");
 
   assert.match(
     privacyPage,
-    /We detect your approximate country to show relevant regional product suggestions\. You can\s+change this anytime in account settings\./,
+    /approximate region or country when a platform or network provides it/,
   );
-  assert.doesNotMatch(privacyPage, /coordinates|postal|city|IP address/);
+  assert.doesNotMatch(privacyPage, /coordinates|postal|city|IP address|product suggestions|product country/i);
   assert.match(footer, /href="\/privacy">Privacy<\/Link>/);
 });
