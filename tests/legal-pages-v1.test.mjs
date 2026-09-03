@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const hash = (path) => createHash("sha256").update(read(path).replace(/\r\n/g, "\n")).digest("hex");
 
 const shell = read("app/components/legal-page-shell.tsx");
 const privacy = read("app/privacy/page.tsx");
@@ -10,17 +12,39 @@ const terms = read("app/terms/page.tsx");
 const legalSources = `${shell}\n${privacy}\n${terms}`;
 
 test("legal pages use a shared editorial shell with accessible reading geometry", () => {
-  assert.match(shell, /max-w-\[1120px\]/);
-  assert.match(shell, /max-w-\[820px\]/);
-  assert.match(shell, /px-5/);
+  assert.match(shell, /appPageContainer/);
+  assert.match(shell, /h-\[72px\]/);
+  assert.match(shell, /max-w-\[840px\]/);
   assert.match(shell, /min-h-11/);
   assert.match(shell, /focus-visible:ring-2/);
   assert.match(shell, /<article/);
   assert.match(shell, /<section/);
-  assert.match(shell, /<h1 className="app-page-title/);
-  assert.match(shell, /<h2 className="app-section-title/);
+  assert.match(shell, /<h1 className="[^"]*font-display/);
+  assert.match(shell, /<h2 className="[^"]*font-display/);
+  assert.match(shell, /data-legal-article=""/);
+  assert.match(shell, /font-sans/);
   assert.equal((shell.match(/<h1/g) || []).length, 1);
   assert.doesNotMatch(`${privacy}\n${terms}`, /<h1/);
+});
+
+test("legal header uses the untouched approved full lockup without BrandMark reconstruction", () => {
+  assert.match(shell, /import Image from "next\/image"/);
+  assert.match(shell, /src="\/brand\/furvise-logo\.svg"/);
+  assert.match(shell, /w-\[124px\][^\n]*sm:w-36/);
+  assert.doesNotMatch(shell, /BrandMark|furvise-wordmark|furvise-heron/);
+  assert.equal(
+    hash("public/brand/furvise-logo.svg"),
+    "15103e452559f4f29b0492a6731782ecd680992f62798be95ddc7aba544f3b00",
+  );
+  assert.equal(
+    hash("app/components/brand-mark.tsx"),
+    "ee744276b191cd34a241abd9e66bf49c2c432f88e1bbad216e441d2cf6c9f2cd",
+  );
+});
+
+test("finished legal content and metadata remain byte-for-byte unchanged", () => {
+  assert.equal(hash("app/privacy/page.tsx"), "021bb4c3b62c9c23193d3772d3729b64e1f367aca00b748cce187818baf6a24b");
+  assert.equal(hash("app/terms/page.tsx"), "40cc84ae5be56b0fa21ec4ae0c42e1e9062e6a49a0dfb364bd828f3103630351");
 });
 
 test("Privacy contains meaningful V1 data, AI, control, and contact sections", () => {
