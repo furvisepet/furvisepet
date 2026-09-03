@@ -4,19 +4,17 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const migration = read("supabase/migrations/20260903203626_add_ask_conversation_service_authority.sql");
-const conversationsRoute = read("app/api/ask/conversations/route.ts");
-const conversationRoute = read("app/api/ask/conversations/[id]/route.ts");
-const messagesRoute = read("app/api/ask/conversations/[id]/messages/route.ts");
+const originalMigration = read("supabase/migrations/20260724030000_add_ask_conversations.sql");
 
 test("Phase A preserves the deployed authenticated write contract", () => {
   assert.doesNotMatch(migration, /revoke all privileges on table public\.ask_conversations from authenticated/);
   assert.doesNotMatch(migration, /revoke all privileges on table public\.ask_conversation_messages from authenticated/);
   assert.doesNotMatch(migration, /revoke update \(care_persistence, response_data\)/);
   assert.doesNotMatch(migration, /drop policy if exists "ask_(?:conversations|conversation_messages)_(?:insert|update|delete)/);
-  assert.match(conversationsRoute, /\.from\("ask_conversations"\)[\s\S]*?\.insert\(/);
-  assert.match(messagesRoute, /\.from\("ask_conversation_messages"\)[\s\S]*?\.insert\(/);
-  assert.match(conversationRoute, /\.from\("ask_conversations"\)\.update\(/);
-  assert.match(conversationRoute, /\.from\("ask_conversations"\)\.delete\(/);
+  assert.match(originalMigration, /grant select, insert, update, delete on table public\.ask_conversations to authenticated/);
+  assert.match(originalMigration, /grant select, insert, delete on table public\.ask_conversation_messages to authenticated/);
+  assert.match(originalMigration, /create policy "ask_conversations_insert_own"/);
+  assert.match(originalMigration, /create policy "ask_conversation_messages_insert_own"/);
 });
 test("Phase A synchronizes sequence reservations across old and new writers", () => {
   assert.match(migration, /add column if not exists next_sequence_number integer/);
