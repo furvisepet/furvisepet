@@ -1,25 +1,29 @@
 import type { MetadataRoute } from "next";
 import { canonicalUrl } from "./lib/seo";
 
-const lastModified = new Date("2026-07-24T00:00:00.000Z");
+const significantUpdates = {
+  homepage: "2026-09-03",
+  privacy: "2026-09-03",
+  terms: "2026-09-03",
+} as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: canonicalUrl(),
-      lastModified,
+      lastModified: significantUpdates.homepage,
       changeFrequency: "weekly",
       priority: 1,
     },
     {
       url: canonicalUrl("/privacy"),
-      lastModified,
+      lastModified: significantUpdates.privacy,
       changeFrequency: "yearly",
       priority: 0.4,
     },
     {
       url: canonicalUrl("/terms"),
-      lastModified,
+      lastModified: significantUpdates.terms,
       changeFrequency: "yearly",
       priority: 0.4,
     },

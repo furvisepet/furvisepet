@@ -4,7 +4,7 @@ import { FREE_ASK_ALLOWANCE, PLAN_CAPABILITIES, PLUS_ASK_ALLOWANCE } from "../li
 import { createPublicPageMetadata } from "../lib/seo";
 
 const description =
-  "Read the terms for using Furvise, including account, AI guidance, membership, and veterinary-care limitations.";
+  "Read the terms for using Furvise, including accounts, AI-assisted information, membership, billing, and veterinary-care limitations.";
 
 export const metadata: Metadata = createPublicPageMetadata({
   title: "Terms of Use",

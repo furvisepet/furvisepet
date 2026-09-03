@@ -3,7 +3,7 @@ import { LegalPageHeader, LegalPageShell, LegalSection } from "../components/leg
 import { createPublicPageMetadata } from "../lib/seo";
 
 const description =
-  "Learn what information Furvise uses, how pet and account data support the service, and the controls available to you.";
+  "Learn how Furvise uses pet and account information, how that information supports the service, and the controls available to you.";
 
 export const metadata: Metadata = createPublicPageMetadata({
   title: "Privacy",
