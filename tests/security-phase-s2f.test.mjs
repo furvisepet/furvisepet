@@ -99,8 +99,10 @@ test("all paid provider entry routes claim before the provider call", () => {
 test("message, profile, care, memory, conversation, and brief inserts carry request uniqueness", () => {
   const migration = source("supabase/migrations/20260730010000_add_canonical_idempotency_operations.sql");
   for (const index of ["pet_care_entries_owner_idempotency_idx", "dog_profiles_owner_idempotency_idx", "ask_conversations_owner_idempotency_idx", "vet_visit_briefs_owner_idempotency_idx", "dog_memories_owner_idempotency_item_idx"]) assert.match(migration, new RegExp(index));
-  assert.match(source("app/api/ask/route.ts"), /request_id: requestId/);
-  assert.match(source("app/api/ask/conversations/[id]/messages/route.ts"), /request_id: gate\.operation\.key/);
+  const authority = source("app/lib/ask-conversation-authority.ts");
+  assert.match(source("app/api/ask/route.ts"), /beginAskConversationTurn\([\s\S]*?requestId,/);
+  assert.match(source("app/api/ask/conversations/[id]/messages/route.ts"), /appendAskConversationExchange\([\s\S]*?requestId: gate\.operation\.key/);
+  assert.match(authority, /p_request_id: input\.requestId/);
 });
 
 test("cleanup is dry-run by default, bounded, service-only, and excludes active financial work", () => {

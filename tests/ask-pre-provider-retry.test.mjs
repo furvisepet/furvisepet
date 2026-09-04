@@ -23,7 +23,7 @@ test("logical turn, attempt, persisted message, and financial identities are exp
   assert.match(route, /const logicalTurnId =/);
   assert.match(route, /const attemptId = deriveAskAttemptId\(logicalTurnId, idempotency\.operation\.ownerToken\)/);
   assert.match(route, /candidateKey: requestId/);
-  assert.match(route, /request_id: requestId/);
+  assert.match(route, /beginAskConversationTurn\(\{[\s\S]{0,300}requestId,/);
   assert.match(route, /requestId: creditRequestId/);
   assert.match(route, /requestId: attemptId/);
 });

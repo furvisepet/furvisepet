@@ -139,5 +139,5 @@ test("compatibility repair trusts explicit user messages and structured urgency 
 
 test("carePersistence metadata is stored with conversation messages", () => {
   assert.match(migration, /add column if not exists care_persistence jsonb/);
-  assert.match(askRoute, /care_persistence: carePersistence/);
+  assert.match(askRoute, /finalizeAskAssistantResponse\(\{[\s\S]*carePersistence,[\s\S]*responseData: canonicalResponse/);
 });
