@@ -17,12 +17,13 @@ import {
   normalizeHistorySearch,
   type HistoryWhenFilter,
 } from "../lib/history-archive";
-import { useAppDataVersion } from "../lib/navigation/app-data-freshness";
+import { markAppDataChanged, useAppDataVersion } from "../lib/navigation/app-data-freshness";
 import { formatPetDisplayName } from "../lib/petwise";
 import {
   hasAnyHistoryArchiveEntries,
   listHistoryArchivePets,
   queryHistoryArchive,
+  removeCareEntryFromHistory,
   type CareEntryWithPetName,
   type HistoryArchivePet,
 } from "../lib/supabase";
@@ -49,8 +50,19 @@ export function HistoryArchive() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState("");
   const [activeEntry, setActiveEntry] = useState<CareEntryWithPetName | null>(null);
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState("");
+  const [removalStatus, setRemovalStatus] = useState("");
   const requestId = useRef(0);
   const filterUrlInitialized = useRef(false);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const removeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const cancelRemovalRef = useRef<HTMLButtonElement | null>(null);
+  const openerRef = useRef<HTMLButtonElement | null>(null);
+  const removalStatusRef = useRef<HTMLParagraphElement | null>(null);
+  const confirmationWasOpenRef = useRef(false);
 
   const filters = useMemo(() => ({
     category: selectedCategory === "all" ? "" : selectedCategory,
@@ -110,18 +122,54 @@ export function HistoryArchive() {
   }, [search, selectedCategory, selectedPet, selectedWhen]);
 
   useEffect(() => {
+    if (!displayedEntry) {
+      confirmationWasOpenRef.current = false;
+      return;
+    }
+    const wasConfirming = confirmationWasOpenRef.current;
+    confirmationWasOpenRef.current = confirmingRemoval;
+    window.setTimeout(() => {
+      if (confirmingRemoval) cancelRemovalRef.current?.focus();
+      else if (wasConfirming) removeButtonRef.current?.focus();
+      else closeButtonRef.current?.focus();
+    }, 0);
+  }, [confirmingRemoval, displayedEntry]);
+
+  useEffect(() => {
     if (!displayedEntry) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Tab") {
+        const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])') || []);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+      if (event.key !== "Escape" || removing) return;
+      if (confirmingRemoval) {
+        setConfirmingRemoval(false);
+        setRemoveError("");
+        return;
+      }
       setActiveEntry(null);
-      const params = new URLSearchParams(window.location.search);
-      params.delete("entry");
-      const query = params.toString();
-      window.history.replaceState(null, "", query ? `/history?${query}` : "/history");
+      removeHistoryEntrySearchParameter();
+      window.setTimeout(() => openerRef.current?.focus(), 0);
     };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [displayedEntry]);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [confirmingRemoval, displayedEntry, removing]);
 
   async function loadOlder() {
     if (loadingOlder || !hasMore) return;
@@ -146,19 +194,60 @@ export function HistoryArchive() {
     setSelectedWhen("all");
   }
 
-  function openEntry(entry: CareEntryWithPetName) {
+  function openEntry(entry: CareEntryWithPetName, opener: HTMLButtonElement) {
+    openerRef.current = opener;
     setActiveEntry(entry);
+    setConfirmingRemoval(false);
+    setRemoveError("");
+    setRemovalStatus("");
     const params = new URLSearchParams(window.location.search);
     params.set("entry", entry.id);
     window.history.replaceState(null, "", `/history?${params.toString()}`);
   }
 
   function closeEntry() {
+    if (removing) return;
     setActiveEntry(null);
-    const params = new URLSearchParams(window.location.search);
-    params.delete("entry");
-    const query = params.toString();
-    window.history.replaceState(null, "", query ? `/history?${query}` : "/history");
+    setConfirmingRemoval(false);
+    setRemoveError("");
+    removeHistoryEntrySearchParameter();
+    window.setTimeout(() => openerRef.current?.focus(), 0);
+  }
+
+  function prepareRemoval() {
+    setConfirmingRemoval(true);
+    setRemoveError("");
+  }
+
+  function cancelRemoval() {
+    if (removing) return;
+    setConfirmingRemoval(false);
+    setRemoveError("");
+  }
+
+  async function removeFromHistory() {
+    if (!displayedEntry || removing) return;
+    const entryId = displayedEntry.id;
+    setRemoving(true);
+    setRemoveError("");
+    try {
+      await removeCareEntryFromHistory(entryId);
+      const remainingEntries = entries.filter((entry) => entry.id !== entryId);
+      setEntries(remainingEntries);
+      setNextOffset((current) => Math.max(0, current - 1));
+      if (!remainingEntries.length && !hasMore && !filtersActive) setHasAnyHistory(false);
+      setActiveEntry(null);
+      setConfirmingRemoval(false);
+      removeHistoryEntrySearchParameter();
+      setRemovalStatus("Entry removed from History. Furvise will no longer use it for current tracking.");
+      markAppDataChanged();
+      void hasAnyHistoryArchiveEntries().then(setHasAnyHistory).catch(() => null);
+      window.setTimeout(() => removalStatusRef.current?.focus(), 0);
+    } catch (removeFailure) {
+      setRemoveError(removeFailure instanceof Error ? removeFailure.message : "Furvise could not remove this entry. Please try again.");
+    } finally {
+      setRemoving(false);
+    }
   }
 
   return (
@@ -171,6 +260,7 @@ export function HistoryArchive() {
         />
 
         {error ? <Notice tone="warning">{error}</Notice> : null}
+        {removalStatus ? <p ref={removalStatusRef} className="mb-6 border-y border-[var(--line)] py-3 text-sm leading-6 text-[var(--text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" role="status" tabIndex={-1}>{removalStatus}</p> : null}
 
         {hasAnyHistory ? (
           <section aria-label="Search and filter History" className="border-y border-[var(--line)] py-6">
@@ -211,15 +301,35 @@ export function HistoryArchive() {
 
       {displayedEntry ? (
         <div className="fixed inset-0 z-[var(--z-dialog)] flex items-end justify-center bg-[var(--pw-overlay)] sm:items-center sm:p-5" role="presentation">
-          <section aria-labelledby="history-entry-title" aria-modal="true" className="w-full border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-6 shadow-[var(--shadow-floating)] sm:max-w-xl sm:rounded-[var(--radius-md)]" role="dialog">
+          <section aria-labelledby={confirmingRemoval ? "history-remove-title" : "history-entry-title"} aria-modal="true" className="max-h-[100dvh] w-full overflow-y-auto border border-[var(--border-subtle)] bg-[var(--surface-overlay)] p-6 shadow-[var(--shadow-floating)] sm:max-h-[90dvh] sm:max-w-xl sm:rounded-[var(--radius-md)]" ref={dialogRef} role="dialog">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm text-[var(--text-secondary)]">{formatHistoryTimestamp(displayedEntry.occurred_at)} · {formatPetDisplayName(displayedEntry.pet_name)} · {formatCareEntryCategory(displayedEntry.category)}</p>
                 <h2 className="sr-only" id="history-entry-title">History entry details</h2>
               </div>
-              <button aria-label="Close history entry" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] text-xl" onClick={closeEntry} type="button">×</button>
+              <button ref={closeButtonRef} aria-label="Close history entry" className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] text-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" disabled={removing} onClick={closeEntry} type="button">×</button>
             </div>
-            <p className="mt-5 whitespace-pre-wrap text-lg leading-8 text-[var(--text-primary)]">{displayedEntry.note}</p>
+            {!confirmingRemoval ? (
+              <>
+                <p className="mt-5 whitespace-pre-wrap text-lg leading-8 text-[var(--text-primary)]">{displayedEntry.note}</p>
+                <div className="mt-8 border-t border-[var(--line)] pt-6">
+                  <button ref={removeButtonRef} className="inline-flex min-h-12 items-center rounded-[var(--radius-sm)] border border-[var(--danger-text)] px-5 text-sm font-semibold text-[var(--danger-text)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={prepareRemoval} type="button">Remove from history</button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-7 border-y border-[var(--line)] py-7" data-ui="history-remove-confirmation">
+                <p className="app-page-eyebrow text-[var(--danger-text)]">REMOVE FROM HISTORY</p>
+                <h2 className="mt-2 text-xl font-semibold text-[var(--text-primary)]" id="history-remove-title">Remove this entry from History?</h2>
+                <p className="mt-3 leading-7 text-[var(--text-secondary)]">Furvise will stop using this entry as part of current tracking. The entry will be removed from History, while limited provenance records may be retained. This cannot be undone from the app.</p>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                  <button aria-busy={removing || undefined} className="inline-flex min-h-12 w-full items-center justify-center rounded-[var(--radius-sm)] border border-[var(--danger-text)] px-5 text-sm font-semibold text-[var(--danger-text)] hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:border-[var(--border-subtle)] disabled:text-[var(--disabled-text)] sm:w-auto" disabled={removing} onClick={() => void removeFromHistory()} type="button">{removing ? "Removing..." : "Remove from history"}</button>
+                  <button ref={cancelRemovalRef} className="inline-flex min-h-12 w-full items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-default)] px-5 text-sm font-semibold text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed sm:w-auto" disabled={removing} onClick={cancelRemoval} type="button">Cancel</button>
+                </div>
+                <div aria-live="assertive">
+                  {removeError ? <p className="mt-5 border-y border-[var(--danger-text)] py-3 text-sm leading-6 text-[var(--danger-text)]" role="alert">{removeError}</p> : null}
+                </div>
+              </div>
+            )}
           </section>
         </div>
       ) : null}
@@ -231,7 +341,7 @@ function HistorySelect({ children, label, onChange, value }: { children: React.R
   return <label><span className="mb-2 block text-xs font-semibold tracking-[0.08em] text-[var(--text-secondary)]">{label}</span><select className={controlClass} onChange={(event) => onChange(event.target.value)} value={value}>{children}</select></label>;
 }
 
-function HistoryResults({ entries, onOpen }: { entries: CareEntryWithPetName[]; onOpen: (entry: CareEntryWithPetName) => void }) {
+function HistoryResults({ entries, onOpen }: { entries: CareEntryWithPetName[]; onOpen: (entry: CareEntryWithPetName, opener: HTMLButtonElement) => void }) {
   return (
     <section aria-labelledby="history-results-title" className="mt-12">
       <h2 className="sr-only" id="history-results-title">History results</h2>
@@ -240,11 +350,11 @@ function HistoryResults({ entries, onOpen }: { entries: CareEntryWithPetName[]; 
           <span>WHEN</span><span>PET</span><span>WHAT HAPPENED</span><span>CATEGORY</span>
         </div>
         <div className="divide-y divide-[var(--line)]">
-          {entries.map((entry) => <button className="grid min-h-20 w-full grid-cols-[12rem_10rem_minmax(0,1fr)_9rem] items-center gap-5 py-4 text-left hover:bg-[var(--surface-hover)]" key={entry.id} onClick={() => onOpen(entry)} type="button"><span className="text-sm text-[var(--text-secondary)]">{formatHistoryTimestamp(entry.occurred_at)}</span><span className="truncate text-sm text-[var(--text-secondary)]">{formatPetDisplayName(entry.pet_name)}</span><span className="min-w-0 break-words text-base font-medium leading-6 text-[var(--text-primary)]">{entry.note}</span><span className="text-sm text-[var(--text-secondary)]">{formatCareEntryCategory(entry.category)}</span></button>)}
+          {entries.map((entry) => <button className="grid min-h-20 w-full grid-cols-[12rem_10rem_minmax(0,1fr)_9rem] items-center gap-5 py-4 text-left hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" key={entry.id} onClick={(event) => onOpen(entry, event.currentTarget)} type="button"><span className="text-sm text-[var(--text-secondary)]">{formatHistoryTimestamp(entry.occurred_at)}</span><span className="truncate text-sm text-[var(--text-secondary)]">{formatPetDisplayName(entry.pet_name)}</span><span className="min-w-0 break-words text-base font-medium leading-6 text-[var(--text-primary)]">{entry.note}</span><span className="text-sm text-[var(--text-secondary)]">{formatCareEntryCategory(entry.category)}</span></button>)}
         </div>
       </div>
       <div className="divide-y divide-[var(--line)] border-y border-[var(--line)] md:hidden" data-ui="history-mobile-results">
-        {entries.map((entry) => <button className="block min-h-20 w-full py-5 text-left" key={entry.id} onClick={() => onOpen(entry)} type="button"><span className="block text-sm leading-6 text-[var(--text-secondary)]">{formatHistoryTimestamp(entry.occurred_at)} · {formatPetDisplayName(entry.pet_name)} · {formatCareEntryCategory(entry.category)}</span><span className="mt-1 block break-words text-base font-medium leading-7 text-[var(--text-primary)]">{entry.note}</span></button>)}
+        {entries.map((entry) => <button className="block min-h-20 w-full py-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" key={entry.id} onClick={(event) => onOpen(entry, event.currentTarget)} type="button"><span className="block text-sm leading-6 text-[var(--text-secondary)]">{formatHistoryTimestamp(entry.occurred_at)} · {formatPetDisplayName(entry.pet_name)} · {formatCareEntryCategory(entry.category)}</span><span className="mt-1 block break-words text-base font-medium leading-7 text-[var(--text-primary)]">{entry.note}</span></button>)}
       </div>
     </section>
   );
@@ -257,4 +367,11 @@ function HistoryEmpty() {
 function setOrDelete(params: URLSearchParams, key: string, value: string) {
   if (value) params.set(key, value);
   else params.delete(key);
+}
+
+function removeHistoryEntrySearchParameter() {
+  const params = new URLSearchParams(window.location.search);
+  params.delete("entry");
+  const query = params.toString();
+  window.history.replaceState(null, "", query ? `/history?${query}` : "/history");
 }
