@@ -32,6 +32,15 @@ export function loadLocalPhoto(kind: LocalPhotoKind, id: string) {
   }
 }
 
+export function removeLocalPhoto(kind: LocalPhotoKind, id: string) {
+  if (!id || typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(localPhotoKey(kind, id));
+  } catch {
+    // Storage availability must not block a completed server-side deletion.
+  }
+}
+
 function localPhotoKey(kind: LocalPhotoKind, id: string) {
   return `furvise:${kind}-photo:${id}`;
 }

@@ -64,6 +64,25 @@ export function removeVetBriefClientDraft(storage: DraftStorage, scope: VetBrief
   storage.removeItem(getVetBriefDraftStorageKey(scope));
 }
 
+export function clearVetBriefClientDraftsForPet(storage: DraftStorage, userId: string, petId: string) {
+  if (!userId || !petId) return;
+  try {
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (!key?.startsWith(VET_BRIEF_DRAFT_PREFIX)) continue;
+      const raw = storage.getItem(key);
+      try {
+        const value = raw ? JSON.parse(raw) as { petId?: unknown; userId?: unknown } : null;
+        if (value?.userId === userId && value.petId === petId) storage.removeItem(key);
+      } catch {
+        // Account-boundary cleanup handles malformed drafts separately.
+      }
+    }
+  } catch {
+    // Storage denial cannot leave the deleted pet selected in server data.
+  }
+}
+
 export function enforceVetBriefDraftAccountBoundary(storage: DraftStorage, activeUserId: string | null) {
   try {
     for (let index = storage.length - 1; index >= 0; index -= 1) {

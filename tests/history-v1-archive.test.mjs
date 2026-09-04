@@ -14,7 +14,7 @@ const data = read("app/lib/supabase.ts");
 const header = read("app/components/app-header.tsx");
 const accountUtility = read("app/components/account-utility.tsx");
 
-test("global History is a read-only archive without duplicated product jobs", () => {
+test("global History remains an archive without duplicated creation product jobs", () => {
   assert.match(archive, /HISTORY/);
   assert.match(archive, /Find something you've saved\./);
   assert.match(archive, /Search across your pets and past updates\./);
@@ -22,7 +22,8 @@ test("global History is a read-only archive without duplicated product jobs", ()
   for (const forbidden of ["Add update", "Add first update", "Ask about", "Prepare vet brief", "Prepare care summary"]) {
     assert.doesNotMatch(archive, new RegExp(forbidden, "i"));
   }
-  assert.doesNotMatch(archive, /CareEntryForm|createCareEntry|removeCareEntryFromHistory|orange/i);
+  assert.doesNotMatch(archive, /CareEntryForm|createCareEntry|orange/i);
+  assert.match(archive, /removeCareEntryFromHistory/);
 });
 
 test("search and filters are applied to the owner-scoped query before pagination", () => {
