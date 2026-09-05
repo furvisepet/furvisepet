@@ -50,6 +50,33 @@ function noWrites(run) {
 }
 const runStatus = options => exercise(question, { petId: 'luna', history: true, providerOverrides: proposals, ...options });
 
+test('status authority takes precedence over an episode result and preserves permitted read actions', async t => {
+  clock(t);
+  const run = await runStatus({ afterGeneration(reasoning) {
+    reasoning.applicationActions.push({ kind: 'care_history.query', explicitIntent: true, evidence: question,
+      input: { field: null, value: null, title: null, detail: null, category: null, target: 'selected' } });
+  } });
+  noWrites(run);
+  assert.equal(run.result.reasoning.applicationActions.length, 1);
+  assert.equal(run.result.reasoning.applicationActions[0].kind, 'care_history.query');
+  const validated = validateGeneratedAnswer(run.result.reasoning, { ...run.context,
+    episodeResult: { version: 'ask-episodes.v1', petId: 'luna', topic: 'vomiting', from: null, to: null,
+      items: [], supportedCount: 0, exactTotal: null, entryCount: 0, coverage: 'partial',
+      reasons: ['bounded_evidence_not_lifetime_total'], provenance: [], referenceStatus: 'list' } }, 'routine', ['luna']);
+  assert.equal(validated.valid, true);
+  assert.deepEqual(validated.response.answer, run.result.reasoning.answer);
+  assert.ok(validated.repairs.includes('applied_server_resolution_status'));
+  assert.ok(!validated.repairs.includes('applied_server_episode_result'));
+});
+
+test('still-hiding attribution does not invent improvement', async t => {
+  clock(t);
+  const run = await runStatus({ rows: [care('still', 'luna', '2026-08-19', 'symptom', 'Luna still hides sometimes.')] });
+  noWrites(run);
+  assert.match(run.result.reasoning.answer.summary, /August 19, 2026 note reports that hiding still happened sometimes/);
+  assert.doesNotMatch(run.result.reasoning.answer.summary, /decreased|improv/);
+});
+
 test('unchanged Luna question and August 19 partial note through actual callback; all write channels adversarial', async t => {
   clock(t);
   const run = await runStatus({ authoritativeSemanticFrame: frame, afterGeneration(reasoning) {

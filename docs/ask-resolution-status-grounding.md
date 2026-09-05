@@ -74,6 +74,67 @@ The nine lifetime failures remain: old-period selection, late unlinked correctio
 
 ## Limitations and local scope
 
-The full default repository test suite was not run: it includes socket-based cleanup/diagnostic tests and environment-file fixtures, outside this task's no-network/no-credential workflow. No production build, HTTP integration, live provider, remote database, installed migration, production permission, snapshot consistency or performance claim is made.
+The preceding implementation did not run the full default repository test suite. The independent review below records both a guarded attempt and final normal full-suite validation after separately confirming the four affected tests use only local loopback servers and synthetic temporary environment files. No production build, HTTP integration, live provider, remote database, installed migration, production permission, snapshot consistency or performance claim is made.
 
-Dependencies were absent. Only the explicitly authorized local `node_modules` junction to `C:/Users/gwara/furvise-ask-episode-count-references/node_modules` was created. No dependencies were installed, and that target was not edited. Only approved source/test/documentation paths were changed. No credentials, external services, migrations, commits, pushes, merges or deployments were used, and no agents were spawned.
+Dependencies were absent. Only the explicitly authorized local `node_modules` junction to `C:/Users/gwara/furvise-ask-episode-count-references/node_modules` was created. No dependencies were installed, and that target was not edited. Only approved source/test/documentation paths were changed. The runner created local implementation/review commits; no credentials, external services, migrations, pushes, merges or deployments were used, and no agents were spawned.
+
+
+## Independent local review — September 5, 2026
+
+This review started from clean commit `6d86877178aad981d035fb345f071865f691e290` (the preceding resolution-status repair), whose parent is `6e6555703017b8edcbba1b74a3cd54bcd2ad6356` (gap review). The classification is the earlier `87b5fb8`. These are existing queue commits, not commits created by this review. `git diff HEAD^ HEAD --stat` accounts for seven repair files: four application files, the status audit, harness and this document. `generate-ask-history.ts` and the evidence-contract audit were not changed by that commit. The working review adds only two tests in the approved status audit and this documentation; no application defect requiring a further source change was found.
+
+The first command explicitly set the requested location and `git rev-parse --show-toplevel` returned `C:/Users/gwara/furvise-runner-resolution-1/review-resolution-status/worktree`. Root AGENTS.md, both gap reports, the complete lifetime audit/fixtures/harness, and the preceding commit diff were read. The bundled `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/route.md` was also consulted. The absent dependencies were made available only through:
+
+```powershell
+New-Item -ItemType Junction -Path node_modules -Target 'C:/Users/gwara/furvise-ask-episode-count-references/node_modules'
+```
+
+No install or edit to the junction target was performed. Node reported `v24.19.0`.
+
+### Findings
+
+- Recognition is an anchored, explicit question-only grammar; matching missing/alternative subjects or topics becomes ambiguous read-only uncertainty. A resolved attribution additionally requires one owned authorized profile whose name matches the question. The narrow supported grammar and hiding-only rendering documented above remain intentional limits. Wrong-pet rows and wrong names inside same-pet rows cannot support the report. No generic forbidden-phrase filtering was introduced.
+- The actual route closure passes the resolved subject IDs and authoritative frame to `generateAskHistoryAnswer`. That callback builds the evidence contract after bounded retrieval. The generator returns the serialized contract after the 48,000-character budget removes records and records losses. Attribution uses represented whole text and its explicit observation date, not creation time, loaded-but-omitted rows, provider citations or provider coverage. Unavailable evidence yields uncertainty; even a represented dated terminal report never certifies current resolution. Recent snapshot attribution still has no correction revalidation.
+- Recall stripping precedes semantic event, care, learning and V2 governance. The supplied authoritative frame is removed along with the model frame; deterministic resolution/recurrence, explicit-history and confirmed-loss builders are bypassed for status recall. Final accepted care actions, learnings, semantic events, governance acceptances, V2 claims/relations and history offers were checked under adversarial proposals. Read/navigation actions remain permitted.
+- Persistence ordering was reviewed in the actual route: accepted arrays feed legacy persistence, and the returned V2 turn feeds `persistAskV2Phase3LowRisk`. Its selection exits before writing when no claims are accepted. Shadow fallback uses the already emptied frame and returns no accepted claims on failure. This establishes the reviewed output contract, not an executed database-persistence test. Conversation/answer storage and usage accounting are outside the clinical read-only claim.
+- Complete-answer authority runs after prose transformations and before the episode fallback. Provider title/summary/section/safety-note assertions cannot survive it. Urgent escalation and shopping suppression survive; mixed urgent observations and genuine saves remain outside status-only recall. Existing evidence-contract and episode suites retain exact source quotations, supported episode rendering, ordinal identity, subject switching and stale-reference rejection outside this scope.
+- Two added controls verify that an episode result cannot replace a status answer, a permitted care-history query survives stripping, and a plain still-hiding note does not invent improvement. The episode-precedence check explicitly supplies a complete synthetic episode-result shape directly to final validation; it does not claim the status grammar ordinarily retrieves an episode result.
+- The prior harness diff is limited to opt-in post-generation injection, authoritative-frame forwarding and explicitly bounded provider sequences. Its default one-request assertion and network block remain. `git diff HEAD^ HEAD -- scripts/audits/ask-lifetime-history.audit.mjs scripts/audits/fixtures/ask-lifetime-history.mjs` was empty. This review changes neither those files nor the harness and does not modify any existing expectation.
+
+### Fresh commands and results
+
+| Command/check | Independent result |
+| --- | --- |
+| Six audit files using the audit command above, before review additions | 170 passed, 0 failed |
+| `node --experimental-transform-types --test scripts/audits/ask-resolution-status.cases.mjs` | 42 passed, 0 failed |
+| Six audit files using the audit command above, after final additions | 172 passed, 0 failed |
+| Five unit suites using the exact network-blocked command above | 96 passed, 0 failed |
+| `node --experimental-transform-types --test scripts/audits/ask-lifetime-history.audit.mjs` | Exit 1: 17 tests, 8 passed, 9 failed; resolution assertion passed |
+| `node node_modules/typescript/bin/tsc --noEmit --incremental false` | Exit 0 |
+| `node node_modules/eslint/bin/eslint.js` | Exit 0; only the same two unused-parameter warnings in unchanged persist-learnings.ts |
+| `node node_modules/eslint/bin/eslint.js scripts/audits/ask-resolution-status.cases.mjs` | Exit 0 |
+| `git diff --check` and `git diff --check HEAD^` | Exit 0 |
+| Guarded full discovery below | Exit 1: 2,198 tests, 2,194 passed, 4 intentionally blocked by the process-local guard |
+| Normal full suite after inspecting and separately passing those four local-only tests | 2,198 passed, 0 failed |
+
+The nine lifetime failures are the same nine listed above. They remain open and were not made to pass through changed expectations. The full discovery does not discover the explicitly named status `.cases.mjs` audit; the 42/172 audit results therefore remain separate.
+
+The full suite was attempted with this exact process-local preload and command. The preload blocks real fetch/socket/HTTP operations and environment-file reads while leaving tests and assertions unchanged. It propagates through NODE_OPTIONS to child test processes. It is execution isolation, not a product change or an assertion replacement.
+
+```powershell
+$env:NODE_OPTIONS = '--import=data:text/javascript,import%20net%20from%20%27node%3Anet%27%3Bimport%20http%20from%20%27node%3Ahttp%27%3Bimport%20https%20from%20%27node%3Ahttps%27%3Bimport%20fs%20from%20%27node%3Afs%27%3Bimport%20fsp%20from%20%27node%3Afs%2Fpromises%27%3Bimport%7BsyncBuiltinESMExports%7Dfrom%27node%3Amodule%27%3Bconst%20deny%3D()%3D%3E%7Bthrow%20Error(%27LOCAL_REVIEW_NETWORK_BLOCKED%27)%7D%3BglobalThis.fetch%3Ddeny%3Bnet.Socket.prototype.connect%3Ddeny%3Bnet.Server.prototype.listen%3Ddeny%3Bhttp.request%3Ddeny%3Bhttp.get%3Ddeny%3Bhttps.request%3Ddeny%3Bhttps.get%3Ddeny%3Bfor(const%20obj%20of%5Bfs%2Cfsp%5D)for(const%20key%20of%5B%27readFile%27%2C%27readFileSync%27%2C%27open%27%2C%27openSync%27%5D)if(obj%5Bkey%5D)%7Bconst%20original%3Dobj%5Bkey%5D%3Bobj%5Bkey%5D%3Dfunction(path%2C...args)%7Bif(%2F(%3F%3A%5E%7C%5B%2F%5C%5C%5D)%5C.env(%3F%3A%24%7C%5C.(%3F!example%7Csample%7Ctemplate))%2F.test(String(path)))throw%20Error(%27LOCAL_REVIEW_ENV_FILE_BLOCKED%27)%3Breturn%20original.call(this%2Cpath%2C...args)%7D%7DsyncBuiltinESMExports()%3B'
+node --experimental-transform-types --test
+```
+
+The full run was repeated solely because initial tool-output truncation hid the aggregate, with the same preload and output captured in a PowerShell variable. The exact reporting command was:
+
+```powershell
+$reviewOutput = & node --experimental-transform-types --test 2>&1
+$reviewExit = $LASTEXITCODE
+$reviewOutput | Select-String -Pattern '^. tests ', '^. suites ', '^. pass ', '^. fail ', '^. cancelled ', '^. skipped ', '^. todo ', '^. duration_ms ', '^. failing tests:', '^test at ', '^✖', 'LOCAL_REVIEW_NETWORK_BLOCKED', 'LOCAL_REVIEW_ENV_FILE_BLOCKED' | ForEach-Object { if ($_.Line.Length -lt 500) { $_.Line } }
+Write-Output "EXIT_CODE=$reviewExit"
+```
+
+Three failures are `LOCAL_REVIEW_NETWORK_BLOCKED` at the local-server listen step: both tests in `tests/cleanup-scripts-environment.test.mjs` and the test in `tests/run-integrity-diagnostics.test.mjs`. The fourth is `tests/validate-production-environment.test.mjs`, whose child script could not read its synthetic environment file (`LOCAL_REVIEW_ENV_FILE_BLOCKED`). Those failures do not demonstrate a resolution-status regression, and that guarded run alone did not constitute passing full validation. The later normal run in the results table completed all tests. No socket was opened by the guarded tests and no credential file was read.
+
+**Review status: complete for the bounded local repair.** After confirming the four guarded failures use only local loopback servers and synthetic temporary environment files, those four tests passed separately and the normal full suite passed all 2,198 tests. The nine independently known lifetime gaps remain reported without weakening tests. No HTTP route/integration, live-provider or production-DB test was performed. No external provider/network service, remote DB, credentials, migrations, pushes, merges, deployment, dependency installation or additional agents were used. No other worktree was edited.
