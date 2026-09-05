@@ -19,11 +19,18 @@ export type EpisodeResult = {
   reasons: string[]; provenance: HistoryCoverage["provenance"];
   referenceStatus: "list" | "resolved" | "stale" | "clarify";
   references?: EpisodeReferences;
+  details?: Array<{ sourceId: string; occurredAt: string; note: string }>;
 };
 export function episodeAnswer(result: EpisodeResult) {
   if (result.coverage==="unavailable") return {summary:"The episode evidence is unavailable or could not be revalidated. I can't establish a count or identify that episode; please retry.",sections:[]};
   if (result.referenceStatus==="stale") return {summary:"The episode you selected has changed, been corrected, or been removed. I haven't substituted another episode. Please request a fresh list to review the current evidence.",sections:[]};
   if (result.referenceStatus==="clarify") return {summary:"Which displayed episode do you mean? Please identify the pet and the list or approximate date. I can't safely resolve this reference from conversation wording alone.",sections:[]};
+  if (result.referenceStatus==="resolved" && result.details?.length) {
+    return {
+      summary:`Here are the recorded observations for episode ${result.items[0].ordinal} from your original list, in date order. These are reports, not proof of a cause or a current diagnosis.`,
+      sections:[{heading:"Recorded episode history",items:result.details.map(d=>`${d.occurredAt.slice(0,10)}: Recorded note: ${JSON.stringify(d.note)}`)}],
+    };
+  }
   const summary=result.referenceStatus==="resolved" ? `This is episode ${result.items[0].ordinal} from the list you were shown, with its original position preserved.`
     : `${result.supportedCount} explicitly supported ${result.topic} episode group${result.supportedCount===1 ? "" : "s"} in the available evidence. This is a supported subset, not an exact lifetime total or a complete list. Care entries and individual symptom occurrences are different units; ambiguous grouping remains unknown.`;
   return {summary,sections:result.items.length ? [{heading:"Supported episodes",items:result.items.map(i=>`Episode ${i.ordinal}: ${i.startedAt.slice(0,10)}, ${result.topic}${i.reportedOccurrences ? `; ${i.reportedOccurrences} reported occurrences within this one episode` : ""}.`)}] : []};

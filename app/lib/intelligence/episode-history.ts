@@ -19,6 +19,14 @@ const sourceVersion = (s: Source) => hash([s.id,s.user_id,s.pet_profile_id,s.tit
 export function isEpisodeFollowUp(message: string) {
   return /\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|last) (?:one|episode)\b|\bthat (?:one|episode)\b/i.test(message);
 }
+/** Counting/listing is a distinct intent; mentioning episodes is not enough. */
+export function isEpisodeListRequest(message: string) {
+  return /\bepisodes?\b/i.test(message) && (
+    /\bhow many\b/i.test(message) ||
+    /\b(?:count|number|total) (?:of )?(?:[\w-]+ ){0,4}episodes?\b/i.test(message) ||
+    /^(?:(?:please|can you|could you|would you)\s+)*(?:list|show|enumerate)\b[^?]*\bepisodes?\b/i.test(message)
+  );
+}
 function topicOf(message: string) {
   const topics = [/\b(?:vomit\w*|threw up)\b/i.test(message) ? "vomiting" : "",
     /\b(?:stool|diarrh\w*)\b/i.test(message) ? "soft stool" : "", /\bbreath\w*\b/i.test(message) ? "breathing" : ""].filter(Boolean);
@@ -50,7 +58,7 @@ function boundary(source: Source, petName: string, topic: string) {
 export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const message = context.currentMessage;
   const follow = isEpisodeFollowUp(message);
-  if ((!follow && !/\bepisodes?\b/i.test(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
+  if ((!follow && !isEpisodeListRequest(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
   const topic = topicOf(message);
   const plan = planHistoricalQuery(message);
   const result: EpisodeResult = { version: "ask-episodes.v1", petId: context.pet.id, topic: topic || "unspecified",
@@ -72,7 +80,8 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       result.topic=refs.topic; result.from=refs.from; result.to=refs.to;
     } else if (!topic || !plan) { result.referenceStatus="clarify"; result.coverage="ambiguous"; return done(); }
     const episodeIds = refs?.items.filter(i => i.id.startsWith("episode:")).map(i => i.id.slice(8));
-    const readArgs={p_pet_id:context.pet.id,p_keys:keys(result.topic),p_episode_ids:episodeIds?.length ? episodeIds : null};
+    const readArgs={p_pet_id:context.pet.id,p_keys:keys(result.topic),p_episode_ids:episodeIds?.length ? episodeIds : null,
+      p_from: refs ? null : result.from, p_to: refs ? null : result.to};
     const read = await db.rpc("read_ask_episode_sources", readArgs).abortSignal(signal());
     if (read.error || !read.data || !Array.isArray(read.data.episodes) || !Array.isArray(read.data.sources)
       || read.data.episodes.length>9 || read.data.sources.length>72) throw new Error("episode_read_unavailable");
@@ -131,6 +140,11 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
         result.referenceStatus="stale"; result.items=[]; result.supportedCount=0; return done();
       }
       result.referenceStatus="resolved"; result.items=[{...current,ordinal:selected.ordinal}]; result.supportedCount=1;
+      // Only fresh, effective members of the selected group can supply details.
+      // Keep complete notes and dates; do not infer cause or recovery from a label.
+      result.details=candidates.filter(s=>s.episode_id===selected.id.slice(8) && effectiveIds.has(s.id) && !s.deleted_at)
+        .sort((a,b)=>a.occurred_at.localeCompare(b.occurred_at)||a.id.localeCompare(b.id))
+        .map(s=>({sourceId:`care:${s.id}`,occurredAt:s.occurred_at,note:s.note}));
       result.references={...refs,selectedId:selected.id};
     } else if (context.conversationId && result.items.length) result.references={version:"ask-episodes.v1",ownerId:context.owner.userId,
       conversationId:context.conversationId,petId:context.pet.id,topic:result.topic,from:result.from,to:result.to,coverage:"partial",exactTotal:null,items:result.items,selectedId:null};

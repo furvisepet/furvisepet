@@ -53,6 +53,13 @@ do $$ declare r jsonb; begin
  if not exists(select 1 from jsonb_array_elements(r->'sources') s where s->>'content_omitted'='true' and s->'note'='null'::jsonb) then raise exception 'Oversized source accepted'; end if;
  r:=public.read_ask_episode_sources('96000000-0000-4000-8000-000000000011',array['vomiting'],array['97000000-0000-4000-8000-000000000012'::uuid]);
  if jsonb_array_length(r->'episodes')<>1 or r->'episodes'->0->>'sequence_number'<>'12' then raise exception 'Pinned old list reference reranked'; end if;
+ r:=public.read_ask_episode_sources('96000000-0000-4000-8000-000000000011',array['vomiting'],null,'2023-01-01','2024-01-01');
+ if jsonb_array_length(r->'episodes')<>1 or r->'episodes'->0->>'sequence_number'<>'12' then raise exception 'Period applied after discovery limit'; end if;
+ r:=public.read_ask_episode_sources('96000000-0000-4000-8000-000000000011',array['vomiting'],null,'2022-01-01','2023-01-01');
+ if jsonb_array_length(r->'episodes')<>1 or r->'episodes'->0->>'sequence_number'<>'11' then raise exception 'Half-open period boundary'; end if;
+ begin perform public.read_ask_episode_sources('96000000-0000-4000-8000-000000000011',array['vomiting'],null,'2023-01-01',null);raise exception 'Incomplete period accepted'; exception when invalid_parameter_value then null; end;
+ begin perform public.read_ask_episode_sources('96000000-0000-4000-8000-000000000011',array['vomiting'],null,'2024-01-01','2023-01-01');raise exception 'Reversed period accepted'; exception when invalid_parameter_value then null; end;
+ begin perform public.read_ask_episode_sources('96000000-0000-4000-8000-000000000011',array['vomiting'],null,'-infinity','infinity');raise exception 'Infinite period accepted'; exception when invalid_parameter_value then null; end;
  r:=public.read_ask_episode_references('96000000-0000-4000-8000-000000000031');
  if r->'items'->0->>'id'<>'episode:97000000-0000-4000-8000-000000000002' then raise exception 'Reference lost after reload/other turns'; end if;
  begin perform public.read_ask_episode_sources('96000000-0000-4000-8000-000000000012',array['vomiting']);raise exception 'Foreign pet accepted'; exception when insufficient_privilege then null; end;
@@ -73,7 +80,7 @@ end $$;
 reset role;
 do $$ begin
  if exists(select 1 from pg_proc where proname in ('read_ask_episode_sources','read_ask_episode_references') and prosecdef) then raise exception 'Unexpected definer authority'; end if;
- if has_function_privilege('anon','public.read_ask_episode_sources(uuid,text[],uuid[])','execute') or has_function_privilege('service_role','public.read_ask_episode_references(uuid)','execute') then raise exception 'Excess RPC grants'; end if;
+ if has_function_privilege('anon','public.read_ask_episode_sources(uuid,text[],uuid[],timestamptz,timestamptz)','execute') or has_function_privilege('service_role','public.read_ask_episode_references(uuid)','execute') then raise exception 'Excess RPC grants'; end if;
  if exists(select 1 from pg_trigger where tgrelid='public.pet_care_entries'::regclass and not tgisinternal and tgenabled<>'O') then raise exception 'Disabled care trigger'; end if;
  raise notice 'PASS RLS invoker authority, grants, timeout prerequisite, enabled triggers';
 end $$;

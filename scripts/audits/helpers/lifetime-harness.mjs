@@ -51,7 +51,8 @@ function database(rows, { messages = [], failCare = false, careEpisodes = [], gr
     if (name === 'read_ask_episode_sources') {
       queries.push({table:name,args});
       const found=careEpisodes.filter(e=>e.user_id===ownerId && e.pet_profile_id===args.p_pet_id && args.p_keys.includes(e.normalized_key)
-        && (!args.p_episode_ids || args.p_episode_ids.includes(e.id))).sort((a,b)=>a.started_at.localeCompare(b.started_at)||a.id.localeCompare(b.id)).slice(0,9);
+        && (!args.p_episode_ids || args.p_episode_ids.includes(e.id))
+        && (!args.p_from || e.started_at>=args.p_from && e.started_at<args.p_to)).sort((a,b)=>a.started_at.localeCompare(b.started_at)||a.id.localeCompare(b.id)).slice(0,9);
       const sources=found.slice(0,8).flatMap(e=>rows.filter(r=>r.episode_id===e.id && r.user_id===ownerId && r.pet_profile_id===args.p_pet_id)
         .sort((a,b)=>a.occurred_at.localeCompare(b.occurred_at)||a.created_at.localeCompare(b.created_at)||a.id.localeCompare(b.id)).slice(0,9)
         .map(r=>({...r,note:r.note.length>2000 ? null : r.note,content_omitted:r.note.length>2000})));
