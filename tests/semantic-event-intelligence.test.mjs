@@ -94,9 +94,9 @@ test("an improvement updates only a compatible active state", () => {
 test("a terminal recovery is normalized to one valid resolved transition", () => {
   const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
   const recovered = base({
-    domain: "health", topic: "vomiting", eventTitle: "Luna seems normal now",
+    domain: "health", topic: "vomiting", eventTitle: "Luna is normal now",
     transition: "improved", state: "resolved", importance: "important", confidence: 0.98,
-    sourceExcerpt: "Luna seems normal now",
+    sourceExcerpt: "Luna is normal now",
   });
   const result = governCanonicalEvents({ proposals: [recovered], message: recovered.sourceExcerpt, pet, activeEpisodes: [active] });
   assert.equal(result.rejected.length, 0);
@@ -109,9 +109,9 @@ test("a terminal recovery is normalized to one valid resolved transition", () =>
 test("a high-confidence terminal recovery assessment promotes a model improvement to resolution", () => {
   const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
   const recovered = base({
-    domain: "health", topic: "vomiting", eventTitle: "Luna seems normal now",
+    domain: "health", topic: "vomiting", eventTitle: "Luna is normal now",
     transition: "improved", state: "monitoring", importance: "important", confidence: 0.98,
-    sourceExcerpt: "Luna seems normal now",
+    sourceExcerpt: "Luna is normal now",
   });
   const result = governCanonicalEvents({
     proposals: [recovered], message: recovered.sourceExcerpt, pet, activeEpisodes: [active],
@@ -126,7 +126,7 @@ test("a high-confidence terminal recovery assessment promotes a model improvemen
 
 test("governed structural evidence promotes an under-confident model improvement", () => {
   const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
-  const message = "Mani seems normal now";
+  const message = "Luna is normal now";
   const recovered = base({
     subject: { type: "pet", name: "Luna" }, domain: "health", topic: "vomiting", eventTitle: "Vomiting improved",
     transition: "improved", state: "monitoring", importance: "important", confidence: 0.88, sourceExcerpt: message,
@@ -148,7 +148,7 @@ test("governed structural evidence promotes an under-confident model improvement
 test("terminal, partial, and uncertain recovery language follows one structural policy", () => {
   const active = episode("health", "vomiting", { status: "monitoring", linked_concern_id: "concern-vomiting" });
   for (const message of [
-    "Mani seems normal now",
+    "Luna is normal now",
     "she's back to normal",
     "the vomiting stopped and she's acting like herself",
     "he is fine now",
@@ -189,6 +189,16 @@ test("terminal, partial, and uncertain recovery language follows one structural 
     });
     assert.equal(result.accepted[0].event.transition, "improved", message);
     assert.equal(result.accepted[0].event.state, "monitoring", message);
+  }
+});
+
+test("model confidence cannot promote uncertain or differently named source recovery", () => {
+  for (const message of ["Luna seems normal now", "Mani seems normal now", "Mani is normal now"]) {
+    const active = episode("health", "vomiting");
+    const proposal = base({ domain: "health", topic: "vomiting", transition: "improved", state: "monitoring", confidence: 0.99, sourceExcerpt: message });
+    const result = governCanonicalEvents({ proposals: [proposal], message, pet, activeEpisodes: [active], allowTerminalResolution: true,
+      recoveryAssessment: recoveryAssessment("terminal", 0.99, message, "return_to_baseline", 0.99) });
+    assert.equal(result.accepted.some(({ event }) => event.transition === "resolved"), false, message);
   }
 });
 
@@ -316,7 +326,7 @@ test("terminal recovery normalization retains resolution confidence and compatib
   const active = episode("health", "vomiting", { status: "monitoring" });
   const lowConfidence = base({
     domain: "health", topic: "vomiting", transition: "improved", state: "resolved",
-    confidence: 0.94, sourceExcerpt: "Luna seems normal now",
+    confidence: 0.94, sourceExcerpt: "Luna is normal now",
   });
   const lowResult = governCanonicalEvents({ proposals: [lowConfidence], message: lowConfidence.sourceExcerpt, pet, activeEpisodes: [active] });
   assert.equal(lowResult.accepted.length, 0);

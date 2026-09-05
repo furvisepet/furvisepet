@@ -1,3 +1,5 @@
+import { splitSentencesPreservingFacts } from "./text-segmentation.ts";
+
 export type AskAnswerDepth = 0 | 1 | 2 | 3 | 4;
 
 export type AskAnswerEconomyPlan = {
@@ -214,7 +216,7 @@ function dedupeSections(sections: AskEconomyAnswer["sections"], summary: string,
     const items: string[] = [];
     for (const rawItem of section.items) {
       for (const candidate of splitCompositeBullet(canonicalizeAnswerProse(rawItem))) {
-        const item = removeRepeatedSentences(candidate, [summary, ...seenItems].join(" "));
+        const item = removeRepeatedSentences(candidate, [summary, ...seenItems]);
         if (!item || materiallyOverlaps(item, summary) || seenItems.some((seen) => materiallyOverlaps(seen, item))) continue;
         items.push(item);
         seenItems.push(item);
@@ -300,9 +302,7 @@ function bulletPurposes(value: string) {
 }
 
 function splitSentences(value: string) {
-  return (String(value || "").match(/[^.!?]+(?:[.!?]+|$)/g) || [])
-    .map(clean)
-    .filter(Boolean);
+  return splitSentencesPreservingFacts(value).map(clean).filter(Boolean);
 }
 
 function countSemanticRepetitions(answer: AskEconomyAnswer) {
@@ -315,7 +315,17 @@ function countSemanticRepetitions(answer: AskEconomyAnswer) {
 }
 
 function materiallyOverlaps(left: string, right: string) {
-  return semanticOverlapScore(left, right) >= 0.68;
+  return factAwareOverlapScore(left, right) >= 0.68;
+}
+
+function factAwareOverlapScore(left: string, right: string) {
+  const direct = factualSemanticsMatch(left, right) ? semanticOverlapScore(left, right) : 0;
+  const leftSentences = splitSentences(left);
+  const rightSentences = splitSentences(right);
+  if (leftSentences.length === 1 && rightSentences.length === 1) return direct;
+  const clauseScores = leftSentences.flatMap((leftSentence) => rightSentences.map((rightSentence) =>
+    factualSemanticsMatch(leftSentence, rightSentence) ? semanticOverlapScore(leftSentence, rightSentence) : 0));
+  return Math.max(direct, ...clauseScores);
 }
 
 function semanticOverlapScore(left: string, right: string) {
@@ -379,22 +389,71 @@ function asSentence(value: string) {
   return sentence ? `${sentence}.` : "";
 }
 
-function removeRepeatedSentences(value: string, previous: string) {
-  return (value.match(/[^.!?]+[.!?]?/g) || [value])
+function removeRepeatedSentences(value: string, previous: string | string[]) {
+  const previousSentences = (Array.isArray(previous) ? previous : [previous]).flatMap(splitSentences);
+  return splitSentences(value)
     .map(clean)
-    .filter((sentence) => sentence && !materiallyOverlaps(sentence, previous))
+    .filter((sentence) => sentence && !previousSentences.some((prior) => materiallyOverlaps(sentence, prior)))
     .join(" ");
+}
+
+function factualSemanticsMatch(left: string, right: string) {
+  const leftFacts = factualSemantics(left);
+  const rightFacts = factualSemantics(right);
+  const namesCompatible = leftFacts.namedSubjects.size === 0 || rightFacts.namedSubjects.size === 0
+    || sameSet(leftFacts.namedSubjects, rightFacts.namedSubjects);
+  const pronounsCompatible = leftFacts.pronounSubjects.size === 0 || rightFacts.pronounSubjects.size === 0
+    || sameSet(leftFacts.pronounSubjects, rightFacts.pronounSubjects);
+  const sameAnchors = sameSet(leftFacts.quantities, rightFacts.quantities)
+    && sameSet(leftFacts.dates, rightFacts.dates)
+    && namesCompatible
+    && pronounsCompatible
+    && leftFacts.negated === rightFacts.negated
+    && leftFacts.uncertain === rightFacts.uncertain;
+  if (!sameAnchors) return false;
+  const hasMultipleRelationships = [leftFacts, rightFacts].some((facts) =>
+    facts.quantities.size > 1 || facts.dates.size > 1);
+  return !hasMultipleRelationships || leftFacts.normalized === rightFacts.normalized;
+}
+
+function factualSemantics(value: string) {
+  const source = clean(value);
+  const normalized = source.toLowerCase().replace(/[’']/g, "'");
+  const quantities = new Set((normalized.match(/\b\d+(?:\.\d+)?(?:\s*(?:kg|g|mg|mcg|ml|l|lb|lbs|oz|tablet|tablets|capsule|capsules|unit|units|%))?\b/g) || [])
+    .map((item) => item.replace(/\s+/g, "")));
+  const dates = new Set((normalized.match(/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?(?:\s+\d{1,2}(?:,\s*\d{4})?)?\b|\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/g) || [])
+    .map((item) => item.replace(/\./g, "").replace(/\s+/g, " ")));
+  const pronouns = (normalized.match(/\b(?:he|her|hers|him|his|it|its|she|their|theirs|them|they)\b/g) || [])
+    .map((item) => (/^(?:he|him|his)$/.test(item) ? "male_pet"
+      : /^(?:she|her|hers)$/.test(item) ? "female_pet"
+        : /^(?:they|them|their|theirs)$/.test(item) ? "plural_pet" : "neutral_pet"));
+  const properNames = (source.match(/\b[A-Z][\p{L}'’-]{1,40}\b/gu) || [])
+    .map((item) => item.toLowerCase())
+    .filter((item) => !/^(?:a|an|and|apr|april|aug|august|avoid|call|dec|december|do|end|feb|february|his|her|in|jan|january|jul|july|jun|june|keep|mar|march|may|nov|november|oct|october|offer|on|sep|sept|september|she|he|stop|the|they|this|track|use|watch|write)$/.test(item));
+  return {
+    normalized: normalized.replace(/[^\p{L}\p{N}]+/gu, " ").trim(),
+    quantities,
+    dates,
+    namedSubjects: new Set(properNames),
+    pronounSubjects: new Set(pronouns),
+    negated: /\b(?:cannot|can't|didn't|doesn't|hasn't|isn't|never|no|not|wasn't|without|won't)\b/.test(normalized),
+    uncertain: /\b(?:appears?|could|likely|may|maybe|might|perhaps|possibly|seems?|suspect|uncertain|unsure)\b/.test(normalized),
+  };
+}
+
+function sameSet(left: Set<string>, right: Set<string>) {
+  return left.size === right.size && [...left].every((value) => right.has(value));
 }
 
 function directSectionOverlap(answer: AskEconomyAnswer) {
   const items = answer.sections.flatMap((section) => section.items);
-  return items.length ? Math.max(...items.map((item) => semanticOverlapScore(answer.summary, item))) : 0;
+  return items.length ? Math.max(...items.map((item) => factAwareOverlapScore(answer.summary, item))) : 0;
 }
 
 function sectionNoveltyRate(answer: AskEconomyAnswer) {
   const items = answer.sections.flatMap((section) => section.items);
   if (!items.length) return 1;
-  return items.filter((item) => semanticOverlapScore(answer.summary, item) < 0.68).length / items.length;
+  return items.filter((item) => factAwareOverlapScore(answer.summary, item) < 0.68).length / items.length;
 }
 
 function listMarkerMatches(value: string) {
@@ -412,7 +471,12 @@ function listMarkerMatches(value: string) {
     : [];
   return [...strong, ...lineBullets, ...inlineBullets]
     .sort((left, right) => left.index - right.index)
-    .filter((marker, index, all) => index === 0 || marker.index !== all[index - 1].index);
+    .filter((marker, index, all) => (index === 0 || marker.index !== all[index - 1].index) && !isAbbreviatedDateDayMarker(value, marker));
+}
+
+function isAbbreviatedDateDayMarker(value: string, marker: { index: number; text: string }) {
+  if (!/^\d{1,2}[.)]\s+/.test(marker.text)) return false;
+  return /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.?\s+$/i.test(value.slice(0, marker.index));
 }
 
 function markerFromMatch(match: RegExpMatchArray) {

@@ -137,5 +137,5 @@ test("refresh restores automatic and manually saved canonical state", () => {
 test("pending suggestions are deduplicated by source effect and concern", () => {
   assert.match(migration, /ai_update_suggestions_pending_effect_unique/);
   assert.match(migration, /ai_update_suggestions_pending_concern_unique/);
-  assert.match(askRoute, /pendingForConcern/);
+  assert.match(read("app/lib/intelligence/persist-pending-suggestion.ts"), /pendingForConcern/);
 });

@@ -8,6 +8,7 @@ import { semanticEventRpcArguments } from "../app/lib/intelligence/semantic-even
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const askRoute = read("app/api/ask/route.ts");
+const pendingPersistence = read("app/lib/intelligence/persist-pending-suggestion.ts");
 const askPage = read("app/ask/page.tsx");
 const suggestionRoute = read("app/api/ask/suggestions/[id]/route.ts");
 
@@ -59,9 +60,9 @@ test("Ask uses four truthful care-history states and never turns an auxiliary fa
   assert.equal(getAskCareHistoryState({ carePersistence: { status: "failed", careEntryIds: [] }, suggestion: { status: "pending" } }), "SAVE_FAILED");
   assert.match(askRoute, /historyReviewRequired \? \[\] : intelligenceResult\.acceptedSemanticEvents/);
   assert.match(askRoute, /automaticCareFailure[\s\S]*persistPendingSuggestion/);
-  assert.match(askRoute, /HISTORY_SUGGESTION_PERSISTENCE_FAILED/);
+  assert.match(pendingPersistence, /HISTORY_SUGGESTION_PERSISTENCE_FAILED/);
   assert.match(askRoute, /return successfulAnswerResponse\(/);
-  assert.doesNotMatch(askRoute.slice(askRoute.indexOf("const automaticCareFailure"), askRoute.indexOf("async function persistPendingSuggestion")), /return askFailure\(/);
+  assert.doesNotMatch(askRoute.slice(askRoute.indexOf("const automaticCareFailure"), askRoute.indexOf("async function safeReleaseAiCredit")), /return askFailure\(/);
 });
 
 test("a resolved semantic update reconciles the pending event instead of inserting a noisy duplicate", () => {
@@ -74,10 +75,10 @@ test("a resolved semantic update reconciles the pending event instead of inserti
   }) });
   assert.equal(started.payload.semanticTopic, resolved.payload.semanticTopic);
   assert.equal(resolved.title, "Save this improvement");
-  assert.match(askRoute, /\["improved", "resolved", "corrected"\]\.includes/);
-  assert.match(askRoute, /\.contains\("payload", \{ semanticDomain, semanticTopic \}\)/);
-  assert.match(askRoute, /\.update\(\{[\s\S]*source_message_id: assistantMessageId/);
-  assert.match(askRoute, /return \{ effectAlreadyPresent: false, errorCode: null, suggestion: \{ \.\.\.suggestion, id: prior\.id \} \}/);
+  assert.match(pendingPersistence, /\["improved", "resolved", "corrected"\]\.includes/);
+  assert.match(pendingPersistence, /\.contains\("payload", \{ semanticDomain, semanticTopic \}\)/);
+  assert.match(pendingPersistence, /\.update\(\{[\s\S]*source_message_id: assistantMessageId/);
+  assert.match(pendingPersistence, /return \{ effectAlreadyPresent: false, errorCode: null, suggestion: \{ \.\.\.suggestion, id: prior\.id \} \}/);
 });
 
 test("history suggestion save and retry are idempotent and never spend another Ask credit", () => {

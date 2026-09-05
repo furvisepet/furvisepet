@@ -11,7 +11,6 @@ import type { FurviseLiveContext } from "./types";
 import { calculateMemoryFreshness } from "./memory-freshness/calculate-memory-freshness.ts";
 import { authorizeProposedActions, type GovernanceResult } from "./governance/index.ts";
 import { validateGeneratedAnswer, type AnswerValidationResult } from "./validation/index.ts";
-import { resolveRecoverySubject } from "./episodes/resolve-recovery-subject.ts";
 import { routePersistenceDestinations } from "./persistence-destination.ts";
 import { governCanonicalEvents, governCanonicalEventsForOwnedPets, learningFromSemanticEvent } from "./semantic-events.ts";
 import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } from "./semantic-observability.ts";
@@ -23,6 +22,7 @@ import { memoryDisplayContent } from "./memory-integrity.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
 import { buildExplicitCareHistoryAction, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
 import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-loss.ts";
+import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } from "../ai/concern-engine.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -104,6 +104,7 @@ export async function runFurviseIntelligence({
   const multiPetTurn = authoritativePetIds.length > 1;
   const hasOwnedPetSubject = authoritativePetIds.length > 0;
   const semanticGovernanceInput = {
+    activeConcerns: context.activeConcerns,
     proposals: reasoning.semanticEvents,
     message: context.currentMessage,
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
@@ -128,11 +129,14 @@ export async function runFurviseIntelligence({
     });
 
   const proposedResolutionPolicy = evaluateCareActionPolicy({
-    actions: reasoning.careActions,
+    actions: hasOwnedPetSubject ? reasoning.careActions : [],
     currentMessage: context.currentMessage,
     understanding: reasoning.messageUnderstanding,
     safetyLevel: reasoning.intelligenceSafety.level,
     activeConcernIds: safety.activeConcernIds,
+    activeConcerns: context.activeConcerns,
+    petId: context.pet.id,
+    petName: context.pet.name,
   });
   const modelGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
     && safety.concernMessageState === "resolved"
@@ -142,7 +146,21 @@ export async function runFurviseIntelligence({
   const semanticGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
     && semanticGovernance.accepted.some(({ event }) =>
       event.transition === "resolved" && event.state === "resolved" && Boolean(event.references.episodeId));
-  const proposedRecoveryPresentation = allowsProposedRecoveryPresentation({
+  const proposedRecoveryConcern = context.activeConcerns.find((concern) => concern.id === reasoning.proposedHistoryUpdate.resolvesConcernId) || null;
+  const hasSourceGroundedRecovery = hasOwnedPetSubject && context.activeConcerns.some((concern) => isRecoveryGroundedForConcern({
+    activeConcerns: context.activeConcerns, concern, message: context.currentMessage,
+    petId: context.pet.id, petName: context.pet.name,
+  }));
+  if (reasoning.intelligenceSafety.level === "recently_resolved" && !hasSourceGroundedRecovery && !semanticGroundedResolution) {
+    reasoning.intelligenceSafety.level = safety.level;
+  }
+  const proposedRecoveryPresentation = hasOwnedPetSubject && Boolean(proposedRecoveryConcern && isRecoveryGroundedForConcern({
+    activeConcerns: context.activeConcerns,
+    concern: proposedRecoveryConcern,
+    message: context.currentMessage,
+    petId: context.pet.id,
+    petName: context.pet.name,
+  })) && allowsProposedRecoveryPresentation({
     activeConcernIds: safety.activeConcernIds,
     confidence: reasoning.intelligenceMetadata.confidence,
     resolvesConcernId: reasoning.proposedHistoryUpdate.resolvesConcernId,
@@ -178,6 +196,7 @@ export async function runFurviseIntelligence({
     actions: reasoning.careActions, currentMessage: context.currentMessage,
     understanding: reasoning.messageUnderstanding, safetyLevel: reasoning.intelligenceSafety.level,
     activeConcernIds: safety.activeConcernIds,
+    activeConcerns: context.activeConcerns, petId: context.pet.id, petName: context.pet.name,
   });
   const deterministicStateAction = buildClearResolutionAction(context, safety) || buildRecurrenceAction(context, safety);
   const proposedCareActions = !hasOwnedPetSubject || multiPetTurn ? [] : deterministicStateAction ? [deterministicStateAction] : carePolicy.accepted;
@@ -349,22 +368,12 @@ function buildClearResolutionAction(
   safety: ReturnType<typeof resolveSafetyState>,
 ): AskReasoningResult["careActions"][number] | null {
   if (safety.level !== "recently_resolved" || safety.concernMessageState !== "resolved") return null;
-  const subject = resolveRecoverySubject({
-    message: context.currentMessage,
-    recentConversation: context.conversationTurns.slice(-6).map((turn) => turn.text),
-    activeEpisodes: context.activeEpisodes,
+  return buildSourceGroundedResolutionAction({
     activeConcerns: context.activeConcerns,
+    message: context.currentMessage,
+    petId: context.pet.id,
+    petName: context.pet.name,
   });
-  if (!subject.concernId) return null;
-  return {
-    action: "resolve_concern",
-    category: "symptom",
-    title: subject.title,
-    details: `Owner reported that ${context.pet.name} returned to normal. ${context.currentMessage.trim()}`.slice(0, 800),
-    severity: "routine",
-    confidence: 0.99,
-    relatedRecordId: subject.concernId,
-  };
 }
 
 function memoryText(memory: FurviseLiveContext["memories"][number]) {

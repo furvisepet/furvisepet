@@ -178,7 +178,7 @@ test("a recovery statement is classified before urgent handling and gets one con
   assert.equal(result.suggestion?.concernId, activeBreathingConcern.id);
   assert.equal(result.suggestion?.payload.title, "Breathing returned to normal");
   assert.equal(result.suggestion?.payload.severity, "resolved");
-  assert.match(result.suggestion?.details || "", /Owner reported that Mani appears well/);
+  assert.equal(result.suggestion?.details, "Mani: She is breathing normally now.");
 });
 
 test("an unrelated question with an urgent concern receives one context-aware generation", async () => {
@@ -235,7 +235,7 @@ test("an immediate emergency bypasses generation once but later replies are recl
   });
   assert.equal(generations, 1);
   assert.equal(improved.handledWithoutAi, false);
-  assert.equal(improved.suggestion?.type, "concern_resolution");
+  assert.notEqual(improved.suggestion?.type, "concern_resolution"); // General improvement is not confirmed symptom cessation.
 });
 
 test("a resolved concern no longer forces emergency handling on unrelated questions", async () => {

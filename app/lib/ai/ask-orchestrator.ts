@@ -1,6 +1,7 @@
 import type { AskReasoningResult, GenerateAskReasoningInput } from "./ask-reasoning.ts";
 import type { PetConcern, PendingUpdateSuggestion } from "./concern-engine.ts";
-import { buildConcernOpeningSuggestion, buildMemorySuggestion, buildObservationSuggestion, buildResolutionSuggestion, getCurrentConcern } from "./concern-engine.ts";
+import { buildConcernOpeningSuggestion, buildMemorySuggestion, buildObservationSuggestion, buildResolutionSuggestion, getCurrentConcern, isPendingUpdateSuggestionGrounded, isRecoveryGroundedForConcern } from "./concern-engine.ts";
+import { isPetObservationEvidence, petObservationSpans } from "./recovery-subject.ts";
 import { decideWhetherAiGenerationIsNeeded } from "./response-planner.ts";
 import { classifyUserTurn, type TurnIntent } from "./turn-classifier.ts";
 import { evaluateCareHistorySaveWorthiness } from "../intelligence/care-history-policy.ts";
@@ -35,7 +36,7 @@ export async function orchestrateAskTurn({
   const turn = classifyUserTurn(message, { hasActiveConcern: Boolean(concern) });
 
   const aiResult = await generate({ ...generationInput, concernStateHint: turn.concernState });
-  return finishGeneratedTurn({ aiResult, concern, message, petName, turn });
+  return finishGeneratedTurn({ aiResult, concern, concerns, message, petName, turn });
 }
 
 export function planProviderIndependentAskTurn({
@@ -71,9 +72,10 @@ export function planProviderIndependentAskTurn({
   return null;
 }
 
-function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
+function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, turn }: {
   aiResult: AskReasoningResult;
   concern: PetConcern | null;
+  concerns: PetConcern[];
   message: string;
   petName: string;
   turn: ReturnType<typeof classifyUserTurn>;
@@ -86,8 +88,9 @@ function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
     responseMode: aiResult.responseMode,
   });
   const hasMemoryApplicationAction = (aiResult.applicationActions || []).some((action) => action.kind.startsWith("memory."));
-  const improvementSuggestion = concern && (turn.concernState === "improved" || turn.concernState === "resolved")
-    ? buildResolutionSuggestion({ concern, message, petName })
+  const recoveryConcerns = concerns.filter((target) => isRecoveryGroundedForConcern({ activeConcerns: concerns, concern: target, message, petId: target.pet_profile_id, petName }));
+  const improvementSuggestion = recoveryConcerns.length === 1
+    ? buildResolutionSuggestion({ concern: recoveryConcerns[0], message, petName })
     : null;
   const modelSuggestion: PendingUpdateSuggestion | null = turn.intent !== "casual" && proposed.shouldOffer
     && proposed.details
@@ -112,14 +115,50 @@ function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
     : turn.intent === "new_observation"
       ? buildConcernOpeningSuggestion({ message, petName }) || buildObservationSuggestion({ message, petName })
       : null);
-  const suggestion = aiResult.responseMode === "grief_support"
+  const suggestionConcern = candidateSuggestion?.type === "concern_resolution" && candidateSuggestion.concernId
+    ? concerns.find((item) => item.id === candidateSuggestion.concernId) || null
+    : null;
+  let suggestion = aiResult.responseMode === "grief_support"
     ? null
+    : candidateSuggestion && !isPendingUpdateSuggestionGrounded({
+        suggestion: candidateSuggestion,
+        message,
+        hasActiveConcern: Boolean(concern),
+        concern: suggestionConcern,
+        activeConcerns: concerns,
+        petId: suggestionConcern?.pet_profile_id,
+        petName,
+      })
+      ? null
     : (candidateSuggestion?.type === "history" || candidateSuggestion?.type === "concern_opening") && (!answerDepth.allowsAutomaticHistory || !evaluateCareHistorySaveWorthiness({
       category: typeof candidateSuggestion.payload.category === "string" ? candidateSuggestion.payload.category : undefined,
       title: typeof candidateSuggestion.payload.title === "string" ? candidateSuggestion.payload.title : candidateSuggestion.title,
       details: candidateSuggestion.details,
       sourceMessage: message,
     }).eligible) ? null : candidateSuggestion;
+  // A rejected terminal proposal can still contain a useful qualified report.
+  // Retain the owner's entire supported observation, never the model's recovery
+  // title/note or a raw outside-animal message under the selected pet.
+  if (!suggestion && aiResult.responseMode !== "grief_support" && answerDepth.allowsAutomaticHistory
+    && isPetObservationEvidence(message, message, petName)) {
+    const observation = buildObservationSuggestion({ message, petName });
+    if (isPendingUpdateSuggestionGrounded({ suggestion: observation, message, petName })) suggestion = observation;
+  }
+  if (!suggestion && aiResult.responseMode !== "grief_support" && answerDepth.allowsAutomaticHistory) {
+    const spans = petObservationSpans(message, petName);
+    // Do not sever the qualifier of an uncertain clause; the whole-source path
+    // above preserves those. Independently certain observations can stand alone.
+    const note = spans.filter((span) => span.isCertain).map((span) => span.text).join(" ");
+    if (note && isPetObservationEvidence(message, note, petName)) {
+      const observation = buildObservationSuggestion({ message: note, petName });
+      if (isPendingUpdateSuggestionGrounded({ suggestion: observation, message, petName })) suggestion = observation;
+    }
+  }
+  if (suggestion?.type === "concern_resolution") {
+    const targetId = suggestion.concernId;
+    const target = concerns.find((item) => item.id === targetId);
+    if (target) suggestion = buildResolutionSuggestion({ concern: target, message, petName });
+  }
   return {
     aiResult,
     answer: aiResult.answer,
