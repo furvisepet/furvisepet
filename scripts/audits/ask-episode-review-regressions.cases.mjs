@@ -33,6 +33,21 @@ test('explicit period reaches matching episodes after older discovery prefix',as
  assert.equal(request.args.p_to,'2015-01-01T00:00:00.000Z');
 });
 
+test('dated episode count cannot override a discovered unlinked correction',async t=>{
+ clock(t);
+ const correction=care('late-correction','milo','2026-08-20','general','Correction to the July 9, 2014 vomiting report: that was Bruno, not Milo.');
+ const r=await run('List vomiting episodes in 2014.',{rows:[first,second,update,correction],answer:'One confirmed episode.'});
+ assert.ok(r.context.askHistory.coverage.reasons.includes('unlinked_correction_uncertain'));
+ assert.equal(r.context.episodeResult.coverage,'unavailable');
+ assert.deepEqual(r.context.episodeResult.items,[]);
+ assert.equal(r.context.episodeResult.references,undefined);
+ const response=attachEpisodeReferences(buildAskConversationResponse(r.result.reasoning.answer),r.context.episodeResult);
+ assert.equal(response.episodeReferences,undefined);
+ assert.deepEqual(r.result.acceptedCareActions,[]);
+ assert.deepEqual(r.result.acceptedLearnings,[]);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/One confirmed episode|1 explicitly supported/);
+});
+
 async function savedList() {
  const original=await run('List all vomiting episodes over Milo lifetime.');
  return {id:'wording-answer',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,created_at:'2026-09-04T00:00:00Z',

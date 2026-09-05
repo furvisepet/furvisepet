@@ -1,5 +1,11 @@
 # Remaining Ask reliability batch
 
+Completed: episode correction handoff, based on 2150ae4. Reproduced actual callback returning a supported episode count despite a discovered late unlinked correction. Member-only revalidation now preserves inherited unavailable/partial corrections and unlinked correction uncertainty, returning unavailable episode coverage without count items or saved references. No correction-to-event linkage is inferred.
+
+Verification: full suite 2,246 passed; typecheck and lint passed (two existing warnings); diff check passed. Focused callback suite 7/7 passed, including additional final response reference and no-write assertions. Unchanged lifetime audit remains 13 pass / 4 fail. Logs: C:/Users/gwara/furvise-episode-correction-{before,full,focused,typecheck,lint,audit}.log. Exclusive lock PID21040 is released after local commit via C:/Users/gwara/furvise-episode-correction.release.
+
+Limitations: this preserves uncertainty already discovered by historical retrieval; it does not discover every unlinked correction, certify exact lifetime totals, or add cross-query snapshot consistency. No database/provider calls. Existing supported-list, revalidated-follow-up and period controls remain passing.
+
 Base 287c162704958373db6fd1b2447ef9ffc232693b. Isolated codex/ask-remaining-reliability worktree.
 
 Implemented:
