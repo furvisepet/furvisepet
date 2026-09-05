@@ -4,6 +4,7 @@ import type { GovernedCanonicalEvent, IntelligenceCareAction } from "../intellig
 import { analyzeOwnerAssertions } from "./owner-assertion.ts";
 import { assertedConcernTransitions, classifyUserTurn, type ActiveConcernMessageState, type ConcernTransitionEvidence } from "./turn-classifier.ts";
 import { decideConcernTransitionState } from "./concern-event-order.ts";
+import { concernAliases } from "./concern-symptoms.ts";
 import { petObservationSpans, isPetObservationEvidence } from "./recovery-subject.ts";
 
 export type ConcernStatus = "active" | "monitoring" | "resolved" | "reopened" | "dismissed";
@@ -164,19 +165,6 @@ export function isPendingUpdateSuggestionGrounded(input: {
     sourceMessage: input.message,
   }).eligible;
 }
-
-const concernAliases: Array<[RegExp, RegExp]> = [
-  [/vomit|stomach|nausea/, /\b(?:nausea|stomach upset|threw up|throwing up|vomit\w*)\b/i],
-  [/hid|hiding|withdraw/, /\b(?:hid|hide|hiding|withdraw\w*)\b/i],
-  [/breath|respirat/, /\b(?:breath\w*|respirat\w*)\b/i],
-  [/letharg|energy|tired/, /\b(?:energy|letharg\w*|tired|weak)\b/i],
-  [/diarr|stool/, /\b(?:diarr\w*|loose stools?|stools?)\b/i],
-  [/limp|mobility/, /\b(?:limp\w*|mobility)\b/i],
-  [/bleed/, /\b(?:bleed\w*|bled)\b/i],
-  [/cough/, /\bcough\w*\b/i],
-  [/itch|scratch/, /\b(?:itch\w*|scratch\w*)\b/i],
-  [/pain|sore/, /\b(?:pain\w*|sore|tender)\b/i],
-];
 
 export type ConcernRecoveryTarget = Pick<PetConcern, "id" | "pet_profile_id" | "normalized_key" | "title" | "status" | "resolved_at"> & { opened_at?: string | null };
 

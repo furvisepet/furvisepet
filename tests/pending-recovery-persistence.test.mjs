@@ -83,6 +83,24 @@ test('history cannot strip uncertainty or carry forged recovery metadata', async
 
 const currentConcern = { ...concern, opened_at: '2026-09-03T00:00:00Z' };
 const temporalCases = [
+  ...['threw up', 'was throwing up', 'has thrown up', 'had thrown up'].flatMap((predicate) => [
+    [`Milo stopped vomiting yesterday but ${predicate} today.`, false],
+    [`Milo ${predicate} today. He stopped vomiting yesterday.`, false],
+    [`Milo stopped vomiting yesterday; ${predicate} today.`, false],
+    [`Milo ${predicate} yesterday but stopped vomiting today.`, true],
+    [`Milo stopped vomiting today. He ${predicate} yesterday.`, true],
+    [`Please save this: Milo stopped vomiting yesterday but ${predicate} today.`, false],
+  ]),
+  ['Milo stopped vomiting yesterday but may have thrown up today.', false],
+  ['I think Milo has thrown up today. He stopped vomiting yesterday.', false],
+  ['Milo has not thrown up today. He stopped vomiting yesterday.', true],
+  ["Milo hasn't thrown up today. He stopped vomiting yesterday.", true],
+  ...['did not throw up', 'was not throwing up', 'had not thrown up', 'has never thrown up'].map((predicate) =>
+    [`Milo stopped vomiting today. He ${predicate} today.`, true]),
+  ['Milo stopped vomiting yesterday but has probably thrown up today.', false],
+  ['Milo stopped vomiting this morning but has thrown up today.', false],
+  ['Milo had thrown up this morning but stopped vomiting this afternoon.', true],
+  ['Milo stopped vomiting this afternoon. He had thrown up this morning.', true],
   ['Milo stopped vomiting yesterday but threw up twice today.', false],
   ['Milo stopped vomiting yesterday, but vomited today.', false],
   ['Milo vomited today but stopped vomiting yesterday.', false],
@@ -120,6 +138,28 @@ const temporalCases = [
   ['Milo stopped vomiting on September 4, 2026.', true],
   ['Milo stopped vomiting last year. He stopped vomiting today.', true],
 ];
+test('symptom polarity and certainty survive extraction', () => {
+  for (const message of ['Milo has not thrown up today.', "Milo hasn't thrown up today.", 'Milo was not throwing up today.', 'Milo did not throw up today.', 'Milo had never thrown up yesterday.']) {
+    assert.deepEqual(assertedConcernTransitions(message).filter((event) => ['still_active', 'recurrence'].includes(event.state)), [], message);
+  }
+  for (const message of ['I think Milo has thrown up today.', 'Milo may have thrown up today.']) {
+    const events = assertedConcernTransitions(message);
+    assert.ok(events.some((event) => event.state === 'still_active'), message);
+    assert.ok(events.every((event) => !event.isCertain), message);
+  }
+});
+test('uncertain vomiting remains qualified history at final persistence', async () => {
+  const message = 'I think Milo has thrown up today.';
+  const deps = dependencies([currentConcern]);
+  const payload = { category: 'symptom', title: 'Care update', note: message };
+  const result = await persist(message, deps, { type: 'history', concernId: undefined, title: 'Save this update?', details: message, payload });
+  assert.deepEqual(result.suggestion?.payload, payload);
+  assert.deepEqual(deps.writes, [{ table: 'ai_update_suggestions', payload: {
+    concern_id: null, conversation_id: 'chat1', details: message, payload,
+    pet_profile_id: 'p1', source_message_id: 'a1', status: 'pending',
+    title: 'Save this update?', type: 'history', user_id: 'u1',
+  } }]);
+});
 for (const [message, allowed] of temporalCases) {
   test(`predicate/interval/current-concern authority (${allowed}): ${message}`, async (t) => {
     t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-04T18:00:00Z') });

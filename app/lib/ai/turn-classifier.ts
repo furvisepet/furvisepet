@@ -1,6 +1,7 @@
 import { isCasualAskTone } from "../ask-experience.ts";
 import { analyzeOwnerAssertions, type OwnerAssertionSpan } from "./owner-assertion.ts";
 import { decideConcernTransitionState } from "./concern-event-order.ts";
+import { hasAffirmativeSymptom, symptomActivitySource } from "./concern-symptoms.ts";
 
 export type TurnIntent =
   | "question"
@@ -119,7 +120,7 @@ export type ConcernTransitionEvidence = {
 export function assertedConcernTransitions(message: string): ConcernTransitionEvidence[] {
   const transitions: ConcernTransitionEvidence[] = [];
   for (const clause of analyzeOwnerAssertions(message).assertionSpans.flatMap(concernPredicateSpans)) {
-    if (clause.inheritedNegation || negatedRecoveryPattern.test(clause.text)) {
+    if (negatedRecoveryPattern.test(clause.text) || clause.inheritedNegation && supportedRecoveryState(clause.text, false)) {
       transitions.push({ evidence: clause.text, inheritedTopicEvidence: clause.inheritedTopicEvidence, start: clause.start, end: clause.end, isCertain: clause.isCertain, state: "still_active" });
       continue;
     }
@@ -134,10 +135,10 @@ export function assertedConcernTransitions(message: string): ConcernTransitionEv
       candidates.push({ index: recoveryIndex, state: recoveryState });
     }
     // Symptom presence competes with cessation even without "still"/"again".
-    if (!recoveryState && recurrenceIndex < 0 && /\b(?:vomit(?:ed|ing|s)?|threw up|throwing up|hid(?:e|es|ing)?|bleed(?:ing|s)?|bled|cough(?:ed|ing|s)?|limp(?:ed|ing|s)?|itch(?:ed|ing|es)?|scratch(?:ed|ing|es)?|diarrhea|breathing (?:hard|fast|deeply))\b/i.test(clause.text)) {
+    if (!recoveryState && recurrenceIndex < 0 && hasAffirmativeSymptom(clause.text, clause.inheritedNegation)) {
       candidates.push({ index: 0, state: "still_active" });
     }
-    if (recoveryState && /\b(?:is|are|was|were|keeps?)\s+(?:still\s+)?(?:vomiting|throwing up|hiding|bleeding|coughing|limping|itching|breathing (?:hard|fast|deeply))\b/i.test(clause.text)) {
+    if (recoveryState && new RegExp(`\\b(?:is|are|was|were|keeps?)\\s+(?:still\\s+)?(?:${symptomActivitySource})\\b`, 'i').test(clause.text) && hasAffirmativeSymptom(clause.text, clause.inheritedNegation)) {
       candidates.push({ index: 0, state: "still_active" });
     }
     for (const candidate of candidates.sort((left, right) => left.index - right.index)) {
@@ -159,7 +160,7 @@ export function assertedConcernTransitions(message: string): ConcernTransitionEv
  * by prepending the animal's name to a model-selected substring. */
 function concernPredicateSpans(parent: OwnerAssertionSpan): Array<OwnerAssertionSpan & { inheritedTopicEvidence?: string; inheritedNegation?: boolean }> {
   const boundaries = /\s*(?:[,;]\s*(?:(?:and|but|then)\s+)?|\b(?:and|but|then)\s+)/gi;
-  const predicateStart = /^(?:(?:still|also|then|today|yesterday)\s+)*(?:am|are|is|was|were|has|have|had|did|does|keeps?|started|stopped|ceased|resolved|returned|came|threw|vomit(?:ed|ing|s)?|cough(?:ed|ing|s)?|bleed(?:ing|s)?|bled|limp(?:ed|ing|s)?|hid|hiding|itch(?:ed|ing|es)?|scratch(?:ed|ing|es)?)\b/i;
+  const predicateStart = new RegExp(`^(?:(?:still|also|then|today|yesterday)\\s+)*(?:am|are|is|was|were|has|have|had|may|might|could|did|does|keeps?|started|stopped|ceased|resolved|returned|came|${symptomActivitySource})\\b`, 'i');
   const ranges: Array<[number, number]> = [];
   let start = 0;
   for (const match of parent.text.matchAll(boundaries)) {

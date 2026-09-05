@@ -1,11 +1,16 @@
 import type { CareEntryRow, DogProfileRow } from "../supabase.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { isPetObservationEvidence } from "../ai/recovery-subject.ts";
+import { vomitingSymptomPattern } from "../ai/concern-symptoms.ts";
 import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, SemanticEventDomain, SemanticEventTransition } from "./types.ts";
 
 const explicitSavePattern = /\b(?:save|log|record|note|add|put)\b[\s\S]{0,80}\b(?:this|that|it|history|care history|timeline)\b|\bcan (?:you|u) (?:save|log|record|note|add)\b/i;
 const conversationalNoisePattern = /\b(?:chasing?|chased)\s+butterfl(?:y|ies)\b|\bbutterfl(?:y|ies)\b|\b(?:is|was|being)\s+(?:dumb|silly|goofy|cute|funny|insane|a menace|a gremlin)(?:\s+af)?\b|\b(?:lol|lmao|haha|hehe)\b|\bnormal\s+play\b|\b(?:played?|playing)\s+(?:normally|with (?:a )?toy)\b|\b(?:more )?interested in (?:going|get(?:ting)?) outside\b/i;
-const clinicalSignalPattern = /\b(?:appetite|not eating|won't eat|has(?:n't| not) eaten|have(?:n't| not) eaten|(?:eat(?:ing)?|eaten) (?:less|little|much)|drank?|drinking|thirst|water intake|vomit\w*|diarrhea|stool|urine|urinating|elimination|weight|body condition|limp|limping|injur(?:y|ed)|wound|bleed(?:ing)?|pain|letharg(?:y|ic)|cough|sneez|itch|scratch|rash|swelling|breath(?:e|ing)|seizure|collapse|toxin|toxic|poison|exposure|ate|ingested|medication|medicine|supplement|dose|treatment|therapy|vaccin\w*|veterinar(?:y|ian)|vet visit|test result|lab result|diagnos|surgery)\b/i;
+const existingClinicalSignalPattern = /\b(?:appetite|not eating|won't eat|has(?:n't| not) eaten|have(?:n't| not) eaten|(?:eat(?:ing)?|eaten) (?:less|little|much)|drank?|drinking|thirst|water intake|vomit\w*|diarrhea|stool|urine|urinating|elimination|weight|body condition|limp|limping|injur(?:y|ed)|wound|bleed(?:ing)?|pain|letharg(?:y|ic)|cough|sneez|itch|scratch|rash|swelling|breath(?:e|ing)|seizure|collapse|toxin|toxic|poison|exposure|ate|ingested|medication|medicine|supplement|dose|treatment|therapy|vaccin\w*|veterinar(?:y|ian)|vet visit|test result|lab result|diagnos|surgery)\b/i;
+// History relevance includes qualified/negative mentions; this is not a claim
+// of affirmative activity or permission to resolve a concern.
+const clinicalSignalPattern = new RegExp(
+  `(?:${existingClinicalSignalPattern.source})|(?:${vomitingSymptomPattern.source})`, "i");
 const behaviorChangePattern = /\b(?:still|continued?|keeps?|again|recurr(?:ed|ing)?|started?|changed?|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?|since|for\s+(?:the\s+)?(?:last\s+)?\d+\s+(?:hours?|days?|weeks?))\b[\s\S]{0,100}\b(?:pac(?:e|ed|ing)|restless|hiding|aggress(?:ive|ion)|anxious|anxiety|vocal(?:izing)?|meow(?:ing)?|sleep|energy|activity|behavior|routine)\b|\b(?:pac(?:e|ed|ing)|restless|hiding|aggress(?:ive|ion)|anxious|anxiety|vocal(?:izing)?|meow(?:ing)?)\b[\s\S]{0,100}\b(?:still|continued?|keeps?|again|since|started?|changed?|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?)\b/i;
 const dietOrRoutineChangePattern = /\b(?:food|diet|meal|feeding|routine|schedule)\b[\s\S]{0,80}\b(?:started?|stopped?|switched?|changed?|new|more|less|increased?|decreased?)\b|\b(?:started?|stopped?|switched?|changed?)\b[\s\S]{0,80}\b(?:food|diet|meal|feeding|routine|schedule)\b/i;
 const lifecycleEventPattern = /\b(?:died|passed away|death|euthanized|put (?:her|him|them) to sleep)\b/i;
