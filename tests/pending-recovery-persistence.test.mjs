@@ -169,7 +169,7 @@ for (const [message, allowed] of temporalCases) {
     const saved = await persist(message, deps);
     const action = buildSourceGroundedResolutionAction(input);
     const state = classifyConcernEvidenceState(input);
-    const result = await orchestrateAskTurn({ concerns: [currentConcern], message, petName: 'Milo', generationInput: {}, generate: async () => ({ answer: { title: 'Update', summary: 'Thanks.', sections: [], safetyNote: null }, safetyLevel: 'normal', proposedHistoryUpdate: { shouldOffer: true, resolvesConcernId: 'c1', title: 'Vomiting resolved', details: 'Milo stopped vomiting.', category: 'symptom' } }) });
+    const result = await orchestrateAskTurn({ concerns: [currentConcern], message, petName: 'Milo', generate: async () => ({ answer: { title: 'Update', summary: 'Thanks.', sections: [], safetyNote: null }, safetyLevel: 'normal', proposedHistoryUpdate: { shouldOffer: true, resolvesConcernId: 'c1', title: 'Vomiting resolved', details: 'Milo stopped vomiting.', category: 'symptom' } }) });
     if (!allowed) {
       assert.equal(saved.suggestion, null);
       assert.deepEqual(deps.writes, []);

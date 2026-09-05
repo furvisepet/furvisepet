@@ -76,7 +76,7 @@ test("the production orchestrator suppresses a model-proposed B card and retains
   const b = await orchestrateAskTurn({
     concerns: [],
     generate: async () => reasoning({ title: "Petting tolerance", summary: "Keep petting brief and stop at her early signals.", sections: [], safetyNote: null }),
-    generationInput: {},
+
     message: routineBiting,
     petName: "Mani",
   });
@@ -85,7 +85,7 @@ test("the production orchestrator suppresses a model-proposed B card and retains
   const d = await orchestrateAskTurn({
     concerns: [],
     generate: async () => reasoning({ title: "Several changes need attention", summary: "Call the vet and track these changes.", sections: [], safetyNote: null }),
-    generationInput: {},
+
     message: complexCare,
     petName: "Mani",
   });

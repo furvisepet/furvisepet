@@ -88,7 +88,6 @@ import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/securit
 import { claimIdempotentOperation } from "../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
-import type { ProposedSemanticFrame } from "../../lib/intelligence/semantic-frame/types";
 import {
   resolveAskTurnSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
@@ -749,14 +748,8 @@ export async function POST(request: Request) {
       }) : null;
       if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
 
-      const generationInput = buildTurnGenerationInput({
-        authoritativePetIds: subjectResolution.petIds,
-        discourseFocus: subjectResolution.discourseFocus,
-        locale, onProviderEvent, question, requestId, turnSemanticFrame: subjectFrame, turnView, liveContext,
-      });
       return await orchestrateAskTurn({
         concerns: turnView.concerns,
-        generationInput,
         message: question,
         petName: liveContext.pet.name || "your pet",
         generate: async () => {
@@ -1143,38 +1136,6 @@ function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requ
   };
 }
 
-function buildTurnGenerationInput({ authoritativePetIds, discourseFocus, locale, liveContext, onProviderEvent, question, requestId, turnSemanticFrame, turnView }: {
-  authoritativePetIds: string[];
-  discourseFocus?: import("../../lib/intelligence/entities/resolve-turn-subject").AskDiscourseFocus;
-  locale: string;
-  liveContext: FurviseLiveContext;
-  onProviderEvent: (event: AskProviderEvent) => void;
-  question: string;
-  requestId: string;
-  turnSemanticFrame?: ProposedSemanticFrame;
-  turnView: ReturnType<typeof deriveAskTurnView>;
-}) {
-  return {
-    careEntries: turnView.entries,
-    concerns: turnView.concerns,
-    conversationTurns: turnView.conversationMessages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      text: message.role === "user" ? message.text : message.response?.directAnswer || message.response?.summary || "",
-    })),
-    locale,
-    memories: turnView.memories,
-    productFeedback: turnView.feedback,
-    profiles: liveContext.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
-    question,
-    discourseFocus,
-    recentlyResolvedConcerns: turnView.recentlyResolvedConcerns,
-    recentUpdates: turnView.recentUpdates,
-    requestId,
-    turnSemanticFrame,
-    onProviderEvent,
-  };
-}
 
 function buildSubjectClarificationOrchestration(message: string, candidateNames: string[] = []) {
   const safety = evaluateAskSafetyContext({

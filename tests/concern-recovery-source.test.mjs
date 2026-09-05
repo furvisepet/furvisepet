@@ -34,7 +34,7 @@ for (const message of blocked) test(`full source blocks recovery: ${message}`, a
   const safety = resolveSafetyState({ currentMessage: message, pet: { id: 'milo', name: 'Milo' }, activeConcerns: [concern], recentlyResolvedConcerns: [], activeEpisodes: [], monitoringEpisodes: [], careEntries: [], currentState: null });
   assert.notEqual(safety.level, 'recently_resolved');
   assert.equal(isPendingUpdateSuggestionGrounded({ ...input, suggestion: buildResolutionSuggestion({ concern, message, petName: 'Milo' }) }), false);
-  const result = await orchestrateAskTurn({ concerns: [concern], message, petName: 'Milo', generationInput: {}, generate: async () => ({ answer: { title: 'Update', summary: 'Thanks for the update.', sections: [], safetyNote: null }, safetyLevel: 'normal', proposedHistoryUpdate: { shouldOffer: true, resolvesConcernId: concern.id, title: 'Vomiting resolved', details: 'He stopped vomiting.', category: 'symptom' } }) });
+  const result = await orchestrateAskTurn({ concerns: [concern], message, petName: 'Milo', generate: async () => ({ answer: { title: 'Update', summary: 'Thanks for the update.', sections: [], safetyNote: null }, safetyLevel: 'normal', proposedHistoryUpdate: { shouldOffer: true, resolvesConcernId: concern.id, title: 'Vomiting resolved', details: 'He stopped vomiting.', category: 'symptom' } }) });
   assert.notEqual(result.suggestion?.type, 'concern_resolution');
   if (result.suggestion) {
     assert.equal(result.suggestion.payload.title, 'Care update');
@@ -68,7 +68,7 @@ for (const message of [
 
 test('rejected recovery keeps qualified observations, not a recovery payload', async () => {
   for (const message of ['I think he stopped vomiting.', 'He stopped vomiting, I think.']) {
-    const result = await orchestrateAskTurn({ concerns: [concern], message, petName: 'Milo', generationInput: {}, generate: async () => ({ answer: { title: 'Update', summary: 'Thanks.', sections: [], safetyNote: null }, safetyLevel: 'normal', proposedHistoryUpdate: { shouldOffer: true, resolvesConcernId: concern.id, title: 'Vomiting resolved', details: 'He stopped vomiting.', category: 'symptom' } }) });
+    const result = await orchestrateAskTurn({ concerns: [concern], message, petName: 'Milo', generate: async () => ({ answer: { title: 'Update', summary: 'Thanks.', sections: [], safetyNote: null }, safetyLevel: 'normal', proposedHistoryUpdate: { shouldOffer: true, resolvesConcernId: concern.id, title: 'Vomiting resolved', details: 'He stopped vomiting.', category: 'symptom' } }) });
     assert.deepEqual(result.suggestion, { type: 'history', title: 'Save this update?', details: `Milo: ${message}`, payload: { category: 'general', title: 'Care update', note: message } });
   }
 });

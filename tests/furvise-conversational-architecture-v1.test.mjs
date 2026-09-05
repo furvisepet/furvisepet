@@ -213,13 +213,13 @@ test("confirmation-required and destructive actions cannot execute before confir
 
 test("stale acknowledgement titles do not inherit legacy urgent presentation", async () => {
   const routine = concern({ severity: "routine", status: "monitoring" });
-  const routineResult = await orchestrateAskTurn({ concerns: [routine], message: "ok", petName: "Mani", generationInput: {}, generate: async () => { throw new Error("should not generate"); } });
+  const routineResult = await orchestrateAskTurn({ concerns: [routine], message: "ok", petName: "Mani", generate: async () => { throw new Error("should not generate"); } });
   assert.equal(routineResult.safetyLevel, "normal");
   assert.equal(routineResult.answer.title, "Furvise");
   assert.doesNotMatch(routineResult.answer.title, /Urgent care guidance/);
 
   const urgent = concern({ severity: "urgent", status: "active", normalized_key: "breathing", title: "Breathing trouble" });
-  const urgentResult = await orchestrateAskTurn({ concerns: [urgent], message: "thanks", petName: "Mani", generationInput: {}, generate: async () => { throw new Error("should not generate"); } });
+  const urgentResult = await orchestrateAskTurn({ concerns: [urgent], message: "thanks", petName: "Mani", generate: async () => { throw new Error("should not generate"); } });
   assert.equal(urgentResult.safetyLevel, "urgent");
   assert.match(urgentResult.answer.title, /breathing still needs urgent attention/i);
 });

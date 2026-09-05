@@ -39,17 +39,6 @@ const activeBreathingConcern = {
   resolution_note: null,
 };
 
-const generationInput = {
-  careEntries: [],
-  conversationTurns: [],
-  locale: "en-CA",
-  memories: [],
-  productFeedback: [],
-  profiles: [],
-  question: "She is breathing normally now.",
-  recentUpdates: [],
-  requestId: "00000000-0000-4000-8000-000000000001",
-};
 
 function generatedResult(overrides = {}) {
   return {
@@ -162,7 +151,7 @@ test("a recovery statement is classified before urgent handling and gets one con
   let generations = 0;
   const result = await orchestrateAskTurn({
     concerns: [activeBreathingConcern],
-    generationInput,
+
     message: "She is breathing normally now.",
     petName: "Mani",
     generate: async (input) => {
@@ -185,7 +174,7 @@ test("an unrelated question with an urgent concern receives one context-aware ge
   let generations = 0;
   const result = await orchestrateAskTurn({
     concerns: [activeBreathingConcern],
-    generationInput: { ...generationInput, question: "Should I feed Mani now?" },
+
     message: "Should I feed Mani now?",
     petName: "Mani",
     generate: async (input) => { generations += 1; assert.equal(input.concernStateHint, "unrelated"); return generatedResult({ safetyLevel: "urgent" }); },
@@ -209,7 +198,7 @@ test("still-active and recurrence replies reach the conversational model with ur
   for (const [message, expectedState] of [["still breathing hard", "still_active"], ["it came back", "recurrence"]]) {
     let hint = "";
     const result = await orchestrateAskTurn({
-      concerns: [activeBreathingConcern], generationInput: { ...generationInput, question: message }, message, petName: "Mani",
+      concerns: [activeBreathingConcern], message, petName: "Mani",
       generate: async (input) => { hint = input.concernStateHint; return generatedResult({ safetyLevel: "urgent" }); },
     });
     assert.equal(hint, expectedState);
@@ -221,7 +210,7 @@ test("still-active and recurrence replies reach the conversational model with ur
 test("an immediate emergency bypasses generation once but later replies are reclassified", async () => {
   let generations = 0;
   const emergency = await orchestrateAskTurn({
-    concerns: [activeBreathingConcern], generationInput,
+    concerns: [activeBreathingConcern],
     message: "Mani has open-mouth breathing now", petName: "Mani",
     generate: async () => { generations += 1; return generatedResult(); },
   });
@@ -229,7 +218,7 @@ test("an immediate emergency bypasses generation once but later replies are recl
   assert.equal(emergency.handledWithoutAi, true);
   assert.equal(emergency.safetyLevel, "urgent");
   const improved = await orchestrateAskTurn({
-    concerns: [activeBreathingConcern], generationInput,
+    concerns: [activeBreathingConcern],
     message: "she is good", petName: "Mani",
     generate: async () => { generations += 1; return generatedResult(); },
   });
@@ -242,7 +231,7 @@ test("a resolved concern no longer forces emergency handling on unrelated questi
   let hint = "";
   const result = await orchestrateAskTurn({
     concerns: [{ ...activeBreathingConcern, status: "resolved", resolved_at: "2026-07-27T10:00:00.000Z" }],
-    generationInput, message: "How can I help Mani become friendlier?", petName: "Mani",
+     message: "How can I help Mani become friendlier?", petName: "Mani",
     generate: async (input) => { hint = input.concernStateHint; return generatedResult({ safetyLevel: "normal" }); },
   });
   assert.equal(hint, "unrelated");
@@ -288,7 +277,7 @@ test("low-value acknowledgements do not require generation", async () => {
   assert.equal(classifyUserTurn("thanks").isLowValueAcknowledgement, true);
   const result = await orchestrateAskTurn({
     concerns: [],
-    generationInput: { ...generationInput, question: "thanks" },
+
     message: "thanks",
     petName: "Mani",
     generate: async () => { throw new Error("AI should not be called"); },
@@ -301,7 +290,7 @@ test("casual banter can generate a short reply but cannot create a care-history 
   let generations = 0;
   const result = await orchestrateAskTurn({
     concerns: [],
-    generationInput: { ...generationInput, question: "she is dumb" },
+
     message: "she is dumb",
     petName: "Mani",
     generate: async () => {
@@ -320,7 +309,7 @@ test("casual banter can generate a short reply but cannot create a care-history 
 
   const butterfly = await orchestrateAskTurn({
     concerns: [],
-    generationInput: { ...generationInput, question: "so my cat went outside and literally started chasing butterflies" },
+
     message: "so my cat went outside and literally started chasing butterflies",
     petName: "Mani",
     generate: async () => generatedResult({

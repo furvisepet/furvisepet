@@ -166,7 +166,7 @@ test("negated and hypothetical recovery language cannot resolve a concern downst
       activeConcerns: [activeVomitingConcern], petId: "pet-1", petName: "Milo",
     }), false, message);
     const result = await orchestrateAskTurn({
-      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      concerns: [activeVomitingConcern], message, petName: "Milo",
       generate: async () => reasoning(),
     });
     assert.notEqual(result.suggestion?.type, "concern_resolution", message);
@@ -198,7 +198,7 @@ test("uncertainty and conditional scope cannot be stripped from coordinated reco
       petName: "Milo",
     }), false, message);
     const result = await orchestrateAskTurn({
-      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      concerns: [activeVomitingConcern], message, petName: "Milo",
       generate: async () => reasoning(),
     });
     assert.notEqual(result.suggestion?.type, "concern_resolution", message);
@@ -238,7 +238,7 @@ test("conflicting concern transitions use the latest certain matching state", as
     const turn = classifyUserTurn(message, { hasActiveConcern: true });
     assert.notEqual(turn.concernState, "resolved", message);
     const result = await orchestrateAskTurn({
-      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      concerns: [activeVomitingConcern], message, petName: "Milo",
       generate: async () => reasoning(),
     });
     assert.notEqual(result.suggestion?.type, "concern_resolution", message);
@@ -251,7 +251,7 @@ test("conflicting concern transitions use the latest certain matching state", as
     const turn = classifyUserTurn(message, { hasActiveConcern: true });
     assert.equal(turn.concernState, "resolved", message);
     const result = await orchestrateAskTurn({
-      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      concerns: [activeVomitingConcern], message, petName: "Milo",
       generate: async () => reasoning(),
     });
     assert.equal(result.suggestion?.type, "concern_resolution", message);
@@ -269,7 +269,7 @@ test("recovery evidence must match the targeted concern while legitimate recover
       activeConcerns: [activeVomitingConcern], petId: "pet-1", petName: "Luna",
     }), false);
     const unrelated = await orchestrateAskTurn({
-      concerns: [activeVomitingConcern], generationInput: {}, message: unrelatedMessage, petName: "Luna",
+      concerns: [activeVomitingConcern], message: unrelatedMessage, petName: "Luna",
       generate: async () => reasoning(),
     });
     assert.notEqual(unrelated.suggestion?.type, "concern_resolution");
@@ -286,7 +286,7 @@ test("recovery evidence must match the targeted concern while legitimate recover
       activeConcerns: [activeVomitingConcern], petId: "pet-1", petName: "Milo",
     }), true, message);
     const result = await orchestrateAskTurn({
-      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      concerns: [activeVomitingConcern], message, petName: "Milo",
       generate: async () => reasoning(),
     });
     assert.equal(result.suggestion?.type, "concern_resolution", message);
@@ -328,7 +328,7 @@ test("resolution grounding treats the owned concern as authority, not suggestion
 
   const ambiguous = await orchestrateAskTurn({
     concerns: [activeVomitingConcern, activeHidingConcern],
-    generationInput: {},
+
     message: "She is doing well now.",
     petName: "Luna",
     generate: async () => reasoning(),
@@ -376,7 +376,7 @@ test("safety signals survive mixed questions without becoming persistence author
     assert.equal(turn.concernState, "worsening", message);
     let providerCalls = 0;
     const result = await orchestrateAskTurn({
-      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      concerns: [activeVomitingConcern], message, petName: "Milo",
       generate: async () => { providerCalls += 1; return reasoning(); },
     });
     assert.equal(result.handledWithoutAi, true, message);
@@ -397,7 +397,7 @@ test("mixed punctuation preserves an independently asserted recovery clause", as
     const turn = classifyUserTurn(message, { hasActiveConcern: true });
     assert.equal(turn.concernState, "resolved", message);
     const result = await orchestrateAskTurn({
-      concerns: [activeHidingConcern], generationInput: {}, message, petName: "Luna",
+      concerns: [activeHidingConcern], message, petName: "Luna",
       generate: async () => reasoning(),
     });
     assert.equal(result.suggestion?.type, "concern_resolution", message);
@@ -439,7 +439,7 @@ test("evidence grounding is limited to independently supported spans", () => {
 test("orchestration never offers memory or resolution saves for pure questions", async () => {
   const correctionQuestion = await orchestrateAskTurn({
     concerns: [],
-    generationInput: {},
+
     message: "How many separate stomach-upset episodes have I actually reported for him?",
     petName: "Milo",
     generate: async () => reasoning(),
@@ -448,7 +448,7 @@ test("orchestration never offers memory or resolution saves for pure questions",
 
   const resolutionQuestion = await orchestrateAskTurn({
     concerns: [activeHidingConcern],
-    generationInput: {},
+
     message: "Is her hiding problem resolved?",
     petName: "Luna",
     generate: async () => reasoning({
@@ -473,7 +473,7 @@ test("historical recall and assistant-attributed history cannot create a new sug
   ]) {
     const result = await orchestrateAskTurn({
       concerns: [],
-      generationInput: {},
+
       message,
       petName: "Milo",
       generate: async () => reasoning({
@@ -493,13 +493,13 @@ test("historical recall and assistant-attributed history cannot create a new sug
 
 test("legitimate resolution and correction suggestions remain available", async () => {
   const resolution = await orchestrateAskTurn({
-    concerns: [activeHidingConcern], generationInput: {}, message: "She stopped hiding yesterday.", petName: "Luna",
+    concerns: [activeHidingConcern], message: "She stopped hiding yesterday.", petName: "Luna",
     generate: async () => reasoning(),
   });
   assert.equal(resolution.suggestion?.type, "concern_resolution");
 
   const correction = await orchestrateAskTurn({
-    concerns: [], generationInput: {}, message: "Actually, he prefers salmon, not chicken.", petName: "Milo",
+    concerns: [], message: "Actually, he prefers salmon, not chicken.", petName: "Milo",
     generate: async () => reasoning(),
   });
   assert.equal(correction.suggestion?.type, "memory");

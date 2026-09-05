@@ -1,4 +1,4 @@
-import type { AskReasoningResult, GenerateAskReasoningInput } from "./ask-reasoning.ts";
+import type { AskReasoningResult } from "./ask-reasoning.ts";
 import type { PetConcern, PendingUpdateSuggestion } from "./concern-engine.ts";
 import { buildConcernOpeningSuggestion, buildMemorySuggestion, buildObservationSuggestion, buildResolutionSuggestion, getCurrentConcern, isPendingUpdateSuggestionGrounded, isRecoveryGroundedForConcern } from "./concern-engine.ts";
 import { isPetObservationEvidence, petObservationSpans } from "./recovery-subject.ts";
@@ -20,13 +20,12 @@ export type AskOrchestratorResult = {
 export async function orchestrateAskTurn({
   concerns,
   generate,
-  generationInput,
   message,
   petName,
 }: {
   concerns: PetConcern[];
-  generate: (input: GenerateAskReasoningInput) => Promise<AskReasoningResult>;
-  generationInput: GenerateAskReasoningInput;
+  // Generation owns its evidence input; orchestration supplies only turn classification.
+  generate: (turn: { concernStateHint: ReturnType<typeof classifyUserTurn>["concernState"] }) => Promise<AskReasoningResult>;
   message: string;
   petName: string;
 }): Promise<AskOrchestratorResult> {
@@ -35,7 +34,7 @@ export async function orchestrateAskTurn({
   const concern = getCurrentConcern(concerns);
   const turn = classifyUserTurn(message, { hasActiveConcern: Boolean(concern) });
 
-  const aiResult = await generate({ ...generationInput, concernStateHint: turn.concernState });
+  const aiResult = await generate({ concernStateHint: turn.concernState });
   return finishGeneratedTurn({ aiResult, concern, concerns, message, petName, turn });
 }
 
