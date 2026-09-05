@@ -11,7 +11,7 @@ Verification: pre-edit lifetime baseline 9 pass / 8 fail; after edits 11 pass / 
 
 Unfinished:
 1. Bounded dated unlinked-correction discovery implemented in the subsequent repair; see ask-late-correction-checkpoint.md. Exhaustive discovery and automatic authoritative linkage remain unsupported. Current unchanged lifetime audit is 12 pass / 5 fail; latest full suite is 2,245 pass.
-2. Recover old prose-only episode references with source revalidation; never treat an assistant list as record authority.
+2. Recover old prose-only episode references with source revalidation; never treat an assistant list as record authority. Qualified wording for existing validated references is repaired separately in ask-episode-wording-checkpoint.md; that does not certify prose-only references.
 3. Old unlinked episode projections and ordinal recall remain limited; supported linked episode contracts already have separate passing tests.
 4. Exact lifetime episode totals require certified membership and completeness; the fixture's unlinked notes do not establish either.
 5. Earliest/latest weight comparison requires correction-aware effective measurements and completeness, not just arithmetic on visible notes.

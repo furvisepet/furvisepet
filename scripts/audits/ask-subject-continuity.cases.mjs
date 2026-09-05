@@ -45,3 +45,21 @@ test('changed sources remain stale after subject continuity repair',async t=>{
  assert.equal(run.context.episodeResult.referenceStatus,'stale');assert.deepEqual(run.context.episodeResult.items,[]);
  assert.equal(run.result.acceptedCareActions.length,0);
 });
+
+test('topic-qualified ordinal keeps the switched pet through subject resolution and callback',async t=>{
+ clock(t);const saved=await savedList();
+ const run=await follow('What changed during the second vomiting episode?',saved);
+ assert.equal(run.context.pet.id,'luna');
+ assert.equal(run.context.episodeResult.referenceStatus,'resolved');
+ assert.equal(run.context.episodeResult.items[0].id,'episode:luna-ep2');
+ assert.doesNotMatch(run.serialized,/milo-only/);
+});
+
+test('explicit pet overrides qualified ordinal discourse and rejects the other pet list',async t=>{
+ clock(t);const saved=await savedList();
+ const run=await follow('What changed during Milo second vomiting episode?',saved);
+ assert.equal(run.context.pet.id,'milo');
+ assert.equal(run.context.episodeResult.referenceStatus,'clarify');
+ assert.deepEqual(run.context.episodeResult.items,[]);
+ assert.doesNotMatch(run.serialized,/luna-onset/);
+});

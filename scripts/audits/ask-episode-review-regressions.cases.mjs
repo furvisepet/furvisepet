@@ -32,3 +32,41 @@ test('explicit period reaches matching episodes after older discovery prefix',as
  assert.equal(request.args.p_from,'2014-01-01T00:00:00.000Z');
  assert.equal(request.args.p_to,'2015-01-01T00:00:00.000Z');
 });
+
+async function savedList() {
+ const original=await run('List all vomiting episodes over Milo lifetime.');
+ return {id:'wording-answer',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,created_at:'2026-09-04T00:00:00Z',
+  response_data:attachEpisodeReferences(buildAskConversationResponse(original.result.reasoning.answer),original.context.episodeResult)};
+}
+test('topic-qualified ordinal uses the revalidated displayed episode',async t=>{
+ clock(t);const saved=await savedList();
+ const follow=await run('What changed during the second vomiting episode?',{messages:[saved],answer:'Invented cure.'});
+ assert.equal(follow.context.episodeResult?.referenceStatus,'resolved');
+ assert.equal(follow.context.episodeResult.items[0].id,'episode:ep2');
+ assert.match(JSON.stringify(follow.result.reasoning.answer),/eating normally again/);
+ assert.doesNotMatch(JSON.stringify(follow.result.reasoning.answer),/Invented cure/);
+});
+test('multiple ordinals never silently select one displayed episode',async t=>{
+ clock(t);const saved=await savedList();
+ for(const question of ['Compare the first and second episode.','Was it the first episode or the second episode?']) {
+  const follow=await run(question,{messages:[saved]});
+  assert.equal(follow.context.episodeResult?.referenceStatus,'clarify');
+  assert.deepEqual(follow.context.episodeResult.items,[]);
+ }
+});
+
+test('qualified follow-ups retain topic, missing-envelope and changed-source checks',async t=>{
+ clock(t);const saved=await savedList();
+ const missing=await run('What about the second vomiting episode?');
+ assert.equal(missing.context.episodeResult?.referenceStatus,'clarify');
+ const otherTopic=await run('What about the second soft-stool episode?',{messages:[saved]});
+ assert.equal(otherTopic.context.episodeResult?.referenceStatus,'clarify');
+ const changed=await run('What about the second vomiting episode?',{messages:[saved],rows:[first,{...second,note:second.note+' Updated report.'},update]});
+ assert.equal(changed.context.episodeResult?.referenceStatus,'stale');
+ assert.deepEqual(changed.context.episodeResult.items,[]);
+ const determiner=await run('Tell me about that second vomiting episode.',{messages:[saved]});
+ assert.equal(determiner.context.episodeResult?.referenceStatus,'resolved');
+ assert.equal(determiner.context.episodeResult.items[0].id,'episode:ep2');
+ assert.deepEqual(determiner.result.acceptedCareActions,[]);
+ assert.deepEqual(determiner.result.acceptedLearnings,[]);
+});

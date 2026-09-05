@@ -1,4 +1,5 @@
 import "server-only";
+import { parseEpisodeFollowUp as episodeFollowUp } from "./episode-reference-language.ts";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CareEntryRow } from "../supabase.ts";
@@ -17,7 +18,7 @@ const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(valu
 const keys = (topic: string) => topic === "vomiting" ? ["vomiting", "vomit"] : topic === "soft stool" ? ["soft_stool", "stool", "diarrhea"] : ["breathing"];
 const sourceVersion = (s: Source) => hash([s.id,s.user_id,s.pet_profile_id,s.title,s.note,s.occurred_at,s.updated_at,s.deleted_at]);
 export function isEpisodeFollowUp(message: string) {
-  return /\b(?:first|second|third|fourth|fifth|sixth|seventh|eighth|last) (?:one|episode)\b|\bthat (?:one|episode)\b/i.test(message);
+  return episodeFollowUp(message) !== null;
 }
 /** Counting/listing is a distinct intent; mentioning episodes is not enough. */
 export function isEpisodeListRequest(message: string) {
@@ -57,7 +58,7 @@ function boundary(source: Source, petName: string, topic: string) {
 
 export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const message = context.currentMessage;
-  const follow = isEpisodeFollowUp(message);
+  const follow = episodeFollowUp(message);
   if ((!follow && !isEpisodeListRequest(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
   const topic = topicOf(message);
   const plan = planHistoricalQuery(message);
@@ -72,7 +73,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
   try {
     if (petIds.length !== 1 || !petIds.includes(context.pet.id)) { result.coverage="ambiguous"; result.referenceStatus="clarify"; return done(); }
     if (follow) {
-      if (!context.conversationId) return done();
+      if (follow.ambiguous || !context.conversationId) return done();
       const stored = await db.rpc("read_ask_episode_references", {p_conversation_id:context.conversationId}).abortSignal(signal());
       if (stored.error) throw new Error("reference_read_unavailable");
       refs = parseReferences(stored.data,context);
@@ -131,7 +132,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     if (ambiguous.size) { result.coverage="ambiguous"; result.reasons.push("conflicting_episode_boundaries"); }
     result.supportedCount=result.items.length;
     if (refs) {
-      const ordinal=/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|last) (?:one|episode)\b/i.exec(message)?.[1].toLowerCase();
+      const ordinal=follow?.ordinal;
       const index=ordinal === "last" ? refs.items.length-1 : ["first","second","third","fourth","fifth","sixth","seventh","eighth"].indexOf(ordinal || "");
       const selected=index>=0 ? refs.items[index] : refs.items.find(i=>i.id===refs!.selectedId) || (refs.items.length===1 ? refs.items[0] : null);
       if (!selected) { result.items=[]; result.supportedCount=0; return done(); }

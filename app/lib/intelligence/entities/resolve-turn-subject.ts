@@ -1,4 +1,5 @@
 import type { ProposedSemanticFrame } from "../semantic-frame/types.ts";
+import { isEpisodeSubjectReference } from "../episode-reference-language.ts";
 import { groundSemanticFrameEvidence } from "../semantic-frame/ground-evidence.ts";
 import { validateSemanticFrameEvidence } from "../semantic-frame/validate-evidence.ts";
 import { buildRecentPetIds, type EligibleSemanticPet } from "./candidate-retrieval.ts";
@@ -122,7 +123,7 @@ export function resolveDeterministicTurnSubject({
     // Elliptical episode references continue owner-established discourse, not
     // the conversation anchor. This chooses a pet only: episode identity still
     // requires the separate owned/versioned reference lookup and revalidation.
-    const episodeReference = /\b(?:(?:first|second|third|fourth|fifth|sixth|seventh|eighth|last|previous)\s+(?:one|episode)|(?:that|this)\s+(?:one|episode))\b/i.test(message);
+    const episodeReference = isEpisodeSubjectReference(message);
     if (episodeReference) {
       const focus = state.entities.find((entity) => entity.key === state.currentFocusKey);
       if (focus?.kind === "pet" && focus.petId) return contextual(focus.petId, 0.92);
