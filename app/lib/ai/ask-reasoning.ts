@@ -1200,7 +1200,9 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
       occurredAt: episode.started_at || episode.last_event_at,
       status: resolved ? "resolved" : "active",
       priority: episode.severity === "urgent" ? "urgent" : episode.severity === "important" ? "important" : "routine",
-      metadata: { episodeType: episode.episode_type, normalizedTopic: semanticTopic, canonicalEpisodeKey: episode.normalized_key, status: episode.status },
+      metadata: { episodeType: episode.episode_type, normalizedTopic: semanticTopic, canonicalEpisodeKey: episode.normalized_key, status: episode.status,
+        sequence_number: episode.sequence_number, recurrence_of: episode.recurrence_of, resolved_at: episode.resolved_at,
+        sequenceScope: "stored_topic_sequence_not_displayed_ordinal" },
     });
   }
   for (const entry of input.careEntries) {

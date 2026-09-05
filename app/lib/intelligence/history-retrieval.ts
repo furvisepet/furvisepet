@@ -8,7 +8,7 @@ import { resolveEffectiveClaimGraph, type RebuildClaim, type RebuildRelation } f
 
 export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, candidateRows: 64, pets: 3, graphCalls: 6, graphRows: 128, records: 32, chars: 18000, timeMs: 5000 } as const;
 type Cursor = { petId: string; occurredAt: string; id: string };
-export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" };
+export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
   plan: HistoryPlan; candidateIds: string[]; queryCount: number;
   retrieval: Completeness; corrections: Completeness; extraction: Completeness; grouping: Completeness;
@@ -26,7 +26,7 @@ type GraphPage = { claims: DbClaim[]; relations: DbRelation[]; lineage: Lineage[
 
 /** Deliberately bounded, deterministic query interpretation. No model query
  * authority. Unknown/disjoint/relative periods stay on the disclosed old path. */
-export function planHistoricalQuery(message: string): HistoryPlan | null {
+export function planHistoricalQuery(message: string, allowBroadComparison = false): HistoryPlan | null {
   if (!isHistoricalRecall(message)) return null;
   if (!askEvidenceScope(message, []).readOnlyRecall && !(/\b(?:history|lifetime|records?)\b/i.test(message)
     && !analyzeOwnerAssertions(message).hasOwnerAssertion && !/\b(?:save|log|remember)\b/i.test(message))) return null;
@@ -57,7 +57,8 @@ export function planHistoricalQuery(message: string): HistoryPlan | null {
       from = new Date(instant).toISOString(); to = new Date(instant + 86400000).toISOString();
     }
   }
-  if (!from && !terms.length) return null;
+  if (!from && !terms.length) return allowBroadComparison && /\bcompare\b/i.test(message) && /\bhistor(?:y|ies)\b/i.test(message)
+    ? { from: null, to: null, terms: [], interpretation: "broad_comparison" } : null;
   return { from, to, terms: [...new Set(terms)], interpretation: terms.length ? "lexical" : "period" };
 }
 
@@ -69,7 +70,8 @@ function isHistoricalRecall(message: string) {
 /** Called only after conversation subject authorization, inside the real
  * generation callback. Recent safety context is retained separately. */
 export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
-  const plan = planHistoricalQuery(context.currentMessage);
+  const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
+  const plan = planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
   const deadline = Date.now() + HISTORY_BUDGET.timeMs;
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
