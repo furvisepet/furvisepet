@@ -78,7 +78,17 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       const stored = await db.rpc("read_ask_episode_references", {p_conversation_id:context.conversationId}).abortSignal(signal());
       if (stored.error) throw new Error("reference_read_unavailable");
       refs = parseReferences(stored.data,context);
-      if (!refs || refs.petId !== context.pet.id || topic && topic !== refs.topic) return done();
+      if (!refs) {
+        const hint = context.episodePresentation;
+        const hintTopic = hint ? topicOf(hint.prompt).topic : null;
+        const index = follow.ordinal === "last" ? (hint?.items.length || 0) - 1
+          : ["first","second","third","fourth","fifth","sixth","seventh","eighth"].indexOf(follow.ordinal || "");
+        if (hint?.petId === context.pet.id && hintTopic && (!topic || topic === hintTopic) && index >= 0 && hint.items[index]) {
+          result.presentationHint = { ...hint, selectedLabel: hint.items[index] };
+        }
+        return done();
+      }
+      if (refs.petId !== context.pet.id || topic && topic !== refs.topic) return done();
       result.topic=refs.topic; result.from=refs.from; result.to=refs.to;
     } else if (!topic || !plan) { result.referenceStatus="clarify"; result.coverage="ambiguous"; return done(); }
     // Member-only revalidation cannot discharge uncertainty found by the preceding

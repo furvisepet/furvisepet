@@ -60,6 +60,25 @@ test('mixed-topic ordinal requests do not inherit one saved topic',async t=>{
  }
 });
 
+test('older prose list supplies navigation context without source authority',async t=>{
+ clock(t);
+ const messages=[
+  {id:'old-question',role:'user',user_text:'Tell me about Milo soft-stool episodes.',sequence_number:1},
+  {id:'old-answer',role:'furvise',response_data:{directAnswer:'Earlier list.',sections:[{heading:'Episodes',items:['February 2011: first episode.','July 2014: second episode.']}]},sequence_number:2},
+ ].map(m=>({...m,user_id:ownerId,conversation_id:'chat',created_at:'2026-09-04T00:00:00Z'}));
+ const r=await run('What changed during the second episode?',{messages,rows:[],careEpisodes:[]});
+ assert.equal(r.context.episodeResult.presentationHint?.source,'unverified_assistant_presentation');
+ assert.match(r.serialized,/July 2014/);
+ assert.equal(r.context.episodeResult.referenceStatus,'clarify');
+ assert.equal(r.context.episodeResult.references,undefined);
+ assert.deepEqual(r.context.episodeResult.items,[]);
+ assert.match(r.result.reasoning.answer.summary,/earlier answer/);
+ assert.deepEqual(r.result.acceptedCareActions,[]);
+ assert.deepEqual(r.result.acceptedLearnings,[]);
+ const wrongPet=await run('What changed during the second episode?',{messages:messages.map(m=>m.role==='user'?{...m,user_text:'Tell me about Luna soft-stool episodes.'}:m),rows:[],careEpisodes:[]});
+ assert.equal(wrongPet.context.episodeResult.presentationHint,undefined);
+});
+
 async function savedList() {
  const original=await run('List all vomiting episodes over Milo lifetime.');
  return {id:'wording-answer',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,created_at:'2026-09-04T00:00:00Z',

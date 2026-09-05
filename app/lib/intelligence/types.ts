@@ -138,6 +138,7 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  episodePresentation?: import("./episode-presentation.ts").EpisodePresentation;
   episodeResult?: import("./episode-history.ts").EpisodeResult;
   evidenceLoading?: import("./ask-evidence.ts").EvidenceLoading;
   askHistory?: import("./history-retrieval.ts").RetrievedAskHistory;

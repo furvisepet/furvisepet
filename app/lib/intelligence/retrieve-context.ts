@@ -1,4 +1,5 @@
 import "server-only";
+import { episodePresentation } from "./episode-presentation.ts";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadActiveConcerns, loadRecentlyResolvedConcerns } from "../ai/context-builder";
@@ -170,6 +171,11 @@ export async function buildFurviseContext({
         return source;
       })],
     },
+    // Presentation-only sections have not passed memory text redaction. Suppress
+    // the hint whenever deleted/forgotten evidence could be reintroduced.
+    episodePresentation: inactiveMemories.unavailable || selectedMemories.inactiveMemoryMarkers.length || deletedCareEntryIds.size ? undefined
+      : episodePresentation(messages.data, new Set(conversationTurns.filter(turn => turn.role !== "user"
+        || messages.data.find(message => message.id === turn.id)?.user_text === turn.text).map(turn => turn.id)), selectedProfile, eligiblePets.data || [selectedProfile]),
     feature, locale, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
     pet: selectedProfile,
     eligiblePets: (eligiblePets.data || [selectedProfile]).filter((pet) => pet.id === selectedProfile.id || getPetLifecycleStatus(pet) === "active"),

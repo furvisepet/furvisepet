@@ -31,3 +31,6 @@ Unfinished:
 7. Controlled browser/application verification and Vet Brief upstream failure diagnosis remain outstanding. No live provider or production validation is claimed.
 
 No Docker, migration, provider, push, merge or deployment during this batch. Previous commits preserved. This checkpoint is not a declaration that all requested work is complete.
+
+## Latest launch batch
+See docs/ask-launch-batch-checkpoint.md for current status. Provider/citation hardening is committed as 61418b9. Older prose-list labels are now presentation-only navigation with explicit source limitations. Latest full suite 2,250 passed; unchanged lifetime audit 14 passed / 3 failed; typecheck/lint/diff passed (two existing lint warnings). Legacy migration and authenticated/provider rollout validation remain unfinished. No deployment, remote migration or provider calls occurred.
