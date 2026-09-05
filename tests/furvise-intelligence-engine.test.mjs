@@ -55,7 +55,7 @@ test("Ask builds current context server-side and verifies both user and pet owne
 
 test("live retrieval is bounded and includes profile, care, concern, memory, and conversation sources", () => {
   for (const source of ["dog_profiles", "pet_care_entries", "dog_memories", "furvise_memories", "ask_conversation_messages"]) {
-    assert.match(retrieval, new RegExp(`from\\(\"${source}\"\\)`));
+    assert.match(retrieval + readFileSync(new URL("../app/lib/intelligence/memory-sources.ts", import.meta.url), "utf8"), new RegExp(`from\\(\"${source}\"\\)`));
   }
   assert.match(retrieval, /loadActiveConcerns/);
   assert.match(retrieval, /loadRecentlyResolvedConcerns/);

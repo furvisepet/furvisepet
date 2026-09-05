@@ -279,13 +279,14 @@ test("database boundary rejects machine state and removes direct identity/conten
 
 test("all live memory consumers use the shared integrity boundary", () => {
   for (const path of [
-    "app/lib/intelligence/retrieve-context.ts",
+    "app/lib/intelligence/memory-sources.ts",
     "app/lib/remembered-details.ts",
     "app/lib/pet-memory.ts",
     "app/lib/ai/context-builder.ts",
     "app/api/vet-briefs/route.ts",
   ]) assert.match(read(path), /isEligible(?:Stored|Legacy)Memory/, path);
-  assert.match(read("app/lib/intelligence/retrieve-context.ts"), /inactiveMemories\.data\.filter\(isEligibleStoredMemory\)/);
+  assert.match(read("app/lib/intelligence/retrieve-context.ts"), /selectMemorySources\(memorySources/);
+  assert.match(read("app/lib/intelligence/memory-sources.ts"), /inactiveMemories\.data\.filter\(isEligibleStoredMemory\)/);
 });
 
 test("all application memory writers cross the shared semantic boundary", () => {
