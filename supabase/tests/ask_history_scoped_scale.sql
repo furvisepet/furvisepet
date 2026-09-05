@@ -2,10 +2,17 @@
 -- All synthetic rows, temporary functions and statistics changes roll back.
 \timing on
 begin;
+set local statement_timeout = '120s';
+set local lock_timeout = '5s';
 insert into auth.users(id,aud,role,email,created_at,updated_at) values
  ('83000000-0000-4000-8000-000000000001','authenticated','authenticated','scale@example.test',now(),now());
 insert into public.dog_profiles(id,user_id,name,species) values
  ('83000000-0000-4000-8000-000000000011','83000000-0000-4000-8000-000000000001','Synthetic Milo','dog');
+-- This is a retrieval benchmark, not an ingestion benchmark. The unrelated
+-- state projection walks a growing source-ID array on every insert. Bypass it
+-- only while loading synthetic rows in this disposable transaction; restore it
+-- before every assertion/read. RLS, constraints and all other triggers remain.
+alter table public.pet_care_entries disable trigger pet_care_entries_apply_current_state;
 insert into public.pet_care_entries(id,user_id,pet_profile_id,category,note,occurred_at)
  select ('84000000-0000-4000-8000-' || lpad(i::text,12,'0'))::uuid,
  '83000000-0000-4000-8000-000000000001','83000000-0000-4000-8000-000000000011',
@@ -17,12 +24,14 @@ insert into public.pet_care_entries(id,user_id,pet_profile_id,category,note,occu
  'symptom','Synthetic vomiting note.', '2014-07-09'::timestamptz from generate_series(1,60) i;
 insert into public.pet_care_entries(id,user_id,pet_profile_id,category,note,occurred_at) values
  ('85000000-0000-4000-8000-000000000061','83000000-0000-4000-8000-000000000001','83000000-0000-4000-8000-000000000011','symptom','Synthetic decisive 2011 soft-stool note, not vomiting.','2011-02-01');
+alter table public.pet_care_entries enable trigger pet_care_entries_apply_current_state;
 analyze public.pet_care_entries;
 analyze public.dog_profiles;
 select count(*) as synthetic_rows from public.pet_care_entries;
 select indexname,indexdef from pg_indexes where indexname in
  ('care_history_owner_pet_cursor_idx','care_history_note_search_idx','care_history_title_search_idx','ask_correction_subject_event_idx','ask_history_removed_source_idx') order by indexname;
 do $$ begin
+ if (select tgenabled from pg_trigger where tgrelid='public.pet_care_entries'::regclass and tgname='pet_care_entries_apply_current_state') <> 'O' then raise exception 'seed trigger not restored'; end if;
  if (select count(*) from pg_indexes where indexname in ('care_history_owner_pet_cursor_idx','care_history_note_search_idx','care_history_title_search_idx','ask_correction_subject_event_idx','ask_history_removed_source_idx')) <> 5 then raise exception 'prepared indexes missing'; end if;
 end $$;
 set local role authenticated;
@@ -46,7 +55,7 @@ do $$ declare last_time timestamptz; last_id uuid; item record; page_count int; 
  end loop;
  if cardinality(seen)<>60 or pages<>4 then raise exception 'cursor gap: %, pages %',cardinality(seen),pages; end if;
  raise notice 'PASS: 60 identical-timestamp rows, 4 queries (including empty end), no gaps/duplicates';
- if (select note from public.pet_care_entries where user_id='83000000-0000-4000-8000-000000000001' and pet_profile_id='83000000-0000-4000-8000-000000000011' and deleted_at is null and occurred_at >= '2011-01-01' and occurred_at < '2012-01-01') <> 'Synthetic decisive 2011 soft-stool note, not vomiting.' then raise exception 'old decisive evidence lost'; end if;
+ if (select note from public.pet_care_entries where user_id='83000000-0000-4000-8000-000000000001' and pet_profile_id='83000000-0000-4000-8000-000000000011' and deleted_at is null and occurred_at >= '2011-01-01' and occurred_at < '2012-01-01') is distinct from 'Synthetic decisive 2011 soft-stool note, not vomiting.' then raise exception 'old decisive evidence lost'; end if;
 end $$;
 -- Same predicates/projection as the production candidate request. Three warm
 -- repetitions, no forced planner settings, with actual buffers and row counts.
