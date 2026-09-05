@@ -138,6 +138,7 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  evidenceLoading?: import("./ask-evidence.ts").EvidenceLoading;
   feature: IntelligenceFeature;
   locale: string;
   currentMessage: string;

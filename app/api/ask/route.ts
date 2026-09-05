@@ -1,4 +1,5 @@
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
+import { createAskEvidenceContract } from "../../lib/intelligence/ask-evidence.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { createCanonicalCareAuthorityClient } from "../../lib/intelligence/care-authority-client";
@@ -760,6 +761,7 @@ export async function POST(request: Request) {
         generate: async () => {
           intelligenceResult = await runFurviseIntelligence({
             context: liveContext,
+            evidenceContract: createAskEvidenceContract(liveContext, subjectResolution.petIds),
             requestId,
             sourceMessageId: preparedRequest.userMessageId,
             onProviderEvent,

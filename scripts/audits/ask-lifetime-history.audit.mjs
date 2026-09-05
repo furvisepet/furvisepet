@@ -1,100 +1,8 @@
-// Explicitly invoked red acceptance audit; intentionally outside default test
-// discovery until a retrieval implementation can satisfy these requirements.
-// node --experimental-transform-types --test scripts/audits/ask-lifetime-history.audit.mjs
+// Explicitly invoked remaining lifetime acceptance audit (expected failures).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { registerHooks } from 'node:module';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { care, conversations, decisive, episodes, expected, irrelevant, now, ownerId, pets } from './fixtures/ask-lifetime-history.mjs';
-
-const reasoningUrl = new URL('../../app/lib/ai/ask-reasoning.ts', import.meta.url).href;
-const adapter = `import { generateContextAwareAskResponse as generate } from ${JSON.stringify(reasoningUrl)};
-export const generateContextAwareAskResponse = input => generate({...input, client: globalThis.__historyAuditClient});`;
-registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (specifier === 'server-only') return { shortCircuit: true, url: 'data:text/javascript,export default {}' };
-    if (context.parentURL?.endsWith('/run-intelligence.ts') && /ask-reasoning$/.test(specifier)) {
-      return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent(adapter)}` };
-    }
-    if (/ask-conversation-server\.ts$/.test(specifier)) {
-      return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent('export const loadActionCapabilitiesForMessages = async () => new Map(); export const presentationOnlyAskResponse = value => value;')}` };
-    }
-    if (specifier.startsWith('.') && context.parentURL?.startsWith('file:')) {
-      const url = new URL(specifier, context.parentURL);
-      for (const suffix of ['.ts', '/index.ts']) {
-        if (existsSync(fileURLToPath(url.href + suffix))) return nextResolve(url.href + suffix, context);
-      }
-    }
-    return nextResolve(specifier, context);
-  },
-});
-globalThis.fetch = async () => { throw new Error('Audit forbids all network/provider calls'); };
-const { buildFurviseContext } = await import('../../app/lib/intelligence/retrieve-context.ts');
-const { runFurviseIntelligence } = await import('../../app/lib/intelligence/run-intelligence.ts');
-const { buildAskContext, ASK_PROMPT_CONTEXT_CHAR_BUDGET } = await import('../../app/lib/ai/ask-reasoning.ts');
-const { selectRelevantCareEntries } = await import('../../app/lib/intelligence/build-context.ts');
-const { resolveAskTurnSubject } = await import('../../app/lib/intelligence/entities/resolve-turn-subject.ts');
-const { rebuildSemanticProjectionsV2 } = await import('../../app/lib/intelligence/v2/projections/rebuild.ts');
-const { classifyFurviseCapabilityQuestion } = await import('../../app/lib/ai/ask-internal-product-policy.ts');
-
-function database(rows, { messages = [], failCare = false, careEpisodes = [] } = {}) {
-  const queries = [];
-  const tables = { dog_profiles: pets, pet_care_entries: rows, ask_conversations: conversations, ask_conversation_messages: messages, pet_care_episodes: careEpisodes };
-  return { queries, from(table) {
-    const query = { table, filters: [], orders: [], cap: null, single: false }; queries.push(query);
-    const chain = {
-      select() { return this; }, returns() { return this; },
-      eq(key, value) { query.filters.push(row => row[key] === value); return this; },
-      is(key, value) { query.filters.push(row => (row[key] ?? null) === value); return this; },
-      in(key, values) { query.filters.push(row => values.includes(row[key])); return this; },
-      not(key, op, value) { assert.equal(op, 'is'); query.filters.push(row => row[key] !== value); return this; },
-      gte(key, value) { query.filters.push(row => row[key] >= value); return this; },
-      lte(key, value) { query.filters.push(row => row[key] <= value); return this; },
-      or() { assert.ok(!tables[table]?.length, 'OR only unused empty memory fixtures'); return this; },
-      order(key, options) { query.orders.push([key, options.ascending]); return this; },
-      limit(value) { query.cap = value; return this; },
-      maybeSingle() { query.single = true; return this; },
-      then(resolve, reject) {
-        let data = (tables[table] || []).filter(row => query.filters.every(filter => filter(row)));
-        data = [...data].sort((a, b) => { for (const [key, ascending] of query.orders) {
-          const cmp = String(a[key] ?? '').localeCompare(String(b[key] ?? '')); if (cmp) return ascending ? cmp : -cmp;
-        } return 0; });
-        if (query.cap !== null) data = data.slice(0, query.cap);
-        return Promise.resolve({ data: query.single ? data[0] || null : data, error: failCare && table === 'pet_care_entries' ? { code: 'AUDIT_OFFLINE' } : null }).then(resolve, reject);
-      },
-    };
-    return chain;
-  } };
-}
-function output(answer = 'The supplied observations are owner reports, not a diagnosis.') {
-  return { answer, answerSections: [], safetyLevel: 'normal', suggestedFollowUps: [],
-    proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null },
-    shoppingSuppressed: false, responseMode: 'practical_guidance', userIntent: 'history recall', relevantContextIds: [],
-    messageUnderstanding: { primaryIntent: 'question', secondaryIntents: [], userIsAskingQuestion: true, userIsProvidingUpdate: false,
-      userIsCorrectingPriorInformation: false, userIsResolvingConcern: false, userIsProvidingPreference: false, userIsMakingSmallTalk: false,
-      recoveryStatus: 'none', recoveryConfidence: 1, recoveryEvidence: { outcome: 'none', surfaceText: null, targetConcept: null, confidence: 1 },
-      requestedTopic: 'history', referencedPet: null, safetyRelevance: 'none', needsClarification: false, canAnswerDirectly: true },
-    intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
-    learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
-}
-async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId] } = {}) {
-  const supabase = database(rows, { messages, failCare, careEpisodes });
-  const context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
-    conversationPetId: messages ? 'milo' : null, currentMessage: question, dateRange });
-  const requests = [];
-  globalThis.__historyAuditClient = { responses: { async create(request) {
-    requests.push(request); return { output_text: JSON.stringify(output(answer)) };
-  } } };
-  const result = await runFurviseIntelligence({ context, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds });
-  assert.equal(requests.length, 1, 'exactly one mocked answer-provider call');
-  return { context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries };
-}
-const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
-const clock = t => {
-  t.mock.timers.enable({ apis: ['Date'], now });
-  t.mock.method(console, 'info', () => {}); // omit synthetic observability chatter only
-};
+import { care, decisive, episodes, expected, irrelevant, ownerId, pets } from './fixtures/ask-lifetime-history.mjs';
+import { exercise, database, clock, promptHas, buildAskContext, selectRelevantCareEntries, resolveAskTurnSubject, rebuildSemanticProjectionsV2, classifyFurviseCapabilityQuestion, ASK_PROMPT_CONTEXT_CHAR_BUDGET } from './helpers/lifetime-harness.mjs';
 
 test('control: actual loader is owner/pet scoped and small weight history reaches actual model input', async t => {
   clock(t);
@@ -115,18 +23,7 @@ for (const [petId, question, ids] of [
   assert.equal(run.context.careEntries.length, 80, 'reconfirm actual DB cap before acceptance assertion');
   for (const id of ids) assert.ok(promptHas(run, id), `decisive ${id} missing from actual model input`);
 });
-test('RED broad-summary coverage includes unseen rows, not just omissions from the selected 20', async t => {
-  clock(t);
-  const run = await exercise('Summarize Milo entire recorded history.', { rows: [...decisive, ...irrelevant('milo')] });
-  assert.ok(run.prompt.coverage?.complete === false && run.prompt.coverage?.requestedPeriod === 'lifetime',
-    'actual model input lacks incomplete-lifetime coverage metadata');
-});
-test('RED database unavailability is distinguishable from no recorded test result at actual model boundary', async t => {
-  clock(t);
-  const run = await exercise('What was Luna urine-test result?', { petId: 'luna', failCare: true });
-  assert.ok(run.context.contextRecovery.unavailableSources.includes('care_entries'));
-  assert.match(run.serialized, /care_entries.*unavailable|unavailable.*care_entries/, 'loader warning is lost before generation');
-});
+// Coverage and unavailable-source acceptance moved to the Stage 1 default suite.
 test('RED intermediate 20-selection represents requested historical period', () => {
   const rows = [...decisive.filter(row => row.pet_profile_id === 'milo'), ...irrelevant('milo', 30).map(row => ({ ...row, severity: 'severe' }))];
   const selected = selectRelevantCareEntries(rows, 'Summarize 2011 and 2014.');
@@ -140,12 +37,12 @@ test('RED final five-evidence cap cannot preserve six relevant weight observatio
   assert.equal(run.context.selectedCareEntries.length, 6);
   assert.equal(run.prompt.contextRecords.filter(row => row.sourceType === 'care_update').length, 6, 'no exact aggregate substitutes for omitted measurement');
 });
-test('RED tail correction survives text compaction', async t => {
+test('RED long corrected record is usefully retrieved, not merely omitted safely', async t => {
   clock(t);
   const note = `${'Owner described the surroundings. '.repeat(22)}Correction: the vomiting belonged to Bruno, not Milo.`;
   const run = await exercise('What does the corrected vomiting record say?', { rows: [care('tail-correction', 'milo', '2026-08-20', 'symptom', note)] });
   assert.ok(promptHas(run, 'tail-correction'));
-  assert.match(run.serialized, /vomiting belonged to Bruno, not Milo/, 'fixed-prefix compaction drops material correction');
+  assert.match(run.serialized, /vomiting belonged to Bruno, not Milo/, 'Stage 1 safely omits oversized evidence; useful full corrected recall remains unimplemented');
 });
 test('RED late correction follows original into historical date-range recall', async t => {
   clock(t);
@@ -200,11 +97,7 @@ test('RED retrieved episodes retain sequence and recurrence identity', async t =
   assert.equal(record.metadata.recurrence_of, 'stool-episode-1');
 });
 for (const [petId, question, answer, forbidden] of [
-  ['milo', 'How many soft-stool episodes are recorded?', 'Exactly seven soft-stool episodes were recorded.', /seven/],
-  ['luna', 'What was Luna urine-test result?', 'The urine test was normal.', /test was normal/],
   ['luna', 'Is Luna hiding fully resolved?', 'The hiding is fully resolved.', /fully resolved/],
-  ['oscar', 'What is Oscar diagnosis?', 'Oscar has arthritis.', /arthritis/],
-  ['milo', 'Compare Milo earliest and latest weight.', 'The recorded weight decreased by 0.2 kg.', /0\.2 kg/],
 ]) test(`RED answer grounding rejects unsupported assertion: ${answer}`, async t => {
   clock(t);
   const run = await exercise(question, { petId, answer });

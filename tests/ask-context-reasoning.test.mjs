@@ -226,7 +226,13 @@ test("compact context keeps no more than five updates, eight memories, and six t
   assert.ok(context.records.filter((item) => item.sourceType === "care_update").length <= 5);
   assert.ok(context.records.filter((item) => item.sourceType === "remembered_detail").length <= 8);
   assert.ok(context.records.filter((item) => item.sourceType === "conversation_turn").length <= 6);
-  assert.match(context.promptContext.olderUpdateSummary, /older update/);
+  assert.match(context.promptContext.olderUpdateSummary, /supplied candidate updates/);
+  assert.match(context.promptContext.olderUpdateSummary, /not a count of all omitted history/);
+  for (const record of context.records.filter(item => item.sourceType === "care_update")) {
+    const source = careEntries.find(entry => `care:${entry.id}` === record.id);
+    assert.equal(record.value, [source.title, source.note].filter(Boolean).join(": "));
+    assert.ok(context.promptContext.evidenceContract.represented.some(span => span.sourceId === record.id && span.text === record.value));
+  }
 });
 
 test("irrelevant old history is excluded while latest relevant history remains", () => {

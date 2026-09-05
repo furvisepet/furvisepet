@@ -23,6 +23,8 @@ import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./pr
 import { buildExplicitCareHistoryAction, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
 import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-loss.ts";
 import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } from "../ai/concern-engine.ts";
+import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
+import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -49,6 +51,7 @@ export async function runFurviseIntelligence({
   authoritativePetIds = [context.pet.id],
   authoritativeSemanticFrame,
   discourseFocus,
+  evidenceContract,
 }: {
   context: FurviseLiveContext;
   requestId: string;
@@ -59,10 +62,12 @@ export async function runFurviseIntelligence({
   authoritativePetIds?: string[];
   authoritativeSemanticFrame?: ProposedSemanticFrame;
   discourseFocus?: import("./entities/resolve-turn-subject.ts").AskDiscourseFocus;
+  evidenceContract?: AskEvidenceContract;
 }): Promise<FurviseIntelligenceResult> {
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
   const reasoning = await generateContextAwareAskResponse({
+    evidenceContract: evidenceContract || createAskEvidenceContract(context, authoritativePetIds),
     careEntries: context.selectedCareEntries,
     concerns: context.activeConcerns,
     conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
@@ -95,6 +100,17 @@ export async function runFurviseIntelligence({
     },
     discourseFocus,
   });
+  // Recall remains read-only even when model classifications propose writes.
+  // Mixed owner observations and explicit saves are not question-only recall.
+  if (reasoning.evidenceContract?.scope.readOnlyRecall) {
+    reasoning.learnings = [];
+    reasoning.careActions = [];
+    reasoning.semanticEvents = [];
+    reasoning.applicationActions = reasoning.applicationActions.filter(action => action.kind.startsWith("navigation.") || ["pet.read", "memory.list", "care_history.query"].includes(action.kind));
+    reasoning.proposedHistoryUpdate = { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null };
+    reasoning.semanticFrame = emptyProposedSemanticFrame();
+    authoritativeSemanticFrame = undefined;
+  }
   const lossContext = resolvePetLossContext({
     message: context.currentMessage,
     recentConversation: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
@@ -380,7 +396,7 @@ function memoryText(memory: FurviseLiveContext["memories"][number]) {
   const value = memoryDisplayContent(memory);
   const freshness = calculateMemoryFreshness(memory, new Date());
   const qualifier = freshness.needsConfirmation ? " This may be outdated; confirm it only if relevant to the current question." : "";
-  return `${memory.fact_key}: ${value}. Freshness: ${freshness.freshnessStatus}; effective confidence: ${freshness.effectiveConfidence.toFixed(2)}.${qualifier}`.slice(0, 600);
+  return `${memory.fact_key}: ${value}. Freshness: ${freshness.freshnessStatus}; effective confidence: ${freshness.effectiveConfidence.toFixed(2)}.${qualifier}`;
 }
 
 function ownerProfileMemories(context: FurviseLiveContext) {

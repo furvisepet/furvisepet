@@ -4,6 +4,7 @@ import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-inte
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
+import { evidenceAnswerPolicy } from "../ask-evidence.ts";
 
 export type AnswerValidationResult = {
   response: AskReasoningResult;
@@ -20,6 +21,15 @@ export function validateGeneratedAnswer(
 ): AnswerValidationResult {
   const repairs: string[] = []; const errors: string[] = []; const qualityWarnings: string[] = [];
   const response = structuredClone(result);
+  const scopedAnswer = response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract) : null;
+  if (scopedAnswer) {
+    const urgent = canonicalSafety === "urgent" || canonicalSafety === "emergency";
+    response.answer = { title: "Furvise", summary: `${urgent ? "Contact an emergency veterinarian now. " : ""}${scopedAnswer}`, sections: [], safetyNote: null };
+    response.suggestedFollowUps = [];
+    response.relevantContextIds = [];
+    response.referencedRecords = [];
+    repairs.push("applied_scoped_evidence_policy");
+  }
   const contextText = `${context.currentMessage} ${context.careEntries.map((entry) => `${entry.title || ""} ${entry.note}`).join(" ")} ${context.memories.map((memory) => `${memory.fact_key} ${memoryDisplayContent(memory)}`).join(" ")}`;
   const unrelatedResolved = context.currentState?.state.breathing?.status === "normal" && !/breath|breathing/i.test(context.currentMessage);
   const sanitize = (source: string) => {

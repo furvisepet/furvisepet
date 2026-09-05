@@ -46,6 +46,7 @@ import { modelApplicationActionJsonSchema, parseModelApplicationActions, type Mo
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
 import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
 import { applyAskAnswerEconomy, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
+import { evidenceForRecords, representEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
 export type AskContextSourceType =
   | "profile"
@@ -89,6 +90,8 @@ export type ProposedHistoryUpdate = {
 };
 
 export type AskReasoningResult = {
+  /** Server-produced, never parsed from model JSON. */
+  evidenceContract?: AskEvidenceContract;
   answer: {
     title: string;
     summary: string;
@@ -137,6 +140,7 @@ type ConversationTurn = {
 };
 
 type BuildContextInput = {
+  evidenceContract?: AskEvidenceContract;
   profiles: DogProfileRow[];
   careEntries: CareEntryRow[];
   memories: DogMemoryRow[];
@@ -297,6 +301,7 @@ const unifiedInstructions = [
   "Interpret the message, prioritize safety, select relevant supplied context, and write the final conversational answer in this single response.",
   "The server has already loaded and ranked current facts. Do not rediscover or invent database facts.",
   "Canonical active memories override older conversation statements. Conversation records show what was said, not what is currently true. Never revive a rejected, forgotten, expired, or superseded preference from an older turn; the current user message may explicitly provide a new fact.",
+  "evidenceContract is server-owned scope and coverage. Loaded records are not necessarily represented records, and unknown completeness is not complete. A profile does not prove that its history was loaded. Never infer an exact lifetime total, absent result, or complete history from a selected subset. Keep quoted evidence qualifiers intact. Coverage failures are limitations of this answer, not negative findings about the animal.",
   "The deterministic minimum safety level can be raised but never lowered. When it is urgent, lead with the action and suppress shopping.",
   "A recent unresolved concern may outrank a lower-priority question. Resolved or unrelated history must not hijack the answer.",
   "If the user reports that a prior concern improved, acknowledge it without repeating a full emergency warning unless red flags remain. Ask at most one concise confirmation when needed.",
@@ -364,6 +369,7 @@ export function clearAskProviderCooldownsForTests() {
 
 export function buildAskContext(input: BuildContextInput) {
   const allRecords = buildContextRecords(input);
+  const evidence = structuredClone(input.evidenceContract || evidenceForRecords(allRecords, input.question, input.profiles.map(profile => profile.id)));
   const terms = meaningfulTerms(input.question);
   for (const profile of input.profiles) {
     for (const identityTerm of meaningfulTerms(profile.name || "")) terms.delete(identityTerm);
@@ -400,15 +406,27 @@ export function buildAskContext(input: BuildContextInput) {
     : [];
   const chosen = dedupeScored([...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
   let detailedUpdateCount = 0;
-  const records = chosen.map(({ record }) => {
+  const records = chosen.flatMap(({ record }) => {
     const fullDetail = record.sourceType === "care_update" && detailedUpdateCount < 2;
     if (fullDetail) detailedUpdateCount += 1;
-    return compactRecord(record, fullDetail);
+    const compact = compactRecord(record, fullDetail);
+    if (!compact) evidence.losses.push({ sourceId: record.id, reason: "qualified_span_over_budget" });
+    return compact ? [compact] : [];
   });
+  const chosenIds = new Set(chosen.map(({ record }) => record.id));
+  for (const record of allRecords) if (!chosenIds.has(record.id)) evidence.losses.push({ sourceId: record.id, reason: "model_selection" });
+  const candidateIds = new Set(allRecords.map(record => record.id));
+  const alreadyLost = new Set(evidence.losses.map(loss => loss.sourceId));
+  for (const source of evidence.sources) for (const id of source.loadedIds) {
+    if (/^(?:care|concern|episode|memory|conversation|product-feedback):/.test(id) && !candidateIds.has(id) && !alreadyLost.has(id)) {
+      evidence.losses.push({ sourceId: id, reason: "source_filter" });
+      alreadyLost.add(id);
+    }
+  }
   const chosenUpdateIds = new Set(relevantUpdates.map(({ record }) => record.id));
   const omittedUpdates = scored.filter(({ record }) => record.sourceType === "care_update" && !chosenUpdateIds.has(record.id));
   const updateSummary = omittedUpdates.length
-    ? `${omittedUpdates.length} older update${omittedUpdates.length === 1 ? "" : "s"}: ${[...new Set(omittedUpdates.map(({ record }) => record.kind))].slice(0, 5).join(", ")}.`
+    ? `${omittedUpdates.length} supplied candidate updates were not selected. This is not a count of all omitted history.`
     : null;
 
   const recentTurns = input.conversationTurns.slice(-6).map((turn) => ({ role: turn.role, text: clean(turn.text).slice(0, 500) }));
@@ -450,7 +468,7 @@ export function buildAskContext(input: BuildContextInput) {
   });
 
   const promptContext = enforceAskPromptContextBudget({
-      currentMessage: clean(input.question).slice(0, 1200),
+      currentMessage: input.question,
       currentTimestamp: (input.now || new Date()).toISOString(),
       locale: input.locale || "en",
       minimumSafetyLevel,
@@ -467,6 +485,7 @@ export function buildAskContext(input: BuildContextInput) {
       pets: petReferences,
       ...(input.discourseFocus ? { discourseFocus: input.discourseFocus } : {}),
       contextRecords: records,
+      evidenceContract: evidence,
       olderUpdateSummary: updateSummary,
   });
   return {
@@ -476,10 +495,16 @@ export function buildAskContext(input: BuildContextInput) {
   };
 }
 
-function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRecord[] }>(promptContext: T): T {
+function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRecord[]; evidenceContract: AskEvidenceContract }>(promptContext: T): T {
   const contextRecords = [...promptContext.contextRecords];
   const budgeted = { ...promptContext, contextRecords };
-  while (contextRecords.length && JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) contextRecords.pop();
+  representEvidence(budgeted.evidenceContract, contextRecords);
+  while (contextRecords.length && JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) {
+    const removed = contextRecords.pop()!;
+    budgeted.evidenceContract.losses.push({ sourceId: removed.id, reason: "prompt_budget" });
+    representEvidence(budgeted.evidenceContract, contextRecords);
+  }
+  if (JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) throw new Error("ASK_EVIDENCE_SCOPE_EXCEEDS_BUDGET");
   return budgeted;
 }
 
@@ -714,6 +739,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       : parsed.responseMode === "urgent_safety" ? urgentSemanticTitle(petName, parsed.semanticEvents, input.question, input.concerns || []) : "Furvise";
   return {
     answer: { title, summary: answerText, sections: parsed.answerSections, safetyNote: null },
+    evidenceContract: context.promptContext.evidenceContract,
     userIntent: parsed.userIntent,
     relevantContextIds: parsed.relevantContextIds,
     referencedRecords: parsed.relevantContextIds.map((id) => context.records.find((record) => record.id === id)).filter((record): record is AskContextRecord => Boolean(record)),
@@ -1220,13 +1246,15 @@ function chooseUpdates(updates: Array<{ record: AskContextRecord; score: number 
   return dedupeScored([...mandatory, ...updates, ...newest]).slice(0, 5);
 }
 
-function compactRecord(record: AskContextRecord, fullDetail: boolean): AskContextRecord {
+function compactRecord(record: AskContextRecord, fullDetail: boolean): AskContextRecord | null {
   const max = record.sourceType === "conversation_turn" ? 500 : fullDetail ? 520 : record.sourceType === "care_update" ? 180 : 280;
-  return { ...record, value: clean(record.value).slice(0, max) };
+  // An opaque source span may carry a correction or negation at its end.
+  // Omit it with a coverage loss rather than presenting a stronger prefix.
+  return record.value.length <= max ? record : null;
 }
 
 function baseRecord(id: string, sourceType: AskContextSourceType, profile: DogProfileRow, kind: string, value: string, createdAt: string | null): AskContextRecord {
-  return { id, sourceType, petId: profile.id, petName: profile.name, kind, value: clean(value).slice(0, 1200), occurredAt: null, createdAt, status: null, priority: null, metadata: {} };
+  return { id, sourceType, petId: profile.id, petName: profile.name, kind, value, occurredAt: null, createdAt, status: null, priority: null, metadata: {} };
 }
 
 function scoreRecord(record: AskContextRecord, terms: Set<string>, now: number) {

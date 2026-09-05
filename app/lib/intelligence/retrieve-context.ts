@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadActiveConcerns, loadRecentlyResolvedConcerns } from "../ai/context-builder";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow, UserProfileRow } from "../supabase";
 import { finalizeFurviseContext } from "./build-context";
+import { evidenceSource } from "./ask-evidence.ts";
 import { getIntelligenceFeatureMode } from "./feature-modes";
 import type { FurviseLiveContext, FurviseMemoryRow, IntelligenceFeature } from "./types";
 import type { CareEpisode } from "./episodes/types";
@@ -149,6 +150,35 @@ export async function buildFurviseContext({
   const longitudinalCurrentState = currentState.data && isKnownConversationalCareNoise(JSON.stringify(currentState.data.state)) ? null : currentState.data;
 
   return finalizeFurviseContext({
+    evidenceLoading: {
+      dateRange,
+      losses: [
+        ...messages.data.filter(message => message.role === "furvise" && message.response_data?.sections)
+          .map(message => ({ sourceId: `conversation:${message.id}`, reason: "conversation_presentation_projection" })),
+        ...episodes.data.map(episode => ({ sourceId: `episode:${episode.id}`, reason: "episode_projection" })),
+        ...messages.data.filter(message => message.role === "user" && conversationTurns.find(turn => turn.id === message.id)?.text !== message.user_text)
+          .map(message => ({ sourceId: `conversation:${message.id}`, reason: "conversation_policy_filter" })),
+        ...(currentState.data ? [{ sourceId: `current_state:${petId}`, reason: "current_state_projection" }] : []),
+        ...(owner.data ? [{ sourceId: `owner_profile:${userId}`, reason: "owner_profile_projection" }] : []),
+        ...(inactiveMemories.data.length ? [{ sourceId: `inactive_memories:${petId}`, reason: "policy_only_source_not_model_evidence" }] : []),
+      ],
+      sources: [evidenceSource(petId, "profile", [selectedProfile.id]), ...[
+        [care, "care", mode.contextPolicy.careEntryLimit],
+        [legacyMemories, "memory", mode.contextPolicy.memoryLimit],
+        [sharedMemories, "memory", mode.contextPolicy.memoryLimit * 2],
+        [inactiveMemories, "inactive_memory", 40], [feedback, "product-feedback", 80],
+        [owner, "owner_profile", null], [messages, "conversation", mode.contextPolicy.conversationLimit],
+        [activeConcerns, "concern", null], [resolvedConcerns, "concern", 5],
+        [episodes, "episode", 20], [currentState, "current_state", null],
+      ].map(([result, prefix, cap]) => {
+        const loaded = result as { source: string; unavailable: boolean; data: unknown };
+        const rows = (Array.isArray(loaded.data) ? loaded.data : loaded.data ? [loaded.data] : []) as Array<{ id?: string }>;
+        const source = evidenceSource(petId, loaded.source, rows.flatMap(row => row.id ? [`${prefix}:${row.id}`] : []), cap as number | null, loaded.unavailable, rows.length);
+        if (loaded.source === "care_entries" && dateRange) source.loadedPeriod = dateRange;
+        if (loaded.source === "resolved_concerns") source.reasons.push("seven_day_window");
+        return source;
+      })],
+    },
     feature, locale, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
     pet: selectedProfile,
     eligiblePets: (eligiblePets.data || [selectedProfile]).filter((pet) => pet.id === selectedProfile.id || getPetLifecycleStatus(pet) === "active"),
