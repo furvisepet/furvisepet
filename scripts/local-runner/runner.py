@@ -105,6 +105,7 @@ def allowed(path, prefixes):
 def codex_args(executable, worktree, taskdir, model):
     return [str(executable), 'exec', '--ignore-user-config', '--sandbox', 'workspace-write',
         '-c', 'approval_policy="never"', '-c', 'sandbox_workspace_write.network_access=false',
+        '-c', 'windows.sandbox="elevated"',
         '--model', model, '--color', 'never', '--json', '--cd', str(worktree),
         '--output-schema', str(taskdir/'schema.json'), '--output-last-message', str(taskdir/'answer.json'), '-']
 
