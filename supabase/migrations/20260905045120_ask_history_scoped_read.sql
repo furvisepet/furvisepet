@@ -3,10 +3,14 @@
 create extension if not exists pg_trgm with schema extensions;
 create index if not exists care_history_owner_pet_cursor_idx
   on public.pet_care_entries(user_id, pet_profile_id, occurred_at, id) where deleted_at is null;
-create index if not exists care_history_note_search_idx
-  on public.pet_care_entries using gin(note extensions.gin_trgm_ops) where deleted_at is null;
-create index if not exists care_history_title_search_idx
-  on public.pet_care_entries using gin(title extensions.gin_trgm_ops) where deleted_at is null;
+-- Existing installations may have pg_trgm in public rather than extensions.
+-- Resolve its actual namespace; do not relocate an existing shared extension.
+do $$ declare trgm_schema name; begin
+  select n.nspname into strict trgm_schema from pg_catalog.pg_extension e
+    join pg_catalog.pg_namespace n on n.oid = e.extnamespace where e.extname = 'pg_trgm';
+  execute format('create index if not exists care_history_note_search_idx on public.pet_care_entries using gin(note %I.gin_trgm_ops) where deleted_at is null', trgm_schema);
+  execute format('create index if not exists care_history_title_search_idx on public.pet_care_entries using gin(title %I.gin_trgm_ops) where deleted_at is null', trgm_schema);
+end $$;
 create index if not exists ask_correction_subject_event_idx
   on public.semantic_claims(user_id, subject_id, occurred_at, id)
   where operation_type in ('correct', 'supersede');

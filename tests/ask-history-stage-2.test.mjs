@@ -20,6 +20,11 @@ test('prepared SQL boundary is owner-scoped, bounded, read-only to authenticated
   assert.match(sql, /grant execute on function public.read_ask_history_correction_page.*to authenticated/);
   assert.match(sql, /before delete or update on public.semantic_claim_relations/);
   assert.match(sql, /force row level security/);
+  // Regression also exercised against real PostgreSQL with pg_trgm in public:
+  // CREATE EXTENSION IF NOT EXISTS does not relocate an existing extension.
+  assert.match(sql, /n\.oid = e\.extnamespace/);
+  assert.match(sql, /%I\.gin_trgm_ops/);
+  assert.doesNotMatch(sql, /extensions\.gin_trgm_ops/);
   const rpc = sql.slice(sql.indexOf('create or replace function public.read_ask_history_correction_page'));
   assert.doesNotMatch(rpc, /\b(?:insert into|update public|delete from)\b/i);
 });
