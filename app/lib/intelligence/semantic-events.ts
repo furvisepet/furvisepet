@@ -153,6 +153,7 @@ export function governCanonicalEvents(input: {
           id: episode.id, pet_profile_id: episode.pet_profile_id,
           normalized_key: episodeSemanticTopic(proposal.domain, episode), title: episode.title || episode.normalized_key,
           status: episode.status === "resolved" ? "resolved" as const : "active" as const, resolved_at: episode.resolved_at,
+          opened_at: episode.started_at,
         };
       if (!target || !isPetObservationEvidence(input.message, proposal.sourceExcerpt, resolvedPetSubject.name || undefined)
         || !isRecoveryGroundedForConcern({

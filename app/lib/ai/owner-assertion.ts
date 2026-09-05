@@ -121,6 +121,11 @@ function splitIndependentClauses(sentence: string) {
     const before = sentence.slice(start, match.index).trim();
     const after = sentence.slice((match.index || 0) + match[0].length);
     const punctuationBoundary = /[,;\u2013\u2014]/u.test(match[0]);
+    // An auxiliary followed by a participle can continue the existing subject.
+    // Keep it in the parent assertion for predicate-level extraction; treating
+    // "has vomited" as an auxiliary-led question would erase competing evidence.
+    const inheritedPredicate = /^(?:(?:has|have|had)\s+(?:(?:not|never|already|still)\s+)*(?:[\p{L}]+(?:ed|en)|thrown)\b|(?:is|are|was|were)\s+(?:(?:not|still|currently)\s+)*[\p{L}]+ing\b)/iu.test(after);
+    if (inheritedPredicate && !after.trimEnd().endsWith("?") && looksLikeOwnerAssertion(before)) continue;
     if (!startsIndependentClause(after, punctuationBoundary)) continue;
     if (!before || punctuationBoundary && !looksLikePotentialClause(before)) continue;
     clauses.push(before);

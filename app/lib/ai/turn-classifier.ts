@@ -1,5 +1,5 @@
 import { isCasualAskTone } from "../ask-experience.ts";
-import { analyzeOwnerAssertions } from "./owner-assertion.ts";
+import { analyzeOwnerAssertions, type OwnerAssertionSpan } from "./owner-assertion.ts";
 import { decideConcernTransitionState } from "./concern-event-order.ts";
 
 export type TurnIntent =
@@ -109,6 +109,7 @@ export function assertedRecoveryClauses(message: string) {
 
 export type ConcernTransitionEvidence = {
   evidence: string;
+  inheritedTopicEvidence?: string;
   start: number;
   end: number;
   isCertain: boolean;
@@ -117,22 +118,23 @@ export type ConcernTransitionEvidence = {
 
 export function assertedConcernTransitions(message: string): ConcernTransitionEvidence[] {
   const transitions: ConcernTransitionEvidence[] = [];
-  for (const clause of analyzeOwnerAssertions(message).assertionSpans) {
-    if (negatedRecoveryPattern.test(clause.text)) {
-      transitions.push({ evidence: clause.text, start: clause.start, end: clause.end, isCertain: clause.isCertain, state: "still_active" });
+  for (const clause of analyzeOwnerAssertions(message).assertionSpans.flatMap(concernPredicateSpans)) {
+    if (clause.inheritedNegation || negatedRecoveryPattern.test(clause.text)) {
+      transitions.push({ evidence: clause.text, inheritedTopicEvidence: clause.inheritedTopicEvidence, start: clause.start, end: clause.end, isCertain: clause.isCertain, state: "still_active" });
       continue;
     }
     const candidates: Array<{ index: number; state: ConcernTransitionEvidence["state"] }> = [];
     const recurrenceSurface = clause.text.replace(/\b(?:is back|returned|came back)\s+to\s+(?:normal|baseline)\b/gi, (text) => " ".repeat(text.length));
     const recurrenceIndex = firstPatternIndex(returnPattern, recurrenceSurface);
     if (recurrenceIndex >= 0) candidates.push({ index: recurrenceIndex, state: "recurrence" });
-    const recoveryState = supportedRecoveryState(clause.text, false);
+    const recoveryState = supportedRecoveryState(clause.text, false)
+      || (clause.inheritedTopicEvidence && /^(?:has\s+)?(?:stopped|ceased|resolved)(?:\s+(?:now|today|yesterday|this|last|after|on|in)\b|[.!]|$)/i.test(clause.text) ? "resolved" : null);
     if (recoveryState) {
       const recoveryIndex = firstRecoveryIndex(clause.text, recoveryState);
       candidates.push({ index: recoveryIndex, state: recoveryState });
     }
     // Symptom presence competes with cessation even without "still"/"again".
-    if (!recoveryState && recurrenceIndex < 0 && /\b(?:vomit(?:ed|ing|s)?|threw up|throwing up|hiding|bleeding|coughing|limping|itching|diarrhea|breathing (?:hard|fast|deeply))\b/i.test(clause.text)) {
+    if (!recoveryState && recurrenceIndex < 0 && /\b(?:vomit(?:ed|ing|s)?|threw up|throwing up|hid(?:e|es|ing)?|bleed(?:ing|s)?|bled|cough(?:ed|ing|s)?|limp(?:ed|ing|s)?|itch(?:ed|ing|es)?|scratch(?:ed|ing|es)?|diarrhea|breathing (?:hard|fast|deeply))\b/i.test(clause.text)) {
       candidates.push({ index: 0, state: "still_active" });
     }
     if (recoveryState && /\b(?:is|are|was|were|keeps?)\s+(?:still\s+)?(?:vomiting|throwing up|hiding|bleeding|coughing|limping|itching|breathing (?:hard|fast|deeply))\b/i.test(clause.text)) {
@@ -141,7 +143,8 @@ export function assertedConcernTransitions(message: string): ConcernTransitionEv
     for (const candidate of candidates.sort((left, right) => left.index - right.index)) {
       transitions.push({
         evidence: clause.text,
-        start: clause.start + candidate.index,
+        inheritedTopicEvidence: clause.inheritedTopicEvidence,
+        start: clause.start,
         end: clause.end,
         isCertain: clause.isCertain,
         state: candidate.state,
@@ -149,6 +152,39 @@ export function assertedConcernTransitions(message: string): ConcernTransitionEv
     }
   }
   return transitions.sort((left, right) => left.start - right.start);
+}
+
+/** Coordinated predicates inherit the parent's subject and evidence scope, not
+ * its temporal modifiers. Keep extractive offsets; do not manufacture sentences
+ * by prepending the animal's name to a model-selected substring. */
+function concernPredicateSpans(parent: OwnerAssertionSpan): Array<OwnerAssertionSpan & { inheritedTopicEvidence?: string; inheritedNegation?: boolean }> {
+  const boundaries = /\s*(?:[,;]\s*(?:(?:and|but|then)\s+)?|\b(?:and|but|then)\s+)/gi;
+  const predicateStart = /^(?:(?:still|also|then|today|yesterday)\s+)*(?:am|are|is|was|were|has|have|had|did|does|keeps?|started|stopped|ceased|resolved|returned|came|threw|vomit(?:ed|ing|s)?|cough(?:ed|ing|s)?|bleed(?:ing|s)?|bled|limp(?:ed|ing|s)?|hid|hiding|itch(?:ed|ing|es)?|scratch(?:ed|ing|es)?)\b/i;
+  const ranges: Array<[number, number]> = [];
+  let start = 0;
+  for (const match of parent.text.matchAll(boundaries)) {
+    const next = match.index + match[0].length;
+    if (!predicateStart.test(parent.text.slice(next))) continue;
+    ranges.push([start, match.index]);
+    start = next;
+  }
+  ranges.push([start, parent.text.length]);
+  let inheritedTopicEvidence: string | undefined;
+  let inheritedNegation = false;
+  let priorEnd = 0;
+  return ranges.flatMap(([from, to]) => {
+    const raw = parent.text.slice(from, to);
+    const text = raw.trim();
+    if (!text) return [];
+    const connective = parent.text.slice(priorEnd, from);
+    inheritedNegation = /\band\b/i.test(connective)
+      && !/^(?:is|are|was|were|has|have|had|do|does|did)\b/i.test(text)
+      && (inheritedNegation || /\b(?:not|never)\b|n['’]t\b/i.test(inheritedTopicEvidence || ""));
+    const result = { ...parent, text, start: parent.start + from + raw.indexOf(text), end: parent.start + to - (raw.length - raw.trimEnd().length), inheritedTopicEvidence, inheritedNegation };
+    inheritedTopicEvidence = text;
+    priorEnd = to;
+    return [result];
+  });
 }
 
 function supportedRecoveryState(message: string, requireCertaintyMarker = true): "improved" | "resolved" | null {

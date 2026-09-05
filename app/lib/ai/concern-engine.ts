@@ -172,13 +172,13 @@ const concernAliases: Array<[RegExp, RegExp]> = [
   [/letharg|energy|tired/, /\b(?:energy|letharg\w*|tired|weak)\b/i],
   [/diarr|stool/, /\b(?:diarr\w*|loose stools?|stools?)\b/i],
   [/limp|mobility/, /\b(?:limp\w*|mobility)\b/i],
-  [/bleed/, /\bbleed\w*\b/i],
+  [/bleed/, /\b(?:bleed\w*|bled)\b/i],
   [/cough/, /\bcough\w*\b/i],
   [/itch|scratch/, /\b(?:itch\w*|scratch\w*)\b/i],
   [/pain|sore/, /\b(?:pain\w*|sore|tender)\b/i],
 ];
 
-export type ConcernRecoveryTarget = Pick<PetConcern, "id" | "pet_profile_id" | "normalized_key" | "title" | "status" | "resolved_at">;
+export type ConcernRecoveryTarget = Pick<PetConcern, "id" | "pet_profile_id" | "normalized_key" | "title" | "status" | "resolved_at"> & { opened_at?: string | null };
 
 export function isRecoveryGroundedForConcern(input: {
   activeConcerns: ConcernRecoveryTarget[];
@@ -223,7 +223,9 @@ export function classifyConcernEvidenceState(input: {
   const matching: ConcernTransitionEvidence[] = [];
   let hasMatchingSpecificEvidence = false;
   for (const transition of transitions) {
-    if (recoveryMatchesConcern(transition.evidence, input.concern)) {
+    const ownTopic = concernAliases.some(([, evidence]) => evidence.test(transition.evidence));
+    if (recoveryMatchesConcern(transition.evidence, input.concern)
+      || !ownTopic && transition.inheritedTopicEvidence && recoveryMatchesConcern(transition.inheritedTopicEvidence, input.concern)) {
       matching.push(transition);
       hasMatchingSpecificEvidence = true;
       continue;
@@ -234,7 +236,7 @@ export function classifyConcernEvidenceState(input: {
       && isGenericTransitionEvidence(transition.evidence, transition.state);
     if (isAnaphoricTransition || isUnambiguousGeneric) matching.push(transition);
   }
-  return decideConcernTransitionState(matching);
+  return decideConcernTransitionState(matching, { openedAt: input.concern.opened_at, requireCurrentConcern: true });
 }
 
 function recoveryMatchesConcern(evidence: string, concern: ConcernRecoveryTarget) {
