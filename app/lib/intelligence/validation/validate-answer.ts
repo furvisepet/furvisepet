@@ -4,7 +4,7 @@ import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-inte
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
-import { evidenceAnswerPolicy } from "../ask-evidence.ts";
+import { evidenceAnswerPolicy, resolutionStatusAnswer } from "../ask-evidence.ts";
 import { sourceNoteAnswer } from "../source-note-recall.ts";
 import { episodeAnswer } from "../episode-contract.ts";
 
@@ -134,7 +134,15 @@ export function validateGeneratedAnswer(
   if (hasSourceQuote && sourceNote) {
     response.answer.summary = `${urgent ? "Contact an emergency veterinarian now. " : ""}${sourceNote.text}`;
   }
-  if (context.episodeResult) {
+  const resolution = response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract) : null;
+  if (resolution) {
+    // Final authority is the provider-independent contract AFTER budgeting.
+    response.answer = { title: "Furvise", summary: resolution, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
+    response.suggestedFollowUps = [];
+    response.relevantContextIds = [];
+    response.referencedRecords = [];
+    repairs.push("applied_server_resolution_status");
+  } else if (context.episodeResult) {
     // Compose after all prose transforms. A model count/list or a prose normalizer
     // cannot change the server's count, displayed ordering or stable identities.
     const authoritative = episodeAnswer(context.episodeResult);

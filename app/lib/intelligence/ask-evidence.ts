@@ -15,7 +15,8 @@ export type EvidenceLoading = { sources: EvidenceSource[]; losses: EvidenceLoss[
 export type AskEvidenceScope = {
   authorizedPetIds: string[]; requestedTopic: string; requestText: string;
   requestedPeriod: { kind: "lifetime" | "requested" | "unspecified"; surface: string | null };
-  requestKind: "ordinary" | "count" | "absence" | "comparison" | "overview" | "record_lookup";
+  requestKind: "ordinary" | "count" | "absence" | "comparison" | "overview" | "record_lookup" | "resolution_status";
+  resolutionSubject?: string;
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
@@ -25,7 +26,7 @@ export type AskEvidenceContract = {
   sourceNoteRecall?: SourceNoteRecall;
   version: "ask-evidence.v1"; scope: AskEvidenceScope; sources: EvidenceSource[];
   completeness: EvidenceCompleteness; losses: EvidenceLoss[];
-  represented: Array<{ sourceId: string; petId: string; sourceType: string; field: "value"; start: number; end: number; text: string }>;
+  represented: Array<{ sourceId: string; petId: string; sourceType: string; field: "value"; start: number; end: number; text: string; occurredAt?: string | null }>;
   representation: "complete" | "partial";
   /** Only a server computation can supply these, never model JSON. Stage 1's
    * loader cannot certify exhaustive facts and deliberately supplies none. */
@@ -45,6 +46,12 @@ export function evidenceSource(petId: string, source: string, loadedIds: string[
 }
 
 export function askEvidenceScope(message: string, authorizedPetIds: string[]): AskEvidenceScope {
+  // A deliberately small question-only grammar. Topic/subject alternatives
+  // abstain; owner updates, saves, ordinals and safety observations stay outside.
+  const resolution = /^(?:is|has)\s+([\p{L}]+(?:\s+(?:and|or)\s+[\p{L}]+)?)(?:['’]s)?(?:\s+((?:hiding|vomiting|stool|litter|stiffness|breathing|condition|issue)(?:\s+(?:and|or)\s+(?:hiding|vomiting|stool|litter|stiffness|breathing|condition|issue))?))?\s+(?:(?:fully|completely)\s+)?(?:resolved|ended|stopped)(?:\s+in\s+((?:19|20)\d{2}))?\s*\?$/iu.exec(message.trim());
+  if (resolution) return { authorizedPetIds: [...new Set(authorizedPetIds)], requestedTopic: resolution[2]?.toLowerCase() || "unspecified",
+    requestText: message, requestedPeriod: { kind: resolution[3] ? "requested" : "unspecified", surface: resolution[3] || null }, requestKind: "resolution_status",
+    resolutionSubject: resolution[1], status: authorizedPetIds.length === 1 && Boolean(resolution[2]) && !/\b(?:and|or)\b/i.test(message) ? "resolved" : "ambiguous", readOnlyRecall: true };
   const history = /\b(?:history|record\w*|report\w*|episodes?|vomit\w*|stool|weights?|diagnos\w*|tests?|medication|litter|stiffness)\b/i.test(message);
   const lifetime = /\b(?:lifetime|ever|all (?:of )?(?:the )?(?:recorded )?history|entire (?:recorded )?history|complete history|full history)\b/i.test(message);
   const period = /\b(?:(?:19|20)\d{2}|(?:this|last|previous) (?:week|month|year)|since\s+[^?!.]+|between\s+[^?!.]+)\b/i.exec(message)?.[0] || null;
@@ -82,6 +89,10 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
+  if (contract.scope.requestKind === "resolution_status") {
+    const pet = context.eligiblePets.find(pet => pet.id === ids[0]);
+    if (ids.length !== 1 || pet?.name?.toLowerCase() !== contract.scope.resolutionSubject?.toLowerCase()) contract.scope.status = "ambiguous";
+  }
   if (context.episodeResult) { contract.episodes = structuredClone(context.episodeResult); contract.scope.readOnlyRecall = true; }
   if (context.historyFallback) { contract.historyFallback = context.historyFallback; contract.scope.readOnlyRecall = true; }
   if (context.askHistory) {
@@ -132,15 +143,49 @@ export function refreshEvidenceCoverage(contract: AskEvidenceContract): AskEvide
 
 export function representEvidence(contract: AskEvidenceContract, records: AskContextRecord[]) {
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
-    field: "value", start: 0, end: record.value.length, text: record.value }));
+    field: "value", start: 0, end: record.value.length, text: record.value,
+    ...(contract.scope.requestKind === "resolution_status" ? { occurredAt: record.occurredAt } : {}) }));
   return refreshEvidenceCoverage(contract);
 }
 
 export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringify(scope); }
 
-/** Deliberately bounded policy, not general factual entailment. It only replaces
- * recognized exhaustive/absence requests; ordinary supported answers stay intact. */
+/** Attribution only, never a lifecycle computation or a current-state certificate.
+ * Exact bounded sentence forms avoid stripping a qualification or quoting a
+ * terminal phrase into the answer. All other prose remains uncertain. */
+export function resolutionStatusAnswer(contract: AskEvidenceContract): string | null {
+  if (contract.scope.requestKind !== "resolution_status") return null;
+  const uncertainty = "I can't establish whether the hiding has ended now from the available dated evidence.";
+  if (contract.scope.status !== "resolved" || contract.scope.authorizedPetIds.length !== 1 || contract.scope.requestedTopic !== "hiding") {
+    return "I can't establish whether the condition has ended. Please identify one pet and a specific condition with a dated note.";
+  }
+  const petId = contract.scope.authorizedPetIds[0];
+  if (contract.sources.some(source => source.petId === petId && source.source === "care_entries" && ["unavailable", "not_loaded"].includes(source.status))
+    || contract.history && (contract.history.corrections === "unavailable" || contract.history.retrieval === "unavailable"
+      || contract.history.reasons.includes("unlinked_correction_uncertain"))) return uncertainty;
+  const subject = contract.scope.resolutionSubject!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const partial = new RegExp(`^${subject} (?:is hiding less but still hides sometimes; it has not fully resolved|still hides sometimes)\\.$`, "i");
+  const terminal = new RegExp(`^(?:${subject} stopped hiding|${subject}['’]s hiding has (?:fully )?resolved)\\.$`, "i");
+  const notes = contract.represented.filter(span => span.petId === petId && span.sourceType === "care_update" && /\bhid(?:ing|es?)\b/i.test(span.text));
+  if (notes.length !== 1) return uncertainty;
+  const note = notes[0];
+  if (!note.occurredAt || !/^\d{4}-\d{2}-\d{2}T/.test(note.occurredAt) || !Number.isFinite(Date.parse(note.occurredAt))
+    || new Date(note.occurredAt).toISOString().slice(0, 10) !== note.occurredAt.slice(0, 10) || Date.parse(note.occurredAt) > Date.now()
+    || contract.losses.some(loss => loss.sourceId === note.sourceId)
+    || !contract.sources.some(source => source.petId === petId && source.loadedIds.includes(note.sourceId))
+    || contract.history?.provenance.some(source => source.sourceId === note.sourceId && !["effective_linked", "unverified_legacy"].includes(source.status))) return uncertainty;
+  const report = partial.test(note.text) ? (/hiding less/i.test(note.text) ? "hiding had decreased but still happened sometimes" : "hiding still happened sometimes")
+    : terminal.test(note.text) ? "the owner reported that hiding had ended at that time" : null;
+  if (!report) return uncertainty;
+  const date = new Date(note.occurredAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return `The ${date} note reports that ${report}. ${uncertainty}`;
+}
+
+/** Deliberately bounded policy, not general factual entailment. Recognized
+ * evidence requests receive server authority; ordinary answers stay intact. */
 export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | null {
+  const resolution = resolutionStatusAnswer(contract);
+  if (resolution) return resolution;
   const kind = contract.scope.requestKind;
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
   if (contract.history?.reasons.includes("no_matching_candidates_not_absence")) {

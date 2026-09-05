@@ -1210,7 +1210,7 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
     const concernTags = update?.concernTags.map(formatConcernTag) || [];
     records.push({
       ...baseRecord(careEvidenceId(entry.id, input.evidenceContract?.history), "care_update", profile, entry.category, [entry.title, entry.note].filter(Boolean).join(": "), entry.created_at),
-      occurredAt: entry.occurred_at || entry.created_at,
+      occurredAt: input.evidenceContract?.scope.requestKind === "resolution_status" ? entry.occurred_at : entry.occurred_at || entry.created_at,
       status: update?.active === true ? "active" : update?.active === false ? "resolved" : concernTags.length ? "possibly_active" : "unknown",
       priority: concernTags.length || entry.severity === "severe" ? "urgent" : entry.severity === "moderate" ? "important" : "routine",
       metadata: { category: entry.category, severity: entry.severity, title: entry.title || "Care update", concerns: concernTags.join(", ") },

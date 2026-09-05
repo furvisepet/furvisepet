@@ -6,7 +6,7 @@ import { conversations, decisive, now, ownerId, pets } from '../fixtures/ask-lif
 
 const reasoningUrl = new URL('../../../app/lib/ai/ask-reasoning.ts', import.meta.url).href;
 const adapter = `import { generateContextAwareAskResponse as generate } from ${JSON.stringify(reasoningUrl)};
-export const generateContextAwareAskResponse = input => generate({...input, client: globalThis.__historyAuditClient});`;
+export const generateContextAwareAskResponse = async input => { const result = await generate({...input, client: globalThis.__historyAuditClient}); globalThis.__historyAuditAfterGeneration?.(result); return result; };`;
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === 'server-only') return { shortCircuit: true, url: 'data:text/javascript,export default {}' };
@@ -148,7 +148,7 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, prepareContext, history = false, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? 'milo' : null, currentMessage: question, dateRange });
@@ -157,19 +157,20 @@ async function exercise(question, { petId = 'milo', rows = decisive, messages, d
   const evidenceContract = createAskEvidenceContract(context, authoritativePetIds);
   prepareEvidence?.(evidenceContract);
   const requests = [];
+  globalThis.__historyAuditAfterGeneration = afterGeneration;
   globalThis.__historyAuditClient = { responses: { async create(request) {
-    requests.push(request); return { output_text: JSON.stringify({ ...output(answer), ...providerOverrides }) };
+    requests.push(request); return { output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
   } } };
   let result;
   if (history) {
     assert.equal(prepareEvidence, undefined, 'historical evidence authority belongs to the actual callback');
     const { generateAskHistoryAnswer } = await import('../../../app/lib/intelligence/generate-ask-history.ts');
-    const generated = await generateAskHistoryAnswer({ supabase, context, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds });
+    const generated = await generateAskHistoryAnswer({ supabase, context, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
     context = generated.context; result = generated.intelligenceResult;
   } else {
-    result = await runFurviseIntelligence({ context, evidenceContract, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds });
+    result = await runFurviseIntelligence({ context, evidenceContract, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
   }
-  assert.equal(requests.length, 1, 'exactly one mocked answer-provider call');
+  assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
   return { context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries };
 }
 const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
