@@ -1033,8 +1033,10 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
   const configuredOutputLimit = typeof request.max_output_tokens === "number" ? request.max_output_tokens : undefined;
   onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit });
   try {
+    const compatibleRequest = { ...request };
+    if (supportsReasoningEffort(model)) delete compatibleRequest.temperature;
     const response = await createWithTimeout(client, {
-      ...request,
+      ...compatibleRequest,
       ...(supportsReasoningEffort(model) ? { reasoning: { effort: "low" } } : {}),
       model,
     }, timeoutMs);

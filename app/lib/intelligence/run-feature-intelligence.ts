@@ -73,7 +73,11 @@ export async function runFeatureIntelligence<T>({
     schemaName: mode.responseSchemaName,
   });
   const value = parseValue(raw);
-  if (!value) throw new Error(`${mode.responseSchemaName} failed compatibility validation.`);
+  if (!value) {
+    const error = new Error(`${mode.responseSchemaName} failed compatibility validation.`);
+    error.name = "FeatureValidationError";
+    throw error;
+  }
   const proposedLearnings = Array.isArray(raw.learnings) ? raw.learnings.filter(isIntelligenceLearning) : [];
   const proposedCareActions = Array.isArray(raw.careActions) ? raw.careActions.filter(isIntelligenceCareAction) : [];
   const memoryExtractionEnabled = isAiMemoryExtractionEnabled();
