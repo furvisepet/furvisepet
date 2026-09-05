@@ -1,6 +1,8 @@
 import type { CareEntryRow } from "../supabase.ts";
-import { prepareGovernedCareHistoryEvent } from "../intelligence/care-history-policy.ts";
+import { evaluateCareHistorySaveWorthiness, prepareGovernedCareHistoryEvent } from "../intelligence/care-history-policy.ts";
 import type { GovernedCanonicalEvent } from "../intelligence/types.ts";
+import { analyzeOwnerAssertions } from "./owner-assertion.ts";
+import { classifyUserTurn } from "./turn-classifier.ts";
 
 export type ConcernStatus = "active" | "monitoring" | "resolved" | "reopened" | "dismissed";
 export type ConcernSeverity = "routine" | "important" | "urgent";
@@ -119,6 +121,31 @@ export function buildMemorySuggestion({ message, petName }: { message: string; p
     details: `${petName}: ${message.trim()}`,
     payload: { memoryType: "preference", note: message.trim() },
   };
+}
+
+export function isPendingUpdateSuggestionGrounded(input: {
+  suggestion: PendingUpdateSuggestion;
+  message: string;
+  hasActiveConcern?: boolean;
+}) {
+  const assertion = analyzeOwnerAssertions(input.message);
+  if (!assertion.hasOwnerAssertion) return false;
+  const turn = classifyUserTurn(input.message, {
+    hasActiveConcern: input.hasActiveConcern || input.suggestion.type === "concern_resolution",
+  });
+  if (input.suggestion.type === "concern_resolution") {
+    return Boolean(input.suggestion.concernId)
+      && (turn.concernState === "improved" || turn.concernState === "resolved");
+  }
+  if (input.suggestion.type === "memory") {
+    return turn.intent === "preference" || (turn.intent === "correction" && assertion.hasExplicitCorrection);
+  }
+  return evaluateCareHistorySaveWorthiness({
+    category: typeof input.suggestion.payload.category === "string" ? input.suggestion.payload.category : undefined,
+    title: typeof input.suggestion.payload.title === "string" ? input.suggestion.payload.title : input.suggestion.title,
+    details: input.suggestion.details,
+    sourceMessage: input.message,
+  }).eligible;
 }
 
 export function concernFromCareEntry(entry: CareEntryRow): { key: string; severity: ConcernSeverity; title: string } | null {

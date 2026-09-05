@@ -1,6 +1,6 @@
 import type { AskReasoningResult, GenerateAskReasoningInput } from "./ask-reasoning.ts";
 import type { PetConcern, PendingUpdateSuggestion } from "./concern-engine.ts";
-import { buildConcernOpeningSuggestion, buildMemorySuggestion, buildObservationSuggestion, buildResolutionSuggestion, getCurrentConcern } from "./concern-engine.ts";
+import { buildConcernOpeningSuggestion, buildMemorySuggestion, buildObservationSuggestion, buildResolutionSuggestion, getCurrentConcern, isPendingUpdateSuggestionGrounded } from "./concern-engine.ts";
 import { decideWhetherAiGenerationIsNeeded } from "./response-planner.ts";
 import { classifyUserTurn, type TurnIntent } from "./turn-classifier.ts";
 import { evaluateCareHistorySaveWorthiness } from "../intelligence/care-history-policy.ts";
@@ -114,6 +114,8 @@ function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
       : null);
   const suggestion = aiResult.responseMode === "grief_support"
     ? null
+    : candidateSuggestion && !isPendingUpdateSuggestionGrounded({ suggestion: candidateSuggestion, message, hasActiveConcern: Boolean(concern) })
+      ? null
     : (candidateSuggestion?.type === "history" || candidateSuggestion?.type === "concern_opening") && (!answerDepth.allowsAutomaticHistory || !evaluateCareHistorySaveWorthiness({
       category: typeof candidateSuggestion.payload.category === "string" ? candidateSuggestion.payload.category : undefined,
       title: typeof candidateSuggestion.payload.title === "string" ? candidateSuggestion.payload.title : candidateSuggestion.title,

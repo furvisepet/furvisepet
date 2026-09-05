@@ -20,14 +20,18 @@ export function decidePersistenceV2(input: {
   correctionTargetResolved: boolean;
   safetyFloor: SafetyFloorMetadata;
   unsupportedPetIdentity: boolean;
+  sourceAssertionSupported: boolean;
+  sourceCorrectionSupported: boolean;
 }): V2PersistenceDecision {
   if (input.governedConfidence < 0.8) return denied("below_governed_confidence_floor");
   if (input.subjectType === "pet" && input.unsupportedPetIdentity) return denied("unsupported_pet_identity_claim");
+  if (!input.sourceAssertionSupported) return denied("source_is_not_owner_assertion");
   if (input.modality === "hypothetical" || input.modality === "suspected") return denied("non_assertive_modality");
   if (input.subjectType === "unknown" || input.subjectType === "organization" || input.subjectType === "product" || input.subjectType === "place") {
     return denied("unsupported_subject_type");
   }
   if (input.claimKind === "correction") {
+    if (!input.sourceCorrectionSupported) return denied("source_is_not_owner_correction");
     if (!input.correctionTargetResolved) return denied("correction_target_unresolved");
     return allowed(input.subjectType === "owner" ? "owner_memory" : "pet_memory", "governed_operation");
   }

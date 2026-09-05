@@ -1,4 +1,6 @@
 import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "./types";
+import { analyzeOwnerAssertions, isOwnerAssertedEvidence } from "../ai/owner-assertion.ts";
+import { classifyUserTurn } from "../ai/turn-classifier.ts";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
 import { canPersistFurviseMemory } from "../application-actions/memory-scopes.ts";
@@ -35,7 +37,6 @@ export function evaluateLearningPolicy(learnings: IntelligenceLearning[], curren
 export function evaluateCareActionPolicy({
   actions,
   currentMessage,
-  understanding,
   safetyLevel,
   activeConcernIds,
 }: {
@@ -47,13 +48,15 @@ export function evaluateCareActionPolicy({
 }) {
   const accepted: IntelligenceCareAction[] = [];
   const rejected: Array<{ action: IntelligenceCareAction; reason: string }> = [];
+  const sourceAssertion = analyzeOwnerAssertions(currentMessage);
+  const sourceTurn = classifyUserTurn(currentMessage, { hasActiveConcern: activeConcernIds.length > 0 });
   for (const action of actions.slice(0, 3)) {
     let reason = "";
     if (action.action === "none") reason = "no_action";
     else if (containsUnsupportedPetIdentitySemantics(currentMessage, action.category, action.title, action.details)) reason = "unsupported_pet_identity_claim";
     else if (action.confidence < 0.9) reason = "confidence_below_automatic_threshold";
     else if (action.action === "update_profile") reason = "profile_updates_require_explicit_editing";
-    else if (!understanding.userIsProvidingUpdate && !understanding.userIsResolvingConcern && !understanding.userIsCorrectingPriorInformation) reason = "message_is_not_an_explicit_care_update";
+    else if (!sourceAssertion.hasOwnerAssertion) reason = "message_is_not_an_owner_asserted_care_update";
     else if (!hasSupport(currentMessage, `${action.title} ${action.details}`)) reason = "care_action_not_supported_by_message";
     else if (diagnosisPattern.test(`${action.title} ${action.details}`)) reason = "diagnosis_is_not_persisted";
     else if (dosagePattern.test(action.details) && !dosagePattern.test(currentMessage)) reason = "medication_dosage_not_explicit";
@@ -63,7 +66,7 @@ export function evaluateCareActionPolicy({
       details: action.details,
       sourceMessage: currentMessage,
     }).eligible) reason = "insufficient_longitudinal_value";
-    else if (action.action === "resolve_concern" && (safetyLevel !== "recently_resolved" || !action.relatedRecordId || !activeConcernIds.includes(action.relatedRecordId))) reason = "concern_resolution_not_sufficiently_grounded";
+    else if (action.action === "resolve_concern" && (sourceTurn.concernState !== "resolved" || safetyLevel !== "recently_resolved" || !action.relatedRecordId || !activeConcernIds.includes(action.relatedRecordId))) reason = "concern_resolution_not_sufficiently_grounded";
     if (reason) rejected.push({ action, reason });
     else if (!accepted.some((item) => item.action === "create_entry" || item.action === "resolve_concern")) accepted.push(action);
     else rejected.push({ action, reason: "one_automatic_care_event_per_message" });
@@ -83,6 +86,7 @@ function rejectLearningReason(learning: IntelligenceLearning, currentMessage: st
   )) return "unsupported_pet_identity_claim";
   if (diagnosisPattern.test(`${learning.category} ${learning.factKey} ${stringify(learning.factValue)}`)) return "diagnosis_is_not_memory";
   if (!learning.sourceExcerpt.trim() || !normalized(currentMessage).includes(normalized(learning.sourceExcerpt))) return "source_excerpt_not_explicit";
+  if (!isOwnerAssertedEvidence(currentMessage, learning.sourceExcerpt)) return "source_excerpt_is_not_owner_asserted";
   if (/^(?:hello|hi|hey|thanks|thank you|okay|ok)$/i.test(learning.factValue.trim())) return "conversational_filler";
   return "";
 }

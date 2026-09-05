@@ -24,7 +24,7 @@ import { planDeterministicAskCommand } from "../../lib/ai/ask-command-router";
 import { classifyFurviseCapabilityQuestion, type FurviseCapabilityIntent } from "../../lib/ai/ask-internal-product-policy";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../lib/ai/usage-guard/errors";
-import { buildSemanticEventReviewSuggestion, type PendingUpdateSuggestion, type PetConcern } from "../../lib/ai/concern-engine";
+import { buildSemanticEventReviewSuggestion, isPendingUpdateSuggestionGrounded, type PendingUpdateSuggestion, type PetConcern } from "../../lib/ai/concern-engine";
 import {
   AiCreditLedgerError,
   buildDevelopmentAiCreditFallback,
@@ -1819,7 +1819,7 @@ async function persistAssistantAnswer({
     ? await runOptionalAskSubsystem({
       component: "history_proposal",
       fallback: { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_UNAVAILABLE", suggestion: null },
-      operation: () => persistPendingSuggestion({ assistantMessageId: assistantMessage.id, conversationId, petId, suggestion: reviewSuggestion, supabase, userId }),
+      operation: () => persistPendingSuggestion({ assistantMessageId: assistantMessage.id, conversationId, petId, sourceMessage, suggestion: reviewSuggestion, supabase, userId }),
       onFailure: optionalFailure,
     })
     : { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
@@ -1893,6 +1893,7 @@ async function persistPendingSuggestion({
   assistantMessageId,
   conversationId,
   petId,
+  sourceMessage,
   suggestion,
   supabase,
   userId,
@@ -1900,6 +1901,7 @@ async function persistPendingSuggestion({
   assistantMessageId: string;
   conversationId: string;
   petId: string;
+  sourceMessage: string;
   suggestion: PendingUpdateSuggestion;
   supabase: SupabaseClient;
   userId: string;
@@ -1910,6 +1912,13 @@ async function persistPendingSuggestion({
   errorCode: string | null;
   suggestion: (PendingUpdateSuggestion & { id: string }) | null;
 }> {
+  if (!isPendingUpdateSuggestionGrounded({
+    suggestion,
+    message: sourceMessage,
+    hasActiveConcern: suggestion.type === "concern_resolution",
+  })) {
+    return { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
+  }
   if (suggestion.type === "concern_resolution" && suggestion.concernId) {
     const { data: pendingForConcern } = await supabase.from("ai_update_suggestions").select("id")
       .eq("user_id", userId).eq("type", suggestion.type).eq("concern_id", suggestion.concernId).eq("status", "pending")

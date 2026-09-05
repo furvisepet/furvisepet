@@ -4,6 +4,7 @@ import { routeSemanticEventDestinations } from "./persistence-destination.ts";
 import { deriveEffectiveRecoveryAssessment, EFFECTIVE_RECOVERY_RESOLUTION_THRESHOLD, type EffectiveRecoveryAssessment } from "./recovery-governance.ts";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
+import { analyzeOwnerAssertions, isOwnerAssertedEvidence } from "../ai/owner-assertion.ts";
 
 export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "unsupported_pet_identity" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode" | "not_save_worthy";
 export type SemanticEventGovernance = {
@@ -186,6 +187,9 @@ export function learningFromSemanticEvent(item: GovernedCanonicalEvent): Intelli
 }
 
 function validateProposal(proposal: CanonicalEventProposal, message: string, pet: { id: string; name: string | null }, governedRecovery = false): SemanticEventRejectionReason | null {
+  const sourceAssertion = analyzeOwnerAssertions(message);
+  if (!isOwnerAssertedEvidence(message, proposal.sourceExcerpt)) return "unsupported_evidence";
+  if (proposal.transition === "corrected" && !sourceAssertion.hasExplicitCorrection) return "invalid_transition";
   if (proposal.subject.type === "pet" && containsUnsupportedPetIdentitySemantics(
     proposal.topic, proposal.eventTitle, proposal.sourceExcerpt,
   )) return "unsupported_pet_identity";

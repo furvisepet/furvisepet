@@ -73,6 +73,7 @@ export function allowsProposedRecoveryPresentation({
   return confidence === "high"
     && shouldOffer
     && userIsResolvingConcern
+    && safety.concernMessageState !== "unrelated"
     && Boolean(resolvesConcernId && activeConcernIds.includes(resolvesConcernId))
     && allowsAcceptedRecoverySafetyReconciliation(safety);
 }

@@ -1,4 +1,5 @@
 import type { CareEntryRow, DogProfileRow } from "../supabase.ts";
+import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, SemanticEventDomain, SemanticEventTransition } from "./types.ts";
 
 const explicitSavePattern = /\b(?:save|log|record|note|add|put)\b[\s\S]{0,80}\b(?:this|that|it|history|care history|timeline)\b|\bcan (?:you|u) (?:save|log|record|note|add)\b/i;
@@ -19,7 +20,6 @@ const trackingIntentPattern = /\b(?:keep|start|make) (?:a )?(?:log|record|timeli
 const stableBehaviorPattern = /\b(?:always (?:did|does|done|been|happened)|as long as I can remember|normal for (?:her|him|them|it)|usual (?:behavior|habit|pattern))\b/i;
 const safetyEventPattern = /\b(?:escaped?|found|got (?:away|lost)|lost|missing|ran away|run away|stray|toxin|toxic|poison|exposure|injur(?:y|ed)|attack(?:ed)?)\b/i;
 const medicationCoursePattern = /\b(?:started?|stopped?|changed?|increased?|decreased?)\b[\s\S]{0,80}\b(?:dose|giving|medication|medicine|pill|tablet|treatment)\b|\b(?:dose|medication|medicine|pill|tablet|treatment)\b[\s\S]{0,80}\b(?:started?|stopped?|changed?|increased?|decreased?)\b/i;
-const genericQuestionPattern = /^(?:can|could|do|does|did|is|are|should|would|what|when|where|why|how|which)\b[\s\S]*\?$/i;
 const meaningfulTransition = new Set<SemanticEventTransition>(["started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed"]);
 
 export type CareHistorySaveDecision = { eligible: boolean; reason: string; explicitOverride: boolean };
@@ -42,14 +42,15 @@ export function evaluateCareHistorySaveWorthiness(input: {
   const explicitOverride = isExplicitCareHistorySaveRequest(source);
   if (explicitOverride) return { eligible: true, reason: "explicit_owner_save_request", explicitOverride: true };
   if (!source) return { eligible: false, reason: "empty_source", explicitOverride: false };
+  const assertion = analyzeOwnerAssertions(source);
+  if (!assertion.hasOwnerAssertion) {
+    return { eligible: false, reason: assertion.isPureQuestion ? "question_without_owner_update" : "source_is_not_owner_assertion", explicitOverride: false };
+  }
   const proposedEventIsNoise = conversationalNoisePattern.test(eventText || source)
     && !clinicalSignalPattern.test(eventText || source)
     && !behaviorChangePattern.test(eventText || source);
   if (proposedEventIsNoise) {
     return { eligible: false, reason: "conversational_noise", explicitOverride: false };
-  }
-  if (genericQuestionPattern.test(source) && !/\b(?:my|our|he|she|they|it|[A-Z][a-z]+)\b[\s\S]{0,80}\b(?:has|had|is|was|started|stopped|changed|ate|drank|vomit|seems?)\b/.test(source)) {
-    return { eligible: false, reason: "generic_question", explicitOverride: false };
   }
   if (input.hasTrackedEpisode && input.transition && meaningfulTransition.has(input.transition)) {
     return { eligible: true, reason: "tracked_concern_state_change", explicitOverride: false };
