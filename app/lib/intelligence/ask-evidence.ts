@@ -1,4 +1,5 @@
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
+import { buildWeightComparison, weightComparisonAnswer } from "./weight-comparison.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import { buildSourceNoteRecall, sourceNoteAnswer, type SourceNoteRecall } from "./source-note-recall.ts";
@@ -20,6 +21,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  weightComparison?: import("./weight-comparison.ts").WeightComparisonEvidence;
   episodes?: import("./episode-history.ts").EpisodeResult;
   historyFallback?: string;
   history?: import("./history-retrieval.ts").HistoryCoverage;
@@ -118,6 +120,8 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const changedSources = new Set(history.coverage.provenance.filter(source => source.status === "deleted_or_changed").map(source => source.sourceId));
     contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: changedSources.has(sourceId) ? "source_deleted_or_changed" : "historical_evidence_budget" })));
   }
+  const weightComparison = buildWeightComparison(context, contract);
+  if (weightComparison) contract.weightComparison = weightComparison;
   const sourceNoteRecall = buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
   return refreshEvidenceCoverage(contract);
@@ -144,7 +148,7 @@ export function refreshEvidenceCoverage(contract: AskEvidenceContract): AskEvide
 export function representEvidence(contract: AskEvidenceContract, records: AskContextRecord[]) {
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
-    ...(contract.scope.requestKind === "resolution_status" ? { occurredAt: record.occurredAt } : {}) }));
+    ...(contract.scope.requestKind === "resolution_status" || contract.weightComparison ? { occurredAt: record.occurredAt } : {}) }));
   return refreshEvidenceCoverage(contract);
 }
 
@@ -209,6 +213,8 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
   const fact = certified && contract.verifiedFacts.find(fact => fact.kind === kind && fact.scopeKey === evidenceScopeKey(contract.scope)
     && fact.sourceIds.every(id => represented.has(id)) && fact.text.length <= 1800);
   if (fact) return fact.text;
+  const comparison = weightComparisonAnswer(contract);
+  if (comparison) return comparison;
   const failed = contract.sources.some(source => source.status === "unavailable" || source.status === "not_loaded");
   const lead = failed ? "I couldn't verify all the requested records." : "The available records are limited, and their completeness and corrections are not verified.";
   const task = kind === "count" ? "an exact total" : kind === "absence" ? "whether something is absent from the full record"
