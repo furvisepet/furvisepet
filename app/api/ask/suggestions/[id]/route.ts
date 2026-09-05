@@ -3,7 +3,7 @@ import { validateSensitiveRequestOriginResponse } from "../../../../lib/security
 import { safeErrorForLog } from "../../../../lib/security/logging";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../../../lib/security/request";
 import { beginIdempotentRateLimitedOperation } from "../../../../lib/security/idempotency";
-import { isEligibleLegacyMemory } from "../../../../lib/intelligence/memory-integrity.ts";
+import { prepareMemorySuggestion } from "../../../../lib/intelligence/memory-suggestion.ts";
 import { createCanonicalCareAuthorityClient } from "../../../../lib/intelligence/care-authority-client.ts";
 
 type SuggestionStatus = "pending" | "saved" | "dismissed";
@@ -147,7 +147,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return Response.json({ ok: true, requestId, status: "applied", suggestionId: id, concernId: suggestion.concern_id, concernStatus: "monitoring", careEntryId: null, message: "This concern is being monitored." });
   }
 
-  if (suggestion.type === "memory") return saveMemorySuggestion(auth.supabase, auth.userId, suggestion, requestId, logContext);
+  if (suggestion.type === "memory") return saveMemorySuggestion(auth.authority, auth.userId, suggestion, requestId, logContext);
 
   const { data, error: rpcError } = await auth.authority.rpc("apply_furvise_server_state_suggestion", {
     p_suggestion_id: suggestion.id,
@@ -179,28 +179,26 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   });
 }
 
-async function saveMemorySuggestion(supabase: SupabaseClient, userId: string, suggestion: SuggestionRow, requestId: string, logContext: Record<string, unknown>) {
-  if (suggestion.status === "saved") return alreadyAppliedResponse(suggestion, { careEntryId: null, concernStatus: null }, requestId);
-  const note = suggestion.details || textValue(suggestion.payload.note);
-  if (!note) return suggestionError("SUGGESTION_INVALID", "This remembered detail is empty.", 422, requestId);
-  const memoryType = textValue(suggestion.payload.memoryType) || "preference";
-  if (!isEligibleLegacyMemory({ type: memoryType, text: note })) {
-    return suggestionError("SUGGESTION_INVALID", "That suggestion is not a durable remembered detail.", 422, requestId);
-  }
-  const { error } = await supabase.from("dog_memories").insert({
-    confidence: "user_confirmed", dog_profile_id: suggestion.pet_profile_id, source: `ask_suggestion:${suggestion.id}`,
-    text: note, type: memoryType, user_id: userId,
+async function saveMemorySuggestion(authority: SupabaseClient, userId: string, suggestion: SuggestionRow, requestId: string, logContext: Record<string, unknown>) {
+  const prepared = prepareMemorySuggestion(suggestion);
+  if (!prepared && suggestion.status !== "saved") return suggestionError("SUGGESTION_INVALID", "That suggestion is not a durable remembered detail.", 422, requestId);
+  const { data, error } = await authority.rpc("save_ask_memory_suggestion", {
+    p_user_id: userId, p_suggestion_id: suggestion.id, p_expected_pet_id: suggestion.pet_profile_id,
+    p_expected_note: prepared?.note || "", p_expected_type: prepared?.memoryType || "",
   });
-  if (error && error.code !== "23505") {
+  if (error) {
     logSuggestionFailure("save_memory_suggestion", error, logContext);
-    return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This remembered detail could not be saved.", 503, requestId);
+    const status = error.code === "42501" ? 403 : error.code === "P0002" ? 404 : error.code === "40001" ? 409 : error.code === "22023" ? 422 : 503;
+    const code: SuggestionErrorCode = status === 403 ? "SUGGESTION_FORBIDDEN" : status === 404 ? "SUGGESTION_NOT_FOUND" : status === 409 ? "SUGGESTION_CONFLICT" : status === 422 ? "SUGGESTION_INVALID" : "SUGGESTION_PERSISTENCE_FAILED";
+    return suggestionError(code, "This remembered detail could not be saved. Refresh and try again.", status, requestId);
   }
-  const { error: markError } = await markSuggestion(suggestion.id, userId, "saved");
-  if (markError) {
-    logSuggestionFailure("mark_memory_suggestion", markError, logContext);
-    return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This remembered detail could not be saved.", 503, requestId);
+  const row = (Array.isArray(data) ? data[0] : data) as { apply_status?: string; memory_id?: string | null } | null;
+  if (!row || !["applied", "already_applied"].includes(row.apply_status || "") || (row.apply_status === "applied" && !row.memory_id)) {
+    return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This remembered detail could not be confirmed.", 503, requestId);
   }
-  return Response.json({ ok: true, requestId, status: error ? "already_applied" : "applied", suggestionId: suggestion.id, concernId: null, careEntryId: null, message: error ? "This detail was already remembered." : "This detail was remembered." });
+  return Response.json({ ok: true, requestId, status: row.apply_status, suggestionId: suggestion.id,
+    memoryId: row.memory_id || null, concernId: null, careEntryId: null,
+    message: row.apply_status === "already_applied" ? "This suggestion was already saved." : "This detail was remembered." });
 }
 
 async function loadSuggestionDiagnostic(supabase: SupabaseClient, userId: string, suggestion: SuggestionRow) {
@@ -271,5 +269,3 @@ async function loadSuggestionContext(request: Request, requestId: string): Promi
 function toCanonicalSuggestion(suggestion: SuggestionRow) {
   return { id: suggestion.id, type: suggestion.type, title: suggestion.title, details: suggestion.details, status: suggestion.status };
 }
-
-function textValue(value: unknown) { return typeof value === "string" ? value.trim() : ""; }
