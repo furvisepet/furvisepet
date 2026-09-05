@@ -153,7 +153,7 @@ test("development fallback recognizes only a proven missing usage table", () => 
 test("Ask development fallback skips reservations and production still returns a database error", () => {
   assert.match(askRoute, /process\.env\.NODE_ENV === "development" && isMissingAiUsageTableError\(error\)/);
   assert.match(askRoute, /buildDevelopmentAiCreditFallback\(planId\)/);
-  assert.match(askRoute, /usage\.ledgerMode === "development_missing_migration"[\s\S]*runFurviseIntelligence/);
+  assert.match(askRoute, /usage\.ledgerMode === "development_missing_migration"[\s\S]*generateAskHistoryAnswer/);
   assert.match(askRoute, /else \{[\s\S]*askFailure\("DATABASE_ERROR"[\s\S]*"usage_lookup"/);
   assert.match(askRoute, /databaseCode:[\s\S]*databaseDetails:[\s\S]*databaseHint:[\s\S]*resource:[\s\S]*userIdPresent:/);
 });
@@ -359,7 +359,7 @@ test("suggestion actions are state-only and never touch the AI ledger", () => {
 
 test("Ask reserves before generation and completes only after a saved assistant answer", () => {
   const reserve = askRoute.indexOf("await reserveAiCredit({");
-  const generation = askRoute.indexOf("runFurviseIntelligence", reserve);
+  const generation = askRoute.indexOf("generateAskHistoryAnswer", reserve);
   const assistantInsert = askRoute.indexOf("completeAskConversationTurn({", askRoute.indexOf("async function persistAssistantAnswer"));
   const complete = askRoute.indexOf("completeAiCredit", assistantInsert);
   assert.ok(reserve > -1 && reserve < generation);

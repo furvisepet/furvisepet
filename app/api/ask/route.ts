@@ -1,6 +1,6 @@
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
-import { createAskEvidenceContract } from "../../lib/intelligence/ask-evidence.ts";
-import { retrieveAskHistory, type HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
+import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
+import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { createCanonicalCareAuthorityClient } from "../../lib/intelligence/care-authority-client";
@@ -74,7 +74,6 @@ import {
   prepareAskMemoryAuthorityLearnings,
   persistIntelligenceLearnings,
   persistedLearningConfirmation,
-  runFurviseIntelligence,
   logSemanticTrace,
   semanticTraceForStorage,
   withSemanticPersistenceOutcome,
@@ -760,10 +759,9 @@ export async function POST(request: Request) {
         message: question,
         petName: liveContext.pet.name || "your pet",
         generate: async () => {
-          liveContext = await retrieveAskHistory(liveContext, supabase, subjectResolution.petIds);
-          intelligenceResult = await runFurviseIntelligence({
+          const generated = await generateAskHistoryAnswer({
+            supabase,
             context: liveContext,
-            evidenceContract: createAskEvidenceContract(liveContext, subjectResolution.petIds),
             requestId,
             sourceMessageId: preparedRequest.userMessageId,
             onProviderEvent,
@@ -773,6 +771,8 @@ export async function POST(request: Request) {
             discourseFocus: subjectResolution.discourseFocus,
             canonicalConcepts: phase3Runtime?.canonicalConcepts || [],
           });
+          liveContext = generated.context;
+          intelligenceResult = generated.intelligenceResult;
           logValidatedIntelligence(intelligenceResult, requestId);
           return intelligenceResult.reasoning;
         },

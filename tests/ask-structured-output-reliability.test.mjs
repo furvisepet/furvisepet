@@ -203,7 +203,10 @@ test("structured Ask extraction separates point-in-time chronology from memory a
 
 test("canonical mutations remain after provider, schema, answer validation, and governance", () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
-  const runIndex = route.indexOf("runFurviseIntelligence({");
+  const runIndex = route.indexOf("generateAskHistoryAnswer({");
+  const callback = readFileSync(new URL("../app/lib/intelligence/generate-ask-history.ts", import.meta.url), "utf8");
+  assert.ok(callback.indexOf("await retrieveAskHistory(") < callback.indexOf("await runFurviseIntelligence({"));
+  assert.match(callback, /evidenceContract: createAskEvidenceContract\(context, petIds\)/);
   const validatedIndex = route.indexOf('logAskStage("intelligence validated"');
   const assistantIndex = route.indexOf("async function persistAssistantAnswer");
   const canonicalWriteIndex = route.indexOf("persistIntelligenceLearnings({", assistantIndex);
