@@ -24,16 +24,16 @@ export function validateGeneratedAnswer(
   const response = structuredClone(result);
   const sourceNote = response.evidenceContract?.scope.requestKind === "record_lookup" && response.evidenceContract.scope.status === "resolved"
     ? sourceNoteAnswer(response.evidenceContract) : null;
-  const hasSourceQuote = Boolean(sourceNote?.sourceIds.length);
   const urgent = canonicalSafety === "urgent" || canonicalSafety === "emergency";
   const scopedAnswer = response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract) : null;
+  const hasSourceQuote = Boolean(sourceNote?.sourceIds.length && scopedAnswer === sourceNote.text);
   if (scopedAnswer) {
     // Only assistant-authored prose goes through prose rewriting. The complete
     // server-grounded source quotation is composed after that processing.
     const prose = hasSourceQuote ? "This reports a historical note, not a verified current medical status." : scopedAnswer;
     response.answer = { title: "Furvise", summary: `${urgent ? "Contact an emergency veterinarian now. " : ""}${prose}`, sections: [], safetyNote: null };
     response.suggestedFollowUps = [];
-    const sourceIds = sourceNote?.sourceIds || [];
+    const sourceIds = hasSourceQuote ? sourceNote!.sourceIds : [];
     response.relevantContextIds = sourceIds;
     response.referencedRecords = sourceIds.flatMap(id => {
       const span = response.evidenceContract?.represented.find(span => span.sourceId === id);

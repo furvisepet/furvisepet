@@ -46,7 +46,7 @@ import { modelApplicationActionJsonSchema, parseModelApplicationActions, type Mo
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
 import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
 import { applyAskAnswerEconomy, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
-import { evidenceForRecords, representEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
+import { careEvidenceId, evidenceForRecords, representEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
 export type AskContextSourceType =
   | "profile"
@@ -394,7 +394,7 @@ export function buildAskContext(input: BuildContextInput) {
     ? scored.filter(({ record }) => record.sourceType === "active_episode").slice(0, 6)
     : [];
   const resolvedEpisodes = scored.filter(({ record }) => record.sourceType === "resolved_episode" && recordMatchesTerms(record, terms)).slice(0, 3);
-  const relevantUpdates = chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"
+  const relevantUpdates = evidence.history ? scored.filter(({ record }) => record.sourceType === "care_update") : chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"
     && (historicalSafetyRelevant || record.status === "resolved" || record.priority === "routine" || recordMatchesTerms(record, terms))));
   const memories = scored.filter(({ record }) => record.sourceType === "remembered_detail").slice(0, 8);
   const conversation = scored
@@ -409,7 +409,7 @@ export function buildAskContext(input: BuildContextInput) {
   const records = chosen.flatMap(({ record }) => {
     const fullDetail = record.sourceType === "care_update" && detailedUpdateCount < 2;
     if (fullDetail) detailedUpdateCount += 1;
-    const compact = compactRecord(record, fullDetail);
+    const compact = evidence.history && record.sourceType === "care_update" ? record : compactRecord(record, fullDetail);
     if (!compact) evidence.losses.push({ sourceId: record.id, reason: "qualified_span_over_budget" });
     return compact ? [compact] : [];
   });
@@ -417,8 +417,11 @@ export function buildAskContext(input: BuildContextInput) {
   for (const record of allRecords) if (!chosenIds.has(record.id)) evidence.losses.push({ sourceId: record.id, reason: "model_selection" });
   const candidateIds = new Set(allRecords.map(record => record.id));
   const alreadyLost = new Set(evidence.losses.map(loss => loss.sourceId));
+  // Governed exclusions are provenance, not evidence-budget losses. Their
+  // replacement/status remains explicit in the contract sent to the model.
+  const governedExclusions = new Set(evidence.history?.provenance.filter(source => ["superseded", "tombstoned_or_inactive"].includes(source.status)).map(source => source.sourceId));
   for (const source of evidence.sources) for (const id of source.loadedIds) {
-    if (/^(?:care|concern|episode|memory|conversation|product-feedback):/.test(id) && !candidateIds.has(id) && !alreadyLost.has(id)) {
+    if (/^(?:care|concern|episode|memory|conversation|product-feedback):/.test(id) && !candidateIds.has(id) && !alreadyLost.has(id) && !governedExclusions.has(id)) {
       evidence.losses.push({ sourceId: id, reason: "source_filter" });
       alreadyLost.add(id);
     }
@@ -1206,7 +1209,7 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
     const update = updates.get(entry.id);
     const concernTags = update?.concernTags.map(formatConcernTag) || [];
     records.push({
-      ...baseRecord(`care:${entry.id}`, "care_update", profile, entry.category, [entry.title, entry.note].filter(Boolean).join(": "), entry.created_at),
+      ...baseRecord(careEvidenceId(entry.id, input.evidenceContract?.history), "care_update", profile, entry.category, [entry.title, entry.note].filter(Boolean).join(": "), entry.created_at),
       occurredAt: entry.occurred_at || entry.created_at,
       status: update?.active === true ? "active" : update?.active === false ? "resolved" : concernTags.length ? "possibly_active" : "unknown",
       priority: concernTags.length || entry.severity === "severe" ? "urgent" : entry.severity === "moderate" ? "important" : "routine",

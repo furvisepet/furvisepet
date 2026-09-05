@@ -68,13 +68,13 @@ export async function runFurviseIntelligence({
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
   const reasoning = await generateContextAwareAskResponse({
     evidenceContract: evidenceContract || createAskEvidenceContract(context, authoritativePetIds),
-    careEntries: context.selectedCareEntries,
+    careEntries: context.askHistory?.entries || context.selectedCareEntries,
     concerns: context.activeConcerns,
-    conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
+    conversationTurns: context.askHistory ? [] : context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
       id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt, applicationActions: turn.applicationActions,
     })),
     locale: context.locale,
-    memories: [
+    memories: context.askHistory ? [] : [
       ...context.legacyPetMemories,
       ...ownerProfileMemories(context),
       ...currentStateMemories(context),
@@ -87,10 +87,10 @@ export async function runFurviseIntelligence({
     productFeedback: context.productFeedback,
     profiles: context.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
     question: context.currentMessage,
-    recentUpdates: buildRecentAskUpdates(context.selectedCareEntries),
+    recentUpdates: context.askHistory ? [] : buildRecentAskUpdates(context.selectedCareEntries),
     recentlyResolvedConcerns: context.recentlyResolvedConcerns,
-    activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
-    recentlyResolvedEpisodes: context.recentlyResolvedEpisodes,
+    activeEpisodes: context.askHistory ? [] : [...context.activeEpisodes, ...context.monitoringEpisodes],
+    recentlyResolvedEpisodes: context.askHistory ? [] : context.recentlyResolvedEpisodes,
     requestId,
     concernStateHint: safety.concernMessageState,
     onProviderEvent,

@@ -1,5 +1,6 @@
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { createAskEvidenceContract } from "../../lib/intelligence/ask-evidence.ts";
+import { retrieveAskHistory, type HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { createCanonicalCareAuthorityClient } from "../../lib/intelligence/care-authority-client";
@@ -390,7 +391,7 @@ export async function POST(request: Request) {
   let turnPetId = petId;
   let turnAuthoritativePetIds = [petId];
   let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
-  let contextUsed = turnView.contextUsed;
+  let contextUsed: typeof turnView.contextUsed & { historyCoverage?: Pick<HistoryCoverage, "retrieval" | "corrections" | "continuation" | "reasons" | "consistency" | "perPet"> } = turnView.contextUsed;
 
   let orchestration;
   let creditReserved = false;
@@ -759,6 +760,7 @@ export async function POST(request: Request) {
         message: question,
         petName: liveContext.pet.name || "your pet",
         generate: async () => {
+          liveContext = await retrieveAskHistory(liveContext, supabase, subjectResolution.petIds);
           intelligenceResult = await runFurviseIntelligence({
             context: liveContext,
             evidenceContract: createAskEvidenceContract(liveContext, subjectResolution.petIds),
@@ -860,6 +862,11 @@ export async function POST(request: Request) {
   }
 
   const reasoning = orchestration.aiResult;
+  const historyCoverage = reasoning?.evidenceContract?.history;
+  if (historyCoverage) {
+    const { retrieval, corrections, continuation, reasons, consistency, perPet } = historyCoverage;
+    contextUsed.historyCoverage = { retrieval, corrections, continuation, reasons, consistency, perPet };
+  }
   if (reasoning) contextUsed.usedSources = [...new Set(reasoning.referencedRecords.map(formatContextSourceLabel))].slice(0, 4);
   const safetyLevel = orchestration.safetyLevel;
   const plannedCapabilityIntent = classifyFurviseCapabilityQuestion(question);

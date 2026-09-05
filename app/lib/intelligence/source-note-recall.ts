@@ -1,4 +1,5 @@
 import type { AskEvidenceContract } from "./ask-evidence.ts";
+import { careEvidenceId } from "./ask-evidence.ts";
 import type { FurviseLiveContext } from "./types.ts";
 
 export type SourceNoteRecall = {
@@ -65,14 +66,14 @@ export function buildSourceNoteRecall(context: FurviseLiveContext, contract: Ask
     const eventDate = row.occurred_at?.slice(0, 10);
     return eventDate && eventDate.slice(5) === `${date.month}-${date.day}` && (!date.year || eventDate.startsWith(`${date.year}-`));
   });
-  plan.candidateIds = candidates.map(row => `care:${row.id}`);
+  plan.candidateIds = candidates.map(row => careEvidenceId(row.id, contract.history));
   if (candidates.length === 1) {
     const target = candidates[0];
     // Do not pretend to solve contradiction semantics. Later/undated related
     // evidence or an explicit correction needs reconciliation, even if omitted
     // by model selection. Earlier unrelated-in-time results do not block quotes.
     plan.competingIds = related.filter(row => row.id !== target.id && (!row.occurred_at || row.occurred_at >= target.occurred_at!
-      || /\b(?:correct\w*|supersed\w*|retract\w*)\b/i.test(`${row.title || ""} ${row.note}`))).map(row => `care:${row.id}`);
+      || /\b(?:correct\w*|supersed\w*|retract\w*)\b/i.test(`${row.title || ""} ${row.note}`))).map(row => careEvidenceId(row.id, contract.history));
   }
   return plan;
 }
@@ -88,6 +89,7 @@ export function sourceNoteAnswer(contract: AskEvidenceContract): { text: string;
   if (plan.candidateIds.length > 1) return limited("Multiple matching notes are available. Please identify the year or specific note before I quote its contents.");
   if (plan.competingIds.length) return limited("Other related records may conflict with or update that note. I can't reconcile them from this evidence; please identify the record to review.");
   const id = plan.candidateIds[0];
+  if (id?.startsWith("claim:")) return limited("The original note was superseded. The retrieved replacement claim is not the contents of that original dated note, so I can't quote it as that note.");
   const spans = contract.represented.filter(span => span.sourceId === id && span.petId === plan.petId && span.sourceType === "care_update");
   const span = spans[0];
   if (spans.length !== 1 || !span || !source.loadedIds.includes(id) || contract.losses.some(loss => loss.sourceId === id)

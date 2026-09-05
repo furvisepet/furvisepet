@@ -1,8 +1,9 @@
 // Explicitly invoked remaining lifetime acceptance audit (expected failures).
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { care, decisive, episodes, expected, irrelevant, ownerId, pets } from './fixtures/ask-lifetime-history.mjs';
-import { exercise, database, clock, promptHas, buildAskContext, selectRelevantCareEntries, resolveAskTurnSubject, rebuildSemanticProjectionsV2, classifyFurviseCapabilityQuestion, ASK_PROMPT_CONTEXT_CHAR_BUDGET } from './helpers/lifetime-harness.mjs';
+import { decisive, episodes, expected, irrelevant, ownerId, pets } from './fixtures/ask-lifetime-history.mjs';
+import { exercise as exerciseBase, database, clock, promptHas, buildAskContext, selectRelevantCareEntries, resolveAskTurnSubject, rebuildSemanticProjectionsV2, classifyFurviseCapabilityQuestion, ASK_PROMPT_CONTEXT_CHAR_BUDGET } from './helpers/lifetime-harness.mjs';
+const exercise = (question, options = {}) => exerciseBase(question, { ...options, history: true });
 
 test('control: actual loader is owner/pet scoped and small weight history reaches actual model input', async t => {
   clock(t);
@@ -11,38 +12,14 @@ test('control: actual loader is owner/pet scoped and small weight history reache
   for (const kg of expected.miloWeights) assert.match(run.serialized, new RegExp(`${kg} kg`));
   assert.equal(run.result.acceptedCareActions.length, 0);
 });
-for (const [petId, question, ids] of [
-  ['milo', 'How many separate soft-stool episodes has Milo had over his lifetime?', ['milo-stool-1', 'milo-stool-2']],
-  ['milo', 'Compare every recorded weight for Milo.', ['milo-weight-1', 'milo-weight-2', 'milo-weight-3']],
-  ['milo', 'How did Milo food change over his lifetime?', ['milo-food-1', 'milo-food-2']],
-  ['luna', 'Summarize Luna litter changes and accidents over her lifetime.', ['luna-litter', 'luna-accidents', 'luna-restored', 'luna-improved']],
-  ['oscar', 'Summarize Oscar medication course, stiffness recurrence and latest improvement.', ['oscar-course', 'oscar-stiffness-1', 'oscar-stiffness-2', 'oscar-improved']],
-]) test(`RED lifetime coverage: ${question}`, async t => {
-  clock(t);
-  const run = await exercise(question, { petId, rows: [...decisive, ...irrelevant(petId)] });
-  assert.equal(run.context.careEntries.length, 80, 'reconfirm actual DB cap before acceptance assertion');
-  for (const id of ids) assert.ok(promptHas(run, id), `decisive ${id} missing from actual model input`);
-});
+// Seven candidate-reachability/whole-span requirements moved to the Stage 2
+// default suite. Aggregate, unlinked-correction discovery, and referent gaps remain red.
 // Coverage and unavailable-source acceptance moved to the Stage 1 default suite.
 test('RED intermediate 20-selection represents requested historical period', () => {
   const rows = [...decisive.filter(row => row.pet_profile_id === 'milo'), ...irrelevant('milo', 30).map(row => ({ ...row, severity: 'severe' }))];
   const selected = selectRelevantCareEntries(rows, 'Summarize 2011 and 2014.');
   assert.equal(selected.length, 20);
   assert.ok(selected.some(row => row.id === 'milo-stool-1'), 'severity displaces requested old period before final ranking');
-});
-test('RED final five-evidence cap cannot preserve six relevant weight observations', async t => {
-  clock(t);
-  const rows = Array.from({ length: 6 }, (_, i) => care(`weight-${i}`, 'milo', `2026-08-${10 + i}`, 'weight', `Milo weighed ${28.4 - i / 10} kg.`));
-  const run = await exercise('Compare every recorded weight measurement.', { rows });
-  assert.equal(run.context.selectedCareEntries.length, 6);
-  assert.equal(run.prompt.contextRecords.filter(row => row.sourceType === 'care_update').length, 6, 'no exact aggregate substitutes for omitted measurement');
-});
-test('RED long corrected record is usefully retrieved, not merely omitted safely', async t => {
-  clock(t);
-  const note = `${'Owner described the surroundings. '.repeat(22)}Correction: the vomiting belonged to Bruno, not Milo.`;
-  const run = await exercise('What does the corrected vomiting record say?', { rows: [care('tail-correction', 'milo', '2026-08-20', 'symptom', note)] });
-  assert.ok(promptHas(run, 'tail-correction'));
-  assert.match(run.serialized, /vomiting belonged to Bruno, not Milo/, 'Stage 1 safely omits oversized evidence; useful full corrected recall remains unimplemented');
 });
 test('RED late correction follows original into historical date-range recall', async t => {
   clock(t);
@@ -131,4 +108,15 @@ test('control: ordinary history recall does not select a paid capability gate', 
 });
 test('RED addressing Furvise does not turn stored-history recall into an unavailable paid feature', () => {
   assert.equal(classifyFurviseCapabilityQuestion('Furvise, summarize all history for Milo.'), null);
+});
+
+test('RED later stage: compute exact separate-episode aggregate, not a note count', async t => {
+  clock(t);
+  const run = await exercise('How many separate soft-stool episodes has Milo had over his lifetime?');
+  assert.match(run.result.reasoning.answer.summary, /two separate soft-stool episodes/i);
+});
+test('RED later stage: verified complete weight comparison renders the correct delta', async t => {
+  clock(t);
+  const run = await exercise('Compare Milo earliest and latest recorded weight.');
+  assert.match(run.result.reasoning.answer.summary, /0\.6 kg/);
 });

@@ -19,6 +19,8 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  historyFallback?: string;
+  history?: import("./history-retrieval.ts").HistoryCoverage;
   sourceNoteRecall?: SourceNoteRecall;
   version: "ask-evidence.v1"; scope: AskEvidenceScope; sources: EvidenceSource[];
   completeness: EvidenceCompleteness; losses: EvidenceLoss[];
@@ -30,6 +32,10 @@ export type AskEvidenceContract = {
 };
 
 const unknown = (): EvidenceCompleteness => ({ retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown" });
+export function careEvidenceId(id: string, history?: AskEvidenceContract["history"]): string {
+  const claimId = id.startsWith("claim-") ? id.slice(6) : null;
+  return claimId && history?.provenance.some(source => source.sourceId === `claim:${claimId}` && source.status === "effective_replacement") ? `claim:${claimId}` : `care:${id}`;
+}
 export function evidenceSource(petId: string, source: string, loadedIds: string[], cap: number | null = null, unavailable = false, loadedCount = loadedIds.length): EvidenceSource {
   const capped = cap !== null && loadedCount >= cap;
   return { petId, source, loadedIds: unavailable ? [] : loadedIds, loadedCount: unavailable ? 0 : loadedCount, cap, status: unavailable ? "unavailable" : capped ? "capped" : "loaded",
@@ -75,7 +81,30 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
-  const sourceNoteRecall = buildSourceNoteRecall(context, contract);
+  if (context.historyFallback) { contract.historyFallback = context.historyFallback; contract.scope.readOnlyRecall = true; }
+  if (context.askHistory) {
+    contract.scope.readOnlyRecall = true;
+    const history = context.askHistory;
+    contract.history = structuredClone(history.coverage);
+    contract.sources = contract.sources.filter(source => source.source !== "care_entries");
+    for (const petId of ids) {
+      const status = history.coverage.perPet.find(pet => pet.petId === petId);
+      const source = evidenceSource(petId, "care_entries", history.originals.filter(row => row.pet_profile_id === petId).map(row => `care:${row.id}`));
+      source.loadedCount = status?.rows || 0;
+      source.reasons = history.coverage.reasons;
+      source.completeness = { retrieval: status?.status || "unavailable", corrections: history.coverage.corrections, extraction: "unknown", grouping: "unknown" };
+      if (!status || status.status === "unavailable") source.status = "unavailable";
+      contract.sources.push(source);
+      const claims = evidenceSource(petId, "correction_claims", history.coverage.claimSources.find(source => source.petId === petId)?.sourceIds || []);
+      claims.completeness = { retrieval: history.coverage.corrections, corrections: history.coverage.corrections, extraction: "unknown", grouping: "unknown" };
+      claims.reasons = history.coverage.reasons;
+      if (history.coverage.corrections === "unavailable") claims.status = "unavailable";
+      contract.sources.push(claims);
+    }
+    contract.losses = contract.losses.filter(loss => !loss.sourceId.startsWith("care:"));
+    contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: "historical_evidence_budget" })));
+  }
+  const sourceNoteRecall = buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
   return refreshEvidenceCoverage(contract);
 }
@@ -110,6 +139,19 @@ export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringif
  * recognized exhaustive/absence requests; ordinary supported answers stay intact. */
 export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | null {
   const kind = contract.scope.requestKind;
+  if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
+  if (contract.history?.reasons.includes("no_matching_candidates_not_absence")) {
+    return "No matching notes were retrieved for this query. The search does not establish that the event or result is absent; try another topic or period.";
+  }
+  if (contract.history?.provenance.some(source => ["superseded", "tombstoned_or_inactive"].includes(source.status)) && !contract.represented.some(span => span.sourceType === "care_update")) {
+    return "The retrieved original report is superseded or inactive and is not effective evidence for this pet. This does not establish an absence across the pet's history.";
+  }
+  if (contract.history && (contract.history.corrections === "unavailable" || contract.history.retrieval === "unavailable"
+    || contract.history.retrieval === "partial" || contract.history.excludedIds.length || contract.history.reasons.includes("unlinked_correction_uncertain")
+    || contract.history.reasons.includes("unsupported_claim_payload")
+    || contract.losses.some(loss => /^(?:care|claim):/.test(loss.sourceId)))) {
+    return "The requested history is incomplete or its correction evidence is unavailable or uncertain. I can't establish an effective historical answer from this subset. Please narrow the period or topic, or retry the lookup; this is not evidence that an event or result is absent.";
+  }
   if (kind === "ordinary" && contract.scope.status !== "ambiguous") return null;
   if (contract.scope.status === "ambiguous") return "Which episode do you mean? Please identify the pet and approximate date so I can keep the records separate.";
   if (kind === "record_lookup") return sourceNoteAnswer(contract).text;

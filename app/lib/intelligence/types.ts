@@ -139,6 +139,8 @@ export type IntelligenceConversationTurn = {
 
 export type FurviseLiveContext = {
   evidenceLoading?: import("./ask-evidence.ts").EvidenceLoading;
+  askHistory?: import("./history-retrieval.ts").RetrievedAskHistory;
+  historyFallback?: string;
   feature: IntelligenceFeature;
   locale: string;
   currentMessage: string;
