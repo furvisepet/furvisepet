@@ -100,7 +100,8 @@ test("deterministic recovery safety is grounded to one authoritative concern top
 });
 
 test("final suggestion persistence reloads the owned active concern before grounding", () => {
-  const persistence = route.slice(route.indexOf("async function persistPendingSuggestion"));
+  const source = read("app/lib/intelligence/persist-pending-suggestion.ts");
+  const persistence = source.slice(source.indexOf("async function persistPendingSuggestion"));
   const authorityLookup = persistence.indexOf('from("pet_concerns")');
   const grounding = persistence.indexOf("isPendingUpdateSuggestionGrounded");
   const suggestionWrite = persistence.indexOf('from("ai_update_suggestions")');

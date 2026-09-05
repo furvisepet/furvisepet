@@ -198,7 +198,7 @@ test("migration removes client release authority and enforces database identity/
   const claim = askRoute.indexOf("idempotency = await claimIdempotentOperation");
   const replay = askRoute.indexOf("completed response replayed after canonical identity validation");
   assert.ok(claim >= 0 && replay > claim, "persisted answers replay only after canonical payload claim");
-  assert.doesNotMatch(askRoute.slice(askRoute.indexOf('logAskStage("assistant message persisted"'), askRoute.indexOf("async function persistPendingSuggestion")), /safeReleaseAiCredit/);
+  assert.doesNotMatch(askRoute.slice(askRoute.indexOf('logAskStage("assistant message persisted"'), askRoute.indexOf("async function safeReleaseAiCredit")), /safeReleaseAiCredit/);
 });
 
 async function reserve(ledger) {

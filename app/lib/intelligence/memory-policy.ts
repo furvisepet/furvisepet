@@ -1,7 +1,8 @@
 import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "./types";
 import { analyzeOwnerAssertions, isOwnerCertainEvidence } from "../ai/owner-assertion.ts";
 import { classifyUserTurn } from "../ai/turn-classifier.ts";
-import { isRecoveryGroundedForConcern, type PetConcern } from "../ai/concern-engine.ts";
+import { buildResolutionSuggestion, isRecoveryGroundedForConcern, type PetConcern } from "../ai/concern-engine.ts";
+import { isPetObservationEvidence } from "../ai/recovery-subject.ts";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
 import { canPersistFurviseMemory } from "../application-actions/memory-scopes.ts";
@@ -57,7 +58,8 @@ export function evaluateCareActionPolicy({
   const rejected: Array<{ action: IntelligenceCareAction; reason: string }> = [];
   const sourceAssertion = analyzeOwnerAssertions(currentMessage);
   const sourceTurn = classifyUserTurn(currentMessage, { hasActiveConcern: activeConcernIds.length > 0 });
-  for (const action of actions.slice(0, 3)) {
+  for (const proposedAction of actions.slice(0, 3)) {
+    let action = proposedAction;
     let reason = "";
     if (action.action === "none") reason = "no_action";
     else if (containsUnsupportedPetIdentitySemantics(currentMessage, action.category, action.title, action.details)) reason = "unsupported_pet_identity_claim";
@@ -83,6 +85,16 @@ export function evaluateCareActionPolicy({
         || !isRecoveryGroundedForConcern({ activeConcerns, concern, message: currentMessage, petId, petName })) {
         reason = "concern_resolution_not_sufficiently_grounded";
       }
+      if (!reason && concern && petName) {
+        const canonical = buildResolutionSuggestion({ concern, message: currentMessage, petName });
+        action = { ...action, title: String(canonical.payload.title), details: String(canonical.payload.resolutionNote) };
+      }
+    }
+    if (!reason && action.action === "create_entry" && petName
+      && /\b(?:resolved|recovered|normal|stopped|ceased)\b/i.test(`${action.title} ${action.details}`)) {
+      // A history action is not an alternate channel for a rejected resolution.
+      if (!isPetObservationEvidence(currentMessage, currentMessage, petName)) reason = "care_action_subject_or_source_ambiguous";
+      else action = { ...action, title: "Care update", details: currentMessage.trim(), relatedRecordId: null };
     }
     if (reason) rejected.push({ action, reason });
     else if (!accepted.some((item) => item.action === "create_entry" || item.action === "resolve_concern")) accepted.push(action);

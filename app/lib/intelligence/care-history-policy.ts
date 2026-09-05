@@ -1,5 +1,6 @@
 import type { CareEntryRow, DogProfileRow } from "../supabase.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
+import { isPetObservationEvidence } from "../ai/recovery-subject.ts";
 import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, SemanticEventDomain, SemanticEventTransition } from "./types.ts";
 
 const explicitSavePattern = /\b(?:save|log|record|note|add|put)\b[\s\S]{0,80}\b(?:this|that|it|history|care history|timeline)\b|\bcan (?:you|u) (?:save|log|record|note|add)\b/i;
@@ -203,6 +204,7 @@ export function buildExplicitCareHistoryAction(input: {
   const source = [...input.conversationTurns].reverse().find((turn) => turn.role === "user" && clean(turn.text) && !isExplicitCareHistorySaveRequest(turn.text))?.text;
   if (!source) return null;
   const petName = clean(input.pet.name || "the pet");
+  if (!isPetObservationEvidence(source, source, petName)) return null;
   const text = clean(source);
   const standaloneText = text.replace(/^(?:and|but|so|then)\s+/i, "").replace(/^(?:she|he|they|it)\b/i, petName);
   const butterfly = /chasing?|chased/.test(text.toLowerCase()) && /butterfl(?:y|ies)/i.test(text);

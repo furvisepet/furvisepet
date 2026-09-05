@@ -233,6 +233,7 @@ test("conflicting concern transitions use the latest certain matching state", as
     "Vomiting stopped, then it came back.",
     "He stopped vomiting. It started again an hour later.",
     "He stopped vomiting, but maybe it started again.",
+    "He started vomiting again, but he stopped vomiting this morning.",
   ]) {
     const turn = classifyUserTurn(message, { hasActiveConcern: true });
     assert.notEqual(turn.concernState, "resolved", message);
@@ -244,7 +245,7 @@ test("conflicting concern transitions use the latest certain matching state", as
   }
 
   for (const message of [
-    "He started vomiting again, but he stopped vomiting this morning.",
+    "He started vomiting again last night, but he stopped vomiting this morning.",
     "The vomiting came back last night. He stopped vomiting after breakfast.",
   ]) {
     const turn = classifyUserTurn(message, { hasActiveConcern: true });
@@ -315,7 +316,7 @@ test("resolution grounding treats the owned concern as authority, not suggestion
     concern: activeVomitingConcern,
     petId: "pet-1",
     petName: "Milo",
-  }), true);
+  }), false); // Correct evidence cannot authorize a forged persisted topic/key.
   assert.equal(isPendingUpdateSuggestionGrounded({
     suggestion: forged,
     message: "Coco stopped vomiting this morning.",

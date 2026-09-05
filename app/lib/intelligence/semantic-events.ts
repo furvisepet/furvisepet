@@ -5,6 +5,8 @@ import { deriveEffectiveRecoveryAssessment, EFFECTIVE_RECOVERY_RESOLUTION_THRESH
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
 import { analyzeOwnerAssertions, isOwnerAssertedEvidence } from "../ai/owner-assertion.ts";
+import { isRecoveryGroundedForConcern, type PetConcern } from "../ai/concern-engine.ts";
+import { isPetObservationEvidence } from "../ai/recovery-subject.ts";
 
 export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "unsupported_pet_identity" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode" | "not_save_worthy";
 export type SemanticEventGovernance = {
@@ -82,6 +84,7 @@ export function governCanonicalEvents(input: {
   /** @deprecated Test/backward-compatible alias. Production callers must pass resolvedPetSubject. */
   pet?: { id: string; name: string | null };
   activeEpisodes: CareEpisode[];
+  activeConcerns?: PetConcern[];
   recoveryAssessment?: {
     status: "none" | "partial" | "terminal" | "uncertain";
     confidence: number;
@@ -141,6 +144,24 @@ export function governCanonicalEvents(input: {
       rejected.push({ proposal, reason: "ambiguous_episode" }); continue;
     }
     const episode = compatible[0]?.episode || null;
+    if (proposal.transition === "resolved" && episode && (episode.linked_concern_id || proposal.domain === "health")) {
+      // Episode matching is candidate selection. Full owner source and actual
+      // target identity, not the model-selected excerpt, authorize recovery.
+      const target = episode.linked_concern_id && input.activeConcerns
+        ? input.activeConcerns.find((concern) => concern.id === episode.linked_concern_id)
+        : {
+          id: episode.id, pet_profile_id: episode.pet_profile_id,
+          normalized_key: episodeSemanticTopic(proposal.domain, episode), title: episode.title || episode.normalized_key,
+          status: episode.status === "resolved" ? "resolved" as const : "active" as const, resolved_at: episode.resolved_at,
+        };
+      if (!target || !isPetObservationEvidence(input.message, proposal.sourceExcerpt, resolvedPetSubject.name || undefined)
+        || !isRecoveryGroundedForConcern({
+        concern: target, activeConcerns: episode.linked_concern_id && input.activeConcerns ? input.activeConcerns : [target, ...(input.activeConcerns || [])],
+        message: input.message, petId: resolvedPetSubject.id, petName: resolvedPetSubject.name || undefined,
+      })) {
+        rejected.push({ proposal, reason: "invalid_transition" }); continue;
+      }
+    }
     const normalizedTopic = episode ? episodeSemanticTopic(proposal.domain, episode) : proposedTopic;
     const event: CanonicalEvent = {
       ...proposal,

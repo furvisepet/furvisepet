@@ -1,5 +1,6 @@
 import { isCasualAskTone } from "../ask-experience.ts";
 import { analyzeOwnerAssertions } from "./owner-assertion.ts";
+import { decideConcernTransitionState } from "./concern-event-order.ts";
 
 export type TurnIntent =
   | "question"
@@ -91,14 +92,7 @@ export function classifyActiveConcernMessage(message: string, hasActiveConcern =
   if (assertion.isPureQuestion) return "unrelated";
   const assertedMessage = assertion.assertionText;
   const transitions = assertedConcernTransitions(normalized);
-  const lastCertain = transitions.findLast((transition) => transition.isCertain);
-  if (lastCertain) {
-    const laterAmbiguousConflict = transitions.some((transition) => transition.start > lastCertain.start
-      && !transition.isCertain && transition.state !== lastCertain.state);
-    if (laterAmbiguousConflict) return "unclear";
-    return lastCertain.state;
-  }
-  if (transitions.length > 0) return "unclear";
+  if (transitions.length > 0) return decideConcernTransitionState(transitions);
   if (stillActivePattern.test(assertedMessage)) return "still_active";
   if (isCasualAskTone(normalized)) return "unrelated";
   if (/^(?:hi|hello|hey|yo|thanks|thank you|okay|ok)[!.\s]*$/i.test(normalized)) return "unrelated";
@@ -129,12 +123,20 @@ export function assertedConcernTransitions(message: string): ConcernTransitionEv
       continue;
     }
     const candidates: Array<{ index: number; state: ConcernTransitionEvidence["state"] }> = [];
-    const recurrenceIndex = firstPatternIndex(returnPattern, clause.text);
+    const recurrenceSurface = clause.text.replace(/\b(?:is back|returned|came back)\s+to\s+(?:normal|baseline)\b/gi, (text) => " ".repeat(text.length));
+    const recurrenceIndex = firstPatternIndex(returnPattern, recurrenceSurface);
     if (recurrenceIndex >= 0) candidates.push({ index: recurrenceIndex, state: "recurrence" });
     const recoveryState = supportedRecoveryState(clause.text, false);
     if (recoveryState) {
       const recoveryIndex = firstRecoveryIndex(clause.text, recoveryState);
       candidates.push({ index: recoveryIndex, state: recoveryState });
+    }
+    // Symptom presence competes with cessation even without "still"/"again".
+    if (!recoveryState && recurrenceIndex < 0 && /\b(?:vomit(?:ed|ing|s)?|threw up|throwing up|hiding|bleeding|coughing|limping|itching|diarrhea|breathing (?:hard|fast|deeply))\b/i.test(clause.text)) {
+      candidates.push({ index: 0, state: "still_active" });
+    }
+    if (recoveryState && /\b(?:is|are|was|were|keeps?)\s+(?:still\s+)?(?:vomiting|throwing up|hiding|bleeding|coughing|limping|itching|breathing (?:hard|fast|deeply))\b/i.test(clause.text)) {
+      candidates.push({ index: 0, state: "still_active" });
     }
     for (const candidate of candidates.sort((left, right) => left.index - right.index)) {
       transitions.push({
@@ -152,6 +154,7 @@ export function assertedConcernTransitions(message: string): ConcernTransitionEv
 function supportedRecoveryState(message: string, requireCertaintyMarker = true): "improved" | "resolved" | null {
   if (negatedRecoveryPattern.test(message) || requireCertaintyMarker && uncertainRecoveryPattern.test(message)) return null;
   if (resolvedPattern.test(message) || symptomStoppedPattern.test(message) || explicitTerminalRecovery(message)) return "resolved";
+  if (/\b(?:is|are|acting)\s+(?:fully\s+|completely\s+)?(?:normal|fine|well|okay|ok)(?:\s+(?:again|now))?\b/i.test(message)) return "resolved";
   if (improvedPattern.test(message)) return "improved";
   return null;
 }
