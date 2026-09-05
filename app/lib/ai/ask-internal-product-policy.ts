@@ -15,7 +15,9 @@ export function classifyFurviseCapabilityQuestion(question: string): FurviseCapa
   const normalized = question.normalize("NFKC");
   if (!productQuestionContext.test(normalized)) return null;
   if (/\b(?:export|pdf|download|printable report|vet[- ]?prep report)\b/i.test(normalized)) return "vet_prep_exports";
-  if (/\b(?:longer? history|older history|all history|history patterns?|history trends?|patterns? over time)\b/i.test(normalized)) return "long_history_patterns";
+  // Addressing Furvise is not, by itself, a question about product availability.
+  const historyCapabilityInquiry = /\b(?:plus|my plan|subscription|feature|capability|available|upgrade|supports?|supported|(?:can|does|will)\s+(?:furvise|(?:the|this) app))\b/i.test(normalized);
+  if (historyCapabilityInquiry && /\b(?:longer? history|older history|all history|history patterns?|history trends?|patterns? over time)\b/i.test(normalized)) return "long_history_patterns";
   if (/\b(?:live product|research (?:current )?products?|current (?:product )?prices?|retailer|chewy|amazon|walmart)\b/i.test(normalized)) return "live_product_research";
   return null;
 }
