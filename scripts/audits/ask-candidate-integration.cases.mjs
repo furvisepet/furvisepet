@@ -8,7 +8,10 @@ test('lexical callback uses candidate RPC; title-only old evidence reaches final
   const old = {...care('old-title', 'milo', '2011-02-01', 'symptom', 'Result pending; not confirmed.'), title: 'Urine test'};
   const run = await exercise('What did the February 1, 2011 urine-test result say?', {history:true, rows:[old,...irrelevant('milo',1000)]});
   const calls = run.queries.filter(q => q.table === 'read_ask_history_candidates');
-  assert.equal(calls.length,2);
+  assert.equal(calls.length,3);
+  assert.deepEqual(calls[2].args.p_terms,['correct','retract','supersed']);
+  assert.equal(calls[2].args.p_from,null);
+  assert.equal(calls[2].args.p_pet_id,'milo');
   assert.deepEqual(calls[0].args.p_terms,['urine','urinalysis']);
   assert.equal(calls[0].args.p_pet_id,'milo');
   assert.ok(!('p_owner_id' in calls[0].args));
@@ -43,7 +46,10 @@ test('all emitted lexical vocabulary fits the production RPC validator',async t=
 test('date-only requests keep the ordered table path',async t=>{
   clock(t);
   const run=await exercise('Summarize the records in 2011.',{history:true,rows:[care('old','milo','2011-02-01','general','Owner reported rest.')]});
-  assert.ok(!run.queries.some(q=>q.table==='read_ask_history_candidates'));
+  const supplementary = run.queries.filter(q=>q.table==='read_ask_history_candidates');
+  assert.equal(supplementary.length,1);
+  assert.deepEqual(supplementary[0].args.p_terms,['correct','retract','supersed']);
+  assert.equal(supplementary[0].args.p_from,null);
   assert.ok(run.queries.some(q=>q.table==='pet_care_entries' && q.orders.some(([key,asc])=>key==='id'&&asc)));
 });
 for (const patch of [{user_id:'foreign-owner'},{pet_profile_id:'bruno'},{deleted_at:'2026-09-03T00:00:00Z'}]) {

@@ -332,6 +332,10 @@ test('multi-pet saturated candidate pages retain bounded mandatory coverage meta
   clock(t);
   const rows = ['milo', 'luna', 'bruno'].flatMap((pet, petIndex) => Array.from({ length: 110 }, (_, i) =>
     care(`00000000-0000-4000-8000-${String(petIndex * 1000 + i).padStart(12, '0')}`, pet, '2011-01-01', 'general', `${pet} weight ${i} kg.`)));
+  // Dated lookups reserve roots for supplemental corrections. Saturate that
+  // reserve too, keeping this test about the mandatory prompt-budget boundary.
+  rows.push(...['milo', 'luna', 'bruno'].flatMap((pet, petIndex) => Array.from({ length: 4 }, (_, i) =>
+    care(`10000000-0000-4000-8000-${String(petIndex * 1000 + i).padStart(12, '0')}`, pet, '2026-01-01', 'general', 'Correction to a 2011 weight report.'))));
   const run = await exercise('List weight records in 2011.', { history: true, rows, authoritativePetIds: ['milo', 'luna', 'bruno'] });
   assert.ok(run.serialized.length <= ASK_PROMPT_CONTEXT_CHAR_BUDGET);
   assert.match(run.result.reasoning.answer.summary, /incomplete/);

@@ -10,7 +10,7 @@ Implemented:
 Verification: pre-edit lifetime baseline 9 pass / 8 fail; after edits 11 pass / 6 fail, unchanged assertions. New callback cases cover per-pet representation, foreign IDs, single-pet fallback and event-date selection. Direct prompt test checks episode identity. Full suite 2,244 passed; typecheck passed; lint passed with two pre-existing warnings. An initial lint process exited abnormally; a fresh serial rerun passed. A structural chronology assertion was updated to include the new leading sort criterion while retaining score and event-time ordering. No lifetime expectations changed.
 
 Unfinished:
-1. Discover late unlinked correction prose without inventing authoritative correction edges.
+1. Bounded dated unlinked-correction discovery implemented in the subsequent repair; see ask-late-correction-checkpoint.md. Exhaustive discovery and automatic authoritative linkage remain unsupported. Current unchanged lifetime audit is 12 pass / 5 fail; latest full suite is 2,245 pass.
 2. Recover old prose-only episode references with source revalidation; never treat an assistant list as record authority.
 3. Old unlinked episode projections and ordinal recall remain limited; supported linked episode contracts already have separate passing tests.
 4. Exact lifetime episode totals require certified membership and completeness; the fixture's unlinked notes do not establish either.

@@ -1,4 +1,5 @@
 import "server-only";
+import { discoverDatedCorrectionNotes } from "./dated-correction-notes.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CareEntryRow } from "../supabase.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -81,7 +82,10 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const candidates: CareEntryRow[] = [];
   // Reserve coverage/provenance space independently of model evidence. Split
   // the candidate budget fairly so the first pet cannot consume every slot.
-  const rowsPerPet = Math.floor(HISTORY_BUDGET.candidateRows / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
+  // Reserve twelve of the existing roots for later correction notes on dated
+  // lookups. Supplemental discovery must not expand the graph/input budgets.
+  const correctionReserve = plan.from ? 12 : 0;
+  const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let cursor: Cursor | null = null; let exhausted = false; let failed = false; let pages = 0; const rows: CareEntryRow[] = [];
     try {
@@ -134,6 +138,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   }
   if (ids.length > HISTORY_BUDGET.pets) coverage.reasons.push("pet_query_budget");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
+  if (correctionReserve && candidates.length) {
+    candidates.push(...await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, deadline));
+  }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
   if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") coverage.reasons.push("no_matching_candidates_not_absence");

@@ -103,7 +103,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     for (const petId of ids) {
       const status = history.coverage.perPet.find(pet => pet.petId === petId);
       const source = evidenceSource(petId, "care_entries", history.originals.filter(row => row.pet_profile_id === petId).map(row => `care:${row.id}`));
-      source.loadedCount = status?.rows || 0;
+      source.loadedCount = source.loadedIds.length;
       source.reasons = history.coverage.reasons;
       source.completeness = { retrieval: status?.status || "unavailable", corrections: history.coverage.corrections, extraction: "unknown", grouping: "unknown" };
       if (!status || status.status === "unavailable") source.status = "unavailable";
@@ -195,7 +195,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
     return "The retrieved original report is superseded or inactive and is not effective evidence for this pet. This does not establish an absence across the pet's history.";
   }
   if (contract.history && (contract.history.corrections === "unavailable" || contract.history.retrieval === "unavailable"
-    || contract.history.retrieval === "partial" || contract.history.excludedIds.length || contract.history.reasons.includes("unlinked_correction_uncertain")
+    || contract.history.retrieval === "partial" || contract.history.corrections === "partial" || contract.history.excludedIds.length || contract.history.reasons.includes("unlinked_correction_uncertain")
     || contract.history.reasons.includes("unsupported_claim_payload")
     || contract.losses.some(loss => /^(?:care|claim):/.test(loss.sourceId)))) {
     return "The requested history is incomplete or its correction evidence is unavailable or uncertain. I can't establish an effective historical answer from this subset. Please narrow the period or topic, or retry the lookup; this is not evidence that an event or result is absent.";
