@@ -3,6 +3,59 @@ import test from 'node:test';
 import { exercise, clock, ASK_PROMPT_CONTEXT_CHAR_BUDGET, evidenceScopeKey } from './helpers/lifetime-harness.mjs';
 import { care, decisive, irrelevant, ownerId } from './fixtures/ask-lifetime-history.mjs';
 
+for (const note of ['September 3 urine test: result normal.', 'September 3 vet note: skin diagnosis recorded.']) {
+  test(`named blood test cannot cite unrelated note: ${note}`, async t => {
+    clock(t);
+    const run = await exercise('What did Luna’s September 3 blood-test result say?', { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
+    assert.match(run.result.reasoning.answer.summary, /requested note.*not.*represented/i);
+    assert.ok(!run.result.reasoning.answer.summary.includes(note));
+    assert.deepEqual(run.result.reasoning.relevantContextIds, []);
+    assert.deepEqual(run.result.reasoning.referencedRecords, []);
+  });
+}
+for (const [topic, note] of [
+  ['blood', 'September 3 blood test: result pending, not confirmed normal.'],
+  ['urine', 'I recorded the urine test as pending.'],
+  ['urine', 'I added the urine test result: pending, not normal.'],
+  ['urine', 'I recorded the urine test value as 2.7, with uncertainty.'],
+]) test(`source wording remains identical in visible quotation and citation: ${note}`, async t => {
+  clock(t);
+  const run = await exercise(`What did Luna’s September 3 ${topic}-test result say?`, { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)], answer: 'I saved the result as normal.' });
+  assert.ok(run.result.reasoning.answer.summary.includes(`“${note}”`));
+  assert.deepEqual(run.result.reasoning.relevantContextIds, ['care:specific']);
+  assert.equal(run.result.reasoning.referencedRecords[0].value, note);
+  assert.equal(run.result.answerValidation.valid, true);
+  assert.doesNotMatch(run.result.reasoning.answer.summary, /I saved the result as normal/);
+});
+test('ordinary assistant persistence claims remain removed, even inside model quotation marks', async t => {
+  clock(t);
+  const run = await exercise('How should I brush Luna?', { petId: 'luna', answer: 'Use a soft brush. “I added a grooming note.” I recorded this in history.' });
+  assert.match(run.result.reasoning.answer.summary, /soft brush/);
+  assert.doesNotMatch(run.result.reasoning.answer.summary, /I added|I recorded/);
+  assert.deepEqual(run.result.reasoning.referencedRecords, []);
+});
+
+for (const topic of ['test', 'blood and urine test']) test(`unsupported or ambiguous test locator abstains: ${topic}`, async t => {
+  clock(t);
+  const run = await exercise(`What did Luna’s September 3 ${topic} result say?`, { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Urine test: pending.')] });
+  assert.match(run.result.reasoning.answer.summary, /which named test or topic/);
+  assert.deepEqual(run.result.reasoning.relevantContextIds, []);
+  assert.deepEqual(run.result.reasoning.referencedRecords, []);
+});
+test('compound test descriptors retain every named component', async t => {
+  clock(t);
+  for (const [note, supported] of [['Kidney function test: pending.', false], ['Liver function test: pending, interpretation uncertain.', true]]) {
+    const run = await exercise('What did Luna’s September 3 liver function test result say?', { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
+    if (supported) {
+      assert.ok(run.result.reasoning.answer.summary.includes(`“${note}”`));
+      assert.equal(run.result.reasoning.referencedRecords[0].value, note);
+    } else {
+      assert.match(run.result.reasoning.answer.summary, /requested note.*not.*represented/i);
+      assert.deepEqual(run.result.reasoning.referencedRecords, []);
+    }
+  }
+});
+
 for (const [petId, question, note] of [
   ['luna', 'What did Luna’s September 3 urine-test result say?', 'September 3 urine test: result pending.'],
   ['luna', 'What did Luna’s Sept. 3 urine-test result say?', 'September 3 urine test: result normal.'],

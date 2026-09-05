@@ -7,7 +7,28 @@ export type SourceNoteRecall = {
   dateLabel: string | null;
   candidateIds: string[];
   competingIds: string[];
+  topicStatus?: "supported" | "unsupported_or_ambiguous";
 };
+
+/** Literal named-test matching, not a clinical synonym resolver. Generic
+ * descriptors cannot establish which test was requested. Unsupported compound
+ * descriptions require clarification rather than falling back to test/result. */
+function requestedTopicMatcher(question: string, dateEnd: number): RegExp | null {
+  if (/\btests?\b/i.test(question)) {
+    // Recognize the complete descriptor after the explicit date, not merely
+    // the last word before 'test' (e.g. liver function vs kidney function).
+    // Other grammatical arrangements are unsupported, not generic matches.
+    const named = /^\s*(?:the\s+)?([a-z]+(?:[ -][a-z]+)*)[ -]tests?\b/i.exec(question.slice(dateEnd));
+    if (!named || /\b(?:and|or)\b/i.test(named[1])) return null;
+    const generic = /^(?:a|an|the|this|that|which|what|her|his|their|my|our|some|any|other|another|first|second|third|last|latest|previous|recent|new|old|lab|laboratory|medical|diagnostic|screening|function|vet|veterinary)$/;
+    const topic = named[1].toLowerCase();
+    if (generic.test(topic)) return null;
+    // Preserve every named component of hyphenated tests; never reduce a named
+    // blood test to a match on 'test', 'result', 'vet', or 'diagnosis'.
+    return new RegExp(`\\b(?:${topic.replace(/[- ]/g, "[- ]")}[- ]+(?:tests?|results?)${topic === "urine" ? "|urinalysis" : ""})\\b`, "i");
+  }
+  return /\bdiagnos\w*\b/i.test(question) ? /\bdiagnos\w*\b/i : null;
+}
 
 // A bounded locator, not event-time inference. Missing years are not defaulted
 // to this year: all matching loaded years participate in ambiguity checks.
@@ -21,7 +42,7 @@ function requestedDate(text: string) {
   const day = (match[3] || match[5]).padStart(2, "0");
   const check = `${year || "2000"}-${month}-${day}`;
   if (!Number.isFinite(Date.parse(check)) || new Date(check).toISOString().slice(0, 10) !== check) return null;
-  return { year, month, day, label: match[0] };
+  return { year, month, day, label: match[0], end: match.index! + match[0].length };
 }
 
 /** Index already-loaded candidates before existing selection. No retrieval,
@@ -35,8 +56,9 @@ export function buildSourceNoteRecall(context: FurviseLiveContext, contract: Ask
   const petId = contract.scope.authorizedPetIds.length === 1 ? contract.scope.authorizedPetIds[0] : null;
   const plan: SourceNoteRecall = { intent: sourceIntent ? "source" : "effective", petId, dateLabel: date?.label || null, candidateIds: [], competingIds: [] };
   if (!sourceIntent || !date || !petId) return plan;
-  const topic = /\b(?:urine|urinalysis)\b/i.test(question) ? /\b(?:urine|urinalysis)\b/i
-    : /\bdiagnos\w*\b/i.test(question) ? /\bdiagnos\w*\b/i : /\b(?:tests?|results?|vet|veterinar\w*)\b/i;
+  const topic = requestedTopicMatcher(question, date.end);
+  plan.topicStatus = topic ? "supported" : "unsupported_or_ambiguous";
+  if (!topic) return plan;
   const related = context.careEntries.filter(row => row.pet_profile_id === petId && row.user_id === context.owner.userId
     && topic.test(`${row.title || ""} ${row.note}`));
   const candidates = related.filter(row => {
@@ -60,6 +82,7 @@ export function sourceNoteAnswer(contract: AskEvidenceContract): { text: string;
   const limited = (text: string) => ({ text, sourceIds: [] });
   if (!plan || plan.intent === "effective") return limited("I can't establish the current or effective result or diagnosis from this evidence. A historical note alone does not establish current medical status.");
   if (!plan.petId || !plan.dateLabel) return limited("Please identify the pet and date of the note. I can't uniquely identify the requested record from this question.");
+  if (plan.topicStatus === "unsupported_or_ambiguous") return limited("I can't establish which named test or topic matches the requested note. Please identify the specific test; generic test or vet wording is not enough.");
   const source = contract.sources.find(source => source.petId === plan.petId && source.source === "care_entries");
   if (!source || source.status === "unavailable" || source.status === "not_loaded") return limited("The requested note's source is unavailable. I can't establish what that note said.");
   if (plan.candidateIds.length > 1) return limited("Multiple matching notes are available. Please identify the year or specific note before I quote its contents.");
