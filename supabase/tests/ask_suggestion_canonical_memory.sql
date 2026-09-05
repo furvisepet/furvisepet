@@ -19,6 +19,18 @@ do $$
 declare r record; first_id uuid;
 begin
   begin
+    perform * from public.save_ask_memory_suggestion('52000000-0000-4000-8000-000000000001',
+      '51000000-0000-4000-8000-000000000021', '51000000-0000-4000-8000-000000000011', 'Maple hides during thunderstorms.', 'behavior');
+    raise exception 'foreign owner accepted';
+  exception when no_data_found then null;
+  end;
+  begin
+    perform * from public.save_ask_memory_suggestion('51000000-0000-4000-8000-000000000001',
+      '51000000-0000-4000-8000-000000000021', '52000000-0000-4000-8000-000000000011', 'Maple hides during thunderstorms.', 'behavior');
+    raise exception 'wrong pet accepted';
+  exception when serialization_failure then null;
+  end;
+  begin
     perform * from public.save_ask_memory_suggestion('51000000-0000-4000-8000-000000000001',
       '51000000-0000-4000-8000-000000000021', '51000000-0000-4000-8000-000000000011', 'changed', 'behavior');
     raise exception 'changed evidence accepted';
