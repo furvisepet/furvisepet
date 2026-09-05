@@ -48,6 +48,18 @@ test('dated episode count cannot override a discovered unlinked correction',asyn
  assert.doesNotMatch(r.result.reasoning.answer.summary,/One confirmed episode|1 explicitly supported/);
 });
 
+test('mixed-topic ordinal requests do not inherit one saved topic',async t=>{
+ clock(t); const saved=await savedList();
+ for (const question of ['Was the second episode vomiting or breathing trouble?','What about the second vomiting episode and soft stool?']) {
+  const r=await run(question,{messages:[saved],answer:'The second episode was vomiting.'});
+  assert.equal(r.context.episodeResult?.referenceStatus,'clarify');
+  assert.deepEqual(r.context.episodeResult.items,[]);
+  assert.equal(r.context.episodeResult.references,undefined);
+  assert.deepEqual(r.result.acceptedCareActions,[]);
+  assert.deepEqual(r.result.acceptedLearnings,[]);
+ }
+});
+
 async function savedList() {
  const original=await run('List all vomiting episodes over Milo lifetime.');
  return {id:'wording-answer',user_id:ownerId,conversation_id:'chat',role:'furvise',sequence_number:2,created_at:'2026-09-04T00:00:00Z',

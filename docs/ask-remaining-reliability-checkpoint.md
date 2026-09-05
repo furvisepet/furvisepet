@@ -1,5 +1,11 @@
 # Remaining Ask reliability batch
 
+Completed: mixed-topic episode follow-up, base 7700363. Callback reproduction confirmed competing vomiting/breathing topics incorrectly resolved the saved vomiting reference because multiple topics and absent topics both became null. These states are now distinguished; mixed-topic ordinal requests clarify without selecting or persisting episode references. Existing unqualified and single-topic follow-ups remain supported.
+
+Verification: callback regressions 8/8; full suite 2,246 passed; typecheck, lint and diff passed (two existing lint warnings). Unchanged lifetime audit 13 pass / 4 fail. Logs C:/Users/gwara/furvise-mixed-topic-{before,focused,full,typecheck,lint,audit}.log. Lock PID18172 released after commit via C:/Users/gwara/furvise-mixed-topic.release. No database, provider, push, merge or deployment.
+
+Limitation: topic recognition remains bounded English vocabulary. Requests mentioning multiple recognized symptoms conservatively clarify, including secondary symptom questions; broader multi-topic episode answering is not implemented. The four lifetime gaps below remain open.
+
 Completed: episode correction handoff, based on 2150ae4. Reproduced actual callback returning a supported episode count despite a discovered late unlinked correction. Member-only revalidation now preserves inherited unavailable/partial corrections and unlinked correction uncertainty, returning unavailable episode coverage without count items or saved references. No correction-to-event linkage is inferred.
 
 Verification: full suite 2,246 passed; typecheck and lint passed (two existing warnings); diff check passed. Focused callback suite 7/7 passed, including additional final response reference and no-write assertions. Unchanged lifetime audit remains 13 pass / 4 fail. Logs: C:/Users/gwara/furvise-episode-correction-{before,full,focused,typecheck,lint,audit}.log. Exclusive lock PID21040 is released after local commit via C:/Users/gwara/furvise-episode-correction.release.

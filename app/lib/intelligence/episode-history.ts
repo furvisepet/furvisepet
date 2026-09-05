@@ -31,7 +31,7 @@ export function isEpisodeListRequest(message: string) {
 function topicOf(message: string) {
   const topics = [/\b(?:vomit\w*|threw up)\b/i.test(message) ? "vomiting" : "",
     /\b(?:stool|diarrh\w*)\b/i.test(message) ? "soft stool" : "", /\bbreath\w*\b/i.test(message) ? "breathing" : ""].filter(Boolean);
-  return topics.length === 1 ? topics[0] : null;
+  return { topic: topics.length === 1 ? topics[0] : null, ambiguous: topics.length > 1 };
 }
 function parseReferences(value: unknown, context: FurviseLiveContext): EpisodeReferences | null {
   if (!value || typeof value !== "object" || JSON.stringify(value).length > 12000) return null;
@@ -60,7 +60,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
   const message = context.currentMessage;
   const follow = episodeFollowUp(message);
   if ((!follow && !isEpisodeListRequest(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
-  const topic = topicOf(message);
+  const { topic, ambiguous: ambiguousTopic } = topicOf(message);
   const plan = planHistoricalQuery(message);
   const result: EpisodeResult = { version: "ask-episodes.v1", petId: context.pet.id, topic: topic || "unspecified",
     from: plan?.from || null, to: plan?.to || null, items: [], supportedCount: 0, exactTotal: null, entryCount: 0,
@@ -73,7 +73,8 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
   try {
     if (petIds.length !== 1 || !petIds.includes(context.pet.id)) { result.coverage="ambiguous"; result.referenceStatus="clarify"; return done(); }
     if (follow) {
-      if (follow.ambiguous || !context.conversationId) return done();
+      // An unspecified topic may inherit the saved list; competing topics may not.
+      if (follow.ambiguous || ambiguousTopic || !context.conversationId) return done();
       const stored = await db.rpc("read_ask_episode_references", {p_conversation_id:context.conversationId}).abortSignal(signal());
       if (stored.error) throw new Error("reference_read_unavailable");
       refs = parseReferences(stored.data,context);
