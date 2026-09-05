@@ -35,7 +35,7 @@ const { rebuildSemanticProjectionsV2 } = await import('../../../app/lib/intellig
 const { classifyFurviseCapabilityQuestion } = await import('../../../app/lib/ai/ask-internal-product-policy.ts');
 const { createAskEvidenceContract, evidenceScopeKey } = await import('../../../app/lib/intelligence/ask-evidence.ts');
 
-function database(rows, { messages = [], failCare = false, careEpisodes = [], graph = {}, failGraph = false, failHistoryPage = 0, historyPageCap = Infinity, graphAtCall, candidateError, candidateRowsOverride } = {}) {
+function database(rows, { messages = [], failCare = false, careEpisodes = [], graph = {}, failGraph = false, failHistoryPage = 0, historyPageCap = Infinity, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const queries = [];
   const tables = { dog_profiles: pets, pet_care_entries: rows, ask_conversations: conversations, ask_conversation_messages: messages, pet_care_episodes: careEpisodes };
   let historyPages = 0;
@@ -43,6 +43,20 @@ function database(rows, { messages = [], failCare = false, careEpisodes = [], gr
   return { queries, rpc(name, args) {
     let signal;
     const execute = async () => {
+    if (name === 'read_ask_episode_references') {
+      queries.push({table:name,args});
+      return {data:[...messages].filter(m=>m.user_id===ownerId && m.conversation_id===args.p_conversation_id && m.role==='furvise' && m.response_data?.episodeReferences)
+        .sort((a,b)=>b.sequence_number-a.sequence_number)[0]?.response_data.episodeReferences || null,error:episodeError ? {code:episodeError} : null};
+    }
+    if (name === 'read_ask_episode_sources') {
+      queries.push({table:name,args});
+      const found=careEpisodes.filter(e=>e.user_id===ownerId && e.pet_profile_id===args.p_pet_id && args.p_keys.includes(e.normalized_key)
+        && (!args.p_episode_ids || args.p_episode_ids.includes(e.id))).sort((a,b)=>a.started_at.localeCompare(b.started_at)||a.id.localeCompare(b.id)).slice(0,9);
+      const sources=found.slice(0,8).flatMap(e=>rows.filter(r=>r.episode_id===e.id && r.user_id===ownerId && r.pet_profile_id===args.p_pet_id)
+        .sort((a,b)=>a.occurred_at.localeCompare(b.occurred_at)||a.created_at.localeCompare(b.created_at)||a.id.localeCompare(b.id)).slice(0,9)
+        .map(r=>({...r,note:r.note.length>2000 ? null : r.note,content_omitted:r.note.length>2000})));
+      return {data:episodeRowsOverride || {episodes:found,sources},error:episodeError ? {code:episodeError} : null};
+    }
     if (name === 'read_ask_history_candidates') {
       queries.push({ table: name, args, signal });
       if (candidateError === 'THROW_ABORT') throw new DOMException('aborted','AbortError');
@@ -133,8 +147,8 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, prepareContext, history = false, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride } = {}) {
-  const supabase = database(rows, { messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride });
+async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, prepareContext, history = false, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+  const supabase = database(rows, { messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? 'milo' : null, currentMessage: question, dateRange });
   prepareContext?.(context);

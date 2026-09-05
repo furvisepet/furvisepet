@@ -6,6 +6,7 @@ import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
 import { evidenceAnswerPolicy } from "../ask-evidence.ts";
 import { sourceNoteAnswer } from "../source-note-recall.ts";
+import { episodeAnswer } from "../episode-contract.ts";
 
 export type AnswerValidationResult = {
   response: AskReasoningResult;
@@ -132,6 +133,16 @@ export function validateGeneratedAnswer(
   const assistantProse = JSON.stringify(response.answer);
   if (hasSourceQuote && sourceNote) {
     response.answer.summary = `${urgent ? "Contact an emergency veterinarian now. " : ""}${sourceNote.text}`;
+  }
+  if (context.episodeResult) {
+    // Compose after all prose transforms. A model count/list or a prose normalizer
+    // cannot change the server's count, displayed ordering or stable identities.
+    const authoritative = episodeAnswer(context.episodeResult);
+    response.answer = {title:"Furvise",...authoritative,safetyNote:urgent ? "Contact an emergency veterinarian now." : null};
+    response.suggestedFollowUps=[];
+    response.relevantContextIds=context.episodeResult.items.map(i=>i.sourceId);
+    response.referencedRecords=[];
+    repairs.push("applied_server_episode_result");
   }
   const answerText = JSON.stringify(response.answer);
   const unauthorizedPetNamed = (context.eligiblePets || []).some((pet) => pet.name

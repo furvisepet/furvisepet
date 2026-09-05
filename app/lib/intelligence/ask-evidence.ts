@@ -19,6 +19,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  episodes?: import("./episode-history.ts").EpisodeResult;
   historyFallback?: string;
   history?: import("./history-retrieval.ts").HistoryCoverage;
   sourceNoteRecall?: SourceNoteRecall;
@@ -81,6 +82,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
+  if (context.episodeResult) { contract.episodes = structuredClone(context.episodeResult); contract.scope.readOnlyRecall = true; }
   if (context.historyFallback) { contract.historyFallback = context.historyFallback; contract.scope.readOnlyRecall = true; }
   if (context.askHistory) {
     contract.scope.readOnlyRecall = true;

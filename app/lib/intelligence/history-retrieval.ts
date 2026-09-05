@@ -157,10 +157,11 @@ function readSignal(deadline: number) {
 function sameCandidateVersion(candidate: CareEntryRow, fresh: CareEntryRow | undefined) {
   const fields = ["id", "user_id", "pet_profile_id", "category", "title", "note", "severity",
     "occurred_at", "created_at", "updated_at", "deleted_at"] as const;
-  return Boolean(fresh && !fresh.deleted_at && fields.every(field => (candidate[field] ?? null) === (fresh[field] ?? null)));
+  return Boolean(fresh && !fresh.deleted_at && fields.every(field => (candidate[field] ?? null) === (fresh[field] ?? null))
+    && (!("episode_id" in candidate) || candidate.episode_id === fresh.episode_id));
 }
 
-async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string>, requestedPets: string[], userId: string, db: SupabaseClient, coverage: HistoryCoverage, deadline: number): Promise<CareEntryRow[]> {
+export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string>, requestedPets: string[], userId: string, db: SupabaseClient, coverage: HistoryCoverage, deadline: number): Promise<CareEntryRow[]> {
   const claims = new Map<string, DbClaim>(); const relations = new Map<string, DbRelation>(); const links = new Map<string, Lineage>(); const sources = new Map<string, CareEntryRow>();
   const removedTargets = new Set<string>();
   const removedSources = new Set<string>();

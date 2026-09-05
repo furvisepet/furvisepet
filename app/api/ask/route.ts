@@ -1,5 +1,6 @@
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
+import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
 import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
@@ -1585,6 +1586,7 @@ async function persistAssistantAnswer({
     }),
     semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace),
   } : null;
+  response = attachEpisodeReferences(response, intelligenceResult?.reasoning.evidenceContract?.episodes);
   let responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
   const optionalFailure = (component: AskSubsystem, error: unknown) => {
     turnLifecycle.optionalFailure(component);
@@ -1848,7 +1850,7 @@ async function persistAssistantAnswer({
   turnLifecycle.actions(applicationActions.length);
   turnLifecycle.transition("COMPLETED");
   const canonicalResponse = {
-    ...(applicationActions.length ? { ...reconciledResponse, applicationActions } : reconciledResponse),
+    ...attachEpisodeReferences(applicationActions.length ? { ...reconciledResponse, applicationActions } : reconciledResponse, intelligenceResult?.reasoning.evidenceContract?.episodes),
     turn: turnLifecycle.snapshot(),
   };
   await runOptionalAskSubsystem({
