@@ -5,6 +5,7 @@ import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
 import { evidenceAnswerPolicy } from "../ask-evidence.ts";
+import { sourceNoteAnswer } from "../source-note-recall.ts";
 
 export type AnswerValidationResult = {
   response: AskReasoningResult;
@@ -26,8 +27,15 @@ export function validateGeneratedAnswer(
     const urgent = canonicalSafety === "urgent" || canonicalSafety === "emergency";
     response.answer = { title: "Furvise", summary: `${urgent ? "Contact an emergency veterinarian now. " : ""}${scopedAnswer}`, sections: [], safetyNote: null };
     response.suggestedFollowUps = [];
-    response.relevantContextIds = [];
-    response.referencedRecords = [];
+    const sourceIds = response.evidenceContract?.scope.requestKind === "record_lookup" ? sourceNoteAnswer(response.evidenceContract).sourceIds : [];
+    response.relevantContextIds = sourceIds;
+    response.referencedRecords = sourceIds.flatMap(id => {
+      const span = response.evidenceContract?.represented.find(span => span.sourceId === id);
+      return span ? [{ id, sourceType: "care_update" as const, petId: span.petId,
+        petName: context.eligiblePets.find(pet => pet.id === span.petId)?.name || context.pet.name,
+        kind: "recorded_note", value: span.text, occurredAt: null, createdAt: null, status: null, priority: null,
+        metadata: { evidenceField: span.field, start: span.start, end: span.end } }] : [];
+    });
     repairs.push("applied_scoped_evidence_policy");
   }
   const contextText = `${context.currentMessage} ${context.careEntries.map((entry) => `${entry.title || ""} ${entry.note}`).join(" ")} ${context.memories.map((memory) => `${memory.fact_key} ${memoryDisplayContent(memory)}`).join(" ")}`;

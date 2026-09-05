@@ -3,6 +3,82 @@ import test from 'node:test';
 import { exercise, clock, ASK_PROMPT_CONTEXT_CHAR_BUDGET, evidenceScopeKey } from './helpers/lifetime-harness.mjs';
 import { care, decisive, irrelevant, ownerId } from './fixtures/ask-lifetime-history.mjs';
 
+for (const [petId, question, note] of [
+  ['luna', 'What did Luna’s September 3 urine-test result say?', 'September 3 urine test: result pending.'],
+  ['luna', 'What did Luna’s Sept. 3 urine-test result say?', 'September 3 urine test: result normal.'],
+  ['oscar', 'What diagnosis was recorded in Oscar’s September 3 vet note?', 'September 3 vet note: the veterinarian recorded a diagnosis of arthritis, not yet confirmed by imaging.'],
+]) test(`specific represented note reaches final answer: ${note}`, async t => {
+  clock(t);
+  const run = await exercise(question, { petId, rows: [care('specific', petId, '2026-09-03', 'vet_visit', note)], answer: 'The result was negative and there is no diagnosis.', providerOverrides: { relevantContextIds: ['care:specific'] } });
+  assert.ok(run.prompt.evidenceContract.represented.some(span => span.sourceId === 'care:specific' && span.text === note));
+  assert.ok(run.result.reasoning.answer.summary.includes(note), 'entire qualified note must reach final answer');
+  assert.match(run.result.reasoning.answer.summary, /note says/);
+  assert.match(run.result.reasoning.answer.summary, /not.*current/i);
+  assert.doesNotMatch(run.result.reasoning.answer.summary, /result was negative/);
+  assert.deepEqual(run.result.reasoning.relevantContextIds, ['care:specific']);
+  assert.equal(run.result.reasoning.referencedRecords[0].value, note);
+});
+
+test('source rendering does not depend on the model citing the note', async t => {
+  clock(t);
+  const note = 'Urine test: result pending, not confirmed normal.';
+  const run = await exercise('What did Luna’s 2026-09-03 urine-test result show?', { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', note)], answer: 'The result was normal.', providerOverrides: { relevantContextIds: [] } });
+  assert.equal(run.result.reasoning.answer.summary, `The 2026-09-03 note says: “${note}” This reports that note's contents, not a verified current medical status.`);
+  assert.deepEqual(run.result.reasoning.relevantContextIds, ['care:specific']);
+  assert.equal(run.result.reasoning.referencedRecords[0].value, note);
+  assert.deepEqual(run.result.acceptedCareActions, []);
+});
+
+test('unselected competing evidence still blocks a quote; an earlier result does not', async t => {
+  clock(t);
+  const original = care('specific', 'luna', '2026-09-03', 'vet_visit', 'Urine test: pending.');
+  const later = care('later', 'luna', '2026-09-04', 'vet_visit', 'Urine test correction: abnormal.');
+  const blocked = await exercise('What did Luna’s September 3 urine-test result say?', { petId: 'luna', rows: [original, later], prepareContext(context) { context.selectedCareEntries = [original]; } });
+  assert.ok(!blocked.prompt.evidenceContract.represented.some(span => span.sourceId === 'care:later'));
+  assert.match(blocked.result.reasoning.answer.summary, /Other related records/);
+  const earlier = care('earlier', 'luna', '2026-09-02', 'vet_visit', 'Urine test: normal.');
+  const supported = await exercise('What did Luna’s September 3, 2026 urine-test result say?', { petId: 'luna', rows: [earlier, original] });
+  assert.ok(supported.result.reasoning.answer.summary.includes(original.note));
+});
+
+test('a valid cited ID for another topic cannot authorize a requested result', async t => {
+  clock(t);
+  const run = await exercise('What did Luna’s September 3 urine-test result say?', { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Vet note: recorded diagnosis of a skin allergy.')], answer: 'The urine test was normal.', providerOverrides: { relevantContextIds: ['care:specific'] } });
+  assert.match(run.result.reasoning.answer.summary, /requested note.*not.*represented/i);
+  assert.deepEqual(run.result.reasoning.relevantContextIds, []);
+});
+
+test('an explicit year disambiguates historical notes without assuming a year', async t => {
+  clock(t);
+  const note = 'Urine test: result pending.';
+  const run = await exercise('What did Luna’s September 3, 2026 urine-test result say?', { petId: 'luna', rows: [care('old', 'luna', '2025-09-03', 'vet_visit', 'Urine test: normal.'), care('specific', 'luna', '2026-09-03', 'vet_visit', note)] });
+  assert.ok(run.result.reasoning.answer.summary.includes(note));
+  assert.deepEqual(run.result.reasoning.relevantContextIds, ['care:specific']);
+});
+
+for (const [label, options, pattern] of [
+  ['missing', { rows: [] }, /requested note.*not.*represented/i],
+  ['unavailable', { failCare: true }, /unavailable/i],
+  ['ambiguous same day', { rows: [care('a', 'luna', '2026-09-03', 'vet_visit', 'Urine test: pending.'), care('b', 'luna', '2026-09-03', 'vet_visit', 'Urine test: normal.')] }, /multiple.*notes/i],
+  ['ambiguous year', { rows: [care('a', 'luna', '2025-09-03', 'vet_visit', 'Urine test: pending.'), care('b', 'luna', '2026-09-03', 'vet_visit', 'Urine test: normal.')] }, /multiple.*notes/i],
+  ['later contradiction', { rows: [care('a', 'luna', '2026-09-03', 'vet_visit', 'Urine test: normal.'), care('b', 'luna', '2026-09-04', 'vet_visit', 'Correction: September 3 urine test result was abnormal, not normal.')] }, /other.*related.*records/i],
+  ['oversized', { rows: [care('a', 'luna', '2026-09-03', 'vet_visit', `Urine test: ${'background '.repeat(100)}result pending, not normal.`)] }, /requested note.*not.*represented/i],
+]) test(`specific lookup fails safely: ${label}`, async t => {
+  clock(t);
+  const run = await exercise('What did Luna’s September 3 urine-test result say?', { petId: 'luna', answer: 'The urine test was normal.', ...options });
+  assert.match(run.result.reasoning.answer.summary, pattern);
+  assert.doesNotMatch(run.result.reasoning.answer.summary, /test was normal/);
+});
+
+test('a dated source does not establish current medical status or exhaustive absence', async t => {
+  clock(t);
+  for (const question of ['What is Luna’s current urine-test result?', 'Has Luna ever had an abnormal urine test?', 'How many urine tests has Luna had?']) {
+    const run = await exercise(question, { petId: 'luna', rows: [care('specific', 'luna', '2026-09-03', 'vet_visit', 'Urine test: normal.')], answer: 'All tests have always been normal.', providerOverrides: { relevantContextIds: ['care:specific'] } });
+    assert.match(run.result.reasoning.answer.summary, /can't establish/);
+    assert.doesNotMatch(run.result.reasoning.answer.summary, /always been normal/);
+  }
+});
+
 // Migrated from the lifetime audit: bounded unsupported-answer policy only.
 for (const [petId, question, answer, forbidden] of [
   ['milo', 'How many soft-stool episodes are recorded?', 'Exactly seven soft-stool episodes were recorded.', /seven/],

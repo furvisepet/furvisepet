@@ -1,6 +1,7 @@
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import type { FurviseLiveContext } from "./types.ts";
+import { buildSourceNoteRecall, sourceNoteAnswer, type SourceNoteRecall } from "./source-note-recall.ts";
 
 export type Completeness = "complete" | "partial" | "unknown" | "unavailable" | "ambiguous";
 export type EvidenceCompleteness = { retrieval: Completeness; corrections: Completeness; extraction: Completeness; grouping: Completeness };
@@ -18,6 +19,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  sourceNoteRecall?: SourceNoteRecall;
   version: "ask-evidence.v1"; scope: AskEvidenceScope; sources: EvidenceSource[];
   completeness: EvidenceCompleteness; losses: EvidenceLoss[];
   represented: Array<{ sourceId: string; petId: string; sourceType: string; field: "value"; start: number; end: number; text: string }>;
@@ -36,7 +38,7 @@ export function evidenceSource(petId: string, source: string, loadedIds: string[
 }
 
 export function askEvidenceScope(message: string, authorizedPetIds: string[]): AskEvidenceScope {
-  const history = /\b(?:history|record\w*|report\w*|episodes?|vomit\w*|stool|weights?|diagnos\w*|test|medication|litter|stiffness)\b/i.test(message);
+  const history = /\b(?:history|record\w*|report\w*|episodes?|vomit\w*|stool|weights?|diagnos\w*|tests?|medication|litter|stiffness)\b/i.test(message);
   const lifetime = /\b(?:lifetime|ever|all (?:of )?(?:the )?(?:recorded )?history|entire (?:recorded )?history|complete history|full history)\b/i.test(message);
   const period = /\b(?:(?:19|20)\d{2}|(?:this|last|previous) (?:week|month|year)|since\s+[^?!.]+|between\s+[^?!.]+)\b/i.exec(message)?.[0] || null;
   const kind: AskEvidenceScope["requestKind"] = history && /\b(?:how many|number of|total|count)\b/i.test(message) ? "count"
@@ -44,7 +46,7 @@ export function askEvidenceScope(message: string, authorizedPetIds: string[]): A
     : history && (/\b(?:ever|never|any record|no record)\b/i.test(message)
       || /^(?:have|has|did|do|does|is|are)\b[\s\S]*\b(?:any|reported|recorded)\b/i.test(message)) ? "absence"
     : /\b(?:summari[sz]e|summary|overview|review|list)\b/i.test(message) && (lifetime || Boolean(period) || /\b(?:all|entire|complete|full|history|recorded)\b/i.test(message) && history) ? "overview"
-    : /\b(?:test|urine|diagnos\w*)\b/i.test(message) && /\b(?:result|diagnos\w*)\b/i.test(message) ? "record_lookup" : "ordinary";
+    : /\b(?:tests?|urine|diagnos\w*)\b/i.test(message) && /\b(?:results?|diagnos\w*)\b/i.test(message) ? "record_lookup" : "ordinary";
   const topics = message.toLowerCase().match(/\b(?:soft[- ]stool|stool|vomit\w*|weights?|food|diet|litter|urine|hiding|medication|stiffness|diagnos\w*)\b/g) || [];
   return { authorizedPetIds: [...new Set(authorizedPetIds)], requestedTopic: [...new Set(topics)].join(", ") || "unspecified", requestText: message,
     requestedPeriod: { kind: lifetime ? "lifetime" : period ? "requested" : "unspecified", surface: lifetime ? "lifetime" : period ? message : null },
@@ -73,6 +75,8 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
+  const sourceNoteRecall = buildSourceNoteRecall(context, contract);
+  if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
   return refreshEvidenceCoverage(contract);
 }
 
@@ -108,6 +112,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
   const kind = contract.scope.requestKind;
   if (kind === "ordinary" && contract.scope.status !== "ambiguous") return null;
   if (contract.scope.status === "ambiguous") return "Which episode do you mean? Please identify the pet and approximate date so I can keep the records separate.";
+  if (kind === "record_lookup") return sourceNoteAnswer(contract).text;
   const represented = new Set(contract.represented.map(span => span.sourceId));
   const certified = contract.scope.authorizedPetIds.length > 0 && Object.values(contract.completeness).every(value => value === "complete")
     && contract.representation === "complete" && contract.sources.every(source => source.status === "loaded");
@@ -116,7 +121,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
   if (fact) return fact.text;
   const failed = contract.sources.some(source => source.status === "unavailable" || source.status === "not_loaded");
   const lead = failed ? "I couldn't verify all the requested records." : "The available records are limited, and their completeness and corrections are not verified.";
-  const task = kind === "count" ? "an exact total" : kind === "absence" || kind === "record_lookup" ? "whether something is absent from the full record"
+  const task = kind === "count" ? "an exact total" : kind === "absence" ? "whether something is absent from the full record"
     : kind === "comparison" ? "a complete weight or history comparison" : "a complete summary of the requested history";
   return `${lead} I can't establish ${task} from this evidence. I can discuss the supplied notes, or you can identify a specific record to review.`;
 }
