@@ -3,6 +3,59 @@ import test from 'node:test';
 import { exercise, clock, ASK_PROMPT_CONTEXT_CHAR_BUDGET } from './helpers/lifetime-harness.mjs';
 import { care, decisive, irrelevant, ownerId } from './fixtures/ask-lifetime-history.mjs';
 
+// These simulate the two independent reads, not an edit to a shared fixture:
+// rows are the candidate snapshot; graph.sources/claims are the RPC snapshot.
+for (const [name, patch] of [
+  ['note and claim', { note: 'Milo did not vomit.' }],
+  ['topic', { note: 'Milo slept normally.' }],
+  ['event date', { occurred_at: '2015-07-09T12:00:00Z' }],
+  ['pet', { pet_profile_id: 'bruno' }],
+  ['title', { title: 'Possible vomiting, not confirmed' }],
+  ['severity', { severity: 'severe' }],
+  ['category', { category: 'general' }],
+  ['creation time', { created_at: '2026-09-03T12:00:00Z' }],
+  ['update time', { updated_at: '2026-09-03T12:00:00Z' }],
+  ['deletion', { deleted_at: '2026-09-03T12:00:00Z' }],
+]) test(`candidate/RPC linked version change is withheld: ${name}`, async t => {
+  clock(t);
+  const fresh = { ...original, ...patch };
+  const linked = { ...c1, subject_id: fresh.pet_profile_id, occurred_at: fresh.occurred_at,
+    structured_value: { note: fresh.note, title: fresh.title, severity: fresh.severity } };
+  const run = await exercise('What vomiting records are there in 2014?', { history: true, rows: [original],
+    graph: { claims: [linked], lineage: [lineage], sources: [fresh] }, answer: original.note });
+  assert.ok(!run.prompt.contextRecords.some(record => record.sourceType === 'care_update'));
+  assert.ok(!run.serialized.includes(original.note));
+  assert.ok(!run.prompt.evidenceContract.represented.some(span => span.text.includes(original.note)));
+  assert.ok(run.prompt.evidenceContract.history.excludedIds.includes('care:old-vomit'));
+  assert.ok(run.prompt.evidenceContract.history.reasons.includes('source_deleted_or_changed'));
+  assert.ok(run.prompt.evidenceContract.losses.some(loss => loss.sourceId === 'care:old-vomit' && loss.reason === 'source_deleted_or_changed'));
+  assert.ok(!run.prompt.evidenceContract.history.reasons.includes('effective_evidence_budget'));
+  assert.match(run.result.reasoning.answer.summary, /incomplete/);
+  assert.ok(!run.result.reasoning.answer.summary.includes(original.note));
+  assert.deepEqual(run.result.reasoning.referencedRecords, []);
+});
+
+test('unchanged linked source remains usable through final answer', async t => {
+  clock(t);
+  const run = await exercise('What vomiting records are there in 2014?', { history: true, rows: [original],
+    graph: { claims: [c1], lineage: [lineage], sources: [original] }, answer: 'The July 2014 note reports that Milo vomited.' });
+  assert.ok(run.prompt.contextRecords.some(record => record.id === 'care:old-vomit' && record.value === original.note));
+  assert.ok(run.prompt.evidenceContract.history.provenance.some(item => item.status === 'effective_linked'));
+  assert.deepEqual(run.prompt.evidenceContract.history.excludedIds, []);
+  assert.match(run.result.reasoning.answer.summary, /July 2014 note reports that Milo vomited/);
+});
+
+for (const changed of ['source', 'claim']) test(`inconsistent linked ${changed} version fails safely`, async t => {
+  clock(t);
+  const run = await exercise('What vomiting records are there in 2014?', { history: true, rows: [original],
+    graph: { claims: [changed === 'claim' ? { ...c1, structured_value: { ...c1.structured_value, note: 'Milo did not vomit.' } } : c1],
+      lineage: [lineage], sources: [changed === 'source' ? { ...original, note: 'Milo did not vomit.' } : original] }, answer: original.note });
+  assert.ok(!run.prompt.contextRecords.some(record => record.sourceType === 'care_update'));
+  assert.equal(run.prompt.evidenceContract.history.corrections, 'unavailable');
+  assert.match(run.result.reasoning.answer.summary, /incomplete|unavailable/);
+  assert.ok(!run.result.reasoning.answer.summary.includes(original.note));
+});
+
 // Promoted from the explicit lifetime audit: candidate/fact reachability, not
 // exact episode totals or complete semantic-history certification.
 for (const [petId, question, ids] of [

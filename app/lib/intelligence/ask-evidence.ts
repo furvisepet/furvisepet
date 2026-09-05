@@ -102,7 +102,8 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
       contract.sources.push(claims);
     }
     contract.losses = contract.losses.filter(loss => !loss.sourceId.startsWith("care:"));
-    contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: "historical_evidence_budget" })));
+    const changedSources = new Set(history.coverage.provenance.filter(source => source.status === "deleted_or_changed").map(source => source.sourceId));
+    contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: changedSources.has(sourceId) ? "source_deleted_or_changed" : "historical_evidence_budget" })));
   }
   const sourceNoteRecall = buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;

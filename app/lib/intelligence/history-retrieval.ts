@@ -117,13 +117,13 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
   if (!candidates.length && !entries.length) coverage.reasons.push("no_matching_candidates_not_absence");
-  const kept: CareEntryRow[] = []; let chars = 0;
+  const kept: CareEntryRow[] = []; let chars = 0; let budgetExcluded = false;
   for (const entry of entries.sort((a, b) => a.occurred_at.localeCompare(b.occurred_at) || a.id.localeCompare(b.id))) {
     const size = JSON.stringify(entry).length;
-    if (kept.length >= HISTORY_BUDGET.records || chars + size > HISTORY_BUDGET.chars) { coverage.excludedIds.push(careEvidenceId(entry.id, coverage)); continue; }
+    if (kept.length >= HISTORY_BUDGET.records || chars + size > HISTORY_BUDGET.chars) { coverage.excludedIds.push(careEvidenceId(entry.id, coverage)); budgetExcluded = true; continue; }
     kept.push(entry); chars += size;
   }
-  if (coverage.excludedIds.length) coverage.reasons.push("effective_evidence_budget");
+  if (budgetExcluded) coverage.reasons.push("effective_evidence_budget");
   return { ...context, askHistory: { coverage, entries: kept, originals: candidates } };
 }
 
@@ -131,6 +131,15 @@ function readSignal(deadline: number) {
   const remaining = deadline - Date.now();
   if (remaining <= 0) throw new Error("history_time_budget");
   return AbortSignal.timeout(remaining);
+}
+
+/** The emitted candidate must be the same version as the source validated by
+ * the RPC/lineage checks. Do not replace it with a fresh row: pet, period or
+ * lexical topic membership may have changed since candidate selection. */
+function sameCandidateVersion(candidate: CareEntryRow, fresh: CareEntryRow | undefined) {
+  const fields = ["id", "user_id", "pet_profile_id", "category", "title", "note", "severity",
+    "occurred_at", "created_at", "updated_at", "deleted_at"] as const;
+  return Boolean(fresh && !fresh.deleted_at && fields.every(field => (candidate[field] ?? null) === (fresh[field] ?? null)));
 }
 
 async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string>, requestedPets: string[], userId: string, db: SupabaseClient, coverage: HistoryCoverage, deadline: number): Promise<CareEntryRow[]> {
@@ -201,19 +210,19 @@ async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string
         continue;
       }
       const related = [...links.values()].filter(link => link.legacy_row_id === original.id);
+      // Mark these before withholding so the same claim cannot re-enter below
+      // disguised as a replacement. This check applies to linked AND legacy rows.
+      related.forEach(link => linkedCandidates.add(link.claim_id));
+      if (!sameCandidateVersion(original, sources.get(original.id))) {
+        coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: related.map(link => link.claim_id), status: "deleted_or_changed" });
+        coverage.excludedIds.push(`care:${original.id}`); coverage.reasons.push("source_deleted_or_changed"); continue;
+      }
       if (!related.length) {
-        // Recheck deletions/edits in the graph RPC's statement snapshot as well.
-        const fresh = sources.get(original.id);
-        if (!fresh || fresh.deleted_at || fresh.updated_at !== original.updated_at || fresh.note !== original.note) {
-          coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: [], status: "deleted_or_changed" });
-          coverage.excludedIds.push(`care:${original.id}`); coverage.reasons.push("source_deleted_or_changed"); continue;
-        }
         const unlinkedCorrection = /\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(`${original.title || ""} ${original.note}`);
         coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: [], status: unlinkedCorrection ? "unlinked_correction_uncertain" : "unverified_legacy" });
         if (unlinkedCorrection) coverage.reasons.push("unlinked_correction_uncertain");
         output.push(original); continue;
       }
-      related.forEach(link => linkedCandidates.add(link.claim_id));
       const effective = related.some(link => graph.effectiveClaimIds.has(link.claim_id));
       const inactive = related.some(link => claims.get(link.claim_id)?.knowledge_status !== "effective");
       coverage.provenance.push({ sourceId: `care:${original.id}`, claimIds: related.map(link => link.claim_id), status: effective ? "effective_linked" : inactive ? "tombstoned_or_inactive" : "superseded" });
