@@ -88,6 +88,8 @@ function hasMatchingLegacyLearning(claim: GovernedSemanticClaim, learnings: Inte
     if (!["create", "confirm", "update"].includes(learning.action)) return false;
     if (normalizeConceptLabel(learning.canonicalConceptKey || learning.factKey) !== (claim.canonicalConceptKey || claim.conceptKey)) return false;
     if (learning.subjectType !== claim.subject.type) return false;
+    const excerpt = learning.sourceExcerpt.trim().replace(/\s+/g, " ");
+    if (!excerpt || !claim.groundedEvidence.some((evidence) => evidence.quote.trim().replace(/\s+/g, " ") === excerpt)) return false;
     const legacySubjectId = learning.subjectType === "owner" ? claim.subject.id : learning.subjectId || selectedPetId;
     return legacySubjectId === claim.subject.id;
   });

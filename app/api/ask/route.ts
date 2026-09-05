@@ -1775,7 +1775,7 @@ async function persistAssistantAnswer({
       fallback: undefined,
       operation: () => persistAskV2Phase3LowRisk({
         runtime: phase3Runtime!, turn: intelligenceResult?.v2GovernedTurn || null,
-        legacyLearnings: intelligenceResult?.acceptedLearnings || [], legacyPersistence: intelligencePersistence,
+        memoryPersistence: intelligencePersistence,
         requestId, selectedPetId: petId, sourceMessage, verifiedUserId: userId,
       }),
       onFailure: optionalFailure,

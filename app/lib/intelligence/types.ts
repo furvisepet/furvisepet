@@ -166,12 +166,21 @@ export type FurviseLiveContext = {
   contextRecovery: { unavailableSources: string[] };
 };
 
+/** Server-only receipt: a successful authority call and an exact confirmed memory row. */
+export type ConfirmedMemoryWrite = {
+  memoryId: string;
+  userId: string;
+  sourceMessageId: string;
+  learning: IntelligenceLearning;
+};
+
 export type IntelligencePersistenceSummary = {
   careEntriesCreated: number;
   concernsResolved: number;
   memoriesCreated: number;
   memoriesSuperseded: number;
   memoryIds: string[];
+  confirmedMemoryWrites?: ConfirmedMemoryWrite[];
   rejectedLearnings: number;
   careActionPresent: boolean;
   persistedCareEntryId: string | null;
