@@ -2,7 +2,7 @@ import type { CareEntryRow } from "../supabase.ts";
 import { evaluateCareHistorySaveWorthiness, prepareGovernedCareHistoryEvent } from "../intelligence/care-history-policy.ts";
 import type { GovernedCanonicalEvent } from "../intelligence/types.ts";
 import { analyzeOwnerAssertions } from "./owner-assertion.ts";
-import { classifyUserTurn } from "./turn-classifier.ts";
+import { assertedRecoveryClauses, classifyUserTurn } from "./turn-classifier.ts";
 
 export type ConcernStatus = "active" | "monitoring" | "resolved" | "reopened" | "dismissed";
 export type ConcernSeverity = "routine" | "important" | "urgent";
@@ -134,8 +134,10 @@ export function isPendingUpdateSuggestionGrounded(input: {
     hasActiveConcern: input.hasActiveConcern || input.suggestion.type === "concern_resolution",
   });
   if (input.suggestion.type === "concern_resolution") {
+    const recoveryClauses = assertedRecoveryClauses(input.message);
     return Boolean(input.suggestion.concernId)
-      && (turn.concernState === "improved" || turn.concernState === "resolved");
+      && (turn.concernState === "improved" || turn.concernState === "resolved")
+      && recoveryEvidenceMatchesConcern(recoveryClauses, input.suggestion);
   }
   if (input.suggestion.type === "memory") {
     return turn.intent === "preference" || (turn.intent === "correction" && assertion.hasExplicitCorrection);
@@ -146,6 +148,46 @@ export function isPendingUpdateSuggestionGrounded(input: {
     details: input.suggestion.details,
     sourceMessage: input.message,
   }).eligible;
+}
+
+const concernAliases: Array<[RegExp, RegExp]> = [
+  [/vomit|stomach|nausea/, /\b(?:nausea|stomach upset|threw up|throwing up|vomit\w*)\b/i],
+  [/hid|hiding|withdraw/, /\b(?:hid|hide|hiding|withdraw\w*)\b/i],
+  [/breath|respirat/, /\b(?:breath\w*|respirat\w*)\b/i],
+  [/letharg|energy|tired/, /\b(?:energy|letharg\w*|tired|weak)\b/i],
+  [/diarr|stool/, /\b(?:diarr\w*|loose stools?|stools?)\b/i],
+  [/limp|mobility/, /\b(?:limp\w*|mobility)\b/i],
+  [/bleed/, /\bbleed\w*\b/i],
+  [/cough/, /\bcough\w*\b/i],
+  [/itch|scratch/, /\b(?:itch\w*|scratch\w*)\b/i],
+  [/pain|sore/, /\b(?:pain\w*|sore|tender)\b/i],
+];
+
+function recoveryEvidenceMatchesConcern(evidenceClauses: string[], suggestion: PendingUpdateSuggestion) {
+  const specificClauses = evidenceClauses.filter((clause) => concernAliases.some(([, evidence]) => evidence.test(clause)));
+  const candidates = specificClauses.length ? specificClauses : evidenceClauses;
+  return candidates.some((clause) => recoveryMatchesConcern(clause, suggestion, specificClauses.length === 0));
+}
+
+function recoveryMatchesConcern(evidence: string, suggestion: PendingUpdateSuggestion, allowGeneric: boolean) {
+  if (allowGeneric && /\b(?:back to normal|doing well|feels better|fine now|is good|normal again|returned to normal|seems better|seems good)\b/i.test(evidence)) return true;
+  const keys = Array.isArray(suggestion.payload.resolvedConcernKeys)
+    ? suggestion.payload.resolvedConcernKeys.filter((value): value is string => typeof value === "string")
+    : [];
+  const title = typeof suggestion.payload.title === "string" ? suggestion.payload.title : "";
+  const targetText = [...keys, title].join(" ").toLowerCase();
+  const alias = concernAliases.find(([target]) => target.test(targetText));
+  if (alias) return alias[1].test(evidence);
+  const targetTokens = significantConcernTokens(targetText);
+  const evidenceTokens = significantConcernTokens(evidence);
+  return targetTokens.some((token) => evidenceTokens.includes(token));
+}
+
+function significantConcernTokens(value: string) {
+  const ignored = new Set(["care", "concern", "improvement", "issue", "resolved", "save", "symptom", "this"]);
+  return [...new Set(value.toLowerCase().match(/[a-z0-9]{3,}/g) || [])]
+    .map((token) => token.replace(/(?:ing|ed|es|s)$/i, ""))
+    .filter((token) => token.length > 2 && !ignored.has(token));
 }
 
 export function concernFromCareEntry(entry: CareEntryRow): { key: string; severity: ConcernSeverity; title: string } | null {

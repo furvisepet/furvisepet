@@ -23,7 +23,7 @@ import { normalizeTemporalSemanticsV2 } from "./temporal.ts";
 import { decidePersistenceV2 } from "./persistence.ts";
 import { deduplicateGovernedClaims } from "./deduplicate.ts";
 import { containsUnsupportedPetIdentitySemantics } from "../../pet-identity-persistence-policy.ts";
-import { analyzeOwnerAssertions, isOwnerAssertedEvidence } from "../../../ai/owner-assertion.ts";
+import { analyzeOwnerAssertions, isOwnerCertainEvidence } from "../../../ai/owner-assertion.ts";
 
 export const V2_GOVERNANCE_POLICY_VERSION = "ask_v2.governance.shadow.v1" as const;
 export const V2_MINIMUM_CLAIM_CONFIDENCE = 0.8;
@@ -161,7 +161,7 @@ function governOneClaim(input: {
       concept.key, concept.canonicalKey, governedClaim.predicate.label, structuredValue(governedClaim), groundedEvidence,
     ),
     sourceAssertionSupported: groundedEvidence.length > 0
-      && groundedEvidence.every((item) => isOwnerAssertedEvidence(input.input.sourceMessage, item.quote)),
+      && groundedEvidence.every((item) => isOwnerCertainEvidence(input.input.sourceMessage, item.quote)),
     sourceCorrectionSupported: analyzeOwnerAssertions(input.input.sourceMessage).hasExplicitCorrection,
   });
   return {

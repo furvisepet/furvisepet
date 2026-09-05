@@ -8,6 +8,8 @@ import {
   planAskAnswerDepth,
 } from "../app/lib/ai/ask-answer-economy.ts";
 import { orchestrateAskTurn } from "../app/lib/ai/ask-orchestrator.ts";
+import { buildResolutionSuggestion, isPendingUpdateSuggestionGrounded } from "../app/lib/ai/concern-engine.ts";
+import { analyzeOwnerAssertions, isOwnerAssertedEvidence, isOwnerCertainEvidence } from "../app/lib/ai/owner-assertion.ts";
 import { classifyUserTurn } from "../app/lib/ai/turn-classifier.ts";
 import { buildExplicitCareHistoryAction } from "../app/lib/intelligence/care-history-policy.ts";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
@@ -30,6 +32,13 @@ const activeHidingConcern = {
   updated_at: "2026-08-19T10:00:00.000Z",
   resolved_at: null,
   resolution_note: null,
+};
+
+const activeVomitingConcern = {
+  ...activeHidingConcern,
+  id: "concern-vomiting",
+  title: "Vomiting",
+  normalized_key: "vomiting",
 };
 
 test("answer economy never leaves a decimal tail after removing a redundant fact", () => {
@@ -83,6 +92,29 @@ test("semantic deduplication preserves overlapping facts with different numbers,
   assert.match(rendered, /may need 2\.5 mg/);
 });
 
+test("semantic deduplication preserves dates and subject-value-date relationships", () => {
+  const differentMonth = applyAskAnswerEconomy({
+    summary: "His weight was 28 kg in June.",
+    sections: [{ heading: "Later measurement", items: ["His weight was 28 kg in July."] }],
+    safetyNote: null,
+  }, planAskAnswerDepth({ message: "Compare his June and July weights." }));
+  assert.match(differentMonth.sections.flatMap((section) => section.items).join(" "), /28 kg in July/);
+
+  const differentSubject = applyAskAnswerEconomy({
+    summary: "Milo weighed 28 kg in June.",
+    sections: [{ heading: "Luna", items: ["Luna weighed 28 kg in June."] }],
+    safetyNote: null,
+  }, planAskAnswerDepth({ message: "Compare Milo and Luna." }));
+  assert.match(differentSubject.sections.flatMap((section) => section.items).join(" "), /Luna weighed 28 kg/);
+
+  const swappedRelationships = applyAskAnswerEconomy({
+    summary: "Milo weighed 28 kg in June and Luna weighed 20 kg in July.",
+    sections: [{ heading: "Correction", items: ["Milo weighed 20 kg in July and Luna weighed 28 kg in June."] }],
+    safetyNote: null,
+  }, { ...planAskAnswerDepth({ message: "Compare both pets' measurements." }), maxBullets: 2 });
+  assert.match(swappedRelationships.sections.flatMap((section) => section.items).join(" "), /Milo weighed 20 kg in July/);
+});
+
 test("final answer validation preserves factual punctuation instead of emitting fragments", () => {
   const result = validateGeneratedAnswer(reasoning({
     answer: {
@@ -114,6 +146,128 @@ test("real resolution, correction, and mixed observation-question turns retain t
   const mixed = classifyUserTurn("She stopped hiding yesterday. Is that improvement?", { hasActiveConcern: true });
   assert.equal(mixed.intent, "resolution");
   assert.equal(mixed.concernState, "resolved");
+});
+
+test("negated and hypothetical recovery language cannot resolve a concern downstream", async () => {
+  for (const message of [
+    "He has not stopped vomiting.",
+    "He hasn't stopped vomiting.",
+    "Vomiting has not stopped.",
+    "He might have stopped vomiting, but I'm not sure.",
+    "Maybe the vomiting stopped after breakfast.",
+    "If he stopped vomiting, I would be relieved.",
+    "If she stopped hiding, I would be relieved.",
+  ]) {
+    const turn = classifyUserTurn(message, { hasActiveConcern: true });
+    assert.notEqual(turn.concernState, "resolved", message);
+    const suggestion = buildResolutionSuggestion({ concern: activeVomitingConcern, message, petName: "Milo" });
+    assert.equal(isPendingUpdateSuggestionGrounded({ suggestion, message, hasActiveConcern: true }), false, message);
+    const result = await orchestrateAskTurn({
+      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      generate: async () => reasoning(),
+    });
+    assert.notEqual(result.suggestion?.type, "concern_resolution", message);
+  }
+});
+
+test("recovery evidence must match the targeted concern while legitimate recovery remains saveable", async () => {
+  for (const unrelatedMessage of [
+    "She stopped hiding yesterday.",
+    "She is good now. She stopped hiding yesterday.",
+  ]) {
+    const vomitingSuggestion = buildResolutionSuggestion({ concern: activeVomitingConcern, message: unrelatedMessage, petName: "Luna" });
+    assert.equal(isPendingUpdateSuggestionGrounded({ suggestion: vomitingSuggestion, message: unrelatedMessage, hasActiveConcern: true }), false);
+    const unrelated = await orchestrateAskTurn({
+      concerns: [activeVomitingConcern], generationInput: {}, message: unrelatedMessage, petName: "Luna",
+      generate: async () => reasoning(),
+    });
+    assert.notEqual(unrelated.suggestion?.type, "concern_resolution");
+  }
+
+  for (const message of [
+    "He stopped vomiting this morning.",
+    "The vomiting stopped after breakfast.",
+    "He stopped vomiting this morning, should I keep monitoring?",
+  ]) {
+    const suggestion = buildResolutionSuggestion({ concern: activeVomitingConcern, message, petName: "Milo" });
+    assert.equal(isPendingUpdateSuggestionGrounded({ suggestion, message, hasActiveConcern: true }), true, message);
+    const result = await orchestrateAskTurn({
+      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      generate: async () => reasoning(),
+    });
+    assert.equal(result.suggestion?.type, "concern_resolution", message);
+  }
+});
+
+test("safety signals survive mixed questions without becoming persistence authority", async () => {
+  for (const message of [
+    "He collapsed, what should I do?",
+    "He collapsed; should I call the vet?",
+    "He collapsed — what now?",
+  ]) {
+    const turn = classifyUserTurn(message, { hasActiveConcern: true });
+    assert.equal(turn.immediateEmergency, true, message);
+    assert.equal(turn.concernState, "worsening", message);
+    let providerCalls = 0;
+    const result = await orchestrateAskTurn({
+      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      generate: async () => { providerCalls += 1; return reasoning(); },
+    });
+    assert.equal(result.handledWithoutAi, true, message);
+    assert.equal(result.safetyLevel, "urgent", message);
+    assert.equal(providerCalls, 0, message);
+  }
+});
+
+test("mixed punctuation preserves an independently asserted recovery clause", async () => {
+  for (const message of [
+    "She stopped hiding yesterday, is that improvement?",
+    "She stopped hiding yesterday; is that improvement?",
+    "She stopped hiding yesterday — should I keep watching her?",
+  ]) {
+    const assertion = analyzeOwnerAssertions(message);
+    assert.equal(assertion.hasOwnerAssertion, true, message);
+    assert.match(assertion.assertionText, /stopped hiding/i, message);
+    const turn = classifyUserTurn(message, { hasActiveConcern: true });
+    assert.equal(turn.concernState, "resolved", message);
+    const result = await orchestrateAskTurn({
+      concerns: [activeHidingConcern], generationInput: {}, message, petName: "Luna",
+      generate: async () => reasoning(),
+    });
+    assert.equal(result.suggestion?.type, "concern_resolution", message);
+  }
+});
+
+test("evidence grounding is limited to independently supported spans", () => {
+  const mixedQuestion = "Milo weighs 28 kg. Does he prefer salmon?";
+  assert.equal(isOwnerAssertedEvidence(mixedQuestion, "Milo weighs 28 kg."), true);
+  assert.equal(isOwnerAssertedEvidence(mixedQuestion, mixedQuestion), false);
+  assert.equal(isOwnerAssertedEvidence(mixedQuestion, "he prefer salmon"), false);
+
+  for (const message of [
+    "Milo weighs 28 kg and you said he prefers salmon.",
+    "Milo weighs 28 kg, but according to his history he prefers salmon.",
+    "Milo weighs 28 kg; Furvise noted that he prefers salmon.",
+  ]) {
+    assert.equal(isOwnerAssertedEvidence(message, "Milo weighs 28 kg"), true, message);
+    assert.equal(isOwnerAssertedEvidence(message, "he prefers salmon"), false, message);
+    assert.equal(isOwnerAssertedEvidence(message, message), false, message);
+  }
+
+  const twoAssertions = "Milo weighs 28 kg and he prefers salmon.";
+  assert.equal(isOwnerAssertedEvidence(twoAssertions, "Milo weighs 28 kg"), true);
+  assert.equal(isOwnerAssertedEvidence(twoAssertions, "he prefers salmon"), true);
+
+  const uncertainPreference = "Milo weighs 28 kg and he might prefer salmon.";
+  assert.equal(isOwnerCertainEvidence(uncertainPreference, "Milo weighs 28 kg"), true);
+  assert.equal(isOwnerAssertedEvidence(uncertainPreference, "he might prefer salmon"), true);
+  assert.equal(isOwnerCertainEvidence(uncertainPreference, "he might prefer salmon"), false);
+  const uncertainLearning = {
+    subjectType: "pet", subjectId: "pet-1", category: "food_preference", factKey: "preferred_flavor",
+    factValue: "might prefer salmon", confidence: 0.99, importance: "medium", durability: "durable", action: "create",
+    sourceExcerpt: "he might prefer salmon",
+  };
+  assert.equal(evaluateLearningPolicy([uncertainLearning], uncertainPreference, ["pet-1"]).accepted.length, 0);
 });
 
 test("orchestration never offers memory or resolution saves for pure questions", async () => {

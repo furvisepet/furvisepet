@@ -319,7 +319,13 @@ function materiallyOverlaps(left: string, right: string) {
 }
 
 function factAwareOverlapScore(left: string, right: string) {
-  return factualSemanticsMatch(left, right) ? semanticOverlapScore(left, right) : 0;
+  const direct = factualSemanticsMatch(left, right) ? semanticOverlapScore(left, right) : 0;
+  const leftSentences = splitSentences(left);
+  const rightSentences = splitSentences(right);
+  if (leftSentences.length === 1 && rightSentences.length === 1) return direct;
+  const clauseScores = leftSentences.flatMap((leftSentence) => rightSentences.map((rightSentence) =>
+    factualSemanticsMatch(leftSentence, rightSentence) ? semanticOverlapScore(leftSentence, rightSentence) : 0));
+  return Math.max(direct, ...clauseScores);
 }
 
 function semanticOverlapScore(left: string, right: string) {
@@ -394,21 +400,42 @@ function removeRepeatedSentences(value: string, previous: string | string[]) {
 function factualSemanticsMatch(left: string, right: string) {
   const leftFacts = factualSemantics(left);
   const rightFacts = factualSemantics(right);
-  return sameSet(leftFacts.quantities, rightFacts.quantities)
+  const namesCompatible = leftFacts.namedSubjects.size === 0 || rightFacts.namedSubjects.size === 0
+    || sameSet(leftFacts.namedSubjects, rightFacts.namedSubjects);
+  const pronounsCompatible = leftFacts.pronounSubjects.size === 0 || rightFacts.pronounSubjects.size === 0
+    || sameSet(leftFacts.pronounSubjects, rightFacts.pronounSubjects);
+  const sameAnchors = sameSet(leftFacts.quantities, rightFacts.quantities)
     && sameSet(leftFacts.dates, rightFacts.dates)
+    && namesCompatible
+    && pronounsCompatible
     && leftFacts.negated === rightFacts.negated
     && leftFacts.uncertain === rightFacts.uncertain;
+  if (!sameAnchors) return false;
+  const hasMultipleRelationships = [leftFacts, rightFacts].some((facts) =>
+    facts.quantities.size > 1 || facts.dates.size > 1);
+  return !hasMultipleRelationships || leftFacts.normalized === rightFacts.normalized;
 }
 
 function factualSemantics(value: string) {
-  const normalized = clean(value).toLowerCase().replace(/[’']/g, "'");
+  const source = clean(value);
+  const normalized = source.toLowerCase().replace(/[’']/g, "'");
   const quantities = new Set((normalized.match(/\b\d+(?:\.\d+)?(?:\s*(?:kg|g|mg|mcg|ml|l|lb|lbs|oz|tablet|tablets|capsule|capsules|unit|units|%))?\b/g) || [])
     .map((item) => item.replace(/\s+/g, "")));
-  const dates = new Set((normalized.match(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\.?(?:\s+\d{1,2})?\b/g) || [])
+  const dates = new Set((normalized.match(/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?(?:\s+\d{1,2}(?:,\s*\d{4})?)?\b|\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?\b/g) || [])
     .map((item) => item.replace(/\./g, "").replace(/\s+/g, " ")));
+  const pronouns = (normalized.match(/\b(?:he|her|hers|him|his|it|its|she|their|theirs|them|they)\b/g) || [])
+    .map((item) => (/^(?:he|him|his)$/.test(item) ? "male_pet"
+      : /^(?:she|her|hers)$/.test(item) ? "female_pet"
+        : /^(?:they|them|their|theirs)$/.test(item) ? "plural_pet" : "neutral_pet"));
+  const properNames = (source.match(/\b[A-Z][\p{L}'’-]{1,40}\b/gu) || [])
+    .map((item) => item.toLowerCase())
+    .filter((item) => !/^(?:a|an|and|apr|april|aug|august|avoid|call|dec|december|do|end|feb|february|his|her|in|jan|january|jul|july|jun|june|keep|mar|march|may|nov|november|oct|october|offer|on|sep|sept|september|she|he|stop|the|they|this|track|use|watch|write)$/.test(item));
   return {
+    normalized: normalized.replace(/[^\p{L}\p{N}]+/gu, " ").trim(),
     quantities,
     dates,
+    namedSubjects: new Set(properNames),
+    pronounSubjects: new Set(pronouns),
     negated: /\b(?:cannot|can't|didn't|doesn't|hasn't|isn't|never|no|not|wasn't|without|won't)\b/.test(normalized),
     uncertain: /\b(?:appears?|could|likely|may|maybe|might|perhaps|possibly|seems?|suspect|uncertain|unsure)\b/.test(normalized),
   };

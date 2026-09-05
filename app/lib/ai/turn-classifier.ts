@@ -42,15 +42,18 @@ const immediateEmergencyPattern = /\b(collapsed?|gums? (?:look |are )?(?:blue|pa
 const stillActivePattern = /\b(still (?:breathing (?:hard|deeply|fast)|tired|happening)|same issue|not better|hasn't improved|has not improved|continues?|still there)\b/i;
 const concernLanguagePattern = /\b(breath(?:e|ing)?|deep breaths?|symptoms?|issue|tired|weak|gums?|collapse|seizure|vomit|bleed|urinate|toxin|pain)\b/i;
 const acknowledgementPattern = /^(thanks|thank you|okay|ok|yes|no|got it|sounds good|understood)[.!\s]*$/i;
+const negatedRecoveryPattern = /\b(?:(?:has|have|had|did|does|is|are|was|were)\s+not|hasn't|haven't|hadn't|didn't|doesn't|isn't|aren't|wasn't|weren't|never)\s+(?:[\p{L}\p{N}'’-]+\s+){0,3}(?:better|ceased|gone|improved|normal|resolved|stopped)\b/iu;
+const uncertainRecoveryPattern = /\b(?:could|if|may|maybe|might|not sure|perhaps|possibly|suppose|uncertain|unless|wish|would)\b/i;
+const symptomStoppedPattern = /\b(?:bleeding|coughing|diarrhea|hiding|itching|limping|pacing|scratching|sneezing|symptoms?|vomiting)\s+(?:has\s+)?(?:ceased|resolved|stopped)\b/i;
 
 export function classifyUserTurn(message: string, options: { hasActiveConcern?: boolean } = {}): ClassifiedTurn {
   const normalizedMessage = message.trim().replace(/\s+/g, " ");
   const assertion = analyzeOwnerAssertions(normalizedMessage);
   const concernState = classifyActiveConcernMessage(normalizedMessage, Boolean(options.hasActiveConcern));
   const indicatesResolution = concernState === "improved" || concernState === "resolved";
-  const assertedMessage = assertion.assertionText || (assertion.isPureQuestion ? "" : normalizedMessage);
+  const assertedMessage = assertion.assertionText;
   const indicatesReturn = returnPattern.test(assertedMessage);
-  const immediateEmergency = immediateEmergencyPattern.test(assertedMessage);
+  const immediateEmergency = immediateEmergencyPattern.test(normalizedMessage);
   const isLowValueAcknowledgement = acknowledgementPattern.test(normalizedMessage);
   let intent: TurnIntent = "unknown";
 
@@ -82,18 +85,30 @@ function isPreferenceStatement(message: string) {
 export function classifyActiveConcernMessage(message: string, hasActiveConcern = true): ActiveConcernMessageState {
   const normalized = message.trim().replace(/\s+/g, " ");
   if (!hasActiveConcern || !normalized) return "unrelated";
+  if (worseningPattern.test(normalized)) return "worsening";
   const assertion = analyzeOwnerAssertions(normalized);
   if (assertion.isPureQuestion) return "unrelated";
-  const assertedMessage = assertion.assertionText || normalized;
-  if (worseningPattern.test(assertedMessage)) return "worsening";
-  if (resolvedPattern.test(assertedMessage) || explicitTerminalRecovery(assertedMessage)) return "resolved";
-  if (improvedPattern.test(assertedMessage)) return "improved";
+  const assertedMessage = assertion.assertionText;
+  if (assertion.assertionClauses.some((clause) => negatedRecoveryPattern.test(clause))) return "still_active";
+  if (assertion.assertionClauses.some((clause) => supportedRecoveryState(clause) === "resolved")) return "resolved";
+  if (assertion.assertionClauses.some((clause) => supportedRecoveryState(clause) === "improved")) return "improved";
   if (returnPattern.test(assertedMessage)) return "recurrence";
   if (stillActivePattern.test(assertedMessage)) return "still_active";
   if (isCasualAskTone(normalized)) return "unrelated";
   if (/^(?:hi|hello|hey|yo|thanks|thank you|okay|ok)[!.\s]*$/i.test(normalized)) return "unrelated";
   if (/\?|\b(what|when|where|why|how|should|could|can|is|are|do|does|will)\b/i.test(normalized) && !concernLanguagePattern.test(normalized)) return "unrelated";
   return "unclear";
+}
+
+export function assertedRecoveryClauses(message: string) {
+  return analyzeOwnerAssertions(message).assertionClauses.filter((clause) => Boolean(supportedRecoveryState(clause)));
+}
+
+function supportedRecoveryState(message: string): "improved" | "resolved" | null {
+  if (negatedRecoveryPattern.test(message) || uncertainRecoveryPattern.test(message)) return null;
+  if (resolvedPattern.test(message) || symptomStoppedPattern.test(message) || explicitTerminalRecovery(message)) return "resolved";
+  if (improvedPattern.test(message)) return "improved";
+  return null;
 }
 
 function explicitTerminalRecovery(message: string) {

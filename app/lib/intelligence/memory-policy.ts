@@ -1,5 +1,5 @@
 import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "./types";
-import { analyzeOwnerAssertions, isOwnerAssertedEvidence } from "../ai/owner-assertion.ts";
+import { analyzeOwnerAssertions, isOwnerCertainEvidence } from "../ai/owner-assertion.ts";
 import { classifyUserTurn } from "../ai/turn-classifier.ts";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
@@ -86,7 +86,7 @@ function rejectLearningReason(learning: IntelligenceLearning, currentMessage: st
   )) return "unsupported_pet_identity_claim";
   if (diagnosisPattern.test(`${learning.category} ${learning.factKey} ${stringify(learning.factValue)}`)) return "diagnosis_is_not_memory";
   if (!learning.sourceExcerpt.trim() || !normalized(currentMessage).includes(normalized(learning.sourceExcerpt))) return "source_excerpt_not_explicit";
-  if (!isOwnerAssertedEvidence(currentMessage, learning.sourceExcerpt)) return "source_excerpt_is_not_owner_asserted";
+  if (!isOwnerCertainEvidence(currentMessage, learning.sourceExcerpt)) return "source_excerpt_is_not_certain_owner_assertion";
   if (/^(?:hello|hi|hey|thanks|thank you|okay|ok)$/i.test(learning.factValue.trim())) return "conversational_filler";
   return "";
 }
