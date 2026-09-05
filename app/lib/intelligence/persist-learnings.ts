@@ -84,7 +84,7 @@ export async function persistIntelligenceLearnings({
   const persistenceRows: Record<string, unknown>[] = [];
   if (normalizedLearnings.length) {
     for (const [targetPetId, group] of groupLearningsByPersistencePet(normalizedLearnings, petId)) {
-      const authorized = await createOperationsAdminClient().rpc("persist_furvise_ask_intelligence", {
+      const { data, error } = await createOperationsAdminClient().rpc("persist_furvise_ask_intelligence", {
         p_assistant_message_id: assistantMessageId,
         p_authorized_pet_ids: authorizedPetIds,
         p_learnings: group,
@@ -95,15 +95,6 @@ export async function persistIntelligenceLearnings({
         p_source_message_id: sourceMessageId,
         p_user_id: userId,
       });
-      const result = isMissingAskMemoryAuthorityRpc(authorized.error)
-        ? await supabase.rpc("persist_furvise_intelligence", {
-            p_care_actions: [],
-            p_learnings: group,
-            p_pet_id: targetPetId,
-            p_source_message_id: sourceMessageId,
-          })
-        : authorized;
-      const { data, error } = result;
       if (error && !careActions.length && !semanticEvent) throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
       if (error) {
         logIntelligenceError("memory_persistence_after_care", error, {
@@ -139,11 +130,6 @@ export async function persistIntelligenceLearnings({
     persistenceMode: carePersistence.status === "persisted" && persistedCareEntryId ? "automatic" : "none",
     carePersistence: { ...carePersistence, memoryIds },
   };
-}
-
-function isMissingAskMemoryAuthorityRpc(error: { code?: string; message?: string } | null) {
-  return Boolean(error && error.code === "PGRST202"
-    && /^Could not find the function public\.persist_furvise_ask_intelligence\([^)]*\) in the schema cache\.?$/i.test(error.message || ""));
 }
 
 async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, supabase, userId, recentCareEntries }: {

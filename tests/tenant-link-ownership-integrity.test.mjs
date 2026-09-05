@@ -89,7 +89,7 @@ test("current application writes remain on owner-validating RPC and trigger path
   const persistence = read("app/lib/intelligence/persist-learnings.ts");
   const episodes = read("supabase/migrations/20260728080000_add_pet_care_episodes.sql");
   const state = read("supabase/migrations/20260728090000_add_pet_current_state.sql");
-  assert.match(persistence, /rpc\("persist_furvise_intelligence"/);
+  assert.match(persistence, /rpc\("persist_furvise_ask_intelligence"/);
   assert.match(persistence, /rpc\("persist_furvise_server_care_event"/);
   assert.match(persistence, /createCanonicalCareAuthorityClient/);
   assert.match(episodes, /create trigger pet_care_entries_assign_episode/);

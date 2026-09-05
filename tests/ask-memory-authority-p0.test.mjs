@@ -71,14 +71,9 @@ test("new database boundary enforces scope, grounding, bounds, and idempotency",
   assert.match(sqlVerification, /set_config\('request\.jwt\.claims', '\{\}', true\)/);
 });
 
-test("app-first compatibility is narrow and cannot bypass a deployed authority boundary", () => {
-  const fallback = persistence.slice(persistence.indexOf("const authorized ="), persistence.indexOf("const { data, error } = result"));
-  assert.match(fallback, /isMissingAskMemoryAuthorityRpc\(authorized\.error\)/);
-  assert.match(persistence, /error\.code === "PGRST202"/);
-  assert.match(persistence, /\^Could not find the function public\\\.persist_furvise_ask_intelligence/);
-  assert.match(persistence, /in the schema cache/);
-  assert.match(fallback, /supabase\.rpc\("persist_furvise_intelligence"/);
-  assert.doesNotMatch(fallback, /authorized\.error\s*\?/);
+test("Ask memory persistence has no pre-authority compatibility fallback", () => {
+  assert.doesNotMatch(persistence, /isMissingAskMemoryAuthorityRpc/);
+  assert.doesNotMatch(persistence, /\.rpc\("persist_furvise_intelligence"/);
 });
 
 test("RLS, canonical visibility, triggers, and feature persistence remain unchanged", () => {
