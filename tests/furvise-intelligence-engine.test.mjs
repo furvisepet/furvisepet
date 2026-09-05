@@ -80,6 +80,35 @@ test("clear owner-reported improvement becomes recently resolved while vague imp
   assert.equal(resolveSafetyState(context("Maybe a little better.", { activeConcerns: [concern()] })).level, "urgent");
 });
 
+test("deterministic recovery safety is grounded to one authoritative concern topic", () => {
+  const vomiting = concern({ id: "vomiting-1", title: "Vomiting", normalized_key: "vomiting", severity: "important" });
+  const hiding = concern({ id: "hiding-1", title: "Hiding", normalized_key: "hiding", severity: "important" });
+  const unrelated = resolveSafetyState(context("She stopped hiding yesterday.", { activeConcerns: [vomiting] }));
+  assert.notEqual(unrelated.level, "recently_resolved");
+  assert.equal(unrelated.concernMessageState, "unrelated");
+
+  const matching = resolveSafetyState(context("He stopped vomiting after breakfast.", { activeConcerns: [vomiting] }));
+  assert.equal(matching.level, "recently_resolved");
+
+  const ambiguous = resolveSafetyState(context("She is doing well now.", { activeConcerns: [vomiting, hiding] }));
+  assert.notEqual(ambiguous.level, "recently_resolved");
+  assert.equal(ambiguous.concernMessageState, "unrelated");
+
+  const mixedTopics = resolveSafetyState(context("Vomiting started again, but she stopped hiding.", { activeConcerns: [vomiting, hiding] }));
+  assert.equal(mixedTopics.concernMessageState, "recurrence");
+  assert.equal(mixedTopics.level, "urgent");
+});
+
+test("final suggestion persistence reloads the owned active concern before grounding", () => {
+  const persistence = route.slice(route.indexOf("async function persistPendingSuggestion"));
+  const authorityLookup = persistence.indexOf('from("pet_concerns")');
+  const grounding = persistence.indexOf("isPendingUpdateSuggestionGrounded");
+  const suggestionWrite = persistence.indexOf('from("ai_update_suggestions")');
+  assert.ok(authorityLookup >= 0 && authorityLookup < grounding && grounding < suggestionWrite);
+  assert.match(persistence, /eq\("user_id", userId\)[\s\S]*eq\("pet_profile_id", petId\)[\s\S]*in\("status", \["active", "monitoring", "reopened"\]\)/);
+  assert.match(persistence, /authoritativeConcern = activeConcerns\.find\(\(concern\) => concern\.id === suggestion\.concernId\)/);
+});
+
 test("accepted recovery may reconcile stale prior urgency but never current-turn danger evidence", () => {
   const stalePriorUrgency = resolveSafetyState(context("Mani seems normal now", { activeConcerns: [concern()] }));
   const currentEmergency = resolveSafetyState(context("Mani seems normal now but cannot breathe", { activeConcerns: [concern()] }));
@@ -135,7 +164,8 @@ test("automatic care events require explicit high-confidence user evidence", () 
 
 test("concern resolution is accepted only for a current owned active concern", () => {
   const action = { action: "resolve_concern", category: "symptom", title: "Breathing normal", details: "Breathing is normal now", severity: "routine", confidence: 0.99, relatedRecordId: "concern-1" };
-  const accepted = evaluateCareActionPolicy({ actions: [action], currentMessage: "Breathing is normal now", understanding: understanding({ userIsResolvingConcern: true }), safetyLevel: "recently_resolved", activeConcernIds: ["concern-1"] });
+  const activeConcern = { id: "concern-1", user_id: "owner-1", pet_profile_id: "pet-1", title: "Breathing", normalized_key: "breathing", status: "active", severity: "important", source_care_entry_id: null, opened_at: "2026-01-01T00:00:00.000Z", updated_at: "2026-01-01T00:00:00.000Z", resolved_at: null, resolution_note: null };
+  const accepted = evaluateCareActionPolicy({ actions: [action], currentMessage: "Breathing is normal now", understanding: understanding({ userIsResolvingConcern: true }), safetyLevel: "recently_resolved", activeConcernIds: ["concern-1"], activeConcerns: [activeConcern], petId: "pet-1", petName: "Mani" });
   const rejected = evaluateCareActionPolicy({ actions: [action], currentMessage: "Breathing is normal now", understanding: understanding({ userIsResolvingConcern: true }), safetyLevel: "routine", activeConcernIds: [] });
   assert.equal(accepted.accepted.length, 1);
   assert.equal(rejected.accepted.length, 0);

@@ -1,6 +1,7 @@
 import type { IntelligenceCareAction, IntelligenceLearning, IntelligenceMessageUnderstanding, IntelligenceSafetyLevel } from "./types";
 import { analyzeOwnerAssertions, isOwnerCertainEvidence } from "../ai/owner-assertion.ts";
 import { classifyUserTurn } from "../ai/turn-classifier.ts";
+import { isRecoveryGroundedForConcern, type PetConcern } from "../ai/concern-engine.ts";
 import { containsUnsupportedPetIdentitySemantics } from "./pet-identity-persistence-policy.ts";
 import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
 import { canPersistFurviseMemory } from "../application-actions/memory-scopes.ts";
@@ -39,12 +40,18 @@ export function evaluateCareActionPolicy({
   currentMessage,
   safetyLevel,
   activeConcernIds,
+  activeConcerns = [],
+  petId,
+  petName,
 }: {
   actions: IntelligenceCareAction[];
   currentMessage: string;
   understanding: IntelligenceMessageUnderstanding;
   safetyLevel: IntelligenceSafetyLevel;
   activeConcernIds: string[];
+  activeConcerns?: PetConcern[];
+  petId?: string;
+  petName?: string;
 }) {
   const accepted: IntelligenceCareAction[] = [];
   const rejected: Array<{ action: IntelligenceCareAction; reason: string }> = [];
@@ -66,7 +73,17 @@ export function evaluateCareActionPolicy({
       details: action.details,
       sourceMessage: currentMessage,
     }).eligible) reason = "insufficient_longitudinal_value";
-    else if (action.action === "resolve_concern" && (sourceTurn.concernState !== "resolved" || safetyLevel !== "recently_resolved" || !action.relatedRecordId || !activeConcernIds.includes(action.relatedRecordId))) reason = "concern_resolution_not_sufficiently_grounded";
+    else if (action.action === "resolve_concern") {
+      const concern = activeConcerns.find((item) => item.id === action.relatedRecordId) || null;
+      if (sourceTurn.concernState !== "resolved"
+        || safetyLevel !== "recently_resolved"
+        || !action.relatedRecordId
+        || !activeConcernIds.includes(action.relatedRecordId)
+        || !concern
+        || !isRecoveryGroundedForConcern({ activeConcerns, concern, message: currentMessage, petId, petName })) {
+        reason = "concern_resolution_not_sufficiently_grounded";
+      }
+    }
     if (reason) rejected.push({ action, reason });
     else if (!accepted.some((item) => item.action === "create_entry" || item.action === "resolve_concern")) accepted.push(action);
     else rejected.push({ action, reason: "one_automatic_care_event_per_message" });

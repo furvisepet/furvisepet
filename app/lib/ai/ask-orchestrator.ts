@@ -35,7 +35,7 @@ export async function orchestrateAskTurn({
   const turn = classifyUserTurn(message, { hasActiveConcern: Boolean(concern) });
 
   const aiResult = await generate({ ...generationInput, concernStateHint: turn.concernState });
-  return finishGeneratedTurn({ aiResult, concern, message, petName, turn });
+  return finishGeneratedTurn({ aiResult, concern, concerns, message, petName, turn });
 }
 
 export function planProviderIndependentAskTurn({
@@ -71,9 +71,10 @@ export function planProviderIndependentAskTurn({
   return null;
 }
 
-function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
+function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, turn }: {
   aiResult: AskReasoningResult;
   concern: PetConcern | null;
+  concerns: PetConcern[];
   message: string;
   petName: string;
   turn: ReturnType<typeof classifyUserTurn>;
@@ -112,9 +113,20 @@ function finishGeneratedTurn({ aiResult, concern, message, petName, turn }: {
     : turn.intent === "new_observation"
       ? buildConcernOpeningSuggestion({ message, petName }) || buildObservationSuggestion({ message, petName })
       : null);
+  const suggestionConcern = candidateSuggestion?.type === "concern_resolution" && candidateSuggestion.concernId
+    ? concerns.find((item) => item.id === candidateSuggestion.concernId) || null
+    : null;
   const suggestion = aiResult.responseMode === "grief_support"
     ? null
-    : candidateSuggestion && !isPendingUpdateSuggestionGrounded({ suggestion: candidateSuggestion, message, hasActiveConcern: Boolean(concern) })
+    : candidateSuggestion && !isPendingUpdateSuggestionGrounded({
+        suggestion: candidateSuggestion,
+        message,
+        hasActiveConcern: Boolean(concern),
+        concern: suggestionConcern,
+        activeConcerns: concerns,
+        petId: suggestionConcern?.pet_profile_id,
+        petName,
+      })
       ? null
     : (candidateSuggestion?.type === "history" || candidateSuggestion?.type === "concern_opening") && (!answerDepth.allowsAutomaticHistory || !evaluateCareHistorySaveWorthiness({
       category: typeof candidateSuggestion.payload.category === "string" ? candidateSuggestion.payload.category : undefined,

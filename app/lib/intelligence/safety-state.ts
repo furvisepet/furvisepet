@@ -2,6 +2,7 @@ import { classifyActiveConcernMessage } from "../ai/turn-classifier.ts";
 import { detectAskConcernTags } from "../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "./types";
 import { deriveConcernChronology } from "./concern-chronology.ts";
+import { classifyConcernEvidenceState } from "../ai/concern-engine.ts";
 
 export type ResolvedSafetyState = {
   level: IntelligenceSafetyLevel;
@@ -15,10 +16,26 @@ export type ResolvedSafetyState = {
 
 export function resolveSafetyState(context: FurviseLiveContext): ResolvedSafetyState {
   const immediateTags = detectAskConcernTags(context.currentMessage);
-  const messageState = classifyActiveConcernMessage(
+  const classifiedMessageState = classifyActiveConcernMessage(
     context.currentMessage,
     context.activeConcerns.length > 0 || context.recentlyResolvedConcerns.length > 0,
   );
+  const concernStates = context.activeConcerns.map((concern) => classifyConcernEvidenceState({
+      activeConcerns: context.activeConcerns,
+      concern,
+      message: context.currentMessage,
+      petId: context.pet.id,
+      petName: context.pet.name,
+    }));
+  const messageState = classifiedMessageState === "worsening" || context.activeConcerns.length === 0
+    ? classifiedMessageState
+    : concernStates.includes("recurrence") ? "recurrence"
+      : concernStates.includes("still_active") ? "still_active"
+        : concernStates.includes("resolved") ? "resolved"
+          : concernStates.includes("improved") ? "improved"
+            : concernStates.includes("unclear") ? "unclear"
+              : ["improved", "recurrence", "resolved", "still_active"].includes(classifiedMessageState) ? "unrelated"
+                : classifiedMessageState;
   const immediateEmergency = /\b(collapse[ds]?|unconscious|open[- ]mouth breathing|cannot breathe|can't breathe|blue gums?|severe bleeding)\b/i.test(context.currentMessage);
   const chronology = deriveConcernChronology(context.careEntries, [...context.activeConcerns, ...context.recentlyResolvedConcerns]);
   const stateBreathing = context.currentState?.state.breathing?.status;

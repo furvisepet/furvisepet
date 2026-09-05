@@ -85,6 +85,7 @@ export async function runFeatureIntelligence<T>({
       actions: proposedCareActions, currentMessage: context.currentMessage,
       understanding: inferUnderstanding(raw), safetyLevel: safety.level,
       activeConcernIds: safety.activeConcernIds,
+      activeConcerns: context.activeConcerns, petId: context.pet.id, petName: context.pet.name,
     })
     : { accepted: [], rejected: proposedCareActions.map((action) => ({ action, reason: "feature_care_actions_disabled" })) };
   logIntelligenceEvent("feature model call completed", {

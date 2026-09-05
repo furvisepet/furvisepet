@@ -11,7 +11,7 @@ import { orchestrateAskTurn } from "../app/lib/ai/ask-orchestrator.ts";
 import { buildResolutionSuggestion, isPendingUpdateSuggestionGrounded } from "../app/lib/ai/concern-engine.ts";
 import { analyzeOwnerAssertions, isOwnerAssertedEvidence, isOwnerCertainEvidence } from "../app/lib/ai/owner-assertion.ts";
 import { classifyUserTurn } from "../app/lib/ai/turn-classifier.ts";
-import { buildExplicitCareHistoryAction } from "../app/lib/intelligence/care-history-policy.ts";
+import { buildExplicitCareHistoryAction, evaluateCareHistorySaveWorthiness } from "../app/lib/intelligence/care-history-policy.ts";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
 import { governCanonicalEvents } from "../app/lib/intelligence/semantic-events.ts";
 import { allowsProposedRecoveryPresentation } from "../app/lib/intelligence/safety-state.ts";
@@ -161,12 +161,99 @@ test("negated and hypothetical recovery language cannot resolve a concern downst
     const turn = classifyUserTurn(message, { hasActiveConcern: true });
     assert.notEqual(turn.concernState, "resolved", message);
     const suggestion = buildResolutionSuggestion({ concern: activeVomitingConcern, message, petName: "Milo" });
-    assert.equal(isPendingUpdateSuggestionGrounded({ suggestion, message, hasActiveConcern: true }), false, message);
+    assert.equal(isPendingUpdateSuggestionGrounded({
+      suggestion, message, hasActiveConcern: true, concern: activeVomitingConcern,
+      activeConcerns: [activeVomitingConcern], petId: "pet-1", petName: "Milo",
+    }), false, message);
     const result = await orchestrateAskTurn({
       concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
       generate: async () => reasoning(),
     });
     assert.notEqual(result.suggestion?.type, "concern_resolution", message);
+  }
+});
+
+test("uncertainty and conditional scope cannot be stripped from coordinated recovery evidence", async () => {
+  for (const message of [
+    "I think he stopped vomiting.",
+    "I believe he stopped vomiting.",
+    "He probably stopped vomiting after breakfast.",
+    "He stopped vomiting, I think.",
+    "He stopped vomiting, I guess.",
+    "He stopped vomiting, but I'm not completely sure.",
+    "I think he stopped hiding and he stopped vomiting.",
+    "If he stopped hiding and he stopped vomiting, I would be relieved.",
+    "I would be relieved if he stopped vomiting.",
+    "Suppose he stopped hiding and then stopped vomiting; that would be encouraging.",
+  ]) {
+    const turn = classifyUserTurn(message, { hasActiveConcern: true });
+    assert.notEqual(turn.concernState, "resolved", message);
+    const suggestion = buildResolutionSuggestion({ concern: activeVomitingConcern, message, petName: "Milo" });
+    assert.equal(isPendingUpdateSuggestionGrounded({
+      suggestion,
+      message,
+      hasActiveConcern: true,
+      concern: activeVomitingConcern,
+      petId: "pet-1",
+      petName: "Milo",
+    }), false, message);
+    const result = await orchestrateAskTurn({
+      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      generate: async () => reasoning(),
+    });
+    assert.notEqual(result.suggestion?.type, "concern_resolution", message);
+  }
+
+  assert.equal(isOwnerAssertedEvidence("I think he vomited after breakfast.", "he vomited after breakfast"), true);
+  assert.equal(isOwnerCertainEvidence("I think he vomited after breakfast.", "he vomited after breakfast"), false);
+  assert.equal(isOwnerCertainEvidence("He stopped vomiting, I think.", "He stopped vomiting"), false);
+  const scoped = analyzeOwnerAssertions("He stopped vomiting, I think.");
+  assert.equal(scoped.assertionSpans[0].text, "He stopped vomiting");
+  assert.equal(scoped.assertionSpans[0].start, 0);
+  assert.equal(scoped.assertionSpans[0].isCertain, false);
+  const conditional = analyzeOwnerAssertions("If he stopped hiding and he stopped vomiting, I would be relieved.");
+  assert.equal(conditional.clauseSpans[0].isConditional, true);
+  assert.equal(conditional.clauseSpans[1].isConditional, true);
+  assert.equal(conditional.assertionSpans.some((span) => /stopped (?:hiding|vomiting)/i.test(span.text)), false);
+  assert.equal(analyzeOwnerAssertions("He has not stopped vomiting.").clauseSpans[0].isNegated, true);
+  const attributed = analyzeOwnerAssertions("You said he stopped hiding and he stopped vomiting.");
+  assert.equal(attributed.clauseSpans.every((span) => span.isAttributed), true);
+  assert.equal(attributed.hasOwnerAssertion, false);
+  assert.equal(evaluateCareHistorySaveWorthiness({
+    category: "symptom",
+    title: "Possible vomiting",
+    details: "Owner was uncertain whether Milo vomited after breakfast.",
+    sourceMessage: "I think he vomited after breakfast.",
+  }).eligible, true);
+});
+
+test("conflicting concern transitions use the latest certain matching state", async () => {
+  for (const message of [
+    "He stopped vomiting but it started again.",
+    "Vomiting stopped, then it came back.",
+    "He stopped vomiting. It started again an hour later.",
+    "He stopped vomiting, but maybe it started again.",
+  ]) {
+    const turn = classifyUserTurn(message, { hasActiveConcern: true });
+    assert.notEqual(turn.concernState, "resolved", message);
+    const result = await orchestrateAskTurn({
+      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      generate: async () => reasoning(),
+    });
+    assert.notEqual(result.suggestion?.type, "concern_resolution", message);
+  }
+
+  for (const message of [
+    "He started vomiting again, but he stopped vomiting this morning.",
+    "The vomiting came back last night. He stopped vomiting after breakfast.",
+  ]) {
+    const turn = classifyUserTurn(message, { hasActiveConcern: true });
+    assert.equal(turn.concernState, "resolved", message);
+    const result = await orchestrateAskTurn({
+      concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
+      generate: async () => reasoning(),
+    });
+    assert.equal(result.suggestion?.type, "concern_resolution", message);
   }
 });
 
@@ -176,7 +263,10 @@ test("recovery evidence must match the targeted concern while legitimate recover
     "She is good now. She stopped hiding yesterday.",
   ]) {
     const vomitingSuggestion = buildResolutionSuggestion({ concern: activeVomitingConcern, message: unrelatedMessage, petName: "Luna" });
-    assert.equal(isPendingUpdateSuggestionGrounded({ suggestion: vomitingSuggestion, message: unrelatedMessage, hasActiveConcern: true }), false);
+    assert.equal(isPendingUpdateSuggestionGrounded({
+      suggestion: vomitingSuggestion, message: unrelatedMessage, hasActiveConcern: true, concern: activeVomitingConcern,
+      activeConcerns: [activeVomitingConcern], petId: "pet-1", petName: "Luna",
+    }), false);
     const unrelated = await orchestrateAskTurn({
       concerns: [activeVomitingConcern], generationInput: {}, message: unrelatedMessage, petName: "Luna",
       generate: async () => reasoning(),
@@ -190,13 +280,88 @@ test("recovery evidence must match the targeted concern while legitimate recover
     "He stopped vomiting this morning, should I keep monitoring?",
   ]) {
     const suggestion = buildResolutionSuggestion({ concern: activeVomitingConcern, message, petName: "Milo" });
-    assert.equal(isPendingUpdateSuggestionGrounded({ suggestion, message, hasActiveConcern: true }), true, message);
+    assert.equal(isPendingUpdateSuggestionGrounded({
+      suggestion, message, hasActiveConcern: true, concern: activeVomitingConcern,
+      activeConcerns: [activeVomitingConcern], petId: "pet-1", petName: "Milo",
+    }), true, message);
     const result = await orchestrateAskTurn({
       concerns: [activeVomitingConcern], generationInput: {}, message, petName: "Milo",
       generate: async () => reasoning(),
     });
     assert.equal(result.suggestion?.type, "concern_resolution", message);
   }
+});
+
+test("resolution grounding treats the owned concern as authority, not suggestion metadata", async () => {
+  const hidingMessage = "She stopped hiding yesterday.";
+  const forged = buildResolutionSuggestion({ concern: activeVomitingConcern, message: hidingMessage, petName: "Luna" });
+  forged.title = "Save this improvement";
+  forged.payload.title = "Hiding resolved";
+  forged.payload.resolvedConcernKeys = ["hiding"];
+  assert.equal(isPendingUpdateSuggestionGrounded({
+    suggestion: forged,
+    message: hidingMessage,
+    hasActiveConcern: true,
+    concern: activeVomitingConcern,
+    petId: "pet-1",
+    petName: "Milo",
+  }), false);
+
+  const vomitingMessage = "Milo stopped vomiting this morning.";
+  assert.equal(isPendingUpdateSuggestionGrounded({
+    suggestion: forged,
+    message: vomitingMessage,
+    hasActiveConcern: true,
+    concern: activeVomitingConcern,
+    petId: "pet-1",
+    petName: "Milo",
+  }), true);
+  assert.equal(isPendingUpdateSuggestionGrounded({
+    suggestion: forged,
+    message: "Coco stopped vomiting this morning.",
+    hasActiveConcern: true,
+    concern: activeVomitingConcern,
+    petId: "pet-1",
+    petName: "Milo",
+  }), false);
+
+  const ambiguous = await orchestrateAskTurn({
+    concerns: [activeVomitingConcern, activeHidingConcern],
+    generationInput: {},
+    message: "She is doing well now.",
+    petName: "Luna",
+    generate: async () => reasoning(),
+  });
+  assert.notEqual(ambiguous.suggestion?.type, "concern_resolution");
+});
+
+test("automatic concern resolution validates evidence against the authoritative concern", () => {
+  const modelClaimsResolution = {
+    userIsProvidingUpdate: true,
+    userIsResolvingConcern: true,
+    userIsCorrectingPriorInformation: false,
+  };
+  const unrelatedAction = {
+    action: "resolve_concern", category: "symptom", title: "Limping resolved", details: "He stopped limping yesterday.",
+    severity: "routine", confidence: 0.99, relatedRecordId: activeVomitingConcern.id,
+  };
+  assert.equal(evaluateCareActionPolicy({
+    actions: [unrelatedAction], currentMessage: "He stopped limping yesterday.", understanding: modelClaimsResolution,
+    safetyLevel: "recently_resolved", activeConcernIds: [activeVomitingConcern.id],
+    activeConcerns: [activeVomitingConcern], petId: "pet-1", petName: "Milo",
+  }).accepted.length, 0);
+
+  const vomitingAction = {
+    ...unrelatedAction,
+    category: "symptom",
+    title: "Vomiting resolved",
+    details: "Milo stopped vomiting this morning.",
+  };
+  assert.equal(evaluateCareActionPolicy({
+    actions: [vomitingAction], currentMessage: "Milo stopped vomiting this morning.", understanding: modelClaimsResolution,
+    safetyLevel: "recently_resolved", activeConcernIds: [activeVomitingConcern.id],
+    activeConcerns: [activeVomitingConcern], petId: "pet-1", petName: "Milo",
+  }).accepted.length, 1);
 });
 
 test("safety signals survive mixed questions without becoming persistence authority", async () => {

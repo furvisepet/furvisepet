@@ -903,6 +903,7 @@ export async function POST(request: Request) {
         operationPayloadHash: idempotency.operation.payloadHash,
         operationOwnerToken: idempotency.operation.ownerToken,
         petId: turnPetId,
+        petName: liveContext.pet.name,
         preparedRequest,
         requestId,
         recentCareEntries: liveContext.careEntries,
@@ -1034,6 +1035,7 @@ export async function POST(request: Request) {
       operationOwnerToken: idempotency.operation.ownerToken,
       preconfirmedCarePersistence: confirmedExistingCarePersistence,
       petId: turnPetId,
+      petName: liveContext.pet.name,
       preparedRequest,
       requestId,
       recentCareEntries: liveContext.careEntries,
@@ -1515,6 +1517,7 @@ async function persistAssistantAnswer({
   payloadHash,
   preconfirmedCarePersistence = null,
   petId,
+  petName,
   preparedRequest,
   requestId,
   recentCareEntries,
@@ -1546,6 +1549,7 @@ async function persistAssistantAnswer({
   payloadHash: string;
   preconfirmedCarePersistence?: CarePersistenceResult | null;
   petId: string;
+  petName: string;
   preparedRequest: PreparedAskRequest;
   requestId: string;
   recentCareEntries: FurviseLiveContext["careEntries"];
@@ -1819,7 +1823,7 @@ async function persistAssistantAnswer({
     ? await runOptionalAskSubsystem({
       component: "history_proposal",
       fallback: { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_UNAVAILABLE", suggestion: null },
-      operation: () => persistPendingSuggestion({ assistantMessageId: assistantMessage.id, conversationId, petId, sourceMessage, suggestion: reviewSuggestion, supabase, userId }),
+      operation: () => persistPendingSuggestion({ assistantMessageId: assistantMessage.id, conversationId, petId, petName, sourceMessage, suggestion: reviewSuggestion, supabase, userId }),
       onFailure: optionalFailure,
     })
     : { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
@@ -1893,6 +1897,7 @@ async function persistPendingSuggestion({
   assistantMessageId,
   conversationId,
   petId,
+  petName,
   sourceMessage,
   suggestion,
   supabase,
@@ -1901,6 +1906,7 @@ async function persistPendingSuggestion({
   assistantMessageId: string;
   conversationId: string;
   petId: string;
+  petName: string;
   sourceMessage: string;
   suggestion: PendingUpdateSuggestion;
   supabase: SupabaseClient;
@@ -1912,10 +1918,31 @@ async function persistPendingSuggestion({
   errorCode: string | null;
   suggestion: (PendingUpdateSuggestion & { id: string }) | null;
 }> {
+  let activeConcerns: PetConcern[] = [];
+  let authoritativeConcern: PetConcern | null = null;
+  if (suggestion.type === "concern_resolution") {
+    const { data, error } = await supabase.from("pet_concerns")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("pet_profile_id", petId)
+      .in("status", ["active", "monitoring", "reopened"])
+      .is("resolved_at", null)
+      .returns<PetConcern[]>();
+    if (error) {
+      logAskServerError("suggestion_concern_authority_lookup", error, { conversationId, petId }, 200);
+      return { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_AUTHORITY_UNAVAILABLE", suggestion: null };
+    }
+    activeConcerns = data || [];
+    authoritativeConcern = activeConcerns.find((concern) => concern.id === suggestion.concernId) || null;
+  }
   if (!isPendingUpdateSuggestionGrounded({
     suggestion,
     message: sourceMessage,
     hasActiveConcern: suggestion.type === "concern_resolution",
+    concern: authoritativeConcern,
+    activeConcerns,
+    petId,
+    petName,
   })) {
     return { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
   }

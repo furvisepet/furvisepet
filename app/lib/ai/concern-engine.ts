@@ -2,7 +2,7 @@ import type { CareEntryRow } from "../supabase.ts";
 import { evaluateCareHistorySaveWorthiness, prepareGovernedCareHistoryEvent } from "../intelligence/care-history-policy.ts";
 import type { GovernedCanonicalEvent } from "../intelligence/types.ts";
 import { analyzeOwnerAssertions } from "./owner-assertion.ts";
-import { assertedRecoveryClauses, classifyUserTurn } from "./turn-classifier.ts";
+import { assertedConcernTransitions, classifyUserTurn, type ActiveConcernMessageState, type ConcernTransitionEvidence } from "./turn-classifier.ts";
 
 export type ConcernStatus = "active" | "monitoring" | "resolved" | "reopened" | "dismissed";
 export type ConcernSeverity = "routine" | "important" | "urgent";
@@ -127,6 +127,10 @@ export function isPendingUpdateSuggestionGrounded(input: {
   suggestion: PendingUpdateSuggestion;
   message: string;
   hasActiveConcern?: boolean;
+  concern?: PetConcern | null;
+  activeConcerns?: PetConcern[];
+  petId?: string;
+  petName?: string;
 }) {
   const assertion = analyzeOwnerAssertions(input.message);
   if (!assertion.hasOwnerAssertion) return false;
@@ -134,10 +138,16 @@ export function isPendingUpdateSuggestionGrounded(input: {
     hasActiveConcern: input.hasActiveConcern || input.suggestion.type === "concern_resolution",
   });
   if (input.suggestion.type === "concern_resolution") {
-    const recoveryClauses = assertedRecoveryClauses(input.message);
-    return Boolean(input.suggestion.concernId)
-      && (turn.concernState === "improved" || turn.concernState === "resolved")
-      && recoveryEvidenceMatchesConcern(recoveryClauses, input.suggestion);
+    const concern = input.concern;
+    return Boolean(concern
+      && input.suggestion.concernId === concern.id
+      && isRecoveryGroundedForConcern({
+        activeConcerns: input.activeConcerns || [concern],
+        concern,
+        message: input.message,
+        petId: input.petId,
+        petName: input.petName,
+      }));
   }
   if (input.suggestion.type === "memory") {
     return turn.intent === "preference" || (turn.intent === "correction" && assertion.hasExplicitCorrection);
@@ -163,24 +173,78 @@ const concernAliases: Array<[RegExp, RegExp]> = [
   [/pain|sore/, /\b(?:pain\w*|sore|tender)\b/i],
 ];
 
-function recoveryEvidenceMatchesConcern(evidenceClauses: string[], suggestion: PendingUpdateSuggestion) {
-  const specificClauses = evidenceClauses.filter((clause) => concernAliases.some(([, evidence]) => evidence.test(clause)));
-  const candidates = specificClauses.length ? specificClauses : evidenceClauses;
-  return candidates.some((clause) => recoveryMatchesConcern(clause, suggestion, specificClauses.length === 0));
+export function isRecoveryGroundedForConcern(input: {
+  activeConcerns: PetConcern[];
+  concern: PetConcern;
+  message: string;
+  petId?: string;
+  petName?: string;
+}) {
+  const state = classifyConcernEvidenceState(input);
+  return state === "improved" || state === "resolved";
 }
 
-function recoveryMatchesConcern(evidence: string, suggestion: PendingUpdateSuggestion, allowGeneric: boolean) {
-  if (allowGeneric && /\b(?:back to normal|doing well|feels better|fine now|is good|normal again|returned to normal|seems better|seems good)\b/i.test(evidence)) return true;
-  const keys = Array.isArray(suggestion.payload.resolvedConcernKeys)
-    ? suggestion.payload.resolvedConcernKeys.filter((value): value is string => typeof value === "string")
-    : [];
-  const title = typeof suggestion.payload.title === "string" ? suggestion.payload.title : "";
-  const targetText = [...keys, title].join(" ").toLowerCase();
+export function classifyConcernEvidenceState(input: {
+  activeConcerns: PetConcern[];
+  concern: PetConcern;
+  message: string;
+  petId?: string;
+  petName?: string;
+}): ActiveConcernMessageState {
+  const activeConcerns = input.activeConcerns.filter(isLiveConcern);
+  if (!isLiveConcern(input.concern)
+    || input.petId && input.concern.pet_profile_id !== input.petId
+    || !activeConcerns.some((concern) => concern.id === input.concern.id)
+    || !messageMatchesPetIdentity(input.message, input.petName)) return "unrelated";
+
+  const transitions = assertedConcernTransitions(input.message);
+  const hasAnySpecificEvidence = transitions.some((transition) => concernAliases.some(([, evidence]) => evidence.test(transition.evidence)));
+  const matching: ConcernTransitionEvidence[] = [];
+  let hasMatchingSpecificEvidence = false;
+  for (const transition of transitions) {
+    if (recoveryMatchesConcern(transition.evidence, input.concern)) {
+      matching.push(transition);
+      hasMatchingSpecificEvidence = true;
+      continue;
+    }
+    const isAnaphoricTransition = hasMatchingSpecificEvidence && isGenericTransitionEvidence(transition.evidence, transition.state);
+    const isUnambiguousGeneric = !hasAnySpecificEvidence && activeConcerns.length === 1
+      && isGenericTransitionEvidence(transition.evidence, transition.state);
+    if (isAnaphoricTransition || isUnambiguousGeneric) matching.push(transition);
+  }
+  const finalTransition = matching.at(-1);
+  if (!finalTransition) return "unrelated";
+  return finalTransition.isCertain ? finalTransition.state : "unclear";
+}
+
+function recoveryMatchesConcern(evidence: string, concern: PetConcern) {
+  const targetText = `${concern.normalized_key} ${concern.title}`.toLowerCase();
   const alias = concernAliases.find(([target]) => target.test(targetText));
   if (alias) return alias[1].test(evidence);
   const targetTokens = significantConcernTokens(targetText);
   const evidenceTokens = significantConcernTokens(evidence);
   return targetTokens.some((token) => evidenceTokens.includes(token));
+}
+
+function isGenericRecoveryEvidence(evidence: string) {
+  return /\b(?:back to normal|doing well|doing better|feels better|fine now|is good|normal again|returned to normal|seems better|seems good|it stopped|has stopped)\b/i.test(evidence);
+}
+
+function isGenericTransitionEvidence(evidence: string, state: ConcernTransitionEvidence["state"]) {
+  if (state === "recurrence") return /\b(?:it|this|that|the issue|the problem)\b/i.test(evidence);
+  return isGenericRecoveryEvidence(evidence);
+}
+
+function isLiveConcern(concern: PetConcern) {
+  return !["dismissed", "resolved"].includes(concern.status) && !concern.resolved_at;
+}
+
+function messageMatchesPetIdentity(message: string, petName?: string) {
+  if (!petName?.trim()) return true;
+  const explicitSubjects = [...message.matchAll(/(?:^|[.!?]\s+|\b(?:and|but|then)\s+)([A-Z][\p{L}'â€™-]{1,40})\s+(?:has|had|is|seems?|started|stopped|returned|came)\b/gu)]
+    .map((match) => match[1])
+    .filter((name) => !/^(?:Breathing|He|Hiding|I|It|She|Symptoms?|That|The|They|This|Vomiting|We)$/i.test(name));
+  return explicitSubjects.length === 0 || explicitSubjects.every((name) => name.localeCompare(petName, undefined, { sensitivity: "accent" }) === 0);
 }
 
 function significantConcernTokens(value: string) {
