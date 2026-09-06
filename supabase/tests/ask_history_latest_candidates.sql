@@ -111,6 +111,9 @@ do $$ begin
     is distinct from '96000000-0000-4000-8000-000000000001'::uuid then raise exception 'Buried latest match lost'; end if;
 end $$;
 reset role;
+-- This read-contract fixture explicitly unlinks its synthetic projection before
+-- reassignment; production tenant constraints remain enabled.
+delete from public.pet_care_episode_events where care_entry_id='96000000-0000-4000-8000-000000000001';
 update public.pet_care_entries set pet_profile_id='93000000-0000-4000-8000-000000000012' where id='96000000-0000-4000-8000-000000000001';
 set local role authenticated;
 do $$ begin
@@ -119,6 +122,9 @@ do $$ begin
     is distinct from '96000000-0000-4000-8000-000000000001'::uuid then raise exception 'Reassigned latest isolation'; end if;
 end $$;
 reset role;
+-- This read-contract fixture explicitly unlinks its synthetic projection before
+-- reassignment; production tenant constraints remain enabled.
+delete from public.pet_care_episode_events where care_entry_id='96000000-0000-4000-8000-000000000001';
 update public.pet_care_entries set pet_profile_id='93000000-0000-4000-8000-000000000011',occurred_at='2009-01-01' where id='96000000-0000-4000-8000-000000000001';
 set local role authenticated;
 do $$ begin

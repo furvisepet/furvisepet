@@ -286,3 +286,8 @@ The unexecuted additive latest-reader migration now registers its exact signatur
 Prepared `supabase/tests/ask_history_latest_readiness.sql` checks readiness, anonymous grant drift, definition drift, retention of unrelated failures and transaction rollback. SQL execution and migration rollback/reapplication remain unverified: Docker daemon is stopped and the previous run established the named container is absent. No replacement database or remote service was used.
 
 Verification completed: 64 focused conversational cases, 2 static SQL boundary/registration checks, and 2,290 full-suite tests passed. Typecheck, lint (two existing warnings), production webpack build and git diff checks passed. Providers remained mocked. The original lifetime audit was not changed or rerun. Prepared SQL tests are not database validation. Next gate: apply/reverse/reapply the migration and execute candidate, correction and readiness tests in disposable PostgreSQL; do not deploy before that gate.
+
+
+## Disposable PostgreSQL gate completed
+
+See `ask-latest-reader-postgres-validation.md` and `ask-latest-reader-postgres-results.json`. Migration, reversal/reapplication, ascending/descending/correction SQL suites and readiness drift tests passed on real isolated PostgreSQL. Full readiness with required migration names returned no failures. Fixtures rolled back; all final cleanup checks were zero. Two fixture/admin-role documentation fixes were committed; no application behavior changed. Container stopped to release RAM. Remaining acceptance is authenticated PostgREST/browser and live-model validation; nothing deployed.

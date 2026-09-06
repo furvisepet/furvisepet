@@ -1,4 +1,5 @@
--- Run as postgres in the disposable DB after the latest-reader migration.
+-- Run as the disposable DB administrator (supabase_admin) after the migration.
+-- Grant/definition drift deliberately requires authority over the NOLOGIN-owned RPC.
 -- No fixtures or privilege changes survive this test.
 begin;
 create temporary table latest_readiness_baseline as
