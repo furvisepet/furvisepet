@@ -106,7 +106,7 @@ function pageHarness({ session } = {}) {
     '../../../lib/supabase': {
       loadDogProfileWithMemoriesForUser: async p => ({ id: p, name: p, user_id: user.id }),
       loadCanonicalRememberedDetailsForUser: p => new Promise(resolve => pending.push({ p, resolve })),
-      getBrowserSupabase: () => ({ auth: { getSession: () => session || Promise.resolve({ data: { session: { access_token: 'mock' } } }) } }),
+      getBrowserSupabase: () => ({ auth: { getSession: () => session || Promise.resolve({ data: { session: { access_token: 'mock', user } } }) } }),
     },
     '../../../lib/security/idempotency/client': { idempotentClientFetch: async (...args) => { writes.push(args); return new Response(null, { status: 204 }); } },
   });
@@ -121,7 +121,7 @@ function pageHarness({ session } = {}) {
   async function resolve(p, rows = { canonical: [], legacy: [legacy({ dog_profile_id: p })] }) { const item = pending.find(x => x.p === p); pending.splice(pending.indexOf(item), 1); item.resolve(rows); await new Promise(r => setImmediate(r)); render(); }
   function sessionKey(p, version) { params = { id: p }; appVersion = version; return api.default().key; }
   function group() { return nodes(tree).find(n => n.props?.onUpdate && n.props?.memories); }
-  return { mount, render, resolve, group, sessionKey, writes, pending, nodes, unmount: () => cleanup.forEach(fn => fn?.()) };
+  return { mountCard(card) { states = []; component = card.type; props = card.props; return render(); }, updateCard(nextProps) { props = nextProps; return render(); }, mount, render, resolve, group, sessionKey, writes, pending, nodes, unmount: () => cleanup.forEach(fn => fn?.()) };
 }
 test('actual legacy card Forget dispatches a source-aware DELETE', async () => {
   const h = pageHarness(); h.mount(); await h.resolve(petId);
@@ -259,11 +259,50 @@ test('pet switching while session lookup awaits prevents dispatch', async () => 
   const g = h.group(); const updating = g.props.onUpdate(g.props.memories[0], 'forget');
   const rejected = assert.rejects(updating);
   h.mount(otherPet); assert.equal(h.group(), undefined);
-  resolveSession({ data: { session: { access_token: 'mock' } } });
+  resolveSession({ data: { session: { access_token: 'mock', user } } });
   await rejected; assert.equal(h.writes.length, 0); await h.resolve(otherPet);
 });
 for (const countOverride of [null, 2]) test('POST fails closed for unavailable or truncated suppression inventory: ' + countOverride, async () => {
   const db = database({ dog_profiles: [{ id: petId, user_id: user.id }], dog_memories: [] }, { countOverride });
   const res = await route(db).POST(request('POST', { petId, memories: [{ type: 'preference', confidence: 'high', text: 'Prefers salmon food' }] }));
   assert.equal(res.status, 503); assert.ok(db.calls.every(c => c.mutation !== 'insert'));
+});
+
+test('review: stored replay only returns receipt IDs even if storage overreturns', async () => {
+  const db = database({ dog_profiles: [{ id: petId, user_id: user.id }], dog_memories: [legacy({ id: otherPet })] }, { ignoreFilters: true });
+  const res = await route(db, Response.json({ saved: [legacy()], skippedDuplicates: 0 }, { status: 201 })).POST(request('POST', { petId, memories: [] }));
+  const body = await res.json();
+  assert.deepEqual(body.saved, []);
+  assert.equal(body.skippedDuplicates, 1);
+});
+
+test('review: malformed persisted receipt fails closed without throwing', async () => {
+  const db = database({ dog_profiles: [{ id: petId, user_id: user.id }], dog_memories: [] });
+  const res = await route(db, Response.json({ saved: [null] }, { status: 201 })).POST(request('POST', { petId, memories: [] }));
+  assert.equal(res.status, 503);
+});
+
+test('review: session owner changing before auth render prevents dispatch', async () => {
+  const h = pageHarness({ session: Promise.resolve({ data: { session: { access_token: 'mock', user: { id: 'different-owner' } } } }) });
+  h.mount(); await h.resolve(petId);
+  const g = h.group();
+  const updating = g.props.onUpdate(g.props.memories[0], 'forget');
+  const rejected = assert.rejects(updating, /sign in again/i);
+  await new Promise(r => setImmediate(r));
+  // Resolve an erroneously dispatched refresh so the pre-fix failure is an assertion, not a hung test.
+  if (h.pending.length) await h.resolve(petId);
+  await rejected;
+  assert.equal(h.writes.length, 0);
+});
+
+test('review: reopening editor after refreshed canonical value uses current value', async () => {
+  const h = pageHarness(); h.mount(); await h.resolve(petId, { canonical: [canonical({ editableValue: 'salmon' })], legacy: [] });
+  const g = h.group();
+  const card = g.type(g.props).props.children[1].props.children[0];
+  let tree = h.mountCard(card);
+  // React preserves card state when refresh returns the same source and ID.
+  tree = h.updateCard({ ...card.props, memory: { ...card.props.memory, editableValue: 'trout' } });
+  h.nodes(tree).find(n => n.type === 'button' && n.props.children === 'Edit').props.onClick();
+  tree = h.render();
+  assert.equal(h.nodes(tree).find(n => n.type === 'input').props.value, 'trout');
 });

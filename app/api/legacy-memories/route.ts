@@ -17,13 +17,14 @@ export async function POST(request: Request) {
     reconcilePersistedReplay: async ({ storedResponse }) => {
       if (!storedResponse.ok) return null;
       const payload = await storedResponse.clone().json().catch(() => null) as { saved?: DogMemoryRow[]; skippedDuplicates?: number } | null;
-      if (!Array.isArray(payload?.saved)) return Response.json({ error: "Remembered details could not be verified." }, { status: 503 });
+      if (!Array.isArray(payload?.saved) || payload.saved.some((row) => !row || !isUuid(row.id))) return Response.json({ error: "Remembered details could not be verified." }, { status: 503 });
       if (!payload.saved.length) return storedResponse;
+      const savedIds = new Set(payload.saved.map((row) => row.id));
       const { data, error } = await context.supabase.from("dog_memories").select("*")
         .eq("user_id", context.userId).eq("dog_profile_id", petId).eq("status", "active")
         .in("id", payload.saved.map((row) => row.id)).returns<DogMemoryRow[]>();
       if (error) return Response.json({ error: "Remembered details could not be verified." }, { status: 503 });
-      const saved = (data || []).filter((row) => row.user_id === context.userId && row.dog_profile_id === petId && row.status === "active" && isEligibleLegacyMemory(row));
+      const saved = (data || []).filter((row) => savedIds.has(row.id) && row.user_id === context.userId && row.dog_profile_id === petId && row.status === "active" && isEligibleLegacyMemory(row));
       return Response.json({ saved, skippedDuplicates: (payload.skippedDuplicates || 0) + payload.saved.length - saved.length }, { status: storedResponse.status });
     },
   });

@@ -72,7 +72,7 @@ function RememberedDetailsSession({ params, user }: { params: { id: string }; us
     const { data } = client ? await client.auth.getSession() : { data: { session: null } };
     const token = data.session?.access_token;
     if (!active.current) throw new Error("The selected pet changed. Try again.");
-    if (!token) throw new Error("Please sign in again.");
+    if (!token || data.session?.user?.id !== user.id) throw new Error("Please sign in again.");
     const response = await idempotentClientFetch(memory.source === "legacy" ? "/api/legacy-memories" : `/api/memories/${encodeURIComponent(id)}`, {
       method: memory.source === "legacy" ? "DELETE" : "PATCH",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -128,7 +128,7 @@ function MemoryCard({ memory, onUpdate }: { memory: RememberedDetail; onUpdate: 
     </div>
     {localError ? <p className="mt-3 text-sm text-[var(--danger-text)]" role="alert">{localError}</p> : null}
     {memory.source === "canonical" ? <div className="mt-3 flex flex-wrap gap-4">
-      {editing ? <><button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy || !value.trim()} onClick={() => void act("edit")} type="button">{busy ? "Saving..." : "Save"}</button><button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => setEditing(false)} type="button">Cancel</button></> : <button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline" disabled={busy} onClick={() => setEditing(true)} type="button">Edit</button>}
+      {editing ? <><button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy || !value.trim()} onClick={() => void act("edit")} type="button">{busy ? "Saving..." : "Save"}</button><button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => setEditing(false)} type="button">Cancel</button></> : <button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline" disabled={busy} onClick={() => { setValue(memory.editableValue); setEditing(true); }} type="button">Edit</button>}
       {memory.needsConfirmation && !editing ? <button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => void act("confirm")} type="button">{busy ? "Confirming..." : "Confirm"}</button> : null}
       {!editing ? <button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => void act("forget")} type="button">{busy ? "Updating..." : "Forget"}</button> : null}
     </div> : <button className="mt-3 min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => void act("forget")} type="button">{busy ? "Updating..." : "Forget"}</button>}
