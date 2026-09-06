@@ -112,11 +112,17 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       && !sources.some(s => s.episode_id === e.id && !s.deleted_at))) {
       result.coverage = "ambiguous"; result.reasons.push("episode_source_links_missing");
     }
-    const oversized = new Set(episodes.filter(e=>sources.filter(s=>s.episode_id===e.id).length>8).map(e=>e.id));
-    if (oversized.size || episodes.length>8 || sources.some(s=>s.content_omitted)) result.reasons.push("episode_input_bound");
+    // A missing member payload may contain a correction or a conflicting
+    // boundary. Dropping just that member would certify the remaining onset
+    // without checking the whole group, and could preserve stale references.
+    const incomplete = new Set(episodes.filter(e => {
+      const members = sources.filter(s => s.episode_id === e.id);
+      return members.length > 8 || members.some(s => s.content_omitted || typeof s.note !== "string");
+    }).map(e => e.id));
+    if (incomplete.size || episodes.length>8) result.reasons.push("episode_input_bound");
     // Unlinked notes remain unknown grouping, even if they say "separate": two
     // copies of that note may describe one event. Never count source IDs as groups.
-    const candidates: Source[] = sources.filter(s=>!oversized.has(s.episode_id!) && !s.content_omitted && typeof s.note === "string").slice(0,64);
+    const candidates: Source[] = sources.filter(s=>!incomplete.has(s.episode_id!) && !s.content_omitted && typeof s.note === "string").slice(0,64);
     const coverage: HistoryCoverage = {plan:{from:null,to:null,terms:[],interpretation:"period"}, candidateIds:candidates.map(s=>s.id),queryCount:0,
       retrieval:"partial",corrections:"unknown",extraction:"unknown",grouping:"unknown",continuation:[],reasons:[],consistency:"read_committed_no_snapshot",perPet:[],provenance:[],claimSources:[],excludedIds:[]};
     const effective=await effectiveCandidates(candidates,new Set(context.eligiblePets.filter(p=>p.user_id===context.owner.userId).map(p=>p.id)),[context.pet.id],context.owner.userId,db,coverage,deadline);
