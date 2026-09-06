@@ -273,3 +273,16 @@ Remaining exact gate: when the authorized `furvise-stage2-db-2788f0b` / `stage2_
 Candidate/evidence/graph/time budgets are unchanged: 25 rows/page, at most four pages/pet, 64 roots, three pets, six graph calls/128 graph rows, 32 evidence records, 18,000 evidence characters and 5 seconds of history-read time. Latest lookup changes direction within this budget; it adds no provider call and no separate recent-context query. Interpretation/answer output limits remain 2,600/4,096 tokens. SQL runtime, live latency, dollar cost and model paraphrase understanding cannot be measured from mocked usage or static SQL. Lexical coverage, concurrent read-committed changes, bounded correction closure and restricted synthesis remain limitations; earliest saved evidence is not first-ever onset, and cursor exhaustion never establishes semantic completeness or a lifetime total.
 
 No live provider, dependency installation, remote migration, push, merge or deployment occurred. Next step: create the separate local commit, export its review patch, verify clean status and release the exclusive lock. The commit containing this checkpoint has `352f3f95bccc3ecc11031d03f798089b3a118d55` as its parent. Rollout remains gated on the disposable-database SQL validation described above.
+
+
+## Reader integration follow-through
+
+Parent: `076d3b7d4e49d1b62eaea9120ac62f3779a57010`. No competing writer was observed; edits use the common exclusive lock.
+
+The interpreter previously accepted terms rejected by both candidate readers and the correction reader. Its schema, instructions and server validation now enforce the existing database-compatible 3..32 ASCII letter/space/hyphen literal contract. Meaningful spelled-out search terminology is requested for incompatible abbreviations; invalid model terms fail validation, never get silently truncated or sent to SQL. This does not add support for arbitrary literal identifiers or multilingual search.
+
+The unexecuted additive latest-reader migration now registers its exact signature and embeds a literal definition fingerprint plus owner/ACL checks in the existing readiness function. The fingerprint is captured from the function created in this same migration, not recalculated at readiness time. Existing authority checks remain intact. Rollback removes this registration before dropping the reader. No already-deployed migration was edited.
+
+Prepared `supabase/tests/ask_history_latest_readiness.sql` checks readiness, anonymous grant drift, definition drift, retention of unrelated failures and transaction rollback. SQL execution and migration rollback/reapplication remain unverified: Docker daemon is stopped and the previous run established the named container is absent. No replacement database or remote service was used.
+
+Verification completed: 64 focused conversational cases, 2 static SQL boundary/registration checks, and 2,290 full-suite tests passed. Typecheck, lint (two existing warnings), production webpack build and git diff checks passed. Providers remained mocked. The original lifetime audit was not changed or rerun. Prepared SQL tests are not database validation. Next gate: apply/reverse/reapply the migration and execute candidate, correction and readiness tests in disposable PostgreSQL; do not deploy before that gate.

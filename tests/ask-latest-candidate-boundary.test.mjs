@@ -11,8 +11,17 @@ test('latest candidate SQL retains the reviewed authentication, bounds, ownershi
     .replace('e.occurred_at < $6', 'e.occurred_at > $6').replace('e.id<$7', 'e.id>$7')
     .replace('order by e.occurred_at desc,e.id desc', 'order by e.occurred_at,e.id');
   assert.equal(normalizeDirection(body(descending)), body(ascending));
-  const grants = sql => sql.slice(sql.indexOf('revoke all on function public.read_ask_history_candidates'));
+  const grants = sql => sql.slice(sql.indexOf('revoke all on function public.read_ask_history_candidates'), sql.indexOf('revoke create on schema public from ask_history_candidate_reader;') + 'revoke create on schema public from ask_history_candidate_reader;'.length);
   assert.equal(grants(descending).replaceAll('read_ask_history_candidates_latest', 'read_ask_history_candidates').trim(), grants(ascending).trim());
   assert.ok(!descending.includes('create role'), 'reuse the existing least-privileged role');
   assert.match(descending, /current_user <> 'postgres'/);
+});
+
+test('latest reader registration pins authority and rollback removes only its registration', () => {
+  assert.match(descending, /BEGIN ASK LATEST READER AUTHORITY/);
+  assert.match(descending, /pinned_hash := md5/);
+  assert.match(descending, /ask_history_latest_reader_authority/);
+  const rollback = read('supabase/rollbacks/20260906103706_ask_history_latest_candidates.sql');
+  assert.ok(rollback.indexOf('execute definition') < rollback.indexOf('drop function'));
+  assert.match(rollback, /Missing latest authority block/);
 });

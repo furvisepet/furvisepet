@@ -706,3 +706,13 @@ test('chronology: corrected timestamps compare as instants and retain equivalent
   assert.match(final, /vomited after dinner/); assert.ok(final.includes(tied.note));
   assert.equal(r.context.askHistory.coverage.chronology[0].boundaryIds.length, 2); noWrites(r);
 });
+
+test('interpretation search terms match both candidate readers and correction bounds', () => {
+  for (const term of ['GI', 'B12', "owner's", 'x'.repeat(33), 'vomit%', ' soft stool']) {
+    assert.throws(() => validateAskInterpretation(proposal({ terms: [term] }), validationContext()), /INVALID/);
+  }
+  for (const term of ['vomit', 'soft stool', 'gastrointestinal', 'cobalamin', 'x'.repeat(32)]) {
+    const result = validateAskInterpretation(proposal({ terms: [term] }), validationContext());
+    assert.deepEqual(result.history.terms, [term]);
+  }
+});

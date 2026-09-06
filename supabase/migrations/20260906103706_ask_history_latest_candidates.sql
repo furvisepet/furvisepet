@@ -75,5 +75,44 @@ grant execute on function public.read_ask_history_candidates_latest(uuid,text[],
 alter function public.read_ask_history_candidates_latest(uuid,text[],timestamptz,timestamptz,timestamptz,uuid,integer) owner to ask_history_candidate_reader;
 
 revoke create on schema public from ask_history_candidate_reader;
+
+-- Register only this newly created reader; existing authority checks stay intact.
+do $readiness$
+declare
+  definition text;
+  needle text := '    ''public.get_my_ask_allowance_status()'',';
+  signature text := 'public.read_ask_history_candidates_latest(uuid,text[],timestamptz,timestamptz,timestamptz,uuid,integer)';
+  pinned_hash text;
+  guard text;
+begin
+  definition := pg_get_functiondef('public.furvise_security_compatibility_snapshot_v2_pre_billing(text[])'::regprocedure);
+  if (length(definition)-length(replace(definition,needle,'')))/length(needle) <> 1 then
+    raise exception 'Unexpected readiness allowlist';
+  end if;
+  definition := replace(definition,needle,format('    %L,',signature)||chr(10)||needle);
+  -- Capture the definition created above, then embed its literal hash in the
+  -- readiness function. Later mutations cannot update this pin themselves.
+  pinned_hash := md5(replace(pg_get_functiondef(signature::regprocedure),chr(13),''));
+  guard := format($guard$
+  -- BEGIN ASK LATEST READER AUTHORITY
+  if not exists (
+    select 1 from pg_catalog.pg_proc p join pg_catalog.pg_roles r on r.oid=p.proowner
+    where p.oid=pg_catalog.to_regprocedure(%L) and p.prosecdef
+      and r.rolname='ask_history_candidate_reader'
+      and pg_catalog.md5(pg_catalog.replace(pg_catalog.pg_get_functiondef(p.oid),pg_catalog.chr(13),''))=%L
+      and pg_catalog.has_function_privilege('authenticated',p.oid,'EXECUTE')
+      and not pg_catalog.has_function_privilege('anon',p.oid,'EXECUTE')
+      and not pg_catalog.has_function_privilege('service_role',p.oid,'EXECUTE')
+  ) then v_failures:=pg_catalog.array_append(v_failures,'ask_history_latest_reader_authority'); end if;
+  -- END ASK LATEST READER AUTHORITY
+$guard$,signature,pinned_hash);
+  needle := '  foreach v_name in array v_protected_rpc_names loop';
+  if (length(definition)-length(replace(definition,needle,'')))/length(needle) <> 1 then
+    raise exception 'Unexpected readiness authority loop';
+  end if;
+  execute replace(definition,needle,guard||needle);
+end
+$readiness$;
+
 notify pgrst, 'reload schema';
 commit;

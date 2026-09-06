@@ -44,7 +44,7 @@ export const askInterpretationSchema = {
     frame: proposedSemanticFrameJsonSchema,
     operation: { type: "string", enum: operations }, subject: { type: "string", enum: subjects },
     petNames: { type: "array", items: { type: "string" } }, topic: { type: "string" },
-    terms: { type: "array", items: { type: "string" } }, from: nullableString, to: nullableString,
+    terms: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } }, from: nullableString, to: nullableString,
     episodeTopic: { type: ["string", "null"], enum: ["vomiting", "soft stool", "breathing", null] },
     ordinal: { type: ["string", "null"], enum: [...ordinals, null] },
   },
@@ -56,7 +56,7 @@ const instructions = [
   "Use overview for summaries, recall for historical questions, comparison for comparisons, count for a requested episode count, episode ONLY for a reference to an earlier displayed episode, status for whether an issue has resolved, general for advice without historical lookup, clarify for genuinely unclear requests.",
   "Explicit named pets take precedence. petNames must use the supplied owned names, never IDs. An unknown named animal is unclear/non_pet, never silently the selected pet. Use subject selected for a fresh unqualified question, conversation for follow-ups, explicit for named pets. Respect owner-established subject changes. Multiple pets require separate evidence.",
   "Recent USER messages establish subject/topic continuity, never medical evidence. Do not infer factual history from conversation. Resolve follow-up topics from the active subject only; after a pet switch do not carry the former pet's topic unless the user asks for that topic.",
-  "Supply up to six short plain lexical search terms, including useful synonyms, for the requested topic. For stomach/tummy/digestive history include stomach, vomit, threw up, thrown up, stool, diarrh. For a broad whole-health summary use no terms. Unknown topics can still be searched using the user's words. Never output SQL, filters or query syntax.",
+  "Supply up to six literal search terms for the requested topic. Each term must be 3 to 32 ASCII letters, spaces or hyphens, starting and ending with a letter, matching the database reader contract. Use meaningful spelled-out terminology for abbreviations or identifiers that cannot satisfy this contract; never truncate or strip characters to invent a different term. Include useful synonyms. For stomach/tummy/digestive history include stomach, vomit, threw up, thrown up, stool, diarrh. For a broad whole-health summary use no terms. Unknown topics can still be searched using the user's words. Never output SQL, filters or query syntax.",
   "selection records the requested evidence order: earliest for the oldest matching report, earliest_occurrence for the first reported occurrence of an issue (negative or preventive mentions are not occurrences), latest for the newest update, period for an explicit date range, summary or comparison for synthesis, reference for a particular dated source or displayed episode. Earliest matching evidence is never proof of first-ever occurrence. Use latest for status unless a historical period was requested. A specific source reference needs a date range; an episode reference uses the validated ordinal. Never invent a source identifier.",
   "from/to are UTC ISO dates YYYY-MM-DD, inclusive start and exclusive end, or both null for all dates. Resolve explicit and relative periods against today. Do not narrow an undated request to recent history.",
   "episodeTopic is only a single supported topic (vomiting, soft stool, breathing), including a clear follow-up topic. A digestive summary spans multiple symptoms; a topicless count after that needs clarification, not an invented combined total. ordinal is only a displayed list position, not an episode ID or a count. Leave it null unless an episode reference is requested. Multiple/ambiguous positions use clarify.",
@@ -76,7 +76,7 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
     || !operations.includes(p.operation as Operation) || !subjects.includes(p.subject as typeof subjects[number])
     || !Array.isArray(p.petNames) || p.petNames.length > 3 || p.petNames.some(n => typeof n !== "string" || n.length > 100)
     || typeof p.topic !== "string" || p.topic.length > 80
-    || !Array.isArray(p.terms) || p.terms.length > 6 || p.terms.some(t => typeof t !== "string" || !/^[\p{L}\p{N}][\p{L}\p{N} '-]{0,39}$/u.test(t))
+    || !Array.isArray(p.terms) || p.terms.length > 6 || p.terms.some(t => typeof t !== "string" || t.length < 3 || t.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(t))
     || !["vomiting", "soft stool", "breathing", null].includes(p.episodeTopic as string | null)
     || !(p.ordinal === null || ordinals.includes(p.ordinal as typeof ordinals[number]))) return invalid();
   const date = (v: unknown) => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
