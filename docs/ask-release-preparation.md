@@ -1,0 +1,12 @@
+# Ask release preparation
+Base: 652e8c521484a6deb21abc5eb35b897275ea80be. Branch: codex/ask-release-preparation.
+Fresh origin/main fetch confirmed 0 behind / 55 ahead before this packaging commit.
+Migration 20260906054006_ask_writer_backed_lifetime_history.sql packages membership, historical event time, governed provenance and recorded completeness in that order. SQL bodies preserve the previously validated drafts; only their outer transaction statements are removed. Historical draft warning comments remain archival, not current validation results. The matching rollback restores components in reverse dependency order; revert application use first.
+The CLI created this filename, then stalled; only that identified CLI process was stopped. No filename was invented and no running Codex was interrupted.
+Real PostgreSQL validation ran exclusively in furvise-stage2-db-2788f0b / stage2_validation. One transaction reversed the four installed components, applied the exact packaged migration, ran ask_lifetime_census.sql (35 episodes / 70 sources), then rolled back. Exit 0, DO completed, ROLLBACK returned. Follow-up: zero care rows, zero other sessions, current census function retained. This is an upgrade/reversal rehearsal from the restored prior schema, not a fresh full-database installation or migration-history CLI test. Diagnostic SQL/logs remain local under tmp/release-validation.
+Fresh release-worktree verification: 2,286 tests passed, zero failed/skipped/cancelled; typecheck passed; lint zero errors/two existing persist-learnings warnings; diff check passed. Application code unchanged from base. Original lifetime audit remains 14 pass / 3 fail; no expectations were edited or reclassified.
+## Remaining release gates
+- Full migration-chain installation on an empty disposable database and migration-history bookkeeping validation.
+- Intended authenticated PostgREST timeout, schema cache/exposure and grants, plus latest episode/history browser flow. Earlier synthetic memory browser checks and SQL role tests do not establish these HTTP gates.
+- Live provider acceptance is not run; generation tests use mocks. Legacy/unlinked history remains uncertain and cannot justify universal exact totals.
+- Review the consolidated changes, index-build/locking impact, rollout ordering and rollback before merge/deployment. No production migration or deployment was performed by this preparation.
