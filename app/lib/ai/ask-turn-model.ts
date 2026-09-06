@@ -151,6 +151,12 @@ export class AskTurnLifecycle {
     return this;
   }
 
+  providerEvent(event: { outcome: "started" | "succeeded" | "failed"; stage: string; providerErrorCode?: string }) {
+    if (event.outcome === "started") this.providerCall();
+    if (event.outcome === "failed") this.providerFailure(event.providerErrorCode || event.stage);
+    return this;
+  }
+
   providerCall() { this.traceValue.providerCallCount += 1; return this; }
   providerFailure(value: string) { this.traceValue.providerFailureClass = safeOperationalValue(value); return this; }
   credit(state: AskCreditState) { this.traceValue.creditState = state; return this; }

@@ -398,6 +398,7 @@ export async function POST(request: Request) {
   let creditReserved = false;
   let creditFinalState = "not_reserved";
   let providerCallCount = 0;
+  let generationStage = "generation_preparation";
   let intelligenceResult: FurviseIntelligenceResult | null = null;
   let aiAdmission: AiOperationAdmission | null = null;
   let aiAdmissionFinalized = false;
@@ -408,11 +409,8 @@ export async function POST(request: Request) {
   let deferHighImpactLifecyclePersistence = classifyCurrentPetLoss(question) === "confirmed_current"
     || pendingLifecycle?.kind === "reported_deceased";
   const onProviderEvent = (event: AskProviderEvent) => {
-    if (event.outcome === "started") {
-      providerCallCount += 1;
-      turnLifecycle.providerCall();
-    }
-    if (event.outcome === "failed") turnLifecycle.providerFailure(event.providerErrorCode || event.stage);
+    turnLifecycle.providerEvent(event);
+    providerCallCount = turnLifecycle.snapshot().providerCallCount;
     logAskProviderEvent(event, {
       conversationId: preparedRequest.conversationId,
       petId: turnPetId,
@@ -653,7 +651,9 @@ export async function POST(request: Request) {
         logAskStage("AI credit reserved", { creditReservationId: creditRequestId, feature: "ask", requestId, retryReuse, status: reservation.status });
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
-      const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model });
+      generationStage = "interpretation";
+      const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model, onProviderEvent });
+      generationStage = "subject_resolution";
       let subjectDecision: Awaited<ReturnType<typeof resolveAskTurnSubject>>;
       try {
         subjectDecision = interpretation.readOnly ? {
@@ -719,6 +719,7 @@ export async function POST(request: Request) {
 
       turnPetId = subjectResolution.petId;
       if (turnPetId !== petId) {
+        generationStage = "context_loading";
         liveContext = await buildFurviseContext({
           conversationId: preparedRequest.conversationId,
           conversationPetId: petId,
@@ -760,12 +761,14 @@ export async function POST(request: Request) {
       }) : null;
       if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
 
+      generationStage = "orchestration";
       return await orchestrateAskTurn({
         concerns: turnView.concerns,
         message: question,
         petName: liveContext.pet.name || "your pet",
         generate: async () => {
           const generated = await generateAskHistoryAnswer({
+            onStage: stage => { generationStage = stage; },
             supabase,
             context: liveContext,
             requestId,
@@ -844,7 +847,7 @@ export async function POST(request: Request) {
       turnLifecycle.fail(error.stage, true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
       return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503);
     }
-    const internalStage = error instanceof AskPipelineError ? error.stage : "primary_provider_failed";
+    const internalStage = error instanceof AskPipelineError ? error.stage : generationStage;
     logAskServerError(internalStage, error, { conversationId: preparedRequest.conversationId, petId, requestId }, 503);
     if (error instanceof AskPipelineError && isProviderRateLimit(error)) {
       const retryAfterMs = error.diagnostics.retryAfterMs || 0;
