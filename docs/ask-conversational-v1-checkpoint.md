@@ -134,3 +134,71 @@ No extra model call, dependency, migration or environment flag was added. Normal
 This is bounded extractive grounding, not universal factual verification. Historical prose is less freely paraphrased because arbitrary entailment cannot be certified by a source ID or the existing span matcher. Reports preserve what a source says, not proof of medical truth. Ambiguous unlinked corrections remain withheld; exact lifetime totals still require the existing grouping/completeness authority. Newest-report presentation does not certify present health or global absence of newer records. Lexical interpretation/retrieval and existing context budgets retain their documented limits.
 
 No live provider, database execution, Docker startup, credential exposure, remote migration, push, merge or deployment occurred. A separately authorized live canary remains required before rollout. Next step: create the separate local correction commit, export its review patch and release the exclusive lock. The correction commit is the commit containing this appended checkpoint; its parent is the reviewed commit above.
+
+## Selection and bounded synthesis revision, September 6, 2026
+
+Branch/worktree remain `codex/ask-conversational-reliability-v1` at `C:/Users/gwara/furvise-ask-conversational-v1`. This separate revision starts from reviewed HEAD `5d9c175b357239dec8bb321f660a26a6442f6254`; all previous commits are preserved. Read AGENTS.md, this checkpoint, architecture documentation and the installed Next route-handler guide. Verified a clean worktree, Git worktrees and processes before source edits. Acquired the existing exclusive FileShare.None lock at `C:/Users/gwara/furvise-remaining.lock`, holder PID 26468, tied to Codex PID 33268 and its start time. Inspected other Node processes as tooling rather than repository writers. No dependencies or shared dependency targets were changed.
+
+### Reproduced on reviewed HEAD before edits
+
+`tmp-selection-before.log` records actual callback/final-presentation output with mocked providers and database data:
+
+1. For `When did Milo first have vomiting?`, the January 1, 2011 affirmative source reached the answer prompt alongside four August 2026 negative reports. Final composition selected only the four newer reports.
+2. For `Compare Milo and Luna stool history.`, two same-date notes without names displayed `Soft stool for two days.` and `Normal stool all week.` without visible pet attribution.
+3. A report explicitly describing today's vomiting status still received the fixed statement that no verified current update was available. Historical prose was always replaced by full source extracts.
+
+### Production changes
+
+The path remains route interpretation/subject resolution -> `generateAskHistoryAnswer` -> effective historical/episode retrieval -> `runFurviseIntelligence` / `buildAskContext` -> structured answer parsing -> `validateGeneratedAnswer` -> guarded final presentation. There is no extra model verification call or parallel question interpreter.
+
+- `interpret-ask.ts` adds validated selection intent: oldest matching report, earliest reported occurrence, newest update, period, summary, comparison or reference. Period/source-reference selections require a bounded date range unless using the existing episode-reference mechanism. Unknown operations are rejected. Production structured output requires selection; legacy in-process fixtures keep explicit compatibility defaults. This is question-intent wiring, not evidence that a live model understands every paraphrase.
+- `history-synthesis.ts` supplies shared evidence ordering. Retrieval budgets favor the requested temporal boundary and distribute retained evidence across pets; summary/comparison retention includes both temporal boundaries. The answer prompt preserves the effective retrieval order instead of scoring decisive history by recency again. Final composition no longer imposes a newest-four cutoff. Same-time conflicting reports remain together.
+- First-occurrence selection distinguishes affirmative past-tense reports from negative, conditional, uncertain and preventive mentions using a deliberately narrow source recognizer and existing assertion analysis. Unrecognized forms are reported as uncertain matches rather than being promoted to a first occurrence. First/earliest always refers to matching evidence checked, never first-ever lifetime onset. A fixture with 40 older negative notes demonstrates that an affirmative report remains prioritized through both existing evidence budgets.
+- Latest selection supplements ascending historical candidates with at most eight matching records from already-loaded current context, reserving space inside the existing 64-root budget. These records undergo the same correction, ownership and source-version checks. This adds no database query or provider call. It improves latest-update reachability without removing the historical reader or certifying global recency/completeness.
+- `ask-reasoning.ts` requests bounded `historySynthesis` proposals in the existing answer call. Each proposal identifies one source and supplies a proposed rendering of its complete content. Parsing bounds IDs, text and array size. Model IDs, labels and prose remain untrusted.
+- `supportedHistoryParaphrase` verifies controlled equivalence of complete ordered statements. Supported transformations include certain subject references, number spelling, symptom/duration forms, and recorded-status active/passive wording. Quantities and case-sensitive units are checked separately. Negation, uncertainty, other qualifiers, clause order, actors and temporal/causal wording cannot simply disappear. This is neither bag-of-words similarity nor arbitrary semantic entailment. Unverified causal conclusions, changed units, broader absence statements and totals fail even with a real source ID.
+- The server supplies pet names, record dates, selected source references and coverage wording. Supported proposals compose connected paragraphs. Identical full reports for the same pet can share an explicit list of dates; this is presentation deduplication, not episode grouping or a count. Failed/absent proposals fall back individually to their complete source; they do not force neighboring validated prose into a quote dump. Explicit quotation requests retain exact source text.
+- Status uses dated source meaning: recorded improvement, resolution and recurrence remain distinct, and today's report no longer triggers the claim that a current update is missing. Older/period-specific reports retain an appropriate temporal limitation. Nothing certifies an independently assessed current medical state.
+- The prior validated-presentation snapshot and downstream safety checks remain. Server-validated rendered content is also tracked so a qualifying mention of another pet, such as `Luna vomited, not Milo`, is not mistaken for unsupported subject drift. This exemption cannot be supplied by model JSON. Pure recall cannot write; mixed observations retain independent existing authorization.
+
+### Representative verified final answers
+
+With the old affirmative report and four newer negative reports, the new explicit first-occurrence plan and supported proposal produce:
+
+> The earliest matching report I could check for Milo is from 2011-01-01. Milo first vomited after a food change.
+>
+> That is the earliest matching report in the evidence I could check, not proof of when it first happened in their life.
+
+The same-date nameless comparison produces supported, visibly attributed paraphrases:
+
+> Milo's recorded history: Milo experienced soft stool for 2 days (2026-08-01).
+>
+> Luna's recorded history: Luna's stool was normal all week (2026-08-01).
+>
+> This covers the matching saved notes I could verify, not necessarily every event in their life.
+
+A report dated today produces:
+
+> The latest matching update I could check for Milo is dated 2026-09-06. Milo has had no vomiting today.
+
+A supported soft-stool duration paraphrase remains conversational when an adjacent proposal invents causation: the duration sentence survives, and only the causal proposal falls back to `Milo vomited after a food change.` The invented `99 bouts`, lifelong absence and reversed `before` wording are not left in the answer. These examples come from `tmp-selection-after.log` and callback assertions, with explicit mocked interpretation and synthesis proposals.
+
+### Verification
+
+- Focused callback-through-final-presentation cases: **43 passed** (`tmp-selection-focused.log`). Covers first/latest/period/reference wiring, negative/preventive mentions, boundary retention, tied conflicts, named/nameless multi-pet evidence, supported paraphrases, unsupported totals/absence/causation, unit changes, uncertainty, qualified cross-pet mentions, source changes/deletion, linked corrections, forgotten sources, reloaded episode references, mixed turns, authorized updates, no-write recall, exact quotations and downstream safety.
+- The existing real provider-admission tests run with mocked responses and usage metadata. Interpretation and answer failures, repair exhaustion, usage reconciliation, unstarted reservation release and new-attempt retryability still pass. The hard ceiling remains **two provider calls**.
+- Full default suite: **2,288 passed** (`tmp-selection-full.log`), including the callback wrapper and unchanged ledger tests. The nested focused-case count is separate from the default runner count.
+- Typecheck, lint and diff checks passed; lint retains the same two existing unused `supabase` warnings in `persist-learnings.ts` (`tmp-selection-typecheck.log`, `tmp-selection-lint.log`).
+- Production webpack build passed, Next 16.2.12, 45 static pages (`tmp-selection-build.log`).
+- Real local headless Chrome passed the existing six parser/React DOM/local-storage reload checks. Minimum available memory was 7.19 GB. This unchanged component fixture verifies rendering mechanics and literal source text, not live interpretation or an authenticated application session (`tmp-selection-browser.log`).
+- The original lifetime audit and fixtures are unchanged: **14 passed / the same 3 failed** (`tmp-selection-lifetime.log`), covering the previously documented episode-window/identity/aggregate gaps.
+
+Database and provider dependencies were mocked; no database execution, live providers, Docker, dependencies, migrations, push, merge or deployment occurred. The Supabase skill was consulted for retrieval review; its live-query guidance was overridden by the user's explicit prohibition. Remote documentation fetches were unavailable, so existing installed interfaces and repository query code remained the implementation basis; no new Supabase API was introduced.
+
+### Limits and next step
+
+Synthesis verification intentionally covers a restricted set of equivalent forms. More ambitious summaries, causal reasoning, omitted qualifications, source-title changes, opaque corrected payloads and unsupported cross-record conclusions still require a local source fallback. It is not universal factual verification or a general-purpose medical entailment model. First-occurrence recognition is also deliberately bounded; an unknown construction does not become event authority. Loaded/candidate/prompt budgets and read-committed source checks cannot establish first-ever onset, a globally latest update, snapshot consistency, lifetime absence or unlinked episode totals. Correction payloads whose complete meaning cannot be safely simplified remain conservative fallbacks.
+
+Normal conversational turns still use two sequential provider calls. The 2,600-token interpretation and 4,096-token answer limits are unchanged, as are the provider timeouts and outer request timeout. Selection and synthesis add structured text within those limits; larger outputs may increase truncation/repair-budget failures. No live latency, token demand or dollar-cost claim can be established from mocked usage. A separately authorized live canary should measure synthesis acceptance/fallback rates, selection accuracy, output truncation, latency and cost before rollout.
+
+Next step: commit this revision separately, export its review patch, and release the exclusive lock. The commit containing this checkpoint has reviewed HEAD `5d9c175b357239dec8bb321f660a26a6442f6254` as its parent.

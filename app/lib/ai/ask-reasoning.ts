@@ -93,6 +93,7 @@ export type ProposedHistoryUpdate = {
 export type AskReasoningResult = {
   /** Server-produced, never parsed from model JSON. */
   evidenceContract?: AskEvidenceContract;
+  historySynthesis?: Array<{ sourceId: string; text: string }>;
   answer: {
     title: string;
     summary: string;
@@ -247,7 +248,7 @@ export const askUnifiedJsonSchema = {
   additionalProperties: false,
   required: [
     "answer", "answerSections", "safetyLevel", "suggestedFollowUps", "applicationActions", "proposedHistoryUpdate",
-    "responseMode", "userIntent", "relevantContextIds",
+    "responseMode", "userIntent", "relevantContextIds", "historySynthesis",
     "messageUnderstanding", "intelligenceSafety", "learnings", "careActions", "semanticEvents", "semanticFrame",
   ],
   properties: {
@@ -279,6 +280,7 @@ export const askUnifiedJsonSchema = {
     },
     responseMode: { type: "string", enum: [...responseModes] },
     userIntent: { type: "string", maxLength: 120 },
+    historySynthesis: { type: "array", maxItems: 32, items: { type: "object", additionalProperties: false, required: ["sourceId", "text"], properties: { sourceId: { type: "string", maxLength: 160 }, text: { type: "string", maxLength: 1800 } } } },
     relevantContextIds: { type: "array", maxItems: 8, items: { type: "string", maxLength: 160 } },
     messageUnderstanding: messageUnderstandingJsonSchema,
     intelligenceSafety: {
@@ -303,7 +305,7 @@ const unifiedInstructions = [
   "The server has already loaded and ranked current facts. Do not rediscover or invent database facts.",
   "Canonical active memories override older conversation statements. Conversation records show what was said, not what is currently true. Never revive a rejected, forgotten, expired, or superseded preference from an older turn; the current user message may explicitly provide a new fact.",
   "evidenceContract is server-owned scope and coverage. Loaded records are not necessarily represented records, and unknown completeness is not complete. A profile does not prove that its history was loaded. Never infer an exact lifetime total, absent result, or complete history from a selected subset. Keep quoted evidence qualifiers intact. Coverage failures are limitations of this answer, not negative findings about the animal.",
-  "When evidenceContract.interpretation is present, it is the server-validated question scope. Answer that question from contextRecords. Give the supported portion even when history is partial. Keep each pet's records separate. Never use prior assistant statements as evidence. Never invent exact counts or call a subset a lifetime history. Historical factual prose is rendered by the server from complete attributed source reports; arbitrary paraphrases and proposed source IDs do not certify a claim. Counts and episode references are composed by the server. A turn can request historical comparison while also reporting a current observation; analyze writes only against the current owner assertion, never the read plan or old reports. Answer first, in short connected paragraphs; do not repeat the answer in a summary section. The server adds the specific coverage limitation, so do not repeat a generic disclaimer. Preserve exact facts, units, dates, source quotations and citations. Use no em dashes in your own prose.",
+  "When evidenceContract.interpretation is present, it is the server-validated question scope. Answer that question from contextRecords. Give the supported portion even when history is partial. Keep each pet's records separate. Never use prior assistant statements as evidence. Never invent exact counts or call a subset a lifetime history. For historical answers supply historySynthesis: one concise sentence or connected sentences per relevant sourceId, preserving all facts and qualifications in that complete record. Use the correct pet name. The server verifies each proposal independently: supported changes include spelling numbers as digits, changing had soft stool to experienced soft stool, or soft stool for two days to soft stool lasted two days. Do not omit negations, uncertainty, sequence, qualifiers or any source sentence. Do not add causation, totals, absence or first-ever claims. Use an empty array for non-historical turns. Unsupported proposals fall back individually; raw answer prose and source IDs do not establish factual support. Counts and episode references are composed by the server. A turn can request historical comparison while also reporting a current observation; analyze writes only against the current owner assertion, never the read plan or old reports. Answer first, in short connected paragraphs; do not repeat the answer in a summary section. The server adds the specific coverage limitation, so do not repeat a generic disclaimer. Preserve exact facts, units, dates, source quotations and citations. Use no em dashes in your own prose.",
   "The deterministic minimum safety level can be raised but never lowered. When it is urgent, lead with the action and suppress shopping.",
   "A recent unresolved concern may outrank a lower-priority question. Resolved or unrelated history must not hijack the answer.",
   "If the user reports that a prior concern improved, acknowledge it without repeating a full emergency warning unless red flags remain. Ask at most one concise confirmation when needed.",
@@ -397,7 +399,12 @@ export function buildAskContext(input: BuildContextInput) {
     ? scored.filter(({ record }) => record.sourceType === "active_episode").slice(0, 6)
     : [];
   const resolvedEpisodes = scored.filter(({ record }) => record.sourceType === "resolved_episode" && recordMatchesTerms(record, terms)).slice(0, 3);
-  const relevantUpdates = evidence.history ? scored.filter(({ record }) => record.sourceType === "care_update") : chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"
+  // The retrieval plan already selected and ordered effective history. Preserve
+  // that order through the final prompt budget instead of rescoring decisive
+  // historical evidence by recency a second time.
+  const historyOrder = new Map(input.careEntries.map((entry, index) => [careEvidenceId(entry.id, evidence.history), index]));
+  const relevantUpdates = evidence.history ? scored.filter(({ record }) => record.sourceType === "care_update")
+    .sort((a, b) => evidence.interpretation ? (historyOrder.get(a.record.id) ?? Infinity) - (historyOrder.get(b.record.id) ?? Infinity) : 0) : chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"
     && (historicalSafetyRelevant || record.status === "resolved" || record.priority === "routine" || recordMatchesTerms(record, terms))));
   const memories = scored.filter(({ record }) => record.sourceType === "remembered_detail").slice(0, 8);
   const conversation = scored
@@ -749,6 +756,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     evidenceContract: context.promptContext.evidenceContract,
     userIntent: parsed.userIntent,
     relevantContextIds: parsed.relevantContextIds,
+    historySynthesis: parsed.historySynthesis,
     referencedRecords: parsed.relevantContextIds.map((id) => context.records.find((record) => record.id === id)).filter((record): record is AskContextRecord => Boolean(record)),
     safetyLevel: parsed.safetyLevel,
     shoppingSuppressed: parsed.shoppingSuppressed,
@@ -902,6 +910,7 @@ export function parseUnifiedResponse(
   }
   return {
     answer,
+    historySynthesis: Array.isArray(value.historySynthesis) ? value.historySynthesis.slice(0, 32).filter(item => item && typeof item.sourceId === "string" && item.sourceId.length <= 160 && typeof item.text === "string" && item.text.length <= 1800) : [],
     answerSections,
     safetyLevel,
     responseMode: responseModes.includes(value.responseMode as never) ? value.responseMode as AskResponseMode : "practical_guidance",

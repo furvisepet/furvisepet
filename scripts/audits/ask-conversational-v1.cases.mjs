@@ -100,7 +100,8 @@ test('late linked reassignment, forgotten and deleted reports never resurrect', 
     lineage: [{ user_id: ownerId, claim_id: 'original', legacy_row_id: first.id, legacy_table: 'pet_care_entries', claim_role: 'primary' }] };
   const milo = await run('Recall Milo vomiting.', { operation: 'recall', subject: 'explicit', petNames: ['Milo'], terms: ['vomit'] }, { rows: [first], graph });
   assert.equal(milo.context.askHistory.entries.length, 0);
-  const luna = await run('Recall Luna vomiting.', { operation: 'recall', subject: 'explicit', petNames: ['Luna'], terms: ['vomit'] }, { rows: [first], graph });
+  const luna = await run('Recall Luna vomiting.', { operation: 'recall', subject: 'explicit', petNames: ['Luna'], terms: ['vomit'] }, { rows: [first], graph, providerOverrides: { historySynthesis: [{ sourceId: 'claim:correction', text: correction.structured_value.note }] } });
+  assert.match(persisted(luna, 2).response_data.directAnswer, /report:/, "omitted replacement qualifications require a local fallback");
   assert.ok(luna.context.askHistory.entries.some(e => e.pet_profile_id === 'luna' && e.note === correction.structured_value.note));
   const forgotten = await run('Recall Milo vomiting.', { operation: 'recall', subject: 'explicit', petNames: ['Milo'], terms: ['vomit'] }, { rows: [first], graph: { withheld_source_ids: [first.id] } });
   assert.equal(forgotten.context.askHistory.entries.length, 0);
@@ -249,7 +250,8 @@ for (const unsupported of [
   assert.equal(r.result.answerValidation.valid, true);
   const final = parseAskConversationResponse(JSON.parse(JSON.stringify(persisted(r, 2).response_data)));
   assert.ok(!JSON.stringify(final).includes(unsupported));
-  assert.match(final.directAnswer, /2011-02-01 note reports: Milo had soft stool for two days\./);
+  assert.match(final.directAnswer, /Milo.*2011-02-01/);
+  assert.ok(final.directAnswer.includes(row.note));
   noWrites(r);
 });
 
@@ -291,11 +293,12 @@ test('dated status reports preserve improvement, resolution and later recurrence
   const recurrence = care('recurred', 'milo', '2026-09-05', 'symptom', 'Milo vomited again this morning.');
   for (const rows of [[improvement], [resolution], [resolution, recurrence]]) {
     const r = await run('Where do things stand with his vomiting?', { operation: 'status', topic: 'vomiting', terms: ['vomit'] }, {
+      providerOverrides: { historySynthesis: rows.map(row => ({ sourceId: `care:${row.id}`, text: row.note })) },
       rows: [...rows, care('wrong', 'luna', '2026-09-06', 'symptom', 'Luna is vomiting blood.'), care('unrelated', 'milo', '2026-09-06', 'symptom', 'Milo has an itchy ear.')], answer: 'Milo is fully recovered.' });
     const final = parseAskConversationResponse(JSON.parse(JSON.stringify(persisted(r, 2).response_data)));
-    for (const row of rows) assert.ok(final.directAnswer.includes(row.note));
+    for (const row of rows) assert.ok(final.directAnswer.includes(row.note.replace(/\.$/, "")));
     assert.doesNotMatch(final.directAnswer, /Luna|itchy|fully recovered|don't establish whether/);
-    assert.match(final.directAnswer, /verified update about how things are now/);
+    if (!rows.some(row => row.occurred_at.startsWith(new Date().toISOString().slice(0, 10)))) assert.match(final.directAnswer, /current situation beyond/);
     assert.ok(!final.directAnswer.includes('"'), 'status does not force a quote dump');
     if (rows.length === 2) assert.ok(final.directAnswer.indexOf('2026-09-05') < final.directAnswer.indexOf('2026-09-04'));
     noWrites(r);
@@ -354,4 +357,167 @@ test('actual provider admission reconciles mocked usage and enforces two calls a
     await admitted(success); // A new attempt remains usable after each failure.
     assert.equal(store.getSnapshot('2026-09-04').calls - before, calls + 2);
   }
+});
+
+test('selection wiring: earliest answer retains the decisive old report ahead of newer negative reports', async t => {
+  clock(t);
+  const early = care('first-report', 'milo', '2011-01-01', 'symptom', 'Milo first vomited after a food change.');
+  const newer = [1, 2, 3, 4, 5].map(n => care(`negative-${n}`, 'milo', `2026-08-0${n}`, 'symptom', 'Milo had no vomiting on this day.'));
+  for (const partial of [false, true]) {
+    const r = await run('When did Milo first have vomiting?', { operation: 'recall', selection: 'earliest', subject: 'explicit', petNames: ['Milo'], topic: 'vomiting', terms: ['vomit'] }, {
+      rows: [early, ...newer], ...(partial ? { historyPageCap: 1, failHistoryPage: 2 } : {}),
+      providerOverrides: { historySynthesis: [{ sourceId: 'care:first-report', text: early.note }] } });
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.ok(final.startsWith('The earliest matching report I could check for Milo is from 2011-01-01.'), final);
+    assert.doesNotMatch(final, /2026-08/);
+    assert.match(final, /not proof of when it first happened/);
+    assert.ok(r.result.reasoning.relevantContextIds.includes('care:first-report'));
+    if (partial) assert.match(final, /couldn't be loaded/);
+    noWrites(r);
+  }
+});
+
+test('comparison synthesis connects same-date nameless facts to server-owned pet identities', async t => {
+  clock(t);
+  const rows = [care('milo-stool', 'milo', '2026-08-01', 'symptom', 'Soft stool for two days.'), care('luna-stool', 'luna', '2026-08-01', 'symptom', 'Normal stool all week.')];
+  const r = await run('Compare Milo and Luna stool history.', { operation: 'comparison', selection: 'comparison', subject: 'explicit', petNames: ['Milo', 'Luna'], topic: 'stool', terms: ['stool'] }, {
+    rows, providerOverrides: { historySynthesis: [{ sourceId: 'care:milo-stool', text: 'Milo experienced soft stool for 2 days.' }, { sourceId: 'care:luna-stool', text: "Luna's stool was normal all week." }] } });
+  const final = parseAskConversationResponse(JSON.parse(JSON.stringify(persisted(r, 2).response_data))).directAnswer;
+  assert.match(final, /Milo experienced soft stool for 2 days \(2026-08-01\)/);
+  assert.match(final, /Luna's stool was normal all week \(2026-08-01\)/);
+  assert.doesNotMatch(final, /note reports|report:|"/);
+  assert.deepEqual(new Set(r.result.reasoning.relevantContextIds), new Set(['care:milo-stool', 'care:luna-stool']));
+  noWrites(r);
+});
+
+test('summary synthesizes supported duration paraphrases and consolidates identical reports without episode grouping', async t => {
+  clock(t);
+  const negative = [1, 2, 3, 4, 5].map(n => care(`well-${n}`, 'milo', `2026-08-0${n}`, 'symptom', 'Milo had no vomiting on this day.'));
+  const r = await run('Bring me up to speed on his digestive history.', { selection: 'summary' }, { rows: [row, ...negative], providerOverrides: {
+    historySynthesis: [{ sourceId: 'care:old-stomach', text: "Milo's soft stool lasted 2 days." }, { sourceId: 'care:well-1', text: negative[0].note }] } });
+  const final = persisted(r, 2).response_data.directAnswer;
+  assert.ok(final.startsWith("Milo's recorded history: Milo's soft stool lasted 2 days (2011-02-01)."), final);
+  assert.equal(final.match(/had no vomiting/g)?.length, 1, 'identical reports can be summarized together');
+  for (const date of ['2026-08-01', '2026-08-05']) assert.ok(final.includes(date));
+  assert.doesNotMatch(final, /report:|episodes|never|"/);
+  noWrites(r);
+});
+
+test('latest status includes today beyond the oldest candidate page and does not deny a current update', async t => {
+  clock(t);
+  const old = Array.from({ length: 90 }, (_, n) => care(`old-${n}`, 'milo', new Date(Date.UTC(2011, 0, n + 1)).toISOString().slice(0, 10), 'symptom', 'Milo had vomiting on this day.'));
+  const today = care('today-status', 'milo', '2026-09-04', 'symptom', 'Milo has had no more vomiting since August 20. The vet recorded the vomiting episode as resolved.');
+  const r = await run('What is the newest update on Milo vomiting?', { operation: 'status', selection: 'latest', subject: 'explicit', petNames: ['Milo'], topic: 'vomiting', terms: ['vomit'] }, { rows: [...old, today], providerOverrides: {
+    historySynthesis: [{ sourceId: 'care:today-status', text: 'Milo has had no more vomiting since August 20. The vomiting episode was recorded as resolved by the vet.' }] } });
+  const final = persisted(r, 2).response_data.directAnswer;
+  assert.ok(final.startsWith('The latest matching update I could check for Milo is dated 2026-09-04.'), final);
+  assert.match(final, /was recorded as resolved by the vet/);
+  assert.doesNotMatch(final, /don't have.*update|can't establish the current situation|fully recovered/);
+  assert.ok(r.context.askHistory.coverage.candidateIds.length <= 64);
+  assert.ok(r.prompt.contextRecords.some(record => record.id === 'care:today-status'));
+  noWrites(r);
+});
+
+test('requested periods and dated source references exclude current status outside the requested interval', async t => {
+  clock(t);
+  const old = care('period', 'milo', '2011-01-01', 'symptom', 'Milo was still vomiting.');
+  const now = care('now', 'milo', '2026-09-04', 'symptom', 'Milo has no vomiting today.');
+  for (const selection of ['period', 'reference']) {
+    const r = await run('What did the January 1, 2011 report say about Milo vomiting?', { operation: 'recall', selection, subject: 'explicit', petNames: ['Milo'], topic: 'vomiting', terms: ['vomit'], from: '2011-01-01', to: '2011-01-02' }, { rows: [old, now], providerOverrides: {
+      historySynthesis: [{ sourceId: 'care:period', text: old.note }, { sourceId: 'care:now', text: now.note }] } });
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.ok(final.startsWith("Milo's recorded history: Milo was still vomiting (2011-01-01)."));
+    assert.doesNotMatch(final, /2026|no vomiting today/);
+    noWrites(r);
+  }
+  assert.throws(() => validateAskInterpretation(proposal({ selection: 'period' }), validationContext()), /INVALID/);
+  assert.throws(() => validateAskInterpretation(proposal({ selection: 'reference' }), validationContext()), /INVALID/);
+  assert.throws(() => validateAskInterpretation(proposal({ selection: 'execute_sql' }), validationContext()), /INVALID/);
+});
+
+test('unsupported synthesis falls back per report without discarding a supported neighboring paraphrase', async t => {
+  clock(t);
+  const changedFood = care('food-time', 'milo', '2014-01-01', 'symptom', 'Milo vomited after a food change.');
+  for (const bad of ['Milo has had 99 bouts of vomiting over his lifetime.', 'Milo has never vomited.', 'The food change caused Milo to vomit.', 'Milo vomited before a food change.', 'Milo vomited.']) {
+    const r = await run('Summarize his stomach history.', { selection: 'summary' }, { rows: [row, changedFood], providerOverrides: { historySynthesis: [
+      { sourceId: 'care:old-stomach', text: 'Milo experienced soft stool for 2 days.' }, { sourceId: 'care:food-time', text: bad },
+    ] } });
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.ok(final.startsWith("Milo's recorded history: Milo experienced soft stool for 2 days (2011-02-01)."), final);
+    assert.ok(final.includes(JSON.stringify(changedFood.note)), 'only the unsupported proposal uses source fallback');
+    assert.ok(!final.includes(bad));
+    noWrites(r);
+  }
+});
+
+test('valid citations cannot justify changed units, dropped uncertainty or the wrong pet', async t => {
+  clock(t);
+  for (const [source, bad] of [['Milo received 2 mg.', 'Milo received 2 Mg.'], ['Milo may have vomited.', 'Milo has vomited.'], ['Soft stool for two days.', 'Luna had soft stool for 2 days.']]) {
+    const saved = care('protected', 'milo', '2011-01-01', 'symptom', source);
+    const r = await run('Summarize Milo health history.', { selection: 'summary', subject: 'explicit', petNames: ['Milo'], terms: [] }, { rows: [saved], providerOverrides: {
+      historySynthesis: [{ sourceId: 'care:protected', text: bad }], relevantContextIds: ['care:protected'],
+    } });
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.ok(!final.includes(bad)); assert.ok(final.includes(JSON.stringify(source)));
+  }
+});
+
+test('changed or deleted sources cannot authorize a synthesis from an earlier candidate version', async t => {
+  clock(t);
+  for (const patch of [{ note: 'This report was entered in error.' }, { deleted_at: '2026-09-01T00:00:00Z' }]) {
+    const r = await run('Summarize Milo stomach history.', { selection: 'summary', subject: 'explicit', petNames: ['Milo'] }, { rows: [{ ...row, ...patch }], candidateRowsOverride: [row], providerOverrides: {
+      historySynthesis: [{ sourceId: 'care:old-stomach', text: 'Milo experienced soft stool for 2 days.' }],
+    } });
+    assert.doesNotMatch(persisted(r, 2).response_data.directAnswer, /soft stool/);
+    noWrites(r);
+  }
+});
+
+test('first-occurrence selection does not mistake an older negative or preventive mention for an occurrence', async t => {
+  clock(t);
+  const negative = care('early-negative', 'milo', '2010-01-01', 'symptom', 'Milo had no vomiting on this day.');
+  const prevention = care('prevention', 'milo', '2010-02-01', 'symptom', 'The vet discussed vomiting prevention.');
+  const affirmative = care('affirmative', 'milo', '2011-01-01', 'symptom', 'Milo first vomited after a food change.');
+  const plan = { operation: 'recall', selection: 'earliest_occurrence', subject: 'explicit', petNames: ['Milo'], terms: ['vomit'], topic: 'vomiting' };
+  const found = await run('When did Milo first have vomiting?', plan, { rows: [negative, prevention, affirmative] });
+  const answer = persisted(found, 2).response_data.directAnswer;
+  assert.ok(answer.startsWith('The earliest matching report I could check for Milo is from 2011-01-01.'), answer);
+  assert.doesNotMatch(answer, /2010-/);
+  const missing = await run('When did Milo first have vomiting?', plan, { rows: [negative, prevention] });
+  assert.match(persisted(missing, 2).response_data.directAnswer, /could not identify a supported first occurrence/);
+  noWrites(found); noWrites(missing);
+});
+
+test('tied earliest reports retain conflicting evidence instead of arbitrarily choosing one source ID', async t => {
+  clock(t);
+  const yes = care('tie-a', 'milo', '2011-01-01', 'symptom', 'Milo vomited this morning.');
+  const no = care('tie-b', 'milo', '2011-01-01', 'symptom', 'Milo did not vomit this morning.');
+  const r = await run('Show Milo earliest vomiting reports.', { operation: 'recall', selection: 'earliest', subject: 'explicit', petNames: ['Milo'], terms: ['vomit'], topic: 'vomiting' }, { rows: [yes, no] });
+  const final = persisted(r, 2).response_data.directAnswer;
+  assert.ok(final.includes(yes.note)); assert.ok(final.includes(no.note));
+  assert.match(final, /not proof of when it first happened/);
+  noWrites(r);
+});
+
+test('first-occurrence evidence remains prioritized through both retrieval and prompt budgets', async t => {
+  clock(t);
+  const negatives = Array.from({ length: 40 }, (_, n) => care(`before-${n}`, 'milo', new Date(Date.UTC(2010, 0, n + 1)).toISOString().slice(0, 10), 'symptom', 'Milo had no vomiting on this day.'));
+  const decisive = care('decisive-onset', 'milo', '2011-01-01', 'symptom', 'Milo first vomited after a food change.');
+  const r = await run('When did Milo first have vomiting?', { operation: 'recall', selection: 'earliest_occurrence', subject: 'explicit', petNames: ['Milo'], terms: ['vomit'], topic: 'vomiting' }, { rows: [...negatives, decisive] });
+  assert.ok(r.context.askHistory.entries.some(row => row.id === decisive.id));
+  assert.equal(r.prompt.contextRecords.find(record => record.sourceType === 'care_update').id, 'care:decisive-onset');
+  assert.ok(persisted(r, 2).response_data.directAnswer.startsWith('The earliest matching report I could check for Milo is from 2011-01-01.'));
+  noWrites(r);
+});
+
+test('a validated natural report preserves a qualifying mention of another pet without a subject error', async t => {
+  clock(t);
+  const note = 'Luna vomited, not Milo.';
+  const r = await run('What is recorded about Luna vomiting?', { operation: 'recall', subject: 'explicit', petNames: ['Luna'], selection: 'summary', topic: 'vomiting', terms: ['vomit'] }, {
+    rows: [care('qualified-subject', 'luna', '2011-01-01', 'symptom', note)], providerOverrides: { historySynthesis: [{ sourceId: 'care:qualified-subject', text: note }] },
+  });
+  const final = persisted(r, 2).response_data.directAnswer;
+  assert.match(final, /Luna vomited, not Milo \(2011-01-01\)/);
+  assert.doesNotMatch(final, /report:|"/);
+  noWrites(r);
 });

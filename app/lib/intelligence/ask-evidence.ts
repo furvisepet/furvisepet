@@ -1,3 +1,4 @@
+import { isAffirmativeOccurrenceReport, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
 import { buildWeightComparison, weightComparisonAnswer } from "./weight-comparison.ts";
@@ -22,6 +23,10 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  answerSourceIds?: string[];
+  /** Server-validated report renderings; never taken from provider JSON. */
+  answerContent?: string[];
+  petNames?: Record<string, string>;
   interpretation?: Omit<import("./interpret-ask.ts").AskInterpretation, "frame">;
   weightComparison?: import("./weight-comparison.ts").WeightComparisonEvidence;
   episodes?: import("./episode-history.ts").EpisodeResult;
@@ -98,6 +103,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const { frame, ...readPlan } = plan;
     void frame; // Extraction is exclusively for independent subject/write governance.
     contract.interpretation = readPlan;
+    contract.petNames = Object.fromEntries(context.eligiblePets.filter(pet => ids.includes(pet.id) && pet.user_id === context.owner.userId).map(pet => [pet.id, pet.name]));
     const operation = plan.readOperation ?? plan.operation;
     const kind: AskEvidenceScope["requestKind"] = operation === "status" ? "resolution_status"
       : operation === "count" ? "count" : operation === "overview" ? "overview"
@@ -173,11 +179,11 @@ export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringif
 /** Attribution only, never a lifecycle computation or a current-state certificate.
  * Exact bounded sentence forms avoid stripping a qualification or quoting a
  * terminal phrase into the answer. All other prose remains uncertain. */
-export function resolutionStatusAnswer(contract: AskEvidenceContract): string | null {
+export function resolutionStatusAnswer(contract: AskEvidenceContract, synthesis: HistorySynthesisProposal[] = []): string | null {
   if (contract.scope.requestKind !== "resolution_status") return null;
   if (contract.interpretation) {
     if (contract.scope.status === "ambiguous" || !contract.scope.requestedTopic.trim()) return "Which issue do you mean?";
-    return attributedHistoryAnswer(contract, true);
+    return attributedHistoryAnswer(contract, true, synthesis);
   }
   const uncertainty = "I can't establish whether the hiding has ended now from the available dated evidence.";
   if (contract.scope.status !== "resolved" || contract.scope.authorizedPetIds.length !== 1 || contract.scope.requestedTopic !== "hiding") {
@@ -207,8 +213,8 @@ export function resolutionStatusAnswer(contract: AskEvidenceContract): string | 
 
 /** Deliberately bounded policy, not general factual entailment. Recognized
  * evidence requests receive server authority; ordinary answers stay intact. */
-export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | null {
-  const resolution = resolutionStatusAnswer(contract);
+export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: HistorySynthesisProposal[] = []): string | null {
+  const resolution = resolutionStatusAnswer(contract, synthesis);
   if (resolution) return resolution;
   const kind = contract.scope.requestKind;
   if (contract.interpretation && (contract.interpretation.readOnly || contract.history)) {
@@ -223,7 +229,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
     }
     // Arbitrary narrative is not an evidence claim. Only complete source reports
     // and independently computed episode results have factual authority.
-    if (kind !== "count" && contract.history) return attributedHistoryAnswer(contract);
+    if (kind !== "count" && contract.history) return attributedHistoryAnswer(contract, false, synthesis);
     if (kind !== "count") return null;
   }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
@@ -264,7 +270,7 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
   if (history.retrieval === "unavailable") return "Some saved records couldn't be loaded. This covers only the notes I could check.";
   if (history.reasons.includes("unlinked_correction_uncertain")) return "A later correction may affect this history, but I couldn't reliably connect it to the original report.";
   if (history.retrieval === "partial" || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "There are more saved notes than I could include here. This is part of the history; a narrower topic or date range will let me check further.";
-  return contract.scope.requestKind === "resolution_status" ? ""
+  return contract.scope.requestKind === "resolution_status" || contract.interpretation?.selection?.startsWith("earliest") ? ""
     : "This covers the matching saved notes I could verify, not necessarily every event in their life.";
 }
 
@@ -273,13 +279,17 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
  * source text, attributed to its record. No model prose or inferred grouping is
  * admitted. Full spans preserve negation, quantities and qualifications together.
  */
-export function attributedHistoryAnswer(contract: AskEvidenceContract, status = false): string {
+export function attributedHistoryAnswer(contract: AskEvidenceContract, status = false, synthesis: HistorySynthesisProposal[] = []): string {
   if (contract.history?.corrections === "unavailable" || contract.history?.reasons.includes("unlinked_correction_uncertain")) {
     return `I couldn't reliably attribute these reports. ${conversationalHistoryLimitation(contract)}`;
   }
-  const terms = contract.interpretation?.history?.terms || [];
+  contract.answerSourceIds = [];
+  contract.answerContent = [];
+  const period = contract.interpretation?.history;
+  const terms = period?.terms || [];
   const notes = contract.represented.filter(span => span.sourceType === "care_update"
     && contract.scope.authorizedPetIds.includes(span.petId)
+    && (!period?.from || !!span.occurredAt && span.occurredAt >= period.from && span.occurredAt < period.to!)
     && span.start === 0 && span.end === span.text.length && span.text.trim()
     && (!terms.length || terms.some(term => span.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())))
     && !contract.losses.some(loss => loss.sourceId === span.sourceId)
@@ -291,13 +301,44 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
   if (!notes.length) return contract.history?.retrieval === "unavailable"
     ? "I couldn't check the saved history just now. Please try again."
     : "I couldn't find matching saved notes for that question. That doesn't mean it never happened.";
-  // A separate per-pet limit prevents one pet from crowding a comparison out.
-  const selected = contract.scope.authorizedPetIds.flatMap(id => notes.filter(note => note.petId === id).slice(0, status ? 3 : 4));
+  const selection = contract.interpretation?.selection || (status ? "latest" : "summary");
   const quote = /\b(?:quote|verbatim|exact wording)\b/i.test(contract.scope.requestText);
-  const reports = selected.map(note => {
-    const date = note.occurredAt?.slice(0, 10) || "undated";
-    return `The ${date} note reports: ${quote ? JSON.stringify(note.text) : note.text}`;
-  });
+  const reports: string[] = [];
+  for (const petId of contract.scope.authorizedPetIds) {
+    const petName = contract.petNames?.[petId] || "Your pet";
+    const candidates = notes.filter(note => note.petId === petId);
+    const occurrences = selection === "earliest_occurrence" ? candidates.filter(note => isAffirmativeOccurrenceReport(note.text, petName, terms)) : [];
+    const occurrenceUncertain = selection === "earliest_occurrence" && !occurrences.length;
+    const ordered = orderHistoryEvidence(occurrences.length ? occurrences : candidates, selection, note => note.occurredAt || "", note => note.sourceId);
+    // Earliest/latest answers retain their decisive report. Include the other
+    // dated reports for status so a resolution cannot hide a later recurrence.
+    const selected = selection.startsWith("earliest") || selection === "latest" && !status
+      ? ordered.filter(note => note.occurredAt === ordered[0]?.occurredAt) : ordered;
+    if (!selection.startsWith("earliest") && selection !== "latest") selected.sort((a, b) => (a.occurredAt || "").localeCompare(b.occurredAt || ""));
+    const groups = new Map<string, typeof selected>();
+    for (const note of selected) groups.set(note.text, [...(groups.get(note.text) || []), note]);
+    const sentences = [...groups.values()].map(group => {
+      const note = group[0];
+      const dates = [...new Set(group.map(item => item.occurredAt?.slice(0, 10) || "date not recorded"))].join(", ");
+      const proposals = synthesis.filter(proposal => group.some(item => item.sourceId === proposal.sourceId));
+      // Verify each proposal against the complete content, independently of IDs.
+      const natural = !quote ? proposals.filter(proposal => synthesis.filter(other => other.sourceId === proposal.sourceId).length === 1)
+        .map(proposal => supportedHistoryParaphrase(note.text, proposal.text, petName)).find(Boolean) : null;
+      contract.answerSourceIds!.push(...group.map(item => item.sourceId));
+      const anchored = (selection.startsWith("earliest") || selection === "latest") && note === selected[0] && group.length === 1;
+      const content = natural ? anchored ? natural : `${natural.replace(/[.!]$/, "")} (${dates}).`
+        : `${petName}'s ${dates} report: ${JSON.stringify(note.text)}`;
+      contract.answerContent!.push(content);
+      return content;
+    });
+    if (sentences.length) {
+      const date = selected[0].occurredAt?.slice(0, 10) || "an unknown date";
+      const lead = occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
+        : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `
+        : selection === "latest" ? `The latest matching update I could check for ${petName} is dated ${date}. ` : `${petName}'s recorded history: `;
+      reports.push(lead + sentences.join(" "));
+    }
+  }
   if (contract.interpretation && !contract.interpretation.readOnly) {
     const assertions = analyzeOwnerAssertions(contract.scope.requestText).assertionSpans;
     const current = splitSentencesPreservingFacts(contract.scope.requestText).filter(sentence => !sentence.endsWith("?")
@@ -306,8 +347,13 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     if (current.length) reports.unshift(`You just reported: ${current.join(" ")} For comparison, here are the dated reports.`);
   }
   const limitation = conversationalHistoryLimitation(contract);
-  if (status) reports.push("These reports describe the issue on those dates. I don't have a verified update about how things are now.");
-  if (notes.length > selected.length) reports.push("These are selected reports; there are more matching notes to review.");
+  if (selection.startsWith("earliest")) reports.push("That is the earliest matching report in the evidence I could check, not proof of when it first happened in their life.");
+  if (status) {
+    const today = new Date().toISOString().slice(0, 10);
+    const current = notes.some(note => note.occurredAt?.slice(0, 10) === today);
+    if (!current) reports.push(contract.interpretation?.history?.to ? "These reports describe the requested period, not the current situation."
+      : "These are dated updates; I can't establish the current situation beyond what they report.");
+  }
   if (limitation) reports.push(limitation);
   return reports.join("\n\n");
 }

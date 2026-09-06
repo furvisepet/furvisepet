@@ -26,7 +26,7 @@ export function validateGeneratedAnswer(
   const sourceNote = response.evidenceContract?.scope.requestKind === "record_lookup" && response.evidenceContract.scope.status === "resolved"
     ? sourceNoteAnswer(response.evidenceContract) : null;
   const urgent = canonicalSafety === "urgent" || canonicalSafety === "emergency";
-  const scopedAnswer = response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract) : null;
+  const scopedAnswer = response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null;
   const hasSourceQuote = Boolean(sourceNote?.sourceIds.length && scopedAnswer === sourceNote.text);
   if (scopedAnswer) {
     // Only assistant-authored prose goes through prose rewriting. The complete
@@ -35,7 +35,7 @@ export function validateGeneratedAnswer(
     response.answer = { title: "Furvise", summary: `${urgent ? "Contact an emergency veterinarian now. " : ""}${prose}`, sections: [], safetyNote: null };
     response.suggestedFollowUps = [];
     const sourceIds = hasSourceQuote ? sourceNote!.sourceIds : response.evidenceContract?.interpretation
-      ? response.evidenceContract.represented.filter(span => span.text && scopedAnswer.includes(span.text)).map(span => span.sourceId) : [];
+      ? response.evidenceContract.answerSourceIds || [] : [];
     response.relevantContextIds = sourceIds;
     response.referencedRecords = sourceIds.flatMap(id => {
       const span = response.evidenceContract?.represented.find(span => span.sourceId === id);
@@ -135,7 +135,7 @@ export function validateGeneratedAnswer(
   if (hasSourceQuote && sourceNote) {
     response.answer.summary = `${urgent ? "Contact an emergency veterinarian now. " : ""}${sourceNote.text}`;
   }
-  const resolution = response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract) : null;
+  const resolution = response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract, response.historySynthesis) : null;
   if (resolution) {
     // Final authority is the provider-independent contract AFTER budgeting.
     response.answer = { title: "Furvise", summary: resolution, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
@@ -162,8 +162,8 @@ export function validateGeneratedAnswer(
   if (response.evidenceContract?.interpretation && scopedAnswer) {
     // A full attributed correction may name the former pet. Check surrounding
     // assistant prose, without treating that source quotation as subject drift.
-    for (const span of response.evidenceContract.represented) {
-      if (scopedAnswer.includes(span.text)) answerText = answerText.replace(JSON.stringify(span.text).slice(1, -1), "");
+    for (const content of response.evidenceContract.answerContent || []) {
+      answerText = answerText.replace(JSON.stringify(content).slice(1, -1), "");
     }
   }
   const unauthorizedPetNamed = (context.eligiblePets || []).some((pet) => pet.name

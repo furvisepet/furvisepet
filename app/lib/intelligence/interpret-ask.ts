@@ -14,6 +14,7 @@ import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { askEvidenceScope } from "./ask-evidence.ts";
 
 const operations = ["overview", "recall", "count", "comparison", "status", "episode", "general", "update", "clarify"] as const;
+const selections = ["earliest", "earliest_occurrence", "latest", "period", "summary", "comparison", "reference"] as const;
 const subjects = ["selected", "conversation", "explicit", "unclear", "non_pet"] as const;
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that"] as const;
 type Operation = typeof operations[number];
@@ -22,6 +23,7 @@ export type AskInterpretation = {
   operation: Operation;
   /** Read intent is independent of current owner assertions. */
   readOperation?: Exclude<Operation, "update"> | null;
+  selection?: typeof selections[number];
   petIds: string[];
   topic: string;
   history: HistoryPlan | null;
@@ -35,8 +37,9 @@ export const ASK_INTERPRETATION_LIMITS = { outputTokens: 2600, timeoutMs: 15_000
 const nullableString = { type: ["string", "null"] };
 export const askInterpretationSchema = {
   type: "object", additionalProperties: false,
-  required: ["operation", "readOperation", "subject", "petNames", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+  required: ["selection", "operation", "readOperation", "subject", "petNames", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
   properties: {
+    selection: { type: "string", enum: selections },
     readOperation: { type: ["string", "null"], enum: [...operations.filter(value => value !== "update"), null] },
     frame: proposedSemanticFrameJsonSchema,
     operation: { type: "string", enum: operations }, subject: { type: "string", enum: subjects },
@@ -54,6 +57,7 @@ const instructions = [
   "Explicit named pets take precedence. petNames must use the supplied owned names, never IDs. An unknown named animal is unclear/non_pet, never silently the selected pet. Use subject selected for a fresh unqualified question, conversation for follow-ups, explicit for named pets. Respect owner-established subject changes. Multiple pets require separate evidence.",
   "Recent USER messages establish subject/topic continuity, never medical evidence. Do not infer factual history from conversation. Resolve follow-up topics from the active subject only; after a pet switch do not carry the former pet's topic unless the user asks for that topic.",
   "Supply up to six short plain lexical search terms, including useful synonyms, for the requested topic. For stomach/tummy/digestive history include stomach, vomit, threw up, thrown up, stool, diarrh. For a broad whole-health summary use no terms. Unknown topics can still be searched using the user's words. Never output SQL, filters or query syntax.",
+  "selection records the requested evidence order: earliest for the oldest matching report, earliest_occurrence for the first reported occurrence of an issue (negative or preventive mentions are not occurrences), latest for the newest update, period for an explicit date range, summary or comparison for synthesis, reference for a particular dated source or displayed episode. Earliest matching evidence is never proof of first-ever occurrence. Use latest for status unless a historical period was requested. A specific source reference needs a date range; an episode reference uses the validated ordinal. Never invent a source identifier.",
   "from/to are UTC ISO dates YYYY-MM-DD, inclusive start and exclusive end, or both null for all dates. Resolve explicit and relative periods against today. Do not narrow an undated request to recent history.",
   "episodeTopic is only a single supported topic (vomiting, soft stool, breathing), including a clear follow-up topic. A digestive summary spans multiple symptoms; a topicless count after that needs clarification, not an invented combined total. ordinal is only a displayed list position, not an episode ID or a count. Leave it null unless an episode reference is requested. Multiple/ambiguous positions use clarify.",
 ].join("\n");
@@ -65,8 +69,9 @@ const invalid = () => { throw new Error("ASK_INTERPRETATION_INVALID"); };
 export function validateAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return invalid();
   const p = value as Record<string, unknown>;
-  const required = askInterpretationSchema.required.filter(key => key !== "readOperation" || "readOperation" in p);
+  const required = askInterpretationSchema.required.filter(key => (key !== "readOperation" && key !== "selection") || key in p);
   if (Object.keys(p).sort().join() !== [...required].sort().join()
+    || "selection" in p && !selections.includes(p.selection as typeof selections[number])
     || "readOperation" in p && p.readOperation !== null && (!operations.includes(p.readOperation as Operation) || p.readOperation === "update")
     || !operations.includes(p.operation as Operation) || !subjects.includes(p.subject as typeof subjects[number])
     || !Array.isArray(p.petNames) || p.petNames.length > 3 || p.petNames.some(n => typeof n !== "string" || n.length > 100)
@@ -112,9 +117,11 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
   if (p.subject !== "explicit" && proposed.length && (proposed.length !== petIds.length || proposed.some(id => !petIds.includes(id)))) return invalid();
   if (petIds.length > ASK_INTERPRETATION_LIMITS.pets) return invalid();
   const clarification = !petIds.length ? "subject" : readOperation === "clarify" ? "reference" : null;
+  const selection = (p.selection ?? (p.from ? "period" : readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : readOperation === "episode" ? "reference" : "summary")) as typeof selections[number];
+  if (selection === "period" && !p.from || selection === "reference" && !p.from && readOperation !== "episode") return invalid();
   const historical = !!readOperation && ["overview", "recall", "comparison", "status", "count"].includes(readOperation);
   const terms = [...new Set(p.terms as string[])];
-  return { version: "ask-interpretation.v1", operation, readOperation, petIds, topic: p.topic, readOnly: !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
+  return { version: "ask-interpretation.v1", operation, readOperation, selection, petIds, topic: p.topic, readOnly: !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
     episodeTopic: p.episodeTopic as AskInterpretation["episodeTopic"], ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: historical && !clarification ? { terms, from: p.from ? `${p.from}T00:00:00.000Z` : null,
       to: p.to ? `${p.to}T00:00:00.000Z` : null, interpretation: terms.length ? "lexical" : p.from ? "period" : "broad_comparison" } : null };

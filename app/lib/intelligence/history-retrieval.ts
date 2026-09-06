@@ -1,4 +1,5 @@
 import "server-only";
+import { isAffirmativeOccurrenceReport, orderHistoryEvidence } from "./history-synthesis.ts";
 import { createHash } from "node:crypto";
 import { discoverDatedCorrectionNotes } from "./dated-correction-notes.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -86,13 +87,21 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
     continuation: [], reasons: ["lexical_or_period_matches_not_semantic_completeness", "no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
+  // Latest requests also reuse the already-loaded current context, within the
+  // same root budget. Every supplemental row passes the same correction/freshness
+  // validation as RPC candidates. The ascending reader still reaches old history.
+  const recentCandidates = context.askInterpretation?.selection === "latest" ? context.careEntries.filter(row =>
+    row.user_id === context.owner.userId && ids.includes(row.pet_profile_id) && !row.deleted_at
+    && (!plan.from || row.occurred_at >= plan.from && row.occurred_at < plan.to!)
+    && (!plan.terms.length || plan.terms.some(term => `${row.title || ""} ${row.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))))
+    .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)).slice(0, 8) : [];
   const candidates: CareEntryRow[] = [];
   // Reserve coverage/provenance space independently of model evidence. Split
   // the candidate budget fairly so the first pet cannot consume every slot.
   // Reserve twelve of the existing roots for later correction notes on dated
   // lookups. Supplemental discovery must not expand the graph/input budgets.
   const correctionReserve = plan.from ? 12 : 0;
-  const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
+  const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve - recentCandidates.length) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let cursor: Cursor | null = null; let exhausted = false; let failed = false; let pages = 0; const rows: CareEntryRow[] = [];
     try {
@@ -145,6 +154,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   }
   if (ids.length > HISTORY_BUDGET.pets) coverage.reasons.push("pet_query_budget");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
+  for (const row of recentCandidates) if (!candidates.some(candidate => candidate.id === row.id)) candidates.push(row);
+  if (recentCandidates.length) coverage.reasons.push("current_context_candidates_revalidated");
   if (correctionReserve && candidates.length) {
     candidates.push(...await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, deadline));
   }
@@ -152,7 +163,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
   if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") coverage.reasons.push("no_matching_candidates_not_absence");
   const kept: CareEntryRow[] = []; let chars = 0; let budgetExcluded = false;
-  for (const entry of entries.sort((a, b) => a.occurred_at.localeCompare(b.occurred_at) || a.id.localeCompare(b.id))) {
+  for (const entry of orderHistoryEvidence(entries, context.askInterpretation?.selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
+    context.askInterpretation?.selection === "earliest_occurrence" ? entry => isAffirmativeOccurrenceReport(entry.note,
+      context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms) ? 0 : 1 : undefined)) {
     const size = JSON.stringify(entry).length;
     if (kept.length >= HISTORY_BUDGET.records || chars + size > HISTORY_BUDGET.chars) { coverage.excludedIds.push(careEvidenceId(entry.id, coverage)); budgetExcluded = true; continue; }
     kept.push(entry); chars += size;
