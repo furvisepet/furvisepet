@@ -22,7 +22,7 @@ export type HistoryCoverage = {
 };
 export type RetrievedAskHistory = { coverage: HistoryCoverage; entries: CareEntryRow[]; originals: CareEntryRow[] };
 export type DbClaim = Record<string, unknown> & { id: string; user_id: string; subject_id: string; structured_value: unknown };
-export type EpisodeClaimValidation = { claims: DbClaim[]; verified: Map<string, string | null>; revision?: string };
+export type EpisodeClaimValidation = { claims: DbClaim[]; verified: Map<string, string | null>; revision?: string; sourceRevisions?: Map<string, string> };
 type DbRelation = { id: string; user_id: string; from_claim_id: string; to_claim_id: string; relation_type: RebuildRelation["relationType"] };
 type Lineage = { user_id: string; claim_id: string; legacy_row_id: string; legacy_table: string; claim_role: string };
 type GraphPage = { claims: DbClaim[]; relations: DbRelation[]; lineage: Lineage[]; sources: CareEntryRow[]; truncated: boolean; withheld_claim_ids?: string[]; withheld_source_ids?: string[] };
@@ -246,6 +246,35 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       [...links.values()].sort((a,b)=>a.claim_id.localeCompare(b.claim_id)), [...sources.values()].sort((a,b)=>a.id.localeCompare(b.id)),
       [...removedTargets].sort(), [...removedSources].sort(),
     ])).digest("hex");
+    if (episodeClaims) {
+      // Saved page references must not depend on unrelated, undisplayed groups.
+      // Hash each source's complete connected correction/lineage component.
+      episodeClaims.sourceRevisions = new Map();
+      const roots = [...candidates.map(c => ({key:`care:${c.id}`,care:c.id,claim:null as string | null})),
+        ...episodeClaims.claims.map(c => ({key:`claim:${c.id}`,care:null as string | null,claim:c.id}))];
+      for (const root of roots) {
+        const careIds = new Set(root.care ? [root.care] : []);
+        const claimIds = new Set(root.claim ? [root.claim] : []);
+        let changed = true;
+        while (changed) {
+          const before = careIds.size + claimIds.size;
+          for (const l of links.values()) if (careIds.has(l.legacy_row_id) || claimIds.has(l.claim_id)) {
+            careIds.add(l.legacy_row_id); claimIds.add(l.claim_id);
+          }
+          for (const e of relations.values()) if (claimIds.has(e.from_claim_id) || claimIds.has(e.to_claim_id)) {
+            claimIds.add(e.from_claim_id); claimIds.add(e.to_claim_id);
+          }
+          changed = before !== careIds.size + claimIds.size;
+        }
+        episodeClaims.sourceRevisions.set(root.key,createHash("sha256").update(JSON.stringify([
+          [...claims.values()].filter(c=>claimIds.has(c.id)).sort((a,b)=>a.id.localeCompare(b.id)),
+          [...relations.values()].filter(e=>claimIds.has(e.from_claim_id)||claimIds.has(e.to_claim_id)).sort((a,b)=>a.id.localeCompare(b.id)),
+          [...links.values()].filter(l=>claimIds.has(l.claim_id)).sort((a,b)=>a.claim_id.localeCompare(b.claim_id)),
+          [...sources.values()].filter(c=>careIds.has(c.id)).sort((a,b)=>a.id.localeCompare(b.id)),
+          [...removedTargets].filter(id=>claimIds.has(id)).sort(),[...removedSources].filter(id=>careIds.has(id)).sort(),
+        ])).digest("hex"));
+      }
+    }
     for (const candidate of episodeClaims?.claims || []) {
       const fresh = claims.get(candidate.id);
       // Both readers return stored claim objects. Compare every supplied field;

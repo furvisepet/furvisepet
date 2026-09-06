@@ -8,6 +8,7 @@ import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 
 import type { EpisodeReferences, EpisodeResult } from "./episode-contract.ts";
 import { episodeMembershipSources, type EpisodeSource } from "./episode-membership.ts";
+import { recordedInventory, inventoryMembersMatch, classifiedRecordedSource } from "./recorded-inventory.ts";
 import type { EpisodeClaimValidation } from "./history-retrieval.ts";
 export type { EpisodeItem, EpisodeReferences, EpisodeResult } from "./episode-contract.ts";
 export { attachEpisodeReferences } from "./episode-contract.ts";
@@ -103,8 +104,14 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     const readArgs={p_pet_id:context.pet.id,p_keys:keys(result.topic),p_episode_ids:episodeIds?.length ? episodeIds : null,
       p_from: refs ? null : result.from, p_to: refs ? null : result.to};
     const read = await db.rpc("read_ask_episode_sources", readArgs).abortSignal(signal());
+    const inventory = refs ? null : recordedInventory(read.data?.recorded_inventory, context.owner.userId, context.pet.id,
+      keys(result.topic), result.from, result.to);
+    const inventoryMode = !refs && read.data?.recorded_inventory !== undefined;
+    if (inventoryMode && !inventory) result.reasons.push("recorded_inventory_uncertified");
     if (read.error || !read.data || !Array.isArray(read.data.episodes) || !Array.isArray(read.data.sources)
-      || read.data.episodes.length>9 || read.data.sources.length>72) throw new Error("episode_read_unavailable");
+      || read.data.episodes.length>(inventory ? 32 : 9) || read.data.sources.length>72) throw new Error("episode_read_unavailable");
+    const revision = (data: typeof read.data) => [data.episodes,data.sources,data.membership_contract,data.memberships,data.claims,data.recorded_inventory ? { ...data.recorded_inventory, snapshot: null } : null];
+    const initialRevision = hash(revision(read.data));
     const episodes = read.data.episodes as EpisodeRow[];
     const membership = episodeMembershipSources(read.data, episodes, read.data.sources as Source[], context.owner.userId, context.pet.id);
     const sources = membership.sources;
@@ -122,7 +129,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       const members = sources.filter(s => s.episode_id === e.id);
       return membership.invalid.has(e.id) || members.length > 8 || members.some(s => s.content_omitted || typeof s.note !== "string");
     }).map(e => e.id));
-    if (incomplete.size || episodes.length>8) result.reasons.push("episode_input_bound");
+    if (incomplete.size || (!inventory && episodes.length>8)) result.reasons.push("episode_input_bound");
     // Unlinked notes remain unknown grouping, even if they say "separate": two
     // copies of that note may describe one event. Never count source IDs as groups.
     let candidates: Source[] = sources.filter(s=>!incomplete.has(s.episode_id!) && !s.content_omitted && typeof s.note === "string").slice(0,64);
@@ -131,13 +138,19 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     const claimValidation: EpisodeClaimValidation = {claims:candidates.flatMap(s=>s.claim ? [s.claim] : []),verified:new Map()};
     const effective=await effectiveCandidates(candidates.filter(s=>!s.claim),new Set(context.eligiblePets.filter(p=>p.user_id===context.owner.userId).map(p=>p.id)),[context.pet.id],context.owner.userId,db,coverage,deadline,claimValidation);
     const recheck=await db.rpc("read_ask_episode_sources",readArgs).abortSignal(signal());
-    const revision = (data: typeof read.data) => [data.episodes,data.sources,data.membership_contract,data.memberships,data.claims];
-    if (recheck.error || !recheck.data || hash(revision(read.data))!==hash(revision(recheck.data))) throw new Error("episode_changed_during_read");
+    if (recheck.error || !recheck.data || initialRevision!==hash(revision(recheck.data))) throw new Error("episode_changed_during_read");
     if (membership.memberships) {
       const priorGraph = claimValidation.revision;
       await effectiveCandidates(candidates.filter(s=>!s.claim),new Set(context.eligiblePets.filter(p=>p.user_id===context.owner.userId).map(p=>p.id)),
         [context.pet.id],context.owner.userId,db,coverage,deadline,claimValidation);
       if (!priorGraph || priorGraph !== claimValidation.revision) throw new Error("episode_correction_changed_during_read");
+    }
+    if (inventory) {
+      // The transactionally advanced revision brackets ALL graph reads, including
+      // the second closure pass. Stable SQL calls share their statement snapshot.
+      const finalRead = await db.rpc("read_ask_episode_sources",readArgs).abortSignal(signal());
+      if (finalRead.error || !finalRead.data || initialRevision !== hash(revision(finalRead.data)))
+        throw new Error("recorded_inventory_changed_during_read");
     }
     result.provenance=coverage.provenance;
     if (coverage.corrections==="unavailable" || coverage.reasons.includes("unlinked_correction_uncertain")) throw new Error("episode_correction_unavailable");
@@ -168,7 +181,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
         && new RegExp(`\\b${p.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}\\b`,"i").test(s.note));
       if (namesAnotherPet) { result.coverage="ambiguous"; result.reasons.push("multi_pet_source_grouping_unknown"); continue; }
       const b=boundary(s,context.pet.name,result.topic);
-      if (!b || s.deleted_at || (result.from && (s.occurred_at<result.from || s.occurred_at>=result.to!))) continue;
+      if (!b || s.deleted_at || (result.from && (Date.parse(s.occurred_at)<Date.parse(result.from) || Date.parse(s.occurred_at)>=Date.parse(result.to!)))) continue;
       const ep=episodes.find(e=>e.id===s.episode_id);
       if (!ep || ["superseded","archived","dismissed"].includes(ep.status)) continue;
       const id=`episode:${ep.id}`;
@@ -179,17 +192,33 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     for (const [id,g] of sorted) {
       // A second generic report could be another description of the same event.
       if (result.items.length && !g.separate) { result.coverage="ambiguous"; result.reasons.push("separate_boundary_unknown"); continue; }
-      if (result.items.length===8) { result.reasons.push("display_bound"); break; }
+      if (!inventory && result.items.length===8) { result.reasons.push("display_bound"); break; }
       const members=g.episode ? candidates.filter(s=>s.episode_id===g.episode!.id) : [g.source];
       const sourceVersions=members.sort((a,b)=>a.id.localeCompare(b.id)).map(s=>[sourceVersion(s),effectiveIds.has(s.id),coverage.provenance.filter(p=>p.sourceId===(s.evidenceId || `care:${s.id}`))]);
       const version=membership.memberships ? hash([sourceVersions,membership.memberships.filter(m=>m.episode_id===g.episode?.id),
-        sources.filter(s=>s.episode_id===g.episode?.id).map(s=>s.claim || null),claimValidation.revision]) : hash(sourceVersions);
+        sources.filter(s=>s.episode_id===g.episode?.id).map(s=>[s.claim || null,claimValidation.sourceRevisions?.get(s.evidenceId || `care:${s.id}`)])]) : hash(sourceVersions);
       result.items.push({id,sourceId:g.source.evidenceId || `care:${g.source.id}`,sourceVersion:version,episodeVersion:g.episode ? hash(g.episode) : null,
         startedAt:g.source.occurred_at,sequenceNumber:g.episode?.sequence_number || null,recurrenceOf:g.episode?.recurrence_of || null,
         ordinal:result.items.length+1,reportedOccurrences:g.occurrences});
     }
     if (ambiguous.size) { result.coverage="ambiguous"; result.reasons.push("conflicting_episode_boundaries"); }
     result.supportedCount=result.items.length;
+    if (inventory) {
+      const complete = result.coverage === "partial" && incomplete.size === 0 && ambiguous.size === 0
+        && inventory.episodeCount === episodes.length && result.items.length === episodes.length
+        && new Set(episodes.map(e => e.id)).size === episodes.length
+        && inventoryMembersMatch(inventory,membership.memberships)
+        && sources.every(s => effectiveIds.has(s.id) && classifiedRecordedSource(s,context.pet.name,result.topic,membership.memberships!))
+        && result.items.every(i => Date.parse(episodes.find(e => `episode:${e.id}` === i.id)?.started_at || "") === Date.parse(i.startedAt));
+      if (complete) {
+        result.exactTotal = result.items.length;
+        result.coverage = "recorded_complete";
+        result.recordedInventory = { revision:inventory.revision, snapshot:inventory.snapshot, scope:"care_claim_episode_register" };
+        result.reasons = ["recorded_register_only_not_lifetime_coverage"];
+      } else result.reasons.push("recorded_inventory_semantics_unknown");
+      if (result.items.length > 8) result.reasons.push("display_bound");
+      result.items = result.items.slice(0,8);
+    }
     if (refs) {
       const ordinal=follow?.ordinal;
       const index=ordinal === "last" ? refs.items.length-1 : ["first","second","third","fourth","fifth","sixth","seventh","eighth"].indexOf(ordinal || "");
@@ -210,7 +239,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       conversationId:context.conversationId,petId:context.pet.id,topic:result.topic,from:result.from,to:result.to,coverage:"partial",exactTotal:null,items:result.items,selectedId:null};
     return done();
   } catch(error) {
-    result.items=[]; result.supportedCount=0; result.coverage="unavailable";
+    result.items=[]; result.supportedCount=0; result.exactTotal=null; result.coverage="unavailable";
     result.reasons.push(error instanceof Error ? error.message : "episode_read_unavailable");
     return done();
   }
