@@ -765,7 +765,9 @@ function cleanText(value) {
   // Quotation marks never exempt model output from server safety governance.
   return String(value || "").split(/("(?:[^"\\]|\\.)*")/g).map((part, index) => index % 2 ? part : part
     .replace(/```[\s\S]*?```/g, " ")
-    .replace(/[*_`#>]/g, "")
+    .replace(/(\*\*|__|`)([^\n]+?)\1/g, "$2")
+    .replace(/(?<!\w)[*_]([^\n]+?)[*_](?!\w)/g, "$1")
+    .replace(/^\s*(?:#{1,6}\s+|>\s+)/gm, "")
     .replace(/^\s*[-+]\s+/gm, "")
     .replace(/\s+/g, " ")).join("").trim();
 }

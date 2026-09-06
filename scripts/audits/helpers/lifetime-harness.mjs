@@ -148,7 +148,7 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? 'milo' : null, currentMessage: question, dateRange });
@@ -156,14 +156,24 @@ async function exercise(question, { petId = 'milo', rows = decisive, messages, d
   const interpretationRequests = [];
   if (interpretationProposal) {
     const { interpretAskQuestion } = await import('../../../app/lib/intelligence/interpret-ask.ts');
-    const interpretation = await interpretAskQuestion({ context, model: 'mock-interpretation', client: { responses: { async create(request) {
+    const interpretation = await interpretAskQuestion({ context, model: interpretationModel, client: { responses: { async create(request) {
       interpretationRequests.push(request);
-      return { status: 'completed', output_text: JSON.stringify(interpretationProposal) };
+      return interpretationResponse ? await interpretationResponse(request) : { status: 'completed', output_text: JSON.stringify(interpretationProposal), usage: { input_tokens: 500, output_tokens: 200, total_tokens: 700 } };
     } } } });
     if (interpretation.readOnly) {
       authoritativePetIds = interpretation.petIds;
       if (interpretation.petIds[0] && interpretation.petIds[0] !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
         petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? 'milo' : null, currentMessage: question });
+    }
+    if (!interpretation.readOnly) {
+      const decision = await resolveAskTurnSubject({ message: question, pets: context.eligiblePets, ownerId,
+        selectedPetId: context.pet.id, recentConversation: context.conversationTurns,
+        extractFrame: async () => interpretation.frame });
+      assert.ok(!decision.resolution.requiresClarification && decision.resolution.petId, 'route subject gate must allow this fixture');
+      authoritativePetIds = decision.resolution.petIds;
+      authoritativeSemanticFrame = decision.frame;
+      if (decision.resolution.petId !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
+        petId: decision.resolution.petId, conversationId: messages ? 'chat' : null, conversationPetId: petId, currentMessage: question });
     }
     context.askInterpretation = interpretation;
   }
@@ -173,7 +183,7 @@ async function exercise(question, { petId = 'milo', rows = decisive, messages, d
   const requests = [];
   globalThis.__historyAuditAfterGeneration = afterGeneration;
   globalThis.__historyAuditClient = { responses: { async create(request) {
-    requests.push(request); return { output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
+    requests.push(request); if (providerResponse) return providerResponse(request); return { usage: { input_tokens: 1200, output_tokens: 400, total_tokens: 1600 }, output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
   } } };
   let result;
   if (history) {

@@ -175,7 +175,7 @@ test('episode and status source punctuation survives final presentation and relo
   const r = await run('Has his vomiting stopped?', { operation: 'status', topic: 'vomiting', terms: ['vomit'] }, { rows: [quoted] });
   const saved = persisted(r, 2);
   const loaded = parseAskConversationResponse(JSON.parse(JSON.stringify(saved.response_data)));
-  assert.ok(loaded.directAnswer.includes(JSON.stringify(quoted.note)), loaded.directAnswer);
+  assert.ok(loaded.directAnswer.includes(quoted.note), loaded.directAnswer);
   assert.ok(loaded.directAnswer.includes('2026-08-19'));
   assert.deepEqual(loaded.sections, []); noWrites(r);
 });
@@ -208,7 +208,7 @@ test('a summary model cannot smuggle in an exact lifetime total', async t => {
   const r = await run('Summarize his stomach history.', {}, { rows: [row], answer: 'Milo had exactly 99 separate episodes. This is his complete lifetime history.' });
   assert.doesNotMatch(r.result.reasoning.answer.summary, /99|complete lifetime history/);
   assert.match(r.result.reasoning.answer.summary, /soft stool for two days/);
-  assert.ok(r.result.answerValidation.repairs.includes('withheld_model_history_total'));
+  assert.ok(r.result.answerValidation.repairs.includes('grounded_history_in_source_reports'));
   noWrites(r);
 });
 test('a reloaded episode cannot survive deletion, changed source or reassignment', async t => {
@@ -233,4 +233,125 @@ test('conflicting unlinked reports remain uncertain and a failed correction read
   assert.equal(unavailable.context.askHistory.entries.length, 0);
   assert.match(unavailable.result.reasoning.answer.summary, /couldn't check/);
   noWrites(uncertain); noWrites(unavailable);
+});
+
+for (const unsupported of [
+  'Milo has had 99 bouts of vomiting over his lifetime.',
+  'Milo has never vomited.',
+  'Vomiting has occurred on ninety-nine occasions altogether.',
+  'He has been free of vomiting throughout his life.',
+  'There is not a single vomiting event anywhere in his record.',
+  'His medical history contains a grand total of 87 stomach attacks.',
+]) test(`source grounding removes an unsupported assertion: ${unsupported}`, async t => {
+  clock(t);
+  const r = await run('Give me the background on his stomach.', {}, { rows: [row], answer: unsupported,
+    providerOverrides: { relevantContextIds: ['care:old-stomach'], answerSections: [{ heading: 'History', items: [unsupported] }] } });
+  assert.equal(r.result.answerValidation.valid, true);
+  const final = parseAskConversationResponse(JSON.parse(JSON.stringify(persisted(r, 2).response_data)));
+  assert.ok(!JSON.stringify(final).includes(unsupported));
+  assert.match(final.directAnswer, /2011-02-01 note reports: Milo had soft stool for two days\./);
+  noWrites(r);
+});
+
+test('durations, doses, weights and attributed quantities retain their source meaning through reload', async t => {
+  clock(t);
+  for (const note of ['Milo had soft stool for two days.', 'Milo weighed 2.7 kg.', 'Milo received 0.25 mg twice daily for 3 days.',
+    'The owner reported 99 bouts before adoption; this number was not verified.', 'No vomiting was reported during the two-day observation.']) {
+    const r = await run('What does his saved health history say?', { terms: [], topic: 'health' }, {
+      rows: [care('quantity', 'milo', '2011-02-01', 'symptom', note)], answer: note === row.note ? 'Milo had exactly two days of soft stool.' : note });
+    const final = parseAskConversationResponse(JSON.parse(JSON.stringify(persisted(r, 2).response_data)));
+    assert.ok(final.directAnswer.includes(note), final.directAnswer);
+    assert.doesNotMatch(final.directAnswer, /can't establish an exact total|Which symptom/);
+    assert.ok(!r.result.answerValidation.repairs.includes('withheld_model_history_total'));
+  }
+});
+
+test('mixed observations retrieve the requested period and retain independently authorized care updates', async t => {
+  clock(t);
+  const question = 'Milo vomited once this morning. How does that compare with his vomiting in 2011?';
+  const observation = 'Milo vomited once this morning.';
+  const providerOverrides = { careActions: [{ action: 'create_entry', category: 'symptom', title: 'Vomiting', details: observation,
+    severity: 'routine', confidence: 1, relatedRecordId: null }] };
+  for (const operation of ['update', 'comparison']) {
+    const r = await run(question, { operation, readOperation: 'comparison', subject: 'explicit', petNames: ['Milo'], topic: 'vomiting comparison', terms: ['vomit'], from: '2011-01-01', to: '2012-01-01' }, { providerOverrides });
+    assert.equal(r.context.askInterpretation.readOnly, false);
+    assert.ok(r.context.askHistory.entries.some(entry => entry.id === first.id));
+    assert.ok(r.serialized.includes(first.note));
+    assert.ok(r.result.acceptedCareActions.some(action => action.details.includes(observation)), JSON.stringify(r.result.acceptedCareActions));
+    assert.equal(r.result.reasoning.evidenceContract.scope.readOnlyRecall, false);
+    assert.match(persisted(r, 2).response_data.directAnswer, /2011-02-01/);
+    assert.ok(persisted(r, 2).response_data.directAnswer.includes(observation));
+  }
+});
+
+test('dated status reports preserve improvement, resolution and later recurrence without certifying today', async t => {
+  clock(t);
+  const improvement = care('better', 'milo', '2026-08-20', 'symptom', 'Milo is vomiting less often but still vomited this morning.');
+  const resolution = care('resolved', 'milo', '2026-09-04', 'symptom', 'Milo has had no more vomiting since August 20. The vet recorded the vomiting episode as resolved.');
+  const recurrence = care('recurred', 'milo', '2026-09-05', 'symptom', 'Milo vomited again this morning.');
+  for (const rows of [[improvement], [resolution], [resolution, recurrence]]) {
+    const r = await run('Where do things stand with his vomiting?', { operation: 'status', topic: 'vomiting', terms: ['vomit'] }, {
+      rows: [...rows, care('wrong', 'luna', '2026-09-06', 'symptom', 'Luna is vomiting blood.'), care('unrelated', 'milo', '2026-09-06', 'symptom', 'Milo has an itchy ear.')], answer: 'Milo is fully recovered.' });
+    const final = parseAskConversationResponse(JSON.parse(JSON.stringify(persisted(r, 2).response_data)));
+    for (const row of rows) assert.ok(final.directAnswer.includes(row.note));
+    assert.doesNotMatch(final.directAnswer, /Luna|itchy|fully recovered|don't establish whether/);
+    assert.match(final.directAnswer, /verified update about how things are now/);
+    assert.ok(!final.directAnswer.includes('"'), 'status does not force a quote dump');
+    if (rows.length === 2) assert.ok(final.directAnswer.indexOf('2026-09-05') < final.directAnswer.indexOf('2026-09-04'));
+    noWrites(r);
+  }
+});
+
+test('exact source quotations remain exact and final presentation cannot undo downstream safety', async t => {
+  clock(t);
+  const source = care('quote', 'milo', '2026-09-04', 'symptom', 'Milo: 2.7 kg, test_A #2 >1.5; no vomiting today.');
+  const r = await run('Quote the latest vomiting report verbatim.', { operation: 'recall', terms: ['vomit'] }, { rows: [source], answer: 'Milo never vomited.' });
+  const final = persisted(r, 2).response_data;
+  assert.ok(final.directAnswer.includes(JSON.stringify(source.note)));
+  const safety = { ...final, summary: 'Contact an emergency veterinarian now.', directAnswer: 'Contact an emergency veterinarian now.', safetyNote: 'Emergency guidance.' };
+  assert.deepEqual(restoreAskEvidencePresentation(safety, r.result.reasoning.evidenceContract, r.context.episodeResult), safety);
+  const summaryOnlySafety = { ...final, summary: 'Contact an emergency veterinarian now.' };
+  assert.deepEqual(restoreAskEvidencePresentation(summaryOnlySafety, r.result.reasoning.evidenceContract, r.context.episodeResult), summaryOnlySafety);
+  const forged = structuredClone(r.result.reasoning.evidenceContract);
+  assert.deepEqual(restoreAskEvidencePresentation(safety, forged, r.context.episodeResult), safety);
+});
+
+test('actual provider admission reconciles mocked usage and enforces two calls across failure and retries', async t => {
+  clock(t);
+  const { runAdmittedAiOperation } = await import('../../app/lib/ai/usage-guard/admission.ts');
+  const { MemoryAiGuardTestStore } = await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
+  const { OPENAI_ANALYSIS_MODEL } = await import('../../app/lib/ai/config.ts');
+  const { AI_FEATURE_POLICIES } = await import('../../app/lib/ai/usage-guard/features.ts');
+  assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls, 2);
+  const store = new MemoryAiGuardTestStore();
+  let attempt = 0;
+  const admitted = action => runAdmittedAiOperation({ store, feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL,
+    env: { NODE_ENV: 'test' }, payload: { question: 'History' }, userId: ownerId, requestId: `review-attempt-${++attempt}` }, action);
+  const opts = { interpretationModel: OPENAI_ANALYSIS_MODEL, rows: [row] };
+  const success = () => run('Summarize his stomach history.', {}, opts);
+  await admitted(success);
+  assert.equal(store.getSnapshot('2026-09-04').calls, 2);
+  const completedCosts = store.getSnapshot('2026-09-04').costMicrodollars;
+  assert.ok(completedCosts > 0);
+  assert.ok([...store.calls.values()].every(call => call.state === 'completed'), 'both usage responses reconciled');
+  // Failure before interpretation starts releases the queued reservation entirely.
+  await assert.rejects(admitted(async () => { throw Error('before provider'); }), /before provider/);
+  assert.equal(store.getSnapshot('2026-09-04').calls, 2);
+  for (const [label, overrides, calls] of [
+    ['interpretation failure', { interpretationResponse: async () => { throw Error('mock provider unavailable'); } }, 1],
+    ['invalid interpretation', { interpretationResponse: async () => ({ output_text: '{}', usage: { input_tokens: 500, output_tokens: 20, total_tokens: 520 } }) }, 1],
+    ['answer failure', { providerResponse: async () => { throw Error('mock provider unavailable'); } }, 2],
+    ['repair exhaustion', { providerResponse: async () => ({ output_text: '{}', usage: { input_tokens: 1200, output_tokens: 20, total_tokens: 1220 } }) }, 2],
+  ]) {
+    const before = store.getSnapshot('2026-09-04').calls;
+    await assert.rejects(admitted(() => run('Summarize his stomach history.', {}, { ...opts, ...overrides })), error => {
+      if (label === 'repair exhaustion') return error.code === 'AI_PROVIDER_BUDGET_EXHAUSTED' && error.status === 503;
+      return error.stage === 'primary_provider_failed';
+    }, label);
+    assert.equal(store.getSnapshot('2026-09-04').calls - before, calls, label);
+    assert.ok([...store.calls.values()].every(call => call.started), 'no unstarted reservations leak');
+    assert.ok([...store.operations.values()].some(operation => operation.state === 'failed'));
+    await admitted(success); // A new attempt remains usable after each failure.
+    assert.equal(store.getSnapshot('2026-09-04').calls - before, calls + 2);
+  }
 });

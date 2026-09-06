@@ -62,9 +62,9 @@ function boundary(source: Source, petName: string, topic: string) {
 export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const message = context.currentMessage;
   const interpretation = context.askInterpretation;
-  const follow = interpretation ? interpretation.operation === "episode" && interpretation.ordinal
+  const follow = interpretation ? (interpretation.readOperation ?? interpretation.operation) === "episode" && interpretation.ordinal
     ? { ordinal: interpretation.ordinal, ambiguous: Boolean(interpretation.clarification) } : null : episodeFollowUp(message);
-  if (interpretation ? !["count", "episode"].includes(interpretation.operation)
+  if (interpretation ? !["count", "episode"].includes((interpretation.readOperation ?? interpretation.operation))
     : (!follow && !isEpisodeListRequest(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
   const { topic, ambiguous: ambiguousTopic } = interpretation ? { topic: interpretation.episodeTopic, ambiguous: false } : topicOf(message);
   const plan = interpretation ? interpretation.history : planHistoricalQuery(message);

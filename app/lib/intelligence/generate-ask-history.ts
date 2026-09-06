@@ -4,6 +4,7 @@ import { createAskEvidenceContract } from "./ask-evidence.ts";
 import { retrieveAskHistory } from "./history-retrieval.ts";
 import { runFurviseIntelligence } from "./run-intelligence.ts";
 import { retrieveEpisodeHistory } from "./episode-history.ts";
+import { rememberValidatedEvidencePresentation } from "./ask-evidence-presentation.ts";
 import { episodeAnswer, type EpisodeResult } from "./episode-contract.ts";
 
 /** The route's actual generation callback boundary, also exercised with mocked
@@ -27,5 +28,6 @@ export async function generateAskHistoryAnswer({ supabase, ...input }: Omit<Para
       intelligenceResult.reasoning.answer = { ...intelligenceResult.reasoning.answer,...episodeAnswer(context.episodeResult!) };
     }
   }
+  rememberValidatedEvidencePresentation(intelligenceResult.reasoning.evidenceContract, intelligenceResult.reasoning.answer, context.episodeResult);
   return { context, intelligenceResult };
 }

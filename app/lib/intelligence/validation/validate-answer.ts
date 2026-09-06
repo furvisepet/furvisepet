@@ -4,7 +4,7 @@ import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-inte
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
-import { evidenceAnswerPolicy, resolutionStatusAnswer, conversationalHistoryLimitation } from "../ask-evidence.ts";
+import { evidenceAnswerPolicy, resolutionStatusAnswer } from "../ask-evidence.ts";
 import { sourceNoteAnswer } from "../source-note-recall.ts";
 import { episodeAnswer } from "../episode-contract.ts";
 
@@ -34,7 +34,8 @@ export function validateGeneratedAnswer(
     const prose = hasSourceQuote ? "This reports a historical note, not a verified current medical status." : scopedAnswer;
     response.answer = { title: "Furvise", summary: `${urgent ? "Contact an emergency veterinarian now. " : ""}${prose}`, sections: [], safetyNote: null };
     response.suggestedFollowUps = [];
-    const sourceIds = hasSourceQuote ? sourceNote!.sourceIds : [];
+    const sourceIds = hasSourceQuote ? sourceNote!.sourceIds : response.evidenceContract?.interpretation
+      ? response.evidenceContract.represented.filter(span => span.text && scopedAnswer.includes(span.text)).map(span => span.sourceId) : [];
     response.relevantContextIds = sourceIds;
     response.referencedRecords = sourceIds.flatMap(id => {
       const span = response.evidenceContract?.represented.find(span => span.sourceId === id);
@@ -139,8 +140,7 @@ export function validateGeneratedAnswer(
     // Final authority is the provider-independent contract AFTER budgeting.
     response.answer = { title: "Furvise", summary: resolution, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
     response.suggestedFollowUps = [];
-    response.relevantContextIds = [];
-    response.referencedRecords = [];
+    if (!response.evidenceContract?.interpretation) { response.relevantContextIds = []; response.referencedRecords = []; }
     repairs.push("applied_server_resolution_status");
   } else if (context.episodeResult) {
     // Compose after all prose transforms. A model count/list or a prose normalizer
@@ -152,22 +152,20 @@ export function validateGeneratedAnswer(
     response.referencedRecords=[];
     repairs.push("applied_server_episode_result");
   }
-  if (!resolution && !context.episodeResult && !scopedAnswer && response.evidenceContract?.interpretation) {
-    // A narrative summary is not another count authority. Reject common
-    // numeric grouping and exhaustive claims even when phrased outside count intent.
-    const narrative = JSON.stringify(response.answer);
-    if (/\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:separate\s+|recorded\s+|[a-z-]+\s+)?episodes?\b|\b(?:complete|entire|exhaustive)\s+(?:lifetime\s+)?history\b|\b(?:exactly|total of)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(narrative)) {
-      const notes = response.evidenceContract.represented.filter(span => span.sourceType === "care_update").slice(0, 4);
-      response.answer.summary = notes.length ? `Here are the dated reports I could check:\n\n${notes.map(note => `${note.occurredAt?.slice(0, 10) || "Date not recorded"}: ${JSON.stringify(note.text)}`).join("\n\n")}`
-        : "I couldn't verify the saved notes needed to answer that.";
-      response.answer.sections = [];
-      response.suggestedFollowUps = [];
-      repairs.push("withheld_model_history_total");
-    }
-    const limitation = conversationalHistoryLimitation(response.evidenceContract);
-    if (limitation) response.answer.summary += `\n\n${limitation}`;
+  if (!resolution && !context.episodeResult && scopedAnswer && response.evidenceContract?.interpretation) {
+    // Restore complete attributed source text after prose rewriting, retaining
+    // the independent safety directive. Never reuse rejected model prose.
+    response.answer = { title: "Furvise", summary: scopedAnswer, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
+    repairs.push("grounded_history_in_source_reports");
   }
-  const answerText = JSON.stringify(response.answer);
+  let answerText = JSON.stringify(response.answer);
+  if (response.evidenceContract?.interpretation && scopedAnswer) {
+    // A full attributed correction may name the former pet. Check surrounding
+    // assistant prose, without treating that source quotation as subject drift.
+    for (const span of response.evidenceContract.represented) {
+      if (scopedAnswer.includes(span.text)) answerText = answerText.replace(JSON.stringify(span.text).slice(1, -1), "");
+    }
+  }
   const unauthorizedPetNamed = (context.eligiblePets || []).some((pet) => pet.name
     && !authoritativePetIds.includes(pet.id)
     && new RegExp(`\\b${escapeRegex(pet.name)}\\b`, "i").test(answerText));

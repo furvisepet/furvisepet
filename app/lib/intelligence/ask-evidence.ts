@@ -1,3 +1,4 @@
+import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
 import { buildWeightComparison, weightComparisonAnswer } from "./weight-comparison.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
@@ -97,22 +98,23 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const { frame, ...readPlan } = plan;
     void frame; // Extraction is exclusively for independent subject/write governance.
     contract.interpretation = readPlan;
-    const kind: AskEvidenceScope["requestKind"] = plan.operation === "status" ? "resolution_status"
-      : plan.operation === "count" ? "count" : plan.operation === "overview" ? "overview"
-      : plan.operation === "comparison" ? "comparison" : "ordinary";
+    const operation = plan.readOperation ?? plan.operation;
+    const kind: AskEvidenceScope["requestKind"] = operation === "status" ? "resolution_status"
+      : operation === "count" ? "count" : operation === "overview" ? "overview"
+      : operation === "comparison" ? "comparison" : "ordinary";
     contract.scope = { authorizedPetIds: ids, requestedTopic: plan.topic, requestText: context.currentMessage,
       requestedPeriod: { kind: plan.history?.from ? "requested" : "unspecified", surface: plan.history?.from || null },
-      requestKind: kind, readOnlyRecall: plan.readOnly || contract.scope.readOnlyRecall, status: plan.clarification ? "ambiguous" : "resolved",
+      requestKind: kind, readOnlyRecall: plan.readOnly, status: plan.clarification ? "ambiguous" : "resolved",
       resolutionSubject: context.pet.name };
   }
   if (contract.scope.requestKind === "resolution_status") {
     const pet = context.eligiblePets.find(pet => pet.id === ids[0]);
     if (ids.length !== 1 || pet?.name?.toLowerCase() !== contract.scope.resolutionSubject?.toLowerCase()) contract.scope.status = "ambiguous";
   }
-  if (context.episodeResult) { contract.episodes = structuredClone(context.episodeResult); contract.scope.readOnlyRecall = true; }
-  if (context.historyFallback) { contract.historyFallback = context.historyFallback; contract.scope.readOnlyRecall = true; }
+  if (context.episodeResult) { contract.episodes = structuredClone(context.episodeResult); if (!context.askInterpretation) contract.scope.readOnlyRecall = true; }
+  if (context.historyFallback) { contract.historyFallback = context.historyFallback; if (!context.askInterpretation) contract.scope.readOnlyRecall = true; }
   if (context.askHistory) {
-    contract.scope.readOnlyRecall = true;
+    if (!context.askInterpretation) contract.scope.readOnlyRecall = true;
     const history = context.askHistory;
     contract.history = structuredClone(history.coverage);
     contract.sources = contract.sources.filter(source => source.source !== "care_entries");
@@ -174,12 +176,8 @@ export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringif
 export function resolutionStatusAnswer(contract: AskEvidenceContract): string | null {
   if (contract.scope.requestKind !== "resolution_status") return null;
   if (contract.interpretation) {
-    const notes = contract.represented.filter(span => span.sourceType === "care_update" && span.occurredAt)
-      .sort((a, b) => b.occurredAt!.localeCompare(a.occurredAt!)).slice(0, 3);
     if (contract.scope.status === "ambiguous" || !contract.scope.requestedTopic.trim()) return "Which issue do you mean?";
-    const limitation = conversationalHistoryLimitation(contract);
-    return notes.length ? `${notes.map(note => `${note.occurredAt!.slice(0, 10)}: ${JSON.stringify(note.text)}`).join("\n\n")}\n\nThese are dated reports. They don't establish whether ${contract.scope.resolutionSubject || "your pet"}'s ${contract.scope.requestedTopic} has resolved now. ${limitation}`
-      : `I couldn't find a dated report that establishes whether this has resolved. ${limitation}`;
+    return attributedHistoryAnswer(contract, true);
   }
   const uncertainty = "I can't establish whether the hiding has ended now from the available dated evidence.";
   if (contract.scope.status !== "resolved" || contract.scope.authorizedPetIds.length !== 1 || contract.scope.requestedTopic !== "hiding") {
@@ -213,7 +211,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
   const resolution = resolutionStatusAnswer(contract);
   if (resolution) return resolution;
   const kind = contract.scope.requestKind;
-  if (contract.interpretation?.readOnly) {
+  if (contract.interpretation && (contract.interpretation.readOnly || contract.history)) {
     if (contract.scope.status === "ambiguous") return "Which pet, issue or earlier episode do you mean?";
     if (contract.history && !contract.represented.some(span => span.sourceType === "care_update")) {
       return contract.history.retrieval === "unavailable" || contract.history.corrections === "unavailable"
@@ -223,8 +221,9 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
     if (contract.history?.reasons.includes("unlinked_correction_uncertain")) {
       return "A later correction may change how these reports fit together. I can't reliably attribute the affected reports until that correction is connected to the original record. Other dated notes can still be reviewed separately.";
     }
-    // Counts remain independently computed by episodeAnswer. For ordinary
-    // recall/summary/comparison the model may answer the supported portion.
+    // Arbitrary narrative is not an evidence claim. Only complete source reports
+    // and independently computed episode results have factual authority.
+    if (kind !== "count" && contract.history) return attributedHistoryAnswer(contract);
     if (kind !== "count") return null;
   }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
@@ -265,5 +264,50 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
   if (history.retrieval === "unavailable") return "Some saved records couldn't be loaded. This covers only the notes I could check.";
   if (history.reasons.includes("unlinked_correction_uncertain")) return "A later correction may affect this history, but I couldn't reliably connect it to the original report.";
   if (history.retrieval === "partial" || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "There are more saved notes than I could include here. This is part of the history; a narrower topic or date range will let me check further.";
-  return "This covers the matching saved notes I could verify, not necessarily every event in their life.";
+  return contract.scope.requestKind === "resolution_status" ? ""
+    : "This covers the matching saved notes I could verify, not necessarily every event in their life.";
+}
+
+/** A bounded extractive claim mechanism shared by status, recall and comparison.
+ * Identity is necessary but insufficient: the claim is the entire represented
+ * source text, attributed to its record. No model prose or inferred grouping is
+ * admitted. Full spans preserve negation, quantities and qualifications together.
+ */
+export function attributedHistoryAnswer(contract: AskEvidenceContract, status = false): string {
+  if (contract.history?.corrections === "unavailable" || contract.history?.reasons.includes("unlinked_correction_uncertain")) {
+    return `I couldn't reliably attribute these reports. ${conversationalHistoryLimitation(contract)}`;
+  }
+  const terms = contract.interpretation?.history?.terms || [];
+  const notes = contract.represented.filter(span => span.sourceType === "care_update"
+    && contract.scope.authorizedPetIds.includes(span.petId)
+    && span.start === 0 && span.end === span.text.length && span.text.trim()
+    && (!terms.length || terms.some(term => span.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())))
+    && !contract.losses.some(loss => loss.sourceId === span.sourceId)
+    && contract.sources.some(source => source.petId === span.petId && source.loadedIds.includes(span.sourceId)
+      && source.status !== "not_loaded")
+    && !contract.history?.provenance.some(source => source.sourceId === span.sourceId
+      && !["effective_linked", "effective_replacement", "unverified_legacy"].includes(source.status)))
+    .sort((a, b) => (b.occurredAt || "").localeCompare(a.occurredAt || ""));
+  if (!notes.length) return contract.history?.retrieval === "unavailable"
+    ? "I couldn't check the saved history just now. Please try again."
+    : "I couldn't find matching saved notes for that question. That doesn't mean it never happened.";
+  // A separate per-pet limit prevents one pet from crowding a comparison out.
+  const selected = contract.scope.authorizedPetIds.flatMap(id => notes.filter(note => note.petId === id).slice(0, status ? 3 : 4));
+  const quote = /\b(?:quote|verbatim|exact wording)\b/i.test(contract.scope.requestText);
+  const reports = selected.map(note => {
+    const date = note.occurredAt?.slice(0, 10) || "undated";
+    return `The ${date} note reports: ${quote ? JSON.stringify(note.text) : note.text}`;
+  });
+  if (contract.interpretation && !contract.interpretation.readOnly) {
+    const assertions = analyzeOwnerAssertions(contract.scope.requestText).assertionSpans;
+    const current = splitSentencesPreservingFacts(contract.scope.requestText).filter(sentence => !sentence.endsWith("?")
+      && assertions.some(assertion => sentence.includes(assertion.text))
+      && (!terms.length || terms.some(term => sentence.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
+    if (current.length) reports.unshift(`You just reported: ${current.join(" ")} For comparison, here are the dated reports.`);
+  }
+  const limitation = conversationalHistoryLimitation(contract);
+  if (status) reports.push("These reports describe the issue on those dates. I don't have a verified update about how things are now.");
+  if (notes.length > selected.length) reports.push("These are selected reports; there are more matching notes to review.");
+  if (limitation) reports.push(limitation);
+  return reports.join("\n\n");
 }

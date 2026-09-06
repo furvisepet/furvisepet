@@ -9,12 +9,12 @@ const errors = [];
 window.addEventListener('error', event => errors.push(event.message));
 window.addEventListener('unhandledrejection', event => errors.push(String(event.reason)));
 const quote = 'Milo weighed 2.7 kg; test_A #2 was >1.5, not normal. <script>alert(1)</script>';
-const summary = `Milo had soft stool for two days in February 2011.\n\n2014-07-09: ${JSON.stringify(quote)}\n\nSome saved records couldn't be loaded. This covers only the notes I could check.`;
+const summary = `Milo had soft stool for two days in February 2011.\n\nThe 2014-07-09 note reports: ${quote}\n\nSome saved records couldn't be loaded. This covers only the notes I could check.`;
 try {
   const saved = buildAskConversationResponse({ title: 'Furvise', summary, sections: [], safetyNote: null });
   localStorage.setItem('ask-synthetic-reload', JSON.stringify(saved));
   const reloaded = parseAskConversationResponse(JSON.parse(localStorage.getItem('ask-synthetic-reload')));
-  if (!reloaded || !reloaded.directAnswer.includes(JSON.stringify(quote))) throw Error('Source quote changed during serialization/reload');
+  if (!reloaded || !reloaded.directAnswer.includes(quote)) throw Error('Source report changed during serialization/reload');
   flushSync(() => createRoot(document.getElementById('root')).render(h(AskAnswerText, { text: reloaded.directAnswer })));
   const paragraphs = [...document.querySelectorAll('#root p')];
   if (paragraphs.length !== 3) throw Error('Expected three connected answer paragraphs');
