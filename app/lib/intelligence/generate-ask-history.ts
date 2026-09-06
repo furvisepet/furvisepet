@@ -9,15 +9,20 @@ import { episodeAnswer, type EpisodeResult } from "./episode-contract.ts";
 
 /** The route's actual generation callback boundary, also exercised with mocked
  * provider/database dependencies. generationInput is not a second authority. */
-export async function generateAskHistoryAnswer({ supabase, ...input }: Omit<Parameters<typeof runFurviseIntelligence>[0], "evidenceContract"> & { supabase: SupabaseClient }) {
+export type AskHistoryStage = "history_retrieval" | "episode_retrieval" | "answer_generation" | "episode_revalidation" | "final_presentation";
+export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: Omit<Parameters<typeof runFurviseIntelligence>[0], "evidenceContract"> & { supabase: SupabaseClient; onStage?: (stage: AskHistoryStage) => void }) {
   const petIds = input.authoritativePetIds ?? [input.context.pet.id];
+  onStage?.("history_retrieval");
   let context = await retrieveAskHistory(input.context, supabase, petIds);
+  onStage?.("episode_retrieval");
   context = await retrieveEpisodeHistory(context, supabase, petIds);
+  onStage?.("answer_generation");
   const intelligenceResult = await runFurviseIntelligence({ ...input, context,
     evidenceContract: createAskEvidenceContract(context, petIds) });
   if (context.episodeResult) {
     // Generation can take seconds. Revalidate after it, before returning a list
     // or references for display/persistence. Never silently substitute a new list.
+    onStage?.("episode_revalidation");
     const fresh = await retrieveEpisodeHistory(context,supabase,petIds);
     const signature = (value: EpisodeResult | undefined) => JSON.stringify(value && {
       ...value, recordedInventory:value.recordedInventory && {...value.recordedInventory,snapshot:null},
@@ -28,6 +33,7 @@ export async function generateAskHistoryAnswer({ supabase, ...input }: Omit<Para
       intelligenceResult.reasoning.answer = { ...intelligenceResult.reasoning.answer,...episodeAnswer(context.episodeResult!) };
     }
   }
+  onStage?.("final_presentation");
   rememberValidatedEvidencePresentation(intelligenceResult.reasoning.evidenceContract, intelligenceResult.reasoning.answer, context.episodeResult);
   return { context, intelligenceResult };
 }

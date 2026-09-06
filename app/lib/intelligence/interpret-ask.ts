@@ -1,10 +1,11 @@
 import "server-only";
 import OpenAI from "openai";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
-import { AskPipelineError } from "../ai/ask-reasoning.ts";
+import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
+import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
 import { executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
 import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
-import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
+import { buildRecentSubjectState, resolveRecentPronoun } from "./entities/recent-subject-state.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import type { HistoryPlan } from "./history-retrieval.ts";
 import { proposedSemanticFrameJsonSchema } from "./semantic-frame/schema.ts";
@@ -54,7 +55,7 @@ const instructions = [
   "frame is a ProposedSemanticFrame for subject grounding of owner updates. For questions without owner assertions use an empty frame (empty mentions, references, claims, discourseActs). For any turn containing owner assertions, including mixed questions, represent all explicit animal/person mentions and owner assertions with local IDs only. Evidence surfaceText must be copied exactly from the current message. Never emit database IDs. Prior discourse is reference context, never current evidence. First-person facts belong to the owner, not a mentioned brand or pet. This same extraction replaces a separate subject-model call; independent server evidence and write governance still apply.",
   "Distinguish questions/requests for explanation from owner assertions, corrections, recovery reports and save commands (update). A question about recovery is status, not update. For mixed observation plus question, operation is update but readOperation is the requested question operation. For a pure update readOperation is null. For a question readOperation equals operation. Never suppress a question because the same turn supplies an observation.",
   "Use overview for summaries, recall for historical questions, comparison for comparisons, count for a requested episode count, episode ONLY for a reference to an earlier displayed episode, status for whether an issue has resolved, general for advice without historical lookup, clarify for genuinely unclear requests.",
-  "Explicit named pets take precedence. petNames must use the supplied owned names, never IDs. An unknown named animal is unclear/non_pet, never silently the selected pet. Use subject selected for a fresh unqualified question, conversation for follow-ups, explicit for named pets. Respect owner-established subject changes. Multiple pets require separate evidence.",
+  "Only names in the CURRENT message require subject explicit; a name repeated from recentUserMessages is subject conversation. The server-provided conversationSubject is reference context, not medical evidence. Explicit named pets take precedence. petNames must use the supplied owned names, never IDs. An unknown named animal is unclear/non_pet, never silently the selected pet. Use subject selected for a fresh unqualified question, conversation for follow-ups, explicit for named pets. Respect owner-established subject changes. Multiple pets require separate evidence.",
   "Recent USER messages establish subject/topic continuity, never medical evidence. Do not infer factual history from conversation. Resolve follow-up topics from the active subject only; after a pet switch do not carry the former pet's topic unless the user asks for that topic.",
   "Supply up to six literal search terms for the requested topic. Each term must be 3 to 32 ASCII letters, spaces or hyphens, starting and ending with a letter, matching the database reader contract. Use meaningful spelled-out terminology for abbreviations or identifiers that cannot satisfy this contract; never truncate or strip characters to invent a different term. Include useful synonyms. For stomach/tummy/digestive history include stomach, vomit, threw up, thrown up, stool, diarrh. For a broad whole-health summary use no terms. Unknown topics can still be searched using the user's words. Never output SQL, filters or query syntax.",
   "selection records the requested evidence order: earliest for the oldest matching report, earliest_occurrence for the first reported occurrence of an issue (negative or preventive mentions are not occurrences), latest for the newest update, period for an explicit date range, summary or comparison for synthesis, reference for a particular dated source or displayed episode. Earliest matching evidence is never proof of first-ever occurrence. Use latest for status unless a historical period was requested. A specific source reference needs a date range; an episode reference uses the validated ordinal. Never invent a source identifier.",
@@ -63,7 +64,12 @@ const instructions = [
 ].join("\n");
 
 type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns">;
-const invalid = () => { throw new Error("ASK_INTERPRETATION_INVALID"); };
+export class AskInterpretationValidationError extends Error {
+  constructor(readonly reason: string, readonly category: "schema" | "semantic" = "semantic") {
+    super(`ASK_INTERPRETATION_INVALID: ${reason}`); this.name = "AskInterpretationValidationError";
+  }
+}
+const invalid = (reason = "ASK_INTERPRETATION_SCHEMA", category: "schema" | "semantic" = "schema"): never => { throw new AskInterpretationValidationError(reason, category); };
 /** Validate every field before a plan may affect subject selection or retrieval.
  * Model text never becomes a database filter, identifier or write instruction. */
 export function validateAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
@@ -76,49 +82,53 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
     || !operations.includes(p.operation as Operation) || !subjects.includes(p.subject as typeof subjects[number])
     || !Array.isArray(p.petNames) || p.petNames.length > 3 || p.petNames.some(n => typeof n !== "string" || n.length > 100)
     || typeof p.topic !== "string" || p.topic.length > 80
-    || !Array.isArray(p.terms) || p.terms.length > 6 || p.terms.some(t => typeof t !== "string" || t.length < 3 || t.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(t))
     || !["vomiting", "soft stool", "breathing", null].includes(p.episodeTopic as string | null)
     || !(p.ordinal === null || ordinals.includes(p.ordinal as typeof ordinals[number]))) return invalid();
+  if (!Array.isArray(p.terms) || p.terms.length > 6 || p.terms.some(t => typeof t !== "string" || t.length < 3 || t.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(t))) return invalid("ASK_INTERPRETATION_TERMS", "schema");
   const date = (v: unknown) => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
     && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v && v >= "1900-01-01" && v <= "2100-01-01";
   if (!date(p.from) || !date(p.to) || (p.from === null) !== (p.to === null)
-    || p.from !== null && String(p.from) >= String(p.to)) return invalid();
+    || p.from !== null && String(p.from) >= String(p.to)) return invalid("ASK_INTERPRETATION_DATES", "semantic");
   const operation = p.operation as Operation;
   if (operation === "update" && (analyzeOwnerAssertions(context.currentMessage).isPureQuestion
-    || askEvidenceScope(context.currentMessage, []).readOnlyRecall)) return invalid();
+    || askEvidenceScope(context.currentMessage, []).readOnlyRecall)) return invalid("ASK_INTERPRETATION_UPDATE_INTENT", "semantic");
   // Legacy in-process callers may omit readOperation; production schema requires it.
   const readOperation = ("readOperation" in p ? p.readOperation : operation === "update"
     ? (p.terms.length || p.from ? "recall" : null) : operation) as AskInterpretation["readOperation"];
-  if (operation !== "update" && readOperation !== operation) return invalid();
+  if (operation !== "update" && readOperation !== operation) return invalid("ASK_INTERPRETATION_READ_OPERATION", "semantic");
   const frameValidation = validateProposedSemanticFrame(p.frame);
-  if (!frameValidation.frame) return invalid();
-  if (readOperation !== "episode" && p.ordinal !== null || readOperation === "episode" && p.ordinal === null) return invalid();
+  if (!frameValidation.frame) return invalid("ASK_INTERPRETATION_FRAME", "schema");
+  if (readOperation !== "episode" && p.ordinal !== null || readOperation === "episode" && p.ordinal === null) return invalid("ASK_INTERPRETATION_EPISODE_REFERENCE", "semantic");
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
   const named = explicitlyNamedOwnedPets(context.currentMessage, owned);
   const proposed = p.petNames.map(name => {
     const found = owned.filter(pet => pet.name?.toLocaleLowerCase() === String(name).toLocaleLowerCase());
-    if (found.length !== 1) return invalid();
+    if (found.length !== 1) return invalid("ASK_INTERPRETATION_OWNERSHIP", "semantic");
     return found[0].id;
   });
   let petIds: string[] = [];
-  if (p.subject === "explicit") {
-    // No newly invented pet or undeclared second pet, even if owned.
-    if (!named.length || named.length !== new Set(proposed).size || named.some(pet => !proposed.includes(pet.id))) return invalid();
+  const state = buildRecentSubjectState({ pets: owned, selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
+  const focus = state.entities.find(entity => entity.key === state.currentFocusKey);
+  const pronouns = context.currentMessage.match(/\b(?:he|him|his|she|her|hers|they|them|their|it|its)\b/gi) || [];
+  const ambiguousPronoun = !named.length && pronouns.some(pronoun => resolveRecentPronoun(state, pronoun).status === "ambiguous");
+  if (named.length && p.subject !== "unclear" && p.subject !== "non_pet") {
+    // Explicit current names are server-owned authority, independent of the
+    // model's selected/conversation label. Conflicting proposed names still fail.
+    if (proposed.length && (named.length !== new Set(proposed).size || named.some(pet => !proposed.includes(pet.id)))) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
     petIds = named.map(pet => pet.id);
-  } else if (named.length && p.subject !== "unclear" && p.subject !== "non_pet") return invalid();
-  else if (p.subject === "selected") petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
-  else if (p.subject === "conversation") {
-    const state = buildRecentSubjectState({ pets: owned, selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
-    const focus = state.entities.find(entity => entity.key === state.currentFocusKey);
+  } else if (!ambiguousPronoun && (p.subject === "conversation" || p.subject === "explicit")) {
+    // A model can label a previously named active pet as explicit. Accept only
+    // agreement with the USER-established focus, never an invented owned pet.
     if (focus?.kind === "pet" && focus.petId) petIds = [focus.petId];
-    else if (!state.entities.some(entity => entity.lastMentionTurn >= 0 || entity.lastSubjectTurn >= 0)
+    else if (p.subject === "conversation" && !state.entities.some(entity => entity.lastMentionTurn >= 0 || entity.lastSubjectTurn >= 0)
       && owned.some(pet => pet.id === context.pet.id)) petIds = [context.pet.id];
-  }
-  if (p.subject !== "explicit" && proposed.length && (proposed.length !== petIds.length || proposed.some(id => !petIds.includes(id)))) return invalid();
+    if (p.subject === "explicit" && (!proposed.length || !petIds.length)) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
+  } else if (!ambiguousPronoun && p.subject === "selected") petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
+  if (!ambiguousPronoun && p.subject !== "unclear" && p.subject !== "non_pet" && proposed.length && (proposed.length !== petIds.length || proposed.some(id => !petIds.includes(id)))) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
   if (petIds.length > ASK_INTERPRETATION_LIMITS.pets) return invalid();
   const clarification = !petIds.length ? "subject" : readOperation === "clarify" ? "reference" : null;
   const selection = (p.selection ?? (p.from ? "period" : readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : readOperation === "episode" ? "reference" : "summary")) as typeof selections[number];
-  if (selection === "period" && !p.from || selection === "reference" && !p.from && readOperation !== "episode") return invalid();
+  if (selection === "period" && !p.from || selection === "reference" && !p.from && readOperation !== "episode") return invalid("ASK_INTERPRETATION_SELECTION", "semantic");
   const historical = !!readOperation && ["overview", "recall", "comparison", "status", "count"].includes(readOperation);
   const terms = [...new Set(p.terms as string[])];
   return { version: "ask-interpretation.v1", operation, readOperation, selection, petIds, topic: p.topic, readOnly: !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
@@ -127,11 +137,13 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
       to: p.to ? `${p.to}T00:00:00.000Z` : null, interpretation: terms.length ? "lexical" : p.from ? "period" : "broad_comparison" } : null };
 }
 
-export async function interpretAskQuestion({ context, model, client }: {
+export async function interpretAskQuestion({ context, model, client, onProviderEvent }: {
   context: InterpretationContext; model: string;
+  onProviderEvent?: (event: AskProviderEvent) => void;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
 }): Promise<AskInterpretation> {
-  const input = { currentMessage: context.currentMessage, today: new Date().toISOString().slice(0, 10),
+  const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
+  const input = { conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: new Date().toISOString().slice(0, 10),
     selectedPet: context.pet.name,
     ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species })),
     recentUserMessages: context.conversationTurns.filter(turn => turn.role === "user").slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)) };
@@ -139,18 +151,45 @@ export async function interpretAskQuestion({ context, model, client }: {
     ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
     instructions, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askInterpretationSchema } } };
   const started = Date.now();
+  let attempted = false;
+  const fail = (reason: string, kind: string, extras: Partial<AskProviderEvent> = {}) => new AskPipelineError("interpretation_failed",
+    "I couldn't understand the request reliably this time. Please try again.",
+    { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
       providerInput: { input: request.input, instructions },
-      invoke: () => activeClient.responses.create(request as never, { signal: AbortSignal.timeout(ASK_INTERPRETATION_LIMITS.timeoutMs) }) });
-    const result = interpretStructuredProviderResponse(response, raw => validateAskInterpretation(JSON.parse(raw), context));
-    if (result.status !== "completed" || !result.parsed) throw new Error("ASK_INTERPRETATION_INVALID");
-    return result.parsed;
-  } catch {
-    // Failed interpretation is a retryable service failure, not missing history
-    // and not a fallback to the very grammar that failed to understand the turn.
-    throw new AskPipelineError("primary_provider_failed", "I couldn't understand the request reliably this time. Please try again.",
-      { model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_UNAVAILABLE" });
+      invoke: () => {
+        attempted = true;
+        onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
+        return activeClient.responses.create(request as never, { signal: AbortSignal.timeout(ASK_INTERPRETATION_LIMITS.timeoutMs) });
+      } });
+    // Parse transport/JSON separately from server validation. Never surface or
+    // log the parser's raw error message, response text, refusal or field values.
+    const result = interpretStructuredProviderResponse(response, raw => JSON.parse(raw) as unknown);
+    const metadata = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
+      parsingAttempted: result.parsingAttempted, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens };
+    if (result.status !== "completed") {
+      const kind = result.status === "invalid" ? result.parsingAttempted ? "json" : "empty_output" : result.status;
+      throw fail(`ASK_INTERPRETATION_${kind.toUpperCase()}`, kind, metadata);
+    }
+    let parsed: AskInterpretation;
+    try { parsed = validateAskInterpretation(result.parsed, context); }
+    catch (error) {
+      if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
+      throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
+    }
+    onProviderEvent?.({ stage: "interpretation", outcome: "succeeded", model, elapsedMs: Date.now() - started, ...metadata });
+    return parsed;
+  } catch (error) {
+    if (error instanceof AiAdmissionError) {
+      if (attempted) onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_ADMISSION" });
+      throw error; // preserve admission budgets and settlement classification
+    }
+    const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
+    const timedOut = error instanceof Error && ["AbortError", "TimeoutError", "APIConnectionTimeoutError"].includes(error.name);
+    const failure = error instanceof AskPipelineError ? error : fail(timedOut ? "ASK_INTERPRETATION_TIMEOUT" : "ASK_INTERPRETATION_TRANSPORT", "transport", { providerStatus: status, timedOut });
+    onProviderEvent?.({ stage: "interpretation", outcome: "failed", ...failure.diagnostics });
+    throw failure;
   }
 }

@@ -183,6 +183,7 @@ type AskReasoningOpenAiClient = {
 export type AskPipelineFailureStage =
   | "configuration_failed"
   | "primary_provider_failed"
+  | "interpretation_failed"
   | "primary_timeout"
   | "primary_invalid_output"
   | "fallback_provider_failed"
@@ -190,7 +191,7 @@ export type AskPipelineFailureStage =
   | "fallback_invalid_output";
 
 export type AskProviderEvent = {
-  stage: "configuration" | "primary" | "fallback" | "repair";
+  stage: "configuration" | "interpretation" | "primary" | "fallback" | "repair";
   outcome: "started" | "succeeded" | "failed";
   model: string;
   elapsedMs: number;
@@ -1044,7 +1045,6 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
 }): Promise<T> {
   const started = Date.now();
   const configuredOutputLimit = typeof request.max_output_tokens === "number" ? request.max_output_tokens : undefined;
-  onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit });
   try {
     const compatibleRequest = { ...request };
     if (supportsReasoningEffort(model)) delete compatibleRequest.temperature;
@@ -1052,7 +1052,7 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
       ...compatibleRequest,
       ...(supportsReasoningEffort(model) ? { reasoning: { effort: "low" } } : {}),
       model,
-    }, timeoutMs);
+    }, timeoutMs, () => onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit }));
     const result = interpretStructuredProviderResponse(response, parseOutput);
     const diagnostics = {
       configuredOutputLimit,
@@ -1104,7 +1104,7 @@ function isRepairableStructuredOutput(error: AskPipelineError) {
     error.diagnostics.providerErrorCode === "ASK_OUTPUT_INVALID";
 }
 
-async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number) {
+async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number, onAttempt?: () => void) {
   const controller = new AbortController();
   let timeoutTriggered = false;
   const timeout = setTimeout(() => {
@@ -1115,7 +1115,7 @@ async function createWithTimeout(client: AskReasoningOpenAiClient, request: Reco
     const model = typeof request.model === "string" ? request.model : "";
     const maxOutputTokens = typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0;
     return await executeAdmittedProviderCall({
-      invoke: () => client.responses.create(request, { signal: controller.signal }),
+      invoke: () => { onAttempt?.(); return client.responses.create(request, { signal: controller.signal }); },
       maxOutputTokens,
       model,
       providerInput: { input: request.input, instructions: request.instructions },

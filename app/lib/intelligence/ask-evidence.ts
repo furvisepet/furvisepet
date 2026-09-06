@@ -224,9 +224,6 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
         ? "I couldn't check the saved history just now. Please try again."
         : "I couldn't find matching saved notes for that question. That doesn't mean it never happened. A date or another description may help me find it.";
     }
-    if (contract.history?.reasons.includes("unlinked_correction_uncertain")) {
-      return "A later correction may change how these reports fit together. I can't reliably attribute the affected reports until that correction is connected to the original record. Other dated notes can still be reviewed separately.";
-    }
     // Arbitrary narrative is not an evidence claim. Only complete source reports
     // and independently computed episode results have factual authority.
     if (kind !== "count" && contract.history) return attributedHistoryAnswer(contract, false, synthesis);
@@ -267,8 +264,9 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
   if (!contract.interpretation || !contract.history) return "";
   const history = contract.history;
   if (history.corrections === "unavailable") return "I couldn't check corrections to these records, so I can't rely on them yet.";
+  if (history.reasons.includes("unlinked_correction_uncertain")) return "A later correction could not be linked to its original report. I can summarize what the saved notes say, but cannot confirm which reports the correction changes or whether they still apply to this pet."
+    + (history.retrieval === "unavailable" ? " Some saved records also couldn't be loaded." : history.retrieval === "partial" ? " This includes only part of the matching history." : "");
   if (history.retrieval === "unavailable") return "Some saved records couldn't be loaded. This covers only the notes I could check.";
-  if (history.reasons.includes("unlinked_correction_uncertain")) return "A later correction may affect this history, but I couldn't reliably connect it to the original report.";
   if (history.retrieval === "partial" || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "There are more saved notes than I could include here. This is part of the history; a narrower topic or date range will let me check further.";
   return contract.scope.requestKind === "resolution_status" || contract.interpretation?.selection?.startsWith("earliest") ? ""
     : "This covers the matching saved notes I could verify, not necessarily every event in their life.";
@@ -280,11 +278,12 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
  * admitted. Full spans preserve negation, quantities and qualifications together.
  */
 export function attributedHistoryAnswer(contract: AskEvidenceContract, status = false, synthesis: HistorySynthesisProposal[] = []): string {
-  if (contract.history?.corrections === "unavailable" || contract.history?.reasons.includes("unlinked_correction_uncertain")) {
+  if (contract.history?.corrections === "unavailable") {
     return `I couldn't reliably attribute these reports. ${conversationalHistoryLimitation(contract)}`;
   }
   contract.answerSourceIds = [];
   contract.answerContent = [];
+  const unresolvedCorrection = !!contract.history?.reasons.includes("unlinked_correction_uncertain");
   const period = contract.interpretation?.history;
   const terms = period?.terms || [];
   const notes = contract.represented.filter(span => span.sourceType === "care_update"
@@ -298,6 +297,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     && !contract.history?.provenance.some(source => source.sourceId === span.sourceId
       && !["effective_linked", "effective_replacement", "unverified_legacy"].includes(source.status)))
     .sort((a, b) => (b.occurredAt || "").localeCompare(a.occurredAt || ""));
+  if (!notes.length && unresolvedCorrection) return "I found a correction, but couldn't reliably connect it to the original report. I couldn't verify another saved report to summarize for this question.";
   if (!notes.length) return contract.history?.retrieval === "unavailable"
     ? "I couldn't check the saved history just now. Please try again."
     : "I couldn't find matching saved notes for that question. That doesn't mean it never happened.";
@@ -311,7 +311,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     const eligible = selection === "earliest_occurrence" ? occurrenceCandidates(candidates, occurrence, note => note.occurredAt || "") : candidates;
     const ordered = orderHistoryEvidence(eligible, selection, note => note.occurredAt || "", note => note.sourceId);
     const boundary = contract.history?.chronology?.find(item => item.petId === petId);
-    const boundaryBlocked = boundary?.blocked || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
+    const boundaryBlocked = unresolvedCorrection || boundary?.blocked || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
     const occurrenceUncertain = selection === "earliest_occurrence" && ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0).some(note => occurrence(note) !== "affirmative");
     // Earliest/latest answers retain their decisive report. Include the other
     // dated reports for status so a resolution cannot hide a later recurrence.
@@ -335,14 +335,15 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
         .map(proposal => supportedHistoryParaphrase(note.text, proposal.text, petName)).find(Boolean) : null;
       contract.answerSourceIds!.push(...group.map(item => item.sourceId));
       const anchored = !boundaryBlocked && !occurrenceUncertain && (selection.startsWith("earliest") || selection === "latest") && note === selected[0] && group.length === 1;
-      const content = natural ? anchored ? natural : `${natural.replace(/[.!]$/, "")} (${dates}).`
+      const content = natural ? unresolvedCorrection ? `The ${dates} note saved for ${petName} reports: ${natural}` : anchored ? natural : `${natural.replace(/[.!]$/, "")} (${dates}).`
         : `${petName}'s ${dates} report: ${JSON.stringify(note.text)}`;
       contract.answerContent!.push(content);
       return content;
     });
     if (sentences.length) {
       const date = selected[0].occurredAt?.slice(0, 10) || "an unknown date";
-      const lead = boundaryBlocked ? `I could verify this dated history for ${petName}, but could not establish the ${selection === "latest" ? "latest" : "earliest"} matching report because some candidates could not be checked. `
+      const lead = unresolvedCorrection ? `${petName} has these saved reports, with correction uncertainty noted below. `
+        : boundaryBlocked ? `I could verify this dated history for ${petName}, but could not establish the ${selection === "latest" ? "latest" : "earliest"} matching report because some candidates could not be checked. `
         : occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
         : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `
         : selection === "latest" ? `The latest matching update I could check for ${petName} is dated ${date}. ` : `${petName}'s recorded history: `;

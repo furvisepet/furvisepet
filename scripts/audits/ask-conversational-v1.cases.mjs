@@ -150,7 +150,7 @@ test('untrusted interpretation rejects IDs, foreign pets, SQL, invalid operation
     { from: '1800-01-01', to: '2200-01-01' }, { ordinal: 'second' }, { operation: 'episode', ordinal: null },
     { topic: 'x'.repeat(81) }, { operation: 'update' }, { frame: { databaseId: 'forged' } },
   ]) assert.throws(() => validateAskInterpretation(proposal(bad), validationContext()), /INVALID/, JSON.stringify(bad));
-  assert.throws(() => validateAskInterpretation(proposal({ subject: 'selected' }), validationContext('Tell me about Luna.')), /INVALID/);
+  assert.deepEqual(validateAskInterpretation(proposal({ subject: 'selected' }), validationContext('Tell me about Luna.')).petIds, ['luna'], 'explicit current name overrides the selected label');
   assert.throws(() => validateAskInterpretation(proposal({ subject: 'explicit', petNames: ['Milo'] }), validationContext('Compare Milo and Luna.')), /INVALID/);
 });
 test('planner refusal, incomplete output and failure are retryable failures, never missing-history answers', async () => {
@@ -349,7 +349,7 @@ test('actual provider admission reconciles mocked usage and enforces two calls a
     const before = store.getSnapshot('2026-09-04').calls;
     await assert.rejects(admitted(() => run('Summarize his stomach history.', {}, { ...opts, ...overrides })), error => {
       if (label === 'repair exhaustion') return error.code === 'AI_PROVIDER_BUDGET_EXHAUSTED' && error.status === 503;
-      return error.stage === 'primary_provider_failed';
+      return error.stage === (label.includes('interpretation') ? 'interpretation_failed' : 'primary_provider_failed');
     }, label);
     assert.equal(store.getSnapshot('2026-09-04').calls - before, calls, label);
     assert.ok([...store.calls.values()].every(call => call.started), 'no unstarted reservations leak');
