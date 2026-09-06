@@ -1,0 +1,140 @@
+import "server-only";
+import OpenAI from "openai";
+import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
+import { AskPipelineError } from "../ai/ask-reasoning.ts";
+import { executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
+import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
+import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
+import type { FurviseLiveContext } from "./types.ts";
+import type { HistoryPlan } from "./history-retrieval.ts";
+import { proposedSemanticFrameJsonSchema } from "./semantic-frame/schema.ts";
+import { validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
+import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
+import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
+import { askEvidenceScope } from "./ask-evidence.ts";
+
+const operations = ["overview", "recall", "count", "comparison", "status", "episode", "general", "update", "clarify"] as const;
+const subjects = ["selected", "conversation", "explicit", "unclear", "non_pet"] as const;
+const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that"] as const;
+type Operation = typeof operations[number];
+export type AskInterpretation = {
+  version: "ask-interpretation.v1";
+  operation: Operation;
+  petIds: string[];
+  topic: string;
+  history: HistoryPlan | null;
+  episodeTopic: "vomiting" | "soft stool" | "breathing" | null;
+  ordinal: typeof ordinals[number] | null;
+  readOnly: boolean;
+  clarification: "subject" | "reference" | null;
+  frame: ProposedSemanticFrame;
+};
+export const ASK_INTERPRETATION_LIMITS = { outputTokens: 2600, timeoutMs: 15_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
+const nullableString = { type: ["string", "null"] };
+export const askInterpretationSchema = {
+  type: "object", additionalProperties: false,
+  required: ["operation", "subject", "petNames", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+  properties: {
+    frame: proposedSemanticFrameJsonSchema,
+    operation: { type: "string", enum: operations }, subject: { type: "string", enum: subjects },
+    petNames: { type: "array", items: { type: "string" } }, topic: { type: "string" },
+    terms: { type: "array", items: { type: "string" } }, from: nullableString, to: nullableString,
+    episodeTopic: { type: ["string", "null"], enum: ["vomiting", "soft stool", "breathing", null] },
+    ordinal: { type: ["string", "null"], enum: [...ordinals, null] },
+  },
+};
+const instructions = [
+  "Interpret the current Ask turn. Return strict JSON only. This is a read plan, never permission to write.",
+  "frame is a ProposedSemanticFrame for subject grounding of owner updates. For questions use an empty frame (empty mentions, references, claims, relations). For updates represent all explicit animal/person mentions and owner assertions with local IDs only. Evidence surfaceText must be copied exactly from the current message. Never emit database IDs. Prior discourse is reference context, never current evidence. First-person facts belong to the owner, not a mentioned brand or pet. This same extraction replaces a separate subject-model call; independent server evidence and write governance still apply.",
+  "Distinguish questions/requests for explanation from owner assertions, corrections, recovery reports and save commands (update). A question about recovery is status, not update. Mixed observation plus question is update.",
+  "Use overview for summaries, recall for historical questions, comparison for comparisons, count for a requested episode count, episode ONLY for a reference to an earlier displayed episode, status for whether an issue has resolved, general for advice without historical lookup, clarify for genuinely unclear requests.",
+  "Explicit named pets take precedence. petNames must use the supplied owned names, never IDs. An unknown named animal is unclear/non_pet, never silently the selected pet. Use subject selected for a fresh unqualified question, conversation for follow-ups, explicit for named pets. Respect owner-established subject changes. Multiple pets require separate evidence.",
+  "Recent USER messages establish subject/topic continuity, never medical evidence. Do not infer factual history from conversation. Resolve follow-up topics from the active subject only; after a pet switch do not carry the former pet's topic unless the user asks for that topic.",
+  "Supply up to six short plain lexical search terms, including useful synonyms, for the requested topic. For stomach/tummy/digestive history include stomach, vomit, threw up, thrown up, stool, diarrh. For a broad whole-health summary use no terms. Unknown topics can still be searched using the user's words. Never output SQL, filters or query syntax.",
+  "from/to are UTC ISO dates YYYY-MM-DD, inclusive start and exclusive end, or both null for all dates. Resolve explicit and relative periods against today. Do not narrow an undated request to recent history.",
+  "episodeTopic is only a single supported topic (vomiting, soft stool, breathing), including a clear follow-up topic. A digestive summary spans multiple symptoms; a topicless count after that needs clarification, not an invented combined total. ordinal is only a displayed list position, not an episode ID or a count. Leave it null unless an episode reference is requested. Multiple/ambiguous positions use clarify.",
+].join("\n");
+
+type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns">;
+const invalid = () => { throw new Error("ASK_INTERPRETATION_INVALID"); };
+/** Validate every field before a plan may affect subject selection or retrieval.
+ * Model text never becomes a database filter, identifier or write instruction. */
+export function validateAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return invalid();
+  const p = value as Record<string, unknown>;
+  if (Object.keys(p).sort().join() !== [...askInterpretationSchema.required].sort().join()
+    || !operations.includes(p.operation as Operation) || !subjects.includes(p.subject as typeof subjects[number])
+    || !Array.isArray(p.petNames) || p.petNames.length > 3 || p.petNames.some(n => typeof n !== "string" || n.length > 100)
+    || typeof p.topic !== "string" || p.topic.length > 80
+    || !Array.isArray(p.terms) || p.terms.length > 6 || p.terms.some(t => typeof t !== "string" || !/^[\p{L}\p{N}][\p{L}\p{N} '-]{0,39}$/u.test(t))
+    || !["vomiting", "soft stool", "breathing", null].includes(p.episodeTopic as string | null)
+    || !(p.ordinal === null || ordinals.includes(p.ordinal as typeof ordinals[number]))) return invalid();
+  const date = (v: unknown) => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
+    && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v && v >= "1900-01-01" && v <= "2100-01-01";
+  if (!date(p.from) || !date(p.to) || (p.from === null) !== (p.to === null)
+    || p.from !== null && String(p.from) >= String(p.to)) return invalid();
+  const operation = p.operation as Operation;
+  if (operation === "update" && (analyzeOwnerAssertions(context.currentMessage).isPureQuestion
+    || askEvidenceScope(context.currentMessage, []).readOnlyRecall)) return invalid();
+  const frameValidation = validateProposedSemanticFrame(p.frame);
+  if (!frameValidation.frame) return invalid();
+  if (operation !== "episode" && p.ordinal !== null || operation === "episode" && p.ordinal === null) return invalid();
+  const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
+  const named = explicitlyNamedOwnedPets(context.currentMessage, owned);
+  const proposed = p.petNames.map(name => {
+    const found = owned.filter(pet => pet.name?.toLocaleLowerCase() === String(name).toLocaleLowerCase());
+    if (found.length !== 1) return invalid();
+    return found[0].id;
+  });
+  let petIds: string[] = [];
+  if (p.subject === "explicit") {
+    // No newly invented pet or undeclared second pet, even if owned.
+    if (!named.length || named.length !== new Set(proposed).size || named.some(pet => !proposed.includes(pet.id))) return invalid();
+    petIds = named.map(pet => pet.id);
+  } else if (named.length && p.subject !== "unclear" && p.subject !== "non_pet") return invalid();
+  else if (p.subject === "selected") petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
+  else if (p.subject === "conversation") {
+    const state = buildRecentSubjectState({ pets: owned, selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
+    const focus = state.entities.find(entity => entity.key === state.currentFocusKey);
+    if (focus?.kind === "pet" && focus.petId) petIds = [focus.petId];
+    else if (!state.entities.some(entity => entity.lastMentionTurn >= 0 || entity.lastSubjectTurn >= 0)
+      && owned.some(pet => pet.id === context.pet.id)) petIds = [context.pet.id];
+  }
+  if (p.subject !== "explicit" && proposed.length && (proposed.length !== petIds.length || proposed.some(id => !petIds.includes(id)))) return invalid();
+  if (petIds.length > ASK_INTERPRETATION_LIMITS.pets) return invalid();
+  const clarification = !petIds.length ? "subject" : operation === "clarify" ? "reference" : null;
+  const historical = ["overview", "recall", "comparison", "status", "count"].includes(operation);
+  const terms = [...new Set(p.terms as string[])];
+  return { version: "ask-interpretation.v1", operation, petIds, topic: p.topic, readOnly: operation !== "update", clarification, frame: frameValidation.frame,
+    episodeTopic: p.episodeTopic as AskInterpretation["episodeTopic"], ordinal: p.ordinal as AskInterpretation["ordinal"],
+    history: historical && !clarification ? { terms, from: p.from ? `${p.from}T00:00:00.000Z` : null,
+      to: p.to ? `${p.to}T00:00:00.000Z` : null, interpretation: terms.length ? "lexical" : p.from ? "period" : "broad_comparison" } : null };
+}
+
+export async function interpretAskQuestion({ context, model, client }: {
+  context: InterpretationContext; model: string;
+  client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
+}): Promise<AskInterpretation> {
+  const input = { currentMessage: context.currentMessage, today: new Date().toISOString().slice(0, 10),
+    selectedPet: context.pet.name,
+    ownedPets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => ({ name: pet.name, species: pet.species })),
+    recentUserMessages: context.conversationTurns.filter(turn => turn.role === "user").slice(-ASK_INTERPRETATION_LIMITS.turns).map(turn => turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars)) };
+  const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+    ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
+    instructions, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askInterpretationSchema } } };
+  const started = Date.now();
+  try {
+    const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
+    const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+      providerInput: { input: request.input, instructions },
+      invoke: () => activeClient.responses.create(request as never, { signal: AbortSignal.timeout(ASK_INTERPRETATION_LIMITS.timeoutMs) }) });
+    const result = interpretStructuredProviderResponse(response, raw => validateAskInterpretation(JSON.parse(raw), context));
+    if (result.status !== "completed" || !result.parsed) throw new Error("ASK_INTERPRETATION_INVALID");
+    return result.parsed;
+  } catch {
+    // Failed interpretation is a retryable service failure, not missing history
+    // and not a fallback to the very grammar that failed to understand the turn.
+    throw new AskPipelineError("primary_provider_failed", "I couldn't understand the request reliably this time. Please try again.",
+      { model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_UNAVAILABLE" });
+  }
+}

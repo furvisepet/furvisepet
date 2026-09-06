@@ -21,6 +21,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  interpretation?: Omit<import("./interpret-ask.ts").AskInterpretation, "frame">;
   weightComparison?: import("./weight-comparison.ts").WeightComparisonEvidence;
   episodes?: import("./episode-history.ts").EpisodeResult;
   historyFallback?: string;
@@ -91,6 +92,19 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
+  if (context.askInterpretation) {
+    const plan = context.askInterpretation;
+    const { frame, ...readPlan } = plan;
+    void frame; // Extraction is exclusively for independent subject/write governance.
+    contract.interpretation = readPlan;
+    const kind: AskEvidenceScope["requestKind"] = plan.operation === "status" ? "resolution_status"
+      : plan.operation === "count" ? "count" : plan.operation === "overview" ? "overview"
+      : plan.operation === "comparison" ? "comparison" : "ordinary";
+    contract.scope = { authorizedPetIds: ids, requestedTopic: plan.topic, requestText: context.currentMessage,
+      requestedPeriod: { kind: plan.history?.from ? "requested" : "unspecified", surface: plan.history?.from || null },
+      requestKind: kind, readOnlyRecall: plan.readOnly || contract.scope.readOnlyRecall, status: plan.clarification ? "ambiguous" : "resolved",
+      resolutionSubject: context.pet.name };
+  }
   if (contract.scope.requestKind === "resolution_status") {
     const pet = context.eligiblePets.find(pet => pet.id === ids[0]);
     if (ids.length !== 1 || pet?.name?.toLowerCase() !== contract.scope.resolutionSubject?.toLowerCase()) contract.scope.status = "ambiguous";
@@ -148,7 +162,7 @@ export function refreshEvidenceCoverage(contract: AskEvidenceContract): AskEvide
 export function representEvidence(contract: AskEvidenceContract, records: AskContextRecord[]) {
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
-    ...(contract.scope.requestKind === "resolution_status" || contract.weightComparison ? { occurredAt: record.occurredAt } : {}) }));
+    ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || contract.weightComparison ? { occurredAt: record.occurredAt } : {}) }));
   return refreshEvidenceCoverage(contract);
 }
 
@@ -159,6 +173,14 @@ export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringif
  * terminal phrase into the answer. All other prose remains uncertain. */
 export function resolutionStatusAnswer(contract: AskEvidenceContract): string | null {
   if (contract.scope.requestKind !== "resolution_status") return null;
+  if (contract.interpretation) {
+    const notes = contract.represented.filter(span => span.sourceType === "care_update" && span.occurredAt)
+      .sort((a, b) => b.occurredAt!.localeCompare(a.occurredAt!)).slice(0, 3);
+    if (contract.scope.status === "ambiguous" || !contract.scope.requestedTopic.trim()) return "Which issue do you mean?";
+    const limitation = conversationalHistoryLimitation(contract);
+    return notes.length ? `${notes.map(note => `${note.occurredAt!.slice(0, 10)}: ${JSON.stringify(note.text)}`).join("\n\n")}\n\nThese are dated reports. They don't establish whether ${contract.scope.resolutionSubject || "your pet"}'s ${contract.scope.requestedTopic} has resolved now. ${limitation}`
+      : `I couldn't find a dated report that establishes whether this has resolved. ${limitation}`;
+  }
   const uncertainty = "I can't establish whether the hiding has ended now from the available dated evidence.";
   if (contract.scope.status !== "resolved" || contract.scope.authorizedPetIds.length !== 1 || contract.scope.requestedTopic !== "hiding") {
     return "I can't establish whether the condition has ended. Please identify one pet and a specific condition with a dated note.";
@@ -191,6 +213,20 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
   const resolution = resolutionStatusAnswer(contract);
   if (resolution) return resolution;
   const kind = contract.scope.requestKind;
+  if (contract.interpretation?.readOnly) {
+    if (contract.scope.status === "ambiguous") return "Which pet, issue or earlier episode do you mean?";
+    if (contract.history && !contract.represented.some(span => span.sourceType === "care_update")) {
+      return contract.history.retrieval === "unavailable" || contract.history.corrections === "unavailable"
+        ? "I couldn't check the saved history just now. Please try again."
+        : "I couldn't find matching saved notes for that question. That doesn't mean it never happened. A date or another description may help me find it.";
+    }
+    if (contract.history?.reasons.includes("unlinked_correction_uncertain")) {
+      return "A later correction may change how these reports fit together. I can't reliably attribute the affected reports until that correction is connected to the original record. Other dated notes can still be reviewed separately.";
+    }
+    // Counts remain independently computed by episodeAnswer. For ordinary
+    // recall/summary/comparison the model may answer the supported portion.
+    if (kind !== "count") return null;
+  }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
   if (contract.history?.reasons.includes("no_matching_candidates_not_absence")) {
     return "No matching notes were retrieved for this query. The search does not establish that the event or result is absent; try another topic or period.";
@@ -220,4 +256,14 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
   const task = kind === "count" ? "an exact total" : kind === "absence" ? "whether something is absent from the full record"
     : kind === "comparison" ? "a complete weight or history comparison" : "a complete summary of the requested history";
   return `${lead} I can't establish ${task} from this evidence. I can discuss the supplied notes, or you can identify a specific record to review.`;
+}
+
+export function conversationalHistoryLimitation(contract: AskEvidenceContract): string {
+  if (!contract.interpretation || !contract.history) return "";
+  const history = contract.history;
+  if (history.corrections === "unavailable") return "I couldn't check corrections to these records, so I can't rely on them yet.";
+  if (history.retrieval === "unavailable") return "Some saved records couldn't be loaded. This covers only the notes I could check.";
+  if (history.reasons.includes("unlinked_correction_uncertain")) return "A later correction may affect this history, but I couldn't reliably connect it to the original report.";
+  if (history.retrieval === "partial" || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "There are more saved notes than I could include here. This is part of the history; a narrower topic or date range will let me check further.";
+  return "This covers the matching saved notes I could verify, not necessarily every event in their life.";
 }

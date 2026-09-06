@@ -78,7 +78,8 @@ function isHistoricalRecall(message: string) {
  * generation callback. Recent safety context is retained separately. */
 export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
-  const plan = planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
+  const plan = context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
+  if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
   const deadline = Date.now() + HISTORY_BUDGET.timeMs;
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));

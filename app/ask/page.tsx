@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { AskAnswerText } from "../components/ask-answer-text";
 import { useSearchParams } from "next/navigation";
 import {
   type FormEvent,
@@ -663,7 +664,7 @@ function FurviseMessage({ lifecycleStatus, likelyVetConcern, message, onAction, 
   return <article data-message-variant={messageVariant} data-ask-semantic={grief ? "grief" : urgent ? "urgent" : monitoring ? "monitoring" : "normal"} data-care-history-state={careHistoryState} className={`max-w-full rounded-2xl border border-[var(--assistant-response-border)] border-l-4 ${semanticAccent} bg-[var(--assistant-response-surface)] p-3.5 sm:max-w-3xl sm:p-4`}>
     <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--assistant-response-accent)]" data-ui="furvise-assistant-identity"><BrandMark showName={false} size={24} /><span>Furvise</span></div>
     {shouldShowAnswerHeading(response.title) ? <h2 className="text-xl font-semibold leading-8 text-[var(--pw-heading)]">{response.title}</h2> : null}
-    <p className={`${shouldShowAnswerHeading(response.title) ? "mt-1.5 " : ""}[overflow-wrap:anywhere] text-[1.05rem] leading-7 text-[var(--pw-text)]`}>{response.directAnswer}</p>
+    <AskAnswerText afterHeading={shouldShowAnswerHeading(response.title)} text={response.directAnswer} />
     {response.supportingText ? <p className="mt-3 leading-7 text-[var(--pw-muted)]">{response.supportingText}</p> : null}
     <AdaptiveSections answerType={response.answerType} sections={response.sections} />
     {actions.length ? <div className="mt-4 flex flex-wrap gap-2">{actions.map((action) => <button className={action === "copy" ? quietButton : secondaryButton} key={action} onClick={() => onAction(action, message)} type="button">{formatAction(action)}</button>)}</div> : null}

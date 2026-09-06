@@ -4,7 +4,7 @@ import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-inte
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
-import { evidenceAnswerPolicy, resolutionStatusAnswer } from "../ask-evidence.ts";
+import { evidenceAnswerPolicy, resolutionStatusAnswer, conversationalHistoryLimitation } from "../ask-evidence.ts";
 import { sourceNoteAnswer } from "../source-note-recall.ts";
 import { episodeAnswer } from "../episode-contract.ts";
 
@@ -151,6 +151,21 @@ export function validateGeneratedAnswer(
     response.relevantContextIds=context.episodeResult.items.map(i=>i.sourceId);
     response.referencedRecords=[];
     repairs.push("applied_server_episode_result");
+  }
+  if (!resolution && !context.episodeResult && !scopedAnswer && response.evidenceContract?.interpretation) {
+    // A narrative summary is not another count authority. Reject common
+    // numeric grouping and exhaustive claims even when phrased outside count intent.
+    const narrative = JSON.stringify(response.answer);
+    if (/\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:separate\s+|recorded\s+|[a-z-]+\s+)?episodes?\b|\b(?:complete|entire|exhaustive)\s+(?:lifetime\s+)?history\b|\b(?:exactly|total of)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(narrative)) {
+      const notes = response.evidenceContract.represented.filter(span => span.sourceType === "care_update").slice(0, 4);
+      response.answer.summary = notes.length ? `Here are the dated reports I could check:\n\n${notes.map(note => `${note.occurredAt?.slice(0, 10) || "Date not recorded"}: ${JSON.stringify(note.text)}`).join("\n\n")}`
+        : "I couldn't verify the saved notes needed to answer that.";
+      response.answer.sections = [];
+      response.suggestedFollowUps = [];
+      repairs.push("withheld_model_history_total");
+    }
+    const limitation = conversationalHistoryLimitation(response.evidenceContract);
+    if (limitation) response.answer.summary += `\n\n${limitation}`;
   }
   const answerText = JSON.stringify(response.answer);
   const unauthorizedPetNamed = (context.eligiblePets || []).some((pet) => pet.name

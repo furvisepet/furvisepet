@@ -165,6 +165,6 @@ function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, tu
     handledWithoutAi: false,
     intent: turn.intent,
     safetyLevel: aiResult.safetyLevel,
-    suggestion,
+    suggestion: aiResult.evidenceContract?.scope.readOnlyRecall ? null : suggestion,
   };
 }

@@ -1,5 +1,7 @@
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
+import { interpretAskQuestion } from "../../lib/intelligence/interpret-ask.ts";
+import { restoreAskEvidencePresentation } from "../../lib/intelligence/ask-evidence-presentation.ts";
 import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
 import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -651,10 +653,19 @@ export async function POST(request: Request) {
         logAskStage("AI credit reserved", { creditReservationId: creditRequestId, feature: "ask", requestId, retryReuse, status: reservation.status });
       }
       const recentConversation = liveContext.conversationTurns.filter((turn) => turn.id !== preparedRequest.userMessageId);
+      const interpretation = await interpretAskQuestion({ context: { ...liveContext, conversationTurns: recentConversation }, model });
       let subjectDecision: Awaited<ReturnType<typeof resolveAskTurnSubject>>;
       try {
-        subjectDecision = await resolveAskTurnSubject({
-          extractFrame: async () => await extractTurnSubjectFrame({ message: question, model, onProviderEvent, recentConversation }),
+        subjectDecision = interpretation.readOnly ? {
+          usedProviderExtraction: true,
+          resolution: {
+            status: interpretation.petIds.length > 1 ? "multi_subject" : interpretation.petIds.length ? "resolved" : "ambiguous",
+            petId: interpretation.petIds[0] || null, petIds: interpretation.petIds,
+            reasonCode: null, requiresClarification: interpretation.clarification === "subject",
+            explicitSubject: true, confidence: 1,
+          },
+        } : await resolveAskTurnSubject({
+          extractFrame: async () => interpretation.frame ?? await extractTurnSubjectFrame({ message: question, model, onProviderEvent, recentConversation }),
           message: question,
           ownerId: userId,
           pets: liveContext.eligiblePets,
@@ -730,6 +741,7 @@ export async function POST(request: Request) {
           },
         });
       }
+      liveContext = { ...liveContext, askInterpretation: interpretation };
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
       contextUsed = turnView.contextUsed;
       if (subjectResolution.discourseFocus && subjectResolution.discourseFocus.kind !== "pet") {
@@ -1014,6 +1026,7 @@ export async function POST(request: Request) {
     if (rateGateRef.current) await rateGateRef.current.release();
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
   }
+  Object.assign(conversationResponse, restoreAskEvidencePresentation(conversationResponse, reasoning?.evidenceContract, liveContext.episodeResult));
   turnLifecycle.transition("ANSWER_VALIDATED");
   const actionTargetBindings = resolveFurviseActionTargetBindings({
     actions: preparedApplicationActions,

@@ -176,6 +176,7 @@ function enforceActionResponseCoherence(response, hasApplicationActions, clarifi
 }
 
 function stripActionDependentSentences(value) {
+  if (/\n\s*\n/.test(value)) return value.split(/\n\s*\n/).map(stripActionDependentSentences).filter(Boolean).join("\n\n");
   const clean = cleanText(String(value || ""));
   if (!clean) return "";
   return clean.split(/(?<=[.!?])\s+/).filter((sentence) => !containsActionDependentCopy(sentence)).join(" ").trim();
@@ -759,16 +760,19 @@ function capCareNote(value, maxLength = 500) {
 }
 
 function cleanText(value) {
-  return String(value || "")
+  // This is presentation only. A source quotation may contain markdown-like
+  // punctuation, units or identifiers. Do not rewrite its literal contents.
+  // Quotation marks never exempt model output from server safety governance.
+  return String(value || "").split(/("(?:[^"\\]|\\.)*")/g).map((part, index) => index % 2 ? part : part
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/[*_`#>]/g, "")
     .replace(/^\s*[-+]\s+/gm, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/\s+/g, " ")).join("").trim();
 }
 
 function cleanAnswerProse(value) {
   const raw = String(value || "");
+  if (/\n\s*\n/.test(raw)) return raw.split(/\n\s*\n/).map(cleanAnswerProse).filter(Boolean).join("\n\n");
   const markers = answerListMarkers(raw);
   if (markers.length < 2) return cleanText(raw).replace(/^\s*(?:[-+•]|\d+[.)])\s+/, "");
 

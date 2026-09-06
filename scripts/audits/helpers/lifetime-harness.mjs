@@ -148,11 +148,25 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? 'milo' : null, currentMessage: question, dateRange });
   prepareContext?.(context);
+  const interpretationRequests = [];
+  if (interpretationProposal) {
+    const { interpretAskQuestion } = await import('../../../app/lib/intelligence/interpret-ask.ts');
+    const interpretation = await interpretAskQuestion({ context, model: 'mock-interpretation', client: { responses: { async create(request) {
+      interpretationRequests.push(request);
+      return { status: 'completed', output_text: JSON.stringify(interpretationProposal) };
+    } } } });
+    if (interpretation.readOnly) {
+      authoritativePetIds = interpretation.petIds;
+      if (interpretation.petIds[0] && interpretation.petIds[0] !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
+        petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? 'milo' : null, currentMessage: question });
+    }
+    context.askInterpretation = interpretation;
+  }
   // Same evidence creation and explicit parameter used by the route callback.
   const evidenceContract = createAskEvidenceContract(context, authoritativePetIds);
   prepareEvidence?.(evidenceContract);
@@ -171,7 +185,7 @@ async function exercise(question, { petId = 'milo', rows = decisive, messages, d
     result = await runFurviseIntelligence({ context, evidenceContract, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
   }
   assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
-  return { context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries };
+  return { context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries, interpretationRequests };
 }
 const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
 const clock = t => {

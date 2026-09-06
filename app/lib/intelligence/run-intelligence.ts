@@ -103,7 +103,6 @@ export async function runFurviseIntelligence({
   // Recall remains read-only even when model classifications propose writes.
   // Mixed owner observations and explicit saves are not question-only recall.
   const readOnlyRecall = Boolean(reasoning.evidenceContract?.scope.readOnlyRecall);
-  const resolutionRecall = reasoning.evidenceContract?.scope.requestKind === "resolution_status";
   if (readOnlyRecall) {
     reasoning.learnings = [];
     reasoning.careActions = [];
@@ -112,13 +111,11 @@ export async function runFurviseIntelligence({
     reasoning.proposedHistoryUpdate = { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null };
     reasoning.semanticFrame = emptyProposedSemanticFrame();
     authoritativeSemanticFrame = undefined;
-    if (resolutionRecall) {
-      reasoning.messageUnderstanding = { ...reasoning.messageUnderstanding, primaryIntent: "question", secondaryIntents: [], userIsAskingQuestion: true,
-        userIsProvidingUpdate: false, userIsResolvingConcern: false, userIsCorrectingPriorInformation: false,
-        userIsProvidingPreference: false, userIsMakingSmallTalk: false,
-        recoveryStatus: "none", recoveryConfidence: 1,
-        recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
-    }
+    reasoning.messageUnderstanding = { ...reasoning.messageUnderstanding, primaryIntent: "question", secondaryIntents: [], userIsAskingQuestion: true,
+      userIsProvidingUpdate: false, userIsResolvingConcern: false, userIsCorrectingPriorInformation: false,
+      userIsProvidingPreference: false, userIsMakingSmallTalk: false,
+      recoveryStatus: "none", recoveryConfidence: 1,
+      recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
   }
   const lossContext = resolvePetLossContext({
     message: context.currentMessage,
@@ -223,7 +220,7 @@ export async function runFurviseIntelligence({
     activeConcernIds: safety.activeConcernIds,
     activeConcerns: context.activeConcerns, petId: context.pet.id, petName: context.pet.name,
   });
-  const deterministicStateAction = resolutionRecall ? null : buildClearResolutionAction(context, safety) || buildRecurrenceAction(context, safety);
+  const deterministicStateAction = readOnlyRecall ? null : buildClearResolutionAction(context, safety) || buildRecurrenceAction(context, safety);
   const proposedCareActions = !hasOwnedPetSubject || multiPetTurn ? [] : deterministicStateAction ? [deterministicStateAction] : carePolicy.accepted;
   const governance = authorizeProposedActions({
     message: context.currentMessage, petId: context.pet.id, authorizedPetIds: authoritativePetIds,
@@ -236,7 +233,7 @@ export async function runFurviseIntelligence({
       petName: context.pet.name,
       sourceMessage: context.currentMessage,
     }));
-  const explicitCareHistoryAction = resolutionRecall || !hasOwnedPetSubject || multiPetTurn ? null : buildExplicitCareHistoryAction({
+  const explicitCareHistoryAction = readOnlyRecall || !hasOwnedPetSubject || multiPetTurn ? null : buildExplicitCareHistoryAction({
     currentMessage: context.currentMessage,
     conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
     pet: context.pet,
@@ -270,7 +267,7 @@ export async function runFurviseIntelligence({
     careActions: governedCareActions,
     learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
   });
-  const confirmedLossCareAction = !resolutionRecall && hasOwnedPetSubject
+  const confirmedLossCareAction = !readOnlyRecall && hasOwnedPetSubject
     ? buildConfirmedLossCareAction({ message: context.currentMessage, petName: context.pet.name || "the pet" })
     : null;
   const acceptedCareActions = confirmedLossCareAction ? [confirmedLossCareAction]
