@@ -1,5 +1,6 @@
 -- UNVALIDATED reversal; restores the separately validated membership reader.
 begin;
+drop function if exists private.ask_native_episode_census(uuid,text[],timestamptz,timestamptz);
 create or replace function public.read_ask_episode_sources(p_pet_id uuid,p_keys text[],p_episode_ids uuid[] default null,p_from timestamptz default null,p_to timestamptz default null)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog as $$
 declare episodes jsonb; sources jsonb; memberships jsonb; claims jsonb; ids uuid[]; timeout_ms numeric;

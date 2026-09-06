@@ -166,6 +166,81 @@ begin
 end $$;
 revoke all on function public.read_ask_recorded_membership_batch(uuid,text[],uuid[],timestamptz,timestamptz) from public,anon,authenticated,service_role;
 
+-- Complete native-source census runs in PostgreSQL, independently of the bounded
+-- display page. Unknown legacy/import/correction state uses the existing graph
+-- reader instead; it cannot receive a native-source completeness certificate.
+create function private.ask_native_episode_census(p_pet_id uuid,p_keys text[],p_from timestamptz,p_to timestamptz)
+returns jsonb language sql stable security definer set search_path=pg_catalog as $$
+ with scoped_episodes as materialized (
+   select e.* from public.pet_care_episodes e where e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+     and regexp_replace(e.normalized_key,'^health_','')=any(p_keys)
+     and (p_from is null or e.started_at>=p_from and e.started_at<p_to)
+ ), evidence as materialized (
+   select e.*,private.read_ask_recorded_source_evidence(e.id) proof
+   from public.pet_care_entries e where e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+     and (p_from is null or e.occurred_at>=p_from and e.occurred_at<p_to
+       or e.episode_id in (select id from scoped_episodes))
+ ), relevant as materialized (
+   select * from evidence where episode_id in (select id from scoped_episodes)
+     or proof is null or proof->>'inventoryTopic'=any(p_keys)
+ ), imported_copies as materialized (
+   -- Import identities are aliases of the original care source, never new
+   -- episodes. Validate the import writer's exact source-row hash and payload.
+   select c.id,c.subject_id,l.legacy_row_id from public.semantic_claims c
+   join public.semantic_claim_legacy_lineage l on l.claim_id=c.id and l.user_id=auth.uid()
+     and l.legacy_table='pet_care_entries' and l.claim_role='primary'
+   join evidence e on e.id=l.legacy_row_id and e.proof is not null
+   join public.pet_care_episode_events m on m.care_entry_id=e.id and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id
+   join lateral (
+     select ce.*,p.species,m.event_role as membership_role from public.pet_care_entries ce
+     join public.dog_profiles p on p.id=ce.pet_profile_id and p.user_id=auth.uid() where ce.id=e.id
+   ) source_row on true
+   where c.user_id=auth.uid() and c.subject_type='pet' and c.subject_id=p_pet_id
+     and c.source_type='legacy_import' and c.knowledge_status='effective' and c.operation_type in ('assert','confirm')
+     and c.structured_value->>'note'=e.note and (c.structured_value->>'title') is not distinct from e.title
+     and (c.structured_value->>'severity') is not distinct from e.severity
+     -- An import may have no registry concept. Its exact source alias cannot
+     -- add independent topic authority or a second count; native proof owns it.
+     and (c.canonical_concept_key is null or c.canonical_concept_key=e.care_event_metadata->>'semanticTopic')
+     and c.polarity='affirmed' and c.modality in ('asserted','reported')
+     and c.occurred_at=e.occurred_at and c.lifecycle_role=m.event_role
+     and l.source_row_hash=encode(extensions.digest(convert_to(to_jsonb(source_row)::text,'UTF8'),'sha256'),'hex')
+ ), groups as (
+   select ep.id, count(r.id) members,
+     count(r.id) filter(where r.proof->>'role'='opening' and r.occurred_at=ep.started_at) openings,
+     bool_and(r.proof is not null and r.proof->>'inventoryTopic'=any(p_keys)
+       and r.proof->>'role' in ('opening','continuation','resolution')) valid
+   from scoped_episodes ep left join relevant r on r.episode_id=ep.id group by ep.id
+ )
+ select case when
+   exists(select 1 from public.dog_profiles where id=p_pet_id and user_id=auth.uid())
+   and not exists(select 1 from relevant r where r.proof is null or r.episode_id is null
+     or r.episode_id not in (select id from scoped_episodes) or r.deleted_at is not null)
+   and not exists(select 1 from groups where members=0 or openings<>1 or valid is distinct from true)
+   and not exists(select 1 from scoped_episodes where status not in ('active','monitoring','resolved')
+     or cardinality(missing_source_event_ids)>0)
+   and not exists(select 1 from public.pet_care_episode_events m where m.user_id=auth.uid()
+     and m.episode_id in (select id from scoped_episodes) and
+       (m.claim_id is not null and not exists(select 1 from imported_copies c join relevant r on r.id=c.legacy_row_id
+         where c.id=m.claim_id and r.episode_id=m.episode_id)
+       or m.care_entry_id is not null and m.care_entry_id not in (select id from relevant)))
+   and not exists(select 1 from public.semantic_claims c where c.user_id=auth.uid()
+     and (c.subject_type='unknown' or c.subject_id=p_pet_id)
+     and (p_from is null or c.occurred_at is null or c.occurred_at>=p_from and c.occurred_at<p_to
+       or exists(select 1 from public.pet_care_episode_events m where m.claim_id=c.id and m.episode_id in (select id from scoped_episodes)))
+     and c.id not in (select id from imported_copies))
+   and not exists(select 1 from public.semantic_claim_relations where user_id=auth.uid()
+     and relation_type in ('corrects','supersedes','retracts'))
+   and not exists(select 1 from public.ask_recorded_inventory_removals where user_id=auth.uid())
+   and not exists(select 1 from public.ask_history_removed_relation_targets where user_id=auth.uid())
+ then jsonb_build_object('version','ask-native-census.v1','ownerId',auth.uid(),'petId',p_pet_id,
+   'keys',p_keys,'from',p_from,'to',p_to,'episodeCount',(select count(*) from scoped_episodes),
+   'sourceCount',(select count(*) from relevant),'snapshot',statement_timestamp(),
+   'revision',coalesce((select revision from public.ask_recorded_inventory_revision where user_id=auth.uid()),1)::text
+     || '.' || (select revision::text from public.ask_recorded_registry_revision where singleton)) end
+$$;
+revoke all on function private.ask_native_episode_census(uuid,text[],timestamptz,timestamptz) from public,anon,authenticated,service_role;
+
 create or replace function public.read_ask_episode_sources(p_pet_id uuid,p_keys text[],p_episode_ids uuid[] default null,p_from timestamptz default null,p_to timestamptz default null)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog as $$
 declare
@@ -209,11 +284,12 @@ begin
    failures:=array_append(failures,'retained_removal_debt');
  end if;
  if exists(select 1 from public.pet_care_entries e where e.id=any(care_ids) and (e.deleted_at is not null
-   or coalesce(e.state_action_type,'') in ('semantic_corrected','resolve_concern','semantic_resolved')
+   or coalesce(e.state_action_type,'') in ('semantic_corrected')
    or lower(coalesce(e.care_event_metadata->>'semanticTransition','')) in ('corrected','correction','retracted','dismissed','unknown')
    or not exists(
    select 1 from public.pet_care_episode_events m where m.care_entry_id=e.id and m.episode_id=any(ids)
-     and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id and m.event_role in ('opening','recurrence','continuation')
+     and m.user_id=auth.uid() and m.pet_profile_id=p_pet_id and (m.event_role in ('opening','recurrence','continuation')
+       or m.event_role='resolution' and private.read_ask_recorded_source_evidence(e.id)->>'role'='resolution')
  ))) or exists(select 1 from public.semantic_claims c where c.id=any(claim_ids) and (
    c.knowledge_status<>'effective' or c.operation_type not in ('assert','confirm') or c.concept_resolution_status<>'canonical'
    or c.canonical_concept_key<>all(p_keys) or c.persistence_destination<>'history' or not exists(
@@ -245,9 +321,10 @@ begin
        'membership_contract','ask-episode-membership.v1','coverage','bounded_candidates_not_complete');
    end if;
  end if;
- -- No semantic complete boolean or exact total is minted here. App validation
- -- must account for the census, grouping, every hash, and correction closure.
- return result || jsonb_build_object('recorded_inventory',jsonb_build_object(
+ -- Legacy inventory still requires application graph validation. The optional
+ -- native census independently validates every source in SQL and is revision
+ -- bracketed with the bounded display page by the application.
+ return result || jsonb_build_object('recorded_census',private.ask_native_episode_census(p_pet_id,p_keys,p_from,p_to),'recorded_inventory',jsonb_build_object(
    'version','ask-recorded-inventory.v1','ownerId',auth.uid(),'petId',p_pet_id,'keys',p_keys,
    'from',p_from,'to',p_to,'revision',rev,'snapshot',statement_timestamp(),
    'episodeCount',cardinality(ids),'careIds',care_ids,'claimIds',claim_ids,'failures',failures));

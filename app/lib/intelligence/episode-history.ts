@@ -8,7 +8,7 @@ import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 
 import type { EpisodeReferences, EpisodeResult } from "./episode-contract.ts";
 import { episodeMembershipSources, type EpisodeSource } from "./episode-membership.ts";
-import { recordedInventory, inventoryMembersMatch, classifiedRecordedSource } from "./recorded-inventory.ts";
+import { recordedInventory, recordedCensus, inventoryMembersMatch, classifiedRecordedSource } from "./recorded-inventory.ts";
 import { governedRecordedRole } from "./recorded-provenance.ts";
 import type { EpisodeClaimValidation } from "./history-retrieval.ts";
 export type { EpisodeItem, EpisodeReferences, EpisodeResult } from "./episode-contract.ts";
@@ -107,11 +107,14 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     const read = await db.rpc("read_ask_episode_sources", readArgs).abortSignal(signal());
     const inventory = refs ? null : recordedInventory(read.data?.recorded_inventory, context.owner.userId, context.pet.id,
       keys(result.topic), result.from, result.to);
+    const census = refs ? null : recordedCensus(read.data?.recorded_census, context.owner.userId, context.pet.id,
+      keys(result.topic), result.from, result.to);
     const inventoryMode = !refs && read.data?.recorded_inventory !== undefined;
     if (inventoryMode && !inventory) result.reasons.push("recorded_inventory_uncertified");
     if (read.error || !read.data || !Array.isArray(read.data.episodes) || !Array.isArray(read.data.sources)
       || read.data.episodes.length>(inventory ? 32 : 9) || read.data.sources.length>72) throw new Error("episode_read_unavailable");
-    const revision = (data: typeof read.data) => [data.episodes,data.sources,data.membership_contract,data.memberships,data.claims,data.recorded_inventory ? { ...data.recorded_inventory, snapshot: null } : null];
+    const revision = (data: typeof read.data) => [data.episodes,data.sources,data.membership_contract,data.memberships,data.claims,data.recorded_inventory ? { ...data.recorded_inventory, snapshot: null } : null,
+      data.recorded_census ? { ...data.recorded_census, snapshot: null } : null];
     const initialRevision = hash(revision(read.data));
     const episodes = read.data.episodes as EpisodeRow[];
     const membership = episodeMembershipSources(read.data, episodes, read.data.sources as Source[], context.owner.userId, context.pet.id);
@@ -146,7 +149,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
         [context.pet.id],context.owner.userId,db,coverage,deadline,claimValidation);
       if (!priorGraph || priorGraph !== claimValidation.revision) throw new Error("episode_correction_changed_during_read");
     }
-    if (inventory) {
+    if (inventory || census) {
       // The transactionally advanced revision brackets ALL graph reads, including
       // the second closure pass. Stable SQL calls share their statement snapshot.
       const finalRead = await db.rpc("read_ask_episode_sources",readArgs).abortSignal(signal());
@@ -222,6 +225,17 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       } else result.reasons.push("recorded_inventory_semantics_unknown");
       if (result.items.length > 8) result.reasons.push("display_bound");
       result.items = result.items.slice(0,8);
+    }
+    if (census) {
+      // The census and displayed page were revision-bracketed together above.
+      // A large group's notes may not fit the display page; that does not make
+      // the database's complete source validation into a partial note count.
+      if (result.items.length > census.episodeCount) throw new Error("recorded_census_display_mismatch");
+      result.exactTotal = census.episodeCount;
+      result.entryCount = census.sourceCount;
+      result.coverage = "recorded_complete";
+      result.recordedInventory = { revision:census.revision, snapshot:census.snapshot, scope:"care_claim_episode_register" };
+      result.reasons = ["recorded_register_only_not_lifetime_coverage", ...(result.items.length < census.episodeCount ? ["display_bound"] : [])];
     }
     if (refs) {
       const ordinal=follow?.ordinal;

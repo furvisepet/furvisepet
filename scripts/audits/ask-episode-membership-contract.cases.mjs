@@ -35,8 +35,8 @@ test('claim-only authoritative membership reaches production generation and vali
   assert.equal(r.context.episodeResult.exactTotal, null);
   assert.doesNotMatch(r.result.reasoning.answer.summary, /Exactly seven/);
   assert.deepEqual(r.result.acceptedCareActions, []); assert.deepEqual(r.result.acceptedLearnings, []);
-  assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length, 2);
-  assert.equal(r.queries.filter(q=>q.table==='read_ask_history_correction_page').length, 3);
+  assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length, 4,'membership revalidated after generation');
+  assert.equal(r.queries.filter(q=>q.table==='read_ask_history_correction_page').length, 5,'correction closure also revalidated after generation');
 });
 test('imported claim and care membership deduplicate by authoritative lineage', async t => {
   clock(t); const imported = { ...claim, source_type: 'legacy_import', provenance_classification: 'imported_legacy' };

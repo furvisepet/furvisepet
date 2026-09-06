@@ -11,6 +11,7 @@ export type RecordedWriterEvidence = {
   sourceHash: string; noteHash: string; petId: string; topic: string;
   inventoryTopic: string;
   transition: string; priorEpisodeId: string | null;
+  assessment?: { policy: "ask-semantic-boundary.v1"; kind: "opening" | "continuation" | "resolution"; evidence: string; confidence: number };
 };
 
 /** Called only after current semantic-event governance. The source assertion
@@ -26,18 +27,36 @@ export function recordedWriterEvidence(event: CanonicalEvent, message: string, p
     || event.state === "unknown" || analysis.hasExplicitCorrection
     || !isOwnerCertainEvidence(message, event.sourceExcerpt)
     || !isPetObservationEvidence(message, event.sourceExcerpt, petName)
-    || analysis.clauseSpans.some(s => s.isNegated || s.isUncertain || s.isConditional || s.isAttributed || s.isQuestion)
-    || !["started", "continued", "observed", "confirmed"].includes(event.transition)) return;
+    || analysis.clauseSpans.some(s => (s.isNegated && event.transition !== "resolved") || s.isUncertain || s.isConditional || s.isAttributed || s.isQuestion)
+    || !["started", "continued", "observed", "confirmed", "resolved"].includes(event.transition)) return;
+  const b = event.episodeBoundary;
+  let assessment: RecordedWriterEvidence["assessment"];
+  if (b != null) {
+    // A verbatim quote binds the semantic assessment to the actual owner input.
+    // Semantic entailment is the extraction pipeline's responsibility; these
+    // checks validate scope/structure and never claim to understand arbitrary prose.
+    if (!b || typeof b.evidence !== "string" || !b.evidence.trim() || b.evidence.length > 240
+      || !Number.isFinite(b.confidence) || b.confidence < 0.95 || b.confidence > 1
+      || !event.sourceExcerpt.includes(b.evidence) || !message.includes(b.evidence)
+      || !topics[0][1].test(b.evidence)
+      || !isPetObservationEvidence(message, b.evidence, petName)
+      || !(b.kind === "opening" && event.transition === "started" && event.references.episodeId === null
+        || b.kind === "continuation" && event.transition === "continued" && event.references.episodeId !== null
+        || b.kind === "resolution" && event.transition === "resolved" && event.references.episodeId !== null)) return;
+    assessment = { policy: "ask-semantic-boundary.v1", kind: b.kind, evidence: b.evidence, confidence: b.confidence };
+  }
   // A model's 'started' label or the first persisted membership is insufficient.
   // Require the explicit transition verb to introduce the recognized symptom,
   // not another activity ("started eating after vomiting"). Surrounding prose
   // is unrestricted by any whole-note template.
   // Other expressions remain unknown; this is not a universal language parser.
-  if (["started", "continued"].includes(event.transition)) {
+  if (!assessment && ["started", "continued"].includes(event.transition)) {
     const verb = new RegExp(`\\b${event.transition}\\b\\s+`, "i").exec(event.sourceExcerpt);
     if (!verb || topics[0][1].exec(event.sourceExcerpt.slice(verb.index + verb[0].length))?.index !== 0) return;
   }
+  if (event.transition === "resolved" && !assessment) return;
   return { version: "ask-governed-source.v1", sourceHash: recordedHash(message),
+    ...(assessment ? { assessment } : {}),
     noteHash: recordedHash(event.sourceExcerpt), petId: event.subject.id,
     inventoryTopic: ["vomiting", "soft_stool", "breathing"].find(topic => topics[0][0].test(topic)) || "outside_supported_topics",
     topic: event.normalizedTopic, transition: event.transition, priorEpisodeId: event.references.episodeId };
@@ -45,7 +64,7 @@ export function recordedWriterEvidence(event: CanonicalEvent, message: string, p
 
 export type RecordedSourceProvenance = RecordedWriterEvidence & {
   ownerId: string; careId: string; episodeId: string; membershipId: string;
-  role: "opening" | "continuation" | "unknown";
+  role: "opening" | "continuation" | "resolution" | "unknown";
 };
 
 /** SQL supplies this only when the message, care row and membership still match
@@ -62,5 +81,7 @@ export function governedRecordedRole(source: EpisodeSource, topic: string, membe
     || p.role !== m.event_role) return null;
   if (p.role === "opening" && p.transition === "started" && p.priorEpisodeId === null) return "opening";
   if (p.role === "continuation" && p.transition === "continued" && p.priorEpisodeId === source.episode_id) return "continuation";
+  if (p.role === "resolution" && p.transition === "resolved" && p.priorEpisodeId === source.episode_id
+    && p.assessment?.policy === "ask-semantic-boundary.v1" && p.assessment.kind === "resolution") return "resolution";
   return null;
 }

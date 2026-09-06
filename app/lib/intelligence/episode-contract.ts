@@ -35,7 +35,7 @@ export function episodeAnswer(result: EpisodeResult) {
     };
   }
   if (result.coverage === "recorded_complete" && Number.isSafeInteger(result.exactTotal) && result.exactTotal! >= 0 && result.recordedInventory) {
-    return {summary:`Exactly ${result.exactTotal} recorded ${result.topic} episode${result.exactTotal === 1 ? "" : "s"} in the fully classified care-entry and semantic-claim episode register${result.from ? ` for ${result.from.slice(0,10)} to ${result.to!.slice(0,10)} (end exclusive)` : ""}, as of ${result.recordedInventory.snapshot}. Showing ${result.items.length}. This scope excludes conversation-only reports and general notes; episodes that were never recorded are unknown.`,
+    return {summary:`Exactly ${result.exactTotal} recorded ${result.topic} episode${result.exactTotal === 1 ? "" : "s"} in your verified saved care history${result.from ? ` for ${result.from.slice(0,10)} to ${result.to!.slice(0,10)} (end exclusive)` : ""}, as of ${result.recordedInventory.snapshot}. Showing ${result.items.length}. This count covers episodes established by saved care records. Chat messages that were not saved to history are outside this count; unrecorded episodes remain unknown.`,
       sections:result.items.length ? [{heading:"Recorded episodes",items:result.items.map(i=>`Episode ${i.ordinal}: ${i.startedAt.slice(0,10)}, ${result.topic}.`)}] : []};
   }
   const summary=result.referenceStatus==="resolved" ? `This is episode ${result.items[0].ordinal} from the list you were shown, with its original position preserved.`

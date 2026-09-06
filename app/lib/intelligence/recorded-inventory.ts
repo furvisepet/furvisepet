@@ -8,6 +8,24 @@ export type RecordedInventory = {
   careIds: string[]; claimIds: string[]; failures: string[];
 };
 
+/** SQL validates all native members at one statement snapshot; no source list
+ * or prose for the rest of the register needs to cross the model boundary. */
+export function recordedCensus(value: unknown, ownerId: string, petId: string, keys: string[], from: string | null, to: string | null) {
+  if (!value || typeof value !== "object") return null;
+  const r = value as { version: string; ownerId: string; petId: string; keys: string[]; from: string | null; to: string | null;
+    episodeCount: number; sourceCount: number; revision: string; snapshot: string };
+  const sameTime = (a: string | null, b: string | null) => b === null ? a === null : typeof a === "string" && Date.parse(a) === Date.parse(b);
+  if (r.version !== "ask-native-census.v1" || r.ownerId !== ownerId || r.petId !== petId
+    || !Array.isArray(r.keys) || JSON.stringify([...r.keys].sort()) !== JSON.stringify([...keys].sort())
+    || !sameTime(r.from,from) || !sameTime(r.to,to)
+    || !Number.isSafeInteger(r.episodeCount) || r.episodeCount < 0
+    || !Number.isSafeInteger(r.sourceCount) || r.sourceCount < r.episodeCount
+    || typeof r.revision !== "string" || !/^[1-9][0-9]{0,18}\.[1-9][0-9]{0,18}$/.test(r.revision)
+    || typeof r.snapshot !== "string" || !Number.isFinite(Date.parse(r.snapshot))
+    || Math.abs(Date.now()-Date.parse(r.snapshot))>30_000) return null;
+  return r;
+}
+
 /** This is a database census, not a model-supplied completeness flag. Its
  * semantic obligations are discharged only after every group is validated. */
 export function recordedInventory(value: unknown, ownerId: string, petId: string,

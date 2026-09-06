@@ -52,7 +52,7 @@ test('old decisive episode bypasses recent context window with bounded model inp
   assert.equal(r.context.episodeResult.supportedCount,2);
   assert.equal(r.queries.find(q=>q.table==='pet_care_episodes').cap,20);
   assert.ok(r.serialized.length<=ASK_PROMPT_CONTEXT_CHAR_BUDGET);
-  assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length,2);
+  assert.equal(r.queries.filter(q=>q.table==='read_ask_episode_sources').length,4,'bounded reads before and after generation');
 });
 test('second one survives intervening turns, reload and new earlier history; that one retains selection',async t=>{
   clock(t);const original=await run();const saved=persisted(original);

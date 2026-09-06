@@ -23,6 +23,8 @@ export type CanonicalEventProposal = {
   importance: SemanticEventImportance;
   confidence: number;
   sourceExcerpt: string;
+  /** Semantic extraction, not a regex interpretation or a model-selected ID. */
+  episodeBoundary?: { kind: "opening" | "continuation" | "resolution" | "unknown"; evidence: string; confidence: number } | null;
 };
 
 export type CanonicalEvent = CanonicalEventProposal & {
