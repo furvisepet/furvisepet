@@ -202,3 +202,74 @@ Synthesis verification intentionally covers a restricted set of equivalent forms
 Normal conversational turns still use two sequential provider calls. The 2,600-token interpretation and 4,096-token answer limits are unchanged, as are the provider timeouts and outer request timeout. Selection and synthesis add structured text within those limits; larger outputs may increase truncation/repair-budget failures. No live latency, token demand or dollar-cost claim can be established from mocked usage. A separately authorized live canary should measure synthesis acceptance/fallback rates, selection accuracy, output truncation, latency and cost before rollout.
 
 Next step: commit this revision separately, export its review patch, and release the exclusive lock. The commit containing this checkpoint has reviewed HEAD `5d9c175b357239dec8bb321f660a26a6442f6254` as its parent.
+
+
+## Chronological retrieval correction, September 6, 2026
+
+Branch: `codex/ask-conversational-reliability-v1`.
+Worktree: `C:/Users/gwara/furvise-ask-conversational-v1`.
+Reviewed and verified clean base/parent: `352f3f95bccc3ecc11031d03f798089b3a118d55`.
+Earlier commits are preserved. The original worktree and lifetime-audit expectations/fixtures were not changed.
+
+Read AGENTS.md, this checkpoint, the installed Next route-handler guide, the candidate RPC migration/tests, and the correction-page RPC/lineage path. Consulted the Supabase skill and PostgreSQL ordering documentation (https://www.postgresql.org/docs/current/queries-order.html); the Supabase changelog markdown fetch remained unavailable. No new client-library API or dependency was introduced. Inspected worktrees/processes and acquired `furvise-remaining.lock` through an exclusive FileShare.None handle: Codex owner PID 33268, process-aware holder PID 22744. The old holder had exited. No other writer overlapped these edits.
+
+### Reproductions before production edits
+
+Two new actual-generation-callback-through-final-presentation assertions failed on the reviewed base (`tmp-chronology-before.log`):
+
+- Both `2011-01-01: Milo had vomiting after a food change.` and `2014-01-01: Milo vomited after a walk.` reached the prompt. Final answer: `The earliest matching report I could check for Milo is from 2014-01-01.` The source recognizer recognized one predicate form, and final selection discarded the earlier unresolved form.
+- With 90 matching 2011 notes, the January 2025 vomiting note, and 100 newer unrelated walking notes, the 2025 note never reached generation. Final answer: `The latest matching update I could check for Milo is dated 2011-03-05.` Candidate traversal was ascending; the eight-record current-context supplement could not reach the buried matching source.
+
+### Production repair
+
+The same production path remains: validated interpretation/subject resolution -> `generateAskHistoryAnswer` -> `retrieveAskHistory` -> authenticated candidate read -> shared `effectiveCandidates` correction/freshness/ownership validation -> prompt evidence budgeting -> `validateGeneratedAnswer` / `attributedHistoryAnswer` -> guarded validated final presentation. No extra interpretation path, provider call, persistence authority, or voice redesign was added.
+
+- `history-synthesis.ts` now separates affirmative reports, explicitly negative reports, and unresolved candidates. Shared assertion qualifiers cover uncertainty, conditionals and attribution. A deliberately narrow complete non-occurrence construction can be skipped; unrecognized grammar and mixed polarity remain unresolved. Both affirmative and unresolved candidates retain chronological order. Negative reports tied with a potentially affirmative report remain visible as conflicts. This removes the old positive-verb gate from first-occurrence selection and prioritization. It does not establish medical event identity or universal semantic entailment.
+- `history-retrieval.ts` uses the new `read_ask_history_candidates_latest` RPC for latest lexical selection, directly traversing matching records by `occurred_at DESC, id DESC` and a strict less-than timestamp/ID cursor. Broad latest reads use the same descending ordering and strict cursor in the existing authenticated table path. The old ascending endpoint and its callers remain available. The bounded recent-context supplement is removed.
+- Added migration `20260906103706_ask_history_latest_candidates.sql`, generated with installed Supabase CLI 2.111.0 after inspecting command help. The additive endpoint retains the reviewed candidate RPC's complete authentication, current-owner/pet predicates, argument validation, fixed parameterized SQL, timeout prerequisite, role ownership, grants and schema restrictions. No new role, table access, RLS policy, write permission or SQL-generation authority is introduced. Its rollback drops only the new endpoint.
+- The correction RPC already seeds stored correction authors across the requested pets/topic and closes their linked graph, independently of candidate chronological order. Its 129th-row/truncated sentinel and application graph budgets continue to fail closed. Effective replacement event dates determine ordering after source validation, including reassignment into a pet with no corresponding legacy row. Unknown effective event dates now explicitly prevent boundary authority. No correction RPC redesign or relaxed graph validation was needed.
+- Before the 32-record/18,000-character evidence budget, server-owned chronological metadata retains the effective boundary IDs per pet. Final validation checks those IDs against full represented spans. Source-version failures, unavailable traversal, unknown correction dates/payloads, a corrected boundary crossing the unvisited cursor, missing tied evidence, or an omitted decisive source prevent an older/later selected report from gaining chronological authority. Useful supported content and its date remain visible with a qualification.
+- Equivalent timestamp spellings compare as instants, including correction offsets and milliseconds; stable source IDs break ties. Both budgeting and composition retain same-instant conflicts. Corrections with unrelated topics cannot consume the selected topic's final evidence budget.
+- An unresolved earlier report is shown first, with ambiguity disclosed. A later supported report can also be shown without being called earliest. The lifetime qualifier no longer contradicts an explicitly unresolved boundary. Supported synthesis, exact quotations, pet attribution, independent counts, write authorization and downstream safety remain in the existing validation/presentation flow.
+
+Two earlier conversational selection assertions were revised to match the newly required behavior, not to remove coverage: a failed page now requires a qualified dated answer instead of an earliest assertion, and an unresolved preventive report must remain visible alongside the later supported occurrence instead of being silently omitted. The original lifetime audit and fixtures remain byte-for-byte unchanged.
+
+### Actual final answers from mocked callback verification
+
+Question: `When did Milo first have vomiting?`
+
+> The earliest matching report I could check for Milo is from 2011-01-01. Milo had vomiting after a food change.
+>
+> These saved reports are not proof of when it first happened in their life.
+
+Question: `What is the latest vomiting update for Milo?`
+
+> The latest matching update I could check for Milo is dated 2025-01-01. Milo vomited after his walk in January 2025.
+>
+> There are more saved notes than I could include here. This is part of the history; a narrower topic or date range will let me check further.
+
+The two decisive dates, full source meaning, source IDs and final presentation are asserted. Additional tests require earlier uncertain/hypothetical/attributed notes to stay visible, prohibit promotion of the later 2014 report, and retain the later supported content when available. Changed or oversized latest sources produce a qualified older dated answer, not an asserted latest update.
+
+### Verification
+
+- Focused production callback/final presentation: **63 passed**. One additional static security-boundary comparison test passed (**64 combined**, `tmp-chronology-focused.log`). Covers both reported fixtures, varied affirmative and unresolved wording, pronouns/nameless notes, negative and conflicting reports, buried latest records, strict multi-page timestamp/ID traversal, same-instant offsets, tied boundary truncation, effective date corrections, deleted/changed/reassigned/forgotten sources, unknown dates, requested periods, multi-pet isolation, retrieval timeouts/missing RPC, graph truncation, useful partial answers, and prompt omissions. Earlier mixed turns, genuine updates, no-write recall, unsupported counts/absence/causation, episode reload, safety and quotation checks still pass.
+- Real provider-admission code with mocked responses/usage still verifies failures, repair exhaustion, reservation accounting/release and retryability. The hard **two-provider-call ceiling** is unchanged. Interpretation plans and answer proposals are supplied by fixtures: these tests establish wiring and server validation, not live model understanding.
+- Full default suite: **2,289 passed**, zero failures (`tmp-chronology-full.log`). Nested callback cases are a separate count.
+- Typecheck passed (`tmp-chronology-typecheck.log`). Lint passed with the same two existing unused `supabase` warnings in `persist-learnings.ts`, lines 141 and 374 (`tmp-chronology-lint.log`). Diff checks passed.
+- Production webpack build passed, Next 16.2.12, 45 generated static pages (`tmp-chronology-build.log`).
+- Real local headless Chrome passed the six unchanged parser/React DOM/local-storage rendering checks, including units/negation and literal untrusted HTML. Minimum free memory 6.88 GB (`tmp-chronology-browser.log`). This is a component fixture with mocked data, not an authenticated browser-to-database/model conversation.
+- Original lifetime audit: **14 passed / the same 3 failed** (`tmp-chronology-lifetime.log`): old canonical episode window, sequence/recurrence identity, and exact separate-episode aggregate. No expectations were changed.
+
+### Database gate and migration prerequisites
+
+Available memory before Docker startup was 7,055,956 KB (about 6.73 GiB). Started the existing Docker Desktop daemon only to locate the authorized disposable target. `docker ps -a` listed no containers; `docker inspect furvise-stage2-db-2788f0b` returned `no such object` in context `desktop-linux`. No replacement container, other database, or full Supabase stack was created or used. Stopped the daemon afterward; available memory recovered to about 6.73 GiB.
+
+**No database SQL was executed.** `supabase/tests/ask_history_latest_candidates.sql` is ready but unexecuted. It compares actual ordered RPC rows with direct authenticated SQL, traverses 61 tied/old sources in 25/25/11/0 pages without duplicates, includes the 90-old/2025/100-unrelated shape, and checks date updates, reassignment, deletion, owner isolation, grants, invalid parameters and timeout admission. The static body comparison confirms that only tuple direction differs from the reviewed ascending read; it is not a substitute for executing SQL.
+
+Remaining exact gate: when the authorized `furvise-stage2-db-2788f0b` / `stage2_validation` is available, verify existing prerequisite migration `20260905080008`, apply the new migration as the existing postgres migration role, run both ascending and descending candidate SQL suites plus the existing correction suite, test rollback/reapply, and check actual query plans/timeouts. Use only that disposable target. Deploy the new RPC before enabling this application revision; a missing endpoint intentionally returns a retryable retrieval limitation, never falls back to oldest-first. Preserve the pre-existing top-level request `statement_timeout` prerequisite of 1..8000 ms. Roll back the application before dropping the new RPC.
+
+### Limits, budget and completion
+
+Candidate/evidence/graph/time budgets are unchanged: 25 rows/page, at most four pages/pet, 64 roots, three pets, six graph calls/128 graph rows, 32 evidence records, 18,000 evidence characters and 5 seconds of history-read time. Latest lookup changes direction within this budget; it adds no provider call and no separate recent-context query. Interpretation/answer output limits remain 2,600/4,096 tokens. SQL runtime, live latency, dollar cost and model paraphrase understanding cannot be measured from mocked usage or static SQL. Lexical coverage, concurrent read-committed changes, bounded correction closure and restricted synthesis remain limitations; earliest saved evidence is not first-ever onset, and cursor exhaustion never establishes semantic completeness or a lifetime total.
+
+No live provider, dependency installation, remote migration, push, merge or deployment occurred. Next step: create the separate local commit, export its review patch, verify clean status and release the exclusive lock. The commit containing this checkpoint has `352f3f95bccc3ecc11031d03f798089b3a118d55` as its parent. Rollout remains gated on the disposable-database SQL validation described above.

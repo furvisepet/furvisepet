@@ -1,5 +1,5 @@
 import "server-only";
-import { isAffirmativeOccurrenceReport, orderHistoryEvidence } from "./history-synthesis.ts";
+import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, orderHistoryEvidence } from "./history-synthesis.ts";
 import { createHash } from "node:crypto";
 import { discoverDatedCorrectionNotes } from "./dated-correction-notes.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -13,6 +13,7 @@ export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, candidateRows: 64,
 type Cursor = { petId: string; occurredAt: string; id: string };
 export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
+  chronology?: Array<{ petId: string; boundaryIds: string[]; blocked: boolean }>;
   plan: HistoryPlan; candidateIds: string[]; queryCount: number;
   retrieval: Completeness; corrections: Completeness; extraction: Completeness; grouping: Completeness;
   continuation: Cursor[]; reasons: string[]; consistency: "read_committed_no_snapshot";
@@ -87,21 +88,14 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
     continuation: [], reasons: ["lexical_or_period_matches_not_semantic_completeness", "no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
-  // Latest requests also reuse the already-loaded current context, within the
-  // same root budget. Every supplemental row passes the same correction/freshness
-  // validation as RPC candidates. The ascending reader still reaches old history.
-  const recentCandidates = context.askInterpretation?.selection === "latest" ? context.careEntries.filter(row =>
-    row.user_id === context.owner.userId && ids.includes(row.pet_profile_id) && !row.deleted_at
-    && (!plan.from || row.occurred_at >= plan.from && row.occurred_at < plan.to!)
-    && (!plan.terms.length || plan.terms.some(term => `${row.title || ""} ${row.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))))
-    .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)).slice(0, 8) : [];
+  const descending = context.askInterpretation?.selection === "latest";
   const candidates: CareEntryRow[] = [];
   // Reserve coverage/provenance space independently of model evidence. Split
   // the candidate budget fairly so the first pet cannot consume every slot.
   // Reserve twelve of the existing roots for later correction notes on dated
   // lookups. Supplemental discovery must not expand the graph/input budgets.
   const correctionReserve = plan.from ? 12 : 0;
-  const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve - recentCandidates.length) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
+  const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let cursor: Cursor | null = null; let exhausted = false; let failed = false; let pages = 0; const rows: CareEntryRow[] = [];
     try {
@@ -114,7 +108,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         if (plan.terms.length) {
           // The RPC derives auth.uid(). Never pass an owner or fall back to a
           // different lexical authority when its migration/service is missing.
-          result = await db.rpc("read_ask_history_candidates", {
+          result = await db.rpc(descending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
             p_pet_id: petId, p_terms: plan.terms, p_from: plan.from, p_to: plan.to,
             p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
           }).abortSignal(signal);
@@ -123,8 +117,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         } else {
           let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
           if (plan.from) query = query.gte("occurred_at", plan.from).lt("occurred_at", plan.to!);
-          if (cursor) query = query.or(`occurred_at.gt.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.gt.${cursor.id})`);
-          result = await query.order("occurred_at", { ascending: true }).order("id", { ascending: true }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
+          if (cursor) query = query.or(`occurred_at.${descending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${descending ? "lt" : "gt"}.${cursor.id})`);
+          result = await query.order("occurred_at", { ascending: !descending }).order("id", { ascending: !descending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
         }
         if (result.error) throw new Error("history_page_unavailable");
         if (result.data !== null && !Array.isArray(result.data)) throw new Error("history_page_invalid_shape");
@@ -136,7 +130,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         for (const row of page) {
           if (!/^[a-zA-Z0-9_-]+$/.test(row.id) || !row.occurred_at || !Number.isFinite(Date.parse(row.occurred_at))) throw new Error("invalid_history_cursor");
           const next: Cursor = { petId, occurredAt: row.occurred_at, id: row.id };
-          if (cursor && (next.occurredAt < cursor.occurredAt || next.occurredAt === cursor.occurredAt && next.id <= cursor.id)) throw new Error("non_advancing_history_cursor");
+          const advance = cursor ? compareHistoryTime(next.occurredAt, cursor.occurredAt) || next.id.localeCompare(cursor.id) : 0;
+          if (cursor && (descending ? advance >= 0 : advance <= 0)) throw new Error("non_advancing_history_cursor");
           cursor = next; rows.push(row);
         }
         // Do not infer exhaustion from a short page: a server row cap may be
@@ -154,18 +149,39 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   }
   if (ids.length > HISTORY_BUDGET.pets) coverage.reasons.push("pet_query_budget");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
-  for (const row of recentCandidates) if (!candidates.some(candidate => candidate.id === row.id)) candidates.push(row);
-  if (recentCandidates.length) coverage.reasons.push("current_context_candidates_revalidated");
   if (correctionReserve && candidates.length) {
     candidates.push(...await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, deadline));
   }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
   if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") coverage.reasons.push("no_matching_candidates_not_absence");
+  const selection = context.askInterpretation?.selection;
+  const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
+    context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);
+  const matchingEntries = entries.filter(entry => !plan.terms.length || plan.terms.some(term =>
+    `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase())));
+  const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
+  const relevantIds = new Set(relevant.map(entry => entry.id));
+  const ordered = orderHistoryEvidence(matchingEntries, selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
+    selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1 : undefined);
+  if (selection?.startsWith("earliest") || descending) {
+    // Save the effective boundary BEFORE either evidence budget. Final rendering
+    // checks these IDs against the actual represented spans, never row counts.
+    coverage.chronology = ids.map(petId => {
+      const matching = ordered.filter(entry => entry.pet_profile_id === petId && relevantIds.has(entry.id));
+      const boundary = matching[0]?.occurred_at;
+      const cursor = coverage.continuation.find(cursor => cursor.petId === petId);
+      const blocked = coverage.perPet.find(pet => pet.petId === petId)?.status === "unavailable"
+        || coverage.corrections === "unavailable" || (coverage.reasons.includes("unsupported_claim_payload") || coverage.reasons.includes("unknown_effective_event_date"))
+        || candidates.some(row => row.pet_profile_id === petId && coverage.provenance.some(source => source.sourceId === `care:${row.id}` && source.status === "deleted_or_changed"))
+        // A corrected date may cross the unvisited frontier. Equal timestamps
+        // also mean an unseen tied/conflicting record may remain on the next page.
+        || !!(boundary && cursor && (descending ? compareHistoryTime(boundary, cursor.occurredAt) <= 0 : compareHistoryTime(boundary, cursor.occurredAt) >= 0));
+      return { petId, boundaryIds: matching.filter(entry => compareHistoryTime(entry.occurred_at, boundary || "") === 0).map(entry => careEvidenceId(entry.id, coverage)), blocked };
+    });
+  }
   const kept: CareEntryRow[] = []; let chars = 0; let budgetExcluded = false;
-  for (const entry of orderHistoryEvidence(entries, context.askInterpretation?.selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
-    context.askInterpretation?.selection === "earliest_occurrence" ? entry => isAffirmativeOccurrenceReport(entry.note,
-      context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms) ? 0 : 1 : undefined)) {
+  for (const entry of ordered) {
     const size = JSON.stringify(entry).length;
     if (kept.length >= HISTORY_BUDGET.records || chars + size > HISTORY_BUDGET.chars) { coverage.excludedIds.push(careEvidenceId(entry.id, coverage)); budgetExcluded = true; continue; }
     kept.push(entry); chars += size;
@@ -342,6 +358,7 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       // Only an opaque complete stored payload is rendered, with no inferred
       // clinical lifecycle or projection cutover. Other shapes remain missing.
       if (!value || typeof value.note !== "string") { coverage.reasons.push("unsupported_claim_payload"); continue; }
+      if (!Number.isFinite(eventTime)) coverage.reasons.push("unknown_effective_event_date");
       const stored = claims.get(claim.id)!;
       output.push({ id: `claim-${claim.id}`, user_id: userId, category: "general", severity: null, deleted_at: null, pet_profile_id: claim.subjectId!, note: value.note,
         title: `Replacement recorded ${claim.recordedAt} for event ${claim.occurredAt || "unknown"} (polarity: ${String(stored.polarity || "unknown")}; modality: ${String(stored.modality || "unknown")})`,

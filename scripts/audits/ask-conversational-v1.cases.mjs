@@ -368,7 +368,8 @@ test('selection wiring: earliest answer retains the decisive old report ahead of
       rows: [early, ...newer], ...(partial ? { historyPageCap: 1, failHistoryPage: 2 } : {}),
       providerOverrides: { historySynthesis: [{ sourceId: 'care:first-report', text: early.note }] } });
     const final = persisted(r, 2).response_data.directAnswer;
-    assert.ok(final.startsWith('The earliest matching report I could check for Milo is from 2011-01-01.'), final);
+    if (partial) { assert.match(final, /could not establish the earliest/); assert.match(final, /2011-01-01/); }
+    else assert.ok(final.startsWith('The earliest matching report I could check for Milo is from 2011-01-01.'), final);
     assert.doesNotMatch(final, /2026-08/);
     assert.match(final, /not proof of when it first happened/);
     assert.ok(r.result.reasoning.relevantContextIds.includes('care:first-report'));
@@ -481,8 +482,10 @@ test('first-occurrence selection does not mistake an older negative or preventiv
   const plan = { operation: 'recall', selection: 'earliest_occurrence', subject: 'explicit', petNames: ['Milo'], terms: ['vomit'], topic: 'vomiting' };
   const found = await run('When did Milo first have vomiting?', plan, { rows: [negative, prevention, affirmative] });
   const answer = persisted(found, 2).response_data.directAnswer;
-  assert.ok(answer.startsWith('The earliest matching report I could check for Milo is from 2011-01-01.'), answer);
-  assert.doesNotMatch(answer, /2010-/);
+  assert.match(answer, /could not identify a supported first occurrence/);
+  assert.match(answer, /2010-02-01/); // Unresolved prevention is no longer silently discarded.
+  assert.match(answer, /2011-01-01/); // The later supported report remains useful.
+  assert.doesNotMatch(answer, /2010-01-01|earliest[^.]*2011/);
   const missing = await run('When did Milo first have vomiting?', plan, { rows: [negative, prevention] });
   assert.match(persisted(missing, 2).response_data.directAnswer, /could not identify a supported first occurrence/);
   noWrites(found); noWrites(missing);
@@ -520,4 +523,186 @@ test('a validated natural report preserves a qualifying mention of another pet w
   assert.match(final, /Luna vomited, not Milo \(2011-01-01\)/);
   assert.doesNotMatch(final, /report:|"/);
   noWrites(r);
+});
+
+
+test('chronology regression: earlier unresolved wording cannot promote a later year', async t => {
+  clock(t);
+  const rows = [care('early-grammar', 'milo', '2011-01-01', 'symptom', 'Milo had vomiting after a food change.'),
+    care('late-grammar', 'milo', '2014-01-01', 'symptom', 'Milo vomited after a walk.')];
+  const r = await run('When did Milo first have vomiting?', { operation: 'recall', readOperation: 'recall', selection: 'earliest_occurrence', subject: 'explicit', petNames: ['Milo'], topic: 'vomiting', terms: ['vomit'] }, { rows, careEpisodes: [], providerOverrides: {historySynthesis: rows.map(row => ({sourceId: `care:${row.id}`, text: row.note}))} });
+  assert.ok(r.serialized.includes(rows[0].note) && r.serialized.includes(rows[1].note));
+  const final = persisted(r, 2).response_data.summary;
+  console.log('CHRONOLOGY EARLIEST FINAL:', final);
+  assert.match(final, /2011-01-01/);
+  assert.doesNotMatch(final, /earliest[^.]*2014/);
+  noWrites(r);
+});
+
+test('chronology regression: latest topic is reached behind unrelated recent context', async t => {
+  clock(t);
+  const old = Array.from({length: 90}, (_, i) => care(`chron-old-${i}`, 'milo', new Date(Date.UTC(2011, 0, i + 1)).toISOString().slice(0, 10), 'symptom', 'Milo vomited.'));
+  const latest = care('chron-latest', 'milo', '2025-01-01', 'symptom', 'Milo vomited after his walk in January 2025.');
+  const recent = Array.from({length: 100}, (_, i) => care(`chron-walk-${i}`, 'milo', new Date(Date.UTC(2026, 0, i + 1)).toISOString().slice(0, 10), 'exercise', 'Milo enjoyed walking.'));
+  const r = await run('What is the latest vomiting update for Milo?', { operation: 'recall', readOperation: 'recall', selection: 'latest', subject: 'explicit', petNames: ['Milo'], topic: 'vomiting', terms: ['vomit'] }, { rows: [...old, latest, ...recent], careEpisodes: [], providerOverrides: {historySynthesis: [{sourceId: `care:${latest.id}`, text: latest.note}]} });
+  const final = persisted(r, 2).response_data.summary;
+  console.log('CHRONOLOGY LATEST FINAL:', final, 'LATEST IN PROMPT:', r.serialized.includes(latest.note));
+  assert.ok(r.serialized.includes(latest.note), 'newest matching historical source reaches generation');
+  assert.match(final, /2025-01-01/);
+  assert.doesNotMatch(final, /latest[^.]*2011/);
+  noWrites(r);
+});
+
+
+const chronologicalPlan = (selection, extras = {}) => ({ operation: 'recall', readOperation: 'recall', selection,
+  subject: 'explicit', petNames: ['Milo'], topic: 'vomiting', terms: ['vomit'], ...extras });
+for (const text of ['He had vomiting after breakfast.', 'Vomiting after breakfast.', 'Vomiting was observed after breakfast.',
+  'Milo experienced vomiting after breakfast.', 'Milo might have vomited.', 'If Milo vomited, we would call the vet.',
+  'According to his record, Milo vomited.', 'Milo will vomit if he eats that.', 'Milo was reported to have vomited.']) {
+  test(`chronology: earlier candidate keeps its place: ${text}`, async t => {
+    clock(t);
+    const rows = [care('form-early', 'milo', '2011-01-01', 'symptom', text), care('form-later', 'milo', '2014-01-01', 'symptom', 'Milo vomited after a walk.')];
+    const r = await run('When did Milo first have vomiting?', chronologicalPlan('earliest_occurrence'), { rows, careEpisodes: [] });
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.match(final, /2011-01-01/); assert.ok(final.includes(text));
+    assert.doesNotMatch(final, /earliest[^.]*2014|first occurrence[^.]*2014/);
+    if (/might|If |According|will|reported/.test(text)) {
+      assert.match(final, /could not identify a supported first occurrence/);
+      assert.ok(final.includes(rows[1].note), 'later supported portion remains available');
+    }
+    noWrites(r);
+  });
+}
+
+test('chronology: explicit non-occurrence skips alone but tied contradictions remain together', async t => {
+  clock(t);
+  const old = care('negative-alone', 'milo', '2010-01-01', 'symptom', 'No vomiting on this day.');
+  const yes = care('conflict-yes', 'milo', '2011-01-01', 'symptom', 'Milo had vomiting after breakfast.');
+  const no = care('conflict-no', 'milo', '2011-01-01', 'symptom', 'Milo did not vomit this morning.');
+  const r = await run('When did Milo first have vomiting?', chronologicalPlan('earliest_occurrence'), { rows: [old, yes, no], careEpisodes: [] });
+  const final = persisted(r, 2).response_data.directAnswer;
+  assert.match(final, /could not identify a supported first occurrence/);
+  assert.ok(final.includes(yes.note) && final.includes(no.note)); assert.doesNotMatch(final, /2010-01-01/); noWrites(r);
+});
+
+test('chronology: descending pages have stable ID ties, no duplicates or gaps, including broad lookup', async t => {
+  clock(t);
+  const rows = Array.from({length: 6}, (_, i) => care(`page-${i}`, 'milo', '2025-01-01', 'symptom', `Milo vomited after walk number ${i}.`));
+  for (const terms of [['vomit'], []]) {
+    const r = await run('Show the latest saved update for Milo.', chronologicalPlan('latest', {terms}), { rows, careEpisodes: [], historyPageCap: 2 });
+    assert.deepEqual(r.context.askHistory.originals.map(row => row.id), ['page-5', 'page-4', 'page-3', 'page-2', 'page-1', 'page-0']);
+    assert.equal(r.context.askHistory.coverage.perPet[0].exhausted, true);
+    const final = persisted(r, 2).response_data.directAnswer;
+    for (const row of rows) assert.ok(final.includes(row.note), 'all boundary reports are substantive visible evidence');
+    const calls = r.queries.filter(q => q.table === 'read_ask_history_candidates_latest');
+    if (terms.length) assert.deepEqual(calls.map(q => q.args.p_after_id), [null, 'page-4', 'page-2', 'page-0']);
+    noWrites(r);
+  }
+});
+
+test('chronology: unvisited equal-time boundary and prompt loss never confer latest authority', async t => {
+  clock(t);
+  const tied = Array.from({length: 70}, (_, i) => care(`tied-${String(i).padStart(3, '0')}`, 'milo', '2025-01-01', 'symptom', `Milo vomited after walk ${i}.`));
+  const capped = await run('Show the latest vomiting update for Milo.', chronologicalPlan('latest'), { rows: tied, careEpisodes: [] });
+  assert.equal(capped.context.askHistory.originals.length, 64);
+  assert.equal(new Set(capped.context.askHistory.originals.map(row => row.id)).size, 64);
+  assert.match(persisted(capped, 2).response_data.directAnswer, /could not establish the latest/);
+  const lost = care('oversized-boundary', 'milo', '2025-01-01', 'symptom', 'Milo vomited. ' + 'Qualified detail. '.repeat(1800));
+  const prior = care('small-prior', 'milo', '2024-01-01', 'symptom', 'Milo vomited after breakfast.');
+  const r = await run('Show the latest vomiting update for Milo.', chronologicalPlan('latest'), { rows: [prior, lost], careEpisodes: [] });
+  const final = persisted(r, 2).response_data.directAnswer;
+  assert.match(final, /could not establish the latest/); assert.ok(final.includes(prior.note));
+  assert.doesNotMatch(final, /latest matching update I could check/); noWrites(r); noWrites(capped);
+});
+
+test('chronology: changed latest is withheld while supported older content stays qualified', async t => {
+  clock(t);
+  const latest = care('changed-latest', 'milo', '2025-01-01', 'symptom', 'Milo vomited after lunch.');
+  const prior = care('prior-verified', 'milo', '2024-01-01', 'symptom', 'Milo vomited after breakfast.');
+  for (const fresh of [{...latest, note: 'Changed source text.'}, {...latest, deleted_at: '2026-01-01T00:00:00Z'}, {...latest, pet_profile_id: 'luna'}]) {
+    const r = await run('Show the latest vomiting update for Milo.', chronologicalPlan('latest'), { rows: [prior, latest], careEpisodes: [], graph: {sources: [fresh]} });
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.match(final, /could not establish the latest/); assert.match(final, /2024-01-01/);
+    assert.ok(final.includes(prior.note)); assert.ok(!final.includes(latest.note)); noWrites(r);
+  }
+  for (const options of [{rows: [prior, {...latest, deleted_at: '2026-01-01T00:00:00Z'}]}, {rows: [prior, latest], graph: {withheld_source_ids: [latest.id]}}]) {
+    const r = await run('Show the latest vomiting update for Milo.', chronologicalPlan('latest'), {...options, careEpisodes: []});
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.ok(final.includes(prior.note)); assert.ok(!final.includes(latest.note)); noWrites(r);
+  }
+});
+
+function dateCorrection(source, date, pet = 'milo') {
+  const original = { id: 'date-original', user_id: ownerId, subject_type: 'pet', subject_id: source.pet_profile_id, claim_kind: 'event', operation_type: 'assert',
+    concept_key: 'vomiting', canonical_concept_key: 'vomiting', concept_resolution_status: 'canonical', persistence_destination: 'history', knowledge_status: 'effective',
+    occurred_at: source.occurred_at, recorded_at: source.created_at, provenance_classification: 'imported_legacy', structured_value: { title: null, note: source.note, severity: null } };
+  const correction = {...original, id: 'date-correction', operation_type: 'correct', subject_id: pet, occurred_at: date && date + 'T12:00:00Z', recorded_at: '2026-09-01T00:00:00Z', structured_value: {note: `${pet === 'milo' ? 'Milo' : 'Luna'} vomited after dinner.`}};
+  return {claims: [original, correction], relations: [{id: 'date-edge', user_id: ownerId, from_claim_id: correction.id, to_claim_id: original.id, relation_type: 'corrects'}],
+    lineage: [{user_id: ownerId, claim_id: original.id, legacy_row_id: source.id, legacy_table: 'pet_care_entries', claim_role: 'primary'}]};
+}
+
+test('chronology: corrections reorder effective dates and seed reassigned subjects independently', async t => {
+  clock(t);
+  const source = care('wrong-event-date', 'milo', '2025-01-01', 'symptom', 'Milo vomited after lunch.');
+  const prior = care('true-boundary', 'milo', '2024-01-01', 'symptom', 'Milo vomited after breakfast.');
+  const r = await run('Show the latest vomiting update for Milo.', chronologicalPlan('latest'), {rows: [source, prior], careEpisodes: [], graph: dateCorrection(source, '2010-01-01')});
+  const final = persisted(r, 2).response_data.directAnswer;
+  assert.match(final, /latest matching update[^.]*2024-01-01/); assert.ok(final.includes(prior.note)); assert.ok(!final.includes(source.note));
+  const graph = dateCorrection(source, '2025-08-01', 'luna');
+  for (const pet of ['Milo', 'Luna']) {
+    const found = await run(`Show the latest vomiting update for ${pet}.`, chronologicalPlan('latest', {petNames: [pet]}), {rows: [source, prior], careEpisodes: [], graph});
+    const answer = persisted(found, 2).response_data.directAnswer;
+    assert.match(answer, pet === 'Milo' ? /2024-01-01/ : /2025-08-01/);
+    assert.ok(!answer.includes(source.note)); noWrites(found);
+  }
+  noWrites(r);
+});
+
+test('chronology: correction crossing an unvisited frontier and unknown event dates stay partial', async t => {
+  clock(t);
+  const source = care('frontier-root', 'milo', '2025-01-01', 'symptom', 'Milo vomited after lunch.');
+  const prior = care('frontier-prior', 'milo', '2024-01-01', 'symptom', 'Milo vomited after breakfast.');
+  // Read only the newest root; the failed page leaves 2024 unvisited. Moving
+  // that root to 2010 cannot establish that 2010 is latest.
+  for (const date of ['2010-01-01', null]) {
+    const r = await run('Show the latest vomiting update for Milo.', chronologicalPlan('latest'), {rows: [source, prior], careEpisodes: [], historyPageCap: 1, failHistoryPage: 2, graph: dateCorrection(source, date)});
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.match(final, /could not establish the latest/); assert.match(final, /vomited after dinner/); noWrites(r);
+  }
+});
+
+test('chronology: latest historical period, unresolved newest and multi-pet identity remain scoped', async t => {
+  clock(t);
+  const rows = [care('milo-old', 'milo', '2011-01-01', 'symptom', 'Vomiting after breakfast.'), care('milo-new', 'milo', '2025-01-01', 'symptom', 'He might have vomited after lunch.'),
+    care('luna-new', 'luna', '2024-01-01', 'symptom', 'Vomiting after dinner.')];
+  const both = await run('Show the latest vomiting update for Milo and Luna.', chronologicalPlan('latest', {petNames: ['Milo', 'Luna']}), {rows, careEpisodes: []});
+  const final = persisted(both, 2).response_data.directAnswer;
+  assert.match(final, /Milo[^\n]*2025-01-01[^\n]*might have vomited/);
+  assert.match(final, /Luna[^\n]*2024-01-01[^\n]*Vomiting after dinner/); assert.doesNotMatch(final, /2011-01-01/);
+  const period = await run('Show the latest vomiting update for Milo in 2011.', chronologicalPlan('latest', {from: '2011-01-01', to: '2012-01-01'}), {rows, careEpisodes: []});
+  assert.match(persisted(period, 2).response_data.directAnswer, /2011-01-01/); assert.doesNotMatch(persisted(period, 2).response_data.directAnswer, /2025-01-01|dinner/);
+  noWrites(both); noWrites(period);
+});
+
+test('chronology: descending retrieval timeout, missing RPC and correction budget fail honestly', async t => {
+  clock(t);
+  for (const options of [{candidateError: 'THROW_ABORT'}, {candidateError: 'PGRST202'}, {graph: {truncated: true}}]) {
+    const r = await run('Show the latest vomiting update for Milo.', chronologicalPlan('latest'), {rows: [row], careEpisodes: [], ...options});
+    const final = persisted(r, 2).response_data.directAnswer;
+    assert.match(final, /couldn't|could not/); assert.doesNotMatch(final, /latest matching update I could check|never vomited/);
+    noWrites(r);
+  }
+});
+
+
+test('chronology: corrected timestamps compare as instants and retain equivalent-time conflicts', async t => {
+  clock(t);
+  const source = care('offset-root', 'milo', '2020-01-01', 'symptom', 'Milo vomited after lunch.');
+  const tied = care('offset-tie', 'milo', '2025-01-01', 'symptom', 'Milo did not vomit this morning.');
+  const graph = dateCorrection(source, '2025-01-01');
+  graph.claims[1].occurred_at = '2025-01-01T04:00:00-08:00';
+  const r = await run('Show the latest vomiting update for Milo.', chronologicalPlan('latest'), {rows: [source, tied], graph, careEpisodes: []});
+  const final = persisted(r, 2).response_data.directAnswer;
+  assert.match(final, /vomited after dinner/); assert.ok(final.includes(tied.note));
+  assert.equal(r.context.askHistory.coverage.chronology[0].boundaryIds.length, 2); noWrites(r);
 });

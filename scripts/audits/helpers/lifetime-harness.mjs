@@ -58,7 +58,8 @@ function database(rows, { messages = [], failCare = false, careEpisodes = [], gr
         .map(r=>({...r,note:r.note.length>2000 ? null : r.note,content_omitted:r.note.length>2000})));
       return {data:episodeRowsOverride || {episodes:found,sources},error:episodeError ? {code:episodeError} : null};
     }
-    if (name === 'read_ask_history_candidates') {
+    if (name === 'read_ask_history_candidates' || name === 'read_ask_history_candidates_latest') {
+      const descending = name.endsWith('_latest');
       queries.push({ table: name, args, signal });
       if (candidateError === 'THROW_ABORT') throw new DOMException('aborted','AbortError');
       if (candidateError) return { data: null, error: { code: candidateError } };
@@ -66,8 +67,8 @@ function database(rows, { messages = [], failCare = false, careEpisodes = [], gr
       const data = rows.filter(row => row.user_id === ownerId && row.pet_profile_id === args.p_pet_id && !row.deleted_at
         && (!args.p_from || row.occurred_at >= args.p_from && row.occurred_at < args.p_to)
         && args.p_terms.some(term => `${row.note || ''} ${row.title || ''}`.toLowerCase().includes(term.toLowerCase()))
-        && (!args.p_after_time || row.occurred_at > args.p_after_time || row.occurred_at === args.p_after_time && row.id > args.p_after_id))
-        .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at) || a.id.localeCompare(b.id))
+        && (!args.p_after_time || (descending ? row.occurred_at < args.p_after_time || row.occurred_at === args.p_after_time && row.id < args.p_after_id : row.occurred_at > args.p_after_time || row.occurred_at === args.p_after_time && row.id > args.p_after_id)))
+        .sort((a, b) => (descending ? -1 : 1) * (a.occurred_at.localeCompare(b.occurred_at) || a.id.localeCompare(b.id)))
         .slice(0, Math.min(args.p_limit, historyPageCap));
       return { data: candidateRowsOverride ?? data, error: failCare ? { code: 'AUDIT_OFFLINE' } : null };
     }
@@ -110,7 +111,7 @@ function database(rows, { messages = [], failCare = false, careEpisodes = [], gr
       limit(value) { query.cap = value; return this; },
       maybeSingle() { query.single = true; return this; },
       then(resolve, reject) {
-        const historical = table === 'pet_care_entries' && query.orders.some(([key, ascending]) => key === 'id' && ascending);
+        const historical = table === 'pet_care_entries' && query.orders.some(([key]) => key === 'id');
         if (historical && ++historyPages === failHistoryPage) return Promise.resolve({ data: null, error: { code: 'MOCK_PAGE_OFFLINE' } }).then(resolve, reject);
         let data = (tables[table] || []).filter(row => query.filters.every(filter => filter(row)));
         data = [...data].sort((a, b) => { for (const [key, ascending] of query.orders) {
@@ -132,9 +133,9 @@ function evaluateFilter(expression, row) {
   }
   return parts.some(part => {
     if (part.startsWith('and(')) return part.slice(4, -1).split(',').every(term => evaluateFilter(term, row));
-    const [, key, op, value] = /^(\w+)\.(ilike|gt|eq)\.(.*)$/.exec(part) || [];
+    const [, key, op, value] = /^(\w+)\.(ilike|gt|lt|eq)\.(.*)$/.exec(part) || [];
     assert.ok(key, `unsupported mock filter: ${part}`);
-    return op === 'ilike' ? String(row[key] || '').toLowerCase().includes(value.replaceAll('%', '').toLowerCase()) : op === 'gt' ? row[key] > value : row[key] === value;
+    return op === 'ilike' ? String(row[key] || '').toLowerCase().includes(value.replaceAll('%', '').toLowerCase()) : op === 'gt' ? row[key] > value : op === 'lt' ? row[key] < value : row[key] === value;
   });
 }
 function output(answer = 'The supplied observations are owner reports, not a diagnosis.') {

@@ -1,4 +1,4 @@
-import { isAffirmativeOccurrenceReport, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
+import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
 import { buildWeightComparison, weightComparisonAnswer } from "./weight-comparison.ts";
@@ -307,13 +307,22 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
   for (const petId of contract.scope.authorizedPetIds) {
     const petName = contract.petNames?.[petId] || "Your pet";
     const candidates = notes.filter(note => note.petId === petId);
-    const occurrences = selection === "earliest_occurrence" ? candidates.filter(note => isAffirmativeOccurrenceReport(note.text, petName, terms)) : [];
-    const occurrenceUncertain = selection === "earliest_occurrence" && !occurrences.length;
-    const ordered = orderHistoryEvidence(occurrences.length ? occurrences : candidates, selection, note => note.occurredAt || "", note => note.sourceId);
+    const occurrence = (note: typeof candidates[number]) => classifyOccurrenceReport(note.text, petName, terms);
+    const eligible = selection === "earliest_occurrence" ? occurrenceCandidates(candidates, occurrence, note => note.occurredAt || "") : candidates;
+    const ordered = orderHistoryEvidence(eligible, selection, note => note.occurredAt || "", note => note.sourceId);
+    const boundary = contract.history?.chronology?.find(item => item.petId === petId);
+    const boundaryBlocked = boundary?.blocked || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
+    const occurrenceUncertain = selection === "earliest_occurrence" && ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0).some(note => occurrence(note) !== "affirmative");
     // Earliest/latest answers retain their decisive report. Include the other
     // dated reports for status so a resolution cannot hide a later recurrence.
     const selected = selection.startsWith("earliest") || selection === "latest" && !status
-      ? ordered.filter(note => note.occurredAt === ordered[0]?.occurredAt) : ordered;
+      ? ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0) : ordered;
+    // An unresolved early report remains first. A later affirmative report can
+    // still answer the supported portion, without taking first-occurrence authority.
+    if (occurrenceUncertain) {
+      const later = ordered.find(note => occurrence(note) === "affirmative" && !selected.includes(note));
+      if (later) selected.push(...ordered.filter(note => compareHistoryTime(note.occurredAt || "", later.occurredAt || "") === 0 && !selected.includes(note)));
+    }
     if (!selection.startsWith("earliest") && selection !== "latest") selected.sort((a, b) => (a.occurredAt || "").localeCompare(b.occurredAt || ""));
     const groups = new Map<string, typeof selected>();
     for (const note of selected) groups.set(note.text, [...(groups.get(note.text) || []), note]);
@@ -325,7 +334,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
       const natural = !quote ? proposals.filter(proposal => synthesis.filter(other => other.sourceId === proposal.sourceId).length === 1)
         .map(proposal => supportedHistoryParaphrase(note.text, proposal.text, petName)).find(Boolean) : null;
       contract.answerSourceIds!.push(...group.map(item => item.sourceId));
-      const anchored = (selection.startsWith("earliest") || selection === "latest") && note === selected[0] && group.length === 1;
+      const anchored = !boundaryBlocked && !occurrenceUncertain && (selection.startsWith("earliest") || selection === "latest") && note === selected[0] && group.length === 1;
       const content = natural ? anchored ? natural : `${natural.replace(/[.!]$/, "")} (${dates}).`
         : `${petName}'s ${dates} report: ${JSON.stringify(note.text)}`;
       contract.answerContent!.push(content);
@@ -333,7 +342,8 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     });
     if (sentences.length) {
       const date = selected[0].occurredAt?.slice(0, 10) || "an unknown date";
-      const lead = occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
+      const lead = boundaryBlocked ? `I could verify this dated history for ${petName}, but could not establish the ${selection === "latest" ? "latest" : "earliest"} matching report because some candidates could not be checked. `
+        : occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
         : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `
         : selection === "latest" ? `The latest matching update I could check for ${petName} is dated ${date}. ` : `${petName}'s recorded history: `;
       reports.push(lead + sentences.join(" "));
@@ -347,7 +357,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     if (current.length) reports.unshift(`You just reported: ${current.join(" ")} For comparison, here are the dated reports.`);
   }
   const limitation = conversationalHistoryLimitation(contract);
-  if (selection.startsWith("earliest")) reports.push("That is the earliest matching report in the evidence I could check, not proof of when it first happened in their life.");
+  if (selection.startsWith("earliest")) reports.push("These saved reports are not proof of when it first happened in their life.");
   if (status) {
     const today = new Date().toISOString().slice(0, 10);
     const current = notes.some(note => note.occurredAt?.slice(0, 10) === today);

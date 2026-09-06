@@ -31,6 +31,13 @@ export function supportedHistoryParaphrase(source: string, proposed: string, pet
     ? proposed.trim() : `${petName}: ${proposed.trim()}`;
 }
 
+/** Compare instants, including equivalent UTC offset/millisecond spellings
+ * from correction payloads. Unknown dates retain a deterministic fallback. */
+export function compareHistoryTime(left: string, right: string): number {
+  const a = Date.parse(left); const b = Date.parse(right);
+  return Number.isFinite(a) && Number.isFinite(b) ? a - b : left.localeCompare(right);
+}
+
 /** Order the existing evidence budget by requested selection, not a second
  * unrelated newest-N window. The tie-breaker is stable source identity. */
 export function orderHistoryEvidence<T>(values: T[], selection: string | undefined, date: (value: T) => string, id: (value: T) => string, pet?: (value: T) => string, priority?: (value: T) => number): T[] {
@@ -42,7 +49,7 @@ export function orderHistoryEvidence<T>(values: T[], selection: string | undefin
     }
     return fair;
   }
-  const sorted = [...values].sort((a, b) => (priority ? priority(a) - priority(b) : 0) || date(a).localeCompare(date(b)) || id(a).localeCompare(id(b)));
+  const sorted = [...values].sort((a, b) => (priority ? priority(a) - priority(b) : 0) || compareHistoryTime(date(a), date(b)) || id(a).localeCompare(id(b)));
   if (selection === "latest") return sorted.reverse();
   if (selection === "summary" || selection === "comparison") {
     // Under an upstream budget, retain both temporal boundaries before interior
@@ -55,14 +62,29 @@ export function orderHistoryEvidence<T>(values: T[], selection: string | undefin
   return sorted;
 }
 
-/** Positive past-tense report recognition is deliberately narrower than search.
- * Unknown sentence forms stay visible as uncertain matches, never first-event
- * authority. This does not create episodes, grouping, counts or writes. */
-export function isAffirmativeOccurrenceReport(text: string, petName: string, terms: string[]): boolean {
+export type OccurrenceReport = "affirmative" | "negative" | "unresolved";
+
+/** Classification never ranks affirmative prose ahead of an older unknown.
+ * Only a complete, explicit non-occurrence construction can be skipped. The
+ * shared assertion analyzer supplies qualifiers; it is not medical entailment.
+ * Unrecognized grammar, prevention, attribution and mixed polarity stay open. */
+export function classifyOccurrenceReport(text: string, petName: string, terms: string[]): OccurrenceReport {
   const analysis = analyzeOwnerAssertions(text);
-  if (analysis.clauseSpans.some(span => span.isQuestion || span.isUncertain || span.isConditional)
-    || /\b(?:no|not|never|without)\b|n['\u2019]t\b/i.test(text)) return false;
+  if (!terms.length || !analysis.clauseSpans.length
+    || analysis.clauseSpans.some(span => span.isQuestion || span.isUncertain || span.isConditional || span.isAttributed)
+    || /["\u201c\u201d]|\b(?:will|would|should|reportedly|reported|according|said)\b/i.test(text)) return "unresolved";
   const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pastForms = terms.map(term => /\s/.test(term) || term.endsWith("ed") ? term : `${term}ed`).map(escape);
-  return pastForms.length > 0 && new RegExp(`^(?:${escape(petName)}|he|she) (?:first |last |recently )?(?:${pastForms.join("|")})(?=\\s|[.!])`, "iu").test(text.trim());
+  const topic = `(?:${terms.map(escape).join("|")})[a-z]*`;
+  const subject = `(?:(?:${escape(petName)}|he|she)\\s+)?`;
+  const negative = new RegExp(`^${subject}(?:(?:had|has|has had)\\s+)?no (?:more |further )?${topic}(?: (?:today|yesterday|on this day|this morning|this evening))?[.!]?$|^${subject}did not ${topic}(?: (?:today|yesterday|on this day|this morning|this evening))?[.!]?$`, "iu");
+  if (negative.test(text.trim())) return "negative";
+  if (analysis.clauseSpans.some(span => span.isNegated) || /\b(?:no|not|never|without)\b|n['\u2019]t\b/i.test(text)) return "unresolved";
+  return analysis.hasOwnerAssertion ? "affirmative" : "unresolved";
+}
+
+/** Keep all reports at a potentially affirmative boundary, including negatives
+ * that conflict at the same timestamp. Unknowns retain their chronological place. */
+export function occurrenceCandidates<T>(values: T[], classify: (value: T) => OccurrenceReport, date: (value: T) => string): T[] {
+  const dates = new Set(values.filter(value => classify(value) !== "negative").map(value => Date.parse(date(value))));
+  return dates.size ? values.filter(value => dates.has(Date.parse(date(value)))) : values;
 }
