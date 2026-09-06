@@ -71,7 +71,7 @@ update public.pet_care_entries set state_action_type='semantic_corrected' where 
 select pg_temp.assert_recorded(pg_temp.inventory()#>'{recorded_inventory,failures}'<>'[]','structured native correction cannot certify an opening');
 rollback to correction;
 savepoint deleted;
-update public.pet_care_entries set deleted_at=now() where id='92000000-0000-4000-8002-000000000001';
+update public.pet_care_entries set deleted_at=now(), deletion_reason='synthetic validation removal' where id='92000000-0000-4000-8002-000000000001';
 select pg_temp.assert_recorded(pg_temp.inventory()#>'{recorded_inventory,failures}'<>'[]','soft deletion fails closed');
 rollback to deleted;
 savepoint hard_deleted;
@@ -86,6 +86,7 @@ insert into public.pet_care_episode_events(claim_id,episode_id,user_id,pet_profi
 select l.claim_id,e.episode_id,e.user_id,e.pet_profile_id,2,'opening',e.occurred_at
 from public.semantic_claim_legacy_lineage l join public.pet_care_entries e on e.id=l.legacy_row_id
 where l.user_id='92000000-0000-4000-8000-000000000001' and l.legacy_table='pet_care_entries';
+select pg_temp.inventory()#>'{recorded_inventory,failures}' as import_failures;
 select pg_temp.assert_recorded(pg_temp.inventory()#>'{recorded_inventory,failures}'='[]','full import retains raw care and claim census for lineage deduplication');
 select pg_temp.assert_recorded(jsonb_array_length(pg_temp.inventory()->'claims')=12,'all imported claims retained');
 savepoint forgotten;

@@ -207,9 +207,9 @@ begin
  -- as a fully imported register. Unimported native care alone is supported.
  if exists(select 1 from public.semantic_claim_legacy_lineage l join public.pet_care_entries e on e.id=l.legacy_row_id
     where l.user_id=auth.uid() and e.user_id=auth.uid() and e.pet_profile_id=p_pet_id and l.legacy_table='pet_care_entries')
- and exists(select 1 from unnest(care_ids) id where not exists(
+ and exists(select 1 from unnest(care_ids) as care_root(care_id) where not exists(
    select 1 from public.semantic_claim_legacy_lineage l where l.user_id=auth.uid() and l.legacy_table='pet_care_entries'
-     and l.legacy_row_id=id and l.claim_role='primary' and l.claim_id=any(claim_ids)
+     and l.legacy_row_id=care_root.care_id and l.claim_role='primary' and l.claim_id=any(claim_ids)
  )) then failures:=array_append(failures,'import_frontier_gap'); end if;
  if cardinality(ids)<=32 and cardinality(care_ids)+cardinality(claim_ids)<=64 then
    for offset_idx in 0..3 loop
