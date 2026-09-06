@@ -2,18 +2,19 @@ import "server-only";
 import { parseEpisodeFollowUp as episodeFollowUp } from "./episode-reference-language.ts";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CareEntryRow } from "../supabase.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import { effectiveCandidates, planHistoricalQuery, type HistoryCoverage } from "./history-retrieval.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 
 import type { EpisodeReferences, EpisodeResult } from "./episode-contract.ts";
+import { episodeMembershipSources, type EpisodeSource } from "./episode-membership.ts";
+import type { EpisodeClaimValidation } from "./history-retrieval.ts";
 export type { EpisodeItem, EpisodeReferences, EpisodeResult } from "./episode-contract.ts";
 export { attachEpisodeReferences } from "./episode-contract.ts";
 
 type EpisodeRow = { id: string; user_id: string; pet_profile_id: string; normalized_key: string;
   started_at: string; sequence_number: number; recurrence_of: string | null; status: string; updated_at: string };
-type Source = CareEntryRow & { episode_id?: string | null; content_omitted?: boolean };
+type Source = EpisodeSource;
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const keys = (topic: string) => topic === "vomiting" ? ["vomiting", "vomit"] : topic === "soft stool" ? ["soft_stool", "stool", "diarrhea"] : ["breathing"];
 const sourceVersion = (s: Source) => hash([s.id,s.user_id,s.pet_profile_id,s.title,s.note,s.occurred_at,s.updated_at,s.deleted_at]);
@@ -40,7 +41,7 @@ function parseReferences(value: unknown, context: FurviseLiveContext): EpisodeRe
     || !["vomiting","soft stool","breathing"].includes(r.topic) || !Array.isArray(r.items) || !r.items.length || r.items.length > 8
     || new Set(r.items.map(i => i.id)).size !== r.items.length
     || r.items.some((i,index) => !i || typeof i.id !== "string" || !/^episode:[a-zA-Z0-9_-]+$/.test(i.id)
-      || !/^care:[a-zA-Z0-9_-]+$/.test(i.sourceId) || !/^[a-f0-9]{64}$/.test(i.sourceVersion)
+      || !/^(?:care|claim):[a-zA-Z0-9_-]+$/.test(i.sourceId) || !/^[a-f0-9]{64}$/.test(i.sourceVersion)
       || !/^[a-f0-9]{64}$/.test(i.episodeVersion || "")
       || i.ordinal !== index+1 || !Number.isFinite(Date.parse(i.startedAt)))
     || r.selectedId !== null && !r.items.some(i => i.id === r.selectedId)) return null;
@@ -105,7 +106,9 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     if (read.error || !read.data || !Array.isArray(read.data.episodes) || !Array.isArray(read.data.sources)
       || read.data.episodes.length>9 || read.data.sources.length>72) throw new Error("episode_read_unavailable");
     const episodes = read.data.episodes as EpisodeRow[];
-    const sources = read.data.sources as Source[];
+    const membership = episodeMembershipSources(read.data, episodes, read.data.sources as Source[], context.owner.userId, context.pet.id);
+    const sources = membership.sources;
+    if (!membership.memberships) result.reasons.push("episode_membership_contract_unavailable");
     if (episodes.some(e => e.user_id!==context.owner.userId || e.pet_profile_id!==context.pet.id || !keys(result.topic).includes(e.normalized_key))
       || sources.some(s=>s.user_id!==context.owner.userId || s.pet_profile_id!==context.pet.id)) throw new Error("episode_scope_mismatch");
     if (episodes.some(e => !["superseded", "archived", "dismissed"].includes(e.status)
@@ -117,21 +120,47 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     // without checking the whole group, and could preserve stale references.
     const incomplete = new Set(episodes.filter(e => {
       const members = sources.filter(s => s.episode_id === e.id);
-      return members.length > 8 || members.some(s => s.content_omitted || typeof s.note !== "string");
+      return membership.invalid.has(e.id) || members.length > 8 || members.some(s => s.content_omitted || typeof s.note !== "string");
     }).map(e => e.id));
     if (incomplete.size || episodes.length>8) result.reasons.push("episode_input_bound");
     // Unlinked notes remain unknown grouping, even if they say "separate": two
     // copies of that note may describe one event. Never count source IDs as groups.
-    const candidates: Source[] = sources.filter(s=>!incomplete.has(s.episode_id!) && !s.content_omitted && typeof s.note === "string").slice(0,64);
+    let candidates: Source[] = sources.filter(s=>!incomplete.has(s.episode_id!) && !s.content_omitted && typeof s.note === "string").slice(0,64);
     const coverage: HistoryCoverage = {plan:{from:null,to:null,terms:[],interpretation:"period"}, candidateIds:candidates.map(s=>s.id),queryCount:0,
       retrieval:"partial",corrections:"unknown",extraction:"unknown",grouping:"unknown",continuation:[],reasons:[],consistency:"read_committed_no_snapshot",perPet:[],provenance:[],claimSources:[],excludedIds:[]};
-    const effective=await effectiveCandidates(candidates,new Set(context.eligiblePets.filter(p=>p.user_id===context.owner.userId).map(p=>p.id)),[context.pet.id],context.owner.userId,db,coverage,deadline);
+    const claimValidation: EpisodeClaimValidation = {claims:candidates.flatMap(s=>s.claim ? [s.claim] : []),verified:new Map()};
+    const effective=await effectiveCandidates(candidates.filter(s=>!s.claim),new Set(context.eligiblePets.filter(p=>p.user_id===context.owner.userId).map(p=>p.id)),[context.pet.id],context.owner.userId,db,coverage,deadline,claimValidation);
     const recheck=await db.rpc("read_ask_episode_sources",readArgs).abortSignal(signal());
-    if (recheck.error || !recheck.data || hash([read.data.episodes,read.data.sources])!==hash([recheck.data.episodes,recheck.data.sources])) throw new Error("episode_changed_during_read");
+    const revision = (data: typeof read.data) => [data.episodes,data.sources,data.membership_contract,data.memberships,data.claims];
+    if (recheck.error || !recheck.data || hash(revision(read.data))!==hash(revision(recheck.data))) throw new Error("episode_changed_during_read");
+    if (membership.memberships) {
+      const priorGraph = claimValidation.revision;
+      await effectiveCandidates(candidates.filter(s=>!s.claim),new Set(context.eligiblePets.filter(p=>p.user_id===context.owner.userId).map(p=>p.id)),
+        [context.pet.id],context.owner.userId,db,coverage,deadline,claimValidation);
+      if (!priorGraph || priorGraph !== claimValidation.revision) throw new Error("episode_correction_changed_during_read");
+    }
     result.provenance=coverage.provenance;
     if (coverage.corrections==="unavailable" || coverage.reasons.includes("unlinked_correction_uncertain")) throw new Error("episode_correction_unavailable");
     const effectiveIds=new Set(effective.map(s=>s.id));
-    result.entryCount=effectiveIds.size;
+    for (const s of candidates) if (s.claim && claimValidation.verified.has(s.claim.id)) effectiveIds.add(s.id);
+    if (membership.memberships) {
+      // An invalid continuation can change the interpretation of the opening.
+      // Never retain the remainder of a partly revalidated membership group.
+      for (const s of candidates) if (!effectiveIds.has(s.id)) incomplete.add(s.episode_id!);
+      for (const s of candidates) if (context.eligiblePets.some(p=>p.id!==context.pet.id && p.name
+        && new RegExp(`\\b${p.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}\\b`,"i").test(s.note))) incomplete.add(s.episode_id!);
+      const lineages = new Map<string, Source>();
+      for (const s of candidates) {
+        const legacyId = s.claim ? claimValidation.verified.get(s.claim.id) : s.id;
+        const key = legacyId ? `care:${legacyId}` : s.evidenceId || `care:${s.id}`;
+        const prior = lineages.get(key);
+        if (prior && prior.episode_id !== s.episode_id) { incomplete.add(prior.episode_id!); incomplete.add(s.episode_id!); }
+        else if (!prior || !s.claim) lineages.set(key,s);
+      }
+      candidates = [...lineages.values()].filter(s=>!incomplete.has(s.episode_id!));
+      if (incomplete.size) result.reasons.push("episode_membership_unverified_or_incomplete");
+    }
+    result.entryCount=candidates.filter(s=>effectiveIds.has(s.id)).length;
     const grouped=new Map<string,{source:Source; episode?:EpisodeRow; separate:boolean; occurrences:number|null}>();
     const ambiguous=new Set<string>();
     for (const s of candidates.filter(s=>effectiveIds.has(s.id))) {
@@ -152,8 +181,10 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       if (result.items.length && !g.separate) { result.coverage="ambiguous"; result.reasons.push("separate_boundary_unknown"); continue; }
       if (result.items.length===8) { result.reasons.push("display_bound"); break; }
       const members=g.episode ? candidates.filter(s=>s.episode_id===g.episode!.id) : [g.source];
-      const version=hash(members.sort((a,b)=>a.id.localeCompare(b.id)).map(s=>[sourceVersion(s),effectiveIds.has(s.id),coverage.provenance.filter(p=>p.sourceId===`care:${s.id}`)]));
-      result.items.push({id,sourceId:`care:${g.source.id}`,sourceVersion:version,episodeVersion:g.episode ? hash(g.episode) : null,
+      const sourceVersions=members.sort((a,b)=>a.id.localeCompare(b.id)).map(s=>[sourceVersion(s),effectiveIds.has(s.id),coverage.provenance.filter(p=>p.sourceId===(s.evidenceId || `care:${s.id}`))]);
+      const version=membership.memberships ? hash([sourceVersions,membership.memberships.filter(m=>m.episode_id===g.episode?.id),
+        sources.filter(s=>s.episode_id===g.episode?.id).map(s=>s.claim || null),claimValidation.revision]) : hash(sourceVersions);
+      result.items.push({id,sourceId:g.source.evidenceId || `care:${g.source.id}`,sourceVersion:version,episodeVersion:g.episode ? hash(g.episode) : null,
         startedAt:g.source.occurred_at,sequenceNumber:g.episode?.sequence_number || null,recurrenceOf:g.episode?.recurrence_of || null,
         ordinal:result.items.length+1,reportedOccurrences:g.occurrences});
     }
@@ -173,7 +204,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       // Keep complete notes and dates; do not infer cause or recovery from a label.
       result.details=candidates.filter(s=>s.episode_id===selected.id.slice(8) && effectiveIds.has(s.id) && !s.deleted_at)
         .sort((a,b)=>a.occurred_at.localeCompare(b.occurred_at)||a.id.localeCompare(b.id))
-        .map(s=>({sourceId:`care:${s.id}`,occurredAt:s.occurred_at,note:s.note}));
+        .map(s=>({sourceId:s.evidenceId || `care:${s.id}`,occurredAt:s.occurred_at,note:s.note}));
       result.references={...refs,selectedId:selected.id};
     } else if (context.conversationId && result.items.length) result.references={version:"ask-episodes.v1",ownerId:context.owner.userId,
       conversationId:context.conversationId,petId:context.pet.id,topic:result.topic,from:result.from,to:result.to,coverage:"partial",exactTotal:null,items:result.items,selectedId:null};

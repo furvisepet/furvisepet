@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { discoverDatedCorrectionNotes } from "./dated-correction-notes.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CareEntryRow } from "../supabase.ts";
@@ -20,7 +21,8 @@ export type HistoryCoverage = {
   excludedIds: string[];
 };
 export type RetrievedAskHistory = { coverage: HistoryCoverage; entries: CareEntryRow[]; originals: CareEntryRow[] };
-type DbClaim = Record<string, unknown> & { id: string; user_id: string; subject_id: string; structured_value: unknown };
+export type DbClaim = Record<string, unknown> & { id: string; user_id: string; subject_id: string; structured_value: unknown };
+export type EpisodeClaimValidation = { claims: DbClaim[]; verified: Map<string, string | null>; revision?: string };
 type DbRelation = { id: string; user_id: string; from_claim_id: string; to_claim_id: string; relation_type: RebuildRelation["relationType"] };
 type Lineage = { user_id: string; claim_id: string; legacy_row_id: string; legacy_table: string; claim_role: string };
 type GraphPage = { claims: DbClaim[]; relations: DbRelation[]; lineage: Lineage[]; sources: CareEntryRow[]; truncated: boolean; withheld_claim_ids?: string[]; withheld_source_ids?: string[] };
@@ -170,14 +172,16 @@ function sameCandidateVersion(candidate: CareEntryRow, fresh: CareEntryRow | und
     && (!("episode_id" in candidate) || candidate.episode_id === fresh.episode_id));
 }
 
-export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string>, requestedPets: string[], userId: string, db: SupabaseClient, coverage: HistoryCoverage, deadline: number): Promise<CareEntryRow[]> {
+export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set<string>, requestedPets: string[], userId: string, db: SupabaseClient, coverage: HistoryCoverage, deadline: number, episodeClaims?: EpisodeClaimValidation): Promise<CareEntryRow[]> {
   const claims = new Map<string, DbClaim>(); const relations = new Map<string, DbRelation>(); const links = new Map<string, Lineage>(); const sources = new Map<string, CareEntryRow>();
   const removedTargets = new Set<string>();
   const removedSources = new Set<string>();
-  let frontier: string[] = []; const visited = new Set<string>();
+  let frontier: string[] = episodeClaims?.claims.map(c => c.id) || []; const visited = new Set<string>();
   try {
+    episodeClaims?.verified.clear();
     // Batch the candidate roots so no request or graph frontier grows unbounded.
     const batches = Array.from({ length: Math.ceil(candidates.length / 64) }, (_, i) => candidates.slice(i * 64, (i + 1) * 64).map(row => row.id));
+    const visitedCare = new Set(candidates.map(c => c.id));
     if (!batches.length) batches.push([]);
     for (let call = 0; batches.length || frontier.length; call++) {
       if (call >= HISTORY_BUDGET.graphCalls) throw new Error("correction_budget");
@@ -199,13 +203,20 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       if ([...relations.values()].some(edge => (claimIds.includes(edge.from_claim_id) || claimIds.includes(edge.to_claim_id)) && !returnedEdges.has(edge.id))) throw new Error("correction_changed_during_read");
       for (const next of page.claims.filter(claim => claim.user_id === userId)) {
         const prior = claims.get(next.id);
-        if (prior && ["subject_id", "knowledge_status", "structured_value", "operation_type", "recorded_at"].some(key => JSON.stringify(prior[key]) !== JSON.stringify(next[key]))) throw new Error("claim_changed_during_read");
+        if (prior && JSON.stringify(prior) !== JSON.stringify(next)) throw new Error("claim_changed_during_read");
       }
       for (const row of page.sources) if (row.user_id === userId && owned.has(row.pet_profile_id)) sources.set(row.id, row);
       for (const claim of page.claims) if (claim.user_id === userId && owned.has(claim.subject_id)) claims.set(claim.id, claim);
       coverage.claimSources = requestedPets.map(petId => ({ petId, sourceIds: [...claims.values()].filter(claim => claim.subject_id === petId).map(claim => `claim:${claim.id}`).sort() }));
       for (const relation of page.relations) if (relation.user_id === userId) relations.set(relation.id, relation);
       for (const link of page.lineage) if (link.user_id === userId && link.legacy_table === "pet_care_entries") links.set(link.claim_id, link);
+      // Imported claim roots also need care-root tombstone lookup. The existing
+      // RPC returns withheld_source_ids only for explicitly requested care IDs.
+      if (episodeClaims) {
+        const newCare = [...links.values()].map(l=>l.legacy_row_id).filter(id=>!visitedCare.has(id));
+        newCare.forEach(id=>visitedCare.add(id));
+        for (let i=0;i<newCare.length;i+=64) batches.push(newCare.slice(i,i+64));
+      }
       if (claims.size > HISTORY_BUDGET.graphRows || relations.size > HISTORY_BUDGET.graphRows) throw new Error("correction_budget");
       frontier = [...new Set([...frontier, ...claims.keys()])].filter(id => !visited.has(id));
     }
@@ -219,7 +230,7 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       const value = claim.structured_value as { note?: unknown; title?: unknown; severity?: unknown } | null;
       if (!value || value.note !== source.note || (value.title ?? null) !== (source.title ?? null) || (value.severity ?? null) !== (source.severity ?? null)
         || claim.subject_id !== source.pet_profile_id || claim.occurred_at !== source.occurred_at) throw new Error("stale_lineage");
-      if (source.deleted_at) claim.knowledge_status = "tombstoned";
+      if (source.deleted_at || removedSources.has(source.id)) claim.knowledge_status = "tombstoned";
     }
     for (const id of removedTargets) if (claims.has(id)) claims.get(id)!.knowledge_status = "tombstoned";
     const mapped = [...claims.values()].map((claim): RebuildClaim => ({ id: claim.id, userId, subjectId: claim.subject_id, subjectType: String(claim.subject_type),
@@ -230,6 +241,23 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       recordedAt: String(claim.recorded_at), provenanceClassification: String(claim.provenance_classification), structuredValue: claim.structured_value }));
     const graph = resolveEffectiveClaimGraph(mapped, graphRelations.map(edge => ({ fromClaimId: edge.from_claim_id, toClaimId: edge.to_claim_id, relationType: edge.relation_type })));
     if (graph.ambiguousOperationClaimIds.length || graph.invalidRelationClaimIds.length) throw new Error("ambiguous_correction_graph");
+    if (episodeClaims) episodeClaims.revision = createHash("sha256").update(JSON.stringify([
+      [...claims.values()].sort((a,b)=>a.id.localeCompare(b.id)), [...relations.values()].sort((a,b)=>a.id.localeCompare(b.id)),
+      [...links.values()].sort((a,b)=>a.claim_id.localeCompare(b.claim_id)), [...sources.values()].sort((a,b)=>a.id.localeCompare(b.id)),
+      [...removedTargets].sort(), [...removedSources].sort(),
+    ])).digest("hex");
+    for (const candidate of episodeClaims?.claims || []) {
+      const fresh = claims.get(candidate.id);
+      // Both readers return stored claim objects. Compare every supplied field;
+      // omitted payloads and changed concept/role/owner cannot inherit membership.
+      if (!fresh || Object.keys(candidate).some(key => JSON.stringify(candidate[key]) !== JSON.stringify(fresh[key]))
+        || !graph.effectiveClaimIds.has(candidate.id)) continue;
+      const lineage = links.get(candidate.id);
+      if (candidate.source_type === "legacy_import" && !lineage) continue;
+      if (lineage && (lineage.claim_role !== "primary" || removedSources.has(lineage.legacy_row_id))) continue;
+      episodeClaims!.verified.set(candidate.id, lineage?.legacy_row_id || null);
+      coverage.provenance.push({sourceId:`claim:${candidate.id}`,claimIds:[candidate.id],status:"effective_episode_member"});
+    }
     const output: CareEntryRow[] = [];
     const linkedCandidates = new Set<string>();
     for (const original of candidates) {
@@ -276,6 +304,7 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
     // were linked or imported. No semantic completeness claim is made.
     return output;
   } catch {
+    episodeClaims?.verified.clear();
     coverage.corrections = "unavailable"; coverage.reasons.push("correction_closure_unavailable_or_ambiguous");
     coverage.provenance = candidates.map(row => ({ sourceId: `care:${row.id}`, claimIds: [], status: "withheld_correction_authority" }));
     return [];
