@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppPage } from "../../../components/app-page";
 import { EmptyState, LoadingState, Notice, PageHeader, SecondaryButton } from "../../../components/product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../../../lib/auth-session";
@@ -16,6 +16,13 @@ export default function RememberedDetailsPage() {
   const appDataVersion = useAppDataVersion();
   const params = useParams<{ id: string }>();
   const { status, user } = useRequireConfirmedSupabaseAuth();
+  return <RememberedDetailsSession key={[user?.id || "signed-out", status, params.id, appDataVersion].join(":")} params={params} user={status === "signedIn" ? user : null} />;
+}
+
+function RememberedDetailsSession({ params, user }: { params: { id: string }; user: ReturnType<typeof useRequireConfirmedSupabaseAuth>["user"] }) {
+  const petId = params.id;
+  const active = useRef(false);
+  const refreshVersion = useRef(0);
   const [profile, setProfile] = useState<DogProfileWithMemories | null>(null);
   const [rows, setRows] = useState<CanonicalRememberedDetailsRows>({ canonical: [], legacy: [] });
   const [loading, setLoading] = useState(true);
@@ -23,52 +30,60 @@ export default function RememberedDetailsPage() {
   const [success, setSuccess] = useState("");
 
   const fetchDetails = useCallback(async () => {
-    if (status !== "signedIn" || !user) return;
+    if (!user) return;
     return Promise.all([
-      loadDogProfileWithMemoriesForUser(params.id, user),
-      loadCanonicalRememberedDetailsForUser(params.id, user),
+      loadDogProfileWithMemoriesForUser(petId, user),
+      loadCanonicalRememberedDetailsForUser(petId, user),
     ]);
-  }, [params.id, status, user]);
+  }, [petId, user]);
 
   const refresh = useCallback(async () => {
+    const version = ++refreshVersion.current;
     const result = await fetchDetails();
-    if (!result) return;
+    if (!active.current || version !== refreshVersion.current || !result) return;
     const [profileRow, memoryRows] = result;
     setProfile(profileRow);
     setRows(memoryRows);
   }, [fetchDetails]);
 
   useEffect(() => {
-    if (status !== "signedIn" || !user) return;
-    let active = true;
+    if (!user) return;
+    active.current = true;
+    const version = ++refreshVersion.current;
     fetchDetails().then((result) => {
-      if (!active || !result) return;
+      if (!active.current || version !== refreshVersion.current || !result) return;
       setProfile(result[0]);
       setRows(result[1]);
-    }).catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : "Remembered details could not be loaded."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [appDataVersion, fetchDetails, status, user]);
+    }).catch((loadError) => { if (active.current && version === refreshVersion.current) setError(loadError instanceof Error ? loadError.message : "Remembered details could not be loaded."); })
+      .finally(() => { if (active.current && version === refreshVersion.current) setLoading(false); });
+    return () => { active.current = false; refreshVersion.current += 1; };
+  }, [fetchDetails, user]);
 
   const name = profile ? formatPetDisplayName(profile.name) : "your pet";
   const details = useMemo(() => buildRememberedDetails({ canonical: rows.canonical, legacy: rows.legacy, petName: name }), [name, rows]);
 
-  async function updateMemory(id: string, action: "confirm" | "edit" | "forget", value?: string) {
+  async function updateMemory(memory: RememberedDetail, action: "confirm" | "edit" | "forget", value?: string) {
+    if (!active.current || !user || !details.all.some((row) => row.id === memory.id && row.source === memory.source)) throw new Error("Refresh remembered details and try again.");
+    if (memory.source === "legacy" && action !== "forget") throw new Error("That detail can only be forgotten.");
+    const id = memory.id;
     setError("");
     setSuccess("");
     const client = getBrowserSupabase();
     const { data } = client ? await client.auth.getSession() : { data: { session: null } };
     const token = data.session?.access_token;
+    if (!active.current) throw new Error("The selected pet changed. Try again.");
     if (!token) throw new Error("Please sign in again.");
-    const response = await idempotentClientFetch(`/api/memories/${encodeURIComponent(id)}`, {
-      method: "PATCH",
+    const response = await idempotentClientFetch(memory.source === "legacy" ? "/api/legacy-memories" : `/api/memories/${encodeURIComponent(id)}`, {
+      method: memory.source === "legacy" ? "DELETE" : "PATCH",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ action, value }),
-    }, `memory:${action}:${id}`);
+      body: JSON.stringify(memory.source === "legacy" ? { memoryIds: [id], petId } : { action, value }),
+    }, `memory:${memory.source}:${petId}:${action}:${id}`);
     const payload = await response.json().catch(() => null) as { error?: string } | null;
     if (!response.ok) throw new Error(payload?.error || "That remembered detail could not be updated.");
+    if (!active.current) return;
     await refresh();
-    setSuccess(action === "forget" ? "Forgotten. Furvise will no longer use that detail." : action === "confirm" ? "Detail confirmed." : "Remembered detail updated.");
+    if (!active.current) return;
+    setSuccess(action === "forget" ? "Detail forgotten." : action === "confirm" ? "Detail confirmed." : "Remembered detail updated.");
   }
 
   return <AppPage layout="focused" shell="reading">
@@ -85,22 +100,22 @@ export default function RememberedDetailsPage() {
   </AppPage>;
 }
 
-function MemoryGroup({ heading, memories, onUpdate }: { heading: string; memories: RememberedDetail[]; onUpdate: (id: string, action: "confirm" | "edit" | "forget", value?: string) => Promise<void> }) {
+function MemoryGroup({ heading, memories, onUpdate }: { heading: string; memories: RememberedDetail[]; onUpdate: (memory: RememberedDetail, action: "confirm" | "edit" | "forget", value?: string) => Promise<void> }) {
   return <section aria-labelledby={`memory-${heading.replace(/\s+/g, "-").toLowerCase()}`}>
     <h2 className="text-xl font-semibold text-[var(--text-primary)]" id={`memory-${heading.replace(/\s+/g, "-").toLowerCase()}`}>{heading}</h2>
     <ul className="mt-3 grid gap-3">{memories.map((memory) => <MemoryCard key={`${memory.source}:${memory.id}`} memory={memory} onUpdate={onUpdate} />)}</ul>
   </section>;
 }
 
-function MemoryCard({ memory, onUpdate }: { memory: RememberedDetail; onUpdate: (id: string, action: "confirm" | "edit" | "forget", value?: string) => Promise<void> }) {
+function MemoryCard({ memory, onUpdate }: { memory: RememberedDetail; onUpdate: (memory: RememberedDetail, action: "confirm" | "edit" | "forget", value?: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(memory.editableValue);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
   async function act(action: "confirm" | "edit" | "forget") {
-    if (busy || memory.source !== "canonical") return;
+    if (busy || (memory.source === "legacy" && action !== "forget")) return;
     setBusy(true); setLocalError("");
-    try { await onUpdate(memory.id, action, action === "edit" ? value : undefined); setEditing(false); }
+    try { await onUpdate(memory, action, action === "edit" ? value : undefined); setEditing(false); }
     catch (cause) { setLocalError(cause instanceof Error ? cause.message : "That detail could not be updated."); }
     finally { setBusy(false); }
   }
@@ -116,7 +131,7 @@ function MemoryCard({ memory, onUpdate }: { memory: RememberedDetail; onUpdate: 
       {editing ? <><button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy || !value.trim()} onClick={() => void act("edit")} type="button">{busy ? "Saving..." : "Save"}</button><button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => setEditing(false)} type="button">Cancel</button></> : <button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline" disabled={busy} onClick={() => setEditing(true)} type="button">Edit</button>}
       {memory.needsConfirmation && !editing ? <button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => void act("confirm")} type="button">{busy ? "Confirming..." : "Confirm"}</button> : null}
       {!editing ? <button className="min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => void act("forget")} type="button">{busy ? "Updating..." : "Forget"}</button> : null}
-    </div> : null}
+    </div> : <button className="mt-3 min-h-11 text-sm font-semibold underline-offset-4 hover:underline disabled:opacity-60" disabled={busy} onClick={() => void act("forget")} type="button">{busy ? "Updating..." : "Forget"}</button>}
   </li>;
 }
 
