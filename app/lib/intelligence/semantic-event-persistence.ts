@@ -40,6 +40,7 @@ export function semanticEventRpcArguments({ event, fallbackPetId, sourceMessageI
       // the verbatim grounded excerpt here; standalone owner-provenance copy is
       // reserved for reviewable UI/history proposals.
       sourceExcerpt: proposal.sourceExcerpt,
+      ...(event.recordedEvidence ? { recordedEvidence: event.recordedEvidence } : {}),
     },
     p_pet_id: proposal.subject.id || fallbackPetId,
     p_source_message_id: sourceMessageId,

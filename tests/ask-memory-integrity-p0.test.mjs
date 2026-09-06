@@ -279,13 +279,14 @@ test("database boundary rejects machine state and removes direct identity/conten
 
 test("all live memory consumers use the shared integrity boundary", () => {
   for (const path of [
-    "app/lib/intelligence/retrieve-context.ts",
+    "app/lib/intelligence/memory-sources.ts",
     "app/lib/remembered-details.ts",
     "app/lib/pet-memory.ts",
     "app/lib/ai/context-builder.ts",
     "app/api/vet-briefs/route.ts",
   ]) assert.match(read(path), /isEligible(?:Stored|Legacy)Memory/, path);
-  assert.match(read("app/lib/intelligence/retrieve-context.ts"), /inactiveMemories\.data\.filter\(isEligibleStoredMemory\)/);
+  assert.match(read("app/lib/intelligence/retrieve-context.ts"), /selectMemorySources\(memorySources/);
+  assert.match(read("app/lib/intelligence/memory-sources.ts"), /inactiveMemories\.data\.filter\(isEligibleStoredMemory\)/);
 });
 
 test("all application memory writers cross the shared semantic boundary", () => {
@@ -297,8 +298,10 @@ test("all application memory writers cross the shared semantic boundary", () => 
   ]) assert.match(read(path), /prepareTypedMemoryCandidate/, path);
   for (const path of [
     "app/api/legacy-memories/route.ts",
-    "app/api/ask/suggestions/[id]/route.ts",
+    "app/lib/intelligence/memory-suggestion.ts",
   ]) assert.match(read(path), /isEligibleLegacyMemory/, path);
+  assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /prepareMemorySuggestion\(suggestion\)/);
+  assert.match(read("app/lib/intelligence/memory-suggestion.ts"), /prepareTypedMemoryCandidate/);
   assert.match(read("app/api/ask/route.ts"), /currentMessage: sourceMessage/);
   const featurePersistence = read("app/lib/intelligence/persist-learnings.ts");
   assert.match(featurePersistence, /createOperationsAdminClient\(\)\.rpc\("persist_furvise_feature_intelligence"/);

@@ -39,17 +39,6 @@ const activeBreathingConcern = {
   resolution_note: null,
 };
 
-const generationInput = {
-  careEntries: [],
-  conversationTurns: [],
-  locale: "en-CA",
-  memories: [],
-  productFeedback: [],
-  profiles: [],
-  question: "She is breathing normally now.",
-  recentUpdates: [],
-  requestId: "00000000-0000-4000-8000-000000000001",
-};
 
 function generatedResult(overrides = {}) {
   return {
@@ -153,7 +142,7 @@ test("development fallback recognizes only a proven missing usage table", () => 
 test("Ask development fallback skips reservations and production still returns a database error", () => {
   assert.match(askRoute, /process\.env\.NODE_ENV === "development" && isMissingAiUsageTableError\(error\)/);
   assert.match(askRoute, /buildDevelopmentAiCreditFallback\(planId\)/);
-  assert.match(askRoute, /usage\.ledgerMode === "development_missing_migration"[\s\S]*runFurviseIntelligence/);
+  assert.match(askRoute, /usage\.ledgerMode === "development_missing_migration"[\s\S]*generateAskHistoryAnswer/);
   assert.match(askRoute, /else \{[\s\S]*askFailure\("DATABASE_ERROR"[\s\S]*"usage_lookup"/);
   assert.match(askRoute, /databaseCode:[\s\S]*databaseDetails:[\s\S]*databaseHint:[\s\S]*resource:[\s\S]*userIdPresent:/);
 });
@@ -162,7 +151,7 @@ test("a recovery statement is classified before urgent handling and gets one con
   let generations = 0;
   const result = await orchestrateAskTurn({
     concerns: [activeBreathingConcern],
-    generationInput,
+
     message: "She is breathing normally now.",
     petName: "Mani",
     generate: async (input) => {
@@ -178,14 +167,14 @@ test("a recovery statement is classified before urgent handling and gets one con
   assert.equal(result.suggestion?.concernId, activeBreathingConcern.id);
   assert.equal(result.suggestion?.payload.title, "Breathing returned to normal");
   assert.equal(result.suggestion?.payload.severity, "resolved");
-  assert.match(result.suggestion?.details || "", /Owner reported that Mani appears well/);
+  assert.equal(result.suggestion?.details, "Mani: She is breathing normally now.");
 });
 
 test("an unrelated question with an urgent concern receives one context-aware generation", async () => {
   let generations = 0;
   const result = await orchestrateAskTurn({
     concerns: [activeBreathingConcern],
-    generationInput: { ...generationInput, question: "Should I feed Mani now?" },
+
     message: "Should I feed Mani now?",
     petName: "Mani",
     generate: async (input) => { generations += 1; assert.equal(input.concernStateHint, "unrelated"); return generatedResult({ safetyLevel: "urgent" }); },
@@ -209,7 +198,7 @@ test("still-active and recurrence replies reach the conversational model with ur
   for (const [message, expectedState] of [["still breathing hard", "still_active"], ["it came back", "recurrence"]]) {
     let hint = "";
     const result = await orchestrateAskTurn({
-      concerns: [activeBreathingConcern], generationInput: { ...generationInput, question: message }, message, petName: "Mani",
+      concerns: [activeBreathingConcern], message, petName: "Mani",
       generate: async (input) => { hint = input.concernStateHint; return generatedResult({ safetyLevel: "urgent" }); },
     });
     assert.equal(hint, expectedState);
@@ -221,7 +210,7 @@ test("still-active and recurrence replies reach the conversational model with ur
 test("an immediate emergency bypasses generation once but later replies are reclassified", async () => {
   let generations = 0;
   const emergency = await orchestrateAskTurn({
-    concerns: [activeBreathingConcern], generationInput,
+    concerns: [activeBreathingConcern],
     message: "Mani has open-mouth breathing now", petName: "Mani",
     generate: async () => { generations += 1; return generatedResult(); },
   });
@@ -229,20 +218,20 @@ test("an immediate emergency bypasses generation once but later replies are recl
   assert.equal(emergency.handledWithoutAi, true);
   assert.equal(emergency.safetyLevel, "urgent");
   const improved = await orchestrateAskTurn({
-    concerns: [activeBreathingConcern], generationInput,
+    concerns: [activeBreathingConcern],
     message: "she is good", petName: "Mani",
     generate: async () => { generations += 1; return generatedResult(); },
   });
   assert.equal(generations, 1);
   assert.equal(improved.handledWithoutAi, false);
-  assert.equal(improved.suggestion?.type, "concern_resolution");
+  assert.notEqual(improved.suggestion?.type, "concern_resolution"); // General improvement is not confirmed symptom cessation.
 });
 
 test("a resolved concern no longer forces emergency handling on unrelated questions", async () => {
   let hint = "";
   const result = await orchestrateAskTurn({
     concerns: [{ ...activeBreathingConcern, status: "resolved", resolved_at: "2026-07-27T10:00:00.000Z" }],
-    generationInput, message: "How can I help Mani become friendlier?", petName: "Mani",
+     message: "How can I help Mani become friendlier?", petName: "Mani",
     generate: async (input) => { hint = input.concernStateHint; return generatedResult({ safetyLevel: "normal" }); },
   });
   assert.equal(hint, "unrelated");
@@ -288,7 +277,7 @@ test("low-value acknowledgements do not require generation", async () => {
   assert.equal(classifyUserTurn("thanks").isLowValueAcknowledgement, true);
   const result = await orchestrateAskTurn({
     concerns: [],
-    generationInput: { ...generationInput, question: "thanks" },
+
     message: "thanks",
     petName: "Mani",
     generate: async () => { throw new Error("AI should not be called"); },
@@ -301,7 +290,7 @@ test("casual banter can generate a short reply but cannot create a care-history 
   let generations = 0;
   const result = await orchestrateAskTurn({
     concerns: [],
-    generationInput: { ...generationInput, question: "she is dumb" },
+
     message: "she is dumb",
     petName: "Mani",
     generate: async () => {
@@ -320,7 +309,7 @@ test("casual banter can generate a short reply but cannot create a care-history 
 
   const butterfly = await orchestrateAskTurn({
     concerns: [],
-    generationInput: { ...generationInput, question: "so my cat went outside and literally started chasing butterflies" },
+
     message: "so my cat went outside and literally started chasing butterflies",
     petName: "Mani",
     generate: async () => generatedResult({
@@ -359,7 +348,7 @@ test("suggestion actions are state-only and never touch the AI ledger", () => {
 
 test("Ask reserves before generation and completes only after a saved assistant answer", () => {
   const reserve = askRoute.indexOf("await reserveAiCredit({");
-  const generation = askRoute.indexOf("runFurviseIntelligence", reserve);
+  const generation = askRoute.indexOf("generateAskHistoryAnswer", reserve);
   const assistantInsert = askRoute.indexOf("completeAskConversationTurn({", askRoute.indexOf("async function persistAssistantAnswer"));
   const complete = askRoute.indexOf("completeAiCredit", assistantInsert);
   assert.ok(reserve > -1 && reserve < generation);

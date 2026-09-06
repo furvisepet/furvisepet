@@ -4,6 +4,9 @@ import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-inte
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
+import { evidenceAnswerPolicy, resolutionStatusAnswer } from "../ask-evidence.ts";
+import { sourceNoteAnswer } from "../source-note-recall.ts";
+import { episodeAnswer } from "../episode-contract.ts";
 
 export type AnswerValidationResult = {
   response: AskReasoningResult;
@@ -20,6 +23,28 @@ export function validateGeneratedAnswer(
 ): AnswerValidationResult {
   const repairs: string[] = []; const errors: string[] = []; const qualityWarnings: string[] = [];
   const response = structuredClone(result);
+  const sourceNote = response.evidenceContract?.scope.requestKind === "record_lookup" && response.evidenceContract.scope.status === "resolved"
+    ? sourceNoteAnswer(response.evidenceContract) : null;
+  const urgent = canonicalSafety === "urgent" || canonicalSafety === "emergency";
+  const scopedAnswer = response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract) : null;
+  const hasSourceQuote = Boolean(sourceNote?.sourceIds.length && scopedAnswer === sourceNote.text);
+  if (scopedAnswer) {
+    // Only assistant-authored prose goes through prose rewriting. The complete
+    // server-grounded source quotation is composed after that processing.
+    const prose = hasSourceQuote ? "This reports a historical note, not a verified current medical status." : scopedAnswer;
+    response.answer = { title: "Furvise", summary: `${urgent ? "Contact an emergency veterinarian now. " : ""}${prose}`, sections: [], safetyNote: null };
+    response.suggestedFollowUps = [];
+    const sourceIds = hasSourceQuote ? sourceNote!.sourceIds : [];
+    response.relevantContextIds = sourceIds;
+    response.referencedRecords = sourceIds.flatMap(id => {
+      const span = response.evidenceContract?.represented.find(span => span.sourceId === id);
+      return span ? [{ id, sourceType: "care_update" as const, petId: span.petId,
+        petName: context.eligiblePets.find(pet => pet.id === span.petId)?.name || context.pet.name,
+        kind: "recorded_note", value: span.text, occurredAt: null, createdAt: null, status: null, priority: null,
+        metadata: { evidenceField: span.field, start: span.start, end: span.end } }] : [];
+    });
+    repairs.push("applied_scoped_evidence_policy");
+  }
   const contextText = `${context.currentMessage} ${context.careEntries.map((entry) => `${entry.title || ""} ${entry.note}`).join(" ")} ${context.memories.map((memory) => `${memory.fact_key} ${memoryDisplayContent(memory)}`).join(" ")}`;
   const unrelatedResolved = context.currentState?.state.breathing?.status === "normal" && !/breath|breathing/i.test(context.currentMessage);
   const sanitize = (source: string) => {
@@ -105,13 +130,35 @@ export function validateGeneratedAnswer(
   } catch {
     qualityWarnings.push("quality_normalization_failed");
   }
+  const assistantProse = JSON.stringify(response.answer);
+  if (hasSourceQuote && sourceNote) {
+    response.answer.summary = `${urgent ? "Contact an emergency veterinarian now. " : ""}${sourceNote.text}`;
+  }
+  const resolution = response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract) : null;
+  if (resolution) {
+    // Final authority is the provider-independent contract AFTER budgeting.
+    response.answer = { title: "Furvise", summary: resolution, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
+    response.suggestedFollowUps = [];
+    response.relevantContextIds = [];
+    response.referencedRecords = [];
+    repairs.push("applied_server_resolution_status");
+  } else if (context.episodeResult) {
+    // Compose after all prose transforms. A model count/list or a prose normalizer
+    // cannot change the server's count, displayed ordering or stable identities.
+    const authoritative = episodeAnswer(context.episodeResult);
+    response.answer = {title:"Furvise",...authoritative,safetyNote:urgent ? "Contact an emergency veterinarian now." : null};
+    response.suggestedFollowUps=[];
+    response.relevantContextIds=context.episodeResult.items.map(i=>i.sourceId);
+    response.referencedRecords=[];
+    repairs.push("applied_server_episode_result");
+  }
   const answerText = JSON.stringify(response.answer);
   const unauthorizedPetNamed = (context.eligiblePets || []).some((pet) => pet.name
     && !authoritativePetIds.includes(pet.id)
     && new RegExp(`\\b${escapeRegex(pet.name)}\\b`, "i").test(answerText));
   if (unauthorizedPetNamed) errors.push("response_subject_disagreement");
   if (!response.answer.summary) errors.push("empty_after_grounding_repair");
-  if (/\b(?:I saved|I added|stack trace|requestId|Supabase|context id|internal classifier)\b/i.test(answerText)) errors.push("unsafe_content_remaining");
+  if (/\b(?:I saved|I added|stack trace|requestId|Supabase|context id|internal classifier)\b/i.test(assistantProse)) errors.push("unsafe_content_remaining");
   return {
     response,
     valid: errors.length === 0,

@@ -49,6 +49,7 @@ export function parseIntelligenceVetBrief(value: unknown, baseline: VetBriefDocu
   if (document.documentVersion !== baseline.documentVersion || document.dateRange.from !== baseline.dateRange.from || document.dateRange.to !== baseline.dateRange.to) return null;
   if (JSON.stringify(document.pet) !== JSON.stringify(baseline.pet) || document.disclaimer !== baseline.disclaimer) return null;
   const allowed = new Set(allowedSourceIds);
-  const sourceRecordIds = [...new Set(draft.sourceRecordIds.filter((id): id is string => typeof id === "string" && allowed.has(id)))];
+  if (draft.sourceRecordIds.length > 300 || draft.sourceRecordIds.some((id) => typeof id !== "string" || !allowed.has(id))) return null;
+  const sourceRecordIds = [...new Set(draft.sourceRecordIds as string[])];
   return { document, sourceRecordIds, confidence: draft.confidence as IntelligenceVetBrief["confidence"] };
 }

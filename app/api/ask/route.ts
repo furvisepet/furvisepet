@@ -1,3 +1,7 @@
+import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
+import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
+import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
+import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { createCanonicalCareAuthorityClient } from "../../lib/intelligence/care-authority-client";
@@ -71,7 +75,6 @@ import {
   prepareAskMemoryAuthorityLearnings,
   persistIntelligenceLearnings,
   persistedLearningConfirmation,
-  runFurviseIntelligence,
   logSemanticTrace,
   semanticTraceForStorage,
   withSemanticPersistenceOutcome,
@@ -85,7 +88,6 @@ import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/securit
 import { claimIdempotentOperation } from "../../lib/security/idempotency";
 import { validateSensitiveRequestOriginResponse } from "../../lib/security/headers/origin-policy";
 import { extractTurnSubjectFrame } from "../../lib/intelligence/semantic-frame/extract-turn-subject";
-import type { ProposedSemanticFrame } from "../../lib/intelligence/semantic-frame/types";
 import {
   resolveAskTurnSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
@@ -388,7 +390,7 @@ export async function POST(request: Request) {
   let turnPetId = petId;
   let turnAuthoritativePetIds = [petId];
   let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
-  let contextUsed = turnView.contextUsed;
+  let contextUsed: typeof turnView.contextUsed & { historyCoverage?: Pick<HistoryCoverage, "retrieval" | "corrections" | "continuation" | "reasons" | "consistency" | "perPet"> } = turnView.contextUsed;
 
   let orchestration;
   let creditReserved = false;
@@ -746,18 +748,13 @@ export async function POST(request: Request) {
       }) : null;
       if (confirmedExistingCarePersistence) return buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet");
 
-      const generationInput = buildTurnGenerationInput({
-        authoritativePetIds: subjectResolution.petIds,
-        discourseFocus: subjectResolution.discourseFocus,
-        locale, onProviderEvent, question, requestId, turnSemanticFrame: subjectFrame, turnView, liveContext,
-      });
       return await orchestrateAskTurn({
         concerns: turnView.concerns,
-        generationInput,
         message: question,
         petName: liveContext.pet.name || "your pet",
         generate: async () => {
-          intelligenceResult = await runFurviseIntelligence({
+          const generated = await generateAskHistoryAnswer({
+            supabase,
             context: liveContext,
             requestId,
             sourceMessageId: preparedRequest.userMessageId,
@@ -768,6 +765,8 @@ export async function POST(request: Request) {
             discourseFocus: subjectResolution.discourseFocus,
             canonicalConcepts: phase3Runtime?.canonicalConcepts || [],
           });
+          liveContext = generated.context;
+          intelligenceResult = generated.intelligenceResult;
           logValidatedIntelligence(intelligenceResult, requestId);
           return intelligenceResult.reasoning;
         },
@@ -857,6 +856,11 @@ export async function POST(request: Request) {
   }
 
   const reasoning = orchestration.aiResult;
+  const historyCoverage = reasoning?.evidenceContract?.history;
+  if (historyCoverage) {
+    const { retrieval, corrections, continuation, reasons, consistency, perPet } = historyCoverage;
+    contextUsed.historyCoverage = { retrieval, corrections, continuation, reasons, consistency, perPet };
+  }
   if (reasoning) contextUsed.usedSources = [...new Set(reasoning.referencedRecords.map(formatContextSourceLabel))].slice(0, 4);
   const safetyLevel = orchestration.safetyLevel;
   const plannedCapabilityIntent = classifyFurviseCapabilityQuestion(question);
@@ -903,6 +907,7 @@ export async function POST(request: Request) {
         operationPayloadHash: idempotency.operation.payloadHash,
         operationOwnerToken: idempotency.operation.ownerToken,
         petId: turnPetId,
+        petName: liveContext.pet.name,
         preparedRequest,
         requestId,
         recentCareEntries: liveContext.careEntries,
@@ -1034,6 +1039,7 @@ export async function POST(request: Request) {
       operationOwnerToken: idempotency.operation.ownerToken,
       preconfirmedCarePersistence: confirmedExistingCarePersistence,
       petId: turnPetId,
+      petName: liveContext.pet.name,
       preparedRequest,
       requestId,
       recentCareEntries: liveContext.careEntries,
@@ -1130,38 +1136,6 @@ function deriveAskTurnView({ currentSourceMessageId, liveContext, question, requ
   };
 }
 
-function buildTurnGenerationInput({ authoritativePetIds, discourseFocus, locale, liveContext, onProviderEvent, question, requestId, turnSemanticFrame, turnView }: {
-  authoritativePetIds: string[];
-  discourseFocus?: import("../../lib/intelligence/entities/resolve-turn-subject").AskDiscourseFocus;
-  locale: string;
-  liveContext: FurviseLiveContext;
-  onProviderEvent: (event: AskProviderEvent) => void;
-  question: string;
-  requestId: string;
-  turnSemanticFrame?: ProposedSemanticFrame;
-  turnView: ReturnType<typeof deriveAskTurnView>;
-}) {
-  return {
-    careEntries: turnView.entries,
-    concerns: turnView.concerns,
-    conversationTurns: turnView.conversationMessages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      text: message.role === "user" ? message.text : message.response?.directAnswer || message.response?.summary || "",
-    })),
-    locale,
-    memories: turnView.memories,
-    productFeedback: turnView.feedback,
-    profiles: liveContext.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
-    question,
-    discourseFocus,
-    recentlyResolvedConcerns: turnView.recentlyResolvedConcerns,
-    recentUpdates: turnView.recentUpdates,
-    requestId,
-    turnSemanticFrame,
-    onProviderEvent,
-  };
-}
 
 function buildSubjectClarificationOrchestration(message: string, candidateNames: string[] = []) {
   const safety = evaluateAskSafetyContext({
@@ -1515,6 +1489,7 @@ async function persistAssistantAnswer({
   payloadHash,
   preconfirmedCarePersistence = null,
   petId,
+  petName,
   preparedRequest,
   requestId,
   recentCareEntries,
@@ -1546,6 +1521,7 @@ async function persistAssistantAnswer({
   payloadHash: string;
   preconfirmedCarePersistence?: CarePersistenceResult | null;
   petId: string;
+  petName: string;
   preparedRequest: PreparedAskRequest;
   requestId: string;
   recentCareEntries: FurviseLiveContext["careEntries"];
@@ -1571,6 +1547,7 @@ async function persistAssistantAnswer({
     }),
     semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace),
   } : null;
+  response = attachEpisodeReferences(response, intelligenceResult?.reasoning.evidenceContract?.episodes);
   let responseWithTurn = { ...response, turn: turnLifecycle.snapshot() };
   const optionalFailure = (component: AskSubsystem, error: unknown) => {
     turnLifecycle.optionalFailure(component);
@@ -1798,7 +1775,7 @@ async function persistAssistantAnswer({
       fallback: undefined,
       operation: () => persistAskV2Phase3LowRisk({
         runtime: phase3Runtime!, turn: intelligenceResult?.v2GovernedTurn || null,
-        legacyLearnings: intelligenceResult?.acceptedLearnings || [], legacyPersistence: intelligencePersistence,
+        memoryPersistence: intelligencePersistence,
         requestId, selectedPetId: petId, sourceMessage, verifiedUserId: userId,
       }),
       onFailure: optionalFailure,
@@ -1819,7 +1796,7 @@ async function persistAssistantAnswer({
     ? await runOptionalAskSubsystem({
       component: "history_proposal",
       fallback: { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_UNAVAILABLE", suggestion: null },
-      operation: () => persistPendingSuggestion({ assistantMessageId: assistantMessage.id, conversationId, petId, suggestion: reviewSuggestion, supabase, userId }),
+      operation: () => persistPendingSuggestion({ createCanonicalCareAuthorityClient, logAskServerError, assistantMessageId: assistantMessage.id, conversationId, petId, petName, sourceMessage, suggestion: reviewSuggestion, supabase, userId }),
       onFailure: optionalFailure,
     })
     : { careEntryId: null, concernId: null, effectAlreadyPresent: false, errorCode: null, suggestion: null };
@@ -1834,7 +1811,7 @@ async function persistAssistantAnswer({
   turnLifecycle.actions(applicationActions.length);
   turnLifecycle.transition("COMPLETED");
   const canonicalResponse = {
-    ...(applicationActions.length ? { ...reconciledResponse, applicationActions } : reconciledResponse),
+    ...attachEpisodeReferences(applicationActions.length ? { ...reconciledResponse, applicationActions } : reconciledResponse, intelligenceResult?.reasoning.evidenceContract?.episodes),
     turn: turnLifecycle.snapshot(),
   };
   await runOptionalAskSubsystem({
@@ -1889,94 +1866,6 @@ async function persistAssistantAnswer({
   });
 }
 
-async function persistPendingSuggestion({
-  assistantMessageId,
-  conversationId,
-  petId,
-  suggestion,
-  supabase,
-  userId,
-}: {
-  assistantMessageId: string;
-  conversationId: string;
-  petId: string;
-  suggestion: PendingUpdateSuggestion;
-  supabase: SupabaseClient;
-  userId: string;
-}): Promise<{
-  careEntryId?: string | null;
-  concernId?: string | null;
-  effectAlreadyPresent: boolean;
-  errorCode: string | null;
-  suggestion: (PendingUpdateSuggestion & { id: string }) | null;
-}> {
-  if (suggestion.type === "concern_resolution" && suggestion.concernId) {
-    const { data: pendingForConcern } = await supabase.from("ai_update_suggestions").select("id")
-      .eq("user_id", userId).eq("type", suggestion.type).eq("concern_id", suggestion.concernId).eq("status", "pending")
-      .limit(1).maybeSingle<{ id: string }>();
-    if (pendingForConcern) return { effectAlreadyPresent: false, errorCode: null, suggestion: null };
-  }
-  const semanticTopic = textPayloadValue(suggestion.payload.semanticTopic);
-  const semanticDomain = textPayloadValue(suggestion.payload.semanticDomain);
-  const semanticTransition = textPayloadValue(suggestion.payload.semanticTransition);
-  if (suggestion.type === "history" && semanticTopic && semanticDomain
-    && ["improved", "resolved", "corrected"].includes(semanticTransition || "")) {
-    const { data: prior, error: priorError } = await supabase.from("ai_update_suggestions")
-      .select("id,title,details,payload").eq("user_id", userId).eq("pet_profile_id", petId).eq("conversation_id", conversationId)
-      .eq("type", "history").eq("status", "pending")
-      .contains("payload", { semanticDomain, semanticTopic })
-      .order("created_at", { ascending: false }).limit(1).maybeSingle<{ id: string; title: string; details: string | null; payload: Record<string, unknown> }>();
-    if (priorError) logAskServerError("suggestion_reconciliation_lookup", priorError, { conversationId, requestId: assistantMessageId }, 200);
-    if (prior) {
-      const { error: updateError } = await createCanonicalCareAuthorityClient().from("ai_update_suggestions").update({
-        details: suggestion.details || null,
-        payload: suggestion.payload,
-        source_message_id: assistantMessageId,
-        title: suggestion.title,
-      }).eq("id", prior.id).eq("user_id", userId).eq("status", "pending");
-      if (updateError) {
-        logAskServerError("suggestion_reconciliation_update", updateError, { conversationId, requestId: assistantMessageId }, 200);
-        return { effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_RECONCILIATION_FAILED", suggestion: {
-          ...suggestion, id: prior.id, title: prior.title, details: prior.details || undefined, payload: prior.payload,
-        } };
-      }
-      return { effectAlreadyPresent: false, errorCode: null, suggestion: { ...suggestion, id: prior.id } };
-    }
-  }
-  let existingQuery = supabase.from("ai_update_suggestions")
-    .select("id").eq("user_id", userId).eq("source_message_id", assistantMessageId).eq("type", suggestion.type)
-    .eq("status", "pending");
-  existingQuery = suggestion.concernId ? existingQuery.eq("concern_id", suggestion.concernId) : existingQuery.is("concern_id", null);
-  const { data: existing } = await existingQuery.maybeSingle<{ id: string }>();
-  if (existing) return { effectAlreadyPresent: false, errorCode: null, suggestion: { ...suggestion, id: existing.id } };
-  const { data, error } = await createCanonicalCareAuthorityClient()
-    .from("ai_update_suggestions")
-    .insert({
-      concern_id: suggestion.concernId || null,
-      conversation_id: conversationId,
-      details: suggestion.details || null,
-      payload: suggestion.payload,
-      pet_profile_id: petId,
-      source_message_id: assistantMessageId,
-      status: "pending",
-      title: suggestion.title,
-      type: suggestion.type,
-      user_id: userId,
-    })
-    .select("id")
-    .single<{ id: string }>();
-  if (error || !data) {
-    logAskServerError("suggestion_persistence_failed", error, { conversationId }, 200);
-    if (error?.code === "23505") {
-      const { data: duplicate } = await supabase.from("ai_update_suggestions").select("id")
-        .eq("user_id", userId).eq("source_message_id", assistantMessageId).eq("type", suggestion.type)
-        .eq("status", "pending").maybeSingle<{ id: string }>();
-      if (duplicate) return { effectAlreadyPresent: false, errorCode: null, suggestion: { ...suggestion, id: duplicate.id } };
-    }
-    return { effectAlreadyPresent: false, errorCode: "HISTORY_SUGGESTION_PERSISTENCE_FAILED", suggestion: null };
-  }
-  return { effectAlreadyPresent: false, errorCode: null, suggestion: { ...suggestion, id: data.id } };
-}
 
 async function safeReleaseAiCredit({
   logicalRequestId,
@@ -2704,6 +2593,7 @@ function formatContextSourceLabel(record: AskContextRecord) {
     product_context: "Product history",
     remembered_detail: "Remembered details",
     resolved_episode: "Recently resolved episodes",
+    episode_evidence: "Source-linked episode history",
   } satisfies Record<AskContextRecord["sourceType"], string>)[record.sourceType];
 }
 

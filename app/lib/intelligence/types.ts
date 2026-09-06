@@ -23,6 +23,8 @@ export type CanonicalEventProposal = {
   importance: SemanticEventImportance;
   confidence: number;
   sourceExcerpt: string;
+  /** Semantic extraction, not a regex interpretation or a model-selected ID. */
+  episodeBoundary?: { kind: "opening" | "continuation" | "resolution" | "unknown"; evidence: string; confidence: number } | null;
 };
 
 export type CanonicalEvent = CanonicalEventProposal & {
@@ -34,6 +36,7 @@ export type CanonicalEvent = CanonicalEventProposal & {
 export type SemanticPersistenceDestination = "care_event" | "episode_current_state" | "pet_memory" | "owner_memory" | "profile_change" | "state_only" | "none";
 export type GovernedCanonicalEvent = {
   event: CanonicalEvent;
+  recordedEvidence?: import("./recorded-provenance.ts").RecordedWriterEvidence;
   /** Primary destination retained for compatibility with existing consumers. */
   destination: SemanticPersistenceDestination;
   /** One semantic event may update chronology and current state in one atomic RPC. */
@@ -138,6 +141,11 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  episodePresentation?: import("./episode-presentation.ts").EpisodePresentation;
+  episodeResult?: import("./episode-history.ts").EpisodeResult;
+  evidenceLoading?: import("./ask-evidence.ts").EvidenceLoading;
+  askHistory?: import("./history-retrieval.ts").RetrievedAskHistory;
+  historyFallback?: string;
   feature: IntelligenceFeature;
   locale: string;
   currentMessage: string;
@@ -162,12 +170,21 @@ export type FurviseLiveContext = {
   contextRecovery: { unavailableSources: string[] };
 };
 
+/** Server-only receipt: a successful authority call and an exact confirmed memory row. */
+export type ConfirmedMemoryWrite = {
+  memoryId: string;
+  userId: string;
+  sourceMessageId: string;
+  learning: IntelligenceLearning;
+};
+
 export type IntelligencePersistenceSummary = {
   careEntriesCreated: number;
   concernsResolved: number;
   memoriesCreated: number;
   memoriesSuperseded: number;
   memoryIds: string[];
+  confirmedMemoryWrites?: ConfirmedMemoryWrite[];
   rejectedLearnings: number;
   careActionPresent: boolean;
   persistedCareEntryId: string | null;

@@ -82,9 +82,10 @@ export async function persistIntelligenceLearnings({
       ? await persistCanonicalCareAction({ action: careActions[0], petId, sourceMessageId, supabase, userId, recentCareEntries })
     : skippedCarePersistence();
   const persistenceRows: Record<string, unknown>[] = [];
+  const successfulLearnings: typeof normalizedLearnings = [];
   if (normalizedLearnings.length) {
     for (const [targetPetId, group] of groupLearningsByPersistencePet(normalizedLearnings, petId)) {
-      const authorized = await createOperationsAdminClient().rpc("persist_furvise_ask_intelligence", {
+      const { data, error } = await createOperationsAdminClient().rpc("persist_furvise_ask_intelligence", {
         p_assistant_message_id: assistantMessageId,
         p_authorized_pet_ids: authorizedPetIds,
         p_learnings: group,
@@ -95,15 +96,6 @@ export async function persistIntelligenceLearnings({
         p_source_message_id: sourceMessageId,
         p_user_id: userId,
       });
-      const result = isMissingAskMemoryAuthorityRpc(authorized.error)
-        ? await supabase.rpc("persist_furvise_intelligence", {
-            p_care_actions: [],
-            p_learnings: group,
-            p_pet_id: targetPetId,
-            p_source_message_id: sourceMessageId,
-          })
-        : authorized;
-      const { data, error } = result;
       if (error && !careActions.length && !semanticEvent) throw new IntelligencePersistenceError("Furvise could not persist approved learnings.", error);
       if (error) {
         logIntelligenceError("memory_persistence_after_care", error, {
@@ -111,19 +103,23 @@ export async function persistIntelligenceLearnings({
         });
       } else {
         const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
-        if (row) persistenceRows.push(row);
+        if (row) {
+          persistenceRows.push(row);
+          successfulLearnings.push(...group);
+        }
       }
     }
     const crossRepresentationSuperseded = await suppressExplicitlyReplacedPreferences({
-      learnings: normalizedLearnings, sourceMessageId, supabase, userId,
+      learnings: successfulLearnings, sourceMessageId, supabase, userId,
     });
     if (crossRepresentationSuperseded > 0) {
       persistenceRows.push({ memories_superseded: crossRepresentationSuperseded });
     }
   }
-  const memoryIds = normalizedLearnings.length
-    ? await findConfirmedMemoryIds({ learnings: normalizedLearnings, supabase, userId })
+  const confirmedMemoryWrites = successfulLearnings.length
+    ? await findConfirmedMemoryWrites({ learnings: successfulLearnings, supabase, userId, sourceMessageId })
     : [];
+  const memoryIds = [...new Set(confirmedMemoryWrites.map((receipt) => receipt.memoryId))];
   const persistedCareEntryId = carePersistence.careEntryIds[0] || null;
   const persistedConcernId = carePersistence.concernIds[0] || null;
   return {
@@ -132,6 +128,7 @@ export async function persistIntelligenceLearnings({
     memoriesCreated: persistenceRows.reduce((total, row) => total + numberValue(row.memories_created), 0),
     memoriesSuperseded: persistenceRows.reduce((total, row) => total + numberValue(row.memories_superseded), 0),
     memoryIds,
+    confirmedMemoryWrites,
     rejectedLearnings: 0,
     careActionPresent: carePersistence.status === "persisted" && carePersistence.careEntryIds.length > 0,
     persistedCareEntryId,
@@ -139,11 +136,6 @@ export async function persistIntelligenceLearnings({
     persistenceMode: carePersistence.status === "persisted" && persistedCareEntryId ? "automatic" : "none",
     carePersistence: { ...carePersistence, memoryIds },
   };
-}
-
-function isMissingAskMemoryAuthorityRpc(error: { code?: string; message?: string } | null) {
-  return Boolean(error && error.code === "PGRST202"
-    && /^Could not find the function public\.persist_furvise_ask_intelligence\([^)]*\) in the schema cache\.?$/i.test(error.message || ""));
 }
 
 async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, supabase, userId, recentCareEntries }: {
@@ -271,10 +263,11 @@ export async function persistFeatureIntelligenceLearnings({
   };
 }
 
-async function findConfirmedMemoryIds({ learnings, supabase, userId }: {
+async function findConfirmedMemoryWrites({ learnings, supabase, userId, sourceMessageId }: {
   learnings: Array<IntelligenceLearning & { normalizedValue: string }>;
   supabase: SupabaseClient;
   userId: string;
+  sourceMessageId: string;
 }) {
   const keys = [...new Set(learnings.map((item) => normalizeFactKey(item.factKey)).filter(Boolean))];
   if (!keys.length) return [];
@@ -282,12 +275,15 @@ async function findConfirmedMemoryIds({ learnings, supabase, userId }: {
     .select("id, subject_type, pet_id, fact_key, normalized_value")
     .eq("user_id", userId).eq("status", "active").in("fact_key", keys);
   if (error) throw new IntelligencePersistenceError("Furvise could not confirm persisted memories.", error);
-  return (data || []).filter((row) => learnings.some((learning) =>
-    row.fact_key === normalizeFactKey(learning.factKey)
-      && row.subject_type === learning.subjectType
-      && row.pet_id === (learning.subjectType === "pet" ? learning.subjectId : null)
-      && row.normalized_value === learning.normalizedValue
-  )).map((row) => row.id);
+  return learnings.flatMap((learning) => {
+    const row = (data || []).find((candidate) =>
+      candidate.fact_key === normalizeFactKey(learning.factKey)
+        && candidate.subject_type === learning.subjectType
+        && candidate.pet_id === (learning.subjectType === "pet" ? learning.subjectId : null)
+        && candidate.normalized_value === learning.normalizedValue
+        && typeof candidate.id === "string" && Boolean(candidate.id));
+    return row ? [{ memoryId: row.id as string, userId, sourceMessageId, learning }] : [];
+  });
 }
 
 async function suppressExplicitlyReplacedPreferences({ learnings, sourceMessageId, supabase, userId }: {

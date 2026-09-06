@@ -73,7 +73,11 @@ export async function runFeatureIntelligence<T>({
     schemaName: mode.responseSchemaName,
   });
   const value = parseValue(raw);
-  if (!value) throw new Error(`${mode.responseSchemaName} failed compatibility validation.`);
+  if (!value) {
+    const error = new Error(`${mode.responseSchemaName} failed compatibility validation.`);
+    error.name = "FeatureValidationError";
+    throw error;
+  }
   const proposedLearnings = Array.isArray(raw.learnings) ? raw.learnings.filter(isIntelligenceLearning) : [];
   const proposedCareActions = Array.isArray(raw.careActions) ? raw.careActions.filter(isIntelligenceCareAction) : [];
   const memoryExtractionEnabled = isAiMemoryExtractionEnabled();
@@ -85,6 +89,7 @@ export async function runFeatureIntelligence<T>({
       actions: proposedCareActions, currentMessage: context.currentMessage,
       understanding: inferUnderstanding(raw), safetyLevel: safety.level,
       activeConcernIds: safety.activeConcernIds,
+      activeConcerns: context.activeConcerns, petId: context.pet.id, petName: context.pet.name,
     })
     : { accepted: [], rejected: proposedCareActions.map((action) => ({ action, reason: "feature_care_actions_disabled" })) };
   logIntelligenceEvent("feature model call completed", {

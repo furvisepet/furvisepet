@@ -1,0 +1,117 @@
+(node:24816) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/furvise-runner-live-memory-1/review-live-memory-management/worktree/app/lib/intelligence/memory-integrity.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\furvise-runner-live-memory-1\review-live-memory-management\worktree\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ actual loaders reject foreign owner/pet and inactive rows (52.3519ms)
+✔ actual profile loader rejects returned foreign profile (7.454ms)
+✔ legacy forget retains marker and POST suppresses normalized forgotten text (19.9812ms)
+✔ POST stored replay cannot advertise a forgotten detail as saved (11.847ms)
+✔ actual legacy card Forget dispatches a source-aware DELETE (19.5407ms)
+✔ old callback after pet switch cannot write a memory (9.512ms)
+✔ POST blocks existing rejected text without deleting or inserting (7.3533ms)
+✔ POST blocks existing superseded text without deleting or inserting (8.7938ms)
+✔ POST allows eligible distinct text and suppresses duplicates within request (6.4469ms)
+✔ forget is owner/pet scoped, repeatable, and retains other rows (7.8769ms)
+✔ POST fails safely on storage failure (7.0526ms)
+✔ DELETE fails safely on storage failure (5.9069ms)
+✔ POST unique-conflict recovery excludes inactive, foreign-owner and other-pet rows (5.5675ms)
+✔ stored POST replay fails closed when current rows cannot be verified (6.4072ms)
+✔ old initial load resolving after switch never supplies new pet details (8.4003ms)
+✔ in-flight refresh after pet switch cannot replace new pet rows (7.2946ms)
+✔ canonical and legacy colliding IDs keep distinct routes; legacy edit/confirm and unknown IDs are rejected (9.4179ms)
+✔ actual wrapper keys change with pet and data version; version refresh starts empty (7.0026ms)
+✔ actual loaders reject expired, malformed-scope and machine rows but retain valid global owner preferences (3.8869ms)
+✔ unchanged actual canonical confirm delegates to lifecycle authority (4.6695ms)
+✔ unchanged actual canonical edit delegates to lifecycle authority (4.9929ms)
+✔ unchanged actual canonical forget delegates to lifecycle authority (4.022ms)
+✔ unchanged canonical route rejects foreign memory and ineligible correction without RPC (10.8198ms)
+✔ actual optional compatibility loader rejects foreign owner/pet and inactive rows (4.7156ms)
+✔ pet switching while session lookup awaits prevents dispatch (6.2741ms)
+✔ POST fails closed for unavailable or truncated suppression inventory: null (4.7479ms)
+✔ POST fails closed for unavailable or truncated suppression inventory: 2 (4.5142ms)
+✖ review: stored replay only returns receipt IDs even if storage overreturns (5.7715ms)
+✖ review: malformed persisted receipt fails closed without throwing (4.8395ms)
+✖ review: session owner changing before auth render prevents dispatch (8.0947ms)
+✖ review: reopening editor after refreshed canonical value uses current value (6.718ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 27
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 503.3945
+
+✖ failing tests:
+
+test at tests\live-memory-management.test.mjs:271:1
+✖ review: stored replay only returns receipt IDs even if storage overreturns (5.7715ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   {
+  +     confidence: 'high',
+  +     dog_profile_id: '11111111-1111-4111-8111-111111111111',
+  +     id: '22222222-2222-4222-8222-222222222222',
+  +     status: 'active',
+  +     text: 'Prefers salmon food',
+  +     type: 'preference',
+  +     user_id: 'owner'
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///C:/Users/gwara/furvise-runner-live-memory-1/review-live-memory-management/worktree/tests/live-memory-management.test.mjs:275:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { id: '22222222-2222-4222-8222-222222222222', user_id: 'owner', dog_profile_id: '11111111-1111-4111-8111-111111111111', status: 'active', type: 'preference', text: 'Prefers salmon food', confidence: 'high' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\live-memory-management.test.mjs:279:1
+✖ review: malformed persisted receipt fails closed without throwing (4.8395ms)
+  TypeError: Cannot read properties of null (reading 'id')
+      at evalmachine.<anonymous>:33:58
+      at Array.map (<anonymous>)
+      at Object.reconcilePersistedReplay (evalmachine.<anonymous>:33:41)
+      at async beginIdempotentRateLimitedOperation (file:///C:/Users/gwara/furvise-runner-live-memory-1/review-live-memory-management/worktree/tests/live-memory-management.test.mjs:54:147)
+      at async Object.POST (evalmachine.<anonymous>:22:18)
+      at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-runner-live-memory-1/review-live-memory-management/worktree/tests/live-memory-management.test.mjs:281:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\live-memory-management.test.mjs:285:1
+✖ review: session owner changing before auth render prevents dispatch (8.0947ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/gwara/furvise-runner-live-memory-1/review-live-memory-management/worktree/tests/live-memory-management.test.mjs:293:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /sign in again/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests\live-memory-management.test.mjs:297:1
+✖ review: reopening editor after refreshed canonical value uses current value (6.718ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'salmon' !== 'trout'
+
+      at TestContext.<anonymous> (file:///C:/Users/gwara/furvise-runner-live-memory-1/review-live-memory-management/worktree/tests/live-memory-management.test.mjs:306:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'salmon',
+    expected: 'trout',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

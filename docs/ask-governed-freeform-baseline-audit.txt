@@ -1,0 +1,77 @@
+(node:26780) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26780) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/furvise-runner-governed-freeform-2/governed-freeform-episodes/worktree/app/lib/intelligence/retrieve-context.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\furvise-runner-governed-freeform-2\governed-freeform-episodes\worktree\package.json.
+✔ control: actual loader is owner/pet scoped and small weight history reaches actual model input (53.0841ms)
+✔ RED intermediate 20-selection represents requested historical period (0.4689ms)
+✔ RED late correction follows original into historical date-range recall (3.2792ms)
+✔ control: explicit pet switch and nearby pronoun follow-up resolve without provider (2.4703ms)
+✔ RED ordinal follow-up after switching pets retains Luna instead of the conversation anchor Milo (0.3865ms)
+✔ RED episode list in prior answer remains referencable in next actual prompt (4.2538ms)
+✔ RED multi-pet answer loads history for every authorized subject (4.178ms)
+✖ RED old canonical episodes survive the 20-row loader window (4.3799ms)
+✖ RED retrieved episodes retain sequence and recurrence identity (1.665ms)
+✔ RED answer grounding rejects unsupported assertion: The hiding is fully resolved. (10.1125ms)
+✔ control: actual model input remains bounded with 10,000 stored synthetic rows (12.0085ms)
+✔ control: no live database writes exist in the audit mock (0.0976ms)
+✔ control: existing effective-claim graph handles a late cross-pet correction when supplied (0.9489ms)
+✔ control: ordinary history recall does not select a paid capability gate (0.1833ms)
+✔ RED addressing Furvise does not turn stored-history recall into an unavailable paid feature (0.284ms)
+✖ RED later stage: compute exact separate-episode aggregate, not a note count (2.0253ms)
+✔ RED later stage: verified complete weight comparison renders the correct delta (1.9415ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 14
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 530.5391
+
+✖ failing tests:
+
+test at scripts\audits\ask-lifetime-history.audit.mjs:60:1
+✖ RED old canonical episodes survive the 20-row loader window (4.3799ms)
+  AssertionError [ERR_ASSERTION]: old episode missing even with canonical episode rows
+      at TestContext.<anonymous> (file:///C:/Users/gwara/furvise-runner-governed-freeform-2/governed-freeform-episodes/worktree/scripts/audits/ask-lifetime-history.audit.mjs:66:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts\audits\ask-lifetime-history.audit.mjs:68:1
+✖ RED retrieved episodes retain sequence and recurrence identity (1.665ms)
+  AssertionError [ERR_ASSERTION]: episode itself reaches model input
+      at TestContext.<anonymous> (file:///C:/Users/gwara/furvise-runner-governed-freeform-2/governed-freeform-episodes/worktree/scripts/audits/ask-lifetime-history.audit.mjs:72:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts\audits\ask-lifetime-history.audit.mjs:113:1
+✖ RED later stage: compute exact separate-episode aggregate, not a note count (2.0253ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /two separate soft-stool episodes/i. Input:
+
+  '0 explicitly supported soft stool episode groups in the available evidence. This is a supported subset, not an exact lifetime total or a complete list. Care entries and individual symptom occurrences are different units; ambiguous grouping remains unknown.'
+
+      at TestContext.<anonymous> (file:///C:/Users/gwara/furvise-runner-governed-freeform-2/governed-freeform-episodes/worktree/scripts/audits/ask-lifetime-history.audit.mjs:116:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '0 explicitly supported soft stool episode groups in the available evidence. This is a supported subset, not an exact lifetime total or a complete list. Care entries and individual symptom occurrences are different units; ambiguous grouping remains unknown.',
+    expected: /two separate soft-stool episodes/i,
+    operator: 'match',
+    diff: 'simple'
+  }

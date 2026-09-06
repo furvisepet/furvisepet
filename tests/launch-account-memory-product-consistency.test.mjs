@@ -44,7 +44,8 @@ test("superseded budget conversation evidence is filtered before Ask context", (
 });
 
 test("all shared memory context paths start from active lifecycle rows", () => {
-  const context = read("app/lib/intelligence/retrieve-context.ts");
+  const context = read("app/lib/intelligence/memory-sources.ts");
+  assert.match(read("app/lib/intelligence/retrieve-context.ts"), /loadMemorySources\(/);
   const vetBrief = read("app/api/vet-briefs/route.ts");
   const profileLoader = read("app/lib/supabase.ts");
   assert.match(context, /from\("furvise_memories"\)[\s\S]*?eq\("status", "active"\)/);

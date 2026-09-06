@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { featureFailureDetails } from "../../../lib/intelligence/feature-failure.ts";
 import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { AiCreditLimitReachedError, runWithAiCredit } from "../../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
@@ -155,7 +156,7 @@ export async function POST(request: Request) {
     if (error instanceof AiCreditLimitReachedError) {
       return Response.json({ error: "You've used all of your AI guidance for this month.", limitReached: true }, { status: 402 });
     }
-    logIntelligenceEvent("vet brief generation failed", { feature: "vet_brief", petId, requestId, safeCode: "GENERATION_UNAVAILABLE" });
+    logIntelligenceEvent("vet brief generation failed", { feature: "vet_brief", petId, requestId, ...featureFailureDetails(error) });
     return Response.json({ error: "The Vet Visit Brief could not be prepared right now. Try again in a moment." }, { status: 503 });
   } finally {
     if (rateGate) await rateGate.release();

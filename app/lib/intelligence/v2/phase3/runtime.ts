@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { FurviseLiveContext, IntelligenceLearning, IntelligencePersistenceSummary } from "../../types.ts";
+import type { FurviseLiveContext, IntelligencePersistenceSummary } from "../../types.ts";
 import { persistGovernedSemanticTurnV2Shadow } from "../persistence/persist.ts";
 import { createV2ShadowPersistenceBoundary } from "../persistence/server-client.ts";
 import { rebuildSemanticProjectionsV2, type RebuildClaim, type RebuildRelation } from "../projections/rebuild.ts";
@@ -67,8 +67,7 @@ export async function prepareAskV2Phase3(input: {
 export async function persistAskV2Phase3LowRisk(input: {
   runtime: AskV2Phase3Runtime;
   turn: GovernedSemanticTurn | null;
-  legacyLearnings: IntelligenceLearning[];
-  legacyPersistence: IntelligencePersistenceSummary | null;
+  memoryPersistence: IntelligencePersistenceSummary | null;
   requestId: string;
   selectedPetId: string;
   sourceMessage: string;
@@ -85,8 +84,7 @@ export async function persistAskV2Phase3LowRisk(input: {
 async function persistAskV2Phase3LowRiskInternal(input: {
   runtime: AskV2Phase3Runtime;
   turn: GovernedSemanticTurn | null;
-  legacyLearnings: IntelligenceLearning[];
-  legacyPersistence: IntelligencePersistenceSummary | null;
+  memoryPersistence: IntelligencePersistenceSummary | null;
   requestId: string;
   selectedPetId: string;
   sourceMessage: string;
@@ -97,7 +95,11 @@ async function persistAskV2Phase3LowRiskInternal(input: {
   const selection = selectPhase3LowRiskTurn({
     turn: input.turn,
     conceptPolicies: input.runtime.conceptPolicies,
-    legacyLearnings: input.legacyLearnings,
+    legacyLearnings: (input.memoryPersistence?.confirmedMemoryWrites || [])
+      .filter((receipt) => receipt.userId === input.verifiedUserId
+        && receipt.sourceMessageId === input.turn!.sourceMessageId
+        && Boolean(receipt.memoryId))
+      .map((receipt) => receipt.learning),
     selectedPetId: input.selectedPetId,
   });
   for (const rejected of selection.rejected) {
@@ -119,10 +121,10 @@ async function persistAskV2Phase3LowRiskInternal(input: {
   for (const accepted of selection.accepted) {
     logPhase3("v2_low_risk_write_attempt", input, claimTelemetry(accepted.claim, { claimClass: accepted.claimClass }));
   }
-  if (!input.runtime.shadowReady || !input.runtime.serviceClient || !input.legacyPersistence?.memoryIds.length) {
+  if (!input.runtime.shadowReady || !input.runtime.serviceClient) {
     logPhase3("v2_low_risk_write_failed", input, {
       claimCount: selection.accepted.length,
-      errorCode: !input.legacyPersistence?.memoryIds.length ? "LEGACY_MEMORY_NOT_CONFIRMED" : "V2_SHADOW_BOUNDARY_UNAVAILABLE",
+      errorCode: "V2_SHADOW_BOUNDARY_UNAVAILABLE",
       ...writeSummary,
     });
     return { status: "failed" as const, claimCount: selection.accepted.length };

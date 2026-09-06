@@ -1,0 +1,1932 @@
+{
+  "environment": "Disposable local PostgreSQL 17.6; 100061 synthetic care rows; authenticated role; default planner settings",
+  "captureNote": "EXPLAIN ANALYZE BUFFERS FORMAT JSON. Removed interleaved psql stdout and normalized line wrapping inside JSON strings from PowerShell capture.",
+  "plans": [
+    {
+      "case": "period_2011",
+      "run": 1,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 16.23,
+            "Total Cost": 16.28,
+            "Plan Rows": 2,
+            "Plan Width": 199,
+            "Actual Startup Time": 0.012,
+            "Actual Total Time": 0.013,
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 5,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 16.23,
+                "Total Cost": 16.28,
+                "Plan Rows": 2,
+                "Plan Width": 199,
+                "Actual Startup Time": 0.012,
+                "Actual Total Time": 0.012,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 25,
+                    "Peak Sort Space Used": 25
+                  }
+                },
+                "Shared Hit Blocks": 5,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 16.22,
+                    "Plan Rows": 1,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.009,
+                    "Actual Total Time": 0.01,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 5,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 16.22,
+                        "Plan Rows": 1,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.007,
+                        "Actual Total Time": 0.008,
+                        "Actual Rows": 1,
+                        "Actual Loops": 1,
+                        "Index Cond": "((occurred_at >= '2011-01-01 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2012-01-01  00:00:00+00'::timestamp with time zone))",
+                        "Rows Removed by Index Recheck": 0,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%vomit%'::text) OR (title ~~* '%vomit%'::text)))",
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 5,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 30,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.126,
+          "Triggers": [],
+          "Execution Time": 0.023
+        }
+      ]
+    },
+    {
+      "case": "period_2011",
+      "run": 2,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 16.23,
+            "Total Cost": 16.28,
+            "Plan Rows": 2,
+            "Plan Width": 199,
+            "Actual Startup Time": 0.01,
+            "Actual Total Time": 0.01,
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 5,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 16.23,
+                "Total Cost": 16.28,
+                "Plan Rows": 2,
+                "Plan Width": 199,
+                "Actual Startup Time": 0.009,
+                "Actual Total Time": 0.01,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 25,
+                    "Peak Sort Space Used": 25
+                  }
+                },
+                "Shared Hit Blocks": 5,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 16.22,
+                    "Plan Rows": 1,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.007,
+                    "Actual Total Time": 0.008,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 5,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 16.22,
+                        "Plan Rows": 1,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.005,
+                        "Actual Total Time": 0.006,
+                        "Actual Rows": 1,
+                        "Actual Loops": 1,
+                        "Index Cond": "((occurred_at >= '2011-01-01 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2012-01-01  00:00:00+00'::timestamp with time zone))",
+                        "Rows Removed by Index Recheck": 0,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%vomit%'::text) OR (title ~~* '%vomit%'::text)))",
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 5,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 18,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.102,
+          "Triggers": [],
+          "Execution Time": 0.02
+        }
+      ]
+    },
+    {
+      "case": "period_2011",
+      "run": 3,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 16.23,
+            "Total Cost": 16.28,
+            "Plan Rows": 2,
+            "Plan Width": 199,
+            "Actual Startup Time": 0.008,
+            "Actual Total Time": 0.008,
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 5,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 16.23,
+                "Total Cost": 16.28,
+                "Plan Rows": 2,
+                "Plan Width": 199,
+                "Actual Startup Time": 0.008,
+                "Actual Total Time": 0.008,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 25,
+                    "Peak Sort Space Used": 25
+                  }
+                },
+                "Shared Hit Blocks": 5,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 16.22,
+                    "Plan Rows": 1,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.006,
+                    "Actual Total Time": 0.006,
+                    "Actual Rows": 1,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 5,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 16.22,
+                        "Plan Rows": 1,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.004,
+                        "Actual Total Time": 0.005,
+                        "Actual Rows": 1,
+                        "Actual Loops": 1,
+                        "Index Cond": "((occurred_at >= '2011-01-01 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2012-01-01  00:00:00+00'::timestamp with time zone))",
+                        "Rows Removed by Index Recheck": 0,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%vomit%'::text) OR (title ~~* '%vomit%'::text)))",
+                        "Rows Removed by Filter": 0,
+                        "Shared Hit Blocks": 5,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 18,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.093,
+          "Triggers": [],
+          "Execution Time": 0.017
+        }
+      ]
+    },
+    {
+      "case": "topic_all_time",
+      "run": 1,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 79.77,
+            "Total Cost": 2053.44,
+            "Plan Rows": 25,
+            "Plan Width": 199,
+            "Actual Startup Time": 165.754,
+            "Actual Total Time": 165.758,
+            "Actual Rows": 25,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 2983,
+            "Shared Read Blocks": 225,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 79.77,
+                "Total Cost": 14290.22,
+                "Plan Rows": 180,
+                "Plan Width": 199,
+                "Actual Startup Time": 165.754,
+                "Actual Total Time": 165.755,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "top-N heapsort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 38,
+                    "Peak Sort Space Used": 38
+                  }
+                },
+                "Shared Hit Blocks": 2983,
+                "Shared Read Blocks": 225,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 14282.12,
+                    "Plan Rows": 180,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.006,
+                    "Actual Total Time": 165.732,
+                    "Actual Rows": 61,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 2983,
+                    "Shared Read Blocks": 225,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 14282.12,
+                        "Plan Rows": 180,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.005,
+                        "Actual Total Time": 165.727,
+                        "Actual Rows": 61,
+                        "Actual Loops": 1,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%vomit%'::text) OR (title ~~* '%vomit%'::text) OR (note ~~* '%threw up%'::text)  OR (title ~~* '%threw up%'::text) OR (note ~~* '%thrown up%'::text) OR (title ~~* '%thrown up%'::text)))",
+                        "Rows Removed by Filter": 100000,
+                        "Shared Hit Blocks": 2983,
+                        "Shared Read Blocks": 225,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 8,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.071,
+          "Triggers": [],
+          "Execution Time": 165.775
+        }
+      ]
+    },
+    {
+      "case": "topic_all_time",
+      "run": 2,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 79.77,
+            "Total Cost": 2053.44,
+            "Plan Rows": 25,
+            "Plan Width": 199,
+            "Actual Startup Time": 158.103,
+            "Actual Total Time": 158.106,
+            "Actual Rows": 25,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 3208,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 79.77,
+                "Total Cost": 14290.22,
+                "Plan Rows": 180,
+                "Plan Width": 199,
+                "Actual Startup Time": 158.102,
+                "Actual Total Time": 158.103,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "top-N heapsort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 38,
+                    "Peak Sort Space Used": 38
+                  }
+                },
+                "Shared Hit Blocks": 3208,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 14282.12,
+                    "Plan Rows": 180,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.016,
+                    "Actual Total Time": 158.076,
+                    "Actual Rows": 61,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 3208,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 14282.12,
+                        "Plan Rows": 180,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.012,
+                        "Actual Total Time": 158.068,
+                        "Actual Rows": 61,
+                        "Actual Loops": 1,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%vomit%'::text) OR (title ~~* '%vomit%'::text) OR (note ~~* '%threw up%'::text)  OR (title ~~* '%threw up%'::text) OR (note ~~* '%thrown up%'::text) OR (title ~~* '%thrown up%'::text)))",
+                        "Rows Removed by Filter": 100000,
+                        "Shared Hit Blocks": 3208,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 8,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.197,
+          "Triggers": [],
+          "Execution Time": 158.132
+        }
+      ]
+    },
+    {
+      "case": "topic_all_time",
+      "run": 3,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 79.77,
+            "Total Cost": 2053.44,
+            "Plan Rows": 25,
+            "Plan Width": 199,
+            "Actual Startup Time": 157.485,
+            "Actual Total Time": 157.488,
+            "Actual Rows": 25,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 3208,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 79.77,
+                "Total Cost": 14290.22,
+                "Plan Rows": 180,
+                "Plan Width": 199,
+                "Actual Startup Time": 157.484,
+                "Actual Total Time": 157.485,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "top-N heapsort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 38,
+                    "Peak Sort Space Used": 38
+                  }
+                },
+                "Shared Hit Blocks": 3208,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 14282.12,
+                    "Plan Rows": 180,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.011,
+                    "Actual Total Time": 157.461,
+                    "Actual Rows": 61,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 3208,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 14282.12,
+                        "Plan Rows": 180,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.008,
+                        "Actual Total Time": 157.454,
+                        "Actual Rows": 61,
+                        "Actual Loops": 1,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%vomit%'::text) OR (title ~~* '%vomit%'::text) OR (note ~~* '%threw up%'::text)  OR (title ~~* '%threw up%'::text) OR (note ~~* '%thrown up%'::text) OR (title ~~* '%thrown up%'::text)))",
+                        "Rows Removed by Filter": 100000,
+                        "Shared Hit Blocks": 3208,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 8,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.144,
+          "Triggers": [],
+          "Execution Time": 157.512
+        }
+      ]
+    },
+    {
+      "case": "topic_no_match",
+      "run": 1,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 72.21,
+            "Total Cost": 1858.44,
+            "Plan Rows": 25,
+            "Plan Width": 199,
+            "Actual Startup Time": 103.007,
+            "Actual Total Time": 103.008,
+            "Actual Rows": 0,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 3208,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 72.21,
+                "Total Cost": 13790.45,
+                "Plan Rows": 192,
+                "Plan Width": 199,
+                "Actual Startup Time": 103.006,
+                "Actual Total Time": 103.007,
+                "Actual Rows": 0,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 25,
+                    "Peak Sort Space Used": 25
+                  }
+                },
+                "Shared Hit Blocks": 3208,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 13781.81,
+                    "Plan Rows": 192,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 103.003,
+                    "Actual Total Time": 103.003,
+                    "Actual Rows": 0,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 3208,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 13781.81,
+                        "Plan Rows": 192,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 102.999,
+                        "Actual Total Time": 102.999,
+                        "Actual Rows": 0,
+                        "Actual Loops": 1,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%weight%'::text) OR (title ~~* '%weight%'::text) OR (note ~~* '%weigh%'::text)  OR (title ~~* '%weigh%'::text)))",
+                        "Rows Removed by Filter": 100061,
+                        "Shared Hit Blocks": 3208,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 8,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.147,
+          "Triggers": [],
+          "Execution Time": 103.031
+        }
+      ]
+    },
+    {
+      "case": "topic_no_match",
+      "run": 2,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 72.21,
+            "Total Cost": 1858.44,
+            "Plan Rows": 25,
+            "Plan Width": 199,
+            "Actual Startup Time": 104.203,
+            "Actual Total Time": 104.205,
+            "Actual Rows": 0,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 3208,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 72.21,
+                "Total Cost": 13790.45,
+                "Plan Rows": 192,
+                "Plan Width": 199,
+                "Actual Startup Time": 104.202,
+                "Actual Total Time": 104.203,
+                "Actual Rows": 0,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 25,
+                    "Peak Sort Space Used": 25
+                  }
+                },
+                "Shared Hit Blocks": 3208,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 13781.81,
+                    "Plan Rows": 192,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 104.197,
+                    "Actual Total Time": 104.198,
+                    "Actual Rows": 0,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 3208,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 13781.81,
+                        "Plan Rows": 192,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 104.193,
+                        "Actual Total Time": 104.194,
+                        "Actual Rows": 0,
+                        "Actual Loops": 1,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%weight%'::text) OR (title ~~* '%weight%'::text) OR (note ~~* '%weigh%'::text)  OR (title ~~* '%weigh%'::text)))",
+                        "Rows Removed by Filter": 100061,
+                        "Shared Hit Blocks": 3208,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 8,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.151,
+          "Triggers": [],
+          "Execution Time": 104.234
+        }
+      ]
+    },
+    {
+      "case": "topic_no_match",
+      "run": 3,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 72.21,
+            "Total Cost": 1858.44,
+            "Plan Rows": 25,
+            "Plan Width": 199,
+            "Actual Startup Time": 102.582,
+            "Actual Total Time": 102.583,
+            "Actual Rows": 0,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 3208,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 72.21,
+                "Total Cost": 13790.45,
+                "Plan Rows": 192,
+                "Plan Width": 199,
+                "Actual Startup Time": 102.581,
+                "Actual Total Time": 102.581,
+                "Actual Rows": 0,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 25,
+                    "Peak Sort Space Used": 25
+                  }
+                },
+                "Shared Hit Blocks": 3208,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 13781.81,
+                    "Plan Rows": 192,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 102.576,
+                    "Actual Total Time": 102.577,
+                    "Actual Rows": 0,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 3208,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 13781.81,
+                        "Plan Rows": 192,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 102.571,
+                        "Actual Total Time": 102.571,
+                        "Actual Rows": 0,
+                        "Actual Loops": 1,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((note ~~* '%weight%'::text) OR (title ~~* '%weight%'::text) OR (note ~~* '%weigh%'::text)  OR (title ~~* '%weigh%'::text)))",
+                        "Rows Removed by Filter": 100061,
+                        "Shared Hit Blocks": 3208,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 8,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.198,
+          "Triggers": [],
+          "Execution Time": 102.61
+        }
+      ]
+    },
+    {
+      "case": "tied_cursor",
+      "run": 1,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 31.01,
+            "Total Cost": 31.06,
+            "Plan Rows": 2,
+            "Plan Width": 199,
+            "Actual Startup Time": 0.06,
+            "Actual Total Time": 0.062,
+            "Actual Rows": 25,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 7,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 31.01,
+                "Total Cost": 31.06,
+                "Plan Rows": 2,
+                "Plan Width": 199,
+                "Actual Startup Time": 0.06,
+                "Actual Total Time": 0.061,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 34,
+                    "Peak Sort Space Used": 34
+                  }
+                },
+                "Shared Hit Blocks": 7,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 31,
+                    "Plan Rows": 1,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.016,
+                    "Actual Total Time": 0.047,
+                    "Actual Rows": 35,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 7,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 31,
+                        "Plan Rows": 1,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.013,
+                        "Actual Total Time": 0.042,
+                        "Actual Rows": 35,
+                        "Actual Loops": 1,
+                        "Index Cond": "((occurred_at >= '2014-01-01 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2015-01-01  00:00:00+00'::timestamp with time zone))",
+                        "Rows Removed by Index Recheck": 0,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((occurred_at > '2014-07-09 00:00:00+00'::timestamp with time zone) OR ((occurred_at =  '2014-07-09 00:00:00+00'::timestamp with time zone) AND (id > '85000000-0000-4000-8000-000000000025'::uuid))) AND ((note ~~* '%vomit%'::text)  OR (title ~~* '%vomit%'::text)))",
+                        "Rows Removed by Filter": 25,
+                        "Shared Hit Blocks": 7,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 28,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.236,
+          "Triggers": [],
+          "Execution Time": 0.078
+        }
+      ]
+    },
+    {
+      "case": "tied_cursor",
+      "run": 2,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 31.01,
+            "Total Cost": 31.06,
+            "Plan Rows": 2,
+            "Plan Width": 199,
+            "Actual Startup Time": 0.051,
+            "Actual Total Time": 0.053,
+            "Actual Rows": 25,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 7,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 31.01,
+                "Total Cost": 31.06,
+                "Plan Rows": 2,
+                "Plan Width": 199,
+                "Actual Startup Time": 0.051,
+                "Actual Total Time": 0.052,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 34,
+                    "Peak Sort Space Used": 34
+                  }
+                },
+                "Shared Hit Blocks": 7,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 31,
+                    "Plan Rows": 1,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.009,
+                    "Actual Total Time": 0.039,
+                    "Actual Rows": 35,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 7,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 31,
+                        "Plan Rows": 1,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.007,
+                        "Actual Total Time": 0.035,
+                        "Actual Rows": 35,
+                        "Actual Loops": 1,
+                        "Index Cond": "((occurred_at >= '2014-01-01 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2015-01-01  00:00:00+00'::timestamp with time zone))",
+                        "Rows Removed by Index Recheck": 0,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((occurred_at > '2014-07-09 00:00:00+00'::timestamp with time zone) OR ((occurred_at =  '2014-07-09 00:00:00+00'::timestamp with time zone) AND (id > '85000000-0000-4000-8000-000000000025'::uuid))) AND ((note ~~* '%vomit%'::text)  OR (title ~~* '%vomit%'::text)))",
+                        "Rows Removed by Filter": 25,
+                        "Shared Hit Blocks": 7,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 28,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.175,
+          "Triggers": [],
+          "Execution Time": 0.07
+        }
+      ]
+    },
+    {
+      "case": "tied_cursor",
+      "run": 3,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 31.01,
+            "Total Cost": 31.06,
+            "Plan Rows": 2,
+            "Plan Width": 199,
+            "Actual Startup Time": 0.048,
+            "Actual Total Time": 0.049,
+            "Actual Rows": 25,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 7,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Incremental Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 31.01,
+                "Total Cost": 31.06,
+                "Plan Rows": 2,
+                "Plan Width": 199,
+                "Actual Startup Time": 0.047,
+                "Actual Total Time": 0.048,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "occurred_at",
+                  "id"
+                ],
+                "Presorted Key": [
+                  "occurred_at"
+                ],
+                "Full-sort Groups": {
+                  "Group Count": 1,
+                  "Sort Methods Used": [
+                    "quicksort"
+                  ],
+                  "Sort Space Memory": {
+                    "Average Sort Space Used": 34,
+                    "Peak Sort Space Used": 34
+                  }
+                },
+                "Shared Hit Blocks": 7,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0.42,
+                    "Total Cost": 31,
+                    "Plan Rows": 1,
+                    "Plan Width": 199,
+                    "Actual Startup Time": 0.007,
+                    "Actual Total Time": 0.036,
+                    "Actual Rows": 35,
+                    "Actual Loops": 1,
+                    "One-Time Filter": "((NULLIF(current_setting('request.jwt.claim.sub'::text, true), ''::text))::uuid =  '83000000-0000-4000-8000-000000000001'::uuid)",
+                    "Shared Hit Blocks": 7,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Backward",
+                        "Index Name": "pet_care_entries_occurred_at_desc_idx",
+                        "Relation Name": "pet_care_entries",
+                        "Alias": "pet_care_entries",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 31,
+                        "Plan Rows": 1,
+                        "Plan Width": 199,
+                        "Actual Startup Time": 0.006,
+                        "Actual Total Time": 0.032,
+                        "Actual Rows": 35,
+                        "Actual Loops": 1,
+                        "Index Cond": "((occurred_at >= '2014-01-01 00:00:00+00'::timestamp with time zone) AND (occurred_at < '2015-01-01  00:00:00+00'::timestamp with time zone))",
+                        "Rows Removed by Index Recheck": 0,
+                        "Filter": "((deleted_at IS NULL) AND (user_id = '83000000-0000-4000-8000-000000000001'::uuid) AND (pet_profile_id =  '83000000-0000-4000-8000-000000000011'::uuid) AND ((occurred_at > '2014-07-09 00:00:00+00'::timestamp with time zone) OR ((occurred_at =  '2014-07-09 00:00:00+00'::timestamp with time zone) AND (id > '85000000-0000-4000-8000-000000000025'::uuid))) AND ((note ~~* '%vomit%'::text)  OR (title ~~* '%vomit%'::text)))",
+                        "Rows Removed by Filter": 25,
+                        "Shared Hit Blocks": 7,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 28,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.152,
+          "Triggers": [],
+          "Execution Time": 0.059
+        }
+      ]
+    },
+    {
+      "case": "correction_rpc",
+      "run": 1,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Result",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 0,
+            "Total Cost": 0.26,
+            "Plan Rows": 1,
+            "Plan Width": 32,
+            "Actual Startup Time": 10.543,
+            "Actual Total Time": 10.544,
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 3565,
+            "Shared Read Blocks": 42,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.006,
+          "Triggers": [],
+          "Execution Time": 10.55
+        }
+      ]
+    },
+    {
+      "case": "correction_rpc",
+      "run": 2,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Result",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 0,
+            "Total Cost": 0.26,
+            "Plan Rows": 1,
+            "Plan Width": 32,
+            "Actual Startup Time": 8.114,
+            "Actual Total Time": 8.114,
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 2749,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.004,
+          "Triggers": [],
+          "Execution Time": 8.119
+        }
+      ]
+    },
+    {
+      "case": "correction_rpc",
+      "run": 3,
+      "explain": [
+        {
+          "Plan": {
+            "Node Type": "Result",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 0,
+            "Total Cost": 0.26,
+            "Plan Rows": 1,
+            "Plan Width": 32,
+            "Actual Startup Time": 8.386,
+            "Actual Total Time": 8.386,
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 2749,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.005,
+          "Triggers": [],
+          "Execution Time": 8.392
+        }
+      ]
+    }
+  ]
+}

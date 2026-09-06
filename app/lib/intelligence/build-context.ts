@@ -5,9 +5,12 @@ const stopWords = new Set(["about", "after", "again", "could", "from", "have", "
 
 export function selectRelevantCareEntries(entries: CareEntryRow[], message: string, limit = 20) {
   const terms = tokenize(message);
+  const requestedYears = /\b(?:summari[sz]e|history|records?|review|compare)\b/i.test(message)
+    ? new Set(message.match(/\b(?:19|20)\d{2}\b/g) || []) : new Set<string>();
+  const inRequestedYear = (entry: CareEntryRow) => requestedYears.has(String(new Date(eventTime(entry)).getUTCFullYear())) ? 1 : 0;
   return [...entries]
     .map((entry) => ({ entry, score: scoreCareEntry(entry, terms) }))
-    .sort((left, right) => right.score - left.score || eventTime(right.entry) - eventTime(left.entry))
+    .sort((left, right) => inRequestedYear(right.entry) - inRequestedYear(left.entry) || right.score - left.score || eventTime(right.entry) - eventTime(left.entry))
     .slice(0, Math.max(10, Math.min(20, limit)))
     .map(({ entry }) => entry);
 }

@@ -46,12 +46,14 @@ import { modelApplicationActionJsonSchema, parseModelApplicationActions, type Mo
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
 import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
 import { applyAskAnswerEconomy, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
+import { careEvidenceId, evidenceForRecords, representEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
 export type AskContextSourceType =
   | "profile"
   | "active_concern"
   | "active_episode"
   | "resolved_episode"
+  | "episode_evidence"
   | "care_update"
   | "remembered_detail"
   | "conversation_turn"
@@ -89,6 +91,8 @@ export type ProposedHistoryUpdate = {
 };
 
 export type AskReasoningResult = {
+  /** Server-produced, never parsed from model JSON. */
+  evidenceContract?: AskEvidenceContract;
   answer: {
     title: string;
     summary: string;
@@ -137,6 +141,7 @@ type ConversationTurn = {
 };
 
 type BuildContextInput = {
+  evidenceContract?: AskEvidenceContract;
   profiles: DogProfileRow[];
   careEntries: CareEntryRow[];
   memories: DogMemoryRow[];
@@ -297,6 +302,7 @@ const unifiedInstructions = [
   "Interpret the message, prioritize safety, select relevant supplied context, and write the final conversational answer in this single response.",
   "The server has already loaded and ranked current facts. Do not rediscover or invent database facts.",
   "Canonical active memories override older conversation statements. Conversation records show what was said, not what is currently true. Never revive a rejected, forgotten, expired, or superseded preference from an older turn; the current user message may explicitly provide a new fact.",
+  "evidenceContract is server-owned scope and coverage. Loaded records are not necessarily represented records, and unknown completeness is not complete. A profile does not prove that its history was loaded. Never infer an exact lifetime total, absent result, or complete history from a selected subset. Keep quoted evidence qualifiers intact. Coverage failures are limitations of this answer, not negative findings about the animal.",
   "The deterministic minimum safety level can be raised but never lowered. When it is urgent, lead with the action and suppress shopping.",
   "A recent unresolved concern may outrank a lower-priority question. Resolved or unrelated history must not hijack the answer.",
   "If the user reports that a prior concern improved, acknowledge it without repeating a full emergency warning unless red flags remain. Ask at most one concise confirmation when needed.",
@@ -330,6 +336,7 @@ const unifiedInstructions = [
   "Classify preventive procedures and completed care services as domain=care rather than as a health symptom. Preserve the user's temporal wording in temporal.explicitTime, and set temporal.occurredAt only when the occurrence timestamp is supported by the supplied request context.",
   "Semantic fields are independent: urgency is safety, not a topic. A safety event is not respiratory unless the message or supplied current context explicitly concerns breathing.",
   "Do not emit database IDs in semanticEvents. The server resolves owned episode references. A resolution without a compatible supplied active episode must be treated as ambiguous and must not fabricate prior state.",
+  "For health semanticEvents, episodeBoundary describes the owner's meaning, independently of wording: opening only when the report establishes a new episode; continuation when it refers to the same ongoing episode; resolution when that episode ended. Quote the full supporting clause verbatim in evidence and give calibrated confidence. 'He threw up after breakfast' alone need not establish a new episode; a first-ever report or a new bout after recovery can. 'Still sick this afternoon' can continue a uniquely supplied episode. Never count occurrences or notes as separate episodes. Use unknown or null when onset, subject, topic, or grouping is ambiguous. Do not invent missing boundaries, diagnoses or test results.",
   "When recoveryStatus is terminal with high confidence and the current message contains no worsening, recurrence, or emergency evidence, represent a compatible active episode as transition=resolved and state=resolved. Partial recovery remains transition=improved and state=monitoring.",
   "Also emit semanticFrame as diagnostic shadow interpretation only. Use local IDs such as entity_1, reference_1, and claim_1; never copy or invent any supplied database ID into semanticFrame. Extract open-ended predicates and concepts rather than selecting from a topic catalogue. Include every independently supported assertion, event, transition, preference, relationship, correction, or retraction in the current message. A return to normal baseline, explicit symptom absence, or ended active problem is a state_transition with transition=resolved and the prior problem as targetConcept; reduced but continuing symptoms are transition=improved; uncertain wellbeing without a definite lifecycle change remains an assertion with suspected modality. For every evidence item, copy one contiguous surfaceText fragment from the current message; never calculate offsets and never paraphrase evidence. Use multiple fragments when support is non-contiguous.",
   "Choose SemanticFrame claim kinds by structure, not keywords. An assertion is a property, measurement, durable fact, or state snapshot. An event is a bounded occurrence or action. A state_transition explicitly changes a prior or active state, including resolution, recurrence, improvement, or worsening. A preference expresses desirability or a constraint. A relationship expresses a recurring or durable role between entities. A correction targets and revises, retracts, forgets, negates, or confirms another claim.",
@@ -364,6 +371,7 @@ export function clearAskProviderCooldownsForTests() {
 
 export function buildAskContext(input: BuildContextInput) {
   const allRecords = buildContextRecords(input);
+  const evidence = structuredClone(input.evidenceContract || evidenceForRecords(allRecords, input.question, input.profiles.map(profile => profile.id)));
   const terms = meaningfulTerms(input.question);
   for (const profile of input.profiles) {
     for (const identityTerm of meaningfulTerms(profile.name || "")) terms.delete(identityTerm);
@@ -388,7 +396,7 @@ export function buildAskContext(input: BuildContextInput) {
     ? scored.filter(({ record }) => record.sourceType === "active_episode").slice(0, 6)
     : [];
   const resolvedEpisodes = scored.filter(({ record }) => record.sourceType === "resolved_episode" && recordMatchesTerms(record, terms)).slice(0, 3);
-  const relevantUpdates = chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"
+  const relevantUpdates = evidence.history ? scored.filter(({ record }) => record.sourceType === "care_update") : chooseUpdates(scored.filter(({ record }) => record.sourceType === "care_update"
     && (historicalSafetyRelevant || record.status === "resolved" || record.priority === "routine" || recordMatchesTerms(record, terms))));
   const memories = scored.filter(({ record }) => record.sourceType === "remembered_detail").slice(0, 8);
   const conversation = scored
@@ -398,17 +406,33 @@ export function buildAskContext(input: BuildContextInput) {
   const product = /\b(product|food|brand|buy|shop|recommend)\b/i.test(input.question)
     ? scored.filter(({ record }) => record.sourceType === "product_context").slice(0, 3)
     : [];
-  const chosen = dedupeScored([...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
+  const episodeEvidence = scored.filter(({record}) => record.sourceType === "episode_evidence").slice(0, 8);
+  const chosen = dedupeScored([...episodeEvidence, ...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
   let detailedUpdateCount = 0;
-  const records = chosen.map(({ record }) => {
+  const records = chosen.flatMap(({ record }) => {
     const fullDetail = record.sourceType === "care_update" && detailedUpdateCount < 2;
     if (fullDetail) detailedUpdateCount += 1;
-    return compactRecord(record, fullDetail);
+    const compact = evidence.history && record.sourceType === "care_update" ? record : compactRecord(record, fullDetail);
+    if (!compact) evidence.losses.push({ sourceId: record.id, reason: "qualified_span_over_budget" });
+    return compact ? [compact] : [];
   });
+  const chosenIds = new Set(chosen.map(({ record }) => record.id));
+  for (const record of allRecords) if (!chosenIds.has(record.id)) evidence.losses.push({ sourceId: record.id, reason: "model_selection" });
+  const candidateIds = new Set(allRecords.map(record => record.id));
+  const alreadyLost = new Set(evidence.losses.map(loss => loss.sourceId));
+  // Governed exclusions are provenance, not evidence-budget losses. Their
+  // replacement/status remains explicit in the contract sent to the model.
+  const governedExclusions = new Set(evidence.history?.provenance.filter(source => ["superseded", "tombstoned_or_inactive"].includes(source.status)).map(source => source.sourceId));
+  for (const source of evidence.sources) for (const id of source.loadedIds) {
+    if (/^(?:care|concern|episode|memory|conversation|product-feedback):/.test(id) && !candidateIds.has(id) && !alreadyLost.has(id) && !governedExclusions.has(id)) {
+      evidence.losses.push({ sourceId: id, reason: "source_filter" });
+      alreadyLost.add(id);
+    }
+  }
   const chosenUpdateIds = new Set(relevantUpdates.map(({ record }) => record.id));
   const omittedUpdates = scored.filter(({ record }) => record.sourceType === "care_update" && !chosenUpdateIds.has(record.id));
   const updateSummary = omittedUpdates.length
-    ? `${omittedUpdates.length} older update${omittedUpdates.length === 1 ? "" : "s"}: ${[...new Set(omittedUpdates.map(({ record }) => record.kind))].slice(0, 5).join(", ")}.`
+    ? `${omittedUpdates.length} supplied candidate updates were not selected. This is not a count of all omitted history.`
     : null;
 
   const recentTurns = input.conversationTurns.slice(-6).map((turn) => ({ role: turn.role, text: clean(turn.text).slice(0, 500) }));
@@ -450,7 +474,7 @@ export function buildAskContext(input: BuildContextInput) {
   });
 
   const promptContext = enforceAskPromptContextBudget({
-      currentMessage: clean(input.question).slice(0, 1200),
+      currentMessage: input.question,
       currentTimestamp: (input.now || new Date()).toISOString(),
       locale: input.locale || "en",
       minimumSafetyLevel,
@@ -467,6 +491,7 @@ export function buildAskContext(input: BuildContextInput) {
       pets: petReferences,
       ...(input.discourseFocus ? { discourseFocus: input.discourseFocus } : {}),
       contextRecords: records,
+      evidenceContract: evidence,
       olderUpdateSummary: updateSummary,
   });
   return {
@@ -476,10 +501,16 @@ export function buildAskContext(input: BuildContextInput) {
   };
 }
 
-function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRecord[] }>(promptContext: T): T {
+function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRecord[]; evidenceContract: AskEvidenceContract }>(promptContext: T): T {
   const contextRecords = [...promptContext.contextRecords];
   const budgeted = { ...promptContext, contextRecords };
-  while (contextRecords.length && JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) contextRecords.pop();
+  representEvidence(budgeted.evidenceContract, contextRecords);
+  while (contextRecords.length && JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) {
+    const removed = contextRecords.pop()!;
+    budgeted.evidenceContract.losses.push({ sourceId: removed.id, reason: "prompt_budget" });
+    representEvidence(budgeted.evidenceContract, contextRecords);
+  }
+  if (JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) throw new Error("ASK_EVIDENCE_SCOPE_EXCEEDS_BUDGET");
   return budgeted;
 }
 
@@ -714,6 +745,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       : parsed.responseMode === "urgent_safety" ? urgentSemanticTitle(petName, parsed.semanticEvents, input.question, input.concerns || []) : "Furvise";
   return {
     answer: { title, summary: answerText, sections: parsed.answerSections, safetyNote: null },
+    evidenceContract: context.promptContext.evidenceContract,
     userIntent: parsed.userIntent,
     relevantContextIds: parsed.relevantContextIds,
     referencedRecords: parsed.relevantContextIds.map((id) => context.records.find((record) => record.id === id)).filter((record): record is AskContextRecord => Boolean(record)),
@@ -1004,8 +1036,10 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
   const configuredOutputLimit = typeof request.max_output_tokens === "number" ? request.max_output_tokens : undefined;
   onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit });
   try {
+    const compatibleRequest = { ...request };
+    if (supportsReasoningEffort(model)) delete compatibleRequest.temperature;
     const response = await createWithTimeout(client, {
-      ...request,
+      ...compatibleRequest,
       ...(supportsReasoningEffort(model) ? { reasoning: { effort: "low" } } : {}),
       model,
     }, timeoutMs);
@@ -1171,7 +1205,22 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
       occurredAt: episode.started_at || episode.last_event_at,
       status: resolved ? "resolved" : "active",
       priority: episode.severity === "urgent" ? "urgent" : episode.severity === "important" ? "important" : "routine",
-      metadata: { episodeType: episode.episode_type, normalizedTopic: semanticTopic, canonicalEpisodeKey: episode.normalized_key, status: episode.status },
+      metadata: { episodeType: episode.episode_type, normalizedTopic: semanticTopic, canonicalEpisodeKey: episode.normalized_key, status: episode.status,
+        sequence_number: episode.sequence_number, recurrence_of: episode.recurrence_of, resolved_at: episode.resolved_at,
+        sequenceScope: "stored_topic_sequence_not_displayed_ordinal" },
+    });
+  }
+  const episodeEvidence = input.evidenceContract?.episodes;
+  const episodeProfile = episodeEvidence && profiles.get(episodeEvidence.petId);
+  if (episodeEvidence && episodeProfile && episodeEvidence.coverage !== "unavailable"
+    && ["list", "resolved"].includes(episodeEvidence.referenceStatus)) {
+    for (const item of episodeEvidence.items.slice(0, 8)) records.push({
+      ...baseRecord(item.id, "episode_evidence", episodeProfile, episodeEvidence.topic,
+        `Source-linked historical ${episodeEvidence.topic} episode beginning ${item.startedAt}. Current status is not established by this grouping.`, item.startedAt),
+      occurredAt: item.startedAt, status: "unknown", priority: "routine",
+      metadata: {sourceLinksValidated: true, sourceId: item.sourceId, sourceVersion: item.sourceVersion,
+        episodeVersion: item.episodeVersion, sequence_number: item.sequenceNumber, recurrence_of: item.recurrenceOf,
+        displayedOrdinal: item.ordinal, sequenceScope: "stored_topic_sequence_not_displayed_ordinal", coverage: "supported_subset_not_lifetime_total"},
     });
   }
   for (const entry of input.careEntries) {
@@ -1180,8 +1229,8 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
     const update = updates.get(entry.id);
     const concernTags = update?.concernTags.map(formatConcernTag) || [];
     records.push({
-      ...baseRecord(`care:${entry.id}`, "care_update", profile, entry.category, [entry.title, entry.note].filter(Boolean).join(": "), entry.created_at),
-      occurredAt: entry.occurred_at || entry.created_at,
+      ...baseRecord(careEvidenceId(entry.id, input.evidenceContract?.history), "care_update", profile, entry.category, [entry.title, entry.note].filter(Boolean).join(": "), entry.created_at),
+      occurredAt: input.evidenceContract?.scope.requestKind === "resolution_status" ? entry.occurred_at : entry.occurred_at || entry.created_at,
       status: update?.active === true ? "active" : update?.active === false ? "resolved" : concernTags.length ? "possibly_active" : "unknown",
       priority: concernTags.length || entry.severity === "severe" ? "urgent" : entry.severity === "moderate" ? "important" : "routine",
       metadata: { category: entry.category, severity: entry.severity, title: entry.title || "Care update", concerns: concernTags.join(", ") },
@@ -1220,13 +1269,15 @@ function chooseUpdates(updates: Array<{ record: AskContextRecord; score: number 
   return dedupeScored([...mandatory, ...updates, ...newest]).slice(0, 5);
 }
 
-function compactRecord(record: AskContextRecord, fullDetail: boolean): AskContextRecord {
+function compactRecord(record: AskContextRecord, fullDetail: boolean): AskContextRecord | null {
   const max = record.sourceType === "conversation_turn" ? 500 : fullDetail ? 520 : record.sourceType === "care_update" ? 180 : 280;
-  return { ...record, value: clean(record.value).slice(0, max) };
+  // An opaque source span may carry a correction or negation at its end.
+  // Omit it with a coverage loss rather than presenting a stronger prefix.
+  return record.value.length <= max ? record : null;
 }
 
 function baseRecord(id: string, sourceType: AskContextSourceType, profile: DogProfileRow, kind: string, value: string, createdAt: string | null): AskContextRecord {
-  return { id, sourceType, petId: profile.id, petName: profile.name, kind, value: clean(value).slice(0, 1200), occurredAt: null, createdAt, status: null, priority: null, metadata: {} };
+  return { id, sourceType, petId: profile.id, petName: profile.name, kind, value, occurredAt: null, createdAt, status: null, priority: null, metadata: {} };
 }
 
 function scoreRecord(record: AskContextRecord, terms: Set<string>, now: number) {

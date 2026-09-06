@@ -1,9 +1,16 @@
 import type { CareEntryRow, DogProfileRow } from "../supabase.ts";
+import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
+import { isPetObservationEvidence } from "../ai/recovery-subject.ts";
+import { vomitingSymptomPattern } from "../ai/concern-symptoms.ts";
 import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, SemanticEventDomain, SemanticEventTransition } from "./types.ts";
 
 const explicitSavePattern = /\b(?:save|log|record|note|add|put)\b[\s\S]{0,80}\b(?:this|that|it|history|care history|timeline)\b|\bcan (?:you|u) (?:save|log|record|note|add)\b/i;
 const conversationalNoisePattern = /\b(?:chasing?|chased)\s+butterfl(?:y|ies)\b|\bbutterfl(?:y|ies)\b|\b(?:is|was|being)\s+(?:dumb|silly|goofy|cute|funny|insane|a menace|a gremlin)(?:\s+af)?\b|\b(?:lol|lmao|haha|hehe)\b|\bnormal\s+play\b|\b(?:played?|playing)\s+(?:normally|with (?:a )?toy)\b|\b(?:more )?interested in (?:going|get(?:ting)?) outside\b/i;
-const clinicalSignalPattern = /\b(?:appetite|not eating|won't eat|has(?:n't| not) eaten|have(?:n't| not) eaten|(?:eat(?:ing)?|eaten) (?:less|little|much)|drank?|drinking|thirst|water intake|vomit\w*|diarrhea|stool|urine|urinating|elimination|weight|body condition|limp|limping|injur(?:y|ed)|wound|bleed(?:ing)?|pain|letharg(?:y|ic)|cough|sneez|itch|scratch|rash|swelling|breath(?:e|ing)|seizure|collapse|toxin|toxic|poison|exposure|ate|ingested|medication|medicine|supplement|dose|treatment|therapy|vaccin\w*|veterinar(?:y|ian)|vet visit|test result|lab result|diagnos|surgery)\b/i;
+const existingClinicalSignalPattern = /\b(?:appetite|not eating|won't eat|has(?:n't| not) eaten|have(?:n't| not) eaten|(?:eat(?:ing)?|eaten) (?:less|little|much)|drank?|drinking|thirst|water intake|vomit\w*|diarrhea|stool|urine|urinating|elimination|weight|body condition|limp|limping|injur(?:y|ed)|wound|bleed(?:ing)?|pain|letharg(?:y|ic)|cough|sneez|itch|scratch|rash|swelling|breath(?:e|ing)|seizure|collapse|toxin|toxic|poison|exposure|ate|ingested|medication|medicine|supplement|dose|treatment|therapy|vaccin\w*|veterinar(?:y|ian)|vet visit|test result|lab result|diagnos|surgery)\b/i;
+// History relevance includes qualified/negative mentions; this is not a claim
+// of affirmative activity or permission to resolve a concern.
+const clinicalSignalPattern = new RegExp(
+  `(?:${existingClinicalSignalPattern.source})|(?:${vomitingSymptomPattern.source})`, "i");
 const behaviorChangePattern = /\b(?:still|continued?|keeps?|again|recurr(?:ed|ing)?|started?|changed?|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?|since|for\s+(?:the\s+)?(?:last\s+)?\d+\s+(?:hours?|days?|weeks?))\b[\s\S]{0,100}\b(?:pac(?:e|ed|ing)|restless|hiding|aggress(?:ive|ion)|anxious|anxiety|vocal(?:izing)?|meow(?:ing)?|sleep|energy|activity|behavior|routine)\b|\b(?:pac(?:e|ed|ing)|restless|hiding|aggress(?:ive|ion)|anxious|anxiety|vocal(?:izing)?|meow(?:ing)?)\b[\s\S]{0,100}\b(?:still|continued?|keeps?|again|since|started?|changed?|wors(?:e|ened|ening)|improv(?:ed|ing)|resolved?|stopped?)\b/i;
 const dietOrRoutineChangePattern = /\b(?:food|diet|meal|feeding|routine|schedule)\b[\s\S]{0,80}\b(?:started?|stopped?|switched?|changed?|new|more|less|increased?|decreased?)\b|\b(?:started?|stopped?|switched?|changed?)\b[\s\S]{0,80}\b(?:food|diet|meal|feeding|routine|schedule)\b/i;
 const lifecycleEventPattern = /\b(?:died|passed away|death|euthanized|put (?:her|him|them) to sleep)\b/i;
@@ -19,7 +26,6 @@ const trackingIntentPattern = /\b(?:keep|start|make) (?:a )?(?:log|record|timeli
 const stableBehaviorPattern = /\b(?:always (?:did|does|done|been|happened)|as long as I can remember|normal for (?:her|him|them|it)|usual (?:behavior|habit|pattern))\b/i;
 const safetyEventPattern = /\b(?:escaped?|found|got (?:away|lost)|lost|missing|ran away|run away|stray|toxin|toxic|poison|exposure|injur(?:y|ed)|attack(?:ed)?)\b/i;
 const medicationCoursePattern = /\b(?:started?|stopped?|changed?|increased?|decreased?)\b[\s\S]{0,80}\b(?:dose|giving|medication|medicine|pill|tablet|treatment)\b|\b(?:dose|medication|medicine|pill|tablet|treatment)\b[\s\S]{0,80}\b(?:started?|stopped?|changed?|increased?|decreased?)\b/i;
-const genericQuestionPattern = /^(?:can|could|do|does|did|is|are|should|would|what|when|where|why|how|which)\b[\s\S]*\?$/i;
 const meaningfulTransition = new Set<SemanticEventTransition>(["started", "continued", "changed", "improved", "worsened", "resolved", "corrected", "confirmed"]);
 
 export type CareHistorySaveDecision = { eligible: boolean; reason: string; explicitOverride: boolean };
@@ -42,14 +48,15 @@ export function evaluateCareHistorySaveWorthiness(input: {
   const explicitOverride = isExplicitCareHistorySaveRequest(source);
   if (explicitOverride) return { eligible: true, reason: "explicit_owner_save_request", explicitOverride: true };
   if (!source) return { eligible: false, reason: "empty_source", explicitOverride: false };
+  const assertion = analyzeOwnerAssertions(source);
+  if (!assertion.hasOwnerAssertion) {
+    return { eligible: false, reason: assertion.isPureQuestion ? "question_without_owner_update" : "source_is_not_owner_assertion", explicitOverride: false };
+  }
   const proposedEventIsNoise = conversationalNoisePattern.test(eventText || source)
     && !clinicalSignalPattern.test(eventText || source)
     && !behaviorChangePattern.test(eventText || source);
   if (proposedEventIsNoise) {
     return { eligible: false, reason: "conversational_noise", explicitOverride: false };
-  }
-  if (genericQuestionPattern.test(source) && !/\b(?:my|our|he|she|they|it|[A-Z][a-z]+)\b[\s\S]{0,80}\b(?:has|had|is|was|started|stopped|changed|ate|drank|vomit|seems?)\b/.test(source)) {
-    return { eligible: false, reason: "generic_question", explicitOverride: false };
   }
   if (input.hasTrackedEpisode && input.transition && meaningfulTransition.has(input.transition)) {
     return { eligible: true, reason: "tracked_concern_state_change", explicitOverride: false };
@@ -202,6 +209,7 @@ export function buildExplicitCareHistoryAction(input: {
   const source = [...input.conversationTurns].reverse().find((turn) => turn.role === "user" && clean(turn.text) && !isExplicitCareHistorySaveRequest(turn.text))?.text;
   if (!source) return null;
   const petName = clean(input.pet.name || "the pet");
+  if (!isPetObservationEvidence(source, source, petName)) return null;
   const text = clean(source);
   const standaloneText = text.replace(/^(?:and|but|so|then)\s+/i, "").replace(/^(?:she|he|they|it)\b/i, petName);
   const butterfly = /chasing?|chased/.test(text.toLowerCase()) && /butterfl(?:y|ies)/i.test(text);

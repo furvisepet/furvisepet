@@ -1,0 +1,43 @@
+(node:8224) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/furvise-runner-live-memory-1/review-live-memory-management/worktree/app/lib/intelligence/memory-integrity.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\furvise-runner-live-memory-1\review-live-memory-management\worktree\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ actual loaders reject foreign owner/pet and inactive rows (51.1646ms)
+✔ actual profile loader rejects returned foreign profile (7.9229ms)
+✔ legacy forget retains marker and POST suppresses normalized forgotten text (21.0874ms)
+✔ POST stored replay cannot advertise a forgotten detail as saved (12.1969ms)
+✔ actual legacy card Forget dispatches a source-aware DELETE (20.5746ms)
+✔ old callback after pet switch cannot write a memory (9.964ms)
+✔ POST blocks existing rejected text without deleting or inserting (7.3424ms)
+✔ POST blocks existing superseded text without deleting or inserting (8.7737ms)
+✔ POST allows eligible distinct text and suppresses duplicates within request (6.5457ms)
+✔ forget is owner/pet scoped, repeatable, and retains other rows (7.4696ms)
+✔ POST fails safely on storage failure (7.3009ms)
+✔ DELETE fails safely on storage failure (5.7263ms)
+✔ POST unique-conflict recovery excludes inactive, foreign-owner and other-pet rows (5.6829ms)
+✔ stored POST replay fails closed when current rows cannot be verified (6.7038ms)
+✔ old initial load resolving after switch never supplies new pet details (9.2132ms)
+✔ in-flight refresh after pet switch cannot replace new pet rows (7.7785ms)
+✔ canonical and legacy colliding IDs keep distinct routes; legacy edit/confirm and unknown IDs are rejected (10.0509ms)
+✔ actual wrapper keys change with pet and data version; version refresh starts empty (6.5489ms)
+✔ actual loaders reject expired, malformed-scope and machine rows but retain valid global owner preferences (3.9869ms)
+✔ unchanged actual canonical confirm delegates to lifecycle authority (5.0003ms)
+✔ unchanged actual canonical edit delegates to lifecycle authority (5.1975ms)
+✔ unchanged actual canonical forget delegates to lifecycle authority (4.1253ms)
+✔ unchanged canonical route rejects foreign memory and ineligible correction without RPC (13.8263ms)
+✔ actual optional compatibility loader rejects foreign owner/pet and inactive rows (2.2082ms)
+✔ pet switching while session lookup awaits prevents dispatch (6.1798ms)
+✔ POST fails closed for unavailable or truncated suppression inventory: null (4.912ms)
+✔ POST fails closed for unavailable or truncated suppression inventory: 2 (4.8866ms)
+✔ review: stored replay only returns receipt IDs even if storage overreturns (5.1924ms)
+✔ review: malformed persisted receipt fails closed without throwing (5.3103ms)
+✔ review: session owner changing before auth render prevents dispatch (6.8219ms)
+✔ review: reopening editor after refreshed canonical value uses current value (6.2232ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 507.4066

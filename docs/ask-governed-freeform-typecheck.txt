@@ -1,0 +1,1 @@
+Typecheck exit code 0; no diagnostics.

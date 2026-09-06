@@ -2,7 +2,7 @@ import type { CanonicalEventProposal, IntelligenceCareAction, IntelligenceLearni
 
 export const canonicalEventProposalJsonSchema = {
   type: "object", additionalProperties: false,
-  required: ["subject", "domain", "topic", "eventTitle", "transition", "state", "temporal", "importance", "confidence", "sourceExcerpt"],
+  required: ["subject", "domain", "topic", "eventTitle", "transition", "state", "temporal", "importance", "confidence", "sourceExcerpt", "episodeBoundary"],
   properties: {
     subject: { type: "object", additionalProperties: false, required: ["type", "name"], properties: {
       type: { type: "string", enum: ["pet", "owner", "household", "unknown"] },
@@ -20,6 +20,13 @@ export const canonicalEventProposalJsonSchema = {
     importance: { type: "string", enum: ["routine", "important", "urgent"] },
     confidence: { type: "number", minimum: 0, maximum: 1 },
     sourceExcerpt: { type: "string", minLength: 1, maxLength: 240 },
+    episodeBoundary: { anyOf: [{ type: "null" }, {
+      type: "object", additionalProperties: false, required: ["kind", "evidence", "confidence"], properties: {
+        kind: { type: "string", enum: ["opening", "continuation", "resolution", "unknown"] },
+        evidence: { type: "string", minLength: 1, maxLength: 240 },
+        confidence: { type: "number", minimum: 0, maximum: 1 },
+      },
+    }] },
   },
 } as const;
 

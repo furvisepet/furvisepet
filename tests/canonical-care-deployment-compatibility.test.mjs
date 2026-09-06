@@ -47,7 +47,8 @@ test("Phase 2 performs only the final authority contraction", () => {
 
 test("every changed production caller uses the Phase 1 server boundary", () => {
   const callers = {
-    "app/api/ask/route.ts": ["createCanonicalCareAuthorityClient", 'from("ai_update_suggestions")'],
+    "app/api/ask/route.ts": ["createCanonicalCareAuthorityClient", "persistPendingSuggestion"],
+    "app/lib/intelligence/persist-pending-suggestion.ts": ["createCanonicalCareAuthorityClient", 'from("ai_update_suggestions")'],
     "app/api/ask/suggestions/[id]/route.ts": ["auth.authority", 'rpc("apply_furvise_server_state_suggestion"'],
     "app/lib/ask-conversation-server.ts": ["createCanonicalCareAuthorityClient", 'from("ai_update_suggestions")'],
     "app/lib/intelligence/persist-learnings.ts": ["createCanonicalCareAuthorityClient", 'rpc("persist_furvise_server_care_event"'],

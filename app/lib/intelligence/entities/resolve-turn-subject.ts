@@ -1,4 +1,5 @@
 import type { ProposedSemanticFrame } from "../semantic-frame/types.ts";
+import { isEpisodeSubjectReference } from "../episode-reference-language.ts";
 import { groundSemanticFrameEvidence } from "../semantic-frame/ground-evidence.ts";
 import { validateSemanticFrameEvidence } from "../semantic-frame/validate-evidence.ts";
 import { buildRecentPetIds, type EligibleSemanticPet } from "./candidate-retrieval.ts";
@@ -117,8 +118,21 @@ export function resolveDeterministicTurnSubject({
     ...(hasMasculine ? ["he"] : []),
     ...(hasNeutral ? ["they"] : []),
   ];
-  if (!pronouns.length) return contextual(selectedPetId, 0.9);
   const state = buildRecentSubjectState({ pets, recentConversation, selectedPetId });
+  if (!pronouns.length) {
+    // Elliptical episode references continue owner-established discourse, not
+    // the conversation anchor. This chooses a pet only: episode identity still
+    // requires the separate owned/versioned reference lookup and revalidation.
+    const episodeReference = isEpisodeSubjectReference(message);
+    if (episodeReference) {
+      const focus = state.entities.find((entity) => entity.key === state.currentFocusKey);
+      if (focus?.kind === "pet" && focus.petId) return contextual(focus.petId, 0.92);
+      const mentioned = state.entities.filter((entity) => entity.lastMentionTurn >= 0 || entity.lastSubjectTurn >= 0);
+      if (focus || mentioned.length) return failed("ambiguous", "ENTITY_AMBIGUOUS",
+        mentioned.flatMap((entity) => entity.petId ? [entity.petId] : []), mentioned.map((entity) => entity.label));
+    }
+    return contextual(selectedPetId, 0.9);
+  }
   const resolutions = pronouns.map((pronoun) => resolveRecentPronoun(state, pronoun));
   if (!resolutions.every((resolution) => resolution.status === "resolved")) return null;
   const entities = resolutions.map((resolution) => resolution.status === "resolved" ? resolution.entity : null);

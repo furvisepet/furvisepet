@@ -226,7 +226,13 @@ test("compact context keeps no more than five updates, eight memories, and six t
   assert.ok(context.records.filter((item) => item.sourceType === "care_update").length <= 5);
   assert.ok(context.records.filter((item) => item.sourceType === "remembered_detail").length <= 8);
   assert.ok(context.records.filter((item) => item.sourceType === "conversation_turn").length <= 6);
-  assert.match(context.promptContext.olderUpdateSummary, /older update/);
+  assert.match(context.promptContext.olderUpdateSummary, /supplied candidate updates/);
+  assert.match(context.promptContext.olderUpdateSummary, /not a count of all omitted history/);
+  for (const record of context.records.filter(item => item.sourceType === "care_update")) {
+    const source = careEntries.find(entry => `care:${entry.id}` === record.id);
+    assert.equal(record.value, [source.title, source.note].filter(Boolean).join(": "));
+    assert.ok(context.promptContext.evidenceContract.represented.some(span => span.sourceId === record.id && span.text === record.value));
+  }
 });
 
 test("irrelevant old history is excluded while latest relevant history remains", () => {
@@ -537,4 +543,13 @@ test("unknown gender is neutralized while explicitly saved pronouns are preserve
 test("strict pet isolation excludes care rows for pets not supplied by ownership lookup", () => {
   const records = buildRankedAskContext(input({ careEntries: [care(), care({ id: "other", pet_profile_id: "pet-other", note: "Private other pet note" })] }));
   assert.equal(records.some((record) => record.value.includes("Private other pet note")), false);
+});
+
+test("represented episode preserves stored identity without authorizing displayed ordinal", () => {
+  const episode = { id: "stool-second", pet_profile_id: "pet-mani", normalized_key: "stool", episode_type: "symptom", title: "Soft stool", severity: "routine", status: "resolved", sequence_number: 2, recurrence_of: "stool-first", started_at: "2026-06-01", last_event_at: "2026-06-03", resolved_at: "2026-06-03" };
+  const records = buildRankedAskContext(input({ recentlyResolvedEpisodes: [episode], question: "Describe Mani's stool history." }));
+  const record = records.find(r => r.id === "episode:stool-second");
+  assert.equal(record?.metadata.sequence_number, 2);
+  assert.equal(record?.metadata.recurrence_of, "stool-first");
+  assert.equal(record?.metadata.sequenceScope, "stored_topic_sequence_not_displayed_ordinal");
 });

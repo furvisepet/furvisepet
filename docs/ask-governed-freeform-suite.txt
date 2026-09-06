@@ -1,0 +1,7 @@
+Full node --test run; exit code 0.
+Tests: 2285
+Pass: 2285
+Fail: 0
+Cancelled: 0
+Skipped: 0
+Todo: 0

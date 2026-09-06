@@ -162,7 +162,7 @@ test("one-name clarification copy and empty verified-state fallback never imply 
 test("the live Ask route uses the canonical resolver before reasoning and never reconstructs a one-name extraction fallback", () => {
   const route = readFileSync(new URL("../app/api/ask/route.ts", import.meta.url), "utf8");
   const resolver = route.indexOf("await resolveAskTurnSubject");
-  const reasoning = route.indexOf("await runFurviseIntelligence");
+  const reasoning = route.indexOf("await generateAskHistoryAnswer");
   assert.ok(resolver >= 0 && reasoning > resolver);
   assert.match(route, /liveContext\.eligiblePets\.length >= 2[\s\S]*buildSubjectClarificationOrchestration/);
   assert.doesNotMatch(route, /resolveDeterministicTurnSubject\s*\(/);

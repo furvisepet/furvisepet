@@ -11,7 +11,6 @@ import type { FurviseLiveContext } from "./types";
 import { calculateMemoryFreshness } from "./memory-freshness/calculate-memory-freshness.ts";
 import { authorizeProposedActions, type GovernanceResult } from "./governance/index.ts";
 import { validateGeneratedAnswer, type AnswerValidationResult } from "./validation/index.ts";
-import { resolveRecoverySubject } from "./episodes/resolve-recovery-subject.ts";
 import { routePersistenceDestinations } from "./persistence-destination.ts";
 import { governCanonicalEvents, governCanonicalEventsForOwnedPets, learningFromSemanticEvent } from "./semantic-events.ts";
 import { buildShadowSemanticAnalysis, logSemanticTrace, type SemanticTrace } from "./semantic-observability.ts";
@@ -23,6 +22,9 @@ import { memoryDisplayContent } from "./memory-integrity.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
 import { buildExplicitCareHistoryAction, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
 import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-loss.ts";
+import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } from "../ai/concern-engine.ts";
+import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
+import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 
 export type FurviseIntelligenceResult = {
   reasoning: AskReasoningResult;
@@ -49,6 +51,7 @@ export async function runFurviseIntelligence({
   authoritativePetIds = [context.pet.id],
   authoritativeSemanticFrame,
   discourseFocus,
+  evidenceContract,
 }: {
   context: FurviseLiveContext;
   requestId: string;
@@ -59,17 +62,19 @@ export async function runFurviseIntelligence({
   authoritativePetIds?: string[];
   authoritativeSemanticFrame?: ProposedSemanticFrame;
   discourseFocus?: import("./entities/resolve-turn-subject.ts").AskDiscourseFocus;
+  evidenceContract?: AskEvidenceContract;
 }): Promise<FurviseIntelligenceResult> {
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
   const reasoning = await generateContextAwareAskResponse({
-    careEntries: context.selectedCareEntries,
+    evidenceContract: evidenceContract || createAskEvidenceContract(context, authoritativePetIds),
+    careEntries: context.askHistory?.entries || context.selectedCareEntries,
     concerns: context.activeConcerns,
-    conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
+    conversationTurns: context.askHistory ? [] : context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
       id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt, applicationActions: turn.applicationActions,
     })),
     locale: context.locale,
-    memories: [
+    memories: context.askHistory ? [] : [
       ...context.legacyPetMemories,
       ...ownerProfileMemories(context),
       ...currentStateMemories(context),
@@ -82,10 +87,10 @@ export async function runFurviseIntelligence({
     productFeedback: context.productFeedback,
     profiles: context.eligiblePets.filter((pet) => authoritativePetIds.includes(pet.id)),
     question: context.currentMessage,
-    recentUpdates: buildRecentAskUpdates(context.selectedCareEntries),
+    recentUpdates: context.askHistory ? [] : buildRecentAskUpdates(context.selectedCareEntries),
     recentlyResolvedConcerns: context.recentlyResolvedConcerns,
-    activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
-    recentlyResolvedEpisodes: context.recentlyResolvedEpisodes,
+    activeEpisodes: context.askHistory ? [] : [...context.activeEpisodes, ...context.monitoringEpisodes],
+    recentlyResolvedEpisodes: context.askHistory ? [] : context.recentlyResolvedEpisodes,
     requestId,
     concernStateHint: safety.concernMessageState,
     onProviderEvent,
@@ -95,6 +100,26 @@ export async function runFurviseIntelligence({
     },
     discourseFocus,
   });
+  // Recall remains read-only even when model classifications propose writes.
+  // Mixed owner observations and explicit saves are not question-only recall.
+  const readOnlyRecall = Boolean(reasoning.evidenceContract?.scope.readOnlyRecall);
+  const resolutionRecall = reasoning.evidenceContract?.scope.requestKind === "resolution_status";
+  if (readOnlyRecall) {
+    reasoning.learnings = [];
+    reasoning.careActions = [];
+    reasoning.semanticEvents = [];
+    reasoning.applicationActions = reasoning.applicationActions.filter(action => action.kind.startsWith("navigation.") || ["pet.read", "memory.list", "care_history.query"].includes(action.kind));
+    reasoning.proposedHistoryUpdate = { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null };
+    reasoning.semanticFrame = emptyProposedSemanticFrame();
+    authoritativeSemanticFrame = undefined;
+    if (resolutionRecall) {
+      reasoning.messageUnderstanding = { ...reasoning.messageUnderstanding, primaryIntent: "question", secondaryIntents: [], userIsAskingQuestion: true,
+        userIsProvidingUpdate: false, userIsResolvingConcern: false, userIsCorrectingPriorInformation: false,
+        userIsProvidingPreference: false, userIsMakingSmallTalk: false,
+        recoveryStatus: "none", recoveryConfidence: 1,
+        recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
+    }
+  }
   const lossContext = resolvePetLossContext({
     message: context.currentMessage,
     recentConversation: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
@@ -104,6 +129,7 @@ export async function runFurviseIntelligence({
   const multiPetTurn = authoritativePetIds.length > 1;
   const hasOwnedPetSubject = authoritativePetIds.length > 0;
   const semanticGovernanceInput = {
+    activeConcerns: context.activeConcerns,
     proposals: reasoning.semanticEvents,
     message: context.currentMessage,
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
@@ -128,11 +154,14 @@ export async function runFurviseIntelligence({
     });
 
   const proposedResolutionPolicy = evaluateCareActionPolicy({
-    actions: reasoning.careActions,
+    actions: hasOwnedPetSubject ? reasoning.careActions : [],
     currentMessage: context.currentMessage,
     understanding: reasoning.messageUnderstanding,
     safetyLevel: reasoning.intelligenceSafety.level,
     activeConcernIds: safety.activeConcernIds,
+    activeConcerns: context.activeConcerns,
+    petId: context.pet.id,
+    petName: context.pet.name,
   });
   const modelGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
     && safety.concernMessageState === "resolved"
@@ -142,7 +171,21 @@ export async function runFurviseIntelligence({
   const semanticGroundedResolution = allowsAcceptedRecoverySafetyReconciliation(safety)
     && semanticGovernance.accepted.some(({ event }) =>
       event.transition === "resolved" && event.state === "resolved" && Boolean(event.references.episodeId));
-  const proposedRecoveryPresentation = allowsProposedRecoveryPresentation({
+  const proposedRecoveryConcern = context.activeConcerns.find((concern) => concern.id === reasoning.proposedHistoryUpdate.resolvesConcernId) || null;
+  const hasSourceGroundedRecovery = hasOwnedPetSubject && context.activeConcerns.some((concern) => isRecoveryGroundedForConcern({
+    activeConcerns: context.activeConcerns, concern, message: context.currentMessage,
+    petId: context.pet.id, petName: context.pet.name,
+  }));
+  if (reasoning.intelligenceSafety.level === "recently_resolved" && !hasSourceGroundedRecovery && !semanticGroundedResolution) {
+    reasoning.intelligenceSafety.level = safety.level;
+  }
+  const proposedRecoveryPresentation = hasOwnedPetSubject && Boolean(proposedRecoveryConcern && isRecoveryGroundedForConcern({
+    activeConcerns: context.activeConcerns,
+    concern: proposedRecoveryConcern,
+    message: context.currentMessage,
+    petId: context.pet.id,
+    petName: context.pet.name,
+  })) && allowsProposedRecoveryPresentation({
     activeConcernIds: safety.activeConcernIds,
     confidence: reasoning.intelligenceMetadata.confidence,
     resolvesConcernId: reasoning.proposedHistoryUpdate.resolvesConcernId,
@@ -178,8 +221,9 @@ export async function runFurviseIntelligence({
     actions: reasoning.careActions, currentMessage: context.currentMessage,
     understanding: reasoning.messageUnderstanding, safetyLevel: reasoning.intelligenceSafety.level,
     activeConcernIds: safety.activeConcernIds,
+    activeConcerns: context.activeConcerns, petId: context.pet.id, petName: context.pet.name,
   });
-  const deterministicStateAction = buildClearResolutionAction(context, safety) || buildRecurrenceAction(context, safety);
+  const deterministicStateAction = resolutionRecall ? null : buildClearResolutionAction(context, safety) || buildRecurrenceAction(context, safety);
   const proposedCareActions = !hasOwnedPetSubject || multiPetTurn ? [] : deterministicStateAction ? [deterministicStateAction] : carePolicy.accepted;
   const governance = authorizeProposedActions({
     message: context.currentMessage, petId: context.pet.id, authorizedPetIds: authoritativePetIds,
@@ -192,7 +236,7 @@ export async function runFurviseIntelligence({
       petName: context.pet.name,
       sourceMessage: context.currentMessage,
     }));
-  const explicitCareHistoryAction = !hasOwnedPetSubject || multiPetTurn ? null : buildExplicitCareHistoryAction({
+  const explicitCareHistoryAction = resolutionRecall || !hasOwnedPetSubject || multiPetTurn ? null : buildExplicitCareHistoryAction({
     currentMessage: context.currentMessage,
     conversationTurns: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
     pet: context.pet,
@@ -226,7 +270,7 @@ export async function runFurviseIntelligence({
     careActions: governedCareActions,
     learnings: dedupeLearnings([...governedLearnings, ...semanticLearnings]),
   });
-  const confirmedLossCareAction = hasOwnedPetSubject
+  const confirmedLossCareAction = !resolutionRecall && hasOwnedPetSubject
     ? buildConfirmedLossCareAction({ message: context.currentMessage, petName: context.pet.name || "the pet" })
     : null;
   const acceptedCareActions = confirmedLossCareAction ? [confirmedLossCareAction]
@@ -349,29 +393,19 @@ function buildClearResolutionAction(
   safety: ReturnType<typeof resolveSafetyState>,
 ): AskReasoningResult["careActions"][number] | null {
   if (safety.level !== "recently_resolved" || safety.concernMessageState !== "resolved") return null;
-  const subject = resolveRecoverySubject({
-    message: context.currentMessage,
-    recentConversation: context.conversationTurns.slice(-6).map((turn) => turn.text),
-    activeEpisodes: context.activeEpisodes,
+  return buildSourceGroundedResolutionAction({
     activeConcerns: context.activeConcerns,
+    message: context.currentMessage,
+    petId: context.pet.id,
+    petName: context.pet.name,
   });
-  if (!subject.concernId) return null;
-  return {
-    action: "resolve_concern",
-    category: "symptom",
-    title: subject.title,
-    details: `Owner reported that ${context.pet.name} returned to normal. ${context.currentMessage.trim()}`.slice(0, 800),
-    severity: "routine",
-    confidence: 0.99,
-    relatedRecordId: subject.concernId,
-  };
 }
 
 function memoryText(memory: FurviseLiveContext["memories"][number]) {
   const value = memoryDisplayContent(memory);
   const freshness = calculateMemoryFreshness(memory, new Date());
   const qualifier = freshness.needsConfirmation ? " This may be outdated; confirm it only if relevant to the current question." : "";
-  return `${memory.fact_key}: ${value}. Freshness: ${freshness.freshnessStatus}; effective confidence: ${freshness.effectiveConfidence.toFixed(2)}.${qualifier}`.slice(0, 600);
+  return `${memory.fact_key}: ${value}. Freshness: ${freshness.freshnessStatus}; effective confidence: ${freshness.effectiveConfidence.toFixed(2)}.${qualifier}`;
 }
 
 function ownerProfileMemories(context: FurviseLiveContext) {

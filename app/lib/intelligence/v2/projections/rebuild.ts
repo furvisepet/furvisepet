@@ -104,7 +104,7 @@ const CLAIM_REMOVING_RELATIONS = new Set<ClaimRelationType>(["retracts", "correc
  * claim deletion: its dismissal claim is applied by the lifecycle reducer and
  * History/audit provenance remains.
  */
-function resolveEffectiveClaimGraph(claims: readonly RebuildClaim[], relations: readonly RebuildRelation[]) {
+export function resolveEffectiveClaimGraph(claims: readonly RebuildClaim[], relations: readonly RebuildRelation[]) {
   const byId = new Map(claims.map((claim) => [claim.id, claim]));
   const intrinsicallyIneffective = new Set(claims
     .filter((claim) => claim.knowledgeStatus !== "effective")

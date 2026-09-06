@@ -13,11 +13,27 @@ export async function POST(request: Request) {
   if (memoryIds.length) return Response.json({ error: "Send memories to save." }, { status: 400 });
   const { data: pet } = await context.supabase.from("dog_profiles").select("id").eq("id", petId).eq("user_id", context.userId).maybeSingle<{ id: string }>();
   if (!pet) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
-  const gate = await beginIdempotentRateLimitedOperation({ operationType: "legacy_memory.create", payload: { memories, petId }, policy: "MEMORY_WRITE", request, route: "/api/legacy-memories", supabase: context.supabase, userId: context.userId });
+  const gate = await beginIdempotentRateLimitedOperation({ operationType: "legacy_memory.create", payload: { memories, petId }, policy: "MEMORY_WRITE", request, route: "/api/legacy-memories", supabase: context.supabase, userId: context.userId,
+    reconcilePersistedReplay: async ({ storedResponse }) => {
+      if (!storedResponse.ok) return null;
+      const payload = await storedResponse.clone().json().catch(() => null) as { saved?: DogMemoryRow[]; skippedDuplicates?: number } | null;
+      if (!Array.isArray(payload?.saved) || payload.saved.some((row) => !row || !isUuid(row.id))) return Response.json({ error: "Remembered details could not be verified." }, { status: 503 });
+      if (!payload.saved.length) return storedResponse;
+      const savedIds = new Set(payload.saved.map((row) => row.id));
+      const { data, error } = await context.supabase.from("dog_memories").select("*")
+        .eq("user_id", context.userId).eq("dog_profile_id", petId).eq("status", "active")
+        .in("id", payload.saved.map((row) => row.id)).returns<DogMemoryRow[]>();
+      if (error) return Response.json({ error: "Remembered details could not be verified." }, { status: 503 });
+      const saved = (data || []).filter((row) => savedIds.has(row.id) && row.user_id === context.userId && row.dog_profile_id === petId && row.status === "active" && isEligibleLegacyMemory(row));
+      return Response.json({ saved, skippedDuplicates: (payload.skippedDuplicates || 0) + payload.saved.length - saved.length }, { status: storedResponse.status });
+    },
+  });
   if ("response" in gate) return gate.response;
   return gate.operation.execute(async () => {
-    const { data: existing, error: existingError } = await context.supabase.from("dog_memories").select("text").eq("dog_profile_id", petId).eq("user_id", context.userId).eq("status", "active").returns<Array<{ text: string }>>();
-    if (existingError) return Response.json({ error: "Remembered details are temporarily unavailable." }, { status: 503 });
+    const { data: existing, count: existingCount, error: existingError } = await context.supabase.from("dog_memories").select("text", { count: "exact" }).eq("dog_profile_id", petId).eq("user_id", context.userId).returns<Array<{ text: string }>>();
+    if (existingError || existingCount === null || existingCount !== existing?.length) return Response.json({ error: "Remembered details are temporarily unavailable." }, { status: 503 });
+    // Existing inactive text also suppresses writes: forgetting must survive a new request key.
+    // This is exact normalized-text suppression, not semantic or transactional deduplication.
     const normalize = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
     const seen = new Set((existing || []).map((item) => normalize(item.text)));
     let skippedDuplicates = 0;
@@ -30,11 +46,11 @@ export async function POST(request: Request) {
     if (!rows.length) return Response.json({ saved: [], skippedDuplicates });
     let { data, error } = await context.supabase.from("dog_memories").insert(rows).select().returns<DogMemoryRow[]>();
     if (error?.code === "23505") {
-      const replay = await context.supabase.from("dog_memories").select("*").eq("user_id", context.userId).eq("idempotency_key", gate.operation.key).order("idempotency_item_index").returns<DogMemoryRow[]>();
+      const replay = await context.supabase.from("dog_memories").select("*").eq("user_id", context.userId).eq("dog_profile_id", petId).eq("status", "active").eq("idempotency_key", gate.operation.key).order("idempotency_item_index").returns<DogMemoryRow[]>();
       data = replay.data; error = replay.error;
     }
     if (error) return Response.json({ error: "Remembered details could not be saved." }, { status: 503 });
-    return Response.json({ saved: data || [], skippedDuplicates }, { status: 201 });
+    return Response.json({ saved: (data || []).filter((row) => row.user_id === context.userId && row.dog_profile_id === petId && row.status === "active" && isEligibleLegacyMemory(row)), skippedDuplicates }, { status: 201 });
   });
 }
 
@@ -50,7 +66,7 @@ export async function DELETE(request: Request) {
   const gate = await beginIdempotentRateLimitedOperation({ operationType: "legacy_memory.delete", payload: { memoryIds, petId }, policy: "DESTRUCTIVE_WRITE", request, retention: "destructive", route: "/api/legacy-memories", supabase: context.supabase, userId: context.userId });
   if ("response" in gate) return gate.response;
   return gate.operation.execute(async () => {
-    const { error } = await context.supabase.from("dog_memories").delete().in("id", memoryIds).eq("dog_profile_id", petId).eq("user_id", context.userId);
+    const { error } = await context.supabase.from("dog_memories").update({ status: "rejected" }).in("id", memoryIds).eq("dog_profile_id", petId).eq("user_id", context.userId);
     if (error) return Response.json({ error: "Remembered details could not be removed." }, { status: 503 });
     return new Response(null, { status: 204 });
   });
