@@ -58,7 +58,8 @@ function database(rows, { messages = [], failCare = false, careEpisodes = [], gr
         .map(r=>({...r,note:r.note.length>2000 ? null : r.note,content_omitted:r.note.length>2000})));
       return {data:episodeRowsOverride || {episodes:found,sources},error:episodeError ? {code:episodeError} : null};
     }
-    if (name === 'read_ask_history_candidates') {
+    if (name === 'read_ask_history_candidates' || name === 'read_ask_history_candidates_latest') {
+      const descending = name.endsWith('_latest');
       queries.push({ table: name, args, signal });
       if (candidateError === 'THROW_ABORT') throw new DOMException('aborted','AbortError');
       if (candidateError) return { data: null, error: { code: candidateError } };
@@ -66,8 +67,8 @@ function database(rows, { messages = [], failCare = false, careEpisodes = [], gr
       const data = rows.filter(row => row.user_id === ownerId && row.pet_profile_id === args.p_pet_id && !row.deleted_at
         && (!args.p_from || row.occurred_at >= args.p_from && row.occurred_at < args.p_to)
         && args.p_terms.some(term => `${row.note || ''} ${row.title || ''}`.toLowerCase().includes(term.toLowerCase()))
-        && (!args.p_after_time || row.occurred_at > args.p_after_time || row.occurred_at === args.p_after_time && row.id > args.p_after_id))
-        .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at) || a.id.localeCompare(b.id))
+        && (!args.p_after_time || (descending ? row.occurred_at < args.p_after_time || row.occurred_at === args.p_after_time && row.id < args.p_after_id : row.occurred_at > args.p_after_time || row.occurred_at === args.p_after_time && row.id > args.p_after_id)))
+        .sort((a, b) => (descending ? -1 : 1) * (a.occurred_at.localeCompare(b.occurred_at) || a.id.localeCompare(b.id)))
         .slice(0, Math.min(args.p_limit, historyPageCap));
       return { data: candidateRowsOverride ?? data, error: failCare ? { code: 'AUDIT_OFFLINE' } : null };
     }
@@ -110,7 +111,7 @@ function database(rows, { messages = [], failCare = false, careEpisodes = [], gr
       limit(value) { query.cap = value; return this; },
       maybeSingle() { query.single = true; return this; },
       then(resolve, reject) {
-        const historical = table === 'pet_care_entries' && query.orders.some(([key, ascending]) => key === 'id' && ascending);
+        const historical = table === 'pet_care_entries' && query.orders.some(([key]) => key === 'id');
         if (historical && ++historyPages === failHistoryPage) return Promise.resolve({ data: null, error: { code: 'MOCK_PAGE_OFFLINE' } }).then(resolve, reject);
         let data = (tables[table] || []).filter(row => query.filters.every(filter => filter(row)));
         data = [...data].sort((a, b) => { for (const [key, ascending] of query.orders) {
@@ -132,9 +133,9 @@ function evaluateFilter(expression, row) {
   }
   return parts.some(part => {
     if (part.startsWith('and(')) return part.slice(4, -1).split(',').every(term => evaluateFilter(term, row));
-    const [, key, op, value] = /^(\w+)\.(ilike|gt|eq)\.(.*)$/.exec(part) || [];
+    const [, key, op, value] = /^(\w+)\.(ilike|gt|lt|eq)\.(.*)$/.exec(part) || [];
     assert.ok(key, `unsupported mock filter: ${part}`);
-    return op === 'ilike' ? String(row[key] || '').toLowerCase().includes(value.replaceAll('%', '').toLowerCase()) : op === 'gt' ? row[key] > value : row[key] === value;
+    return op === 'ilike' ? String(row[key] || '').toLowerCase().includes(value.replaceAll('%', '').toLowerCase()) : op === 'gt' ? row[key] > value : op === 'lt' ? row[key] < value : row[key] === value;
   });
 }
 function output(answer = 'The supplied observations are owner reports, not a diagnosis.') {
@@ -148,18 +149,42 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? 'milo' : null, currentMessage: question, dateRange });
   prepareContext?.(context);
+  const interpretationRequests = [];
+  if (interpretationProposal) {
+    const { interpretAskQuestion } = await import('../../../app/lib/intelligence/interpret-ask.ts');
+    const interpretation = await interpretAskQuestion({ context, model: interpretationModel, client: { responses: { async create(request) {
+      interpretationRequests.push(request);
+      return interpretationResponse ? await interpretationResponse(request) : { status: 'completed', output_text: JSON.stringify(interpretationProposal), usage: { input_tokens: 500, output_tokens: 200, total_tokens: 700 } };
+    } } } });
+    if (interpretation.readOnly) {
+      authoritativePetIds = interpretation.petIds;
+      if (interpretation.petIds[0] && interpretation.petIds[0] !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
+        petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? 'milo' : null, currentMessage: question });
+    }
+    if (!interpretation.readOnly) {
+      const decision = await resolveAskTurnSubject({ message: question, pets: context.eligiblePets, ownerId,
+        selectedPetId: context.pet.id, recentConversation: context.conversationTurns,
+        extractFrame: async () => interpretation.frame });
+      assert.ok(!decision.resolution.requiresClarification && decision.resolution.petId, 'route subject gate must allow this fixture');
+      authoritativePetIds = decision.resolution.petIds;
+      authoritativeSemanticFrame = decision.frame;
+      if (decision.resolution.petId !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
+        petId: decision.resolution.petId, conversationId: messages ? 'chat' : null, conversationPetId: petId, currentMessage: question });
+    }
+    context.askInterpretation = interpretation;
+  }
   // Same evidence creation and explicit parameter used by the route callback.
   const evidenceContract = createAskEvidenceContract(context, authoritativePetIds);
   prepareEvidence?.(evidenceContract);
   const requests = [];
   globalThis.__historyAuditAfterGeneration = afterGeneration;
   globalThis.__historyAuditClient = { responses: { async create(request) {
-    requests.push(request); return { output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
+    requests.push(request); if (providerResponse) return providerResponse(request); return { usage: { input_tokens: 1200, output_tokens: 400, total_tokens: 1600 }, output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
   } } };
   let result;
   if (history) {
@@ -171,7 +196,7 @@ async function exercise(question, { petId = 'milo', rows = decisive, messages, d
     result = await runFurviseIntelligence({ context, evidenceContract, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
   }
   assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
-  return { context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries };
+  return { context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries, interpretationRequests };
 }
 const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
 const clock = t => {

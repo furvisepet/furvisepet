@@ -3,8 +3,8 @@ import { OPENAI_OUTPUT_LIMITS } from "../config";
 import type { AiFeaturePolicy, AiGuardFeature } from "./types";
 
 export const AI_FEATURE_POLICIES: Record<AiGuardFeature, AiFeaturePolicy> = {
-  // A normal Ask turn uses one reasoning call. A second call is reserved for
-  // either exceptional subject extraction or structured-output repair.
+  // Interpretation (including an update's subject frame) + answer. The existing
+  // two-call ceiling also applies to repair; no hidden third provider call.
   ask: policy("ask", "FURVISE_AI_ASK_ENABLED", 20_000, 80_000, ASK_MAX_OUTPUT_TOKENS, 2),
   care_plan: policy("care_plan", "FURVISE_AI_CARE_PLAN_ENABLED", 12_000, 48_000, OPENAI_OUTPUT_LIMITS.analysis, 1),
   product_explanation: policy("product_explanation", "FURVISE_AI_PRODUCTS_ENABLED", 12_000, 48_000, 360, 1),

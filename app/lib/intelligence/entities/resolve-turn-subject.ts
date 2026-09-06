@@ -304,7 +304,7 @@ function resolved(petId: string, confidence: number, discourseFocus?: AskDiscour
   };
 }
 
-function explicitlyNamedOwnedPets(message: string, pets: EligibleSemanticPet[]) {
+export function explicitlyNamedOwnedPets(message: string, pets: EligibleSemanticPet[]) {
   const normalized = ` ${normalize(message)} `;
   return pets.filter((pet) => {
     const name = normalize(pet.name || "");

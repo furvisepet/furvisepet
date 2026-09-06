@@ -61,11 +61,15 @@ function boundary(source: Source, petName: string, topic: string) {
 
 export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const message = context.currentMessage;
-  const follow = episodeFollowUp(message);
-  if ((!follow && !isEpisodeListRequest(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
-  const { topic, ambiguous: ambiguousTopic } = topicOf(message);
-  const plan = planHistoricalQuery(message);
+  const interpretation = context.askInterpretation;
+  const follow = interpretation ? (interpretation.readOperation ?? interpretation.operation) === "episode" && interpretation.ordinal
+    ? { ordinal: interpretation.ordinal, ambiguous: Boolean(interpretation.clarification) } : null : episodeFollowUp(message);
+  if (interpretation ? !["count", "episode"].includes((interpretation.readOperation ?? interpretation.operation))
+    : (!follow && !isEpisodeListRequest(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
+  const { topic, ambiguous: ambiguousTopic } = interpretation ? { topic: interpretation.episodeTopic, ambiguous: false } : topicOf(message);
+  const plan = interpretation ? interpretation.history : planHistoricalQuery(message);
   const result: EpisodeResult = { version: "ask-episodes.v1", petId: context.pet.id, topic: topic || "unspecified",
+    ...(interpretation ? { conversational: true, petName: context.pet.name } : {}),
     from: plan?.from || null, to: plan?.to || null, items: [], supportedCount: 0, exactTotal: null, entryCount: 0,
     coverage: "partial", reasons: ["legacy_semantics_and_grouping_not_certified", "bounded_evidence_not_lifetime_total"],
     provenance: [], referenceStatus: follow ? "clarify" : "list" };

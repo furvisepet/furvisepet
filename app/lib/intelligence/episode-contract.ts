@@ -12,6 +12,8 @@ export type EpisodeReferences = {
   items: EpisodeItem[]; selectedId: string | null;
 };
 export type EpisodeResult = {
+  conversational?: boolean;
+  petName?: string;
   version: "ask-episodes.v1"; petId: string; topic: string;
   from: string | null; to: string | null; items: EpisodeItem[];
   supportedCount: number; exactTotal: number | null; entryCount: number;
@@ -23,7 +25,21 @@ export type EpisodeResult = {
   references?: EpisodeReferences;
   details?: Array<{ sourceId: string; occurredAt: string; note: string }>;
 };
-export function episodeAnswer(result: EpisodeResult) {
+export function episodeAnswer(result: EpisodeResult): { summary: string; sections: { heading: string; items: string[] }[] } {
+  if (result.conversational) {
+    const legacy = episodeAnswer({ ...result, conversational: false });
+    if (result.coverage === "unavailable") return { summary: "I couldn't recheck the saved episode notes just now. Please try again before relying on a count or that episode.", sections: [] };
+    if (result.referenceStatus === "stale") return { summary: "That episode's saved notes have changed, been corrected, or been removed. Ask for a fresh list so I can check the current records.", sections: [] };
+    if (result.referenceStatus === "clarify") return legacy;
+    if (result.referenceStatus === "resolved") return { ...legacy, summary: `For episode ${result.items[0].ordinal} from the list you saw, here are the dated notes:`,
+      sections: legacy.sections.map(section => ({ ...section, heading: "Recorded notes" })) };
+    if (result.coverage === "recorded_complete") return legacy;
+    const lead = result.supportedCount ? `I can verify ${result.supportedCount} separate ${result.topic} episode${result.supportedCount === 1 ? "" : "s"}${result.petName ? ` for ${result.petName}` : ""} in the saved notes.`
+      : `I couldn't verify separate ${result.topic} episodes from the notes I checked.`;
+    const missing = result.reasons.includes("episode_source_links_missing") ? " Some episode records are missing the source notes needed to check them." : "";
+    return { ...legacy, summary: `${lead}${missing} The saved notes don't establish a complete lifetime total.`,
+      sections: legacy.sections.map(section => ({ ...section, heading: "Recorded episodes" })) };
+  }
   if (result.coverage==="unavailable") return {summary:"The episode evidence is unavailable or could not be revalidated. I can't establish a count or identify that episode; please retry.",sections:[]};
   if (result.referenceStatus==="stale") return {summary:"The episode you selected has changed, been corrected, or been removed. I haven't substituted another episode. Please request a fresh list to review the current evidence.",sections:[]};
   if (result.referenceStatus==="clarify" && result.reasons.includes("episode_count_scope_needed")) return {summary:"Which symptom should I count, for example, vomiting or soft stool? I need a specific symptom to distinguish separate episodes in the saved history.",sections:[]};

@@ -1,3 +1,5 @@
+import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
+import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
 import { buildWeightComparison, weightComparisonAnswer } from "./weight-comparison.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
@@ -21,6 +23,11 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  answerSourceIds?: string[];
+  /** Server-validated report renderings; never taken from provider JSON. */
+  answerContent?: string[];
+  petNames?: Record<string, string>;
+  interpretation?: Omit<import("./interpret-ask.ts").AskInterpretation, "frame">;
   weightComparison?: import("./weight-comparison.ts").WeightComparisonEvidence;
   episodes?: import("./episode-history.ts").EpisodeResult;
   historyFallback?: string;
@@ -91,14 +98,29 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
+  if (context.askInterpretation) {
+    const plan = context.askInterpretation;
+    const { frame, ...readPlan } = plan;
+    void frame; // Extraction is exclusively for independent subject/write governance.
+    contract.interpretation = readPlan;
+    contract.petNames = Object.fromEntries(context.eligiblePets.filter(pet => ids.includes(pet.id) && pet.user_id === context.owner.userId).map(pet => [pet.id, pet.name]));
+    const operation = plan.readOperation ?? plan.operation;
+    const kind: AskEvidenceScope["requestKind"] = operation === "status" ? "resolution_status"
+      : operation === "count" ? "count" : operation === "overview" ? "overview"
+      : operation === "comparison" ? "comparison" : "ordinary";
+    contract.scope = { authorizedPetIds: ids, requestedTopic: plan.topic, requestText: context.currentMessage,
+      requestedPeriod: { kind: plan.history?.from ? "requested" : "unspecified", surface: plan.history?.from || null },
+      requestKind: kind, readOnlyRecall: plan.readOnly, status: plan.clarification ? "ambiguous" : "resolved",
+      resolutionSubject: context.pet.name };
+  }
   if (contract.scope.requestKind === "resolution_status") {
     const pet = context.eligiblePets.find(pet => pet.id === ids[0]);
     if (ids.length !== 1 || pet?.name?.toLowerCase() !== contract.scope.resolutionSubject?.toLowerCase()) contract.scope.status = "ambiguous";
   }
-  if (context.episodeResult) { contract.episodes = structuredClone(context.episodeResult); contract.scope.readOnlyRecall = true; }
-  if (context.historyFallback) { contract.historyFallback = context.historyFallback; contract.scope.readOnlyRecall = true; }
+  if (context.episodeResult) { contract.episodes = structuredClone(context.episodeResult); if (!context.askInterpretation) contract.scope.readOnlyRecall = true; }
+  if (context.historyFallback) { contract.historyFallback = context.historyFallback; if (!context.askInterpretation) contract.scope.readOnlyRecall = true; }
   if (context.askHistory) {
-    contract.scope.readOnlyRecall = true;
+    if (!context.askInterpretation) contract.scope.readOnlyRecall = true;
     const history = context.askHistory;
     contract.history = structuredClone(history.coverage);
     contract.sources = contract.sources.filter(source => source.source !== "care_entries");
@@ -148,7 +170,7 @@ export function refreshEvidenceCoverage(contract: AskEvidenceContract): AskEvide
 export function representEvidence(contract: AskEvidenceContract, records: AskContextRecord[]) {
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
-    ...(contract.scope.requestKind === "resolution_status" || contract.weightComparison ? { occurredAt: record.occurredAt } : {}) }));
+    ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || contract.weightComparison ? { occurredAt: record.occurredAt } : {}) }));
   return refreshEvidenceCoverage(contract);
 }
 
@@ -157,8 +179,12 @@ export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringif
 /** Attribution only, never a lifecycle computation or a current-state certificate.
  * Exact bounded sentence forms avoid stripping a qualification or quoting a
  * terminal phrase into the answer. All other prose remains uncertain. */
-export function resolutionStatusAnswer(contract: AskEvidenceContract): string | null {
+export function resolutionStatusAnswer(contract: AskEvidenceContract, synthesis: HistorySynthesisProposal[] = []): string | null {
   if (contract.scope.requestKind !== "resolution_status") return null;
+  if (contract.interpretation) {
+    if (contract.scope.status === "ambiguous" || !contract.scope.requestedTopic.trim()) return "Which issue do you mean?";
+    return attributedHistoryAnswer(contract, true, synthesis);
+  }
   const uncertainty = "I can't establish whether the hiding has ended now from the available dated evidence.";
   if (contract.scope.status !== "resolved" || contract.scope.authorizedPetIds.length !== 1 || contract.scope.requestedTopic !== "hiding") {
     return "I can't establish whether the condition has ended. Please identify one pet and a specific condition with a dated note.";
@@ -187,10 +213,25 @@ export function resolutionStatusAnswer(contract: AskEvidenceContract): string | 
 
 /** Deliberately bounded policy, not general factual entailment. Recognized
  * evidence requests receive server authority; ordinary answers stay intact. */
-export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | null {
-  const resolution = resolutionStatusAnswer(contract);
+export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: HistorySynthesisProposal[] = []): string | null {
+  const resolution = resolutionStatusAnswer(contract, synthesis);
   if (resolution) return resolution;
   const kind = contract.scope.requestKind;
+  if (contract.interpretation && (contract.interpretation.readOnly || contract.history)) {
+    if (contract.scope.status === "ambiguous") return "Which pet, issue or earlier episode do you mean?";
+    if (contract.history && !contract.represented.some(span => span.sourceType === "care_update")) {
+      return contract.history.retrieval === "unavailable" || contract.history.corrections === "unavailable"
+        ? "I couldn't check the saved history just now. Please try again."
+        : "I couldn't find matching saved notes for that question. That doesn't mean it never happened. A date or another description may help me find it.";
+    }
+    if (contract.history?.reasons.includes("unlinked_correction_uncertain")) {
+      return "A later correction may change how these reports fit together. I can't reliably attribute the affected reports until that correction is connected to the original record. Other dated notes can still be reviewed separately.";
+    }
+    // Arbitrary narrative is not an evidence claim. Only complete source reports
+    // and independently computed episode results have factual authority.
+    if (kind !== "count" && contract.history) return attributedHistoryAnswer(contract, false, synthesis);
+    if (kind !== "count") return null;
+  }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
   if (contract.history?.reasons.includes("no_matching_candidates_not_absence")) {
     return "No matching notes were retrieved for this query. The search does not establish that the event or result is absent; try another topic or period.";
@@ -220,4 +261,109 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract): string | nu
   const task = kind === "count" ? "an exact total" : kind === "absence" ? "whether something is absent from the full record"
     : kind === "comparison" ? "a complete weight or history comparison" : "a complete summary of the requested history";
   return `${lead} I can't establish ${task} from this evidence. I can discuss the supplied notes, or you can identify a specific record to review.`;
+}
+
+export function conversationalHistoryLimitation(contract: AskEvidenceContract): string {
+  if (!contract.interpretation || !contract.history) return "";
+  const history = contract.history;
+  if (history.corrections === "unavailable") return "I couldn't check corrections to these records, so I can't rely on them yet.";
+  if (history.retrieval === "unavailable") return "Some saved records couldn't be loaded. This covers only the notes I could check.";
+  if (history.reasons.includes("unlinked_correction_uncertain")) return "A later correction may affect this history, but I couldn't reliably connect it to the original report.";
+  if (history.retrieval === "partial" || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "There are more saved notes than I could include here. This is part of the history; a narrower topic or date range will let me check further.";
+  return contract.scope.requestKind === "resolution_status" || contract.interpretation?.selection?.startsWith("earliest") ? ""
+    : "This covers the matching saved notes I could verify, not necessarily every event in their life.";
+}
+
+/** A bounded extractive claim mechanism shared by status, recall and comparison.
+ * Identity is necessary but insufficient: the claim is the entire represented
+ * source text, attributed to its record. No model prose or inferred grouping is
+ * admitted. Full spans preserve negation, quantities and qualifications together.
+ */
+export function attributedHistoryAnswer(contract: AskEvidenceContract, status = false, synthesis: HistorySynthesisProposal[] = []): string {
+  if (contract.history?.corrections === "unavailable" || contract.history?.reasons.includes("unlinked_correction_uncertain")) {
+    return `I couldn't reliably attribute these reports. ${conversationalHistoryLimitation(contract)}`;
+  }
+  contract.answerSourceIds = [];
+  contract.answerContent = [];
+  const period = contract.interpretation?.history;
+  const terms = period?.terms || [];
+  const notes = contract.represented.filter(span => span.sourceType === "care_update"
+    && contract.scope.authorizedPetIds.includes(span.petId)
+    && (!period?.from || !!span.occurredAt && span.occurredAt >= period.from && span.occurredAt < period.to!)
+    && span.start === 0 && span.end === span.text.length && span.text.trim()
+    && (!terms.length || terms.some(term => span.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())))
+    && !contract.losses.some(loss => loss.sourceId === span.sourceId)
+    && contract.sources.some(source => source.petId === span.petId && source.loadedIds.includes(span.sourceId)
+      && source.status !== "not_loaded")
+    && !contract.history?.provenance.some(source => source.sourceId === span.sourceId
+      && !["effective_linked", "effective_replacement", "unverified_legacy"].includes(source.status)))
+    .sort((a, b) => (b.occurredAt || "").localeCompare(a.occurredAt || ""));
+  if (!notes.length) return contract.history?.retrieval === "unavailable"
+    ? "I couldn't check the saved history just now. Please try again."
+    : "I couldn't find matching saved notes for that question. That doesn't mean it never happened.";
+  const selection = contract.interpretation?.selection || (status ? "latest" : "summary");
+  const quote = /\b(?:quote|verbatim|exact wording)\b/i.test(contract.scope.requestText);
+  const reports: string[] = [];
+  for (const petId of contract.scope.authorizedPetIds) {
+    const petName = contract.petNames?.[petId] || "Your pet";
+    const candidates = notes.filter(note => note.petId === petId);
+    const occurrence = (note: typeof candidates[number]) => classifyOccurrenceReport(note.text, petName, terms);
+    const eligible = selection === "earliest_occurrence" ? occurrenceCandidates(candidates, occurrence, note => note.occurredAt || "") : candidates;
+    const ordered = orderHistoryEvidence(eligible, selection, note => note.occurredAt || "", note => note.sourceId);
+    const boundary = contract.history?.chronology?.find(item => item.petId === petId);
+    const boundaryBlocked = boundary?.blocked || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
+    const occurrenceUncertain = selection === "earliest_occurrence" && ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0).some(note => occurrence(note) !== "affirmative");
+    // Earliest/latest answers retain their decisive report. Include the other
+    // dated reports for status so a resolution cannot hide a later recurrence.
+    const selected = selection.startsWith("earliest") || selection === "latest" && !status
+      ? ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0) : ordered;
+    // An unresolved early report remains first. A later affirmative report can
+    // still answer the supported portion, without taking first-occurrence authority.
+    if (occurrenceUncertain) {
+      const later = ordered.find(note => occurrence(note) === "affirmative" && !selected.includes(note));
+      if (later) selected.push(...ordered.filter(note => compareHistoryTime(note.occurredAt || "", later.occurredAt || "") === 0 && !selected.includes(note)));
+    }
+    if (!selection.startsWith("earliest") && selection !== "latest") selected.sort((a, b) => (a.occurredAt || "").localeCompare(b.occurredAt || ""));
+    const groups = new Map<string, typeof selected>();
+    for (const note of selected) groups.set(note.text, [...(groups.get(note.text) || []), note]);
+    const sentences = [...groups.values()].map(group => {
+      const note = group[0];
+      const dates = [...new Set(group.map(item => item.occurredAt?.slice(0, 10) || "date not recorded"))].join(", ");
+      const proposals = synthesis.filter(proposal => group.some(item => item.sourceId === proposal.sourceId));
+      // Verify each proposal against the complete content, independently of IDs.
+      const natural = !quote ? proposals.filter(proposal => synthesis.filter(other => other.sourceId === proposal.sourceId).length === 1)
+        .map(proposal => supportedHistoryParaphrase(note.text, proposal.text, petName)).find(Boolean) : null;
+      contract.answerSourceIds!.push(...group.map(item => item.sourceId));
+      const anchored = !boundaryBlocked && !occurrenceUncertain && (selection.startsWith("earliest") || selection === "latest") && note === selected[0] && group.length === 1;
+      const content = natural ? anchored ? natural : `${natural.replace(/[.!]$/, "")} (${dates}).`
+        : `${petName}'s ${dates} report: ${JSON.stringify(note.text)}`;
+      contract.answerContent!.push(content);
+      return content;
+    });
+    if (sentences.length) {
+      const date = selected[0].occurredAt?.slice(0, 10) || "an unknown date";
+      const lead = boundaryBlocked ? `I could verify this dated history for ${petName}, but could not establish the ${selection === "latest" ? "latest" : "earliest"} matching report because some candidates could not be checked. `
+        : occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
+        : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `
+        : selection === "latest" ? `The latest matching update I could check for ${petName} is dated ${date}. ` : `${petName}'s recorded history: `;
+      reports.push(lead + sentences.join(" "));
+    }
+  }
+  if (contract.interpretation && !contract.interpretation.readOnly) {
+    const assertions = analyzeOwnerAssertions(contract.scope.requestText).assertionSpans;
+    const current = splitSentencesPreservingFacts(contract.scope.requestText).filter(sentence => !sentence.endsWith("?")
+      && assertions.some(assertion => sentence.includes(assertion.text))
+      && (!terms.length || terms.some(term => sentence.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
+    if (current.length) reports.unshift(`You just reported: ${current.join(" ")} For comparison, here are the dated reports.`);
+  }
+  const limitation = conversationalHistoryLimitation(contract);
+  if (selection.startsWith("earliest")) reports.push("These saved reports are not proof of when it first happened in their life.");
+  if (status) {
+    const today = new Date().toISOString().slice(0, 10);
+    const current = notes.some(note => note.occurredAt?.slice(0, 10) === today);
+    if (!current) reports.push(contract.interpretation?.history?.to ? "These reports describe the requested period, not the current situation."
+      : "These are dated updates; I can't establish the current situation beyond what they report.");
+  }
+  if (limitation) reports.push(limitation);
+  return reports.join("\n\n");
 }
