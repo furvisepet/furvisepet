@@ -44,7 +44,11 @@ export function planHistoricalQuery(message: string, allowBroadComparison = fals
     [/\b(?:medication|stiffness)\b/i, ["medication", "stiff"]], [/\burine\b/i, ["urine", "urinalysis"]],
     [/\bblood\b/i, ["blood"]], [/\bdiagnos\w*\b/i, ["diagnos"]],
   ] as Array<[RegExp, string[]]>) if (pattern.test(message)) terms.push(...words);
-  if (terms.length > 6) return null;
+  // Digestive history is a search scope, never an episode boundary or diagnosis.
+  if (/\b(?:stomach|digestive|gastrointestinal|GI)\b/i.test(message)) {
+    terms.push("stomach", "vomit", "threw up", "thrown up", "stool", "diarrh");
+  }
+  if (new Set(terms).size > 6) return null;
   let from: string | null = null; let to: string | null = null;
   if (years.length === 1) {
     const year = Number(years[0]);

@@ -93,7 +93,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       }
       if (refs.petId !== context.pet.id || topic && topic !== refs.topic) return done();
       result.topic=refs.topic; result.from=refs.from; result.to=refs.to;
-    } else if (!topic || !plan) { result.referenceStatus="clarify"; result.coverage="ambiguous"; return done(); }
+    } else if (!topic || !plan) { result.reasons.push("episode_count_scope_needed"); result.referenceStatus="clarify"; result.coverage="ambiguous"; return done(); }
     // Member-only revalidation cannot discharge uncertainty found by the preceding
     // historical read: a late correction may have no episode membership at all.
     const inherited = context.askHistory?.coverage;

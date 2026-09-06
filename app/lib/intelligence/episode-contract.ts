@@ -26,6 +26,7 @@ export type EpisodeResult = {
 export function episodeAnswer(result: EpisodeResult) {
   if (result.coverage==="unavailable") return {summary:"The episode evidence is unavailable or could not be revalidated. I can't establish a count or identify that episode; please retry.",sections:[]};
   if (result.referenceStatus==="stale") return {summary:"The episode you selected has changed, been corrected, or been removed. I haven't substituted another episode. Please request a fresh list to review the current evidence.",sections:[]};
+  if (result.referenceStatus==="clarify" && result.reasons.includes("episode_count_scope_needed")) return {summary:"Which symptom should I count—for example, vomiting or soft stool? I need a specific symptom to distinguish separate episodes in the saved history.",sections:[]};
   if (result.referenceStatus==="clarify" && result.presentationHint) return {summary:`The earlier answer labelled that item ${JSON.stringify(result.presentationHint.selectedLabel)}. That is wording from our conversation, not a verified source record. I can't establish what changed from that list alone; use that date to find the original care notes.`,sections:[]};
   if (result.referenceStatus==="clarify") return {summary:"Which displayed episode do you mean? Please identify the pet and the list or approximate date. I can't safely resolve this reference from conversation wording alone.",sections:[]};
   if (result.referenceStatus==="resolved" && result.details?.length) {
