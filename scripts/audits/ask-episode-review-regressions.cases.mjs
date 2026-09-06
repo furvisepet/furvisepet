@@ -116,3 +116,32 @@ test('qualified follow-ups retain topic, missing-envelope and changed-source che
  assert.deepEqual(determiner.result.acceptedCareActions,[]);
  assert.deepEqual(determiner.result.acceptedLearnings,[]);
 });
+
+test('old linked episode evidence reaches generation beyond recent episode window',async t=>{
+ clock(t); const noise=Array.from({length:25},(_,i)=>({...episode(first,0),id:'noise'+i,normalized_key:'unrelated_'+i,last_event_at:'2026-08-01T00:00:00Z'}));
+ const r=await run('List all vomiting episodes for Milo.',{careEpisodes:[...noise,episode(first,0),episode(second,1)]});
+ assert.equal(r.context.episodeResult.supportedCount,2);
+ const record=r.prompt.contextRecords.find(x=>x.id==='episode:ep1');
+ assert.ok(record,'validated old episode must reach actual provider records');
+ assert.equal(record.metadata.sequence_number,1);
+ assert.equal(record.metadata.sourceLinksValidated,true);
+ assert.equal(record.status,'unknown','historical membership cannot certify current resolution');
+});
+test('unlinked episode indexes disclose missing source evidence instead of an apparent empty history',async t=>{
+ clock(t);const r=await run('List all vomiting episodes for Milo.',{rows:[]});
+ assert.deepEqual(r.context.episodeResult.items,[]);
+ assert.ok(r.context.episodeResult.reasons.includes('episode_source_links_missing'));
+ assert.match(r.result.reasoning.answer.summary,/source notes.*missing|missing.*source notes/i);
+ assert.equal(r.context.episodeResult.references,undefined);
+ assert.deepEqual(r.result.acceptedCareActions,[]);
+ assert.deepEqual(r.result.acceptedLearnings,[]);
+});
+
+test('unlinked or stale episode metadata never enters provider records as verified evidence',async t=>{
+ clock(t);const missing=await run('List vomiting episodes for Milo.',{rows:[]});
+ assert.equal(missing.prompt.contextRecords.some(x=>x.sourceType==='episode_evidence'),false);
+ const saved=await savedList();
+ const stale=await run('What about the second vomiting episode?',{messages:[saved],rows:[first,{...second,note:second.note+' Changed.'},update]});
+ assert.equal(stale.context.episodeResult.referenceStatus,'stale');
+ assert.equal(stale.prompt.contextRecords.some(x=>x.sourceType==='episode_evidence'),false);
+});

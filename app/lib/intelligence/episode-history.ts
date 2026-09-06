@@ -108,6 +108,10 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     const sources = read.data.sources as Source[];
     if (episodes.some(e => e.user_id!==context.owner.userId || e.pet_profile_id!==context.pet.id || !keys(result.topic).includes(e.normalized_key))
       || sources.some(s=>s.user_id!==context.owner.userId || s.pet_profile_id!==context.pet.id)) throw new Error("episode_scope_mismatch");
+    if (episodes.some(e => !["superseded", "archived", "dismissed"].includes(e.status)
+      && !sources.some(s => s.episode_id === e.id && !s.deleted_at))) {
+      result.coverage = "ambiguous"; result.reasons.push("episode_source_links_missing");
+    }
     const oversized = new Set(episodes.filter(e=>sources.filter(s=>s.episode_id===e.id).length>8).map(e=>e.id));
     if (oversized.size || episodes.length>8 || sources.some(s=>s.content_omitted)) result.reasons.push("episode_input_bound");
     // Unlinked notes remain unknown grouping, even if they say "separate": two

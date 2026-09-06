@@ -53,6 +53,7 @@ export type AskContextSourceType =
   | "active_concern"
   | "active_episode"
   | "resolved_episode"
+  | "episode_evidence"
   | "care_update"
   | "remembered_detail"
   | "conversation_turn"
@@ -404,7 +405,8 @@ export function buildAskContext(input: BuildContextInput) {
   const product = /\b(product|food|brand|buy|shop|recommend)\b/i.test(input.question)
     ? scored.filter(({ record }) => record.sourceType === "product_context").slice(0, 3)
     : [];
-  const chosen = dedupeScored([...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
+  const episodeEvidence = scored.filter(({record}) => record.sourceType === "episode_evidence").slice(0, 8);
+  const chosen = dedupeScored([...episodeEvidence, ...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
   let detailedUpdateCount = 0;
   const records = chosen.flatMap(({ record }) => {
     const fullDetail = record.sourceType === "care_update" && detailedUpdateCount < 2;
@@ -1205,6 +1207,19 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
       metadata: { episodeType: episode.episode_type, normalizedTopic: semanticTopic, canonicalEpisodeKey: episode.normalized_key, status: episode.status,
         sequence_number: episode.sequence_number, recurrence_of: episode.recurrence_of, resolved_at: episode.resolved_at,
         sequenceScope: "stored_topic_sequence_not_displayed_ordinal" },
+    });
+  }
+  const episodeEvidence = input.evidenceContract?.episodes;
+  const episodeProfile = episodeEvidence && profiles.get(episodeEvidence.petId);
+  if (episodeEvidence && episodeProfile && episodeEvidence.coverage !== "unavailable"
+    && ["list", "resolved"].includes(episodeEvidence.referenceStatus)) {
+    for (const item of episodeEvidence.items.slice(0, 8)) records.push({
+      ...baseRecord(item.id, "episode_evidence", episodeProfile, episodeEvidence.topic,
+        `Source-linked historical ${episodeEvidence.topic} episode beginning ${item.startedAt}. Current status is not established by this grouping.`, item.startedAt),
+      occurredAt: item.startedAt, status: "unknown", priority: "routine",
+      metadata: {sourceLinksValidated: true, sourceId: item.sourceId, sourceVersion: item.sourceVersion,
+        episodeVersion: item.episodeVersion, sequence_number: item.sequenceNumber, recurrence_of: item.recurrenceOf,
+        displayedOrdinal: item.ordinal, sequenceScope: "stored_topic_sequence_not_displayed_ordinal", coverage: "supported_subset_not_lifetime_total"},
     });
   }
   for (const entry of input.careEntries) {

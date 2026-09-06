@@ -2593,6 +2593,7 @@ function formatContextSourceLabel(record: AskContextRecord) {
     product_context: "Product history",
     remembered_detail: "Remembered details",
     resolved_episode: "Recently resolved episodes",
+    episode_evidence: "Source-linked episode history",
   } satisfies Record<AskContextRecord["sourceType"], string>)[record.sourceType];
 }
 

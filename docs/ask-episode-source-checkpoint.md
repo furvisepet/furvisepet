@@ -1,0 +1,9 @@
+# Episode source continuity batch
+Worktree C:/Users/gwara/furvise-ask-remaining-reliability; branch codex/ask-remaining-reliability; base 5a3be3b. Exclusive lock holder PID3208; release C:/Users/gwara/furvise-episode-source-batch.release.
+Two callback reproductions failed before edits: old source-linked episode metadata was absent from actual generation records beyond the recent episode window; unlinked episode indexes lacked an explicit missing-source disclosure. Before 9/11; after initial correction 11/11.
+Implemented a distinct episode_evidence record from revalidated server episode items only, retaining stored sequence separately from displayed ordinal and keeping current status unknown. Unlinked/stale items do not gain record authority. Missing source membership is explicitly disclosed as a retrieval limitation; exact lifetime completeness remains unsupported.
+Final adversarial/full verification in progress. No SQL, Docker, provider calls, remote operations, push, merge or deployment.
+
+Final verification: 12/12 focused callback cases; full suite 2,250 passed, no failures/skips; typecheck and lint exit 0 (two existing warnings); diff check passed. Initial typecheck identified the new source type missing from the route label map; corrected and rerun successfully. Logs C:/Users/gwara/furvise-episode-source-{before,focused,full,typecheck,lint,audit}.log.
+Unchanged lifetime audit remains 14/3. Its unlinked projection fixtures still cannot gain source authority, and exact lifetime totals remain unestablished. No assertion edits. This repair proves linked old episodes survive the actual provider path and discloses absent membership sources; it does not certify unlinked index records.
+Next local runner task will replace the active legacy results memory flow in a separate worktree, with implementation and critical review stages, no production operations. Runner state must be checked before any overlapping work.
