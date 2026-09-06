@@ -1,7 +1,8 @@
 import type { CareEntryRow } from "../supabase.ts";
 import type { DbClaim } from "./history-retrieval.ts";
 
-export type Membership = { id: string; user_id: string; pet_profile_id: string; episode_id: string;
+export type Membership = { recorded_provenance?: import("./recorded-provenance.ts").RecordedSourceProvenance | null;
+  id: string; user_id: string; pet_profile_id: string; episode_id: string;
   care_entry_id: string | null; claim_id: string | null; event_ordinal: number; event_role: string;
   occurred_at: string; created_at: string; source_issue: string | null };
 export type EpisodeSource = CareEntryRow & { episode_id?: string | null; content_omitted?: boolean; claim?: DbClaim; evidenceId?: string };

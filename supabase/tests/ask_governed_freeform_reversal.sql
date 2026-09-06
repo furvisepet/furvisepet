@@ -1,5 +1,10 @@
--- UNVALIDATED reversal; restores the separately validated membership reader.
+-- UNEXECUTED. Reverse both drafts inside a savepoint, assert, then restore.
 begin;
+create temp table governed_functions_before as select
+ pg_get_functiondef('public.persist_furvise_server_semantic_event(uuid,uuid,uuid,jsonb)'::regprocedure) as writer,
+ pg_get_functiondef('public.read_ask_episode_sources(uuid,text[],uuid[],timestamptz,timestamptz)'::regprocedure) as reader;
+savepoint reversal;
+-- UNVALIDATED reversal; restores the separately validated membership reader.
 create or replace function public.read_ask_episode_sources(p_pet_id uuid,p_keys text[],p_episode_ids uuid[] default null,p_from timestamptz default null,p_to timestamptz default null)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog as $$
 declare episodes jsonb; sources jsonb; memberships jsonb; claims jsonb; ids uuid[]; timeout_ms numeric;
@@ -132,4 +137,49 @@ drop table public.ask_recorded_inventory_removals;
 drop table public.ask_recorded_inventory_revision;
 drop table public.ask_recorded_registry_revision;
 notify pgrst,'reload schema';
-commit;
+
+-- PREPARATION ONLY. Reverse recorded completeness first.
+create or replace function public.persist_furvise_server_semantic_event(
+  p_user_id uuid,
+  p_pet_id uuid,
+  p_source_message_id uuid,
+  p_event jsonb
+)
+returns table(
+  persistence_status text,
+  care_entry_id uuid,
+  episode_id uuid,
+  normalized_topic text,
+  resulting_state text,
+  already_persisted boolean
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  perform private.set_furvise_server_actor(p_user_id);
+  return query
+  select * from public.persist_furvise_semantic_event(
+    p_user_id, p_pet_id, p_source_message_id, p_event
+  );
+end;
+$$;
+drop function private.read_ask_recorded_source_evidence(uuid);
+drop table private.ask_recorded_source_evidence;
+do $$ begin
+ if to_regclass('private.ask_recorded_source_evidence') is not null
+   or to_regclass('public.ask_recorded_inventory_revision') is not null
+   or to_regclass('public.ask_recorded_registry_revision') is not null then raise exception 'reversal retained tables'; end if;
+ if position('recordedEvidence' in pg_get_functiondef('public.persist_furvise_server_semantic_event(uuid,uuid,uuid,jsonb)'::regprocedure))>0
+   or position('recorded_inventory' in pg_get_functiondef('public.read_ask_episode_sources(uuid,text[],uuid[],timestamptz,timestamptz)'::regprocedure))>0 then raise exception 'reversal retained contract'; end if;
+ if has_function_privilege('authenticated','public.persist_furvise_server_semantic_event(uuid,uuid,uuid,jsonb)','EXECUTE')
+   or not has_function_privilege('service_role','public.persist_furvise_server_semantic_event(uuid,uuid,uuid,jsonb)','EXECUTE') then raise exception 'reversal grant drift'; end if;
+end $$;
+rollback to reversal;
+do $$ begin
+ if (select writer<>pg_get_functiondef('public.persist_furvise_server_semantic_event(uuid,uuid,uuid,jsonb)'::regprocedure)
+   or reader<>pg_get_functiondef('public.read_ask_episode_sources(uuid,text[],uuid[],timestamptz,timestamptz)'::regprocedure) from governed_functions_before)
+   or to_regclass('private.ask_recorded_source_evidence') is null then raise exception 'rollback did not restore draft'; end if;
+end $$;
+rollback;

@@ -9,6 +9,7 @@ import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import type { EpisodeReferences, EpisodeResult } from "./episode-contract.ts";
 import { episodeMembershipSources, type EpisodeSource } from "./episode-membership.ts";
 import { recordedInventory, inventoryMembersMatch, classifiedRecordedSource } from "./recorded-inventory.ts";
+import { governedRecordedRole } from "./recorded-provenance.ts";
 import type { EpisodeClaimValidation } from "./history-retrieval.ts";
 export type { EpisodeItem, EpisodeReferences, EpisodeResult } from "./episode-contract.ts";
 export { attachEpisodeReferences } from "./episode-contract.ts";
@@ -48,7 +49,7 @@ function parseReferences(value: unknown, context: FurviseLiveContext): EpisodeRe
     || r.selectedId !== null && !r.items.some(i => i.id === r.selectedId)) return null;
   return r;
 }
-/** The only supported text boundary is an explicit, positive owner report of an
+/** Legacy text fallback: an explicit, positive owner report of an
  * episode. Generic symptom notes, temporal distance and generated summaries do
  * not establish incident boundaries. Membership IDs alone are heuristic. */
 function boundary(source: Source, petName: string, topic: string) {
@@ -180,7 +181,10 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       const namesAnotherPet=context.eligiblePets.some(p=>p.id!==context.pet.id && p.name
         && new RegExp(`\\b${p.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}\\b`,"i").test(s.note));
       if (namesAnotherPet) { result.coverage="ambiguous"; result.reasons.push("multi_pet_source_grouping_unknown"); continue; }
-      const b=boundary(s,context.pet.name,result.topic);
+      const governed = membership.memberships ? governedRecordedRole(s,result.topic,membership.memberships) : null;
+      const hasProvenance = membership.memberships?.some(m => m.care_entry_id === s.id && m.recorded_provenance !== undefined);
+      const b=governed === "opening" ? { separate:true, occurrences:null }
+        : hasProvenance ? null : boundary(s,context.pet.name,result.topic);
       if (!b || s.deleted_at || (result.from && (Date.parse(s.occurred_at)<Date.parse(result.from) || Date.parse(s.occurred_at)>=Date.parse(result.to!)))) continue;
       const ep=episodes.find(e=>e.id===s.episode_id);
       if (!ep || ["superseded","archived","dismissed"].includes(ep.status)) continue;

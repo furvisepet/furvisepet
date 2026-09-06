@@ -1,4 +1,5 @@
 import type { EpisodeSource, Membership } from "./episode-membership.ts";
+import { governedRecordedRole } from "./recorded-provenance.ts";
 
 export type RecordedInventory = {
   version: "ask-recorded-inventory.v1"; ownerId: string; petId: string;
@@ -19,7 +20,7 @@ export function recordedInventory(value: unknown, ownerId: string, petId: string
     : typeof a === "string" && Number.isFinite(Date.parse(a)) && Date.parse(a) === Date.parse(b);
   if (r.version !== "ask-recorded-inventory.v1" || r.ownerId !== ownerId || r.petId !== petId
     || !Array.isArray(r.keys) || JSON.stringify([...r.keys].sort()) !== JSON.stringify([...keys].sort())
-    || !sameTime(r.from, from) || !sameTime(r.to, to) || !/^[1-9][0-9]{0,18}$/.test(r.revision)
+    || !sameTime(r.from, from) || !sameTime(r.to, to) || !/^[1-9][0-9]{0,18}(?:\.[1-9][0-9]{0,18})?$/.test(r.revision)
     || typeof r.snapshot !== "string" || !Number.isFinite(Date.parse(r.snapshot))
     || Math.abs(Date.now() - Date.parse(r.snapshot)) > 30_000
     || !Number.isSafeInteger(r.episodeCount) || r.episodeCount < 0 || r.episodeCount > 32
@@ -38,9 +39,11 @@ export function inventoryMembersMatch(r: RecordedInventory, members: Membership[
     && equal(members.map(m => m.claim_id), r.claimIds);
 }
 
-/** Deliberately narrow language: arbitrary continuation notes cannot certify
- * classification. The existing subset reader can still display their evidence. */
+/** Current writer provenance takes precedence, including invalidated null proof.
+ * The narrow prose fallback is retained only for the older reader contract. */
 export function classifiedRecordedSource(s: EpisodeSource, pet: string, topic: string, members: Membership[]) {
+  if (members.some(m => m.care_entry_id === s.id && m.recorded_provenance !== undefined))
+    return governedRecordedRole(s, topic, members) !== null;
   const escaped = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const role = members.find(m => s.claim ? m.claim_id === s.claim.id : m.care_entry_id === s.id)?.event_role;
   if (role === "opening" || role === "recurrence") {

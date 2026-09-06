@@ -34,6 +34,7 @@ export type CanonicalEvent = CanonicalEventProposal & {
 export type SemanticPersistenceDestination = "care_event" | "episode_current_state" | "pet_memory" | "owner_memory" | "profile_change" | "state_only" | "none";
 export type GovernedCanonicalEvent = {
   event: CanonicalEvent;
+  recordedEvidence?: import("./recorded-provenance.ts").RecordedWriterEvidence;
   /** Primary destination retained for compatibility with existing consumers. */
   destination: SemanticPersistenceDestination;
   /** One semantic event may update chronology and current state in one atomic RPC. */

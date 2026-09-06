@@ -1,0 +1,47 @@
+(node:10548) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10548) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/gwara/furvise-runner-governed-freeform-2/governed-freeform-episodes/worktree/app/lib/intelligence/retrieve-context.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\gwara\furvise-runner-governed-freeform-2\governed-freeform-episodes\worktree\package.json.
+✔ complete recorded inventory reaches actual callback and final validator (61.4879ms)
+✔ absent fails closed through callback (3.8115ms)
+✔ stale snapshot fails closed through callback (2.3773ms)
+✔ unknown version fails closed through callback (2.0173ms)
+✔ stale revision fails closed through callback (1.8816ms)
+✔ partial fails closed through callback (1.6869ms)
+✔ unknown classification fails closed through callback (1.6775ms)
+✔ ambiguous grouping fails closed through callback (2.6858ms)
+✔ import gap fails closed through callback (1.8894ms)
+✔ deleted fails closed through callback (1.7314ms)
+✔ forgotten fails closed through callback (1.5077ms)
+✔ corrected fails closed through callback (1.111ms)
+✔ overflow fails closed through callback (1.3633ms)
+✔ owner fails closed through callback (1.2389ms)
+✔ pet fails closed through callback (1.3073ms)
+✔ concept fails closed through callback (1.384ms)
+✔ period fails closed through callback (1.4528ms)
+✔ missing source fails closed through callback (1.4435ms)
+✔ extra source fails closed through callback (1.6261ms)
+✔ source hash fails closed through callback (1.5659ms)
+✔ nonboundary note fails closed through callback (2.2359ms)
+✔ ambiguous onset fails closed through callback (1.412ms)
+✔ missing member fails closed through callback (1.2323ms)
+✔ episode count fails closed through callback (1.2693ms)
+✔ full aggregate of 12 shares census with bounded eight-item display and references (4.7584ms)
+✔ an invalid undisplayed ninth group prevents exact aggregate (2.1465ms)
+✔ complete empty retained register yields recorded zero only (1.2085ms)
+✔ mutation after second graph pass invalidates census (1.3064ms)
+✔ claim-only native membership can certify the narrow recorded scope (1.7078ms)
+✔ imported lineage deduplication, changed hash=false (1.6421ms)
+✔ imported lineage deduplication, changed hash=true (1.2192ms)
+✔ period census and final answer use the identical half-open scope (2.045ms)
+✔ references from a 12-group census resolve against the pinned eight-group page (6.3232ms)
+✔ PostgreSQL offset timestamp at period start is included (1.5908ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 604.204

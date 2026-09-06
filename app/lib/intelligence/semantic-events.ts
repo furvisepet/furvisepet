@@ -7,6 +7,7 @@ import { evaluateCareHistorySaveWorthiness } from "./care-history-policy.ts";
 import { analyzeOwnerAssertions, isOwnerAssertedEvidence } from "../ai/owner-assertion.ts";
 import { isRecoveryGroundedForConcern, type PetConcern } from "../ai/concern-engine.ts";
 import { isPetObservationEvidence } from "../ai/recovery-subject.ts";
+import { recordedWriterEvidence } from "./recorded-provenance.ts";
 
 export type SemanticEventRejectionReason = "low_confidence" | "unsupported_evidence" | "unsupported_pet_identity" | "wrong_pet" | "ambiguous_subject" | "invalid_transition" | "no_compatible_active_episode" | "ambiguous_episode" | "not_save_worthy";
 export type SemanticEventGovernance = {
@@ -185,7 +186,8 @@ export function governCanonicalEvents(input: {
       continue;
     }
     const destinations = routeSemanticEventDestinations(event);
-    accepted.push({ event, destination: primaryDestination(destinations), destinations, ...(recoveryGovernance.candidate ? { recoveryGovernance } : {}) });
+    accepted.push({ event, recordedEvidence: recordedWriterEvidence(event, input.message, resolvedPetSubject.name),
+      destination: primaryDestination(destinations), destinations, ...(recoveryGovernance.candidate ? { recoveryGovernance } : {}) });
   }
   return { accepted, rejected, recoveryAssessments };
 }

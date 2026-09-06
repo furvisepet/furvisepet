@@ -1,20 +1,37 @@
 -- CODE PREPARATION ONLY. NOT DATABASE-VALIDATED. Requires existing membership schema.
 begin;
 create table public.ask_recorded_inventory_revision (
+ user_id uuid primary key references auth.users(id) on delete cascade, revision bigint not null check(revision>0)
+);
+create table public.ask_recorded_registry_revision (
  singleton boolean primary key default true check(singleton), revision bigint not null check(revision>0)
 );
-insert into public.ask_recorded_inventory_revision values(true,1);
+insert into public.ask_recorded_registry_revision values(true,1);
+alter table public.ask_recorded_registry_revision enable row level security;
+revoke all on public.ask_recorded_registry_revision from public,anon,authenticated,service_role;
 create table public.ask_recorded_inventory_removals (user_id uuid primary key references auth.users(id) on delete cascade);
 alter table public.ask_recorded_inventory_revision enable row level security;
 alter table public.ask_recorded_inventory_removals enable row level security;
 revoke all on public.ask_recorded_inventory_revision, public.ask_recorded_inventory_removals from public,anon,authenticated,service_role;
 -- A transactional row update, NOT a sequence: rollback restores the old revision,
--- and concurrent writers serialize here. Readers see revision and rows via MVCC.
+-- and only writers for the same owner serialize. Registry changes have a separate version.
 create function public.invalidate_ask_recorded_inventory() returns trigger
 language plpgsql security definer set search_path=pg_catalog as $$
+declare affected uuid;
 begin
- update public.ask_recorded_inventory_revision set revision=revision+1 where singleton;
- if tg_op='DELETE' and tg_table_name in ('pet_care_entries','pet_care_episodes','pet_care_episode_events','semantic_claims','semantic_claim_relations','semantic_claim_legacy_lineage','ask_history_removed_relation_targets') then
+ if tg_table_name in ('semantic_concepts','semantic_concept_aliases') then
+   update public.ask_recorded_registry_revision set revision=revision+1 where singleton;
+ else
+   -- Both sides of an ownership change invalidate, in deterministic lock order.
+   for affected in select distinct value::uuid from jsonb_array_elements_text(jsonb_build_array(
+     case when tg_op<>'INSERT' then to_jsonb(old)->>'user_id' end,
+     case when tg_op<>'DELETE' then to_jsonb(new)->>'user_id' end)) where value is not null order by 1 loop
+     insert into public.ask_recorded_inventory_revision(user_id,revision)
+       select affected,2 where exists(select 1 from auth.users where id=affected)
+     on conflict(user_id) do update set revision=public.ask_recorded_inventory_revision.revision+1;
+   end loop;
+ end if;
+ if tg_op='DELETE' and tg_table_name in ('pet_care_entries','pet_care_episodes','pet_care_episode_events','semantic_claims','semantic_claim_relations','semantic_claim_legacy_lineage','ask_history_removed_relation_targets','ask_recorded_source_evidence') then
    insert into public.ask_recorded_inventory_removals(user_id) select id from auth.users where id=(to_jsonb(old)->>'user_id')::uuid on conflict do nothing;
  end if;
  if tg_op='DELETE' then return old; end if;
@@ -54,6 +71,8 @@ create trigger ask_recorded_revision after insert or update or delete on public.
 create trigger ask_recorded_no_truncate before truncate on public.furvise_memories for each statement execute function public.reject_ask_recorded_truncate();
 create trigger ask_recorded_revision after insert or update or delete on public.dog_memories for each row execute function public.invalidate_ask_recorded_inventory();
 create trigger ask_recorded_no_truncate before truncate on public.dog_memories for each statement execute function public.reject_ask_recorded_truncate();
+create trigger ask_recorded_revision after insert or update or delete on private.ask_recorded_source_evidence for each row execute function public.invalidate_ask_recorded_inventory();
+create trigger ask_recorded_no_truncate before truncate on private.ask_recorded_source_evidence for each statement execute function public.reject_ask_recorded_truncate();
 create or replace function public.read_ask_recorded_membership_batch(p_pet_id uuid,p_keys text[],p_episode_ids uuid[] default null,p_from timestamptz default null,p_to timestamptz default null)
 returns jsonb language plpgsql stable security definer set search_path=pg_catalog as $$
 declare episodes jsonb; sources jsonb; memberships jsonb; claims jsonb; ids uuid[]; timeout_ms numeric;
@@ -82,10 +101,10 @@ begin
     select coalesce(jsonb_agg(to_jsonb(e) order by started_at,id),'[]'::jsonb),array_agg(id order by started_at,id)
     into episodes,ids from (
       select e.* from (select distinct unnest(p_keys) k) keys cross join lateral (
-        select id,user_id,pet_profile_id,normalized_key,sequence_number,recurrence_of,
+        select id,user_id,pet_profile_id,regexp_replace(normalized_key,'^health_','') as normalized_key,sequence_number,recurrence_of,
           started_at,last_event_at,resolved_at,status,updated_at,missing_source_event_ids[1:9] as missing_source_event_ids
         from public.pet_care_episodes where user_id=auth.uid() and pet_profile_id=p_pet_id
-          and normalized_key=k
+          and normalized_key in (k,'health_'||k)
           and (p_from is null or (started_at>=p_from and started_at<p_to))
           order by started_at,id limit 9
       ) e order by started_at,id limit 9
@@ -94,15 +113,15 @@ begin
     -- Pinned references use primary keys, never a chronological prefix scan.
     select coalesce(jsonb_agg(to_jsonb(e) order by started_at,id),'[]'::jsonb),array_agg(id order by started_at,id)
     into episodes,ids from (
-      select id,user_id,pet_profile_id,normalized_key,sequence_number,recurrence_of,
+      select id,user_id,pet_profile_id,regexp_replace(normalized_key,'^health_','') as normalized_key,sequence_number,recurrence_of,
         started_at,last_event_at,resolved_at,status,updated_at,missing_source_event_ids[1:9] as missing_source_event_ids
       from public.pet_care_episodes where id=any(p_episode_ids)
-        and user_id=auth.uid() and pet_profile_id=p_pet_id and normalized_key=any(p_keys)
+        and user_id=auth.uid() and pet_profile_id=p_pet_id and (normalized_key=any(p_keys) or normalized_key=any(select 'health_'||k from unnest(p_keys) k))
     ) e;
   end if;
   -- The authoritative edge table, including claim-only memberships. Raw edges
   -- are retained even if their payload is missing, changed, or oversized.
-  select coalesce(jsonb_agg(to_jsonb(m) order by m.episode_id,m.event_ordinal,m.id),'[]'::jsonb)
+  select coalesce(jsonb_agg(to_jsonb(m) || case when exists(select 1 from private.ask_recorded_source_evidence p where p.care_id=m.care_entry_id and p.user_id=auth.uid()) then jsonb_build_object('recorded_provenance',private.read_ask_recorded_source_evidence(m.care_entry_id)) else '{}'::jsonb end order by m.episode_id,m.event_ordinal,m.id),'[]'::jsonb)
   into memberships from unnest(ids[1:8]) i cross join lateral (
     select m.*,
       case when exists (
@@ -158,19 +177,21 @@ begin
  -- retain the existing bounded membership contract and version hashes.
  result:=public.read_ask_recorded_membership_batch(p_pet_id,p_keys,p_episode_ids,p_from,p_to);
  if p_episode_ids is not null then return result; end if;
- select revision::text into rev from public.ask_recorded_inventory_revision where singleton;
+ select coalesce((select revision from public.ask_recorded_inventory_revision where user_id=auth.uid()),1)::text
+   || '.' || revision::text into rev from public.ask_recorded_registry_revision where singleton;
  select coalesce(array_agg(id order by started_at,id),'{}') into ids from (
    select id,started_at from public.pet_care_episodes
-   where user_id=auth.uid() and pet_profile_id=p_pet_id and normalized_key=any(p_keys)
+   where user_id=auth.uid() and pet_profile_id=p_pet_id and (normalized_key=any(p_keys) or normalized_key=any(select 'health_'||k from unnest(p_keys) k))
      and (p_from is null or started_at>=p_from and started_at<p_to)
    order by started_at,id limit 33
  ) e;
  if cardinality(ids)>32 then failures:=array_append(failures,'episode_overflow'); end if;
- -- Include every retained source in the requested period, irrespective of lexical
- -- matching, deletion state, classification, or whether an import found it.
+ -- Include every retained source except unchanged writer-classified evidence
+ -- reliably outside the requested topic. Missing classification remains in the census.
  -- Members of a scoped group are included even when their continuation is later.
  select coalesce(array_agg(id order by id),'{}') into care_ids from (
    select e.id from public.pet_care_entries e where e.user_id=auth.uid() and e.pet_profile_id=p_pet_id
+     and (e.episode_id=any(ids) or coalesce(private.read_ask_recorded_source_evidence(e.id)->>'inventoryTopic'=any(p_keys),true))
      and (p_from is null or e.occurred_at>=p_from and e.occurred_at<p_to or e.episode_id=any(ids))
    order by e.id limit 65
  ) e;
