@@ -182,8 +182,8 @@ const untrustedTerminalMutationClaim = /\b(?:profile|history|record|entry|prefer
 function scrubUntrustedMutationClaim(value: unknown, fallback: string) {
   if (typeof value !== "string") return fallback;
   const governed = enforceVerifiedStateClaims(value, false);
-  const safe = preserveAttributedReportQuotes(governed, prose => prose.split(/(?<=[.!?])\s+/)
-    .filter((sentence) => !untrustedTerminalMutationClaim.test(sentence)).join(" ").trim());
+  const safe = preserveAttributedReportQuotes(governed, prose => prose.split(/(?<=[.!?])(?=\s)/)
+    .filter((sentence) => !untrustedTerminalMutationClaim.test(sentence)).join("").trim());
   return safe || fallback;
 }
 

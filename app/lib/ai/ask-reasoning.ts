@@ -552,6 +552,15 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
     budgeted.evidenceContract.losses.push({ sourceId: removed.id, reason: "prompt_budget" });
     representEvidence(budgeted.evidenceContract, contextRecords);
   }
+  // Resolved-concern reports are optional evidence, not mandatory scope.
+  // Omit whole reports if needed and record the loss; never slice their text.
+  const optional = budgeted as T & { recentlyResolvedConcerns?: Array<{ id: string }> };
+  if (optional.recentlyResolvedConcerns) optional.recentlyResolvedConcerns = [...optional.recentlyResolvedConcerns];
+  while (optional.recentlyResolvedConcerns?.length && exceedsBudget()) {
+    const removed = optional.recentlyResolvedConcerns.pop()!;
+    budgeted.evidenceContract.losses.push({ sourceId: `concern:${removed.id}`, reason: "prompt_budget" });
+    representEvidence(budgeted.evidenceContract, contextRecords);
+  }
   if (exceedsBudget()) throw new Error("ASK_EVIDENCE_SCOPE_EXCEEDS_BUDGET");
   return budgeted;
 }
@@ -1076,7 +1085,7 @@ export function buildAskProviderRequest(promptContext: object) {
   const context = promptContext as { evidenceContract?: AskEvidenceContract };
   const evidence = context.evidenceContract;
   let transported = promptContext;
-  if (evidence?.history && JSON.stringify(promptContext).length > 32_000) {
+  if (evidence?.history && estimateInputTokens({ input: JSON.stringify(promptContext), instructions: unifiedInstructions }) > getAiFeaturePolicy("ask").maxInputTokens - 256) {
     // Retain full authority and candidate identities on the server. The model
     // only needs IDs for represented evidence plus complete coverage/counts.
     const represented = new Set(evidence.represented.map(span => span.sourceId));

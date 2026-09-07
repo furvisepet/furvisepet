@@ -114,6 +114,15 @@ test('dated source quotes stay intact while surrounding action claims are remove
  assert.doesNotMatch(enforceVerifiedStateClaims('I saved your profile.',false),/I saved/);
 });
 
+test('stored answer presentation preserves tables and bullet line breaks',async()=>{
+ const {enforceVerifiedStateClaims}=await import('../../app/lib/application-actions/state-claims.ts');
+ const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
+ for(const summary of ['- First fact.\n- Second fact.\n- Third fact.','| Date | Weight |\n|---|---:|\n| 2026-06-04 | 28.4 kg |']){
+  assert.equal(enforceVerifiedStateClaims(summary,false),summary);
+  assert.equal(presentationOnlyAskResponse({title:'Furvise',summary,sections:[],applicationActions:[]},[]).summary,summary);
+ }
+});
+
 test('repeated factual follow-up survives economy and still receives source review',async t=>{
  clock(t);const {buildAskConversationResponse}=await import('../../app/lib/ask.mjs');
  const answer='Nori finished the food transition on July 10. This covers the matching saved notes I could verify, not necessarily every event in their life.';
