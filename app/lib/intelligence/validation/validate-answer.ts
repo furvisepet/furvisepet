@@ -38,11 +38,11 @@ export function validateGeneratedAnswer(
   }
   if (reviewedHistory && response.evidenceContract) {
     response.evidenceContract.answerSourceIds = reviewedHistory.sourceIds;
-    response.evidenceContract.answerContent = [];
+    response.evidenceContract.answerContent = reviewedHistory.sourceContent || [];
   }
   const sourceNote = response.evidenceContract?.scope.requestKind === "record_lookup" && response.evidenceContract.scope.status === "resolved"
     ? sourceNoteAnswer(response.evidenceContract) : null;
-  const scopedAnswer = currentEmergency ? null : reviewedHistory?.text || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
+  const scopedAnswer = currentEmergency ? null : (reviewedHistory?.proseText || reviewedHistory?.text) || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
   const hasSourceQuote = Boolean(sourceNote?.sourceIds.length && scopedAnswer === sourceNote.text);
   if (scopedAnswer) {
     // Only assistant-authored prose goes through prose rewriting. The complete
@@ -148,7 +148,7 @@ export function validateGeneratedAnswer(
     qualityWarnings.push("quality_normalization_failed");
   }
   if (reviewedHistory) {
-    const reviewedText = `${urgent ? "Contact an emergency veterinarian now. " : ""}${reviewedHistory.text}`;
+    const reviewedText = `${urgent ? "Contact an emergency veterinarian now. " : ""}${reviewedHistory.proseText || reviewedHistory.text}`;
     response.answer.summary = preserveReviewedLayout(reviewedText, response.answer.summary);
   }
   const assistantProse = JSON.stringify(response.answer);
@@ -177,6 +177,12 @@ export function validateGeneratedAnswer(
     // the independent safety directive. Never reuse rejected model prose.
     response.answer = { title: "Furvise", summary: scopedAnswer, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
     repairs.push("grounded_history_in_source_reports");
+  }
+  if (reviewedHistory?.sourceReports?.length) {
+    // Server-attributed source reports are composed after all prose transforms.
+    // The unforgeable review receipt binds them to unchanged scoped evidence.
+    response.answer.summary = [response.answer.summary, ...reviewedHistory.sourceReports].join("\n\n");
+    repairs.push("preserved_review_source_supplements");
   }
   let answerText = JSON.stringify(response.answer);
   if (response.evidenceContract?.interpretation && scopedAnswer) {

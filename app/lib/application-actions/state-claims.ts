@@ -1,8 +1,26 @@
-const authoritativeMutationClaim = /\b(?:i(?:'ve| have|'ll| will)?|furvise has|we(?:'ve| have|'ll| will)?)\s+(?:save(?:d)?|delete(?:d)?|remove(?:d)?|forget|forgotten|change(?:d)?|update(?:d)?|archive(?:d)?|prepare(?:d)?|record(?:ed)?|complete(?:d)?|mark(?:ed)?)\b|\bi(?:'ll| will)\s+(?:treat|consider)\b[^.!?]{0,120}\bas\s+(?:removed|forgotten|changed|updated|deleted)\b|\b(?:has been|was)\s+(?:saved|deleted|removed|forgotten|changed|updated|archived|prepared|recorded|completed|marked)\b/i;
+const authoritativeMutationClaim = /\b(?:i(?:'ve| have|'ll| will)?|furvise has|we(?:'ve| have|'ll| will)?)\s+(?:save(?:d)?|delete(?:d)?|remove(?:d)?|forget|forgotten|change(?:d)?|update(?:d)?|archive(?:d)?|prepare(?:d)?|record(?:ed)?|complete(?:d)?|mark(?:ed)?)\b|\bi(?:'ll| will)\s+(?:treat|consider)\b[^.!?]{0,120}\bas\s+(?:removed|forgotten|changed|updated|deleted)\b/i;
 const assistantOffer = /(?:^|[.!?]\s+)(?:if you want,?\s*)?(?:i can|i can also|would you like me to)\b[^.!?]*[.!?]?/gi;
 
+const passiveMutationClaim = /\b(?:has been|was)\s+(saved|deleted|removed|forgotten|changed|updated|archived|prepared|recorded|completed|marked)\b/gi;
+const physicalChangeSubject = /\b(?:food|diet|litter|litter tray|tray(?: location|position|setup)?)\s*$/i;
+const physicalCourseSubject = /\b(?:medication|treatment|antibiotic)\s+course\s*$/i;
+const applicationDestination = /\b(?:in|on|to|from)\s+(?:(?:the|your|her|his|their|its|pet['’]s)\s+)*(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b|\bby\s+Furvise\b/i;
+
 export function containsUnverifiedStateClaim(value: string) {
-  return authoritativeMutationClaim.test(value);
+  if (authoritativeMutationClaim.test(value)) return true;
+  for (const match of value.matchAll(passiveMutationClaim)) {
+    const before = value.slice(0, match.index);
+    const sentenceStart = Math.max(before.lastIndexOf('.'), before.lastIndexOf('!'), before.lastIndexOf('?'), before.lastIndexOf('\n')) + 1;
+    const subject = value.slice(sentenceStart, match.index);
+    const clause = value.slice(sentenceStart).split(/[.!?\n]/, 1)[0];
+    const dataSubject = /\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(subject);
+    // A physical care event is not a claim that the application changed data.
+    // This only classifies the speech act; source grounding is still required.
+    const physical = match[1].toLowerCase() === "changed" && physicalChangeSubject.test(before)
+      || match[1].toLowerCase() === "completed" && physicalCourseSubject.test(before);
+    if (!physical || dataSubject || applicationDestination.test(clause)) return true;
+  }
+  return false;
 }
 
 export function enforceVerifiedStateClaims(value: string, verifiedSuccess: boolean) {

@@ -18,7 +18,9 @@ registerHooks({
       return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent(adapter)}` };
     }
     if (/ask-conversation-server\.ts$/.test(specifier)) {
-      return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent('export const loadActionCapabilitiesForMessages = async () => new Map(); export const presentationOnlyAskResponse = value => value;')}` };
+      const presentationUrl = new URL('../../../app/lib/ask-conversation-server.ts?audit-real-presentation', import.meta.url).href;
+      // Keep capability storage isolated, but exercise the actual display policy.
+      return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent('export const loadActionCapabilitiesForMessages = async () => new Map(); export { presentationOnlyAskResponse } from ' + JSON.stringify(presentationUrl) + ';')}` };
     }
     if (specifier.startsWith('.') && context.parentURL?.startsWith('file:')) {
       const url = new URL(specifier, context.parentURL);
