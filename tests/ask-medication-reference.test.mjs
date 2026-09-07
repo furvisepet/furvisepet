@@ -37,3 +37,36 @@ test('mutation and dosage-advice requests do not become reference reads',()=>{
   for(const q of ['Save its name.', 'Can I double its dose?', 'Its name is aspirin.', 'What is its name? Save it.'])
     assert.notDeepEqual(normalizeAskReadProposal(proposal(),context(q)).petNames,['Fern']);
 });
+
+for (const operation of ['general', 'recall', 'status', 'overview']) {
+  test(`medication referent survives a confident but unrelated ${operation} plan`, () => {
+    const p = normalizeAskReadProposal({...proposal(), operation, readOperation:operation,
+      subject:'conversation',petNames:['Fern'],topic:'pet name',terms:['name']},context());
+    assert.equal(p.operation,'recall');
+    assert.deepEqual(p.petNames,['Fern']);
+    assert.equal(p.topic,'medication details');
+    assert.deepEqual(p.terms,['medic','prescri','course']);
+    assert.deepEqual(p.frame.claims,[]);
+  });
+}
+test('clear medication reference cannot be answered as generic conversation', () => {
+  const p=normalizeAskReadProposal({...proposal(),operation:'general',readOperation:'general',
+    subject:'non_pet',topic:'name',terms:[]},context());
+  assert.equal(p.operation,'recall');
+  assert.deepEqual(p.petNames,['Fern']);
+});
+test('confident reference recovery preserves competing treatment uncertainty', () => {
+  const input={...proposal(),operation:'recall',readOperation:'recall',subject:'conversation',
+    petNames:['Fern'],topic:'name',terms:['name']};
+  const p=normalizeAskReadProposal(input,context(undefined,
+    ['Fern took two medications.','Did she finish that medication?']));
+  assert.deepEqual(p,input);
+});
+
+for (const patch of [
+  {from:'2026-02-01',to:'2026-03-01'}, {ordinal:'second'}, {terms:['SQL;']},
+]) test('generic normalization cannot erase conflicting reference metadata: '+JSON.stringify(patch),()=>{
+  const p=normalizeAskReadProposal({...proposal(),operation:'general',readOperation:'general',
+    subject:'non_pet',...patch},context());
+  assert.notEqual(p.topic,'medication details');
+});
