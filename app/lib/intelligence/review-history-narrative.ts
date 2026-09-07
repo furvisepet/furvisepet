@@ -9,7 +9,7 @@ import OpenAI from "openai";
 import { getAskModelConfiguration, type AskReasoningResult, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
-import { conversationalHistoryLimitation, type AskEvidenceContract } from "./ask-evidence.ts";
+import { attributedHistoryAnswer, conversationalHistoryLimitation, type AskEvidenceContract } from "./ask-evidence.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
 
 import { clearHistoryReview, recordHistoryReview, historyReviewSignature as signature } from "./history-review-receipt.ts";
@@ -81,7 +81,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
     coverage: evidence.history, losses: evidence.losses, sources, draft: { sentences: draft.sentences.map((sentence, index) => ({ ...sentence, index })) },
   });
   if (requestInput.length > HISTORY_REVIEW_LIMITS.inputCharacters) return false;
-  const key = process.env.OPENAI_API_KEY?.trim();
+  const key = client ? undefined : process.env.OPENAI_API_KEY?.trim();
   if (!client && !key) return false;
   const provider = client || new OpenAI({ apiKey: key, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
   const model = getAskModelConfiguration().primary;
@@ -104,10 +104,33 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
       providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REVIEW_INVALID" });
     if (parsed.status !== "completed" || !parsed.parsed?.approved || before !== signature(result)) return false;
     const retained = parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]);
+    // Broad candidate citations alone do not establish subject coverage. Require
+    // an explicit name and a sentence citing only that pet, or append the
+    // existing server-grounded extract/limitation. Never approve new model prose.
+    const supplements: string[] = [];
+    const supplementIds: string[] = [];
+    const supplementContent: string[] = [];
+    if (evidence.scope.authorizedPetIds.length > 1) {
+      for (const petId of evidence.scope.authorizedPetIds) {
+        const name = evidence.petNames?.[petId];
+        const uniqueName = name && Object.values(evidence.petNames || {}).filter(value => value.toLowerCase() === name.toLowerCase()).length === 1;
+        const named = name ? new RegExp(`(?<![\\p{L}\\p{N}_])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_])`, "iu") : null;
+        const covered = uniqueName && retained.some(sentence => named!.test(sentence.text) && sentence.sourceIds.length
+          && sentence.sourceIds.every(id => sources.some(source => source.sourceId === id && source.petId === petId)));
+        if (covered) continue;
+        const scoped = structuredClone(evidence);
+        scoped.scope.authorizedPetIds = [petId];
+        supplements.push(attributedHistoryAnswer(scoped, evidence.scope.requestKind === "resolution_status"));
+        supplementIds.push(...(scoped.answerSourceIds || []));
+        supplementContent.push(...(scoped.answerContent || []));
+      }
+    }
     const limitation = conversationalHistoryLimitation(evidence);
     recordHistoryReview(result, { signature: before,
-      text: presentReviewedHistory(retained.map(sentence => sentence.text), evidence.scope.requestText) + (limitation ? "\n\n" + limitation : ""),
-      sourceIds: [...new Set(retained.flatMap(sentence => sentence.sourceIds))] });
+      proseText: [presentReviewedHistory(retained.map(sentence => sentence.text), evidence.scope.requestText), limitation].filter(Boolean).join("\n\n"),
+      sourceReports: supplements, sourceContent: supplementContent,
+      text: [presentReviewedHistory(retained.map(sentence => sentence.text), evidence.scope.requestText), ...supplements, limitation].filter(Boolean).join("\n\n"),
+      sourceIds: [...new Set([...retained.flatMap(sentence => sentence.sourceIds), ...supplementIds])] });
     return true;
   } catch {
     if (attempted) onProviderEvent?.({ stage: "verification", outcome: "failed", model,

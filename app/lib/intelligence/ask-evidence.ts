@@ -222,9 +222,8 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
   if (contract.interpretation && (contract.interpretation.readOnly || contract.history)) {
     if (contract.scope.status === "ambiguous") return "Which pet, issue or earlier episode do you mean?";
     if (contract.history && !contract.represented.some(span => span.sourceType === "care_update")) {
-      return contract.history.retrieval === "unavailable" || contract.history.corrections === "unavailable"
-        ? "I couldn't check the saved history just now. Please try again."
-        : "I couldn't find matching saved notes for that question. That doesn't mean it never happened. A date or another description may help me find it.";
+      contract.answerSourceIds = []; contract.answerContent = [];
+      return contract.scope.authorizedPetIds.map(id => missingHistoryPetLimitation(contract, id)).join("\n\n");
     }
     // Arbitrary narrative is not an evidence claim. Only complete source reports
     // and independently computed episode results have factual authority.
@@ -233,7 +232,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
   }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
   if (contract.history?.reasons.includes("no_matching_candidates_not_absence")) {
-    return "No matching notes were retrieved for this query. The search does not establish that the event or result is absent; try another topic or period.";
+    return contract.scope.authorizedPetIds.map(id => missingHistoryPetLimitation(contract, id)).join("\n\n");
   }
   if (contract.history?.provenance.some(source => ["superseded", "tombstoned_or_inactive"].includes(source.status)) && !contract.represented.some(span => span.sourceType === "care_update")) {
     return "The retrieved original report is superseded or inactive and is not effective evidence for this pet. This does not establish an absence across the pet's history.";
@@ -269,9 +268,34 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
   if (history.reasons.includes("unlinked_correction_uncertain")) return "A later correction could not be linked to its original report. I can summarize what the saved notes say, but cannot confirm which reports the correction changes or whether they still apply to this pet."
     + (history.retrieval === "unavailable" ? " Some saved records also couldn't be loaded." : history.retrieval === "partial" ? " This includes only part of the matching history." : "");
   if (history.retrieval === "unavailable") return "Some saved records couldn't be loaded. This covers only the notes I could check.";
-  if (history.retrieval === "partial" || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "There are more saved notes than I could include here. This is part of the history; a narrower topic or date range will let me check further.";
+  if (history.retrieval === "partial" || history.excludedIds.length || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "Some history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.";
   return contract.scope.requestKind === "resolution_status" || contract.interpretation?.selection?.startsWith("earliest") ? ""
     : "This covers the matching saved notes I could verify, not necessarily every event in their life.";
+}
+
+/** Absence of usable spans is not evidence of an empty search. Per-pet row
+ * counts precede representation; source IDs and provenance track later losses. */
+export function missingHistoryPetLimitation(contract: AskEvidenceContract, petId: string): string {
+  const name = contract.petNames?.[petId] || "Your pet";
+  const history = contract.history;
+  const pet = history?.perPet.find(item => item.petId === petId);
+  const sources = contract.sources.filter(source => source.petId === petId && source.source === "care_entries");
+  if (history?.corrections === "unavailable") return `${name}: I couldn't check corrections, so I can't reliably attribute the saved reports yet.`;
+  if (pet?.status === "unavailable" || !pet && history?.retrieval === "unavailable" || sources.some(source => ["unavailable", "not_loaded"].includes(source.status))) {
+    return `${name}: I couldn't check the saved history just now. Please try again.`;
+  }
+  const ids = new Set([...sources.flatMap(source => source.loadedIds), ...contract.represented.filter(span => span.petId === petId && span.sourceType === "care_update").map(span => span.sourceId)]);
+  const attributionLoss = history?.provenance.some(source => (ids.has(source.sourceId) || source.subjectId === petId)
+    && !["effective_linked", "effective_replacement", "unverified_legacy"].includes(source.status));
+  if (attributionLoss || history?.reasons.includes("unlinked_correction_uncertain")) return `${name}: I couldn't verify an effective report for this question because correction or attribution evidence is unresolved or excludes the retrieved reports. This does not establish an absence in the saved history.`;
+  if (contract.losses.some(loss => ids.has(loss.sourceId) && /budget|selection|truncat/i.test(loss.reason))) return `${name}: Saved evidence was excluded by selection or size limits, so I couldn't include a usable report for this question. A narrower topic or date range may help.`;
+  // Global losses cannot always be attributed to one pet. Do not convert that
+  // uncertainty (or a filtered/truncated span) into a no-match assertion.
+  if (pet?.exhausted && pet.rows === 0 && !ids.size && !history?.candidateIds.length && !history?.excludedIds.length
+    && !contract.losses.some(loss => /^(?:care|claim):/.test(loss.sourceId)) && history?.retrieval !== "partial") {
+    return `${name}: I couldn't find matching saved notes for this query. This does not establish an absence in the saved history.`;
+  }
+  return `${name}: I couldn't verify a usable saved report for this question from the available evidence. This does not establish an absence in the saved history.`;
 }
 
 /** A bounded extractive claim mechanism shared by status, recall and comparison.
@@ -281,9 +305,21 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
  */
 export function attributedHistoryAnswer(contract: AskEvidenceContract, status = false, synthesis: HistorySynthesisProposal[] = []): string {
   const correctionReport = correctionReportAnswer(contract);
-  if (correctionReport) return correctionReport;
+  if (correctionReport) {
+    if (contract.scope.authorizedPetIds.length === 1) return correctionReport;
+    const ids: string[] = []; const content: string[] = [];
+    const reports = contract.scope.authorizedPetIds.map(petId => {
+      const scoped = structuredClone(contract); scoped.scope.authorizedPetIds = [petId];
+      const text = attributedHistoryAnswer(scoped, status, synthesis);
+      ids.push(...(scoped.answerSourceIds || [])); content.push(...(scoped.answerContent || []));
+      return `${contract.petNames?.[petId] || "Your pet"}: ${text}`;
+    });
+    contract.answerSourceIds = ids; contract.answerContent = content;
+    return reports.join("\n\n");
+  }
   if (contract.history?.corrections === "unavailable") {
-    return `I couldn't reliably attribute these reports. ${conversationalHistoryLimitation(contract)}`;
+    contract.answerSourceIds = []; contract.answerContent = [];
+    return contract.scope.authorizedPetIds.map(id => missingHistoryPetLimitation(contract, id)).join("\n\n");
   }
   contract.answerSourceIds = [];
   contract.answerContent = [];
@@ -301,10 +337,6 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     && !contract.history?.provenance.some(source => source.sourceId === span.sourceId
       && !["effective_linked", "effective_replacement", "unverified_legacy"].includes(source.status)))
     .sort((a, b) => (b.occurredAt || "").localeCompare(a.occurredAt || ""));
-  if (!notes.length && unresolvedCorrection) return "I found a correction, but couldn't reliably connect it to the original report. I couldn't verify another saved report to summarize for this question.";
-  if (!notes.length) return contract.history?.retrieval === "unavailable"
-    ? "I couldn't check the saved history just now. Please try again."
-    : "I couldn't find matching saved notes for that question. That doesn't mean it never happened.";
   const selection = contract.interpretation?.selection || (status ? "latest" : "summary");
   const quote = /\b(?:quote|verbatim|exact wording)\b/i.test(contract.scope.requestText);
   const reports: string[] = [];
@@ -352,6 +384,8 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
         : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `
         : selection === "latest" ? `The latest matching update I could check for ${petName} is dated ${date}. ` : `${petName}'s recorded history: `;
       reports.push(lead + sentences.join(" "));
+    } else {
+      reports.push(missingHistoryPetLimitation(contract, petId));
     }
   }
   if (contract.interpretation && !contract.interpretation.readOnly) {

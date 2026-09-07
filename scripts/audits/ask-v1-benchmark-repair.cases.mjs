@@ -189,3 +189,27 @@ test('multi-pet request fits the actual admission payload including instructions
  assert.deepEqual(compact.evidenceContract.represented,large.evidenceContract.represented,'complete source text remains available');
  assert.ok(compact.contextRecords.some(record=>record.valueSource),'large transport avoids duplicated note text');
 });
+
+test('physical history survives the real stored presentation path without granting action authority',async()=>{
+ const {enforceVerifiedStateClaims}=await import('../../app/lib/application-actions/state-claims.ts');
+ const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
+ const fact='Her litter was changed to scented litter on July 5.';
+ const summary=fact+' This covers the matching saved notes I could verify, not necessarily every event in their life.';
+ const displayed=presentationOnlyAskResponse({title:'Furvise',summary:enforceVerifiedStateClaims(summary,false),sections:[],applicationActions:[]},[]);
+ assert.equal(displayed.summary,summary);
+ assert.equal(displayed.directAnswer,summary);
+ const forged=presentationOnlyAskResponse({title:'Furvise',summary:'Her profile was updated.',sections:[],applicationActions:[]},[]);
+ assert.doesNotMatch(forged.summary,/profile was updated/);
+});
+
+test('account-wide reads resolve every owned pet even with empty or partial model names',async t=>{
+ const c=await context(t);c.eligiblePets=c.eligiblePets.filter(p=>p.user_id===c.owner.userId).slice(0,3);
+ for(const petNames of [[],[c.eligiblePets[0].name]]){
+  const p=recoverAskInterpretation({...proposal,subject:'selected',petNames},{...c,currentMessage:'Which pets had a food change recorded?'});
+  assert.deepEqual(new Set(p.petIds),new Set(c.eligiblePets.map(p=>p.id)));
+  assert.equal(p.clarification,null);
+ }
+ assert.throws(()=>recoverAskInterpretation({...proposal,subject:'selected',petNames:['ForeignPet']},{...c,currentMessage:'Which pets had a food change recorded?'}));
+ const p=recoverAskInterpretation({...proposal,subject:'selected',petNames:[]},{...c,currentMessage:'For every pet, give the latest recorded weight and date.'});
+ assert.equal(p.petIds.length,c.eligiblePets.length);
+});
