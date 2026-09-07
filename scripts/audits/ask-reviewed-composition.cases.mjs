@@ -244,3 +244,10 @@ test('multiline table is reviewed and header-only approval falls back to sourced
   const rejected=await exercise('Show Milo recorded weight in a table.',{...options,providerOverrides:{historyNarrative:{sentences:[{text:table.replace('11.4','99.9'),sourceIds:['care:table-weight']}]}},expectedReviewCalls:0});
   assert.doesNotMatch(rejected.result.reasoning.answer.summary,/99\.9/); assert.match(rejected.result.reasoning.answer.summary,/11\.4 kg/); noWrites(rejected);
 });
+
+test('reviewed table rows retain layout when the separator is omitted', async t => {
+ clock(t);
+ const table='| Date | Weight |\n| 2025-03-02 | 11.4 kg |';
+ const r=await exercise('Show Milo recorded weight in a table.',{history:true,rows:[care('table-row','milo','2025-03-02','weight','Milo weighed 11.4 kg.')],messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',topic:'weight',terms:['weigh']},providerOverrides:{historyNarrative:{sentences:table.split('\n').map(text=>({text,sourceIds:['care:table-row']}))}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ assert.ok(r.result.reasoning.answer.summary.includes(table),r.result.reasoning.answer.summary);noWrites(r);
+});
