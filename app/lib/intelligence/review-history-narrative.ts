@@ -106,7 +106,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
     if (parsed.status !== "completed" || !parsed.parsed?.approved || before !== signature(result)) return false;
     const retained = parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]);
     // A table needs its header and at least one supported data row.
-    if (parsePlainTable(draft.sentences.map(sentence => sentence.text).join("\n"))
+    if (parsePlainTable(proposedDraft.sentences.map(sentence => sentence.text).join("\n"))
       && !parsePlainTable(retained.map(sentence => sentence.text).join("\n"))) return false;
     // Broad candidate citations alone do not establish subject coverage. Require
     // an explicit name and a sentence citing only that pet, or append the
