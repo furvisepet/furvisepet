@@ -12,6 +12,12 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const p = { ...value as Record<string, unknown> };
   const initialOperation = p.operation;
+  // Complete only explicitly open-ended ranges. The strict validator still
+  // rejects invalid dates, reversed ranges and missing bounds on closed ranges.
+  if (p.operation !== "update") {
+    if (p.from !== null && p.to === null && /\b(?:since|onward|onwards|from .+ on)\b/i.test(context.currentMessage)) p.to = "2100-01-01";
+    if (p.from === null && p.to !== null && /\b(?:before|prior to|until)\b/i.test(context.currentMessage)) p.from = "1900-01-01";
+  }
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
   const named = explicitlyNamedOwnedPets(context.currentMessage, owned);
   if (p.operation !== "update" && Array.isArray(p.petNames) && p.petNames.length > 3 && named.length > 0 && named.length <= 3
@@ -20,6 +26,14 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     p.operation = reads.has(String(p.readOperation)) ? p.readOperation : "recall";
     p.readOperation = p.operation;
     p.frame = emptyProposedSemanticFrame();
+  }
+  // General suitability comparisons need no saved history. Do not convert a
+  // general read into historical lookup solely from the comparison verb.
+  if (p.subject === "non_pet" && Array.isArray(p.petNames) && !p.petNames.length
+    && p.readOperation === "general" && p.operation === "comparison"
+    && !/\b(?:recorded|saved|history|notes|earliest|latest)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p, { operation: "general", terms: [], from: null, to: null, episodeTopic: null, ordinal: null });
   }
   if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.operation !== "general") p.readOperation = p.operation;
   if (reads.has(String(p.operation)) && p.readOperation === "clarify" && named.length === 1 && p.ordinal === null) p.readOperation = p.operation;

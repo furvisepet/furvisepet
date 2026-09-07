@@ -17,6 +17,18 @@ function quantities(text: string): string[] {
  * Each sentence must draw its dates/quantities from its cited sources. This
  * prevents an approving model from manufacturing a date or dose. */
 export function historyNarrativeAnchorsSupported(text: string, sources: Source[]): boolean {
+  // A displayed quotation must be an exact substring of one source. Dates
+  // outside the quotation must identify that source, not a different citation.
+  for (const match of text.matchAll(/"([^"]+)"|“([^”]+)”/g)) {
+    const quote = match[1] ?? match[2];
+    const matching = sources.filter(source => source.text.includes(quote));
+    if (!matching.length) return false;
+    const attribution = dates(text.slice(0, match.index));
+    if (attribution.length && !matching.some(source => {
+      const recorded = dates(source.occurredAt?.slice(0, 10) || "");
+      return attribution.every(date => recorded.some(value => value === date || value.replace(/^\d{4}:/, "") === date));
+    })) return false;
+  }
   const sourceDates = sources.flatMap(source => {
     const explicit = dates(source.text);
     const timestamp = source.occurredAt?.slice(0, 10);

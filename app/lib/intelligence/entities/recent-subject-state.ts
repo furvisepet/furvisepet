@@ -69,7 +69,11 @@ export function buildRecentSubjectState(input: {
       }
       turnFocus = leading.entity;
     }
-    if (!turnFocus && explicitEntities.length === 1) {
+    // A question about the vet's recommendation does not switch the pet
+    // conversation to the vet. Explicit person subjects still resolve above.
+    if (!turnFocus && explicitEntities.length === 1
+      && (explicitEntities[0].kind !== "person"
+        || /^(?:what|how) about\b|\bfocus on\b/i.test(turn.text.trim()))) {
       turnFocus = explicitEntities[0];
       turnFocus.lastSubjectTurn = turnIndex;
       turnFocus.grammaticalRole = "subject";

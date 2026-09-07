@@ -1,0 +1,79 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {exercise,clock} from './helpers/lifetime-harness.mjs';
+import {fixturePets,rows} from './fixtures/ask-benchmark-200.mjs';
+import {historyNarrativeAnchorsSupported as anchors} from '../../app/lib/intelligence/history-narrative-facts.ts';
+import {normalizeHistoricalSearchTerms as terms} from '../../app/lib/intelligence/history-search-terms.ts';
+const {recoverAskInterpretation}=await import('../../app/lib/intelligence/interpret-ask.ts');
+import {buildRecentSubjectState} from '../../app/lib/intelligence/entities/recent-subject-state.ts';
+const emptyFrame={version:'proposed-semantic-frame.v1',mentions:[],references:[],claims:[],discourseActs:[]};
+const proposal={operation:'recall',readOperation:'recall',selection:'summary',subject:'explicit',petNames:['Nori'],topic:'food',terms:['food'],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyFrame};
+async function context(t) {clock(t);return (await exercise('Hello',{fixturePets,rows,petId:'nori',expectedProviderCalls:null})).context;}
+test('a quotation must be verbatim from its attributed source, never a splice',()=>{
+ const sources=[{text:'We moved the tray back. We changed both things together.',occurredAt:'2026-07-10T12:00:00Z'},{text:'She is using the tray normally.',occurredAt:'2026-07-17T12:00:00Z'}];
+ assert.equal(anchors('The July 10 note says: “We moved the tray back. She is using the tray normally.”',sources),false);
+ assert.equal(anchors('The July 10 note says: “She is using the tray normally.”',sources),false);
+ assert.equal(anchors('The July 10 note says: “We moved the tray back.”',sources),true);
+});
+test('literal search variants retrieve weighed and litter tray records',()=>{
+ assert.ok(terms(['weight']).some(term=>'weighed'.includes(term)));
+ assert.ok(terms(['litter box']).some(term=>'litter tray'.includes(term)));
+ assert.ok(terms(['medication']).some(term=>'medicine'.includes(term)));
+ assert.ok(terms(['weight','weighed','litter box','medication','stools','hiding']).length<=6);
+});
+test('open-ended history range is recoverable without dropping its start',async t=>{
+ const c=await context(t);const p=recoverAskInterpretation({...proposal,from:'2026-06-01'}, {...c,currentMessage:'Summarize Nori food changes from June onward.'});
+ assert.equal(p.history.from,'2026-06-01T00:00:00.000Z'); assert.equal(p.history.to,'2100-01-01T00:00:00.000Z');
+});
+test('account-wide question resolves all owned pets with a validated bounded plan',async t=>{
+ const c=await context(t); c.eligiblePets=c.eligiblePets.filter(p=>p.user_id===c.owner.userId).slice(0,3); const names=c.eligiblePets.map(p=>p.name);
+ const p=recoverAskInterpretation({...proposal,petNames:names}, {...c,currentMessage:'Compare the recorded weights across all my pets.'});
+ assert.equal(p.petIds.length,3);assert.equal(p.clarification,null);
+ assert.throws(()=>recoverAskInterpretation({...proposal,petNames:['ForeignPet']},{...c,currentMessage:'Compare all my pets.'}));
+});
+test('asking about the vet does not replace the pet as the conversation subject',()=>{
+ const state=buildRecentSubjectState({pets:fixturePets,selectedPetId:'nori',recentConversation:[{role:'user',text:'Let us focus on Juniper litter accidents.'},{role:'user',text:'What did the vet suggest?'}]});
+ assert.equal(state.entities.find(e=>e.key===state.currentFocusKey)?.petId,'juniper');
+});
+test('named conceptual question can stay conversational without reading or writing pet history',async t=>{
+ const c=await context(t); const p=recoverAskInterpretation({...proposal,operation:'general',readOperation:'general',subject:'non_pet',petNames:[],terms:[]},{...c,currentMessage:'Does a missing note prove Nori never had symptoms?'});
+ assert.equal(p.conversationOnly,true);assert.deepEqual(p.petIds,[]);assert.equal(p.readOnly,true);
+});
+test('dated recall discovers a relative correction and quotes it without applying a link',async t=>{
+ clock(t);
+ const r=await exercise('Did Nori really vomit on August 19?',{fixturePets,rows,petId:'nori',history:true,interpretationProposal:{...proposal,topic:'vomiting',terms:['vomit'],from:'2026-08-19',to:'2026-08-20'},expectedProviderCalls:null});
+ assert.ok(r.context.askHistory.coverage.reasons.includes('unlinked_correction_uncertain'));
+ assert.match(r.result.reasoning.answer.summary,/Taro/);
+ assert.match(r.result.reasoning.answer.summary,/link to the original report has not been verified/);
+ assert.deepEqual(r.result.acceptedCareActions,[]);
+});
+test('numeric message sequence remains chronological after nine messages',async t=>{
+ clock(t);const ownerId=fixturePets[0].user_id;
+ const messages=Array.from({length:12},(_,i)=>({id:'numeric-'+i,user_id:ownerId,conversation_id:'chat',role:'user',user_text:'Earlier question '+i,sequence_number:i+1,created_at:'2026-09-04T12:00:00Z'}));
+ const r=await exercise('Hello',{fixturePets,rows,petId:'nori',messages,expectedProviderCalls:null});
+ const numbers=r.context.conversationTurns.map(turn=>Number(turn.id.replace('numeric-','')));
+ assert.deepEqual(numbers,[...numbers].sort((a,b)=>a-b));
+ assert.equal(numbers.at(-1),11);
+});
+test('non-pet general comparison stays general; historical comparison retains its read',async t=>{
+ const c=await context(t);const common={...proposal,operation:'comparison',readOperation:'general',subject:'non_pet',petNames:[]};
+ const general=recoverAskInterpretation(common,{...c,currentMessage:'Can Juniper eat exactly the same food as Nori?'});
+ assert.equal(general.conversationOnly,true);assert.deepEqual(general.petIds,[]);
+ const historical=recoverAskInterpretation(common,{...c,currentMessage:'Compare Nori and Juniper recorded food history.'});
+ assert.notEqual(historical.conversationOnly,true);
+});
+test('ordinary full notes support a deterministic weight difference through the callback',async t=>{
+ clock(t);const petRows=rows.filter(row=>row.pet_profile_id==='nori' && /weighed/.test(row.note));
+ const r=await exercise('How much did Nori weight change between June 4 and September 3?',{fixturePets,rows:petRows.map(row=>({...row,title:'Note'})),petId:'nori',history:true,
+ interpretationProposal:{...proposal,operation:'comparison',readOperation:'comparison',selection:'comparison',topic:'weight',terms:['weight'],from:'2026-06-04',to:'2026-09-04'},expectedProviderCalls:null});
+ assert.match(r.result.reasoning.answer.summary,/0\.6 kg lower/);
+ assert.match(r.result.reasoning.answer.summary,/28\.4 kg/);
+ assert.deepEqual(r.result.acceptedCareActions,[]);
+});
+
+test('an unrelated correction cannot replace a dated food answer',async t=>{
+ clock(t);const r=await exercise('Summarize Nori food changes from June onward.',{fixturePets,rows,petId:'nori',history:true,
+ interpretationProposal:{...proposal,from:'2026-06-01',to:'2100-01-01'},expectedProviderCalls:null});
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/^The correction note/);
+ assert.match(r.result.reasoning.answer.summary,/food|treat/i);
+});

@@ -517,6 +517,15 @@ export function buildAskContext(input: BuildContextInput) {
       evidenceContract: evidence,
       olderUpdateSummary: updateSummary,
   });
+  // Budget selection preserves boundary coverage; presentation order should
+  // still be chronological. Do this only AFTER selection, without losing,
+  // compacting or substituting any represented record.
+  if (evidence.history && ["summary", "comparison"].includes(evidence.interpretation?.selection || "")) {
+    const history = promptContext.contextRecords.filter(record => record.sourceType === "care_update")
+      .sort((a, b) => (a.petId || "").localeCompare(b.petId || "") || timestamp(a) - timestamp(b) || a.id.localeCompare(b.id));
+    let index = 0;
+    promptContext.contextRecords = promptContext.contextRecords.map(record => record.sourceType === "care_update" ? history[index++] : record);
+  }
   return {
     records: promptContext.contextRecords,
     promptContext,

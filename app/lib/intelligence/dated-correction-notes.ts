@@ -32,7 +32,10 @@ export async function discoverDatedCorrectionNotes(originals: CareEntryRow[], pe
         const text = `${row.title || ""} ${row.note}`;
         // An explicit matching year is a locator only. A different topic/month
         // can still be unrelated; retain qualification instead of claiming a link.
-        if (!ids.has(row.id) && new RegExp(`\\b${year}\\b`).test(text)
+        const previousDay = new Date(Date.parse(row.occurred_at) - 86400000).toISOString().slice(0, 10);
+        const refersToPreviousDay = /\byesterday(?:['’]s)?\b/i.test(text)
+          && originals.some(original => original.pet_profile_id === petId && original.occurred_at.slice(0, 10) === previousDay);
+        if (!ids.has(row.id) && (new RegExp(`\\b${year}\\b`).test(text) || refersToPreviousDay)
           && /\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(text)) {
           ids.add(row.id); notes.push(row);
         }
