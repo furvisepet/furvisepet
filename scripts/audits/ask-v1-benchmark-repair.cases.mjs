@@ -165,6 +165,8 @@ test('support wording for another persons loss is not a pet lifecycle report',as
  const {classifyCurrentPetLoss,resolveProviderIndependentLossSubject}=await import('../../app/lib/ai/pet-loss.ts');
  const message='What could I say to a friend whose dog died?';
  assert.equal(classifyCurrentPetLoss(message),'none');
+ assert.equal(classifyCurrentPetLoss('Please write a comforting message to a colleague whose cat passed away.'),'none');
+ assert.equal(classifyCurrentPetLoss('How can I support someone whose dog died'),'none');
  assert.equal(resolveProviderIndependentLossSubject({message,pets:fixturePets,selectedPetId:'nori'}),null);
  assert.equal(classifyCurrentPetLoss('My dog died today.'),'confirmed_current');
  assert.equal(classifyCurrentPetLoss(message+' Nori died today.'),'confirmed_current');
