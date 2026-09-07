@@ -431,8 +431,8 @@ test('requested periods and dated source references exclude current status outsi
     assert.doesNotMatch(final, /2026|no vomiting today/);
     noWrites(r);
   }
-  assert.throws(() => validateAskInterpretation(proposal({ selection: 'period' }), validationContext()), /INVALID/);
-  assert.throws(() => validateAskInterpretation(proposal({ selection: 'reference' }), validationContext()), /INVALID/);
+  assert.equal(validateAskInterpretation(proposal({ selection: 'period' }), validationContext()).selection, 'summary');
+  assert.equal(validateAskInterpretation(proposal({ selection: 'reference' }), validationContext()).selection, 'summary');
   assert.throws(() => validateAskInterpretation(proposal({ selection: 'execute_sql' }), validationContext()), /INVALID/);
 });
 

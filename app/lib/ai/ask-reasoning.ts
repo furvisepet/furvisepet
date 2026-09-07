@@ -620,6 +620,15 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     }
   }
 
+  // A server-classified recall cannot authorize recovery. Neutralize this
+  // metadata before considering a paid repair; downstream write and answer
+  // validation still run independently. Mixed observations are not read-only.
+  if (context.promptContext.evidenceContract.scope.readOnlyRecall) {
+    parsed.messageUnderstanding = { ...parsed.messageUnderstanding,
+      userIsResolvingConcern: false, recoveryStatus: "none", recoveryConfidence: 1,
+      recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
+  }
+
   if (hasUnsupportedTerminalRecovery(parsed)) {
     if (retryUsed) {
       throw new AskPipelineError("fallback_invalid_output", "Ask provider returned unsupported terminal recovery.", {

@@ -127,8 +127,13 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
   if (!ambiguousPronoun && p.subject !== "unclear" && p.subject !== "non_pet" && proposed.length && (proposed.length !== petIds.length || proposed.some(id => !petIds.includes(id)))) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
   if (petIds.length > ASK_INTERPRETATION_LIMITS.pets) return invalid();
   const clarification = !petIds.length ? "subject" : readOperation === "clarify" ? "reference" : null;
-  const selection = (p.selection ?? (p.from ? "period" : readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : readOperation === "episode" ? "reference" : "summary")) as typeof selections[number];
-  if (selection === "period" && !p.from || selection === "reference" && !p.from && readOperation !== "episode") return invalid("ASK_INTERPRETATION_SELECTION", "semantic");
+  let selection = (p.selection ?? (p.from ? "period" : readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : readOperation === "episode" ? "reference" : "summary")) as typeof selections[number];
+  // Selection is a model-proposed read strategy, not source identity. A missing
+  // range cannot authorize a particular note, but need not fail an otherwise
+  // validated lookup. Retain all ownership/date/ordinal checks and read budgets.
+  if (!p.from && (selection === "period" || selection === "reference" && readOperation !== "episode")) {
+    selection = readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : "summary";
+  }
   const historical = !!readOperation && ["overview", "recall", "comparison", "status", "count"].includes(readOperation);
   const terms = [...new Set(p.terms as string[])];
   return { version: "ask-interpretation.v1", operation, readOperation, selection, petIds, topic: p.topic, readOnly: !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
