@@ -1,4 +1,6 @@
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
+import { getAiFeaturePolicy } from "./usage-guard/features.ts";
+import { estimateInputTokens } from "./usage-guard/cost-estimator.ts";
 import { historyNarrativeSchema, parseHistoryNarrative, type HistoryNarrative } from "../intelligence/history-narrative.ts";
 import OpenAI from "openai";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
@@ -537,12 +539,20 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
   const contextRecords = [...promptContext.contextRecords];
   const budgeted = { ...promptContext, contextRecords };
   representEvidence(budgeted.evidenceContract, contextRecords);
-  while (contextRecords.length && JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) {
+  const policy = getAiFeaturePolicy("ask");
+  const exceedsBudget = () => {
+    const request = buildAskProviderRequest(budgeted);
+    const admitted = { input: request.input, instructions: request.instructions };
+    return JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET
+      || estimateInputTokens(admitted) > policy.maxInputTokens - 256
+      || JSON.stringify(admitted).length > policy.maxInputCharacters - 768;
+  };
+  while (contextRecords.length && exceedsBudget()) {
     const removed = contextRecords.pop()!;
     budgeted.evidenceContract.losses.push({ sourceId: removed.id, reason: "prompt_budget" });
     representEvidence(budgeted.evidenceContract, contextRecords);
   }
-  if (JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET) throw new Error("ASK_EVIDENCE_SCOPE_EXCEEDS_BUDGET");
+  if (exceedsBudget()) throw new Error("ASK_EVIDENCE_SCOPE_EXCEEDS_BUDGET");
   return budgeted;
 }
 
@@ -1063,10 +1073,28 @@ export function areAskResponsesMateriallyIdentical(left: string, right: string) 
 }
 
 export function buildAskProviderRequest(promptContext: object) {
+  const context = promptContext as { evidenceContract?: AskEvidenceContract };
+  const evidence = context.evidenceContract;
+  let transported = promptContext;
+  if (evidence?.history && JSON.stringify(promptContext).length > 32_000) {
+    // Retain full authority and candidate identities on the server. The model
+    // only needs IDs for represented evidence plus complete coverage/counts.
+    const represented = new Set(evidence.represented.map(span => span.sourceId));
+    transported = { ...promptContext, evidenceContract: { ...evidence,
+      sources: evidence.sources.map(source => ({ ...source, loadedIds: source.loadedIds.filter(id => represented.has(id)) })),
+      history: { ...evidence.history, candidateCount: evidence.history.candidateIds.length,
+        provenance: evidence.history.provenance.filter(source => represented.has(source.sourceId)),
+        provenanceStatusCounts: evidence.history.provenance.reduce<Record<string, number>>((counts, source) => {
+          counts[source.status] = (counts[source.status] || 0) + 1; return counts;
+        }, {}),
+        candidateIds: evidence.history.candidateIds.filter(id => represented.has("care:" + id) || represented.has(id)),
+        identityListsScope: "represented_only_full_lists_retained_by_server" },
+    } };
+  }
   return {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
     instructions: unifiedInstructions,
-    input: JSON.stringify(promptContext),
+    input: JSON.stringify(transported),
     text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: askUnifiedJsonSchema } },
   };
 }

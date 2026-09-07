@@ -124,3 +124,21 @@ test('repeated factual follow-up survives economy and still receives source revi
  assert.match(r.result.reasoning.answer.summary,/July 10/);
  assert.match(JSON.parse(r.reviewRequests[0].input).draft.sentences[0].text,/food transition/);
 });
+
+test('account-wide phrasing resolves authenticated pets without asking for names',async t=>{
+ const c=await context(t);c.eligiblePets=c.eligiblePets.filter(p=>p.user_id===c.owner.userId).slice(0,3);
+ for(const currentMessage of ['Which pets have weight entries?','What are the uncertainties in these three pets histories?','Summarize each pet.']){
+  const p=recoverAskInterpretation({...proposal,petNames:c.eligiblePets.map(p=>p.name)},{...c,currentMessage});
+  assert.equal(p.petIds.length,3);assert.equal(p.clarification,null);
+ }
+});
+test('multi-pet request fits the actual admission payload including instructions',async t=>{
+ clock(t);const {estimateInputTokens}=await import('../../app/lib/ai/usage-guard/cost-estimator.ts');
+ const {buildAskProviderRequest}=await import('../../app/lib/ai/ask-reasoning.ts');
+ const dense=rows.filter(row=>['nori','pip'].includes(row.pet_profile_id)).map(row=>({...row,note:row.note+' '+('A routine observation was recorded for this date. '.repeat(10))}));
+ const r=await exercise('Compare Nori and Pip recorded history.',{fixturePets,rows:dense,petId:'nori',authoritativePetIds:['nori','pip'],history:true,
+ interpretationProposal:{...proposal,operation:'comparison',readOperation:'comparison',selection:'comparison',petNames:['Nori','Pip'],terms:[]},expectedProviderCalls:null});
+ const request=buildAskProviderRequest(r.prompt);const admitted={input:request.input,instructions:request.instructions};
+ assert.ok(estimateInputTokens(admitted)<=20000);assert.ok(JSON.stringify(admitted).length<=80000);
+ assert.ok(r.prompt.contextRecords.some(record=>record.petId==='nori'));assert.ok(r.prompt.contextRecords.some(record=>record.petId==='pip'));
+});

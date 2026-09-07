@@ -1,5 +1,5 @@
-import { ASK_MAX_OUTPUT_TOKENS } from "../ask-provider";
-import { OPENAI_OUTPUT_LIMITS } from "../config";
+import { ASK_MAX_OUTPUT_TOKENS } from "../ask-provider.ts";
+import { OPENAI_OUTPUT_LIMITS } from "../config.ts";
 import type { AiFeaturePolicy, AiGuardFeature } from "./types";
 
 export const AI_FEATURE_POLICIES: Record<AiGuardFeature, AiFeaturePolicy> = {
