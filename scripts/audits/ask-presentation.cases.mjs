@@ -122,3 +122,13 @@ test('serialization and reload preserve ordinary and historical list layouts wit
  assert.doesNotMatch(removed.directAnswer,/action below/);
  assert.match(removed.directAnswer,/cause remains uncertain/i);
 });
+
+test('table facts survive conversation serialization and reload', async () => {
+ const {buildAskConversationResponse,parseAskConversationResponse}=await import('../../app/lib/ask.mjs');
+ const summary='| Date | Weight |\n| --- | --- |\n| 2025-03-02 | 11.4 kg |\n\nOnly these records were checked.';
+ const stored=buildAskConversationResponse({title:'Furvise',summary,sections:[],safetyNote:null});
+ assert.equal(parseAskConversationResponse(JSON.parse(JSON.stringify(stored))).directAnswer,summary);
+ const {parsePlainTable}=await import('../../app/lib/plain-table.ts');
+ assert.deepEqual(parsePlainTable(summary.split('\n\n')[0]),{headers:['Date','Weight'],rows:[['2025-03-02','11.4 kg']]});
+ for(const invalid of ['| Date | Weight |\n| --- | --- |','| A | B |\n| --- | --- |\n| x |','not a table']) assert.equal(parsePlainTable(invalid),null);
+});

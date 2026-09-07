@@ -221,3 +221,26 @@ test('unused lookup bounds cannot fail a pure update and never become retrieval 
   assert.equal(r.result.reasoning.responseMode,'grief_support');
   assert.match(r.result.reasoning.answer.summary,/sorry/);
 });
+
+// Synthetic table regression: presentation must retain approved measurements.
+test('reviewed weight table retains its rows after final sanitation', async t => {
+  clock(t);
+  const weights = [care('weight-a','milo','2025-01-03','weight','Milo weighed 12.5 kg.'),care('weight-b','milo','2025-02-04','weight','Milo weighed 12.1 kg.')];
+  const table = '| Date | Weight |\n| --- | --- |\n| 2025-01-03 | 12.5 kg |\n| 2025-02-04 | 12.1 kg |';
+  const r = await exercise('Show Milo recorded weights in a table with date and weight.',{history:true,rows:weights,messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',topic:'weight',terms:['weigh']},providerOverrides:{historyNarrative:{sentences:table.split('\n').map(text=>({text,sourceIds:['care:weight-a','care:weight-b']}))}},reviewResponse:{approved:true},expectedReviewCalls:1});
+  assert.ok(r.result.reasoning.answer.summary.includes(table), r.result.reasoning.answer.summary);
+  noWrites(r);
+});
+
+test('multiline table is reviewed and header-only approval falls back to sourced facts', async t => {
+  clock(t);
+  const weights=[care('table-weight','milo','2025-03-02','weight','Milo weighed 11.4 kg.')];
+  const table='| Date | Weight |\n| --- | --- |\n| 2025-03-02 | 11.4 kg |';
+  const options={history:true,rows:weights,messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',topic:'weight',terms:['weigh']},reviewResponse:{approved:true},expectedReviewCalls:1};
+  const complete=await exercise('Show Milo recorded weight in a table.',{...options,providerOverrides:{historyNarrative:{sentences:[{text:table,sourceIds:['care:table-weight']}]}}});
+  assert.ok(complete.result.reasoning.answer.summary.includes(table)); noWrites(complete);
+  const partial=await exercise('Show Milo recorded weight in a table.',{...options,providerOverrides:{historyNarrative:{sentences:table.split('\n').map(text=>({text,sourceIds:['care:table-weight']}))}},reviewResponse:{approved:true,retainedSentenceIndexes:[0,1]}});
+  assert.match(partial.result.reasoning.answer.summary,/11\.4 kg/); noWrites(partial);
+  const rejected=await exercise('Show Milo recorded weight in a table.',{...options,providerOverrides:{historyNarrative:{sentences:[{text:table.replace('11.4','99.9'),sourceIds:['care:table-weight']}]}},expectedReviewCalls:0});
+  assert.doesNotMatch(rejected.result.reasoning.answer.summary,/99\.9/); assert.match(rejected.result.reasoning.answer.summary,/11\.4 kg/); noWrites(rejected);
+});

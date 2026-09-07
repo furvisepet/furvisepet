@@ -1,3 +1,4 @@
+import { parsePlainTable } from "../plain-table.ts";
 import { weightComparisonAnswer } from "./weight-comparison.ts";
 import { correctionReportAnswer } from "./correction-report.ts";
 import { presentReviewedHistory, stripHistoryBullet } from "./history-presentation.ts";
@@ -104,6 +105,9 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
       providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REVIEW_INVALID" });
     if (parsed.status !== "completed" || !parsed.parsed?.approved || before !== signature(result)) return false;
     const retained = parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]);
+    // A table needs its header and at least one supported data row.
+    if (parsePlainTable(proposedDraft.sentences.map(sentence => sentence.text).join("\n"))
+      && !parsePlainTable(retained.map(sentence => sentence.text).join("\n"))) return false;
     // Broad candidate citations alone do not establish subject coverage. Require
     // an explicit name and a sentence citing only that pet, or append the
     // existing server-grounded extract/limitation. Never approve new model prose.
