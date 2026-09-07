@@ -73,7 +73,7 @@ test('ordinary full notes support a deterministic weight difference through the 
 
 test('an unrelated correction cannot replace a dated food answer',async t=>{
  clock(t);const r=await exercise('Summarize Nori food changes from June onward.',{fixturePets,rows,petId:'nori',history:true,
- interpretationProposal:{...proposal,from:'2026-06-01',to:'2100-01-01'},expectedProviderCalls:null});
+ interpretationProposal:{...proposal,terms:['food','treat','vomit'],from:'2026-06-01',to:'2100-01-01'},expectedProviderCalls:null});
  assert.doesNotMatch(r.result.reasoning.answer.summary,/^The correction note/);
  assert.match(r.result.reasoning.answer.summary,/food|treat/i);
 });
