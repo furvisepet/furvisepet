@@ -39,9 +39,9 @@ const { rebuildSemanticProjectionsV2 } = await import('../../../app/lib/intellig
 const { classifyFurviseCapabilityQuestion } = await import('../../../app/lib/ai/ask-internal-product-policy.ts');
 const { createAskEvidenceContract, evidenceScopeKey } = await import('../../../app/lib/intelligence/ask-evidence.ts');
 
-function database(rows, { fixturePets = pets, messages = [], failCare = false, careEpisodes = [], graph = {}, failGraph = false, failHistoryPage = 0, historyPageCap = Infinity, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+function database(rows, { fixturePets = pets, conversationPetId, messages = [], failCare = false, careEpisodes = [], graph = {}, failGraph = false, failHistoryPage = 0, historyPageCap = Infinity, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const queries = [];
-  const tables = { dog_profiles: fixturePets, pet_care_entries: rows, ask_conversations: conversations, ask_conversation_messages: messages, pet_care_episodes: careEpisodes };
+  const tables = { dog_profiles: fixturePets, pet_care_entries: rows, ask_conversations: conversationPetId ? conversations.map(c=>({...c,pet_profile_id:conversationPetId})) : conversations, ask_conversation_messages: messages, pet_care_episodes: careEpisodes };
   let historyPages = 0;
   let graphCalls = 0;
   return { queries, rpc(name, args) {
@@ -153,10 +153,10 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { fixturePets = pets, onProviderEvent, onStage, petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
-  const supabase = database(rows, { fixturePets, messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
+async function exercise(question, { fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+  const supabase = database(rows, { fixturePets, conversationPetId, messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
-    conversationPetId: messages ? 'milo' : null, currentMessage: question, dateRange });
+    conversationPetId: messages ? conversationPetId : null, currentMessage: question, dateRange });
   prepareContext?.(context);
   const interpretationRequests = [];
   if (interpretationProposal) {
@@ -170,7 +170,7 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
       if (interpretation.conversationOnly) assert.ok(subject.petId && !subject.requiresClarification && !subject.petIds.length);
       authoritativePetIds = subject.petIds;
       if (interpretation.petIds[0] && interpretation.petIds[0] !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
-        petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? 'milo' : null, currentMessage: question });
+        petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? conversationPetId : null, currentMessage: question });
     }
     if (!interpretation.readOnly) {
       const decision = await resolveAskTurnSubject({ message: question, pets: context.eligiblePets, ownerId,
@@ -209,7 +209,7 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
   }
   if (expectedProviderCalls !== null) assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
   if (expectedReviewCalls !== null) assert.equal(reviewRequests.length, expectedReviewCalls, 'bounded history-review call count');
-  return { reviewRequests, context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries, interpretationRequests };
+  return { reviewRequests, context, result, prompt: requests[0] ? JSON.parse(requests[0].input) : null, serialized: requests[0]?.input || '', queries: supabase.queries, interpretationRequests };
 }
 const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
 const clock = t => {

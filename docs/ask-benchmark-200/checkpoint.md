@@ -1,0 +1,3 @@
+Benchmark preparation. Base7092b74; branch codex/ask-benchmark-200; lock44456/editor51608. No overlapping code writer. Questions and expectations frozen before provider calls; no application edits. Next preflight tests, dataset commit and serial live execution. Shared old budget preserved.
+
+Setup attempt produced200 CONVERSATION_NOT_FOUND before any provider call (budgetcalls0), due synthetic conversation belonging to old Milo. Preserved under setup-failure, excluded from benchmark. Corrected harness conversation fixture ownership consistently; app code unchanged. First staged diff check caught EOF whitespace and no commit occurred. Editor28056 replaces51608; lock44456 remains.
