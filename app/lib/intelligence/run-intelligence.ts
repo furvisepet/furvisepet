@@ -1,3 +1,4 @@
+import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
 import "server-only";
 
 import type { AskProviderEvent, AskReasoningResult } from "../ai/ask-reasoning";
@@ -70,6 +71,7 @@ export async function runFurviseIntelligence({
     evidenceContract: evidenceContract || createAskEvidenceContract(context, authoritativePetIds),
     careEntries: context.askHistory?.entries || context.selectedCareEntries,
     concerns: context.activeConcerns,
+    dialogueContext: context.askHistory ? context.conversationTurns.filter(turn => turn.id !== sourceMessageId).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt })) : undefined,
     conversationTurns: context.askHistory ? [] : context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
       id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt, applicationActions: turn.applicationActions,
     })),
@@ -282,6 +284,7 @@ export async function runFurviseIntelligence({
   ]);
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
+  await reviewHistoricalAnswer({ result: reasoning, onProviderEvent });
   const answerValidation = validateGeneratedAnswer(
     reasoning,
     context,

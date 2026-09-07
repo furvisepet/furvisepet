@@ -1,0 +1,475 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "question": "Summarize Milo stomach history.",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "overview",
+        "readOperation": "overview",
+        "selection": "summary",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "stomach history",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "stomach",
+            "vomit",
+            "threw up",
+            "thrown up",
+            "stool",
+            "diarrhea"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "His stomach history in the available notes shows a brief soft-stool episode in June and another single soft stool in August, with normal stools documented again afterward. The June note says he had two soft stools but was still eating and playing normally, and a later June update says the soft stools seemed to have ended. The August 8 note says he had one soft stool after staying with your sister, with possible table scraps mentioned but nothing directly observed, and the August 10 and September 3 notes say his stools were normal again. A later correction could not be linked to its original report. I can summarize what the saved notes say, but cannot confirm which reports the correction changes or whether they still apply to this pet.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Milo’s stomach history in the available notes shows a brief soft-stool episode in June and another single soft stool in August, with normal stools documented again afterward.",
+            "sourceIds": [
+              "care:m-jun15",
+              "care:m-jun20",
+              "care:m-aug8",
+              "care:m-aug10",
+              "care:m-sep3"
+            ]
+          },
+          {
+            "text": "The June note says he had two soft stools but was still eating and playing normally, and a later June update says the soft stools seemed to have ended.",
+            "sourceIds": [
+              "care:m-jun15",
+              "care:m-jun20"
+            ]
+          },
+          {
+            "text": "The August 8 note says he had one soft stool after staying with your sister, with possible table scraps mentioned but nothing directly observed, and the August 10 and September 3 notes say his stools were normal again.",
+            "sourceIds": [
+              "care:m-aug8",
+              "care:m-aug10",
+              "care:m-sep3"
+            ]
+          },
+          {
+            "text": "A vomiting report was corrected to Bruno, not Milo, so it should not be treated as Milo stomach history.",
+            "sourceIds": [
+              "care:m-correction"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 20573,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "soft stools and chicken causation",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": "soft stool",
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "soft stool",
+            "chicken",
+            "food reaction",
+            "diet",
+            "stool",
+            "diarrhea"
+          ],
+          "from": "2026-06-01T00:00:00.000Z",
+          "to": "2026-09-01T00:00:00.000Z",
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The records do not show that chicken definitely caused either soft-stool episode. In June, new chicken training treats were started on June 12, and Milo had two soft stools on June 15, but the note says the owner did not know whether the treats were involved. The new chicken training treats were stopped on June 16, and by June 20 the soft stools seemed to have ended. In August, he had one soft stool after staying with the sister for the weekend, and the note says he may have eaten some table scraps, but nobody saw exactly what he ate. By August 10, Milo stools were normal again and there had been no more soft stools since August 8. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "The records do not show that chicken definitely caused either soft-stool episode.",
+            "sourceIds": [
+              "care:m-jun15",
+              "care:m-aug8"
+            ]
+          },
+          {
+            "text": "In June, new chicken training treats were started on June 12, and Milo had two soft stools on June 15, but the note says the owner did not know whether the treats were involved.",
+            "sourceIds": [
+              "care:m-jun12",
+              "care:m-jun15"
+            ]
+          },
+          {
+            "text": "The new chicken training treats were stopped on June 16, and by June 20 the soft stools seemed to have ended.",
+            "sourceIds": [
+              "care:m-jun16",
+              "care:m-jun20"
+            ]
+          },
+          {
+            "text": "In August, Milo had one soft stool after staying with the sister for the weekend, and the note says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+            "sourceIds": [
+              "care:m-aug8"
+            ]
+          },
+          {
+            "text": "By August 10, Milo stools were normal again and there had been no more soft stools since August 8.",
+            "sourceIds": [
+              "care:m-aug10"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 19236,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "What about Luna accidents?",
+      "petId": "luna",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "summary",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "accidents",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "accident",
+            "house soiling",
+            "litter box",
+            "urination",
+            "defecation"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Luna had two accidents that led to a vet visit on July 9, and the vet asked you to restore her previous litter arrangement and monitor her. A later note says she had no more accidents since July 10 and was using the tray normally. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Luna had two accidents that led to a vet visit on July 9, and the vet asked you to restore her previous litter arrangement and monitor her.",
+            "sourceIds": [
+              "care:l-jul9"
+            ]
+          },
+          {
+            "text": "A later note says she had no more accidents since July 10 and was using the tray normally.",
+            "sourceIds": [
+              "care:l-jul17"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 13858,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "And her hiding, is that resolved too?",
+      "petId": "luna",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "latest",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "hiding",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "hid",
+            "hidden",
+            "hiding behavior",
+            "withdraw",
+            "withdrawal"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "No, Luna’s hiding was not fully resolved by the latest note, because on 2026-09-02 she still hid during loud drilling. [care:l-sep2] The August note says it had improved, since she was coming out more often, but it had not completely stopped. [care:l-aug22] There was a point on 2026-06-21 when she was not continuing to hide after the plumber left, but that earlier improvement did not hold once the later noise started again. [care:l-jun21",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "No, Luna’s hiding was not fully resolved by the latest note, because on 2026-09-02 she still hid during loud drilling. [care:l-sep2]",
+            "sourceIds": [
+              "care:l-sep2"
+            ]
+          },
+          {
+            "text": "The August note says it had improved, since she was coming out more often, but it had not completely stopped. [care:l-aug22]",
+            "sourceIds": [
+              "care:l-aug22"
+            ]
+          },
+          {
+            "text": "There was a point on 2026-06-21 when she was not continuing to hide after the plumber left, but that earlier improvement did not hold once the later noise started again. [care:l-jun21",
+            "sourceIds": [
+              "care:l-jun21",
+              "care:l-aug15"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 14981,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Now Oscar, was his stiffness continuous?",
+      "petId": "oscar",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "latest",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "stiffness",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "stiffness",
+            "stif",
+            "limp",
+            "rigid"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "No, his stiffness does not look continuous in the notes; it appears to have improved in July, then returned in August and was still being mentioned in September.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "No, Oscar’s stiffness does not look continuous in the notes; it appears to have improved in July, then returned in August and was still being mentioned in September.",
+            "sourceIds": [
+              "care:o-jun17",
+              "care:o-jul1",
+              "care:o-aug12",
+              "care:o-aug27",
+              "care:o-sep13",
+              "care:o-sep14"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 12095,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Is he still taking that medication?",
+      "petId": "oscar",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "latest",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "medication",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "medication",
+            "medicin",
+            "drug",
+            "prescription"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The latest matching update I could check for Oscar is dated 2026-08-27. Oscar's 2026-08-27 report: \"We had a follow-up vet visit for Oscar recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.\" Oscar's 2026-06-24 report: \"Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.\" Oscar's 2026-06-17 report: \"The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.\"\n\nThese are dated updates; I can't establish the current situation beyond what they report.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Oscar’s notes show he was given a seven-day medication course for the stiffness on June 17, and he finished that course on June 24.",
+            "sourceIds": [
+              "care:o-jun17",
+              "care:o-jun24"
+            ]
+          },
+          {
+            "text": "So based on the recorded notes, he was not still taking that medication after June 24.",
+            "sourceIds": [
+              "care:o-jun24"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 13311,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "What diagnosis did the vet give him?",
+      "petId": "oscar",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "latest",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "diagnosis",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "diagnosis",
+            "vet diagnosis",
+            "condition",
+            "illness"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The latest matching update I could check for Oscar is dated 2026-08-27. Oscar's 2026-08-27 report: \"We had a follow-up vet visit for Oscar recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.\"\n\nThis covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 12434,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "How can I make Milo vet visit less stressful?",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "vet visit",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "The biggest things are to make the trip feel predictable and to keep the visit as low-pressure as possible. Let him sniff the carrier or car area ahead of time, use a familiar blanket, and bring a few small treats if the clinic allows feeding. On the day, keep your own tone calm and brief, because dogs often pick up on that fast. It also helps to reduce the waiting-room stress. Ask the clinic if you can wait in the car and be called in, or if they can schedule him at a quieter time. For handling, tell the staff ahead of time what helps him relax and what makes him tense, so they can go slower and avoid surprises. If he gets very anxious, it’s worth asking the vet before the visit whether they recommend any pre-visit calming plan or medication.",
+      "sections": [
+        {
+          "heading": "Before the visit",
+          "items": [
+            "Do a few short practice trips with no exam so he learns that car rides can end normally.",
+            "Keep the routine simple that morning, with normal food unless the clinic told you otherwise.",
+            "Pack his leash, a familiar blanket, and any comfort item he already likes."
+          ]
+        }
+      ],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 13410,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "errorClass": "AskPipelineError",
+      "code": "ASK_INTERPRETATION_DATES",
+      "elapsedMs": 8313,
+      "providerCalls": 1
+    }
+  ]
+}

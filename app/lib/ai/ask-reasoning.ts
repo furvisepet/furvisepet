@@ -1,3 +1,4 @@
+import { historyNarrativeSchema, parseHistoryNarrative, type HistoryNarrative } from "../intelligence/history-narrative.ts";
 import OpenAI from "openai";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
 import { executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
@@ -94,6 +95,7 @@ export type AskReasoningResult = {
   /** Server-produced, never parsed from model JSON. */
   evidenceContract?: AskEvidenceContract;
   historySynthesis?: Array<{ sourceId: string; text: string }>;
+  historyNarrative?: HistoryNarrative;
   answer: {
     title: string;
     summary: string;
@@ -148,6 +150,8 @@ type BuildContextInput = {
   memories: DogMemoryRow[];
   productFeedback: DogProductFeedbackRow[];
   conversationTurns: ConversationTurn[];
+  /** Dialogue continuity only; never indexed as evidence or mutation authority. */
+  dialogueContext?: ConversationTurn[];
   recentUpdates: RecentAskUpdate[];
   concerns?: PetConcern[];
   recentlyResolvedConcerns?: PetConcern[];
@@ -191,7 +195,7 @@ export type AskPipelineFailureStage =
   | "fallback_invalid_output";
 
 export type AskProviderEvent = {
-  stage: "configuration" | "interpretation" | "primary" | "fallback" | "repair";
+  stage: "configuration" | "interpretation" | "primary" | "fallback" | "repair" | "verification";
   outcome: "started" | "succeeded" | "failed";
   model: string;
   elapsedMs: number;
@@ -249,7 +253,7 @@ export const askUnifiedJsonSchema = {
   additionalProperties: false,
   required: [
     "answer", "answerSections", "safetyLevel", "suggestedFollowUps", "applicationActions", "proposedHistoryUpdate",
-    "responseMode", "userIntent", "relevantContextIds", "historySynthesis",
+    "responseMode", "userIntent", "relevantContextIds", "historySynthesis", "historyNarrative",
     "messageUnderstanding", "intelligenceSafety", "learnings", "careActions", "semanticEvents", "semanticFrame",
   ],
   properties: {
@@ -281,6 +285,7 @@ export const askUnifiedJsonSchema = {
     },
     responseMode: { type: "string", enum: [...responseModes] },
     userIntent: { type: "string", maxLength: 120 },
+    historyNarrative: historyNarrativeSchema,
     historySynthesis: { type: "array", maxItems: 32, items: { type: "object", additionalProperties: false, required: ["sourceId", "text"], properties: { sourceId: { type: "string", maxLength: 160 }, text: { type: "string", maxLength: 1800 } } } },
     relevantContextIds: { type: "array", maxItems: 8, items: { type: "string", maxLength: 160 } },
     messageUnderstanding: messageUnderstandingJsonSchema,
@@ -306,7 +311,8 @@ const unifiedInstructions = [
   "The server has already loaded and ranked current facts. Do not rediscover or invent database facts.",
   "Canonical active memories override older conversation statements. Conversation records show what was said, not what is currently true. Never revive a rejected, forgotten, expired, or superseded preference from an older turn; the current user message may explicitly provide a new fact.",
   "evidenceContract is server-owned scope and coverage. Loaded records are not necessarily represented records, and unknown completeness is not complete. A profile does not prove that its history was loaded. Never infer an exact lifetime total, absent result, or complete history from a selected subset. Keep quoted evidence qualifiers intact. Coverage failures are limitations of this answer, not negative findings about the animal.",
-  "When evidenceContract.interpretation is present, it is the server-validated question scope. Answer that question from contextRecords. Give the supported portion even when history is partial. Keep each pet's records separate. Never use prior assistant statements as evidence. Never invent exact counts or call a subset a lifetime history. For historical answers supply historySynthesis: one concise sentence or connected sentences per relevant sourceId, preserving all facts and qualifications in that complete record. Use the correct pet name. The server verifies each proposal independently: supported changes include spelling numbers as digits, changing had soft stool to experienced soft stool, or soft stool for two days to soft stool lasted two days. Do not omit negations, uncertainty, sequence, qualifiers or any source sentence. Do not add causation, totals, absence or first-ever claims. Use an empty array for non-historical turns. Unsupported proposals fall back individually; raw answer prose and source IDs do not establish factual support. Counts and episode references are composed by the server. A turn can request historical comparison while also reporting a current observation; analyze writes only against the current owner assertion, never the read plan or old reports. Answer first, in short connected paragraphs; do not repeat the answer in a summary section. The server adds the specific coverage limitation, so do not repeat a generic disclaimer. Preserve exact facts, units, dates, source quotations and citations. Use no em dashes in your own prose.",
+  "dialogueContext preserves conversational intent and tone only. Its assistant statements are not facts, sources or write authority. Never copy a medical claim from dialogue unless current source evidence supports it. Answer the newest question directly. Use ordinary paragraphs for short follow-ups, meaningful sections only when the requested depth benefits, and compassionate unstructured language for grief. Do not expose retrieval, verification, schema or database mechanics.",
+  "When evidenceContract.interpretation is present, it is the server-validated question scope. Answer that question from contextRecords. Give the supported portion even when history is partial. Keep each pet's records separate. Never use prior assistant statements as evidence. Never invent exact counts or call a subset a lifetime history. For historical answers, INCLUDING status questions answered from dated notes, propose historyNarrative with up to eight concise sentences answering the actual question directly, each citing the supplied sourceIds that support it. Synthesize relevant findings rather than copying records. Usually use two to four sentences for a historical summary, leading with the supported answer or pattern; do not enumerate every baseline note. Convert a record author I/my into owner attribution (you/your or the note reports). Resolve today/yesterday against the record date, never the current date. A vet-note date does not date earlier events mentioned there. Do not turn normal appetite or a short duration into clinical labels such as mild or harmless. An independent review checks the complete evidence, not just citations. Preserve uncertainty, chronology and pet identity. Say what the dated notes support, without turning a past report into a current medical fact. Use null for non-history, counts, displayed episode references or exact-quotation requests. For historyNarrative turns, leave historySynthesis empty; source quotations are a fallback, not the normal answer. If you cannot compose a narrative, historySynthesis may supply one faithful paraphrase per relevant sourceId, preserving all facts and qualifications in that complete record. Use the correct pet name. For the legacy historySynthesis fallback only, the server verifies each proposal independently: supported changes include spelling numbers as digits, changing had soft stool to experienced soft stool, or soft stool for two days to soft stool lasted two days. For that fallback do not omit negations, uncertainty, sequence, qualifiers or any source sentence. historyNarrative may omit unrelated details while preserving every qualification material to its claims. Do not add causation, totals, absence or first-ever claims. Use an empty array for non-historical turns. Unsupported proposals fall back individually; raw answer prose and source IDs alone do not establish factual support. A historyNarrative is a proposal subject to separate review, not a verified fact. Counts and episode references are composed by the server. A turn can request historical comparison while also reporting a current observation; analyze writes only against the current owner assertion, never the read plan or old reports. Answer first, in short connected paragraphs; do not repeat the answer in a summary section. The server adds the specific coverage limitation, so do not repeat a generic disclaimer. Preserve exact facts, units, dates, source quotations and citations. Use no em dashes in your own prose.",
   "The deterministic minimum safety level can be raised but never lowered. When it is urgent, lead with the action and suppress shopping.",
   "A recent unresolved concern may outrank a lower-priority question. Resolved or unrelated history must not hijack the answer.",
   "If the user reports that a prior concern improved, acknowledge it without repeating a full emergency warning unless red flags remain. Ask at most one concise confirmation when needed.",
@@ -316,6 +322,7 @@ const unifiedInstructions = [
   "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording. Use the pet's name once when it establishes the subject or distinguishes animals, then prefer natural pronouns. Never replace a natural pronoun with the name, manufacture a possessive, or contract a pet name (for example, never write Mani'll).",
   "Treat the server-authored answerEconomy plan as authoritative. Depth is earned by the reasoning and action guidance needed, never by message length, owner emotion, pronoun count, or the amount of available history.",
   "For depth 0, answer in one or two natural sentences. For depth 1, usually use 40-120 useful words and no headings. For depth 2, usually use 100-250 useful words with zero or one useful expansion section and up to four total bullets. For depth 3, usually use 200-450 useful words with at most four meaningful sections. Depth 4 is safety-led: include every action, escalation sign, and avoidance needed even when that exceeds other budgets.",
+  "Source identifiers belong only in sourceIds or relevantContextIds. Never put bracketed source IDs in visible answer or historyNarrative text.",
   "The direct answer owns the core interpretation, the most important recommendation, and a brief emotional acknowledgement when useful. Every answerSection must add a new decision, action, explanation, or safety signal that is absent from the direct answer. Maximum section and bullet budgets are ceilings, not targets. Never restate the direct answer in a section.",
   "Put prose only in answer. Do not embed hyphen bullets, dot bullets, or numbered-list markers inside answer text. Put genuine list items only in answerSections.items; otherwise write one natural sentence.",
   "When answerEconomy.followUpDeltaOnly is true, respond to the newest detail instead of regenerating the earlier explanation. Briefly acknowledge owner emotion when present, then help; do not turn acknowledgement into a therapy paragraph.",
@@ -479,7 +486,7 @@ export function buildAskContext(input: BuildContextInput) {
   const answerEconomy = planAskAnswerDepth({
     message: input.question,
     minimumSafetyLevel,
-    recentConversation: input.conversationTurns,
+    recentConversation: input.dialogueContext || input.conversationTurns,
   });
 
   const promptContext = enforceAskPromptContextBudget({
@@ -499,6 +506,7 @@ export function buildAskContext(input: BuildContextInput) {
       })),
       pets: petReferences,
       ...(input.discourseFocus ? { discourseFocus: input.discourseFocus } : {}),
+      dialogueContext: { purpose: "reference_and_tone_only_not_medical_evidence", turns: (input.dialogueContext || []).filter(turn => turn.role === "user").slice(-6).map(turn => ({ role: turn.role, text: turn.text.slice(0, 700) })) },
       contextRecords: records,
       evidenceContract: evidence,
       olderUpdateSummary: updateSummary,
@@ -620,10 +628,20 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     }
   }
 
+  const profile = input.profiles.length === 1 ? input.profiles[0] : null;
+  const lossContext = resolvePetLossContext({
+    message: input.question,
+    recentConversation: input.conversationTurns,
+    lifecycleStatus: profile ? readOptionalString(profile, "lifecycle_status") : null,
+    petName: profile?.name,
+  });
+
+  // Death is not symptom recovery. Use the existing server-owned loss classifier
+  // before metadata repair; dedicated lifecycle and safety governance still run.
   // A server-classified recall cannot authorize recovery. Neutralize this
   // metadata before considering a paid repair; downstream write and answer
   // validation still run independently. Mixed observations are not read-only.
-  if (context.promptContext.evidenceContract.scope.readOnlyRecall) {
+  if (context.promptContext.evidenceContract.scope.readOnlyRecall || lossContext === "confirmed_current" || lossContext === "continuation") {
     parsed.messageUnderstanding = { ...parsed.messageUnderstanding,
       userIsResolvingConcern: false, recoveryStatus: "none", recoveryConfidence: 1,
       recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
@@ -660,7 +678,6 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     }
   }
 
-  const profile = input.profiles.length === 1 ? input.profiles[0] : null;
   const previousAssistantText = [...input.conversationTurns].reverse().find((turn) => turn.role === "furvise")?.text || "";
   if (previousAssistantText && areAskResponsesMateriallyIdentical(parsed.answer, previousAssistantText)) {
     if (process.env.NODE_ENV === "development") {
@@ -693,12 +710,6 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     }
   }
 
-  const lossContext = resolvePetLossContext({
-    message: input.question,
-    recentConversation: input.conversationTurns,
-    lifecycleStatus: profile ? readOptionalString(profile, "lifecycle_status") : null,
-    petName: profile?.name,
-  });
   if (lossContext === "confirmed_current" || lossContext === "continuation") {
     parsed.responseMode = "grief_support";
     parsed.safetyLevel = "normal";
@@ -767,6 +778,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     userIntent: parsed.userIntent,
     relevantContextIds: parsed.relevantContextIds,
     historySynthesis: parsed.historySynthesis,
+    historyNarrative: parsed.historyNarrative,
     referencedRecords: parsed.relevantContextIds.map((id) => context.records.find((record) => record.id === id)).filter((record): record is AskContextRecord => Boolean(record)),
     safetyLevel: parsed.safetyLevel,
     shoppingSuppressed: parsed.shoppingSuppressed,
@@ -920,6 +932,7 @@ export function parseUnifiedResponse(
   }
   return {
     answer,
+    historyNarrative: parseHistoryNarrative(value.historyNarrative),
     historySynthesis: Array.isArray(value.historySynthesis) ? value.historySynthesis.slice(0, 32).filter(item => item && typeof item.sourceId === "string" && item.sourceId.length <= 160 && typeof item.text === "string" && item.text.length <= 1800) : [],
     answerSections,
     safetyLevel,
@@ -1049,7 +1062,7 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
   onEvent?: (event: AskProviderEvent) => void;
   parseOutput: (rawText: string) => T;
   request: Record<string, unknown>;
-  stage: "primary" | "fallback" | "repair";
+  stage: "primary" | "fallback" | "repair" | "verification";
   timeoutMs: number;
 }): Promise<T> {
   const started = Date.now();

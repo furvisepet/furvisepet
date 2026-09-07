@@ -9,6 +9,10 @@ const adapter = `import { generateContextAwareAskResponse as generate } from ${J
 export const generateContextAwareAskResponse = async input => { const result = await generate({...input, client: globalThis.__historyAuditClient}); globalThis.__historyAuditAfterGeneration?.(result); return result; };`;
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (context.parentURL?.endsWith('/run-intelligence.ts') && /review-history-narrative/.test(specifier)) {
+      const url = new URL('../../../app/lib/intelligence/review-history-narrative.ts', import.meta.url).href;
+      return {shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('import {reviewHistoricalAnswer as review} from '+JSON.stringify(url)+'; export const reviewHistoricalAnswer = input => review({...input,client:globalThis.__historyAuditReviewClient});')};
+    }
     if (specifier === 'server-only') return { shortCircuit: true, url: 'data:text/javascript,export default {}' };
     if (context.parentURL?.endsWith('/run-intelligence.ts') && /ask-reasoning$/.test(specifier)) {
       return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent(adapter)}` };
@@ -149,7 +153,7 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { fixturePets = pets, onProviderEvent, onStage, petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { fixturePets = pets, onProviderEvent, onStage, petId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { fixturePets, messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? 'milo' : null, currentMessage: question, dateRange });
@@ -157,9 +161,9 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
   const interpretationRequests = [];
   if (interpretationProposal) {
     const { interpretAskQuestion } = await import('../../../app/lib/intelligence/interpret-ask.ts');
-    const interpretation = await interpretAskQuestion({ context, onProviderEvent, model: interpretationModel, client: { responses: { async create(request) {
+    const interpretation = await interpretAskQuestion({ context, onProviderEvent, model: interpretationModel, client: { responses: { async create(request, options) {
       interpretationRequests.push(request);
-      return interpretationResponse ? await interpretationResponse(request) : { status: 'completed', output_text: JSON.stringify(interpretationProposal), usage: { input_tokens: 500, output_tokens: 200, total_tokens: 700 } };
+      return interpretationResponse ? await interpretationResponse(request, options) : { status: 'completed', output_text: JSON.stringify(interpretationProposal), usage: { input_tokens: 500, output_tokens: 200, total_tokens: 700 } };
     } } } });
     if (interpretation.readOnly) {
       authoritativePetIds = interpretation.petIds;
@@ -181,10 +185,16 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
   // Same evidence creation and explicit parameter used by the route callback.
   const evidenceContract = createAskEvidenceContract(context, authoritativePetIds);
   prepareEvidence?.(evidenceContract);
+  const reviewRequests = [];
+  globalThis.__historyAuditReviewClient = {responses:{async create(request, options) {
+    reviewRequests.push(request);
+    if (reviewProviderResponse) return reviewProviderResponse(request, options);
+    return {status:'completed',output_text:JSON.stringify(reviewResponse || {approved:false}),usage:{input_tokens:800,output_tokens:30}};
+  }}};
   const requests = [];
   globalThis.__historyAuditAfterGeneration = afterGeneration;
-  globalThis.__historyAuditClient = { responses: { async create(request) {
-    requests.push(request); if (providerResponse) return providerResponse(request); return { usage: { input_tokens: 1200, output_tokens: 400, total_tokens: 1600 }, output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
+  globalThis.__historyAuditClient = { responses: { async create(request, options) {
+    requests.push(request); if (providerResponse) return providerResponse(request, options); return { usage: { input_tokens: 1200, output_tokens: 400, total_tokens: 1600 }, output_text: JSON.stringify({ ...output(answer), ...providerOverrides, ...(providerSequence?.[requests.length - 1] || {}) }) };
   } } };
   let result;
   if (history) {
@@ -195,8 +205,9 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
   } else {
     result = await runFurviseIntelligence({ context, evidenceContract, onProviderEvent, requestId: 'synthetic-audit-request', sourceMessageId: 'current-turn', authoritativePetIds, authoritativeSemanticFrame });
   }
-  assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
-  return { context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries, interpretationRequests };
+  if (expectedProviderCalls !== null) assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
+  if (expectedReviewCalls !== null) assert.equal(reviewRequests.length, expectedReviewCalls, 'bounded history-review call count');
+  return { reviewRequests, context, result, prompt: JSON.parse(requests[0].input), serialized: requests[0].input, queries: supabase.queries, interpretationRequests };
 }
 const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
 const clock = t => {

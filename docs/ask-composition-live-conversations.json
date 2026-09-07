@@ -1,0 +1,151 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "soft stool",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": "soft stool",
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "soft stool",
+            "stool",
+            "chicken",
+            "diarrhea"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The June soft stools were a possible chicken-treat reaction, but they were not definitely caused by chicken, because the note says you did not know for sure and his regular chicken-and-rice food stayed the same. The August soft stool also was not clearly tied to chicken, since it happened after he stayed with your sister and the note says he may have eaten table scraps, but nobody saw exactly what he ate. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "The June soft stools were a possible chicken-treat reaction, but they were not definitely caused by chicken, because the note says you did not know for sure and his regular chicken-and-rice food stayed the same.",
+            "sourceIds": [
+              "care:m-jun12",
+              "care:m-jun15",
+              "care:m-jun16",
+              "care:m-jun20"
+            ]
+          },
+          {
+            "text": "The August soft stool also was not clearly tied to chicken, since it happened after he stayed with your sister and the note says he may have eaten table scraps, but nobody saw exactly what he ate.",
+            "sourceIds": [
+              "care:m-aug8",
+              "care:m-aug10"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 18898,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "What about Luna accidents?",
+      "petId": "luna",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "summary",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "accidents",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "accident",
+            "urination",
+            "defecation"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Her accident issue appears to have improved, based on a vet visit for two accidents followed by a later note that she had no more accidents since July 10 and was using the tray normally. The vet asked for her previous litter arrangement to be restored and for her to be monitored. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Luna’s accident issue appears to have improved, based on a vet visit for two accidents followed by a later note that she had no more accidents since July 10 and was using the tray normally.",
+            "sourceIds": [
+              "care:l-jul9",
+              "care:l-jul17"
+            ]
+          },
+          {
+            "text": "The vet asked for her previous litter arrangement to be restored and for her to be monitored.",
+            "sourceIds": [
+              "care:l-jul9"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 19041,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "update",
+        "readOperation": null,
+        "selection": "latest",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "death",
+        "readOnly": false,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "I’m so sorry. Losing Milo like this can feel like losing a whole part of your life, and that’s a very real kind of pain. Right now, the most important thing is to take this one moment at a time and let yourself grieve without trying to hold it all together.",
+      "sections": [],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 12970,
+      "writeCounts": {
+        "care": 1,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

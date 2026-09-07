@@ -2,6 +2,7 @@ import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
 
 export async function executeAdmittedProviderCall<T>(input: {
+  purpose?: "history_review";
   invoke: () => Promise<T>;
   maxOutputTokens: number;
   model: string;
@@ -14,7 +15,7 @@ export async function executeAdmittedProviderCall<T>(input: {
     if (testRuntime || explicitDevelopmentOverride) return input.invoke();
     throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "provider_call_without_admission");
   }
-  const call = await admission.beginProviderCall({ input: input.providerInput, maxOutputTokens: input.maxOutputTokens, model: input.model });
+  const call = await admission.beginProviderCall({ purpose: input.purpose, input: input.providerInput, maxOutputTokens: input.maxOutputTokens, model: input.model });
   try {
     const response = await input.invoke();
     const usage = readProviderUsage((response as { usage?: unknown }).usage);

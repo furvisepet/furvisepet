@@ -1,0 +1,5016 @@
+{
+  "authorizedUsd": 5,
+  "reservationStopUsd": 4.5,
+  "reservedUsd": 3.46226175,
+  "measuredUsd": 0.68964975,
+  "calls": [
+    {
+      "number": 1,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035028000000000004,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3385,
+      "inputTokens": 4639,
+      "outputTokens": 362,
+      "measuredUsd": 0.00510825
+    },
+    {
+      "number": 2,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07235475,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 11606,
+      "inputTokens": 12740,
+      "outputTokens": 2630,
+      "measuredUsd": 0.02139
+    },
+    {
+      "number": 3,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035028000000000004,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2610,
+      "inputTokens": 4639,
+      "outputTokens": 411,
+      "measuredUsd": 0.00532875
+    },
+    {
+      "number": 4,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07257225,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 11830,
+      "inputTokens": 12798,
+      "outputTokens": 2203,
+      "measuredUsd": 0.019512
+    },
+    {
+      "number": 5,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.010386,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1976,
+      "inputTokens": 1685,
+      "outputTokens": 15,
+      "measuredUsd": 0.00133125,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 6,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035083500000000004,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3974,
+      "inputTokens": 4654,
+      "outputTokens": 574,
+      "measuredUsd": 0.0060735
+    },
+    {
+      "number": 7,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07400625,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5398,
+      "inputTokens": 13265,
+      "outputTokens": 1149,
+      "measuredUsd": 0.015119249999999999
+    },
+    {
+      "number": 8,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0110685,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 726,
+      "inputTokens": 1912,
+      "outputTokens": 15,
+      "measuredUsd": 0.0015015,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 9,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03510675,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3235,
+      "inputTokens": 4659,
+      "outputTokens": 565,
+      "measuredUsd": 0.0060367500000000004
+    },
+    {
+      "number": 10,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0712815,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 10605,
+      "inputTokens": 12230,
+      "outputTokens": 1807,
+      "measuredUsd": 0.017304
+    },
+    {
+      "number": 11,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.00952275,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 846,
+      "inputTokens": 1350,
+      "outputTokens": 15,
+      "measuredUsd": 0.00108,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 12,
+      "question": "And her hiding, is that resolved too?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03513825,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3503,
+      "inputTokens": 4669,
+      "outputTokens": 408,
+      "measuredUsd": 0.0053377500000000005
+    },
+    {
+      "number": 13,
+      "question": "And her hiding, is that resolved too?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0702615,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5642,
+      "inputTokens": 11843,
+      "outputTokens": 1267,
+      "measuredUsd": 0.01458375
+    },
+    {
+      "number": 14,
+      "question": "Now Oscar, was his stiffness continuous?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035172,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2966,
+      "inputTokens": 4678,
+      "outputTokens": 385,
+      "measuredUsd": 0.005241
+    },
+    {
+      "number": 15,
+      "question": "Is he still taking that medication?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03516825,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3604,
+      "inputTokens": 4677,
+      "outputTokens": 501,
+      "measuredUsd": 0.00576225
+    },
+    {
+      "number": 16,
+      "question": "Is he still taking that medication?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.06325725,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 3896,
+      "inputTokens": 9699,
+      "outputTokens": 708,
+      "measuredUsd": 0.01046025
+    },
+    {
+      "number": 17,
+      "question": "What diagnosis did the vet give him?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035199,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3627,
+      "inputTokens": 4686,
+      "outputTokens": 524,
+      "measuredUsd": 0.005872499999999999
+    },
+    {
+      "number": 18,
+      "question": "How can I make Milo vet visit less stressful?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03520575,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3402,
+      "inputTokens": 4688,
+      "outputTokens": 532,
+      "measuredUsd": 0.00591
+    },
+    {
+      "number": 19,
+      "question": "How can I make Milo vet visit less stressful?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.073932,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5515,
+      "inputTokens": 13135,
+      "outputTokens": 965,
+      "measuredUsd": 0.014193750000000002
+    },
+    {
+      "number": 20,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0352485,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 5344,
+      "inputTokens": 4703,
+      "outputTokens": 1079,
+      "measuredUsd": 0.00838275
+    },
+    {
+      "number": 21,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0739695,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 8475,
+      "inputTokens": 13161,
+      "outputTokens": 1424,
+      "measuredUsd": 0.016278749999999998
+    },
+    {
+      "number": 22,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0349665,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2853,
+      "inputTokens": 4622,
+      "outputTokens": 416,
+      "measuredUsd": 0.0053384999999999995
+    },
+    {
+      "number": 23,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0727425,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 6713,
+      "inputTokens": 12837,
+      "outputTokens": 1861,
+      "measuredUsd": 0.018002249999999997
+    },
+    {
+      "number": 24,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.012771000000000001,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1976,
+      "inputTokens": 1692,
+      "outputTokens": 132,
+      "measuredUsd": 0.001863,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 25,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035022,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3771,
+      "inputTokens": 4637,
+      "outputTokens": 674,
+      "measuredUsd": 0.00651075
+    },
+    {
+      "number": 26,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07405125,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 7661,
+      "inputTokens": 13276,
+      "outputTokens": 2131,
+      "measuredUsd": 0.0195465
+    },
+    {
+      "number": 27,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0137115,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1254,
+      "inputTokens": 2012,
+      "outputTokens": 128,
+      "measuredUsd": 0.002085,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 28,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03504525,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4151,
+      "inputTokens": 4642,
+      "outputTokens": 743,
+      "measuredUsd": 0.0068249999999999995
+    },
+    {
+      "number": 29,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0719985,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5871,
+      "inputTokens": 12492,
+      "outputTokens": 1082,
+      "measuredUsd": 0.014238
+    },
+    {
+      "number": 30,
+      "question": "And her hiding, is that resolved too?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035076750000000004,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3479,
+      "inputTokens": 4652,
+      "outputTokens": 383,
+      "measuredUsd": 0.0052125
+    },
+    {
+      "number": 31,
+      "question": "And her hiding, is that resolved too?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07287975000000001,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 9478,
+      "inputTokens": 12759,
+      "outputTokens": 1219,
+      "measuredUsd": 0.015054749999999999
+    },
+    {
+      "number": 32,
+      "question": "And her hiding, is that resolved too?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.012817499999999999,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1059,
+      "inputTokens": 1655,
+      "outputTokens": 89,
+      "measuredUsd": 0.00164175,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 33,
+      "question": "Now Oscar, was his stiffness continuous?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0351105,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 1841,
+      "inputTokens": 4661,
+      "outputTokens": 254,
+      "measuredUsd": 0.0046387500000000005
+    },
+    {
+      "number": 34,
+      "question": "Now Oscar, was his stiffness continuous?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0738795,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 8822,
+      "inputTokens": 13030,
+      "outputTokens": 1690,
+      "measuredUsd": 0.0173775
+    },
+    {
+      "number": 35,
+      "question": "Now Oscar, was his stiffness continuous?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01334925,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1194,
+      "inputTokens": 1792,
+      "outputTokens": 99,
+      "measuredUsd": 0.0017894999999999999,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 36,
+      "question": "Is he still taking that medication?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03514125,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2327,
+      "inputTokens": 4668,
+      "outputTokens": 336,
+      "measuredUsd": 0.005013
+    },
+    {
+      "number": 37,
+      "question": "Is he still taking that medication?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.072006,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5385,
+      "inputTokens": 12384,
+      "outputTokens": 1222,
+      "measuredUsd": 0.014787
+    },
+    {
+      "number": 38,
+      "question": "Is he still taking that medication?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0125205,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1305,
+      "inputTokens": 1490,
+      "outputTokens": 113,
+      "measuredUsd": 0.0016259999999999998,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 39,
+      "question": "What diagnosis did the vet give him?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035172,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3046,
+      "inputTokens": 4677,
+      "outputTokens": 447,
+      "measuredUsd": 0.00551925
+    },
+    {
+      "number": 40,
+      "question": "What diagnosis did the vet give him?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07345725,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4824,
+      "inputTokens": 12864,
+      "outputTokens": 1078,
+      "measuredUsd": 0.014499000000000001
+    },
+    {
+      "number": 41,
+      "question": "What diagnosis did the vet give him?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.013227000000000001,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1209,
+      "inputTokens": 1720,
+      "outputTokens": 76,
+      "measuredUsd": 0.001632,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 42,
+      "question": "How can I make Milo vet visit less stressful?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0351825,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2934,
+      "inputTokens": 4681,
+      "outputTokens": 448,
+      "measuredUsd": 0.00552675
+    },
+    {
+      "number": 43,
+      "question": "How can I make Milo vet visit less stressful?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.073776,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5733,
+      "inputTokens": 13062,
+      "outputTokens": 996,
+      "measuredUsd": 0.0142785
+    },
+    {
+      "number": 44,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03519525,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3949,
+      "inputTokens": 4688,
+      "outputTokens": 752,
+      "measuredUsd": 0.0069
+    },
+    {
+      "number": 45,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03506325,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 8137,
+      "inputTokens": 4650,
+      "outputTokens": 1064,
+      "measuredUsd": 0.0082755,
+      "syntheticPlan": {
+        "selection": "latest",
+        "readOperation": null,
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "m1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "household"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo"
+                }
+              ],
+              "confidence": 0.99
+            },
+            {
+              "localId": "m2",
+              "surface": "I",
+              "coarseType": "person",
+              "attributes": {
+                "species": null,
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I"
+                }
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "references": [],
+          "claims": [
+            {
+              "localId": "c1",
+              "subjectRef": "m1",
+              "predicate": {
+                "label": "die",
+                "definition": "The animal's life ended.",
+                "aliases": [
+                  "died",
+                  "death"
+                ],
+                "parentLabels": [
+                  "state_transition"
+                ],
+                "relatedLabels": [
+                  "dead",
+                  "loss"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "today",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.99,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today"
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "state_transition",
+              "transition": "changed",
+              "fromState": "alive",
+              "toState": "dead",
+              "targetConcept": {
+                "label": "life status",
+                "definition": "Whether an animal is alive or dead.",
+                "aliases": [
+                  "alive",
+                  "dead"
+                ],
+                "parentLabels": [
+                  "state"
+                ],
+                "relatedLabels": [
+                  "death"
+                ]
+              }
+            },
+            {
+              "localId": "c2",
+              "subjectRef": "m2",
+              "predicate": {
+                "label": "feel bereaved",
+                "definition": "The person feels a sense of loss after someone or something dies.",
+                "aliases": [
+                  "grieving",
+                  "lost part of my life"
+                ],
+                "parentLabels": [
+                  "emotion",
+                  "state"
+                ],
+                "relatedLabels": [
+                  "sad",
+                  "loss"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "I feel like I lost part of my life",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.9,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I feel like I lost part of my life"
+                }
+              ],
+              "persistenceHint": "owner_memory",
+              "kind": "assertion",
+              "value": true,
+              "unit": null,
+              "durability": "temporary"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "update",
+        "subject": "explicit",
+        "petNames": [
+          "Milo"
+        ],
+        "topic": "",
+        "terms": [],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 46,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.070329,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 8779,
+      "inputTokens": 12027,
+      "outputTokens": 1226,
+      "measuredUsd": 0.014537250000000002
+    },
+    {
+      "number": 47,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03506325,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 6174,
+      "inputTokens": 4650,
+      "outputTokens": 844,
+      "measuredUsd": 0.0072855,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": null,
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "m1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "household"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [],
+          "claims": [
+            {
+              "localId": "c1",
+              "subjectRef": "m1",
+              "predicate": {
+                "label": "die",
+                "definition": "Cease living; death of the subject.",
+                "aliases": [
+                  "died",
+                  "passed away"
+                ],
+                "parentLabels": [
+                  "event"
+                ],
+                "relatedLabels": [
+                  "death"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "today",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.99,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today"
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "m1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "completed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            },
+            {
+              "localId": "c2",
+              "subjectRef": null,
+              "predicate": {
+                "label": "feel grief",
+                "definition": "Experience sadness or emotional pain due to loss.",
+                "aliases": [
+                  "feels sad",
+                  "feels loss",
+                  "feels heartbroken"
+                ],
+                "parentLabels": [
+                  "emotion",
+                  "state"
+                ],
+                "relatedLabels": [
+                  "loss"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "I feel like I lost part of my life",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.92,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I feel like I lost part of my life"
+                }
+              ],
+              "persistenceHint": "owner_memory",
+              "kind": "assertion",
+              "value": true,
+              "unit": null,
+              "durability": "ongoing"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "update",
+        "subject": "explicit",
+        "petNames": [
+          "Milo"
+        ],
+        "topic": "death",
+        "terms": [
+          "death",
+          "died",
+          "passed away",
+          "loss",
+          "grief"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 48,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07033725,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 6627,
+      "inputTokens": 12031,
+      "outputTokens": 994,
+      "measuredUsd": 0.013496250000000001,
+      "syntheticResponse": {
+        "answer": "I’m so sorry. Losing Milo can feel like losing a piece of your daily life, and that kind of grief can hit hard. For tonight, keep it simple: eat, drink some water, and lean on one person who can sit with you or check in. If it helps, I can also help you put together a short memory note or a message you can send to someone close to you.",
+        "answerSections": [
+          {
+            "heading": "What may help right now",
+            "items": [
+              "Do one basic thing at a time, like sit down, drink water, and take a few slow breaths.",
+              "Reach out to one person and say plainly that you’re having a hard time and don’t want to be alone with it.",
+              "If you want, write down one or two things you loved about Milo tonight so you don’t have to hold them in your head."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "grief_support",
+        "userIntent": "grief_support",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "profile:milo:lifecycle_status",
+          "profile:milo:sex",
+          "profile:milo:species"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "general_conversation",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": false,
+          "userIsProvidingUpdate": true,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "terminal",
+          "recoveryConfidence": 0.98,
+          "recoveryEvidence": {
+            "outcome": "problem_ended",
+            "surfaceText": "Milo died today",
+            "targetConcept": "Milo's life",
+            "confidence": 0.98
+          },
+          "requestedTopic": "death",
+          "referencedPet": "Milo",
+          "safetyRelevance": "possible",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Reported death and grief support requested; no emergency signs were stated.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "care",
+            "topic": "death",
+            "eventTitle": "Milo died",
+            "transition": "resolved",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-09-15T12:00:00.000Z",
+              "explicitTime": "today"
+            },
+            "importance": "urgent",
+            "confidence": 0.99,
+            "sourceExcerpt": "Milo died today",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "Milo died today",
+              "confidence": 0.99
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "Milo",
+              "kind": "name",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [],
+              "confidence": 0.99
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "died",
+                "definition": "The animal's life ended.",
+                "aliases": [
+                  "passed away"
+                ],
+                "parentLabels": [
+                  "event"
+                ],
+                "relatedLabels": [
+                  "loss"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15T12:00:00.000Z",
+                "validFrom": "2026-09-15T12:00:00.000Z",
+                "validTo": "2026-09-15T12:00:00.000Z",
+                "surfaceText": "today",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.99,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today"
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "completed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 49,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0350475,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4665,
+      "inputTokens": 4642,
+      "outputTokens": 538,
+      "measuredUsd": 0.0059025,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "overview",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "overview",
+        "subject": "explicit",
+        "petNames": [
+          "Milo"
+        ],
+        "topic": "stomach history",
+        "terms": [
+          "stomach",
+          "vomit",
+          "threw up",
+          "thrown up",
+          "stool",
+          "diarrhea"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 50,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0727425,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 13872,
+      "inputTokens": 12837,
+      "outputTokens": 2509,
+      "measuredUsd": 0.02091825,
+      "syntheticResponse": {
+        "answer": "Milo’s stomach history looks pretty mild and short-lived in the notes I can see. He had one soft stool on August 8 after staying with your sister, with possible table scraps mentioned but nothing observed directly. By August 10, the notes say his stools were normal again and there had been no more soft stools since August 8, and a later update on September 3 also says his stools were normal. There’s also a June note about two soft stools, with normal appetite, energy, and play, and a later June update saying the soft stools seemed to have ended. One vomiting report was corrected as belonging to Bruno, not Milo, so it shouldn’t be counted as Milo history.",
+        "answerSections": [],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "conversational",
+        "userIntent": "history_summary",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "Milo’s stomach history in the available notes shows a brief soft-stool episode in June and another single soft stool in August, with normal stools documented again afterward.",
+              "sourceIds": [
+                "care:m-jun15",
+                "care:m-jun20",
+                "care:m-aug8",
+                "care:m-aug10",
+                "care:m-sep3"
+              ]
+            },
+            {
+              "text": "The June note says he had two soft stools but was still eating and playing normally, and a later June update says the soft stools seemed to have ended.",
+              "sourceIds": [
+                "care:m-jun15",
+                "care:m-jun20"
+              ]
+            },
+            {
+              "text": "The August 8 note says he had one soft stool after staying with your sister, with possible table scraps mentioned but nothing directly observed, and the August 10 and September 3 notes say his stools were normal again.",
+              "sourceIds": [
+                "care:m-aug8",
+                "care:m-aug10",
+                "care:m-sep3"
+              ]
+            },
+            {
+              "text": "A vomiting report was corrected to Bruno, not Milo, so it should not be treated as Milo stomach history.",
+              "sourceIds": [
+                "care:m-correction"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:m-jun15",
+          "care:m-jun20",
+          "care:m-aug8",
+          "care:m-aug10",
+          "care:m-sep3",
+          "care:m-correction"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [
+            "question"
+          ],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "terminal",
+          "recoveryConfidence": 0.88,
+          "recoveryEvidence": {
+            "outcome": "problem_ended",
+            "surfaceText": "stools are normal again",
+            "targetConcept": "soft stools",
+            "confidence": 0.88
+          },
+          "requestedTopic": "stomach history",
+          "referencedPet": "milo",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Historical overview requested; notes describe resolved soft-stool episodes and no current safety concern.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "stomach symptoms",
+            "eventTitle": "Milo had soft stools",
+            "transition": "observed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-06-15T12:00:00Z",
+              "explicitTime": "today"
+            },
+            "importance": "routine",
+            "confidence": 0.9,
+            "sourceExcerpt": "Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "Milo had two soft stools today.",
+              "confidence": 0.86
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "stomach symptoms",
+            "eventTitle": "Soft stools ended",
+            "transition": "resolved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-06-20T12:00:00Z",
+              "explicitTime": "three days"
+            },
+            "importance": "routine",
+            "confidence": 0.86,
+            "sourceExcerpt": "Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "The soft stools seem to have ended.",
+              "confidence": 0.86
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "stomach symptoms",
+            "eventTitle": "Milo had one soft stool",
+            "transition": "observed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-08-08T12:00:00Z",
+              "explicitTime": "after staying with my sister for the weekend"
+            },
+            "importance": "routine",
+            "confidence": 0.89,
+            "sourceExcerpt": "Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "Milo had one soft stool after staying with my sister for the weekend.",
+              "confidence": 0.8
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "stomach symptoms",
+            "eventTitle": "Soft stools resolved",
+            "transition": "resolved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-08-10T12:00:00Z",
+              "explicitTime": "since August 8"
+            },
+            "importance": "routine",
+            "confidence": 0.93,
+            "sourceExcerpt": "Milo stools are normal again. There have been no more soft stools since August 8.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "There have been no more soft stools since August 8.",
+              "confidence": 0.93
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.96
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo"
+                }
+              ],
+              "confidence": 0.99
+            },
+            {
+              "localId": "entity_2",
+              "surface": "soft stools",
+              "coarseType": "unknown",
+              "attributes": {
+                "species": null,
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "soft stools"
+                }
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "he",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "had soft stools",
+                "definition": "experienced soft stools as a stomach symptom",
+                "aliases": [
+                  "soft stools"
+                ],
+                "parentLabels": [
+                  "health"
+                ],
+                "relatedLabels": [
+                  "stomach issue",
+                  "stool change"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-06-15T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "today",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.9,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo had two soft stools today."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "observed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            },
+            {
+              "localId": "claim_2",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "soft stools ended",
+                "definition": "the soft stool episode resolved",
+                "aliases": [
+                  "resolved"
+                ],
+                "parentLabels": [
+                  "health"
+                ],
+                "relatedLabels": [
+                  "recovered",
+                  "normal stools"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-06-20T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "for three days",
+                "precision": "recurring"
+              },
+              "uncertainty": {
+                "confidence": 0.86,
+                "reasons": [
+                  "seem"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "The soft stools seem to have ended."
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "state_transition",
+              "transition": "resolved",
+              "fromState": "soft stools",
+              "toState": "normal stools",
+              "targetConcept": {
+                "label": "soft stools",
+                "definition": "soft stool episode",
+                "aliases": [
+                  "soft stools"
+                ],
+                "parentLabels": [
+                  "health"
+                ],
+                "relatedLabels": [
+                  "stool change"
+                ]
+              }
+            },
+            {
+              "localId": "claim_3",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "had soft stool",
+                "definition": "experienced a soft stool episode",
+                "aliases": [
+                  "soft stool"
+                ],
+                "parentLabels": [
+                  "health"
+                ],
+                "relatedLabels": [
+                  "stool change"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-08-08T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "after staying with my sister for the weekend",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.89,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo had one soft stool after staying with my sister for the weekend."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "observed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            },
+            {
+              "localId": "claim_4",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "stools normal again",
+                "definition": "returned to normal stool consistency",
+                "aliases": [
+                  "normal stools"
+                ],
+                "parentLabels": [
+                  "health"
+                ],
+                "relatedLabels": [
+                  "resolved"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-08-10T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "since August 8",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.93,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "There have been no more soft stools since August 8."
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "state_transition",
+              "transition": "resolved",
+              "fromState": "soft stools",
+              "toState": "normal stools",
+              "targetConcept": {
+                "label": "soft stools",
+                "definition": "soft stool episode",
+                "aliases": [
+                  "soft stools"
+                ],
+                "parentLabels": [
+                  "health"
+                ],
+                "relatedLabels": [
+                  "stool change"
+                ]
+              }
+            },
+            {
+              "localId": "claim_5",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "vomiting note was not Milo",
+                "definition": "a prior vomiting report referred to another dog, not Milo",
+                "aliases": [
+                  "not Milo"
+                ],
+                "parentLabels": [
+                  "correction"
+                ],
+                "relatedLabels": [
+                  "Bruno"
+                ]
+              },
+              "polarity": "negated",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-08-20T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "yesterday",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.99,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "that was my sister dog Bruno, not Milo."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "correction",
+              "operation": "retract",
+              "target": {
+                "claimRef": null,
+                "subjectRef": "entity_1",
+                "predicate": {
+                  "label": "vomited",
+                  "definition": "had an episode of vomiting",
+                  "aliases": [
+                    "threw up"
+                  ],
+                  "parentLabels": [
+                    "health"
+                  ],
+                  "relatedLabels": [
+                    "stomach symptom"
+                  ]
+                },
+                "value": null
+              },
+              "replacementClaimRef": null
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 51,
+      "question": "Summarize Milo stomach history.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0130545,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1941,
+      "inputTokens": 1774,
+      "outputTokens": 173,
+      "measuredUsd": 0.002109,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 52,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035103,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 5913,
+      "inputTokens": 4657,
+      "outputTokens": 750,
+      "measuredUsd": 0.006867750000000001,
+      "syntheticPlan": {
+        "selection": "comparison",
+        "readOperation": "comparison",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "comparison",
+        "subject": "conversation",
+        "petNames": [
+          "Milo"
+        ],
+        "topic": "soft stools and chicken causation",
+        "terms": [
+          "soft stool",
+          "chicken",
+          "food reaction",
+          "diet",
+          "stool",
+          "diarrhea"
+        ],
+        "from": "2026-06-01",
+        "to": "2026-09-01",
+        "episodeTopic": "soft stool",
+        "ordinal": null
+      }
+    },
+    {
+      "number": 53,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07372275,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 11823,
+      "inputTokens": 13180,
+      "outputTokens": 1870,
+      "measuredUsd": 0.0183,
+      "syntheticResponse": {
+        "answer": "No, not definitely. The June soft stools happened around the time he started new chicken training treats, so chicken was a possible factor, but the note only says “I do not know.” The August soft stool is even less specific: it followed a weekend away, and the note says he may have eaten table scraps, but nobody saw exactly what he ate. So the records support a possible food-related link in June, but they do not prove chicken caused either episode.",
+        "answerSections": [
+          {
+            "heading": "What the notes support",
+            "items": [
+              "June: new chicken training treats were started on June 12, then two soft stools were reported on June 15. That makes chicken a plausible suspect, but not a confirmed cause.",
+              "August: the soft stool on August 8 happened after staying with your sister, with possible table scraps mentioned. That points to an unclear trigger, not chicken specifically.",
+              "By August 10, stools were normal again and there had been no more soft stools since August 8."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "What pattern should I watch for if the soft stools happen again?",
+          "Should I log these episodes as possible food-related reactions?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "The records do not show that chicken definitely caused either soft-stool episode.",
+              "sourceIds": [
+                "care:m-jun15",
+                "care:m-aug8"
+              ]
+            },
+            {
+              "text": "In June, new chicken training treats were started on June 12, and Milo had two soft stools on June 15, but the note says the owner did not know whether the treats were involved.",
+              "sourceIds": [
+                "care:m-jun12",
+                "care:m-jun15"
+              ]
+            },
+            {
+              "text": "The new chicken training treats were stopped on June 16, and by June 20 the soft stools seemed to have ended.",
+              "sourceIds": [
+                "care:m-jun16",
+                "care:m-jun20"
+              ]
+            },
+            {
+              "text": "In August, Milo had one soft stool after staying with the sister for the weekend, and the note says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "sourceIds": [
+                "care:m-aug8"
+              ]
+            },
+            {
+              "text": "By August 10, Milo stools were normal again and there had been no more soft stools since August 8.",
+              "sourceIds": [
+                "care:m-aug10"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:m-jun12",
+          "care:m-jun15",
+          "care:m-jun16",
+          "care:m-jun20",
+          "care:m-aug8",
+          "care:m-aug10"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [
+            "correction"
+          ],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "soft stools and chicken causation",
+          "referencedPet": "milo",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Historical comparison about a resolved, non-urgent digestive pattern with no current danger signs reported.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "nutrition",
+            "topic": "chicken treats",
+            "eventTitle": "Started chicken training treats",
+            "transition": "started",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-06-12T12:00:00Z",
+              "explicitTime": "yesterday"
+            },
+            "importance": "important",
+            "confidence": 0.96,
+            "sourceExcerpt": "We started giving Milo new chicken training treats yesterday.",
+            "episodeBoundary": {
+              "kind": "unknown",
+              "evidence": "We started giving Milo new chicken training treats yesterday.",
+              "confidence": 0.96
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "soft stools",
+            "eventTitle": "Milo had soft stools",
+            "transition": "observed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-06-15T12:00:00Z",
+              "explicitTime": "today"
+            },
+            "importance": "important",
+            "confidence": 0.95,
+            "sourceExcerpt": "Milo had two soft stools today.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "Milo had two soft stools today.",
+              "confidence": 0.78
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "soft stools",
+            "eventTitle": "Soft stools ended",
+            "transition": "resolved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-06-20T12:00:00Z",
+              "explicitTime": "for three days"
+            },
+            "importance": "important",
+            "confidence": 0.92,
+            "sourceExcerpt": "Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "The soft stools seem to have ended.",
+              "confidence": 0.92
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "soft stools",
+            "eventTitle": "Milo had soft stool",
+            "transition": "observed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-08-08T12:00:00Z",
+              "explicitTime": "after staying with my sister for the weekend"
+            },
+            "importance": "important",
+            "confidence": 0.94,
+            "sourceExcerpt": "Milo had one soft stool after staying with my sister for the weekend.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "Milo had one soft stool after staying with my sister for the weekend.",
+              "confidence": 0.74
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.98
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo"
+                }
+              ],
+              "confidence": 0.99
+            },
+            {
+              "localId": "entity_2",
+              "surface": "chicken",
+              "coarseType": "product",
+              "attributes": {
+                "species": null,
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "chicken"
+                }
+              ],
+              "confidence": 0.96
+            }
+          ],
+          "references": [
+            {
+              "localId": "ref_1",
+              "surface": "the June and August soft stools",
+              "kind": "prior_topic",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [],
+              "confidence": 0.95
+            },
+            {
+              "localId": "ref_2",
+              "surface": "chicken",
+              "kind": "name",
+              "mentionRef": "entity_2",
+              "antecedentRefs": [],
+              "confidence": 0.96
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "soft stools were definitely caused by chicken",
+                "definition": "A causal attribution between chicken exposure and the soft-stool episodes",
+                "aliases": [
+                  "caused by chicken"
+                ],
+                "parentLabels": [
+                  "causal attribution"
+                ],
+                "relatedLabels": [
+                  "possible cause",
+                  "food reaction"
+                ]
+              },
+              "polarity": "negated",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": null,
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "Were the June and August soft stools definitely caused by chicken?",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.98,
+                "reasons": [
+                  "June note says the owner does not know whether treats were involved",
+                  "August note mentions possible table scraps and unseen food intake"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Were the June and August soft stools definitely caused by chicken?"
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "assertion",
+              "value": "not definitely caused by chicken",
+              "unit": null,
+              "durability": "unknown"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": [
+              "June episode has an unconfirmed possible association with new chicken treats",
+              "August episode has a different, unclear exposure history"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "number": 54,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01397775,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1476,
+      "inputTokens": 2096,
+      "outputTokens": 82,
+      "measuredUsd": 0.001941,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 55,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03512625,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3377,
+      "inputTokens": 4662,
+      "outputTokens": 423,
+      "measuredUsd": 0.0054,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "recall",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "recall",
+        "subject": "explicit",
+        "petNames": [
+          "Luna"
+        ],
+        "topic": "accidents",
+        "terms": [
+          "accident",
+          "house soiling",
+          "litter box",
+          "urination",
+          "defecation"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 56,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.06971775,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 9079,
+      "inputTokens": 11741,
+      "outputTokens": 1491,
+      "measuredUsd": 0.01551525,
+      "syntheticResponse": {
+        "answer": "Luna had two accidents that led to a vet visit on July 9. After that, the note says she had no more accidents since July 10 and was using the tray normally.",
+        "answerSections": [
+          {
+            "heading": "What the notes support",
+            "items": [
+              "The vet visit was tied to the two accidents, and the vet asked you to restore her previous litter setup and monitor her.",
+              "The later note supports that the accidents had stopped by July 17 and her tray use had gone back to normal."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "What should I track if the accidents start again?",
+          "Can you summarize Luna’s litter history by date?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "Luna had two accidents that led to a vet visit on July 9, and the vet asked you to restore her previous litter arrangement and monitor her.",
+              "sourceIds": [
+                "care:l-jul9"
+              ]
+            },
+            {
+              "text": "A later note says she had no more accidents since July 10 and was using the tray normally.",
+              "sourceIds": [
+                "care:l-jul17"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:l-jul9",
+          "care:l-jul17"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [
+            "concern_resolution"
+          ],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "terminal",
+          "recoveryConfidence": 0.9,
+          "recoveryEvidence": {
+            "outcome": "problem_ended",
+            "surfaceText": "no more accidents since July 10",
+            "targetConcept": "accidents",
+            "confidence": 0.9
+          },
+          "requestedTopic": "accidents",
+          "referencedPet": "luna",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "No urgent signs are described; this is a retrospective update about resolved accidents.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Luna"
+            },
+            "domain": "care",
+            "topic": "litter accidents",
+            "eventTitle": "Luna had accidents",
+            "transition": "observed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-07-09T12:00:00Z",
+              "explicitTime": "July 9"
+            },
+            "importance": "important",
+            "confidence": 0.86,
+            "sourceExcerpt": "We took Luna to the vet about the two accidents.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "We took Luna to the vet about the two accidents.",
+              "confidence": 0.82
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Luna"
+            },
+            "domain": "care",
+            "topic": "litter accidents",
+            "eventTitle": "Accidents stopped",
+            "transition": "resolved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-07-17T12:00:00Z",
+              "explicitTime": "since July 10"
+            },
+            "importance": "important",
+            "confidence": 0.93,
+            "sourceExcerpt": "Luna has had no more accidents since July 10.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "Luna has had no more accidents since July 10.",
+              "confidence": 0.93
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.95
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Luna",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "cat",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Luna"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "ref_1",
+              "surface": "her",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "have accidents",
+                "definition": "Experience house-soiling accidents",
+                "aliases": [
+                  "house soiling accidents",
+                  "litter accidents"
+                ],
+                "parentLabels": [
+                  "care"
+                ],
+                "relatedLabels": [
+                  "litter box",
+                  "tray"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-07-09T12:00:00Z",
+                "validFrom": "2026-07-09T12:00:00Z",
+                "validTo": null,
+                "surfaceText": "about the two accidents",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.86,
+                "reasons": [
+                  "owner report in care note"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "We took Luna to the vet about the two accidents."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "completed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            },
+            {
+              "localId": "claim_2",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "have no more accidents",
+                "definition": "No further house-soiling accidents after a stated time",
+                "aliases": [
+                  "accidents stopped"
+                ],
+                "parentLabels": [
+                  "state_transition"
+                ],
+                "relatedLabels": [
+                  "tray use"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-07-17T12:00:00Z",
+                "validFrom": "2026-07-10T00:00:00Z",
+                "validTo": null,
+                "surfaceText": "since July 10",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.93,
+                "reasons": [
+                  "explicit follow-up note"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Luna has had no more accidents since July 10."
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "state_transition",
+              "transition": "resolved",
+              "fromState": "active",
+              "toState": "resolved",
+              "targetConcept": {
+                "label": "accidents",
+                "definition": "House-soiling accidents",
+                "aliases": [
+                  "litter accidents",
+                  "house soiling"
+                ],
+                "parentLabels": [
+                  "care"
+                ],
+                "relatedLabels": [
+                  "tray use"
+                ]
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 57,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0116625,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1385,
+      "inputTokens": 1263,
+      "outputTokens": 96,
+      "measuredUsd": 0.0013792499999999998,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 58,
+      "question": "And her hiding, is that resolved too?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03515775,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4563,
+      "inputTokens": 4672,
+      "outputTokens": 460,
+      "measuredUsd": 0.005574,
+      "syntheticPlan": {
+        "selection": "latest",
+        "readOperation": "status",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "status",
+        "subject": "conversation",
+        "petNames": [
+          "Luna"
+        ],
+        "topic": "hiding",
+        "terms": [
+          "hiding",
+          "hidden",
+          "hiding behavior",
+          "withdrawing",
+          "withdrawal"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 59,
+      "question": "And her hiding, is that resolved too?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07196025,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 8883,
+      "inputTokens": 12498,
+      "outputTokens": 1279,
+      "measuredUsd": 0.015129,
+      "syntheticResponse": {
+        "answer": "No, not fully. The most recent note still says Luna hides during loud drilling, so that behavior doesn’t look resolved yet. It had improved by August, and there was a brief stretch in June when she was not continuing to hide, but the noisy drilling seems to have brought it back.",
+        "answerSections": [
+          {
+            "heading": "What the notes support",
+            "items": [
+              "On 2026-09-02, Luna still hides during loud drilling, even though her appetite and litter tray use were normal. [care:l-sep2]",
+              "On 2026-08-22, she was coming out more often and the hiding had improved, but it had not completely stopped. [care:l-aug22]",
+              "On 2026-06-21, the note says she was behaving normally since the plumber left and was not continuing to hide. [care:l-jun21]"
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "No, Luna’s hiding was not fully resolved by the latest note, because on 2026-09-02 she still hid during loud drilling. [care:l-sep2]",
+              "sourceIds": [
+                "care:l-sep2"
+              ]
+            },
+            {
+              "text": "The August note says it had improved, since she was coming out more often, but it had not completely stopped. [care:l-aug22]",
+              "sourceIds": [
+                "care:l-aug22"
+              ]
+            },
+            {
+              "text": "There was a point on 2026-06-21 when she was not continuing to hide after the plumber left, but that earlier improvement did not hold once the later noise started again. [care:l-jun21",
+              "sourceIds": [
+                "care:l-jun21",
+                "care:l-aug15"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:l-sep2",
+          "care:l-aug22",
+          "care:l-aug15",
+          "care:l-jun21",
+          "care:l-jun18"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [
+            "concern_resolution"
+          ],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "partial",
+          "recoveryConfidence": 0.86,
+          "recoveryEvidence": {
+            "outcome": "partial_improvement",
+            "surfaceText": "Luna still hides during loud drilling.",
+            "targetConcept": "hiding during loud drilling",
+            "confidence": 0.94
+          },
+          "requestedTopic": "hiding",
+          "referencedPet": "luna",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Historical status question about a known behavior, with no urgent signs in the current message.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "her",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "cat",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "And her hiding, is that resolved too?"
+                }
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "her",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "hiding resolved",
+                "definition": "The cat's hiding behavior has ended or returned to baseline.",
+                "aliases": [
+                  "hiding ended",
+                  "not hiding anymore"
+                ],
+                "parentLabels": [
+                  "behavior status"
+                ],
+                "relatedLabels": [
+                  "improved hiding",
+                  "hiding during noise"
+                ]
+              },
+              "polarity": "negated",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": null,
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "And her hiding, is that resolved too?",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.94,
+                "reasons": [
+                  "latest note still reports hiding during loud drilling"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "And her hiding, is that resolved too?"
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "assertion",
+              "value": "not resolved",
+              "unit": null,
+              "durability": "temporary"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 60,
+      "question": "And her hiding, is that resolved too?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01293375,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1513,
+      "inputTokens": 1703,
+      "outputTokens": 124,
+      "measuredUsd": 0.00183525,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 61,
+      "question": "Now Oscar, was his stiffness continuous?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0351915,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2490,
+      "inputTokens": 4681,
+      "outputTokens": 259,
+      "measuredUsd": 0.00467625,
+      "syntheticPlan": {
+        "selection": "latest",
+        "readOperation": "status",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "status",
+        "subject": "explicit",
+        "petNames": [
+          "Oscar"
+        ],
+        "topic": "stiffness",
+        "terms": [
+          "stiffness",
+          "stiff",
+          "limp",
+          "rigid"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 62,
+      "question": "Now Oscar, was his stiffness continuous?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0730695,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 8282,
+      "inputTokens": 12813,
+      "outputTokens": 1184,
+      "measuredUsd": 0.01493775,
+      "syntheticResponse": {
+        "answer": "No, the notes don’t read as continuous. Oscar’s stiffness seems to have improved by July, then come back in August and again in September, so it looks recurrent rather than constant.",
+        "answerSections": [
+          {
+            "heading": "What the notes show",
+            "items": [
+              "June 17: he was seen by the vet for stiffness.",
+              "July 1: he was getting up comfortably again and no stiffness was noticed that week.",
+              "August 12 and August 27: stiffness was back.",
+              "September 13 and 14: stiffness was still being mentioned, but he seemed more comfortable after moving around."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "conversational",
+        "userIntent": "question",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "No, Oscar’s stiffness does not look continuous in the notes; it appears to have improved in July, then returned in August and was still being mentioned in September.",
+              "sourceIds": [
+                "care:o-jun17",
+                "care:o-jul1",
+                "care:o-aug12",
+                "care:o-aug27",
+                "care:o-sep13",
+                "care:o-sep14"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:o-sep14",
+          "care:o-sep13",
+          "care:o-aug27",
+          "care:o-aug12",
+          "care:o-jul1",
+          "care:o-jun17"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [
+            "correction",
+            "concern_resolution"
+          ],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "partial",
+          "recoveryConfidence": 0.89,
+          "recoveryEvidence": {
+            "outcome": "partial_improvement",
+            "surfaceText": "He seemed more comfortable after moving around.",
+            "targetConcept": "stiffness",
+            "confidence": 0.78
+          },
+          "requestedTopic": "stiffness",
+          "referencedPet": "oscar",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Historical status question about recurring stiffness with no urgent signs in the current message.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Oscar"
+            },
+            "domain": "health",
+            "topic": "stiffness",
+            "eventTitle": "Oscar stiffness recurred",
+            "transition": "changed",
+            "state": "monitoring",
+            "temporal": {
+              "occurredAt": null,
+              "explicitTime": "recent notes"
+            },
+            "importance": "important",
+            "confidence": 0.88,
+            "sourceExcerpt": "it looks recurrent rather than constant",
+            "episodeBoundary": {
+              "kind": "continuation",
+              "evidence": "it looks recurrent rather than constant",
+              "confidence": 0.88
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.96
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Oscar",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Oscar"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "his",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.96
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "stiffness_is_continuous",
+                "definition": "Whether Oscar's stiffness stayed present without interruption.",
+                "aliases": [
+                  "continuous stiffness"
+                ],
+                "parentLabels": [
+                  "health state"
+                ],
+                "relatedLabels": [
+                  "recurrent stiffness",
+                  "intermittent stiffness"
+                ]
+              },
+              "polarity": "negated",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": null,
+                "validFrom": "2026-06-17T12:00:00Z",
+                "validTo": "2026-09-14T12:00:00Z",
+                "surfaceText": "the notes don’t read as continuous",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.9,
+                "reasons": [
+                  "dated notes show improvement followed by return"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "the notes don’t read as continuous"
+                },
+                {
+                  "surfaceText": "it improved in July, then come back in August and again in September"
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "assertion",
+              "value": "not continuous",
+              "unit": null,
+              "durability": "ongoing"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": [
+              "dated notes indicate improvement and recurrence rather than uninterrupted symptoms"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "number": 63,
+      "question": "Now Oscar, was his stiffness continuous?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0132135,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1304,
+      "inputTokens": 1766,
+      "outputTokens": 96,
+      "measuredUsd": 0.0017564999999999998,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 64,
+      "question": "Is he still taking that medication?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035222250000000004,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3099,
+      "inputTokens": 4688,
+      "outputTokens": 315,
+      "measuredUsd": 0.0049335,
+      "syntheticPlan": {
+        "selection": "latest",
+        "readOperation": "status",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "status",
+        "subject": "conversation",
+        "petNames": [
+          "Oscar"
+        ],
+        "topic": "medication",
+        "terms": [
+          "medication",
+          "medicine",
+          "drug",
+          "prescription"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 65,
+      "question": "Is he still taking that medication?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.071346,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 7981,
+      "inputTokens": 12198,
+      "outputTokens": 1293,
+      "measuredUsd": 0.014967000000000001,
+      "syntheticResponse": {
+        "answer": "No. The notes say Oscar was given a seven-day medication course on June 17, and that he finished it on June 24, so he wasn’t still taking it after that. I don’t see a newer medication instruction recorded in these notes.",
+        "answerSections": [
+          {
+            "heading": "What the notes show",
+            "items": [
+              "June 17: the vet gave Oscar a seven-day medication course for the stiffness.",
+              "June 24: the course was finished that day."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "What was the medication for?",
+          "Can you summarize the stiffness timeline?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "Oscar’s notes show he was given a seven-day medication course for the stiffness on June 17, and he finished that course on June 24.",
+              "sourceIds": [
+                "care:o-jun17",
+                "care:o-jun24"
+              ]
+            },
+            {
+              "text": "So based on the recorded notes, he was not still taking that medication after June 24.",
+              "sourceIds": [
+                "care:o-jun24"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:o-jun17",
+          "care:o-jun24"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "medication",
+          "referencedPet": "oscar",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Question about a past medication course; notes indicate it ended.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Oscar"
+            },
+            "domain": "medication",
+            "topic": "stiffness treatment course",
+            "eventTitle": "Oscar finished medication",
+            "transition": "resolved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-06-24T12:00:00Z",
+              "explicitTime": "June 24"
+            },
+            "importance": "routine",
+            "confidence": 0.96,
+            "sourceExcerpt": "Oscar finished the seven-day medication course today.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "Oscar finished the seven-day medication course today.",
+              "confidence": 0.96
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.98
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Oscar",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Oscar"
+                }
+              ],
+              "confidence": 0.99
+            },
+            {
+              "localId": "entity_2",
+              "surface": "that medication",
+              "coarseType": "product",
+              "attributes": {
+                "species": null,
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "that medication"
+                }
+              ],
+              "confidence": 0.92
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "he",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "finished medication course",
+                "definition": "The pet completed the prescribed medication course.",
+                "aliases": [
+                  "completed course",
+                  "finished the course"
+                ],
+                "parentLabels": [
+                  "medication"
+                ],
+                "relatedLabels": [
+                  "treatment"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-06-24T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "finished the seven-day medication course today",
+                "precision": "exact"
+              },
+              "uncertainty": {
+                "confidence": 0.96,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Oscar finished the seven-day medication course today."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "patient",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "completed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 66,
+      "question": "Is he still taking that medication?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01250925,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2214,
+      "inputTokens": 1494,
+      "outputTokens": 186,
+      "measuredUsd": 0.0019575,
+      "review": "{\"approved\":false}"
+    },
+    {
+      "number": 67,
+      "question": "What diagnosis did the vet give him?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035253,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 5440,
+      "inputTokens": 4697,
+      "outputTokens": 609,
+      "measuredUsd": 0.00626325,
+      "syntheticPlan": {
+        "selection": "latest",
+        "readOperation": "recall",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "recall",
+        "subject": "conversation",
+        "petNames": [
+          "Oscar"
+        ],
+        "topic": "diagnosis",
+        "terms": [
+          "diagnosis",
+          "vet diagnosis",
+          "condition",
+          "illness"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 68,
+      "question": "What diagnosis did the vet give him?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07090275,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 6985,
+      "inputTokens": 12039,
+      "outputTokens": 937,
+      "measuredUsd": 0.01324575,
+      "syntheticResponse": {
+        "answer": "I can’t see a recorded diagnosis for Oscar in the notes I have. The June visit says he was examined for stiffness and given a seven-day medication course, and the August follow-up says no diagnosis was recorded there either.",
+        "answerSections": [
+          {
+            "heading": "What the notes support",
+            "items": [
+              "June: the vet examined him because of the stiffness and gave a seven-day medication course.",
+              "August: the follow-up note says to keep observing his comfort and activity, but it does not list a diagnosis.",
+              "So based on the records I can see, the diagnosis isn’t documented here."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "What did the vet call the stiffness in the June visit?",
+          "Can you summarize the two vet visits side by side?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "clarification",
+        "userIntent": "question",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:o-aug27",
+          "care:o-jun17"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "diagnosis",
+          "referencedPet": "oscar",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": false
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "No urgent medical issue is described; the request is for recall of a documented diagnosis, which is not present in the loaded notes.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Oscar",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "What diagnosis did the vet give him?"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "ref_1",
+              "surface": "him",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "diagnosis_documented",
+                "definition": "A vet diagnosis is recorded in the available notes.",
+                "aliases": [
+                  "diagnosis noted",
+                  "diagnosis recorded"
+                ],
+                "parentLabels": [
+                  "medical_record_state"
+                ],
+                "relatedLabels": [
+                  "vet assessment",
+                  "medical note"
+                ]
+              },
+              "polarity": "negated",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": null,
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "I have not recorded a diagnosis",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.92,
+                "reasons": [
+                  "The available notes explicitly say no diagnosis was recorded there."
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I have not recorded a diagnosis or any new medication instructions here."
+                },
+                {
+                  "surfaceText": "I have not recorded the medication name, dose or a diagnosis here."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "assertion",
+              "value": false,
+              "unit": null,
+              "durability": "ongoing"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": [
+              "The loaded notes do not include a named diagnosis."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "number": 69,
+      "question": "How can I make Milo vet visit less stressful?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0352635,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4874,
+      "inputTokens": 4701,
+      "outputTokens": 374,
+      "measuredUsd": 0.00520875,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "general",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "general",
+        "subject": "explicit",
+        "petNames": [
+          "Milo"
+        ],
+        "topic": "vet visit",
+        "terms": [
+          "vet visit",
+          "stress",
+          "anxiety",
+          "calm",
+          "carrier",
+          "dog"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 70,
+      "question": "How can I make Milo vet visit less stressful?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07440375,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 8509,
+      "inputTokens": 13278,
+      "outputTokens": 1001,
+      "measuredUsd": 0.014463,
+      "syntheticResponse": {
+        "answer": "The biggest things are to make the trip feel predictable and to keep the visit as low-pressure as possible. Let him sniff the carrier or car area ahead of time, use a familiar blanket, and bring a few small treats if the clinic allows feeding. On the day, keep your own tone calm and brief, because dogs often pick up on that fast.\n\nIt also helps to reduce the waiting-room stress. Ask the clinic if you can wait in the car and be called in, or if they can schedule him at a quieter time. For handling, tell the staff ahead of time what helps him relax and what makes him tense, so they can go slower and avoid surprises. If he gets very anxious, it’s worth asking the vet before the visit whether they recommend any pre-visit calming plan or medication.",
+        "answerSections": [
+          {
+            "heading": "Before the visit",
+            "items": [
+              "Do a few short practice trips with no exam so he learns that car rides can end normally.",
+              "Keep the routine simple that morning, with normal food unless the clinic told you otherwise.",
+              "Pack his leash, a familiar blanket, and any comfort item he already likes."
+            ]
+          },
+          {
+            "heading": "At the clinic",
+            "items": [
+              "Ask whether you can skip the waiting room and go straight into a room or wait in the car.",
+              "Tell the staff if he fears being lifted, restrained, or touched in certain spots.",
+              "Use treats, praise, and slow movement, but don’t force him to interact if he’s shutting down."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "What should I bring to the appointment?",
+          "How do I tell if he’s too stressed to continue?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "vet_preparation",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "profile:milo:lifecycle_status",
+          "profile:milo:sex",
+          "profile:milo:species",
+          "care:m-sep3",
+          "care:m-correction",
+          "care:m-aug10",
+          "care:m-aug8",
+          "care:m-jul3"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "vet_preparation",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "vet visit",
+          "referencedPet": "milo",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Routine vet-prep question with no active medical warning signs.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "he",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "vet visit stress",
+                "definition": "The pet experiences stress around veterinary visits.",
+                "aliases": [
+                  "vet anxiety",
+                  "clinic stress"
+                ],
+                "parentLabels": [
+                  "behavior",
+                  "safety"
+                ],
+                "relatedLabels": [
+                  "travel stress",
+                  "handling stress"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "suspected",
+              "temporal": {
+                "occurredAt": null,
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "less stressful",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.72,
+                "reasons": [
+                  "User asks how to reduce stress, which implies concern rather than a confirmed problem."
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "How can I make Milo vet visit less stressful?"
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "assertion",
+              "value": "Milo's vet visit should be less stressful",
+              "unit": null,
+              "durability": "temporary"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 71,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03527625,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 8311,
+      "inputTokens": 4708,
+      "outputTokens": 1160,
+      "measuredUsd": 0.008751,
+      "syntheticPlan": {
+        "selection": "latest",
+        "readOperation": null,
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "f1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "m1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "household"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today."
+                }
+              ],
+              "confidence": 0.99
+            },
+            {
+              "localId": "m2",
+              "surface": "I",
+              "coarseType": "person",
+              "attributes": {
+                "species": null,
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I feel like I lost part of my life."
+                }
+              ],
+              "confidence": 0.96
+            }
+          ],
+          "references": [],
+          "claims": [
+            {
+              "localId": "c1",
+              "subjectRef": "m1",
+              "predicate": {
+                "label": "die",
+                "definition": "The animal's life ended.",
+                "aliases": [
+                  "died",
+                  "death"
+                ],
+                "parentLabels": [
+                  "state_transition"
+                ],
+                "relatedLabels": [
+                  "passed away",
+                  "deceased"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15",
+                "validFrom": "2026-09-15",
+                "validTo": "2026-09-15",
+                "surfaceText": "today",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.99,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "state_transition",
+              "transition": "resolved",
+              "fromState": "alive",
+              "toState": "dead",
+              "targetConcept": {
+                "label": "death",
+                "definition": "The end of life.",
+                "aliases": [
+                  "died",
+                  "passing"
+                ],
+                "parentLabels": [
+                  "life_event"
+                ],
+                "relatedLabels": [
+                  "loss"
+                ]
+              }
+            },
+            {
+              "localId": "c2",
+              "subjectRef": "m2",
+              "predicate": {
+                "label": "feel_loss",
+                "definition": "The person feels emotionally affected by a loss.",
+                "aliases": [
+                  "grieving",
+                  "sad"
+                ],
+                "parentLabels": [
+                  "emotion"
+                ],
+                "relatedLabels": [
+                  "bereavement",
+                  "mourning"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15",
+                "validFrom": "2026-09-15",
+                "validTo": "2026-09-15",
+                "surfaceText": "I feel like I lost part of my life",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.91,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I feel like I lost part of my life."
+                }
+              ],
+              "persistenceHint": "owner_memory",
+              "kind": "assertion",
+              "value": "feels like I lost part of my life",
+              "unit": null,
+              "durability": "temporary"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "update",
+        "subject": "explicit",
+        "petNames": [
+          "Milo"
+        ],
+        "topic": "death",
+        "terms": [
+          "death",
+          "died",
+          "grief",
+          "loss"
+        ],
+        "from": null,
+        "to": "2026-09-15",
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 72,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03507375,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 5089,
+      "inputTokens": 4648,
+      "outputTokens": 652,
+      "measuredUsd": 0.00642,
+      "syntheticPlan": {
+        "selection": "comparison",
+        "readOperation": "comparison",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "current",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "comparison",
+        "subject": "selected",
+        "petNames": [
+          "Milo"
+        ],
+        "topic": "soft stool",
+        "terms": [
+          "soft stool",
+          "stool",
+          "chicken",
+          "diarrhea"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": "soft stool",
+        "ordinal": null
+      }
+    },
+    {
+      "number": 73,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07398075,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 12350,
+      "inputTokens": 13263,
+      "outputTokens": 1932,
+      "measuredUsd": 0.018641249999999998,
+      "syntheticResponse": {
+        "answer": "No, not definitely. The June soft stools happened soon after the new chicken training treats started, so chicken treats were a possible trigger, but the note also says you didn’t know for sure and his regular chicken-and-rice food stayed the same. The August soft stool points even less clearly to chicken because it happened after he stayed with your sister, and the note only says he may have eaten table scraps, with nobody seeing exactly what he ate. So the records support “possible” in June, but not a confirmed chicken cause overall.",
+        "answerSections": [
+          {
+            "heading": "What the notes support",
+            "items": [
+              "June: the timing fits the new chicken training treats, but it was never confirmed as the cause.",
+              "August: the timing and context point more toward something eaten during the weekend than to chicken specifically.",
+              "By August 10, the stools were back to normal again."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "The June soft stools were a possible chicken-treat reaction, but they were not definitely caused by chicken, because the note says you did not know for sure and his regular chicken-and-rice food stayed the same.",
+              "sourceIds": [
+                "care:m-jun12",
+                "care:m-jun15",
+                "care:m-jun16",
+                "care:m-jun20"
+              ]
+            },
+            {
+              "text": "The August soft stool also was not clearly tied to chicken, since it happened after he stayed with your sister and the note says he may have eaten table scraps, but nobody saw exactly what he ate.",
+              "sourceIds": [
+                "care:m-aug8",
+                "care:m-aug10"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:m-jun12",
+          "care:m-jun15",
+          "care:m-jun16",
+          "care:m-jun20",
+          "care:m-aug8",
+          "care:m-aug10"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [
+            "correction",
+            "general_conversation"
+          ],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "terminal",
+          "recoveryConfidence": 0.84,
+          "recoveryEvidence": {
+            "outcome": "symptom_absent",
+            "surfaceText": "Milo stools are normal again. There have been no more soft stools since August 8.",
+            "targetConcept": "soft stool",
+            "confidence": 0.93
+          },
+          "requestedTopic": "soft stool",
+          "referencedPet": "milo",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Historical comparison about a resolved mild stool concern with no current danger signs.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "nutrition",
+            "topic": "chicken training treats",
+            "eventTitle": "Started chicken training treats",
+            "transition": "started",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-06-12T12:00:00Z",
+              "explicitTime": "yesterday"
+            },
+            "importance": "routine",
+            "confidence": 0.93,
+            "sourceExcerpt": "We started giving Milo new chicken training treats yesterday.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "We started giving Milo new chicken training treats yesterday.",
+              "confidence": 0.88
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "soft stool",
+            "eventTitle": "Soft stools occurred",
+            "transition": "observed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-06-15T12:00:00Z",
+              "explicitTime": "today"
+            },
+            "importance": "important",
+            "confidence": 0.95,
+            "sourceExcerpt": "Milo had two soft stools today.",
+            "episodeBoundary": {
+              "kind": "continuation",
+              "evidence": "Milo had two soft stools today.",
+              "confidence": 0.9
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "soft stool",
+            "eventTitle": "Soft stools ended",
+            "transition": "resolved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-06-20T12:00:00Z",
+              "explicitTime": "for three days"
+            },
+            "importance": "important",
+            "confidence": 0.95,
+            "sourceExcerpt": "Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "The soft stools seem to have ended.",
+              "confidence": 0.92
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "health",
+            "topic": "soft stool",
+            "eventTitle": "Soft stool occurred",
+            "transition": "observed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-08-08T12:00:00Z",
+              "explicitTime": "after staying with my sister for the weekend"
+            },
+            "importance": "important",
+            "confidence": 0.95,
+            "sourceExcerpt": "Milo had one soft stool after staying with my sister for the weekend.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "Milo had one soft stool after staying with my sister for the weekend.",
+              "confidence": 0.82
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Were the June and August soft stools definitely caused by chicken?"
+                }
+              ],
+              "confidence": 0.99
+            },
+            {
+              "localId": "entity_2",
+              "surface": "chicken",
+              "coarseType": "product",
+              "attributes": {
+                "species": null,
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Were the June and August soft stools definitely caused by chicken?"
+                }
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "the June and August soft stools",
+              "kind": "prior_topic",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.95
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "have_soft_stools",
+                "definition": "Experience soft stools during a period",
+                "aliases": [
+                  "soft stools"
+                ],
+                "parentLabels": [
+                  "health"
+                ],
+                "relatedLabels": [
+                  "stool changes"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": null,
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "June and August soft stools",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.88,
+                "reasons": [
+                  "historical comparison",
+                  "multiple episodes"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Were the June and August soft stools definitely caused by chicken?"
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "assertion",
+              "value": true,
+              "unit": null,
+              "durability": "unknown"
+            },
+            {
+              "localId": "claim_2",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "cause_soft_stools",
+                "definition": "Be the definite cause of soft stools",
+                "aliases": [
+                  "caused by"
+                ],
+                "parentLabels": [
+                  "health",
+                  "causation"
+                ],
+                "relatedLabels": [
+                  "trigger",
+                  "contributor"
+                ]
+              },
+              "polarity": "negated",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": null,
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "definitely caused by chicken",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.91,
+                "reasons": [
+                  "June note says 'I do not know'",
+                  "August note has alternate exposure"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "were the June and August soft stools definitely caused by chicken?"
+                },
+                {
+                  "surfaceText": "I wonder whether the new treats are involved, but I do not know."
+                },
+                {
+                  "surfaceText": "She says he may have eaten some table scraps, but nobody saw exactly what he ate."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "assertion",
+              "value": false,
+              "unit": null,
+              "durability": "unknown"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": [
+              "Question is answerable from supplied records but not with definitive causation"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "number": 74,
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0136665,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1341,
+      "inputTokens": 1985,
+      "outputTokens": 121,
+      "measuredUsd": 0.00203325,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 75,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03509625,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4849,
+      "inputTokens": 4654,
+      "outputTokens": 653,
+      "measuredUsd": 0.006429000000000001,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "recall",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "recall",
+        "subject": "explicit",
+        "petNames": [
+          "Luna"
+        ],
+        "topic": "accidents",
+        "terms": [
+          "accidents",
+          "urination",
+          "defecation"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 76,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0695535,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 12317,
+      "inputTokens": 11692,
+      "outputTokens": 1592,
+      "measuredUsd": 0.015933000000000003,
+      "syntheticResponse": {
+        "answer": "Luna’s accidents seem to have settled down. The notes show a vet visit about two accidents, with advice to go back to her previous litter setup and monitor her, and a later update says she had no more accidents after July 10 and was using the tray normally.",
+        "answerSections": [
+          {
+            "heading": "What the notes support",
+            "items": [
+              "There was a vet visit for the two accidents, and the vet asked for the previous litter arrangement to be restored.",
+              "A later note says she had no more accidents since July 10 and was using the tray normally."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "Can you summarize the accident timeline?",
+          "What should I watch for if it starts again?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "ask_about_accidents_status",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "Luna’s accident issue appears to have improved, based on a vet visit for two accidents followed by a later note that she had no more accidents since July 10 and was using the tray normally.",
+              "sourceIds": [
+                "care:l-jul9",
+                "care:l-jul17"
+              ]
+            },
+            {
+              "text": "The vet asked for her previous litter arrangement to be restored and for her to be monitored.",
+              "sourceIds": [
+                "care:l-jul9"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:l-jul9",
+          "care:l-jul17"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [
+            "concern_resolution"
+          ],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "terminal",
+          "recoveryConfidence": 0.95,
+          "recoveryEvidence": {
+            "outcome": "symptom_absent",
+            "surfaceText": "Luna has had no more accidents since July 10.",
+            "targetConcept": "accidents",
+            "confidence": 0.95
+          },
+          "requestedTopic": "accidents",
+          "referencedPet": "luna",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Historical recall with evidence of improvement and no current warning signs.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Luna"
+            },
+            "domain": "care",
+            "topic": "litter management",
+            "eventTitle": "Luna had a vet visit about accidents",
+            "transition": "observed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-07-09T12:00:00Z",
+              "explicitTime": "about the two accidents"
+            },
+            "importance": "routine",
+            "confidence": 0.9,
+            "sourceExcerpt": "We took Luna to the vet about the two accidents.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "We took Luna to the vet about the two accidents.",
+              "confidence": 0.86
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Luna"
+            },
+            "domain": "care",
+            "topic": "litter management",
+            "eventTitle": "Litter setup was restored and monitored",
+            "transition": "started",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-07-09T12:00:00Z",
+              "explicitTime": "monitor her"
+            },
+            "importance": "routine",
+            "confidence": 0.88,
+            "sourceExcerpt": "The vet asked us to restore her previous litter arrangement and monitor her.",
+            "episodeBoundary": {
+              "kind": "continuation",
+              "evidence": "The vet asked us to restore her previous litter arrangement and monitor her.",
+              "confidence": 0.72
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Luna"
+            },
+            "domain": "care",
+            "topic": "accidents",
+            "eventTitle": "Accidents stopped",
+            "transition": "resolved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-07-17T12:00:00Z",
+              "explicitTime": "since July 10"
+            },
+            "importance": "important",
+            "confidence": 0.97,
+            "sourceExcerpt": "Luna has had no more accidents since July 10.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "Luna has had no more accidents since July 10.",
+              "confidence": 0.98
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.98
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Luna",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "cat",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Luna"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "her",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "had accidents",
+                "definition": "The pet experienced unwanted elimination accidents.",
+                "aliases": [
+                  "accidents"
+                ],
+                "parentLabels": [
+                  "elimination issue"
+                ],
+                "relatedLabels": [
+                  "litter tray use",
+                  "urination",
+                  "defecation"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-07-09T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "about the two accidents",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.9,
+                "reasons": [
+                  "owner report"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "We took Luna to the vet about the two accidents."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "patient",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "completed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            },
+            {
+              "localId": "claim_2",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "accidents resolved",
+                "definition": "The accident problem is no longer present.",
+                "aliases": [
+                  "no more accidents"
+                ],
+                "parentLabels": [
+                  "symptom resolution"
+                ],
+                "relatedLabels": [
+                  "tray use",
+                  "litter changes"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-07-17T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "since July 10",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.97,
+                "reasons": [
+                  "explicit absence statement"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Luna has had no more accidents since July 10."
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "state_transition",
+              "transition": "resolved",
+              "fromState": "active",
+              "toState": "resolved",
+              "targetConcept": {
+                "label": "accidents",
+                "definition": "Unwanted elimination accidents.",
+                "aliases": [
+                  "litter accidents"
+                ],
+                "parentLabels": [
+                  "elimination issue"
+                ],
+                "relatedLabels": [
+                  "urination",
+                  "defecation"
+                ]
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 77,
+      "question": "What about Luna accidents?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.011538,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1839,
+      "inputTokens": 1228,
+      "outputTokens": 179,
+      "measuredUsd": 0.0017265000000000002,
+      "review": "{\"approved\":true}"
+    },
+    {
+      "number": 78,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035142,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 6003,
+      "inputTokens": 4670,
+      "outputTokens": 805,
+      "measuredUsd": 0.007124999999999999,
+      "syntheticPlan": {
+        "selection": "latest",
+        "readOperation": null,
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "turn1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "m1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "other"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [],
+          "claims": [
+            {
+              "localId": "c1",
+              "subjectRef": "m1",
+              "predicate": {
+                "label": "died",
+                "definition": "the animal's life ended",
+                "aliases": [
+                  "passed away",
+                  "died"
+                ],
+                "parentLabels": [
+                  "state_transition"
+                ],
+                "relatedLabels": [
+                  "death"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "today",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.97,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today"
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "state_transition",
+              "transition": "changed",
+              "fromState": "alive",
+              "toState": "dead",
+              "targetConcept": {
+                "label": "death",
+                "definition": "the state of no longer being alive",
+                "aliases": [
+                  "died",
+                  "passed away"
+                ],
+                "parentLabels": [
+                  "state_transition"
+                ],
+                "relatedLabels": [
+                  "grief",
+                  "loss"
+                ]
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "update",
+        "subject": "explicit",
+        "petNames": [
+          "Milo"
+        ],
+        "topic": "death",
+        "terms": [
+          "died",
+          "death",
+          "passed away"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 79,
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.072471,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 6930,
+      "inputTokens": 12664,
+      "outputTokens": 1001,
+      "measuredUsd": 0.0140025,
+      "syntheticResponse": {
+        "answer": "I’m so sorry. Losing Milo like this can feel like losing a whole part of your life, and that’s a very real kind of pain. Right now, the most important thing is to take this one moment at a time and let yourself grieve without trying to hold it all together.",
+        "answerSections": [
+          {
+            "heading": "Next step",
+            "items": [
+              "If you want, I can help you mark Milo as deceased in the app so his profile matches what happened."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [
+          {
+            "kind": "pet.mark_deceased",
+            "input": {
+              "field": null,
+              "value": null,
+              "title": null,
+              "detail": null,
+              "category": null,
+              "target": "specified"
+            },
+            "evidence": "Milo died today.",
+            "explicitIntent": true
+          }
+        ],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "grief_support",
+        "userIntent": "report_death",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "profile:milo:lifecycle_status",
+          "profile:milo:sex",
+          "profile:milo:species"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "general_conversation",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": false,
+          "userIsProvidingUpdate": true,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "death",
+          "referencedPet": "milo",
+          "safetyRelevance": "possible",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "The user reported a death and grief, but there are no emergency medical signs in the message.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Milo"
+            },
+            "domain": "care",
+            "topic": "death",
+            "eventTitle": "Milo died",
+            "transition": "resolved",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-09-15T12:00:00.000Z",
+              "explicitTime": "today"
+            },
+            "importance": "urgent",
+            "confidence": 0.99,
+            "sourceExcerpt": "Milo died today.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "Milo died today.",
+              "confidence": 0.99
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Milo",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today."
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "Milo",
+              "kind": "name",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [],
+              "confidence": 0.99
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "died",
+                "definition": "The animal's life ended.",
+                "aliases": [
+                  "died",
+                  "passed away"
+                ],
+                "parentLabels": [
+                  "death"
+                ],
+                "relatedLabels": [
+                  "loss"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15T12:00:00.000Z",
+                "validFrom": "2026-09-15T12:00:00.000Z",
+                "validTo": null,
+                "surfaceText": "today",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.99,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Milo died today."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "completed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    }
+  ],
+  "pricingSource": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+  "pricing": {
+    "inputPerMillion": 0.75,
+    "outputPerMillion": 4.5
+  },
+  "syntheticClock": "2026-09-15T12:00:00Z"
+}

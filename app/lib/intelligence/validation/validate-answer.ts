@@ -1,3 +1,4 @@
+import { readReviewedHistoryAnswer } from "../history-review-receipt.ts";
 import type { AskReasoningResult } from "../../ai/ask-reasoning.ts";
 import { countAskVisibleProseSanityDefects, measureAskAnswerEconomy, normalizeAskListIntegrity, normalizeAskVisibleProseSanity } from "../../ai/ask-answer-economy.ts";
 import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-internal-product-policy.ts";
@@ -22,11 +23,16 @@ export function validateGeneratedAnswer(
   authoritativePetIds: readonly string[] = [context.pet.id],
 ): AnswerValidationResult {
   const repairs: string[] = []; const errors: string[] = []; const qualityWarnings: string[] = [];
+  const reviewedHistory = readReviewedHistoryAnswer(result);
   const response = structuredClone(result);
+  if (reviewedHistory && response.evidenceContract) {
+    response.evidenceContract.answerSourceIds = reviewedHistory.sourceIds;
+    response.evidenceContract.answerContent = [];
+  }
   const sourceNote = response.evidenceContract?.scope.requestKind === "record_lookup" && response.evidenceContract.scope.status === "resolved"
     ? sourceNoteAnswer(response.evidenceContract) : null;
   const urgent = canonicalSafety === "urgent" || canonicalSafety === "emergency";
-  const scopedAnswer = response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null;
+  const scopedAnswer = reviewedHistory?.text || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
   const hasSourceQuote = Boolean(sourceNote?.sourceIds.length && scopedAnswer === sourceNote.text);
   if (scopedAnswer) {
     // Only assistant-authored prose goes through prose rewriting. The complete
@@ -135,7 +141,7 @@ export function validateGeneratedAnswer(
   if (hasSourceQuote && sourceNote) {
     response.answer.summary = `${urgent ? "Contact an emergency veterinarian now. " : ""}${sourceNote.text}`;
   }
-  const resolution = response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract, response.historySynthesis) : null;
+  const resolution = !reviewedHistory && response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract, response.historySynthesis) : null;
   if (resolution) {
     // Final authority is the provider-independent contract AFTER budgeting.
     response.answer = { title: "Furvise", summary: resolution, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
@@ -152,7 +158,7 @@ export function validateGeneratedAnswer(
     response.referencedRecords=[];
     repairs.push("applied_server_episode_result");
   }
-  if (!resolution && !context.episodeResult && scopedAnswer && response.evidenceContract?.interpretation) {
+  if (!reviewedHistory && !resolution && !context.episodeResult && scopedAnswer && response.evidenceContract?.interpretation) {
     // Restore complete attributed source text after prose rewriting, retaining
     // the independent safety directive. Never reuse rejected model prose.
     response.answer = { title: "Furvise", summary: scopedAnswer, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
