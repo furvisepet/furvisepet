@@ -1,0 +1,344 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "question": "Summarize Milo stomach history.",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "overview",
+        "readOperation": "overview",
+        "selection": "summary",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "stomach",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "stomach",
+            "vomit",
+            "threw up",
+            "thrown up",
+            "stool",
+            "diarrh"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "His stomach history looks mostly mild and short-lived in the notes I have. The main stomach issue was soft stool on June 15, which was followed by normal stools by June 20, and another single soft stool on August 8 after a weekend with your sister, with the notes suggesting table scraps might have been involved. By August 10, stools were normal again, and the September 3 update says his appetite and stools were normal. A later correction could not be linked to its original report. I can summarize what the saved notes say, but cannot confirm which reports the correction changes or whether they still apply to this pet.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Milo’s stomach history looks mostly mild and short-lived in the notes I have.",
+            "sourceIds": [
+              "care:m-jun15",
+              "care:m-jun20",
+              "care:m-aug8",
+              "care:m-aug10",
+              "care:m-sep3"
+            ]
+          },
+          {
+            "text": "The main stomach issue was soft stool on June 15, which was followed by normal stools by June 20, and another single soft stool on August 8 after a weekend with your sister, with the notes suggesting table scraps might have been involved.",
+            "sourceIds": [
+              "care:m-jun15",
+              "care:m-jun20",
+              "care:m-aug8"
+            ]
+          },
+          {
+            "text": "By August 10, stools were normal again, and the September 3 update says his appetite and stools were normal.",
+            "sourceIds": [
+              "care:m-aug10",
+              "care:m-sep3"
+            ]
+          },
+          {
+            "text": "There’s also a correction saying a vomiting note was for Bruno, not Milo, so that shouldn’t be counted as Milo’s stomach history.",
+            "sourceIds": [
+              "care:m-correction"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 16500,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Were the June and August soft stools definitely caused by chicken?",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "soft stool cause by chicken",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "soft stool",
+            "chicken",
+            "stool",
+            "diarrhea"
+          ],
+          "from": "2026-06-01T00:00:00.000Z",
+          "to": "2026-09-01T00:00:00.000Z",
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The June soft stools were only a possible chicken-related episode, because the note says new chicken training treats had started and that you wondered whether they were involved, but you did not know for sure. The August soft stool was also not definitively tied to chicken, since the note places it after the weekend with your sister and says he may have eaten some table scraps, but nobody saw exactly what he ate. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "The June soft stools were only a possible chicken-related episode, because the note says new chicken training treats had started and that you wondered whether they were involved, but you did not know for sure.",
+            "sourceIds": [
+              "care:m-jun12",
+              "care:m-jun15",
+              "care:m-jun16"
+            ]
+          },
+          {
+            "text": "The August soft stool was also not definitively tied to chicken, since the note places it after the weekend with your sister and says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+            "sourceIds": [
+              "care:m-aug8"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 10124,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "What about Luna accidents?",
+      "petId": "luna",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "latest",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "accidents",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "accident",
+            "litter box",
+            "pee",
+            "poop",
+            "urinate",
+            "defecate"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Luna had two accidents on July 8, followed by a vet visit on July 9 where you were told to restore her previous litter arrangement and monitor her. By July 17, the notes say she had had no more accidents since July 10 and was using the tray normally. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Luna had two accidents on July 8, followed by a vet visit on July 9 where you were told to restore her previous litter arrangement and monitor her.",
+            "sourceIds": [
+              "care:l-jul8",
+              "care:l-jul9"
+            ]
+          },
+          {
+            "text": "By July 17, the notes say she had had no more accidents since July 10 and was using the tray normally.",
+            "sourceIds": [
+              "care:l-jul17"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 14699,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "And her hiding, is that resolved too?",
+      "petId": "luna",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "latest",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "hiding",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "hiding"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The latest matching update I could check for Luna is dated 2026-08-15. Luna's 2026-08-15 report: \"Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.\"\n\nThese are dated updates; I can't establish the current situation beyond what they report.",
+      "sections": [],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 9157,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Now Oscar, was his stiffness continuous?",
+      "errorClass": "AskPipelineError",
+      "code": "ASK_INTERPRETATION_OWNERSHIP",
+      "elapsedMs": 2968,
+      "providerCalls": 1
+    },
+    {
+      "question": "Is he still taking that medication?",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "clarify",
+        "readOperation": "clarify",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "medication",
+        "readOnly": true,
+        "clarification": "subject",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "Which pet, issue or earlier episode do you mean?",
+      "sections": [],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 7507,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "What diagnosis did the vet give him?",
+      "errorClass": "AskPipelineError",
+      "code": "ASK_INTERPRETATION_SUBJECT",
+      "elapsedMs": 3628,
+      "providerCalls": 1
+    },
+    {
+      "question": "How can I make Milo vet visit less stressful?",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "vet visit stress",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "A few things usually help: keep the trip as predictable as possible, do short practice car rides before the appointment, and bring something familiar like his bed or a blanket that smells like home. Ask the clinic for a quieter time slot, and if Milo gets overwhelmed easily, ask whether you can wait in the car until they’re ready. Treats before, during, and after can help build a better association, and a calm, matter-of-fact tone from you matters more than trying to reassure him a lot. If he’s very fearful, a basket muzzle or pre-visit plan from the clinic can make the visit safer and less stressful for everyone.",
+      "sections": [
+        {
+          "heading": "What helps most",
+          "items": [
+            "Keep the routine simple and consistent on visit day.",
+            "Practice the car and clinic in tiny steps before the real appointment.",
+            "Bring familiar bedding or a blanket and plenty of high-value treats.",
+            "Ask for an off-peak slot or a wait-in-car option if he’s reactive."
+          ]
+        }
+      ],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 8949,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Milo died today. I feel like I lost part of my life.",
+      "petId": "milo",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "update",
+        "readOperation": null,
+        "selection": "latest",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "loss",
+        "readOnly": false,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "I’m so sorry. Losing Milo like this is a real loss, and it makes sense that it feels like a part of your life went with him. Right now, the most important thing is to be gentle with yourself and let the day be about getting through the next few hours, not doing everything perfectly.",
+      "sections": [],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 13841,
+      "writeCounts": {
+        "care": 1,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

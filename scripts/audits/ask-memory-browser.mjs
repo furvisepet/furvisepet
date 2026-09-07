@@ -18,7 +18,7 @@ function bundle(file) {
   if (file === resolve('app/lib/supabase.ts')) {
     source = 'export const getBrowserSupabase = () => window.fixture.db; const friendlyDatabaseError = (e) => Error(e.message);\n' + source.slice(source.indexOf('export async function loadDogProfileWithMemoriesForUser('), source.indexOf('export async function deleteDogProfileForUser('));
   }
-  if (/\.(?:[mt]sx?|mjs)$/.test(file) || ['tests/fixtures/ask-memory-browser.js', 'tests/fixtures/ask-conversation-browser.js'].some(f => file === resolve(f))) source = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+  if (/\.(?:[mt]sx?|mjs)$/.test(file) || ['tests/fixtures/ask-memory-browser.js', 'tests/fixtures/ask-conversation-browser.js', 'tests/fixtures/ask-presentation-browser.js', 'tests/fixtures/ask-presentation-snapshots.js'].some(f => file === resolve(f))) source = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   source = source.replace(/require\(["']([^"']+)["']\)/g, (_, name) => {
     const mock = name === 'next/link' ? 'link' : name === 'next/navigation' ? 'navigation' : /\/auth-session$/.test(name) ? 'auth' : /\/app-data-freshness$/.test(name) ? 'freshness' : /\/components\/(app-page|product-primitives)$/.test(name) ? 'ui' : /\/lib\/petwise$/.test(name) ? 'petwise' : null;
     if (mock) return `window.fixture.mocks[${JSON.stringify(mock)}]`;
@@ -33,7 +33,7 @@ function bundle(file) {
   modules[id] = `function(module,exports,require){${source}\n}`;
   return id;
 }
-const entry = bundle(process.argv.includes('--ask-conversation') ? 'tests/fixtures/ask-conversation-browser.js' : 'tests/fixtures/ask-memory-browser.js');
+const entry = bundle(process.argv.includes('--ask-presentation') ? 'tests/fixtures/ask-presentation-browser.js' : process.argv.includes('--ask-conversation') ? 'tests/fixtures/ask-conversation-browser.js' : 'tests/fixtures/ask-memory-browser.js');
 const script = `const process={env:{NODE_ENV:'development'}};const M=[${modules.join(',')}],C={};function require(i){if(C[i])return C[i].exports;const m=C[i]={exports:{}};M[i](m,m.exports,require);return m.exports;}require(${entry});`;
 new Script(script); // Parse without executing browser code or substituting a hook harness.
 if (process.argv.includes('--check-bundle')) {

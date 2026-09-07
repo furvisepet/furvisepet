@@ -1,3 +1,5 @@
+import { normalizeAskReadProposal, unavailableAskReadPlan } from "./ask-plan-recovery.ts";
+import { normalizeHistoricalSearchTerms } from "./history-search-terms.ts";
 import "server-only";
 import OpenAI from "openai";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
@@ -9,7 +11,7 @@ import { buildRecentSubjectState, resolveRecentPronoun } from "./entities/recent
 import type { FurviseLiveContext } from "./types.ts";
 import type { HistoryPlan } from "./history-retrieval.ts";
 import { proposedSemanticFrameJsonSchema } from "./semantic-frame/schema.ts";
-import { validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
+import { validateProposedSemanticFrame, emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { askEvidenceScope } from "./ask-evidence.ts";
@@ -22,6 +24,10 @@ type Operation = typeof operations[number];
 export type AskInterpretation = {
   version: "ask-interpretation.v1";
   operation: Operation;
+  /** Server-derived general conversation scope; no pet evidence or writes. */
+  conversationOnly?: boolean;
+  /** No saved-data or write authority after failed planning. */
+  planningRecovery?: string;
   /** Read intent is independent of current owner assertions. */
   readOperation?: Exclude<Operation, "update"> | null;
   selection?: typeof selections[number];
@@ -53,9 +59,9 @@ export const askInterpretationSchema = {
 const instructions = [
   "Interpret the current Ask turn. Return strict JSON only. This is a read plan, never permission to write.",
   "frame is a ProposedSemanticFrame for subject grounding of owner updates. For questions without owner assertions use an empty frame (empty mentions, references, claims, discourseActs). For any turn containing owner assertions, including mixed questions, represent all explicit animal/person mentions and owner assertions with local IDs only. Evidence surfaceText must be copied exactly from the current message. Never emit database IDs. Prior discourse is reference context, never current evidence. First-person facts belong to the owner, not a mentioned brand or pet. This same extraction replaces a separate subject-model call; independent server evidence and write governance still apply.",
-  "Distinguish questions/requests for explanation from owner assertions, corrections, recovery reports and save commands (update). A question about recovery is status, not update. For mixed observation plus question, operation is update but readOperation is the requested question operation. For a pure update readOperation is null. For a question readOperation equals operation. Never suppress a question because the same turn supplies an observation.",
-  "Use overview for summaries, recall for historical questions, comparison for comparisons, count for a requested episode count, episode ONLY for a reference to an earlier displayed episode, status for whether an issue has resolved, general for advice without historical lookup, clarify for genuinely unclear requests.",
-  "Only names in the CURRENT message require subject explicit; a name repeated from recentUserMessages is subject conversation. The server-provided conversationSubject is reference context, not medical evidence. Explicit named pets take precedence. petNames must use the supplied owned names, never IDs. An unknown named animal is unclear/non_pet, never silently the selected pet. Use subject selected for a fresh unqualified question, conversation for follow-ups, explicit for named pets. Respect owner-established subject changes. Multiple pets require separate evidence.",
+  "Distinguish questions/requests for explanation from owner assertions, corrections, recovery reports and save commands (update). A question about recovery is status, not update. For mixed observation plus question, operation is update but readOperation is the requested question operation. For a pure update readOperation is null. For a question readOperation normally equals operation. General explanation or advice that depends on saved pet facts can have operation general and readOperation recall or status. Rephrasing or shortening an earlier historical answer keeps the original subject/topic and its historical read operation; formatting is not a request for an episode count. Never suppress a question because the same turn supplies an observation.",
+  "A named topic such as What about Luna accidents is a historical recall, not an ambiguous episode reference. Use overview for summaries, recall for historical questions, comparison for comparisons, count for a requested episode count, episode ONLY for a reference to an earlier displayed episode, status for whether an issue has resolved, general for advice without historical lookup, clarify for genuinely unclear requests.",
+  "Only names in the CURRENT message require subject explicit; a name repeated from recentUserMessages is subject conversation. The server-provided conversationSubject is reference context, not medical evidence. Explicit named pets take precedence. petNames must use the supplied owned names, never IDs. An unknown named animal is unclear/non_pet, never silently the selected pet. For general conversation, emotional support, or general advice without an owned-pet lookup, use general and non_pet with no petNames. Do not demand a pet for ordinary conversation. This read-only scope never saves owner or pet facts. Use subject selected for a fresh unqualified question, conversation for follow-ups, explicit for named pets. Respect owner-established subject changes. Multiple pets require separate evidence.",
   "Recent USER messages establish subject/topic continuity, never medical evidence. Do not infer factual history from conversation. Resolve follow-up topics from the active subject only; after a pet switch do not carry the former pet's topic unless the user asks for that topic.",
   "Supply up to six literal search terms for the requested topic. Each term must be 3 to 32 ASCII letters, spaces or hyphens, starting and ending with a letter, matching the database reader contract. Use meaningful spelled-out terminology for abbreviations or identifiers that cannot satisfy this contract; never truncate or strip characters to invent a different term. Include useful synonyms. For stomach/tummy/digestive history include stomach, vomit, threw up, thrown up, stool, diarrh. For a broad whole-health summary use no terms. Unknown topics can still be searched using the user's words. Never output SQL, filters or query syntax.",
   "selection records the requested evidence order: earliest for the oldest matching report, earliest_occurrence for the first reported occurrence of an issue (negative or preventive mentions are not occurrences), latest for the newest update, period for an explicit date range, summary or comparison for synthesis, reference for a particular dated source or displayed episode. Earliest matching evidence is never proof of first-ever occurrence. Use latest for status unless a historical period was requested. A specific source reference needs a date range; an episode reference uses the validated ordinal. Never invent a source identifier.",
@@ -74,7 +80,7 @@ const invalid = (reason = "ASK_INTERPRETATION_SCHEMA", category: "schema" | "sem
  * Model text never becomes a database filter, identifier or write instruction. */
 export function validateAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return invalid();
-  const p = value as Record<string, unknown>;
+  const p = { ...value as Record<string, unknown> };
   const required = askInterpretationSchema.required.filter(key => (key !== "readOperation" && key !== "selection") || key in p);
   if (Object.keys(p).sort().join() !== [...required].sort().join()
     || "selection" in p && !selections.includes(p.selection as typeof selections[number])
@@ -85,18 +91,34 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
     || !["vomiting", "soft stool", "breathing", null].includes(p.episodeTopic as string | null)
     || !(p.ordinal === null || ordinals.includes(p.ordinal as typeof ordinals[number]))) return invalid();
   if (!Array.isArray(p.terms) || p.terms.length > 6 || p.terms.some(t => typeof t !== "string" || t.length < 3 || t.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(t))) return invalid("ASK_INTERPRETATION_TERMS", "schema");
+  // Retrieval-only metadata is irrelevant to a pure update. Discard it instead
+  // of allowing a half-range to fail a conversational response. This does not
+  // change frame validation or authorize any lookup or mutation.
+  if (p.operation === "update" && p.readOperation === null) {
+    p.from = null;
+    p.to = null;
+  }
   const date = (v: unknown) => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
     && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v && v >= "1900-01-01" && v <= "2100-01-01";
   if (!date(p.from) || !date(p.to) || (p.from === null) !== (p.to === null)
     || p.from !== null && String(p.from) >= String(p.to)) return invalid("ASK_INTERPRETATION_DATES", "semantic");
-  const operation = p.operation as Operation;
+  let operation = p.operation as Operation;
   if (operation === "update" && (analyzeOwnerAssertions(context.currentMessage).isPureQuestion
     || askEvidenceScope(context.currentMessage, []).readOnlyRecall)) return invalid("ASK_INTERPRETATION_UPDATE_INTENT", "semantic");
   // Legacy in-process callers may omit readOperation; production schema requires it.
-  const readOperation = ("readOperation" in p ? p.readOperation : operation === "update"
+  let readOperation = ("readOperation" in p ? p.readOperation : operation === "update"
     ? (p.terms.length || p.from ? "recall" : null) : operation) as AskInterpretation["readOperation"];
-  if (operation !== "update" && readOperation !== operation) return invalid("ASK_INTERPRETATION_READ_OPERATION", "semantic");
-  const frameValidation = validateProposedSemanticFrame(p.frame);
+  // readOperation repeats operation on a non-update. Recover an omitted
+  // duplicate, not a conflicting plan. Subject, dates, ordinals and all write
+  // permissions still undergo their independent validation below.
+  if (operation !== "update" && readOperation === null) readOperation = operation;
+  if (operation !== "update" && readOperation !== operation
+    && !(operation === "general" && ["overview", "recall", "comparison", "status"].includes(readOperation || ""))) return invalid("ASK_INTERPRETATION_READ_OPERATION", "semantic");
+  // A read-only turn cannot use mutation metadata. Discard it altogether,
+  // including malformed model proposals, instead of failing a valid read plan.
+  // Genuine owner assertions retain strict frame validation.
+  const frameValidation = analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+    ? validateProposedSemanticFrame(p.frame) : { frame: emptyProposedSemanticFrame() };
   if (!frameValidation.frame) return invalid("ASK_INTERPRETATION_FRAME", "schema");
   if (readOperation !== "episode" && p.ordinal !== null || readOperation === "episode" && p.ordinal === null) return invalid("ASK_INTERPRETATION_EPISODE_REFERENCE", "semantic");
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
@@ -126,15 +148,58 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
   } else if (!ambiguousPronoun && p.subject === "selected") petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
   if (!ambiguousPronoun && p.subject !== "unclear" && p.subject !== "non_pet" && proposed.length && (proposed.length !== petIds.length || proposed.some(id => !petIds.includes(id)))) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
   if (petIds.length > ASK_INTERPRETATION_LIMITS.pets) return invalid();
-  const clarification = !petIds.length ? "subject" : readOperation === "clarify" ? "reference" : null;
-  const selection = (p.selection ?? (p.from ? "period" : readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : readOperation === "episode" ? "reference" : "summary")) as typeof selections[number];
-  if (selection === "period" && !p.from || selection === "reference" && !p.from && readOperation !== "episode") return invalid("ASK_INTERPRETATION_SELECTION", "semantic");
+  // A plain named-topic follow-up is an ordinary read, even if the model labels
+  // it clarify. Only recover a topic literally present after one owned name;
+  // never manufacture episode references, dates, subjects or write authority.
+  let recoveredTopic: string | null = null;
+  if (operation === "clarify" && readOperation === "clarify" && named.length === 1
+    && petIds.length === 1 && p.ordinal === null && p.from === null) {
+    const followUp = context.currentMessage.trim().match(/^(?:what|how) about\s+(.+?)[?.!]*$/i)?.[1] || "";
+    const name = named[0].name || "";
+    if (name && followUp.toLocaleLowerCase().startsWith(name.toLocaleLowerCase())) {
+      const tail = followUp.slice(name.length);
+      const topic = tail.replace(/^(?:['\u2019]s)?\s+/, "").trim();
+      if (/^(?:['\u2019]s)?\s+/.test(tail) && /^[A-Za-z][A-Za-z -]{1,30}[A-Za-z]$/.test(topic)
+        && !/\b(?:that|those|these|it|one|first|second|third|fourth|fifth|last|episode|episodes|count|many)\b/i.test(topic)) {
+        recoveredTopic = topic;
+        operation = "recall";
+        readOperation = "recall";
+      }
+    }
+  }
+  // A general conversational act may still ask about saved facts. Explicit
+  // history/record requests with an owned subject must use the evidence path.
+  if (operation === "general" && readOperation === "general" && petIds.length
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+    && /\b(?:history|records?|reports?)\b/i.test(context.currentMessage)) readOperation = "recall";
+  const conversationOnly = operation === "general" && readOperation === "general"
+    && p.subject === "non_pet" && !named.length && !proposed.length;
+  const clarification = conversationOnly ? null : !petIds.length ? "subject" : readOperation === "clarify" ? "reference" : null;
+  let selection = (p.selection ?? (p.from ? "period" : readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : readOperation === "episode" ? "reference" : "summary")) as typeof selections[number];
+  // Selection is a model-proposed read strategy, not source identity. A missing
+  // range cannot authorize a particular note, but need not fail an otherwise
+  // validated lookup. Retain all ownership/date/ordinal checks and read budgets.
+  if (!p.from && (selection === "period" || selection === "reference" && readOperation !== "episode")) {
+    selection = readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : "summary";
+  }
   const historical = !!readOperation && ["overview", "recall", "comparison", "status", "count"].includes(readOperation);
-  const terms = [...new Set(p.terms as string[])];
-  return { version: "ask-interpretation.v1", operation, readOperation, selection, petIds, topic: p.topic, readOnly: !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
+  const terms = normalizeHistoricalSearchTerms(recoveredTopic ? [recoveredTopic] : p.terms as string[]);
+  return { version: "ask-interpretation.v1", operation, readOperation, selection, petIds, topic: p.topic, ...(conversationOnly ? { conversationOnly: true } : {}), readOnly: conversationOnly || !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
     episodeTopic: p.episodeTopic as AskInterpretation["episodeTopic"], ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: historical && !clarification ? { terms, from: p.from ? `${p.from}T00:00:00.000Z` : null,
       to: p.to ? `${p.to}T00:00:00.000Z` : null, interpretation: terms.length ? "lexical" : p.from ? "period" : "broad_comparison" } : null };
+}
+
+export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
+  try { return validateAskInterpretation(normalizeAskReadProposal(value, context), context); }
+  catch (error) {
+    if (error instanceof AskInterpretationValidationError) {
+      const completeProposal = value && typeof value === "object" && askInterpretationSchema.required.every(key => key in value);
+      if (["ASK_INTERPRETATION_READ_OPERATION", "ASK_INTERPRETATION_UPDATE_INTENT", "ASK_INTERPRETATION_SUBJECT"].includes(error.reason)
+        || error.reason === "ASK_INTERPRETATION_SCHEMA" && completeProposal) return unavailableAskReadPlan(error.reason);
+    }
+    throw error;
+  }
 }
 
 export async function interpretAskQuestion({ context, model, client, onProviderEvent }: {
@@ -174,7 +239,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       throw fail(`ASK_INTERPRETATION_${kind.toUpperCase()}`, kind, metadata);
     }
     let parsed: AskInterpretation;
-    try { parsed = validateAskInterpretation(result.parsed, context); }
+    try { parsed = recoverAskInterpretation(result.parsed, context); }
     catch (error) {
       if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
       throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
@@ -192,4 +257,20 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     onProviderEvent?.({ stage: "interpretation", outcome: "failed", ...failure.diagnostics });
     throw failure;
   }
+}
+
+/** The conversation has a selected-pet container; that is not evidence authority. */
+export function readInterpretationSubject(interpretation: AskInterpretation, selectedPetId: string) {
+  return {
+    usedProviderExtraction: true,
+    resolution: {
+      status: interpretation.conversationOnly ? "resolved" as const : interpretation.petIds.length > 1 ? "multi_subject" as const : interpretation.petIds.length ? "resolved" as const : "ambiguous" as const,
+      petId: interpretation.petIds[0] || (interpretation.conversationOnly ? selectedPetId : null),
+      petIds: interpretation.petIds,
+      reasonCode: null,
+      requiresClarification: interpretation.clarification === "subject",
+      explicitSubject: !interpretation.conversationOnly,
+      confidence: 1,
+    },
+  };
 }

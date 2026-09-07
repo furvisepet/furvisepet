@@ -1,0 +1,238 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "question": "Catch me up on Juniper's drinking. Keep it short.",
+      "petId": "juniper",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "overview",
+        "readOperation": "overview",
+        "selection": "summary",
+        "petIds": [
+          "juniper"
+        ],
+        "topic": "drinking",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "drink",
+            "water",
+            "hydration",
+            "thirst",
+            "dehydrat"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Juniper was drinking more water during a hot week in early July, and the note said it wasn't clear whether heat explained it. By early August, her drinking seemed back to usual, and her appetite was normal. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Juniper was drinking more water during a hot week in early July, and the note said it wasn't clear whether heat explained it.",
+            "sourceIds": [
+              "care:drink-july"
+            ]
+          },
+          {
+            "text": "By early August, her drinking seemed back to usual, and her appetite was normal.",
+            "sourceIds": [
+              "care:drink-aug"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 12767,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Does that mean she definitely has diabetes?",
+      "errorClass": "AskPipelineError",
+      "code": "ASK_INTERPRETATION_FRAME",
+      "elapsedMs": 3772,
+      "providerCalls": 1
+    },
+    {
+      "question": "And Pip, has the stair problem gone away?",
+      "petId": "pip",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "latest",
+        "petIds": [
+          "pip"
+        ],
+        "topic": "stair problem",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "stair",
+            "stair problem",
+            "stair issue",
+            "staircas"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Pip was using the stairs comfortably again in June, but the later August note says he was hesitating on the stairs again yesterday, so the stair problem does not look fully gone away from the notes available. The May note also shows he had hesitated on the stairs after a long walk, which supports that this was already an earlier issue.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Pip was using the stairs comfortably again in June, but the later August note says he was hesitating on the stairs again yesterday, so the stair problem does not look fully gone away from the notes available.",
+            "sourceIds": [
+              "care:stairs-june",
+              "care:stairs-aug"
+            ]
+          },
+          {
+            "text": "The May note also shows he had hesitated on the stairs after a long walk, which supports that this was already an earlier issue.",
+            "sourceIds": [
+              "care:stairs-may"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 3,
+      "elapsedMs": 15797,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Could you turn that into two points for my partner?",
+      "petId": "pip",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [
+          "pip"
+        ],
+        "topic": "stair problem",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "Pip seemed to be using the stairs comfortably again in June. But the later August note says he was hesitating on them again, so it doesn’t look fully gone from the notes we have.",
+      "sections": [],
+      "reviewed": false,
+      "draft": {
+        "sentences": [
+          {
+            "text": "Pip seemed to be using the stairs comfortably again in June.",
+            "sourceIds": [
+              "care:stairs-june"
+            ]
+          },
+          {
+            "text": "The later August note says he was hesitating on the stairs again, so it doesn’t look fully gone from the notes we have.",
+            "sourceIds": [
+              "care:stairs-aug",
+              "care:stairs-may"
+            ]
+          }
+        ]
+      },
+      "providerCalls": 2,
+      "elapsedMs": 11465,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "Can we just talk for a minute?",
+      "petId": "nori",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "talk",
+        "conversationOnly": true,
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "Of course. What’s on your mind?",
+      "sections": [],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 5747,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "I feel overwhelmed by everything that comes with having a pet.",
+      "petId": "nori",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "having a pet",
+        "conversationOnly": true,
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "That’s a lot to carry, and it makes sense to feel swamped. The fastest way to make it lighter is to stop treating it like one huge job and split it into a few smaller pieces: what has to happen today, what can wait until this week, and what can safely be ignored for now. If you want, start with just one thing like feeding, water, or the next bathroom break, then handle the rest later. A simple reset can help: write down the pet-care tasks that are actually on your plate, circle the two most important ones, and let everything else be “good enough” for today. If part of what’s overwhelming you is cost, time, or not knowing what’s normal, that points to a different fix for each one. The goal isn’t perfect care, just a manageable routine you can repeat.",
+      "sections": [
+        {
+          "heading": "What usually helps most",
+          "items": [
+            "Make a short today list and ignore the rest until tomorrow.",
+            "Separate urgent needs from optional tasks.",
+            "If money, time, or worry is the hard part, deal with that specific problem first."
+          ]
+        }
+      ],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 10610,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

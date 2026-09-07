@@ -1,0 +1,151 @@
+{
+  "attempted": 200,
+  "planned": 200,
+  "scores": {
+    "good": 106,
+    "partial": 35,
+    "error": 28,
+    "fail": 31
+  },
+  "statuses": {
+    "answered": 172,
+    "error": 28
+  },
+  "categories": {
+    "casual": {
+      "good": 10
+    },
+    "emotional_support": {
+      "partial": 2,
+      "good": 7,
+      "fail": 1
+    },
+    "general_care": {
+      "good": 9,
+      "partial": 1
+    },
+    "food": {
+      "error": 1,
+      "good": 5,
+      "partial": 3,
+      "fail": 1
+    },
+    "behavior": {
+      "good": 7,
+      "fail": 2,
+      "error": 1
+    },
+    "travel_routine": {
+      "good": 8,
+      "error": 1,
+      "fail": 1
+    },
+    "history_summary": {
+      "partial": 3,
+      "good": 3,
+      "fail": 2,
+      "error": 2
+    },
+    "chronology": {
+      "good": 4,
+      "fail": 3,
+      "partial": 2,
+      "error": 1
+    },
+    "uncertainty": {
+      "error": 1,
+      "good": 5,
+      "partial": 2,
+      "fail": 2
+    },
+    "medical_record_gaps": {
+      "good": 8,
+      "error": 2
+    },
+    "multi_pet": {
+      "partial": 2,
+      "good": 3,
+      "error": 3,
+      "fail": 2
+    },
+    "follow_up": {
+      "good": 4,
+      "fail": 5,
+      "error": 1
+    },
+    "formatting": {
+      "partial": 3,
+      "good": 5,
+      "error": 1,
+      "fail": 1
+    },
+    "messy_language": {
+      "partial": 2,
+      "good": 4,
+      "fail": 1,
+      "error": 3
+    },
+    "languages": {
+      "partial": 2,
+      "good": 4,
+      "error": 2,
+      "fail": 2
+    },
+    "corrections": {
+      "fail": 3,
+      "partial": 3,
+      "good": 4
+    },
+    "safety": {
+      "good": 4,
+      "partial": 4,
+      "error": 1,
+      "fail": 1
+    },
+    "updates_mixed": {
+      "error": 3,
+      "good": 4,
+      "partial": 2,
+      "fail": 1
+    },
+    "unavailable_injection": {
+      "good": 5,
+      "fail": 1,
+      "partial": 2,
+      "error": 2
+    },
+    "boundaries_counts": {
+      "good": 3,
+      "partial": 2,
+      "error": 3,
+      "fail": 2
+    }
+  },
+  "calls": 439,
+  "callPhases": {
+    "furvise_ask_interpretation": 200,
+    "furvise_ask_response": 173,
+    "furvise_history_review": 66
+  },
+  "inputTokens": 3013089,
+  "outputTokens": 270918,
+  "estimatedNewUsd": 3.5533372500000002,
+  "priorUsd": 0.8519789999999998,
+  "accountedTotalUsd": 4.40531625,
+  "unknownUsageCalls": 1,
+  "answeredLatencySeconds": {
+    "p50": 10.868500000000001,
+    "p95": 17.94565,
+    "max": 30.163
+  },
+  "errorCodes": {
+    "ASK_INTERPRETATION_READ_OPERATION": 11,
+    "ASK_INTERPRETATION_UPDATE_INTENT": 3,
+    "ASK_INTERPRETATION_SUBJECT": 6,
+    "ASK_INTERPRETATION_SCHEMA": 6,
+    "ABORT_ERR": 1,
+    "ASK_INTERPRETATION_DATES": 1
+  },
+  "settledNewUsd": 3.47894775,
+  "unresolvedReservedUsd": 0.0743895
+}

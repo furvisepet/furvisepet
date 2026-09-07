@@ -86,7 +86,7 @@ export class AiOperationAdmission {
 
   async run<T>(action: () => Promise<T>) { return runWithAiAdmission(this, action); }
 
-  async beginProviderCall(input: { input: unknown; maxOutputTokens: number; model: string }) {
+  async beginProviderCall(input: { purpose?: "history_review"; input: unknown; maxOutputTokens: number; model: string }) {
     const estimatedInputTokens = estimateInputTokens(input.input);
     if (estimatedInputTokens > this.policy.maxInputTokens || JSON.stringify(input.input).length > this.policy.maxInputCharacters || input.maxOutputTokens > this.policy.maxOutputTokens) {
       throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "feature_token_budget_exceeded");
@@ -94,7 +94,7 @@ export class AiOperationAdmission {
     if (!getModelPrice(input.model) && !(this.config.production === false && this.env.FURVISE_AI_ALLOW_UNKNOWN_MODEL_IN_DEVELOPMENT === "true")) throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "unknown_model_pricing");
     if (!this.queued || input.model !== this.intendedModel) {
       if (this.queued) await this.releaseQueued();
-      await this.reserveNextCall(input.model);
+      await this.reserveNextCall(input.model, input.purpose);
     }
     const reservation = this.queued!;
     this.queued = null;
@@ -128,15 +128,16 @@ export class AiOperationAdmission {
   async fail(error?: unknown) { await this.releaseQueued(); await this.store.failOperation({ key: this.operationKey, ttlSeconds: this.operationTtlSeconds }).catch(() => {}); if (error) logAiGuardEvent("operation failed", { allowed: false, denialReason: error instanceof AiAdmissionError ? error.reason : "operation_failed", feature: this.feature, operationId: this.operationId, requestId: this.requestId, safeErrorClass: error instanceof Error ? error.name : "UnknownError" }); }
   async release() { await this.releaseQueued(); }
 
-  async reserveNextCall(model: string) {
-    if (this.callNumber >= this.policy.maximumProviderCalls) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_call_budget_exhausted");
+  async reserveNextCall(model: string, purpose?: "history_review") {
+    const maximumCalls = this.feature === "ask" && purpose !== "history_review" ? 2 : this.policy.maximumProviderCalls;
+    if (this.callNumber >= maximumCalls) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_call_budget_exhausted");
     const reservedCost = estimateProviderCostMicrodollars(model, { inputTokens: this.policy.maxInputTokens, outputTokens: this.policy.maxOutputTokens });
     if (reservedCost === null) throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "unknown_model_pricing");
     const nextNumber = this.callNumber + 1;
     const callId = `${this.operationId}:${randomUUID()}`;
     let result;
     try {
-      result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: this.policy.maximumProviderCalls, operationCallTtlSeconds: this.operationTtlSeconds, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
+      result = await this.store.reserveCall({ callId, callLimit: this.config.callLimit, costLimitMicrodollars: this.config.costLimitMicrodollars, day: utcDay(this.now), feature: this.feature, maximumOperationCalls: maximumCalls, operationCallTtlSeconds: this.operationTtlSeconds, operationId: this.operationId, reservedCostMicrodollars: reservedCost, ttlSeconds: secondsUntilUtcBucketExpiry(this.now) });
     } catch {
       logAiGuardEvent("provider call denied", {
         allowed: false,

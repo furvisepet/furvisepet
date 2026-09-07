@@ -14,8 +14,8 @@ test("a retry keeps logical identity and receives a distinct safe attempt identi
   assert.match(first, /^[0-9a-f-]{36}$/);
 });
 
-test("Ask admits at most two provider calls per attempt", () => {
-  assert.match(read("app/lib/ai/usage-guard/features.ts"), /ask: policy\([^\n]+, 2\)/);
+test("Ask reserves the third provider slot for source review", () => {
+  assert.match(read("app/lib/ai/usage-guard/features.ts"), /ask: policy\([^\n]+, 3\)/);
 });
 
 test("logical turn, attempt, persisted message, and financial identities are explicit", () => {

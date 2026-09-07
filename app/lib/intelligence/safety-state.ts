@@ -1,3 +1,4 @@
+import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { classifyActiveConcernMessage } from "../ai/turn-classifier.ts";
 import { detectAskConcernTags } from "../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "./types";
@@ -15,9 +16,10 @@ export type ResolvedSafetyState = {
 };
 
 export function resolveSafetyState(context: FurviseLiveContext): ResolvedSafetyState {
-  const immediateTags = detectAskConcernTags(context.currentMessage);
+  const currentMessage = safetyTemporalScope(context.currentMessage).currentText;
+  const immediateTags = detectAskConcernTags(currentMessage);
   const classifiedMessageState = classifyActiveConcernMessage(
-    context.currentMessage,
+    currentMessage,
     context.activeConcerns.length > 0 || context.recentlyResolvedConcerns.length > 0,
   );
   const concernStates = context.activeConcerns.map((concern) => classifyConcernEvidenceState({
@@ -36,7 +38,7 @@ export function resolveSafetyState(context: FurviseLiveContext): ResolvedSafetyS
             : concernStates.includes("unclear") ? "unclear"
               : ["improved", "recurrence", "resolved", "still_active"].includes(classifiedMessageState) ? "unrelated"
                 : classifiedMessageState;
-  const immediateEmergency = /\b(collapse[ds]?|unconscious|open[- ]mouth breathing|cannot breathe|can't breathe|blue gums?|severe bleeding)\b/i.test(context.currentMessage);
+  const immediateEmergency = /\b(collapse[ds]?|unconscious|open[- ]mouth breathing|cannot breathe|can't breathe|blue gums?|severe bleeding)\b/i.test(currentMessage);
   const chronology = deriveConcernChronology(context.careEntries, [...context.activeConcerns, ...context.recentlyResolvedConcerns]);
   const stateBreathing = context.currentState?.state.breathing?.status;
   let level: IntelligenceSafetyLevel = "routine";

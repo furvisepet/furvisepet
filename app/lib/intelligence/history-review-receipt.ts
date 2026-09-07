@@ -1,0 +1,13 @@
+import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
+type Receipt = { signature: string; text: string; sourceIds: string[] };
+const reviewed = new WeakMap<AskReasoningResult, Receipt>();
+export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ evidence: result.evidenceContract, draft: result.historyNarrative, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
+export function clearHistoryReview(result: AskReasoningResult) { reviewed.delete(result); }
+/** Internal server capability: called only after successful source-scoped review. */
+export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt) { reviewed.set(result, receipt); }
+/** A model field, clone, reload or changed evidence cannot forge this receipt. */
+export function readReviewedHistoryAnswer(result: AskReasoningResult): Omit<Receipt, "signature"> | null {
+  const receipt = reviewed.get(result);
+  if (!receipt || receipt.signature !== historyReviewSignature(result)) return null;
+  return { text: receipt.text, sourceIds: [...receipt.sourceIds] };
+}

@@ -1,3 +1,4 @@
+import { safetyTemporalScope } from "./ai/safety-temporal-scope.ts";
 import type { CareEntryRow } from "./supabase";
 import type { ProposedSemanticFrame } from "./intelligence/semantic-frame/types.ts";
 
@@ -108,7 +109,7 @@ export function evaluateAskSafetyContext({
   recentUpdates: RecentAskUpdate[];
   savedSafetyFlags?: string[];
 }) {
-  const currentTags = detectAskConcernTags(currentMessage);
+  const currentTags = detectAskConcernTags(safetyTemporalScope(currentMessage).currentText);
   const currentResolutions = allConcernTags.filter((tag) => hasResolutionForConcern(currentMessage, tag));
   const updateTags = recentUpdates
     .filter((update) => update.active)
@@ -174,7 +175,7 @@ export function detectAskConcernTags(value: string): AskConcernTag[] {
 }
 
 export function detectImmediateAskEmergency(value: string): ImmediateAskEmergency | null {
-  const message = value.trim().replace(/\s+/g, " ").replace(/\bcant\b/gi, "cannot");
+  const message = safetyTemporalScope(value).currentText.trim().replace(/\s+/g, " ").replace(/\bcant\b/gi, "cannot");
   if (!message || generalEmergencyDiscussionPattern.test(message)) return null;
   if (explicitNonPetSubjectPattern.test(message) && !explicitPetSubjectPattern.test(message)) return null;
   const tags = immediateEmergencyPatterns

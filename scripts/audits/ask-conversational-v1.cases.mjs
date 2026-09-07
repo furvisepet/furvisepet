@@ -148,8 +148,9 @@ test('untrusted interpretation rejects IDs, foreign pets, SQL, invalid operation
     { petNames: ['milo'], subject: 'explicit' }, { terms: ['x),user_id.eq.foreign'] }, { terms: Array(7).fill('vomit') },
     { from: '2011-02-30', to: '2011-03-01' }, { from: '2012-01-01', to: '2011-01-01' }, { from: null, to: '2011-01-01' },
     { from: '1800-01-01', to: '2200-01-01' }, { ordinal: 'second' }, { operation: 'episode', ordinal: null },
-    { topic: 'x'.repeat(81) }, { operation: 'update' }, { frame: { databaseId: 'forged' } },
+    { topic: 'x'.repeat(81) }, { operation: 'update' },
   ]) assert.throws(() => validateAskInterpretation(proposal(bad), validationContext()), /INVALID/, JSON.stringify(bad));
+  assert.deepEqual(validateAskInterpretation(proposal({ frame: { databaseId: 'forged' } }), validationContext()).frame.claims, [], 'read-only questions discard all mutation metadata');
   assert.deepEqual(validateAskInterpretation(proposal({ subject: 'selected' }), validationContext('Tell me about Luna.')).petIds, ['luna'], 'explicit current name overrides the selected label');
   assert.throws(() => validateAskInterpretation(proposal({ subject: 'explicit', petNames: ['Milo'] }), validationContext('Compare Milo and Luna.')), /INVALID/);
 });
@@ -325,7 +326,7 @@ test('actual provider admission reconciles mocked usage and enforces two calls a
   const { MemoryAiGuardTestStore } = await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
   const { OPENAI_ANALYSIS_MODEL } = await import('../../app/lib/ai/config.ts');
   const { AI_FEATURE_POLICIES } = await import('../../app/lib/ai/usage-guard/features.ts');
-  assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls, 2);
+  assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls, 3); // Third slot is review-only; ordinary failures below still stop at two.
   const store = new MemoryAiGuardTestStore();
   let attempt = 0;
   const admitted = action => runAdmittedAiOperation({ store, feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL,
@@ -431,8 +432,8 @@ test('requested periods and dated source references exclude current status outsi
     assert.doesNotMatch(final, /2026|no vomiting today/);
     noWrites(r);
   }
-  assert.throws(() => validateAskInterpretation(proposal({ selection: 'period' }), validationContext()), /INVALID/);
-  assert.throws(() => validateAskInterpretation(proposal({ selection: 'reference' }), validationContext()), /INVALID/);
+  assert.equal(validateAskInterpretation(proposal({ selection: 'period' }), validationContext()).selection, 'summary');
+  assert.equal(validateAskInterpretation(proposal({ selection: 'reference' }), validationContext()).selection, 'summary');
   assert.throws(() => validateAskInterpretation(proposal({ selection: 'execute_sql' }), validationContext()), /INVALID/);
 });
 

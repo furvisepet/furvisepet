@@ -1,0 +1,49 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "question": "Does Juniper drinking history mean she definitely has diabetes?",
+      "petId": "juniper",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "general",
+        "readOperation": "recall",
+        "selection": "summary",
+        "petIds": [
+          "juniper"
+        ],
+        "topic": "diabetes and drinking history",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "terms": [
+            "diabet",
+            "drink",
+            "thirst",
+            "urination",
+            "water intake",
+            "diseas"
+          ],
+          "from": null,
+          "to": null,
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Juniper's recorded history: Juniper's 2026-07-03 report: \"Juniper was drinking more water during a hot week. I do not know whether the heat explains it.\" Juniper's 2026-08-02 report: \"Juniper drinking seems back to usual this week. Her appetite is normal. No diagnosis of diabetes or another cause has been recorded here.\"\n\nThis covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 10910,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

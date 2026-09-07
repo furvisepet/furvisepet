@@ -1,6 +1,6 @@
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
-import { interpretAskQuestion } from "../../lib/intelligence/interpret-ask.ts";
+import { interpretAskQuestion, readInterpretationSubject } from "../../lib/intelligence/interpret-ask.ts";
 import { restoreAskEvidencePresentation } from "../../lib/intelligence/ask-evidence-presentation.ts";
 import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
 import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
@@ -656,15 +656,7 @@ export async function POST(request: Request) {
       generationStage = "subject_resolution";
       let subjectDecision: Awaited<ReturnType<typeof resolveAskTurnSubject>>;
       try {
-        subjectDecision = interpretation.readOnly ? {
-          usedProviderExtraction: true,
-          resolution: {
-            status: interpretation.petIds.length > 1 ? "multi_subject" : interpretation.petIds.length ? "resolved" : "ambiguous",
-            petId: interpretation.petIds[0] || null, petIds: interpretation.petIds,
-            reasonCode: null, requiresClarification: interpretation.clarification === "subject",
-            explicitSubject: true, confidence: 1,
-          },
-        } : await resolveAskTurnSubject({
+        subjectDecision = interpretation.readOnly ? readInterpretationSubject(interpretation, petId) : await resolveAskTurnSubject({
           extractFrame: async () => interpretation.frame ?? await extractTurnSubjectFrame({ message: question, model, onProviderEvent, recentConversation }),
           message: question,
           ownerId: userId,

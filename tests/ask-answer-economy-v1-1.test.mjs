@@ -138,7 +138,9 @@ test("visible-prose normalization cannot mutate URLs, identifiers, enums, or mar
   });
   assert.equal(response.applicationActions[0].id, "action:pet-update-profile:abc");
   assert.equal(response.applicationActions[0].kind, "pet.update_profile");
-  assert.equal(hasEmbeddedListMarkers(response.directAnswer), false);
+  // Serialization now preserves the answer's layout rather than paraphrasing
+  // lists. Action identifiers and copy authority remain independently checked.
+  assert.equal(response.directAnswer, "Try these: \u2022 do one \u2022 do two \u2022 do three");
   assert.equal(parseAskConversationResponse(response).applicationActions[0].id, "action:pet-update-profile:abc");
 });
 
