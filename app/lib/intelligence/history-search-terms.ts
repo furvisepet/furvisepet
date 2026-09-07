@@ -5,6 +5,12 @@
 export function normalizeHistoricalSearchTerms(terms: string[]): string[] {
   return [...new Set(terms.map(term => {
     const word = term.toLowerCase();
+    // Broaden common record vocabulary without granting semantic fact authority.
+    // These prefixes preserve matches on the original phrase as well.
+    if (/^weigh(?:t|ts|ed|ing)?$/.test(word)) return "weigh";
+    if (/^stiff(?:ness)?$/.test(word)) return "stiff";
+    if (/^litter[ -](?:box|boxes|tray|trays)$/.test(word)) return "litter";
+    if (/^medic(?:ation|ations|ine|ines)$/.test(word)) return "medic";
     if (!/^[a-z]+$/.test(word) || word.length < 4) return term;
     let stem = word;
     if (word.length > 5 && /ing$/.test(word)) stem = word.slice(0,-3);

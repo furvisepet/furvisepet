@@ -6,6 +6,8 @@ import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import { buildSourceNoteRecall, sourceNoteAnswer, type SourceNoteRecall } from "./source-note-recall.ts";
 
+import { correctionReportAnswer } from "./correction-report.ts";
+
 export type Completeness = "complete" | "partial" | "unknown" | "unavailable" | "ambiguous";
 export type EvidenceCompleteness = { retrieval: Completeness; corrections: Completeness; extraction: Completeness; grouping: Completeness };
 export type EvidenceSource = {
@@ -226,7 +228,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
     }
     // Arbitrary narrative is not an evidence claim. Only complete source reports
     // and independently computed episode results have factual authority.
-    if (kind !== "count" && contract.history) return attributedHistoryAnswer(contract, false, synthesis);
+    if (kind !== "count" && contract.history) return weightComparisonAnswer(contract) || attributedHistoryAnswer(contract, false, synthesis);
     if (kind !== "count") return null;
   }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
@@ -278,6 +280,8 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
  * admitted. Full spans preserve negation, quantities and qualifications together.
  */
 export function attributedHistoryAnswer(contract: AskEvidenceContract, status = false, synthesis: HistorySynthesisProposal[] = []): string {
+  const correctionReport = correctionReportAnswer(contract);
+  if (correctionReport) return correctionReport;
   if (contract.history?.corrections === "unavailable") {
     return `I couldn't reliably attribute these reports. ${conversationalHistoryLimitation(contract)}`;
   }

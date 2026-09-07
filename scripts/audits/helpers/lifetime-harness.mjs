@@ -119,7 +119,7 @@ function database(rows, { fixturePets = pets, conversationPetId, messages = [], 
         if (historical && ++historyPages === failHistoryPage) return Promise.resolve({ data: null, error: { code: 'MOCK_PAGE_OFFLINE' } }).then(resolve, reject);
         let data = (tables[table] || []).filter(row => query.filters.every(filter => filter(row)));
         data = [...data].sort((a, b) => { for (const [key, ascending] of query.orders) {
-          const cmp = String(a[key] ?? '').localeCompare(String(b[key] ?? '')); if (cmp) return ascending ? cmp : -cmp;
+          const cmp = typeof a[key] === 'number' && typeof b[key] === 'number' ? a[key]-b[key] : String(a[key] ?? '').localeCompare(String(b[key] ?? '')); if (cmp) return ascending ? cmp : -cmp;
         } return 0; });
         if (query.cap !== null) data = data.slice(0, historical ? Math.min(query.cap, historyPageCap) : query.cap);
         return Promise.resolve({ data: query.single ? data[0] || null : data, error: failCare && table === 'pet_care_entries' ? { code: 'AUDIT_OFFLINE' } : null }).then(resolve, reject);
