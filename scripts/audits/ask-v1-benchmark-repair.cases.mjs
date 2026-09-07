@@ -148,6 +148,19 @@ test('account-wide phrasing resolves authenticated pets without asking for names
   assert.equal(p.petIds.length,3);assert.equal(p.clarification,null);
  }
 });
+test('hypothetical urgency stays conditional while current emergencies remain urgent',async t=>{
+ const {classifyUserTurn}=await import('../../app/lib/ai/turn-classifier.ts');
+ const {planProviderIndependentAskTurn}=await import('../../app/lib/ai/ask-orchestrator.ts');
+ for(const message of ['Hypothetically, if a dog cannot breathe, what should the owner do?','If a pet collapsed right now, should someone wait for a history summary?']){
+  assert.equal(classifyUserTurn(message).immediateEmergency,false);
+  assert.equal(planProviderIndependentAskTurn({message,concerns:[],petName:'Nori'}),null);
+ }
+ assert.equal(classifyUserTurn('Nori cannot breathe right now.').immediateEmergency,true);
+ assert.equal(classifyUserTurn('I think Nori cannot breathe.').immediateEmergency,true);
+ const c=await context(t);const p=recoverAskInterpretation({...proposal,operation:'status',readOperation:'status',selection:'latest',terms:['breath']},{...c,currentMessage:'If an old breathing problem returned right now, would that change the urgency?'});
+ assert.equal(p.readOperation,'general');assert.equal(p.conversationOnly,true);assert.equal(p.readOnly,true);
+});
+
 test('support wording for another persons loss is not a pet lifecycle report',async()=>{
  const {classifyCurrentPetLoss,resolveProviderIndependentLossSubject}=await import('../../app/lib/ai/pet-loss.ts');
  const message='What could I say to a friend whose dog died?';

@@ -1,3 +1,4 @@
+import { safetyTemporalScope } from "./safety-temporal-scope.ts";
 import { isCasualAskTone } from "../ask-experience.ts";
 import { analyzeOwnerAssertions, type OwnerAssertionSpan } from "./owner-assertion.ts";
 import { decideConcernTransitionState } from "./concern-event-order.ts";
@@ -56,7 +57,7 @@ export function classifyUserTurn(message: string, options: { hasActiveConcern?: 
   const assertedMessage = assertion.assertionText;
   const indicatesReturn = assertedConcernTransitions(normalizedMessage).some((transition) => transition.state === "recurrence")
     || returnPattern.test(assertedMessage);
-  const immediateEmergency = immediateEmergencyPattern.test(normalizedMessage);
+  const immediateEmergency = immediateEmergencyPattern.test(safetyTemporalScope(normalizedMessage).currentText);
   const isLowValueAcknowledgement = acknowledgementPattern.test(normalizedMessage);
   let intent: TurnIntent = "unknown";
 
@@ -88,7 +89,7 @@ function isPreferenceStatement(message: string) {
 export function classifyActiveConcernMessage(message: string, hasActiveConcern = true): ActiveConcernMessageState {
   const normalized = message.trim().replace(/\s+/g, " ");
   if (!hasActiveConcern || !normalized) return "unrelated";
-  if (worseningPattern.test(normalized)) return "worsening";
+  if (worseningPattern.test(safetyTemporalScope(normalized).currentText)) return "worsening";
   const assertion = analyzeOwnerAssertions(normalized);
   if (assertion.isPureQuestion) return "unrelated";
   const assertedMessage = assertion.assertionText;
