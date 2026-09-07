@@ -36,6 +36,16 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "recall", readOperation: "recall", selection: datedQuantity ? "reference" : "summary", episodeTopic: null });
   }
+  // The requested unit determines the read task. A duration remains a
+  // historical read even when its endpoints mention symptoms or episodes.
+  // Do not compute from the exclusive retrieval bound or manufacture dates.
+  const durationQuantity = /\bhow many\s+(?:hours?|days?|weeks?|months?|years?)\b/i.test(quantityWording);
+  const competingCount = /\bhow many\s+(?!(?:hours?|days?|weeks?|months?|years?)\b)\w+|\b(?:count|number|total)\s+(?:of\s+)?(?:[\w-]+\s+){0,3}episodes?\b/i.test(quantityWording);
+  if (p.operation === "count" && p.readOperation === "count" && p.ordinal === null
+    && durationQuantity && !competingCount
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p, { operation: "recall", readOperation: "recall", episodeTopic: null });
+  }
   // Complete only explicitly open-ended ranges. The strict validator still
   // rejects invalid dates, reversed ranges and missing bounds on closed ranges.
   if (p.operation !== "update") {
@@ -65,16 +75,25 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && ["general", "clarify", "update"].includes(String(initialOperation))) {
     Object.assign(p, { operation: "general", readOperation: "general", selection: "summary", terms: [], from: null, to: null, ordinal: null, episodeTopic: null, frame: emptyProposedSemanticFrame() });
   }
-  // A clear user-established medication referent can repair an unnecessary
-  // clarification. Ownership, schema and write governance still validate later.
-  const medicationPet = p.operation === "clarify" && p.readOperation === "clarify"
+  // User-established reference scope applies to confident read plans too:
+  // a generic pet-name answer must not bypass medication evidence retrieval.
+  // Never reinterpret a proposed write, count, or displayed episode reference.
+  const referenceReads = new Set(["clarify", "general", "recall", "status", "overview"]);
+  const original = value as Record<string, unknown>;
+  const referenceMetadata = original.from === null && original.to === null
+    && original.ordinal === null && original.episodeTopic === null
+    && Array.isArray(original.terms) && original.terms.length <= 6
+    && original.terms.every(term => typeof term === "string" && term.length >= 3
+      && term.length <= 32 && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term));
+  const medicationPet = referenceMetadata && referenceReads.has(String(initialOperation))
+    && referenceReads.has(String(p.operation)) && referenceReads.has(String(p.readOperation))
     && p.from === null && p.to === null && p.ordinal === null && p.episodeTopic === null
     && Array.isArray(p.terms) && p.terms.length <= 6
     && p.terms.every(term => typeof term === "string" && term.length >= 3 && term.length <= 32 && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term))
     ? medicationReferencePet(context) : null;
   if (medicationPet && Array.isArray(p.petNames) && p.petNames.length <= 1
     && p.petNames.every(name => name === medicationPet.name)
-    && ["unclear", "conversation", "selected", "explicit"].includes(String(p.subject))) {
+    && ["unclear", "conversation", "selected", "explicit", "non_pet"].includes(String(p.subject))) {
     Object.assign(p, { operation: "recall", readOperation: "recall", subject: "conversation",
       petNames: [medicationPet.name], topic: "medication details", terms: ["medic", "prescri", "course"], selection: "summary" });
   }

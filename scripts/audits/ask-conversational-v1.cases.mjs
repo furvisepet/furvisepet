@@ -731,3 +731,31 @@ test('medication-name follow-up recovers a read for the user-established pet', a
   assert.ok(r.context.askHistory?.entries.some(entry => entry.id === medication.id));
   noWrites(r);
 });
+
+for (const operation of ['general', 'recall']) test('confident medication reference re-reads evidence: '+operation, async t => {
+  clock(t);
+  const medication = care('reference-medication', 'luna', '2026-06-17', 'medication', 'The medication name and dose were not recorded.');
+  const r = await exercise('Do we know its name?', { history:true, rows:[medication],
+    messages:[userTurn('Now focus on Luna.',1),userTurn('Did she finish that medication?',3)],
+    interpretationProposal:proposal({operation,readOperation:operation,subject:'conversation',
+      petNames:['Luna'],topic:'pet name',terms:['name']}),
+    answer:'The medication name is not recorded.' });
+  assert.equal(r.context.askInterpretation.clarification,null);
+  assert.equal(r.context.askInterpretation.readOperation,'recall');
+  assert.deepEqual(r.context.askInterpretation.petIds,['luna']);
+  assert.ok(r.context.askHistory?.entries.some(entry=>entry.id===medication.id));
+  noWrites(r);
+});
+test('elapsed-time read bypasses illness episode counting in the full pipeline', async t => {
+  clock(t);
+  const source=care('duration-start','milo','2026-04-03','symptom','Soft stool reported.');
+  const r=await exercise("How many days are there from Milo's April 3 soft-stool note to April 9?",{
+    history:true,rows:[source],messages:[],
+    interpretationProposal:proposal({operation:'count',readOperation:'count',subject:'explicit',
+      petNames:['Milo'],topic:'stool duration',terms:['stool'],from:'2026-04-03',to:'2026-04-10',
+      episodeTopic:'soft stool',ordinal:null,selection:'period'})});
+  assert.equal(r.context.askInterpretation.readOperation,'recall');
+  assert.equal(r.context.episodeResult,undefined);
+  assert.ok(r.context.askHistory?.entries.some(entry=>entry.id===source.id));
+  noWrites(r);
+});
