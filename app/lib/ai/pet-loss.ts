@@ -11,6 +11,12 @@ const correctedLossPattern = /\b(?:but|actually|correction)[^.!?]{0,80}\b(?:aliv
 export function classifyCurrentPetLoss(message: string): Exclude<PetLossContext, "continuation"> {
   const death = confirmedLossPattern.exec(message);
   if (!death) return "none";
+  // A single question seeking words for another person is not an owner loss
+  // assertion. Additional declarative sentences still follow the normal gate.
+  const supportQuestion = /^(?:what|how|can|could|would)\b[^.!?]*\?\s*$/i.test(message.trim())
+    && /\b(?:say|support|comfort|respond|message|write)\b/i.test(message)
+    && /\b(?:friend|someone|somebody|person|neighbor|neighbour|colleague)\b/i.test(message);
+  if (supportQuestion) return "none";
   if (correctedLossPattern.test(message.slice(death.index))) return "none";
   const evidenceWindow = message.slice(Math.max(0, death.index - 80), death.index + death[0].length + 30);
   const questionWithoutStatement = message.trim().endsWith("?") && /^(?:did|has|is|was|could|would|what if)\b/i.test(message.trim());
