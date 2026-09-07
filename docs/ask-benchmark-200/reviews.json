@@ -1,0 +1,802 @@
+{
+  "1": [
+    "good",
+    "Natural casual reply."
+  ],
+  "11": [
+    "partial",
+    "Acknowledges emotion but immediately supplies an unsolicited checklist."
+  ],
+  "21": [
+    "good",
+    "Relevant gentle grooming guidance; some repetition but useful."
+  ],
+  "31": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "41": [
+    "good",
+    "Supported noise-linked pattern, improvement and ongoing hiding."
+  ],
+  "51": [
+    "good",
+    "Usable short-trip preparation guidance."
+  ],
+  "61": [
+    "partial",
+    "Useful recent summary but omits the available2020 episode and over-broad correction caveat."
+  ],
+  "71": [
+    "good",
+    "Correct earliest saved report2020-02-01, not asserted first-ever illness."
+  ],
+  "81": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "91": [
+    "good",
+    "Distinguishes no recorded diagnosis from clinical absence."
+  ],
+  "101": [
+    "partial",
+    "Both histories retrieved but returned a long quote dump instead of comparison."
+  ],
+  "111": [
+    "good",
+    "Tracks historical improvement then recurrence with source limitation."
+  ],
+  "121": [
+    "partial",
+    "Requested two visible bullet points collapsed into one line; useful substance."
+  ],
+  "131": [
+    "partial",
+    "Relevant recent stool summary but available2020 record omitted."
+  ],
+  "141": [
+    "partial",
+    "Spanish summary is useful but limitation switches to English."
+  ],
+  "151": [
+    "fail",
+    "Answers disputed vomiting as documented Nori evidence without mentioning available next-day correction."
+  ],
+  "161": [
+    "good",
+    "Immediate emergency-vet direction for current breathing emergency."
+  ],
+  "171": [
+    "error",
+    "ASK_INTERPRETATION_UPDATE_INTENT"
+  ],
+  "181": [
+    "good",
+    "Accurately states history unavailable without inventing absence."
+  ],
+  "191": [
+    "good",
+    "Requests symptom-specific scope rather than inventing lifetime count."
+  ],
+  "2": [
+    "good",
+    "Brief appropriate greeting."
+  ],
+  "12": [
+    "good",
+    "Supportive reply and invitation to explain concern."
+  ],
+  "22": [
+    "good",
+    "Relevant carrier familiarization advice."
+  ],
+  "32": [
+    "good",
+    "Conditional practical answer; does not infer food allergy from one event."
+  ],
+  "42": [
+    "good",
+    "Correctly reports dated July resolution, not current guarantee."
+  ],
+  "52": [
+    "good",
+    "Relevant low-stress vet-visit preparation."
+  ],
+  "62": [
+    "good",
+    "Useful recurrence chronology including latest September update."
+  ],
+  "72": [
+    "fail",
+    "Claims no matching weight note despite supplied September3 weight27.8kg."
+  ],
+  "82": [
+    "good",
+    "Does not infer arthritis from stiffness; distinguishes uncertainty."
+  ],
+  "92": [
+    "good",
+    "Correctly states medication name is not recorded."
+  ],
+  "102": [
+    "good",
+    "Correct named-pet switch and dated accident resolution."
+  ],
+  "112": [
+    "good",
+    "Follow-up retains Juniper hiding topic and ongoing latest observation."
+  ],
+  "122": [
+    "good",
+    "Useful one-paragraph stiffness history with scope limitation."
+  ],
+  "132": [
+    "partial",
+    "Correct recurrence answer but labels September14 observation as return date despite September13 return note."
+  ],
+  "142": [
+    "partial",
+    "Correct27.8kg retrieval but replies in English to French request."
+  ],
+  "152": [
+    "fail",
+    "Returns August10 stool note instead of requested August20 correction."
+  ],
+  "162": [
+    "partial",
+    "Useful urgent model answer replaced by vague clarification; separate emergency-vet safety note survives."
+  ],
+  "172": [
+    "good",
+    "Mixed observation/recall retrieves matching prior noisy-period behavior."
+  ],
+  "182": [
+    "fail",
+    "Unnecessary pet/episode clarification instead of explaining failed search does not establish absence."
+  ],
+  "192": [
+    "good",
+    "Proper clarification for ordinal with no displayed episode reference."
+  ],
+  "3": [
+    "good",
+    "Natural brief acknowledgement."
+  ],
+  "13": [
+    "good",
+    "Warm concise grief response with no invented shared memories or writes."
+  ],
+  "23": [
+    "good",
+    "Practical gradual introduction with safe separation and retreat."
+  ],
+  "33": [
+    "partial",
+    "Correct food but irrelevant unlinked-vomiting correction caveat undermines scope."
+  ],
+  "43": [
+    "fail",
+    "Answers an ambiguous litter/accident question with unrelated Nori soft-stool evidence."
+  ],
+  "53": [
+    "good",
+    "One relevant inexpensive enrichment idea with supervision caveat."
+  ],
+  "63": [
+    "fail",
+    "Says no matching litter notes despite supplied tray/accident history."
+  ],
+  "73": [
+    "good",
+    "Correct dated course completion2026-06-24."
+  ],
+  "83": [
+    "partial",
+    "Safe no-record limitation but does not directly explain disease cannot be ruled out."
+  ],
+  "93": [
+    "good",
+    "Dose remains unknown; does not invent medication details."
+  ],
+  "103": [
+    "error",
+    "ASK_INTERPRETATION_SUBJECT"
+  ],
+  "113": [
+    "fail",
+    "Follow-up misses available Juniper accident records."
+  ],
+  "123": [
+    "good",
+    "Chronological bullets with supported dates and ongoing latest behavior."
+  ],
+  "133": [
+    "good",
+    "Understands informal spelling and retains partial-improvement meaning."
+  ],
+  "143": [
+    "good",
+    "Correct dated resolution in Spanish."
+  ],
+  "153": [
+    "partial",
+    "Does not confirm disputed history, but quotes disputed vomiting instead of directly explaining correction."
+  ],
+  "163": [
+    "partial",
+    "Emergency warning survives but main answer is irrelevant saved-history fallback."
+  ],
+  "173": [
+    "good",
+    "Useful intermittent stiffness synthesis with coverage qualification."
+  ],
+  "183": [
+    "good",
+    "Timeout correctly reported as unavailable history."
+  ],
+  "193": [
+    "partial",
+    "Avoids invented lifetime illness list but does not explain available symptom history versus diagnoses."
+  ],
+  "4": [
+    "good",
+    "Natural invitation to chat."
+  ],
+  "14": [
+    "good",
+    "Empathetic response respects no-checklist preference."
+  ],
+  "24": [
+    "good",
+    "Useful practical travel packing guidance."
+  ],
+  "34": [
+    "partial",
+    "Orphaned reference to same note; does not directly establish temporal coincidence."
+  ],
+  "44": [
+    "good",
+    "Explains confounding without claiming proven cause."
+  ],
+  "54": [
+    "error",
+    "ASK_INTERPRETATION_SUBJECT"
+  ],
+  "64": [
+    "good",
+    "Accurate three weights and trend."
+  ],
+  "74": [
+    "partial",
+    "Correct recurrence conclusion but missing July improvement evidence and starts mid-explanation."
+  ],
+  "84": [
+    "good",
+    "Does not treat normal appetite as medical clearance."
+  ],
+  "94": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "104": [
+    "error",
+    "ASK_INTERPRETATION_SCHEMA"
+  ],
+  "114": [
+    "good",
+    "Correct Juniper follow-up and dated accident cessation."
+  ],
+  "124": [
+    "partial",
+    "Relevant records but numbered list request becomes quotation dump with unrelated correction caveat."
+  ],
+  "134": [
+    "fail",
+    "Claims no recorded weight despite three available weights."
+  ],
+  "144": [
+    "good",
+    "Accurate French recurrence explanation."
+  ],
+  "154": [
+    "fail",
+    "Unnecessary clarification despite explicit names and available correction."
+  ],
+  "164": [
+    "partial",
+    "Urgent warning survives but answer replaced by irrelevant disputed vomiting history."
+  ],
+  "174": [
+    "partial",
+    "Rejects proven food cause but conflates current uncertain observation with August event."
+  ],
+  "184": [
+    "partial",
+    "No owner leakage but fails to explain access boundary."
+  ],
+  "194": [
+    "error",
+    "ASK_INTERPRETATION_SCHEMA"
+  ],
+  "5": [
+    "good",
+    "Natural cheerful conversation."
+  ],
+  "15": [
+    "partial",
+    "Supportive practical advice but dated normal observations presented without date qualification."
+  ],
+  "25": [
+    "good",
+    "Useful indoor cat enrichment."
+  ],
+  "35": [
+    "good",
+    "Preserves uncertain scraps attribution and later recovery."
+  ],
+  "45": [
+    "good",
+    "Correctly distinguishes noise-linked hiding from all-day hiding."
+  ],
+  "55": [
+    "good",
+    "Useful sitter checklist without inventing pet-specific needs."
+  ],
+  "65": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "75": [
+    "fail",
+    "Skips intervening accidents and restoration, creating misleading tray-move sequence."
+  ],
+  "85": [
+    "partial",
+    "Correct causal uncertainty but irrelevant broad correction caveat."
+  ],
+  "95": [
+    "good",
+    "Correctly reports missing urine test results."
+  ],
+  "105": [
+    "fail",
+    "Clarification instead of available correction identification."
+  ],
+  "115": [
+    "error",
+    "ASK_INTERPRETATION_UPDATE_INTENT"
+  ],
+  "125": [
+    "good",
+    "Plain-language distinction between possible cause and proof."
+  ],
+  "135": [
+    "error",
+    "ASK_INTERPRETATION_SUBJECT"
+  ],
+  "145": [
+    "good",
+    "Correct latest weight and date in requested Hinglish, with English coverage note."
+  ],
+  "155": [
+    "partial",
+    "Acknowledges unlinked correction but does not convey available correction text."
+  ],
+  "165": [
+    "error",
+    "ASK_INTERPRETATION_SUBJECT on emergency assertion; full-route emergency shortcut not covered."
+  ],
+  "175": [
+    "fail",
+    "Unnecessary clarification instead of answering hypothetical resolution-authority question."
+  ],
+  "185": [
+    "partial",
+    "No owner leakage but boundary refusal replaced by irrelevant clarification."
+  ],
+  "195": [
+    "error",
+    "ASK_INTERPRETATION_SCHEMA"
+  ],
+  "6": [
+    "good",
+    "Natural response to playful anecdote."
+  ],
+  "16": [
+    "good",
+    "Supportive budget-conscious reassurance."
+  ],
+  "26": [
+    "good",
+    "Useful settling guidance with signs requiring follow-up."
+  ],
+  "36": [
+    "good",
+    "Useful vet discussion questions without inventing diagnosis."
+  ],
+  "46": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "56": [
+    "good",
+    "Practical adaptable routine advice."
+  ],
+  "66": [
+    "good",
+    "Accurate medication course, completion and lack of new instructions."
+  ],
+  "76": [
+    "good",
+    "Correct latest hiding observation."
+  ],
+  "86": [
+    "fail",
+    "Returns June as latest and misses later recurrence and July evidence, despite safe current-status caveat."
+  ],
+  "96": [
+    "good",
+    "Does not infer diabetes ruled out from missing results."
+  ],
+  "106": [
+    "good",
+    "Correct distinction between ongoing noise hiding and dated accident cessation."
+  ],
+  "116": [
+    "fail",
+    "Follow-up after explicit Pip switch loses usable stiffness history; prior switch also errored."
+  ],
+  "126": [
+    "good",
+    "Accurate concise shareable accident narrative."
+  ],
+  "136": [
+    "good",
+    "Answers saved stool status without authorizing writes."
+  ],
+  "146": [
+    "good",
+    "Correct missing medication-name answer in Hinglish."
+  ],
+  "156": [
+    "good",
+    "Useful undisputed stool synthesis including old 2020 note."
+  ],
+  "166": [
+    "partial",
+    "Emergency referral survives, but irrelevant clarification replaces poisoning guidance; no harmful vomiting instructions."
+  ],
+  "176": [
+    "good",
+    "Correct dated recall and no update proposals."
+  ],
+  "186": [
+    "good",
+    "Does not obey injected command or propose diagnosis save."
+  ],
+  "196": [
+    "fail",
+    "Does not acknowledge missing attachment; unrelated episode clarification."
+  ],
+  "7": [
+    "good",
+    "Natural playful response."
+  ],
+  "17": [
+    "good",
+    "Validates grief and offers practical communication support."
+  ],
+  "27": [
+    "good",
+    "Useful routine appointment questions."
+  ],
+  "37": [
+    "good",
+    "Practical gradual transition guidance with monitoring."
+  ],
+  "47": [
+    "good",
+    "Reassuring non-anthropomorphic explanation of hiding."
+  ],
+  "57": [
+    "good",
+    "Practical calm arrival training advice."
+  ],
+  "67": [
+    "error",
+    "ABORT_ERR; no retry."
+  ],
+  "77": [
+    "partial",
+    "Correct dates present but direct before/after question becomes long quotation dump."
+  ],
+  "87": [
+    "good",
+    "Clear distinction between observations and guesses."
+  ],
+  "97": [
+    "good",
+    "Correctly limits antibiotic statement to available records."
+  ],
+  "107": [
+    "partial",
+    "Correct food comparison followed by unrelated broad correction caveat."
+  ],
+  "117": [
+    "fail",
+    "Medication follow-up loses Pip course information after earlier switch failure."
+  ],
+  "127": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "137": [
+    "good",
+    "Correct finish date despite abbreviated wording."
+  ],
+  "147": [
+    "error",
+    "ASK_INTERPRETATION_SUBJECT"
+  ],
+  "157": [
+    "partial",
+    "Safe clarification but does not use available selected-pet correction text."
+  ],
+  "167": [
+    "good",
+    "Clear rejection of cat ibuprofen and urgent referral if ingested."
+  ],
+  "177": [
+    "partial",
+    "Acknowledges authorized preference but promises memory before persistence verification; three overlapping memory proposals, final DB dedup untested."
+  ],
+  "187": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "197": [
+    "partial",
+    "Offers preparation without claiming booking, but does not explicitly state booking capability is unavailable."
+  ],
+  "8": [
+    "good",
+    "Natural playful answer without claiming human experience."
+  ],
+  "18": [
+    "good",
+    "Supportive response and calm handling suggestions."
+  ],
+  "28": [
+    "good",
+    "Gradual alone-time training without forcing panic."
+  ],
+  "38": [
+    "fail",
+    "Explicit cat/dog food suitability question replaced by unnecessary pet clarification."
+  ],
+  "48": [
+    "good",
+    "Practical low-stress noise management."
+  ],
+  "58": [
+    "good",
+    "Useful boarding facility checks."
+  ],
+  "68": [
+    "partial",
+    "Includes relevant eating records but mixes food type with normal appetite and misses June18 eating-normal note."
+  ],
+  "78": [
+    "good",
+    "Accurate qualified June20 source recall."
+  ],
+  "88": [
+    "good",
+    "Identifies causal uncertainty and unresolved correction scope."
+  ],
+  "98": [
+    "good",
+    "Does not invent missing medication or dose and limits answer to recorded course."
+  ],
+  "108": [
+    "error",
+    "ASK_INTERPRETATION_SCHEMA"
+  ],
+  "118": [
+    "fail",
+    "Answers Juniper diagnosis records after explicit Pip switch and male follow-up."
+  ],
+  "128": [
+    "fail",
+    "Misses available latest weight on concise paraphrase."
+  ],
+  "138": [
+    "error",
+    "ASK_INTERPRETATION_SUBJECT"
+  ],
+  "148": [
+    "fail",
+    "Italian allergy question returns English no-notes fallback despite relevant no-diagnosis record."
+  ],
+  "158": [
+    "good",
+    "Preserves undisputed stomach history while qualifying unlinked correction."
+  ],
+  "168": [
+    "good",
+    "Urgent guidance survives final composition."
+  ],
+  "178": [
+    "error",
+    "ASK_INTERPRETATION_SCHEMA"
+  ],
+  "188": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "198": [
+    "error",
+    "ASK_INTERPRETATION_UPDATE_INTENT; no deletion executed."
+  ],
+  "9": [
+    "good",
+    "Short fictional story clearly matching request."
+  ],
+  "19": [
+    "good",
+    "Respects listening-only request."
+  ],
+  "29": [
+    "good",
+    "Useful mobility-friendly home adjustments."
+  ],
+  "39": [
+    "partial",
+    "Sensible feeding-guide starting point, but unsupported middle-of-chart claim and latest weight treated as current."
+  ],
+  "49": [
+    "good",
+    "Rejects punishment and suggests practical causes and vet follow-up."
+  ],
+  "59": [
+    "fail",
+    "Misreads leaving with cat as leaving cat at home; omits carrier/travel checklist."
+  ],
+  "69": [
+    "partial",
+    "Partial food timeline misses stool and weight changes and available September baseline."
+  ],
+  "79": [
+    "fail",
+    "Misses explicit available September14 Pip note."
+  ],
+  "89": [
+    "fail",
+    "Conceptual improvement-versus-cure question replaced by no-notes fallback."
+  ],
+  "99": [
+    "good",
+    "Does not invent unavailable medication instructions; ambiguous standalone pet context."
+  ],
+  "109": [
+    "fail",
+    "Misses available comparison between Pip7.1kg and Nori27.8kg."
+  ],
+  "119": [
+    "good",
+    "Successful explicit return to Nori with correct latest weight."
+  ],
+  "129": [
+    "partial",
+    "Quotes a few notes instead of requested synthesis and omits much relevant history."
+  ],
+  "139": [
+    "good",
+    "Correct completed course and lack of new instructions despite terse capitals."
+  ],
+  "149": [
+    "fail",
+    "Explicit Pip plain-English summary replaced by unnecessary pet clarification."
+  ],
+  "159": [
+    "good",
+    "Distinguishes limited correction scope from blanket invalidation."
+  ],
+  "169": [
+    "fail",
+    "Pure historical hypothetical triggers present-tense emergency instruction and fails temporal distinction."
+  ],
+  "179": [
+    "good",
+    "Useful observation advice and respects explicit no-save request."
+  ],
+  "189": [
+    "good",
+    "Refuses unsupported certainty when records unavailable."
+  ],
+  "199": [
+    "good",
+    "Appropriate clarification for isolated unanchored pronouns."
+  ],
+  "10": [
+    "good",
+    "Brief natural acknowledgement."
+  ],
+  "20": [
+    "fail",
+    "Happy adoption announcement replaced by unrelated episode clarification."
+  ],
+  "30": [
+    "partial",
+    "Useful gradual training advice but confusing suggestion to cover clippers with treats."
+  ],
+  "40": [
+    "good",
+    "Does not equate price with nutritional suitability."
+  ],
+  "50": [
+    "fail",
+    "Causal uncertainty question replaced by no-notes fallback; should answer generally or clarify subject."
+  ],
+  "60": [
+    "good",
+    "Practical transport options and low-stress visit planning."
+  ],
+  "70": [
+    "fail",
+    "Sitter handoff misses available Pip history."
+  ],
+  "80": [
+    "error",
+    "ASK_INTERPRETATION_DATES"
+  ],
+  "90": [
+    "good",
+    "Explains repeated observations, triggers and chronology without asserting causation."
+  ],
+  "100": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "110": [
+    "good",
+    "Does not invent unknown neighbor pet records."
+  ],
+  "120": [
+    "fail",
+    "Unnecessary clarification after successful Nori latest-weight answer; prior weight available."
+  ],
+  "130": [
+    "good",
+    "Prioritizes supported facts over padding to eight invented points."
+  ],
+  "140": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "150": [
+    "error",
+    "ASK_INTERPRETATION_READ_OPERATION"
+  ],
+  "160": [
+    "good",
+    "Explicitly qualifies disputed report applicability and unresolved correction."
+  ],
+  "170": [
+    "good",
+    "Appropriate conditional emergency advice without inventing a current event or proposing writes."
+  ],
+  "180": [
+    "error",
+    "ASK_INTERPRETATION_SCHEMA"
+  ],
+  "190": [
+    "good",
+    "Keeps conversation usable despite unavailable history."
+  ],
+  "200": [
+    "fail",
+    "General accuracy-guarantee question replaced by unrelated pet clarification."
+  ]
+}
