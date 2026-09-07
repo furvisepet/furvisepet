@@ -1,3 +1,4 @@
+import { preserveReviewedLayout } from "../history-presentation.ts";
 import { readReviewedHistoryAnswer } from "../history-review-receipt.ts";
 import type { AskReasoningResult } from "../../ai/ask-reasoning.ts";
 import { countAskVisibleProseSanityDefects, measureAskAnswerEconomy, normalizeAskListIntegrity, normalizeAskVisibleProseSanity } from "../../ai/ask-answer-economy.ts";
@@ -136,6 +137,10 @@ export function validateGeneratedAnswer(
     if (proseDefectsAfter > 0) qualityWarnings.push("visible_prose_sanity_remaining");
   } catch {
     qualityWarnings.push("quality_normalization_failed");
+  }
+  if (reviewedHistory) {
+    const reviewedText = `${urgent ? "Contact an emergency veterinarian now. " : ""}${reviewedHistory.text}`;
+    response.answer.summary = preserveReviewedLayout(reviewedText, response.answer.summary);
   }
   const assistantProse = JSON.stringify(response.answer);
   if (hasSourceQuote && sourceNote) {

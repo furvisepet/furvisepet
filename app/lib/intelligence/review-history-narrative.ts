@@ -1,3 +1,4 @@
+import { presentReviewedHistory, stripHistoryBullet } from "./history-presentation.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { historyReviewSelectionSchema, parseHistoryReviewSelection } from "./history-review-selection.ts";
 import { historyNarrativeAnchorsSupported } from "./history-narrative-facts.ts";
@@ -66,7 +67,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
       .map(text => ({ text, sourceIds })) });
   }
   if (!proposedDraft) return false;
-  const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence, text: sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text).trim() })).filter(sentence => sentence.sourceIds.every(id => ids.has(id))
+  const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence, text: stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) })).filter(sentence => sentence.sourceIds.every(id => ids.has(id))
     && historyNarrativeAnchorsSupported(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId)))) };
   if (!sources.length || !draft.sentences.length) return false;
   const requestInput = JSON.stringify({
@@ -100,7 +101,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
     const retained = parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]);
     const limitation = conversationalHistoryLimitation(evidence);
     recordHistoryReview(result, { signature: before,
-      text: retained.map(sentence => sentence.text).join(" ") + (limitation ? "\n\n" + limitation : ""),
+      text: presentReviewedHistory(retained.map(sentence => sentence.text), evidence.scope.requestText) + (limitation ? "\n\n" + limitation : ""),
       sourceIds: [...new Set(retained.flatMap(sentence => sentence.sourceIds))] });
     return true;
   } catch {

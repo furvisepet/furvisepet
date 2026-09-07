@@ -176,10 +176,16 @@ function enforceActionResponseCoherence(response, hasApplicationActions, clarifi
 }
 
 function stripActionDependentSentences(value) {
-  if (/\n\s*\n/.test(value)) return value.split(/\n\s*\n/).map(stripActionDependentSentences).filter(Boolean).join("\n\n");
-  const clean = cleanText(String(value || ""));
-  if (!clean) return "";
-  return clean.split(/(?<=[.!?])\s+/).filter((sentence) => !containsActionDependentCopy(sentence)).join(" ").trim();
+  const clean = cleanAnswerProse(value);
+  if (!containsActionDependentCopy(clean)) return clean;
+  // Keep line/list boundaries while retaining the existing no-action copy guard.
+  return clean.split("\n").map((line) => {
+    const marker = /^(\s*(?:[-+\u2022]|\d+[.)])\s+)/.exec(line);
+    const body = marker ? line.slice(marker[0].length) : line;
+    const retained = body.split(/(?<=[.!?])\s+/)
+      .filter((sentence) => !containsActionDependentCopy(sentence)).join(" ").trim();
+    return retained ? (marker ? marker[0] : "") + retained : "";
+  }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function cleanApplicationActions(value) {
@@ -773,39 +779,10 @@ function cleanText(value) {
 }
 
 function cleanAnswerProse(value) {
-  const raw = String(value || "");
-  if (/\n\s*\n/.test(raw)) return raw.split(/\n\s*\n/).map(cleanAnswerProse).filter(Boolean).join("\n\n");
-  const markers = answerListMarkers(raw);
-  if (markers.length < 2) return cleanText(raw).replace(/^\s*(?:[-+•]|\d+[.)])\s+/, "");
-
-  const prefix = cleanText(raw.slice(0, markers[0].index)).replace(/[.:;,-]+$/, "");
-  const items = markers.map((marker, index) => cleanText(raw
-    .slice(marker.index + marker.text.length, index + 1 < markers.length ? markers[index + 1].index : raw.length))
-    .replace(/[.;]+$/, ""))
-    .filter(Boolean);
-  if (items.length < 2) return cleanText(raw);
-  const lowered = items.map((item) => /^[A-Z]{2,}\b/.test(item) ? item : item.charAt(0).toLowerCase() + item.slice(1));
-  const list = lowered.length === 2
-    ? `${lowered[0]} and ${lowered[1]}`
-    : `${lowered.slice(0, -1).join("; ")}; and ${lowered.at(-1)}`;
-  return `${prefix || "Useful next steps"}: ${list}.`;
-}
-
-function answerListMarkers(value) {
-  const fromMatch = (match) => {
-    const leadingLength = /^\s/.test(match[0]) ? match[0].search(/[-+•\d]/) : 0;
-    return { index: (match.index || 0) + leadingLength, text: match[0].slice(leadingLength) };
-  };
-  const strong = [...value.matchAll(/(?:^|\s)(?:•|\d+[.)])\s+/g)].map(fromMatch);
-  const lineBullets = [...value.matchAll(/(?:^|\n)\s*[-+]\s+/g)].map(fromMatch);
-  const inlineStart = /:\s*[-+]\s+/.exec(value);
-  const inlineBullets = inlineStart
-    ? [...value.slice((inlineStart.index || 0) + 1).matchAll(/(?:^|\s)[-+]\s+/g)].map((match) => {
-      const marker = fromMatch(match);
-      return { ...marker, index: marker.index + (inlineStart.index || 0) + 1 };
-    })
-    : [];
-  return [...strong, ...lineBullets, ...inlineBullets]
-    .sort((left, right) => left.index - right.index)
-    .filter((marker, index, all) => index === 0 || marker.index !== all[index - 1].index);
+  // Preserve layout and literal quantities; presentation must not synthesize prose.
+  return String(value || "").replace(/\r\n?/g, "\n").split("\n").map((line) => {
+    const marker = /^(\s*(?:[-+\u2022]|\d+[.)])\s+)/.exec(line);
+    const body = cleanText(marker ? line.slice(marker[0].length) : line);
+    return body ? (marker ? marker[0].trimStart() : "") + body : "";
+  }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
