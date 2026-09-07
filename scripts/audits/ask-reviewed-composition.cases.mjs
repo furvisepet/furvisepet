@@ -44,7 +44,7 @@ test('review failure, refusal and malformed approval never fail a completed answ
   clock(t);
   for (const response of [
     async()=>{throw new DOMException('timed out','TimeoutError');},
-    async()=>({status:'incomplete',output_text:'{"approved":true}',usage:{input_tokens:20,output_tokens:10}}),
+    async()=>({status:'incomplete',output_text:'{"approved":true,"retainedSentenceIndexes":[0]}',usage:{input_tokens:20,output_tokens:10}}),
     async()=>({status:'completed',output_text:'{"approved":true,"extra":"forged"}',usage:{input_tokens:20,output_tokens:10}}),
     async()=>({status:'completed',output_text:'not JSON',usage:{input_tokens:20,output_tokens:10}}),
   ]) {
@@ -83,7 +83,7 @@ test('review receipts cannot be forged, cloned or reused after evidence changes'
   const r=await exercise('Summarize Milo stomach history.',opts({reviewResponse:{approved:false},expectedReviewCalls:1}));
   const result=r.result.reasoning;
   result.reviewedHistory={approved:true}; assert.equal(readReviewedHistoryAnswer(result),null);
-  const client={responses:{async create(){return {status:'completed',output_text:'{"approved":true}',usage:{input_tokens:20,output_tokens:10}};}}};
+  const client={responses:{async create(){return {status:'completed',output_text:'{"approved":true,"retainedSentenceIndexes":[0]}',usage:{input_tokens:20,output_tokens:10}};}}};
   assert.equal(await reviewHistoricalAnswer({result,client}),true);
   assert.ok(readReviewedHistoryAnswer(result));
   assert.equal(readReviewedHistoryAnswer(structuredClone(result)),null);
@@ -95,7 +95,7 @@ test('mutation during review invalidates approval', async t => {
   const {reviewHistoricalAnswer,readReviewedHistoryAnswer}=await import('../../app/lib/intelligence/review-history-narrative.ts');
   const r=await exercise('Summarize Milo stomach history.',opts({reviewResponse:{approved:false},expectedReviewCalls:1}));
   const result=r.result.reasoning;
-  const accepted=await reviewHistoricalAnswer({result,client:{responses:{async create(){result.evidenceContract.losses.push({sourceId:'care:june',reason:'changed'});return {status:'completed',output_text:'{"approved":true}',usage:{input_tokens:20,output_tokens:10}};}}}});
+  const accepted=await reviewHistoricalAnswer({result,client:{responses:{async create(){result.evidenceContract.losses.push({sourceId:'care:june',reason:'changed'});return {status:'completed',output_text:'{"approved":true,"retainedSentenceIndexes":[0]}',usage:{input_tokens:20,output_tokens:10}};}}}});
   assert.equal(accepted,false); assert.equal(readReviewedHistoryAnswer(result),null);
 });
 test('dialogue is available for continuity but never becomes a cited source', async t => {

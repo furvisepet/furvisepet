@@ -1,3 +1,4 @@
+import { scopeConversationContext } from "./conversation-scope.ts";
 import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
 import "server-only";
 
@@ -65,14 +66,21 @@ export async function runFurviseIntelligence({
   discourseFocus?: import("./entities/resolve-turn-subject.ts").AskDiscourseFocus;
   evidenceContract?: AskEvidenceContract;
 }): Promise<FurviseIntelligenceResult> {
+  if (context.askInterpretation?.conversationOnly) {
+    context = scopeConversationContext(context);
+    authoritativePetIds = [];
+    authoritativeSemanticFrame = undefined;
+    evidenceContract = createAskEvidenceContract(context, []);
+  }
+  const separateDialogue = Boolean(context.askHistory || context.askInterpretation?.conversationOnly);
   const safety = resolveSafetyState(context);
   const deterministicUnderstanding = classifyMessageDeterministically(context.currentMessage, context.activeConcerns.length > 0);
   const reasoning = await generateContextAwareAskResponse({
     evidenceContract: evidenceContract || createAskEvidenceContract(context, authoritativePetIds),
     careEntries: context.askHistory?.entries || context.selectedCareEntries,
     concerns: context.activeConcerns,
-    dialogueContext: context.askHistory ? context.conversationTurns.filter(turn => turn.id !== sourceMessageId).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt })) : undefined,
-    conversationTurns: context.askHistory ? [] : context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
+    dialogueContext: separateDialogue ? context.conversationTurns.filter(turn => turn.id !== sourceMessageId).map(turn => ({ id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt })) : undefined,
+    conversationTurns: separateDialogue ? [] : context.conversationTurns.filter((turn) => turn.id !== sourceMessageId).map((turn) => ({
       id: turn.id, role: turn.role, text: turn.text, createdAt: turn.createdAt, applicationActions: turn.applicationActions,
     })),
     locale: context.locale,
@@ -119,7 +127,7 @@ export async function runFurviseIntelligence({
       recoveryStatus: "none", recoveryConfidence: 1,
       recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
   }
-  const lossContext = resolvePetLossContext({
+  const lossContext = context.askInterpretation?.conversationOnly ? "none" : resolvePetLossContext({
     message: context.currentMessage,
     recentConversation: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
     lifecycleStatus: context.pet.lifecycle_status,

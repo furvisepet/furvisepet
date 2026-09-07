@@ -1,8 +1,8 @@
 {
   "authorizedUsd": 5,
   "reservationStopUsd": 4.5,
-  "reservedUsd": 3.46226175,
-  "measuredUsd": 0.68964975,
+  "reservedUsd": 4.367870999999999,
+  "measuredUsd": 0.8519789999999998,
   "calls": [
     {
       "number": 1,
@@ -5005,6 +5005,2123 @@
           }
         }
       }
+    },
+    {
+      "number": 80,
+      "question": "Catch me up on Juniper's drinking. Keep it short.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03523725,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3465,
+      "inputTokens": 4696,
+      "outputTokens": 437,
+      "measuredUsd": 0.0054885,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "overview",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "overview",
+        "subject": "explicit",
+        "petNames": [
+          "Juniper"
+        ],
+        "topic": "drinking",
+        "terms": [
+          "drink",
+          "water",
+          "hydration",
+          "thirst",
+          "dehydrate"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 81,
+      "question": "Catch me up on Juniper's drinking. Keep it short.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.06943875,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 7678,
+      "inputTokens": 11632,
+      "outputTokens": 1580,
+      "measuredUsd": 0.015834,
+      "syntheticResponse": {
+        "answer": "The notes I have show Juniper was drinking more water during a hot week in early July, but the cause wasn’t clear. By early August, her drinking seemed back to usual and her appetite was normal.",
+        "answerSections": [
+          {
+            "heading": "Catch-up",
+            "items": [
+              "Early July: drinking more water during a hot week, with no clear explanation.",
+              "Early August: drinking seemed back to usual, and appetite was normal."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "Juniper was drinking more water during a hot week in early July, and the note said it wasn't clear whether heat explained it.",
+              "sourceIds": [
+                "care:drink-july"
+              ]
+            },
+            {
+              "text": "By early August, her drinking seemed back to usual, and her appetite was normal.",
+              "sourceIds": [
+                "care:drink-aug"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:drink-july",
+          "care:drink-aug"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "terminal",
+          "recoveryConfidence": 0.84,
+          "recoveryEvidence": {
+            "outcome": "return_to_baseline",
+            "surfaceText": "Juniper drinking seems back to usual this week.",
+            "targetConcept": "increased drinking",
+            "confidence": 0.84
+          },
+          "requestedTopic": "drinking",
+          "referencedPet": "Juniper",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Historical overview request with no active safety concern.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Juniper"
+            },
+            "domain": "nutrition",
+            "topic": "drinking",
+            "eventTitle": "Juniper drank more water",
+            "transition": "changed",
+            "state": "historical",
+            "temporal": {
+              "occurredAt": "2026-07-03T12:00:00Z",
+              "explicitTime": "during a hot week"
+            },
+            "importance": "routine",
+            "confidence": 0.77,
+            "sourceExcerpt": "Juniper was drinking more water during a hot week. I do not know whether the heat explains it.",
+            "episodeBoundary": {
+              "kind": "opening",
+              "evidence": "Juniper was drinking more water during a hot week.",
+              "confidence": 0.74
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Juniper"
+            },
+            "domain": "nutrition",
+            "topic": "drinking",
+            "eventTitle": "Juniper drinking returned to usual",
+            "transition": "resolved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-08-02T12:00:00Z",
+              "explicitTime": "this week"
+            },
+            "importance": "routine",
+            "confidence": 0.88,
+            "sourceExcerpt": "Juniper drinking seems back to usual this week.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "Juniper drinking seems back to usual this week.",
+              "confidence": 0.88
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.98
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Juniper",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "cat",
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Juniper"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "her",
+              "kind": "name",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.93
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "drink more water",
+                "definition": "The cat was consuming more water than usual.",
+                "aliases": [
+                  "drinking more water",
+                  "increased drinking"
+                ],
+                "parentLabels": [
+                  "drinking"
+                ],
+                "relatedLabels": [
+                  "thirst",
+                  "hydration"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-07-03T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "during a hot week",
+                "precision": "approximate"
+              },
+              "uncertainty": {
+                "confidence": 0.77,
+                "reasons": [
+                  "cause uncertain"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Juniper was drinking more water during a hot week."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "observed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            },
+            {
+              "localId": "claim_2",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "drinking returned to usual",
+                "definition": "The cat's drinking returned to its prior normal level.",
+                "aliases": [
+                  "back to usual",
+                  "returned to normal"
+                ],
+                "parentLabels": [
+                  "drinking"
+                ],
+                "relatedLabels": [
+                  "baseline",
+                  "hydration"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-08-02T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "this week",
+                "precision": "recurring"
+              },
+              "uncertainty": {
+                "confidence": 0.88,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Juniper drinking seems back to usual this week."
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "state_transition",
+              "transition": "resolved",
+              "fromState": "increased drinking",
+              "toState": "usual drinking",
+              "targetConcept": {
+                "label": "increased drinking",
+                "definition": "Drinking more water than usual.",
+                "aliases": [
+                  "more water than usual"
+                ],
+                "parentLabels": [
+                  "drinking"
+                ],
+                "relatedLabels": [
+                  "thirst",
+                  "hydration"
+                ]
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": [
+              "Historical notes are partial but sufficient for a brief catch-up."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "number": 82,
+      "question": "Catch me up on Juniper's drinking. Keep it short.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01187325,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1456,
+      "inputTokens": 1282,
+      "outputTokens": 61,
+      "measuredUsd": 0.0012360000000000001,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1]}"
+    },
+    {
+      "number": 83,
+      "question": "Does that mean she definitely has diabetes?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035277750000000004,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3763,
+      "inputTokens": 4707,
+      "outputTokens": 595,
+      "measuredUsd": 0.00620775,
+      "syntheticPlan": {
+        "selection": "reference",
+        "readOperation": "general",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [],
+          "references": [
+            {
+              "localId": "ref_1",
+              "surface": "she",
+              "kind": "pronoun",
+              "mentionRef": "m_1",
+              "antecedentRefs": [
+                "juniper"
+              ],
+              "confidence": 0.92
+            }
+          ],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "general",
+        "subject": "conversation",
+        "petNames": [
+          "Juniper"
+        ],
+        "topic": "diabetes",
+        "terms": [
+          "diabetes",
+          "drinking",
+          "thirst",
+          "urination",
+          "dog",
+          "cat"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 84,
+      "question": "And Pip, has the stair problem gone away?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03527625,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2388,
+      "inputTokens": 4709,
+      "outputTokens": 398,
+      "measuredUsd": 0.00532275,
+      "syntheticPlan": {
+        "selection": "latest",
+        "readOperation": "status",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "status",
+        "subject": "explicit",
+        "petNames": [
+          "Pip"
+        ],
+        "topic": "stair problem",
+        "terms": [
+          "stairs",
+          "stair problem",
+          "stair issue",
+          "staircase"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 85,
+      "question": "And Pip, has the stair problem gone away?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.07000875,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 11870,
+      "inputTokens": 11851,
+      "outputTokens": 1569,
+      "measuredUsd": 0.01594875,
+      "syntheticResponse": {
+        "answer": "Not from the notes I can see. Pip was using the stairs comfortably again in June, but the later August note says he was hesitating on the stairs again yesterday, so it looks like the problem had come back rather than fully gone away.",
+        "answerSections": [],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "Pip was using the stairs comfortably again in June, but the later August note says he was hesitating on the stairs again yesterday, so the stair problem does not look fully gone away from the notes available.",
+              "sourceIds": [
+                "care:stairs-june",
+                "care:stairs-aug"
+              ]
+            },
+            {
+              "text": "The May note also shows he had hesitated on the stairs after a long walk, which supports that this was already an earlier issue.",
+              "sourceIds": [
+                "care:stairs-may"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:stairs-aug",
+          "care:stairs-june",
+          "care:stairs-may"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "uncertain",
+          "recoveryConfidence": 0.88,
+          "recoveryEvidence": {
+            "outcome": "uncertain",
+            "surfaceText": "Pip was using the stairs comfortably again.",
+            "targetConcept": "stair problem",
+            "confidence": 0.58
+          },
+          "requestedTopic": "stair problem",
+          "referencedPet": "pip",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Historical status question with no urgent safety signs in the current message.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Pip"
+            },
+            "domain": "health",
+            "topic": "stairs",
+            "eventTitle": "Stair problem improved",
+            "transition": "improved",
+            "state": "resolved",
+            "temporal": {
+              "occurredAt": "2026-06-01T12:00:00Z",
+              "explicitTime": "in June"
+            },
+            "importance": "routine",
+            "confidence": 0.72,
+            "sourceExcerpt": "Pip was using the stairs comfortably again.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "Pip was using the stairs comfortably again.",
+              "confidence": 0.72
+            }
+          },
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Pip"
+            },
+            "domain": "health",
+            "topic": "stairs",
+            "eventTitle": "Stair problem returned",
+            "transition": "changed",
+            "state": "active",
+            "temporal": {
+              "occurredAt": "2026-08-01T12:00:00Z",
+              "explicitTime": "yesterday"
+            },
+            "importance": "routine",
+            "confidence": 0.86,
+            "sourceExcerpt": "Pip hesitated on the stairs again yesterday.",
+            "episodeBoundary": {
+              "kind": "continuation",
+              "evidence": "Pip hesitated on the stairs again yesterday.",
+              "confidence": 0.86
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.95
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Pip",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Pip"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "he",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "use_stairs_comfortably",
+                "definition": "to move on stairs without hesitation or difficulty",
+                "aliases": [
+                  "stairs are comfortable"
+                ],
+                "parentLabels": [
+                  "mobility"
+                ],
+                "relatedLabels": [
+                  "hesitate on stairs"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-06-01T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "in June",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.72,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Pip was using the stairs comfortably again."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "assertion",
+              "value": true,
+              "unit": null,
+              "durability": "temporary"
+            },
+            {
+              "localId": "claim_2",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "hesitate_on_stairs",
+                "definition": "to pause or show reluctance when going on stairs",
+                "aliases": [
+                  "stair hesitation"
+                ],
+                "parentLabels": [
+                  "mobility"
+                ],
+                "relatedLabels": [
+                  "use stairs comfortably"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-08-01T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "yesterday",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.86,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Pip hesitated on the stairs again yesterday."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "observed",
+                "boundedInMessage": true,
+                "resultingState": "active"
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": [
+              "Latest available note still reports hesitation on stairs after a prior improvement."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "number": 86,
+      "question": "And Pip, has the stair problem gone away?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.012324,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1512,
+      "inputTokens": 1433,
+      "outputTokens": 120,
+      "measuredUsd": 0.0016147499999999999,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,1]}"
+    },
+    {
+      "number": 87,
+      "question": "Could you turn that into two points for my partner?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03531525,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4919,
+      "inputTokens": 4720,
+      "outputTokens": 666,
+      "measuredUsd": 0.006537,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "general",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "request",
+              "confidence": 0.97
+            }
+          ],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "general",
+        "subject": "conversation",
+        "petNames": [
+          "Pip"
+        ],
+        "topic": "stair problem",
+        "terms": [
+          "stair problem",
+          "turn into two points",
+          "partner",
+          "short summary"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 88,
+      "question": "Could you turn that into two points for my partner?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0712935,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 6526,
+      "inputTokens": 12228,
+      "outputTokens": 1307,
+      "measuredUsd": 0.0150525,
+      "syntheticResponse": {
+        "answer": "Pip seemed to be using the stairs comfortably again in June. But the later August note says he was hesitating on them again, so it doesn’t look fully gone from the notes we have.",
+        "answerSections": [],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "conversational",
+        "userIntent": "request_rephrase",
+        "historyNarrative": {
+          "sentences": [
+            {
+              "text": "Pip seemed to be using the stairs comfortably again in June.",
+              "sourceIds": [
+                "care:stairs-june"
+              ]
+            },
+            {
+              "text": "The later August note says he was hesitating on the stairs again, so it doesn’t look fully gone from the notes we have.",
+              "sourceIds": [
+                "care:stairs-aug",
+                "care:stairs-may"
+              ]
+            }
+          ]
+        },
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:stairs-june",
+          "care:stairs-aug",
+          "care:stairs-may"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "general_conversation",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": false,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "terminal",
+          "recoveryConfidence": 0.81,
+          "recoveryEvidence": {
+            "outcome": "symptom_absent",
+            "surfaceText": "Pip was using the stairs comfortably again",
+            "targetConcept": "stair problem",
+            "confidence": 0.81
+          },
+          "requestedTopic": "stair problem",
+          "referencedPet": "Pip",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "No safety issue in the request; this is a rephrasing of the prior historical summary.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [
+          {
+            "subject": {
+              "type": "pet",
+              "name": "Pip"
+            },
+            "domain": "health",
+            "topic": "stair problem",
+            "eventTitle": "Stair comfort improved",
+            "transition": "improved",
+            "state": "monitoring",
+            "temporal": {
+              "occurredAt": "2026-06-01T12:00:00Z",
+              "explicitTime": "June"
+            },
+            "importance": "routine",
+            "confidence": 0.78,
+            "sourceExcerpt": "Pip was using the stairs comfortably again.",
+            "episodeBoundary": {
+              "kind": "resolution",
+              "evidence": "Pip was using the stairs comfortably again",
+              "confidence": 0.81
+            }
+          }
+        ],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "request",
+              "confidence": 0.96
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Pip",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "dog",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Pip"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "Pip",
+              "kind": "name",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [],
+              "confidence": 0.99
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "stair comfort improved",
+                "definition": "The dog returned to using the stairs comfortably.",
+                "aliases": [
+                  "using the stairs comfortably again"
+                ],
+                "parentLabels": [
+                  "health state transition"
+                ],
+                "relatedLabels": [
+                  "hesitated on the stairs"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-06-01T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "in June",
+                "precision": "day"
+              },
+              "uncertainty": {
+                "confidence": 0.81,
+                "reasons": [
+                  "supported by the June note"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Pip was using the stairs comfortably again"
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "state_transition",
+              "transition": "improved",
+              "fromState": "hesitating on the stairs",
+              "toState": "using the stairs comfortably again",
+              "targetConcept": {
+                "label": "stair problem",
+                "definition": "Difficulty or hesitation on stairs",
+                "aliases": [
+                  "stair issue"
+                ],
+                "parentLabels": [
+                  "health problem"
+                ],
+                "relatedLabels": [
+                  "mobility issue"
+                ]
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 89,
+      "question": "Can we just talk for a minute?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03534675,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 1571,
+      "inputTokens": 4729,
+      "outputTokens": 134,
+      "measuredUsd": 0.00414975,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "general",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "request",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "general",
+        "subject": "non_pet",
+        "petNames": [],
+        "topic": "talk",
+        "terms": [
+          "talk",
+          "minute"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 90,
+      "question": "Can we just talk for a minute?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.06322275,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4159,
+      "inputTokens": 9695,
+      "outputTokens": 376,
+      "measuredUsd": 0.008963249999999999,
+      "syntheticResponse": {
+        "answer": "Of course. What’s on your mind?",
+        "answerSections": [],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "conversational",
+        "userIntent": "general_conversation",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [],
+        "messageUnderstanding": {
+          "primaryIntent": "general_conversation",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": false,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": true,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "talk",
+          "referencedPet": null,
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Casual conversation request with no pet-care or safety content.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 91,
+      "question": "I feel overwhelmed by everything that comes with having a pet.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035397,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2675,
+      "inputTokens": 4741,
+      "outputTokens": 401,
+      "measuredUsd": 0.0053602499999999996,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "general",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "general",
+        "subject": "non_pet",
+        "petNames": [],
+        "topic": "having a pet",
+        "terms": [
+          "pet",
+          "overwhelmed",
+          "having a pet"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 92,
+      "question": "I feel overwhelmed by everything that comes with having a pet.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.063285,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 7906,
+      "inputTokens": 9706,
+      "outputTokens": 923,
+      "measuredUsd": 0.011433,
+      "syntheticResponse": {
+        "answer": "That’s a lot to carry, and it makes sense to feel swamped. The fastest way to make it lighter is to stop treating it like one huge job and split it into a few smaller pieces: what has to happen today, what can wait until this week, and what can safely be ignored for now. If you want, start with just one thing like feeding, water, or the next bathroom break, then handle the rest later.\n\nA simple reset can help: write down the pet-care tasks that are actually on your plate, circle the two most important ones, and let everything else be “good enough” for today. If part of what’s overwhelming you is cost, time, or not knowing what’s normal, that points to a different fix for each one. The goal isn’t perfect care, just a manageable routine you can repeat.",
+        "answerSections": [
+          {
+            "heading": "What usually helps most",
+            "items": [
+              "Make a short today list and ignore the rest until tomorrow.",
+              "Separate urgent needs from optional tasks.",
+              "If money, time, or worry is the hard part, deal with that specific problem first."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "What are the main parts that feel overwhelming right now?",
+          "How do I make a simple daily pet-care routine?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "conversational",
+        "userIntent": "general_conversation",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [],
+        "messageUnderstanding": {
+          "primaryIntent": "general_conversation",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": false,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "having a pet",
+          "referencedPet": null,
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "General emotional overwhelm about pet care, without a direct safety issue.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [
+          {
+            "action": "none",
+            "category": "support",
+            "title": "Overwhelmed by pet care",
+            "details": "User feels overwhelmed by everything that comes with having a pet.",
+            "severity": "routine",
+            "confidence": 0.86,
+            "relatedRecordId": null
+          }
+        ],
+        "semanticEvents": [],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.98
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "I",
+              "coarseType": "person",
+              "attributes": {
+                "species": null,
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I feel overwhelmed by everything that comes with having a pet."
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "feel overwhelmed",
+                "definition": "Experiencing a strong sense of being burdened or unable to comfortably manage demands.",
+                "aliases": [
+                  "overwhelmed"
+                ],
+                "parentLabels": [
+                  "emotional state"
+                ],
+                "relatedLabels": [
+                  "stress",
+                  "burden"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15T12:00:00.000Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "I feel overwhelmed by everything that comes with having a pet.",
+                "precision": "exact"
+              },
+              "uncertainty": {
+                "confidence": 0.96,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I feel overwhelmed by everything that comes with having a pet."
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "assertion",
+              "value": "overwhelmed by pet-care demands",
+              "unit": null,
+              "durability": "temporary"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 93,
+      "question": "Does Juniper drinking history mean she definitely has diabetes?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03524775,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4890,
+      "inputTokens": 4695,
+      "outputTokens": 713,
+      "measuredUsd": 0.00672975,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "general",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "f1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "m1",
+              "surface": "Juniper",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "cat",
+                "lifeStage": null,
+                "ownership": "other"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Juniper"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "general",
+        "subject": "explicit",
+        "petNames": [
+          "Juniper"
+        ],
+        "topic": "diabetes",
+        "terms": [
+          "drinking",
+          "diabetes",
+          "thirst",
+          "water intake"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 94,
+      "question": "Does Juniper drinking history mean she definitely has diabetes?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0687465,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 6842,
+      "inputTokens": 11380,
+      "outputTokens": 1318,
+      "measuredUsd": 0.014466,
+      "syntheticResponse": {
+        "answer": "No, drinking history by itself doesn’t mean Juniper definitely has diabetes. The notes here say she was drinking more water during a hot week, and later that her drinking seemed back to usual with no diabetes diagnosis recorded. So this history points to a past change in thirst, but it doesn’t confirm diabetes.",
+        "answerSections": [
+          {
+            "heading": "What that means",
+            "items": [
+              "Increased drinking can happen for lots of reasons, including heat, diet, stress, or illness.",
+              "Diabetes is usually considered when extra drinking keeps happening or comes with other signs like more urination, weight loss, or a bigger appetite.",
+              "Because the later note says her drinking was back to usual, this doesn’t read like proof of diabetes on its own."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:drink-aug",
+          "care:drink-july"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "terminal",
+          "recoveryConfidence": 0.78,
+          "recoveryEvidence": {
+            "outcome": "return_to_baseline",
+            "surfaceText": "drinking seems back to usual this week",
+            "targetConcept": "increased drinking",
+            "confidence": 0.78
+          },
+          "requestedTopic": "diabetes",
+          "referencedPet": "Juniper",
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "The question is about whether a past drinking change proves diabetes. The available notes show a temporary increase during a hot week and later return to usual, without a recorded diagnosis.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.98
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Juniper",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "cat",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Does Juniper drinking history mean she definitely has diabetes?"
+                }
+              ],
+              "confidence": 0.99
+            },
+            {
+              "localId": "entity_2",
+              "surface": "diabetes",
+              "coarseType": "unknown",
+              "attributes": {
+                "species": null,
+                "lifeStage": null,
+                "ownership": "unknown"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "diabetes"
+                }
+              ],
+              "confidence": 0.97
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "she",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "drinking was back to usual",
+                "definition": "The cat's drinking returned to its usual level.",
+                "aliases": [
+                  "returned to usual"
+                ],
+                "parentLabels": [
+                  "state change"
+                ],
+                "relatedLabels": [
+                  "increased drinking"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-08-02T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "drinking seems back to usual this week",
+                "precision": "recurring"
+              },
+              "uncertainty": {
+                "confidence": 0.78,
+                "reasons": [
+                  "reported in care update"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Juniper drinking seems back to usual this week."
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "assertion",
+              "value": "back to usual",
+              "unit": null,
+              "durability": "temporary"
+            },
+            {
+              "localId": "claim_2",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "no diabetes diagnosis recorded",
+                "definition": "There is no recorded diagnosis of diabetes in the provided notes.",
+                "aliases": [
+                  "diabetes not recorded"
+                ],
+                "parentLabels": [
+                  "medical record status"
+                ],
+                "relatedLabels": [
+                  "diabetes"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-08-02T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "No diagnosis of diabetes or another cause has been recorded here",
+                "precision": "exact"
+              },
+              "uncertainty": {
+                "confidence": 0.92,
+                "reasons": [
+                  "explicitly stated in note"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "No diagnosis of diabetes or another cause has been recorded here."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "assertion",
+              "value": "not recorded",
+              "unit": null,
+              "durability": "ongoing"
+            },
+            {
+              "localId": "claim_3",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "drinking increased during hot week",
+                "definition": "The cat drank more water during a hot week.",
+                "aliases": [
+                  "drank more water"
+                ],
+                "parentLabels": [
+                  "behavior change"
+                ],
+                "relatedLabels": [
+                  "heat"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "reported",
+              "temporal": {
+                "occurredAt": "2026-07-03T12:00:00Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "was drinking more water during a hot week",
+                "precision": "exact"
+              },
+              "uncertainty": {
+                "confidence": 0.91,
+                "reasons": [
+                  "explicitly stated in note"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Juniper was drinking more water during a hot week."
+                }
+              ],
+              "persistenceHint": "history",
+              "kind": "event",
+              "participants": [
+                {
+                  "role": "subject",
+                  "entityRef": "entity_1"
+                }
+              ],
+              "lifecycle": {
+                "phase": "completed",
+                "boundedInMessage": true,
+                "resultingState": "historical"
+              }
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 95,
+      "question": "I feel overwhelmed by everything that comes with having a pet.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0353025,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2039,
+      "inputTokens": 4708,
+      "outputTokens": 188,
+      "measuredUsd": 0.004377,
+      "syntheticPlan": {
+        "selection": "summary",
+        "readOperation": "general",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "general",
+        "subject": "non_pet",
+        "petNames": [],
+        "topic": "emotional support",
+        "terms": [
+          "feel overwhelmed",
+          "pet care",
+          "having a pet",
+          "support",
+          "stress"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 96,
+      "question": "I feel overwhelmed by everything that comes with having a pet.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.063693,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 4973,
+      "inputTokens": 9800,
+      "outputTokens": 809,
+      "measuredUsd": 0.0109905,
+      "syntheticResponse": {
+        "answer": "That makes sense. Having a pet can come with a lot, and it’s easy for it to pile up until it feels like too much. What part feels heaviest right now?",
+        "answerSections": [],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "What part feels heaviest right now?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "conversational",
+        "userIntent": "general conversation",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [],
+        "messageUnderstanding": {
+          "primaryIntent": "general_conversation",
+          "secondaryIntents": [
+            "owner_preference"
+          ],
+          "userIsAskingQuestion": false,
+          "userIsProvidingUpdate": true,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "emotional support",
+          "referencedPet": null,
+          "safetyRelevance": "none",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Emotional support request without safety concerns.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [
+          {
+            "action": "none",
+            "category": "emotional_support",
+            "title": "Supportive response",
+            "details": "Acknowledged feeling overwhelmed and invited the user to share what feels heaviest.",
+            "severity": "routine",
+            "confidence": 0.96,
+            "relatedRecordId": null
+          }
+        ],
+        "semanticEvents": [],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "statement",
+              "confidence": 0.98
+            },
+            {
+              "kind": "question",
+              "confidence": 0.96
+            }
+          ],
+          "mentions": [],
+          "references": [],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": null,
+              "predicate": {
+                "label": "feels overwhelmed",
+                "definition": "Experiencing a strong sense of being burdened or overloaded.",
+                "aliases": [
+                  "overwhelmed"
+                ],
+                "parentLabels": [
+                  "emotional state"
+                ],
+                "relatedLabels": [
+                  "stress",
+                  "burden"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": "2026-09-15T12:00:00.000Z",
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "I feel overwhelmed by everything that comes with having a pet.",
+                "precision": "exact"
+              },
+              "uncertainty": {
+                "confidence": 0.99,
+                "reasons": []
+              },
+              "evidence": [
+                {
+                  "surfaceText": "I feel overwhelmed by everything that comes with having a pet."
+                }
+              ],
+              "persistenceHint": "current_state",
+              "kind": "assertion",
+              "value": "overwhelmed",
+              "unit": null,
+              "durability": "temporary"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 97,
+      "question": "Does Juniper drinking history mean she definitely has diabetes?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03547725,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 5074,
+      "inputTokens": 4747,
+      "outputTokens": 662,
+      "measuredUsd": 0.00653925,
+      "syntheticPlan": {
+        "selection": "reference",
+        "readOperation": "general",
+        "frame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [],
+          "mentions": [],
+          "references": [],
+          "claims": [],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        },
+        "operation": "general",
+        "subject": "explicit",
+        "petNames": [
+          "Juniper"
+        ],
+        "topic": "diabetes and drinking history",
+        "terms": [
+          "diabetes",
+          "drinking",
+          "thirst",
+          "urination",
+          "water intake",
+          "disease"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null
+      }
+    },
+    {
+      "number": 98,
+      "question": "Does Juniper drinking history mean she definitely has diabetes?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0698415,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5720,
+      "inputTokens": 11720,
+      "outputTokens": 969,
+      "measuredUsd": 0.013150499999999999,
+      "syntheticResponse": {
+        "answer": "No. Juniper’s drinking history by itself doesn’t mean she definitely has diabetes. The notes you shared show she was drinking more during a hot week, then back to usual later, and there isn’t a recorded diabetes diagnosis there. If the increased thirst is happening again now, the more useful question is whether it’s persistent and paired with other signs like more peeing, weight loss, or a bigger appetite.",
+        "answerSections": [
+          {
+            "heading": "What the history suggests",
+            "items": [
+              "The drinking increase was temporary in the note you shared, not proof of diabetes.",
+              "A single period of more drinking can have other explanations, including heat or general thirst changes.",
+              "What matters most is whether the change is ongoing or comes with other signs like urinating more, losing weight, or acting different."
+            ]
+          }
+        ],
+        "safetyLevel": "normal",
+        "suggestedFollowUps": [
+          "What signs would make this more concerning for diabetes?",
+          "How do I tell if her drinking is actually higher than usual?"
+        ],
+        "applicationActions": [],
+        "proposedHistoryUpdate": {
+          "shouldOffer": false,
+          "category": null,
+          "title": null,
+          "details": null,
+          "severity": null,
+          "resolvesConcernId": null
+        },
+        "responseMode": "practical_guidance",
+        "userIntent": "question",
+        "historyNarrative": null,
+        "historySynthesis": [],
+        "relevantContextIds": [
+          "care:drink-july",
+          "care:drink-aug"
+        ],
+        "messageUnderstanding": {
+          "primaryIntent": "question",
+          "secondaryIntents": [
+            "concern_resolution"
+          ],
+          "userIsAskingQuestion": true,
+          "userIsProvidingUpdate": false,
+          "userIsCorrectingPriorInformation": false,
+          "userIsResolvingConcern": false,
+          "userIsProvidingPreference": false,
+          "userIsMakingSmallTalk": false,
+          "recoveryStatus": "none",
+          "recoveryConfidence": 0,
+          "recoveryEvidence": {
+            "outcome": "none",
+            "surfaceText": null,
+            "targetConcept": null,
+            "confidence": 0
+          },
+          "requestedTopic": "diabetes and drinking history",
+          "referencedPet": "Juniper",
+          "safetyRelevance": "possible",
+          "needsClarification": false,
+          "canAnswerDirectly": true
+        },
+        "intelligenceSafety": {
+          "level": "routine",
+          "reason": "Question about whether a past drinking change proves diabetes; no urgent signs were reported.",
+          "requiresImmediateAction": false
+        },
+        "learnings": [],
+        "careActions": [],
+        "semanticEvents": [],
+        "semanticFrame": {
+          "schemaVersion": "furvise.semantic-frame.proposed.v1.5",
+          "frameLocalId": "frame_1",
+          "discourseActs": [
+            {
+              "kind": "question",
+              "confidence": 0.99
+            },
+            {
+              "kind": "statement",
+              "confidence": 0.98
+            }
+          ],
+          "mentions": [
+            {
+              "localId": "entity_1",
+              "surface": "Juniper",
+              "coarseType": "animal",
+              "attributes": {
+                "species": "cat",
+                "lifeStage": null,
+                "ownership": "owner"
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Juniper"
+                }
+              ],
+              "confidence": 0.99
+            }
+          ],
+          "references": [
+            {
+              "localId": "reference_1",
+              "surface": "she",
+              "kind": "pronoun",
+              "mentionRef": "entity_1",
+              "antecedentRefs": [
+                "entity_1"
+              ],
+              "confidence": 0.98
+            }
+          ],
+          "claims": [
+            {
+              "localId": "claim_1",
+              "subjectRef": "entity_1",
+              "predicate": {
+                "label": "does_not_imply_diabetes",
+                "definition": "A temporary increase in drinking history does not prove diabetes.",
+                "aliases": [
+                  "not definite diabetes"
+                ],
+                "parentLabels": [
+                  "medical interpretation"
+                ],
+                "relatedLabels": [
+                  "diabetes",
+                  "drinking history"
+                ]
+              },
+              "polarity": "affirmed",
+              "modality": "asserted",
+              "temporal": {
+                "occurredAt": null,
+                "validFrom": null,
+                "validTo": null,
+                "surfaceText": "Does Juniper drinking history mean she definitely has diabetes?",
+                "precision": "unknown"
+              },
+              "uncertainty": {
+                "confidence": 0.98,
+                "reasons": [
+                  "current question",
+                  "supported by notes showing temporary increase and later return to usual"
+                ]
+              },
+              "evidence": [
+                {
+                  "surfaceText": "Does Juniper drinking history mean she definitely has diabetes?"
+                }
+              ],
+              "persistenceHint": "none",
+              "kind": "assertion",
+              "value": true,
+              "unit": null,
+              "durability": "ongoing"
+            }
+          ],
+          "uncertainty": {
+            "needsClarification": false,
+            "clarificationQuestion": null,
+            "reasons": []
+          }
+        }
+      }
+    },
+    {
+      "number": 99,
+      "question": "Brief Juniper drinking history summary.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.01187175,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1095,
+      "inputTokens": 1274,
+      "outputTokens": 63,
+      "measuredUsd": 0.001239,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0,2]}"
+    },
+    {
+      "number": 100,
+      "question": "Does Juniper drinking history mean she definitely has diabetes?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.012132750000000001,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1865,
+      "inputTokens": 1352,
+      "outputTokens": 150,
+      "measuredUsd": 0.001689,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[1,2]}"
     }
   ],
   "pricingSource": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",

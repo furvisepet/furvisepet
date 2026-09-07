@@ -160,13 +160,15 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
   prepareContext?.(context);
   const interpretationRequests = [];
   if (interpretationProposal) {
-    const { interpretAskQuestion } = await import('../../../app/lib/intelligence/interpret-ask.ts');
+    const { interpretAskQuestion, readInterpretationSubject } = await import('../../../app/lib/intelligence/interpret-ask.ts');
     const interpretation = await interpretAskQuestion({ context, onProviderEvent, model: interpretationModel, client: { responses: { async create(request, options) {
       interpretationRequests.push(request);
       return interpretationResponse ? await interpretationResponse(request, options) : { status: 'completed', output_text: JSON.stringify(interpretationProposal), usage: { input_tokens: 500, output_tokens: 200, total_tokens: 700 } };
     } } } });
     if (interpretation.readOnly) {
-      authoritativePetIds = interpretation.petIds;
+      const subject = readInterpretationSubject(interpretation, context.pet.id).resolution;
+      if (interpretation.conversationOnly) assert.ok(subject.petId && !subject.requiresClarification && !subject.petIds.length);
+      authoritativePetIds = subject.petIds;
       if (interpretation.petIds[0] && interpretation.petIds[0] !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
         petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? 'milo' : null, currentMessage: question });
     }
@@ -189,7 +191,7 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
   globalThis.__historyAuditReviewClient = {responses:{async create(request, options) {
     reviewRequests.push(request);
     if (reviewProviderResponse) return reviewProviderResponse(request, options);
-    return {status:'completed',output_text:JSON.stringify(reviewResponse || {approved:false}),usage:{input_tokens:800,output_tokens:30}};
+    return {status:'completed',output_text:JSON.stringify(reviewResponse && 'retainedSentenceIndexes' in reviewResponse ? reviewResponse : {approved:!!reviewResponse?.approved,retainedSentenceIndexes:reviewResponse?.approved ? JSON.parse(request.input).draft.sentences.map((_,index)=>index) : []}),usage:{input_tokens:800,output_tokens:30}};
   }}};
   const requests = [];
   globalThis.__historyAuditAfterGeneration = afterGeneration;

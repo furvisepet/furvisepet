@@ -148,8 +148,9 @@ test('untrusted interpretation rejects IDs, foreign pets, SQL, invalid operation
     { petNames: ['milo'], subject: 'explicit' }, { terms: ['x),user_id.eq.foreign'] }, { terms: Array(7).fill('vomit') },
     { from: '2011-02-30', to: '2011-03-01' }, { from: '2012-01-01', to: '2011-01-01' }, { from: null, to: '2011-01-01' },
     { from: '1800-01-01', to: '2200-01-01' }, { ordinal: 'second' }, { operation: 'episode', ordinal: null },
-    { topic: 'x'.repeat(81) }, { operation: 'update' }, { frame: { databaseId: 'forged' } },
+    { topic: 'x'.repeat(81) }, { operation: 'update' },
   ]) assert.throws(() => validateAskInterpretation(proposal(bad), validationContext()), /INVALID/, JSON.stringify(bad));
+  assert.deepEqual(validateAskInterpretation(proposal({ frame: { databaseId: 'forged' } }), validationContext()).frame.claims, [], 'read-only questions discard all mutation metadata');
   assert.deepEqual(validateAskInterpretation(proposal({ subject: 'selected' }), validationContext('Tell me about Luna.')).petIds, ['luna'], 'explicit current name overrides the selected label');
   assert.throws(() => validateAskInterpretation(proposal({ subject: 'explicit', petNames: ['Milo'] }), validationContext('Compare Milo and Luna.')), /INVALID/);
 });

@@ -1,0 +1,9 @@
+{
+  "syntheticDatabase": true,
+  "mockedInterpretationAndDraft": true,
+  "realReview": true,
+  "question": "Does Juniper drinking history mean she definitely has diabetes?",
+  "answer": "Juniper’s drinking history by itself doesn’t mean she definitely has diabetes. The notes you shared show she was drinking more during a hot week, then back to usual later, and there isn’t a recorded diabetes diagnosis there. This covers the matching saved notes I could verify, not necessarily every event in their life.",
+  "providerCalls": 1,
+  "passed": true
+}

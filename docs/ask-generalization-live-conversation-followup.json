@@ -1,0 +1,74 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "question": "Does Juniper drinking history mean she definitely has diabetes?",
+      "petId": "juniper",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [
+          "juniper"
+        ],
+        "topic": "diabetes",
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "No, drinking history by itself doesn’t mean Juniper definitely has diabetes. The notes here say she was drinking more water during a hot week, and later that her drinking seemed back to usual with no diabetes diagnosis recorded. So this history points to a past change in thirst, but it doesn’t confirm diabetes.",
+      "sections": [
+        {
+          "heading": "What that means",
+          "items": [
+            "Increased drinking can happen for lots of reasons, including heat, diet, stress, or illness.",
+            "Diabetes is usually considered when extra drinking keeps happening or comes with other signs like more urination, weight loss, or a bigger appetite.",
+            "Because the later note says her drinking was back to usual, this doesn’t read like proof of diabetes on its own."
+          ]
+        }
+      ],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 11843,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "question": "I feel overwhelmed by everything that comes with having a pet.",
+      "petId": "nori",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "emotional support",
+        "conversationOnly": true,
+        "readOnly": true,
+        "clarification": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "That makes sense. Having a pet can come with a lot, and it’s easy for it to pile up until it feels like too much. What part feels heaviest right now?",
+      "sections": [],
+      "reviewed": false,
+      "providerCalls": 2,
+      "elapsedMs": 7044,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

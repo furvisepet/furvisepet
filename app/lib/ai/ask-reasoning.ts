@@ -96,6 +96,8 @@ export type AskReasoningResult = {
   evidenceContract?: AskEvidenceContract;
   historySynthesis?: Array<{ sourceId: string; text: string }>;
   historyNarrative?: HistoryNarrative;
+  /** Derived from an explicit null in the strict provider response. */
+  historyNarrativeDeclined?: boolean;
   answer: {
     title: string;
     summary: string;
@@ -323,6 +325,7 @@ const unifiedInstructions = [
   "Treat the server-authored answerEconomy plan as authoritative. Depth is earned by the reasoning and action guidance needed, never by message length, owner emotion, pronoun count, or the amount of available history.",
   "For depth 0, answer in one or two natural sentences. For depth 1, usually use 40-120 useful words and no headings. For depth 2, usually use 100-250 useful words with zero or one useful expansion section and up to four total bullets. For depth 3, usually use 200-450 useful words with at most four meaningful sections. Depth 4 is safety-led: include every action, escalation sign, and avoidance needed even when that exceeds other budgets.",
   "Source identifiers belong only in sourceIds or relevantContextIds. Never put bracketed source IDs in visible answer or historyNarrative text.",
+  "Adapt to the conversational act, not only the pet topic. For emotional disclosure without a request for practical steps, acknowledge the feeling briefly and invite the owner to talk with at most one gentle question. Do not automatically turn vulnerability into a checklist or productivity plan. When practical help is requested, give useful steps. Follow requested brevity and formatting when compatible with safety and source fidelity.",
   "The direct answer owns the core interpretation, the most important recommendation, and a brief emotional acknowledgement when useful. Every answerSection must add a new decision, action, explanation, or safety signal that is absent from the direct answer. Maximum section and bullet budgets are ceilings, not targets. Never restate the direct answer in a section.",
   "Put prose only in answer. Do not embed hyphen bullets, dot bullets, or numbered-list markers inside answer text. Put genuine list items only in answerSections.items; otherwise write one natural sentence.",
   "When answerEconomy.followUpDeltaOnly is true, respond to the newest detail instead of regenerating the earlier explanation. Briefly acknowledge owner emotion when present, then help; do not turn acknowledgement into a therapy paragraph.",
@@ -779,6 +782,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     relevantContextIds: parsed.relevantContextIds,
     historySynthesis: parsed.historySynthesis,
     historyNarrative: parsed.historyNarrative,
+    historyNarrativeDeclined: parsed.historyNarrativeDeclined,
     referencedRecords: parsed.relevantContextIds.map((id) => context.records.find((record) => record.id === id)).filter((record): record is AskContextRecord => Boolean(record)),
     safetyLevel: parsed.safetyLevel,
     shoppingSuppressed: parsed.shoppingSuppressed,
@@ -933,6 +937,7 @@ export function parseUnifiedResponse(
   return {
     answer,
     historyNarrative: parseHistoryNarrative(value.historyNarrative),
+    historyNarrativeDeclined: value.historyNarrative === null || undefined,
     historySynthesis: Array.isArray(value.historySynthesis) ? value.historySynthesis.slice(0, 32).filter(item => item && typeof item.sourceId === "string" && item.sourceId.length <= 160 && typeof item.text === "string" && item.text.length <= 1800) : [],
     answerSections,
     safetyLevel,
