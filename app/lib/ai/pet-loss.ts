@@ -13,7 +13,7 @@ export function classifyCurrentPetLoss(message: string): Exclude<PetLossContext,
   if (!death) return "none";
   // A single question seeking words for another person is not an owner loss
   // assertion. Additional declarative sentences still follow the normal gate.
-  const supportQuestion = /^(?:what|how|can|could|would)\b[^.!?]*\?\s*$/i.test(message.trim())
+  const supportQuestion = /^(?:please\s+)?(?:what|how|can|could|would|write|draft|suggest|give)\b[^.!?]*[.!?]?\s*$/i.test(message.trim())
     && /\b(?:say|support|comfort|respond|message|write)\b/i.test(message)
     && /\b(?:friend|someone|somebody|person|neighbor|neighbour|colleague)\b/i.test(message);
   if (supportQuestion) return "none";

@@ -12,6 +12,15 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const p = { ...value as Record<string, unknown> };
   const initialOperation = p.operation;
+  // Conditional safety guidance must not become a saved-record lookup merely
+  // because the hypothetical mentions an old problem returning.
+  if (p.operation !== "update" && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+    && /\b(?:if|hypothetically|suppose|supposing)\b/i.test(context.currentMessage)
+    && /\b(?:breath\w*|collaps\w*|urin\w*|poison\w*|ibuprofen)\b/i.test(context.currentMessage)
+    && /\b(?:urgency|urgent|emergency|safe|wait|what (?:should|would))\b/i.test(context.currentMessage)) {
+    Object.assign(p, { operation: "general", readOperation: "general", subject: "non_pet", petNames: [],
+      selection: "summary", terms: [], from: null, to: null, ordinal: null, episodeTopic: null, frame: emptyProposedSemanticFrame() });
+  }
   // A stated quantity within one dated note is not a count of illness episodes.
   // Keep the proposed subject, literal terms and bounds for strict validation.
   const quantityWording = context.currentMessage.replace(/\brather than how many episodes\b/gi, "");
