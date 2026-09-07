@@ -148,6 +148,15 @@ test('account-wide phrasing resolves authenticated pets without asking for names
   assert.equal(p.petIds.length,3);assert.equal(p.clarification,null);
  }
 });
+test('support wording for another persons loss is not a pet lifecycle report',async()=>{
+ const {classifyCurrentPetLoss,resolveProviderIndependentLossSubject}=await import('../../app/lib/ai/pet-loss.ts');
+ const message='What could I say to a friend whose dog died?';
+ assert.equal(classifyCurrentPetLoss(message),'none');
+ assert.equal(resolveProviderIndependentLossSubject({message,pets:fixturePets,selectedPetId:'nori'}),null);
+ assert.equal(classifyCurrentPetLoss('My dog died today.'),'confirmed_current');
+ assert.equal(classifyCurrentPetLoss(message+' Nori died today.'),'confirmed_current');
+});
+
 test('multi-pet request fits the actual admission payload including instructions',async t=>{
  clock(t);const {estimateInputTokens}=await import('../../app/lib/ai/usage-guard/cost-estimator.ts');
  const {buildAskProviderRequest}=await import('../../app/lib/ai/ask-reasoning.ts');
