@@ -95,6 +95,13 @@ test('quantity inside a dated note uses recall, while episodes retain counting',
  assert.equal(p.readOperation,'recall');assert.equal(p.selection,'reference');
  assert.equal(recoverAskInterpretation(counted,{...c,currentMessage:'How many separate accidents episodes occurred on July 8?'}).readOperation,'count');
 });
+test('explicit note quantities and medication courses do not become illness counts',async t=>{
+ const c=await context(t);const counted={...proposal,subject:'selected',petNames:[],operation:'count',readOperation:'count',terms:['stool'],from:'2026-06-15',to:'2026-06-16'};
+ assert.equal(recoverAskInterpretation(counted,{...c,currentMessage:'How many stools were reported on June 15, rather than how many episodes?'}).readOperation,'recall');
+ const courses={...counted,terms:['medic'],from:null,to:null};
+ assert.equal(recoverAskInterpretation(courses,{...c,currentMessage:'How many medication courses are explicitly described?'}).readOperation,'recall');
+ assert.equal(recoverAskInterpretation(courses,{...c,currentMessage:'How many medication courses ever?'}).readOperation,'count');
+});
 test('a disclaimer-only draft falls back to factual source reports',async t=>{
  clock(t);const text='This covers the matching saved notes I could verify, not necessarily every event in their life.';
  const r=await exercise('Summarize Nori food history.',{fixturePets,rows,petId:'nori',history:true,interpretationProposal:proposal,

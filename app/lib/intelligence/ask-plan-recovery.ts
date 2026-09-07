@@ -14,13 +14,17 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   const initialOperation = p.operation;
   // A stated quantity within one dated note is not a count of illness episodes.
   // Keep the proposed subject, literal terms and bounds for strict validation.
-  if (p.operation === "count" && p.readOperation === "count" && p.ordinal === null
-    && typeof p.from === "string" && typeof p.to === "string"
+  const quantityWording = context.currentMessage.replace(/\brather than how many episodes\b/gi, "");
+  const datedQuantity = typeof p.from === "string" && typeof p.to === "string"
     && Date.parse(p.to) - Date.parse(p.from) === 86400000
-    && /\b(?:stools?|accidents?|tablets?|doses?|courses?)\b/i.test(context.currentMessage)
-    && !/\b(?:episodes?|ever|lifetime|separate|distinct)\b/i.test(context.currentMessage)
+    && /\b(?:stools?|accidents?|tablets?|doses?|courses?)\b/i.test(quantityWording);
+  const documentedCourses = /\bmedication courses?\b/i.test(quantityWording)
+    && /\b(?:explicitly described|recorded|documented|in (?:the )?(?:notes|records))\b/i.test(quantityWording);
+  if (p.operation === "count" && p.readOperation === "count" && p.ordinal === null
+    && (datedQuantity || documentedCourses)
+    && !/\b(?:episodes?|ever|lifetime|separate|distinct)\b/i.test(quantityWording)
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
-    Object.assign(p, { operation: "recall", readOperation: "recall", selection: "reference", episodeTopic: null });
+    Object.assign(p, { operation: "recall", readOperation: "recall", selection: datedQuantity ? "reference" : "summary", episodeTopic: null });
   }
   // Complete only explicitly open-ended ranges. The strict validator still
   // rejects invalid dates, reversed ranges and missing bounds on closed ranges.
