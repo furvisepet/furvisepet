@@ -7,6 +7,9 @@ export function correctionReportAnswer(contract: AskEvidenceContract): string | 
     || !(/\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(contract.scope.requestText) || contract.interpretation.history?.from)) return null;
   const asksForCorrection = /\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(contract.scope.requestText);
   const terms = contract.interpretation.history?.terms || [];
+  const period = contract.interpretation.history;
+  const specificDay = !!period?.from && !!period.to && Date.parse(period.to) - Date.parse(period.from) <= 86400000;
+  if (!asksForCorrection && !specificDay) return null;
   const corrections = contract.represented.filter(span => span.sourceType === "care_update"
     && (asksForCorrection || terms.some(term => span.text.toLowerCase().includes(term.toLowerCase())))
     && contract.scope.authorizedPetIds.includes(span.petId)

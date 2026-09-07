@@ -73,7 +73,18 @@ test('ordinary full notes support a deterministic weight difference through the 
 
 test('an unrelated correction cannot replace a dated food answer',async t=>{
  clock(t);const r=await exercise('Summarize Nori food changes from June onward.',{fixturePets,rows,petId:'nori',history:true,
- interpretationProposal:{...proposal,from:'2026-06-01',to:'2100-01-01'},expectedProviderCalls:null});
+ interpretationProposal:{...proposal,terms:['food','treat','vomit'],from:'2026-06-01',to:'2100-01-01'},expectedProviderCalls:null});
  assert.doesNotMatch(r.result.reasoning.answer.summary,/^The correction note/);
  assert.match(r.result.reasoning.answer.summary,/food|treat/i);
+});
+
+test('old relative days cannot become current narrative claims',()=>{
+ const sources=[{text:'He finished the course today.',occurredAt:'2026-06-24T12:00:00Z'}];
+ assert.equal(anchors('He finished the course today.',sources),false);
+ assert.equal(anchors('He finished the course on June 24.',sources),true);
+ assert.equal(anchors('The June 24 note says: "He finished the course today."',sources),true);
+});
+test('short bullet request retains the requested count',async()=>{
+ const {presentReviewedHistory}=await import('../../app/lib/intelligence/history-presentation.ts');
+ assert.equal(presentReviewedHistory(['First.','Second.','Third.'],'In three short bullets.'),'- First.\n- Second.\n- Third.');
 });
