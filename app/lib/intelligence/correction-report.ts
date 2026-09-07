@@ -21,5 +21,5 @@ export function correctionReportAnswer(contract: AskEvidenceContract): string | 
   contract.answerSourceIds = corrections.map(span => span.sourceId);
   contract.answerContent = corrections.map(span =>
     "The correction note dated " + (span.occurredAt?.slice(0, 10) || "unknown") + " says: " + JSON.stringify(span.text));
-  return contract.answerContent.join("\n\n") + "\n\nI can read what the correction says, but its link to the original report has not been verified. I would not treat the disputed report as confirmed symptom history.";
+  return contract.answerContent.join("\n\n") + "\n\nIts link to the original report has not been verified. I would not treat the disputed report as confirmed symptom history.";
 }

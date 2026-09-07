@@ -20,7 +20,12 @@ export function preserveAttributedReportQuotes(value: string, transform: (prose:
     return prefix + marker + index + "END.";
   });
   let result = transform(prose);
-  quotes.forEach((quote, index) => { result = result.replaceAll(marker + index + "END.", quote); });
+  quotes.forEach((quote, index) => {
+    const token = marker + index + "END";
+    // Offer filtering can consume the preceding sentence delimiter. Restore
+    // either form, so protected source text never becomes a visible marker.
+    result = result.replaceAll(token + ".", quote).replaceAll(token, quote);
+  });
   return result;
 }
 
