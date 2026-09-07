@@ -88,3 +88,39 @@ test('short bullet request retains the requested count',async()=>{
  const {presentReviewedHistory}=await import('../../app/lib/intelligence/history-presentation.ts');
  assert.equal(presentReviewedHistory(['First.','Second.','Third.'],'In three short bullets.'),'- First.\n- Second.\n- Third.');
 });
+
+test('quantity inside a dated note uses recall, while episodes retain counting',async t=>{
+ const c=await context(t);const counted={...proposal,subject:'selected',petNames:[],operation:'count',readOperation:'count',terms:['accident'],from:'2026-07-08',to:'2026-07-09'};
+ const p=recoverAskInterpretation(counted,{...c,currentMessage:'How many accidents does the July 8 note describe?'});
+ assert.equal(p.readOperation,'recall');assert.equal(p.selection,'reference');
+ assert.equal(recoverAskInterpretation(counted,{...c,currentMessage:'How many separate accidents episodes occurred on July 8?'}).readOperation,'count');
+});
+test('a disclaimer-only draft falls back to factual source reports',async t=>{
+ clock(t);const text='This covers the matching saved notes I could verify, not necessarily every event in their life.';
+ const r=await exercise('Summarize Nori food history.',{fixturePets,rows,petId:'nori',history:true,interpretationProposal:proposal,
+ providerOverrides:{historyNarrative:{sentences:[{text,sourceIds:['care:nori-switch']}] }},expectedProviderCalls:null});
+ assert.notEqual(r.result.reasoning.answer.summary,text);assert.match(r.result.reasoning.answer.summary,/food|treat/i);
+});
+
+test('dated source quotes stay intact while surrounding action claims are removed',async()=>{
+ const {enforceVerifiedStateClaims}=await import('../../app/lib/application-actions/state-claims.ts');
+ const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
+ const quote='Luna\'s 2026-07-10 report: "We moved the tray. We changed both things together."';
+ const input=quote+' I saved your profile.';
+ const governed=enforceVerifiedStateClaims(input,false);
+ assert.ok(governed.includes(quote));assert.doesNotMatch(governed,/I saved/);
+ const displayed=presentationOnlyAskResponse({title:'Furvise',summary:governed,sections:[],applicationActions:[]},[]);
+ assert.ok(displayed.summary.includes(quote));assert.doesNotMatch(displayed.summary,/I saved/);
+ assert.doesNotMatch(enforceVerifiedStateClaims('I saved your profile.',false),/I saved/);
+});
+
+test('repeated factual follow-up survives economy and still receives source review',async t=>{
+ clock(t);const {buildAskConversationResponse}=await import('../../app/lib/ask.mjs');
+ const answer='Nori finished the food transition on July 10. This covers the matching saved notes I could verify, not necessarily every event in their life.';
+ const messages=[{id:'prev-u',user_id:fixturePets[0].user_id,conversation_id:'chat',role:'user',user_text:'Tell me about Nori food.',sequence_number:1},
+ {id:'prev-a',user_id:fixturePets[0].user_id,conversation_id:'chat',role:'furvise',response_data:buildAskConversationResponse({title:'Furvise',summary:answer,sections:[],safetyNote:null}),sequence_number:2}];
+ const r=await exercise('When did Nori finish the food transition?',{fixturePets,rows,petId:'nori',messages,history:true,interpretationProposal:proposal,
+ answer,providerOverrides:{historyNarrative:null},reviewResponse:{approved:true},expectedReviewCalls:1,expectedProviderCalls:1});
+ assert.match(r.result.reasoning.answer.summary,/July 10/);
+ assert.match(JSON.parse(r.reviewRequests[0].input).draft.sentences[0].text,/food transition/);
+});

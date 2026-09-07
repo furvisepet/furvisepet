@@ -12,6 +12,16 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const p = { ...value as Record<string, unknown> };
   const initialOperation = p.operation;
+  // A stated quantity within one dated note is not a count of illness episodes.
+  // Keep the proposed subject, literal terms and bounds for strict validation.
+  if (p.operation === "count" && p.readOperation === "count" && p.ordinal === null
+    && typeof p.from === "string" && typeof p.to === "string"
+    && Date.parse(p.to) - Date.parse(p.from) === 86400000
+    && /\b(?:stools?|accidents?|tablets?|doses?|courses?)\b/i.test(context.currentMessage)
+    && !/\b(?:episodes?|ever|lifetime|separate|distinct)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p, { operation: "recall", readOperation: "recall", selection: "reference", episodeTopic: null });
+  }
   // Complete only explicitly open-ended ranges. The strict validator still
   // rejects invalid dates, reversed ranges and missing bounds on closed ranges.
   if (p.operation !== "update") {

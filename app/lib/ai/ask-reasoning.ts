@@ -694,7 +694,8 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   }
 
   const previousAssistantText = [...input.conversationTurns].reverse().find((turn) => turn.role === "furvise")?.text || "";
-  if (previousAssistantText && areAskResponsesMateriallyIdentical(parsed.answer, previousAssistantText)) {
+  const historicalRead = Boolean(context.promptContext.evidenceContract?.history);
+  if (!historicalRead && previousAssistantText && areAskResponsesMateriallyIdentical(parsed.answer, previousAssistantText)) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[Ask API] duplicate response detected", { requestId: input.requestId });
     }
@@ -767,7 +768,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     summary: answerText,
     sections: parsed.answerSections,
     safetyNote: null,
-  }, answerDepth, { previousAssistantText });
+  }, historicalRead ? { ...answerDepth, followUpDeltaOnly: false } : answerDepth, { previousAssistantText });
   if (profile) {
     economicalAnswer = normalizePetVisibleAnswer(economicalAnswer, {
       name: profile.name || "your pet",

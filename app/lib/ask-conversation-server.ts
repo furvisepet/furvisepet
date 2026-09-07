@@ -5,7 +5,7 @@ import { createIdempotencyAdminClient } from "./security/idempotency/admin-clien
 import { createCanonicalCareAuthorityClient } from "./intelligence/care-authority-client.ts";
 import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 import { getFurviseActionPolicy } from "./application-actions/policy.ts";
-import { enforceVerifiedStateClaims } from "./application-actions/state-claims.ts";
+import { enforceVerifiedStateClaims, preserveAttributedReportQuotes } from "./application-actions/state-claims.ts";
 import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
 import { deduplicateLegacyRetriedMessages, type AskConversationDetail, type AskConversationSummary, type StoredAskMessage, type StoredAskSuggestion } from "./ask-conversations";
 
@@ -182,7 +182,8 @@ const untrustedTerminalMutationClaim = /\b(?:profile|history|record|entry|prefer
 function scrubUntrustedMutationClaim(value: unknown, fallback: string) {
   if (typeof value !== "string") return fallback;
   const governed = enforceVerifiedStateClaims(value, false);
-  const safe = governed.split(/(?<=[.!?])\s+/).filter((sentence) => !untrustedTerminalMutationClaim.test(sentence)).join(" ").trim();
+  const safe = preserveAttributedReportQuotes(governed, prose => prose.split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !untrustedTerminalMutationClaim.test(sentence)).join(" ").trim());
   return safe || fallback;
 }
 
