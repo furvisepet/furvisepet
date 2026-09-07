@@ -157,4 +157,9 @@ test('multi-pet request fits the actual admission payload including instructions
  const request=buildAskProviderRequest(r.prompt);const admitted={input:request.input,instructions:request.instructions};
  assert.ok(estimateInputTokens(admitted)<=20000);assert.ok(JSON.stringify(admitted).length<=80000);
  assert.ok(r.prompt.contextRecords.some(record=>record.petId==='nori'));assert.ok(r.prompt.contextRecords.some(record=>record.petId==='pip'));
+ const large={...r.prompt,optionalMetadata:'x'.repeat(40000)};const original=JSON.stringify(large);
+ const compact=JSON.parse(buildAskProviderRequest(large).input);
+ assert.equal(JSON.stringify(large),original,'transport must not mutate server evidence');
+ assert.deepEqual(compact.evidenceContract.represented,large.evidenceContract.represented,'complete source text remains available');
+ assert.ok(compact.contextRecords.some(record=>record.valueSource),'large transport avoids duplicated note text');
 });

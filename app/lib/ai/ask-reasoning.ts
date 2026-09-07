@@ -310,6 +310,7 @@ export const askUnifiedJsonSchema = {
 } as const;
 
 const unifiedInstructions = [
+  "In compact history input, a contextRecord may omit its duplicated value and provide valueSource instead. Its complete unchanged text is in evidenceContract.represented.text, joined by sourceId = contextRecord.id. Read that source text with its pet and date metadata; the omission is transport deduplication, not missing evidence.",
   "You are Furvise, a calm, attentive pet-care companion. Return only strict JSON matching the supplied schema.",
   ...FURVISE_SHARED_PROMPT_RULES,
   "Interpret the message, prioritize safety, select relevant supplied context, and write the final conversational answer in this single response.",
@@ -548,7 +549,13 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
       || JSON.stringify(admitted).length > policy.maxInputCharacters - 768;
   };
   while (contextRecords.length && exceedsBudget()) {
-    const removed = contextRecords.pop()!;
+    // Keep multi-pet evidence balanced instead of exhausting the last pet.
+    const counts = new Map<string, number>();
+    for (const record of contextRecords) if (record.sourceType === "care_update") counts.set(record.petId, (counts.get(record.petId) || 0) + 1);
+    const largest = Math.max(0, ...counts.values());
+    let index = contextRecords.length - 1;
+    if (largest > 1) index = contextRecords.findLastIndex(record => record.sourceType === "care_update" && counts.get(record.petId) === largest);
+    const [removed] = contextRecords.splice(index, 1);
     budgeted.evidenceContract.losses.push({ sourceId: removed.id, reason: "prompt_budget" });
     representEvidence(budgeted.evidenceContract, contextRecords);
   }
@@ -1089,7 +1096,14 @@ export function buildAskProviderRequest(promptContext: object) {
     // Retain full authority and candidate identities on the server. The model
     // only needs IDs for represented evidence plus complete coverage/counts.
     const represented = new Set(evidence.represented.map(span => span.sourceId));
-    transported = { ...promptContext, evidenceContract: { ...evidence,
+    const contextRecords = (promptContext as { contextRecords?: AskContextRecord[] }).contextRecords;
+    transported = { ...promptContext,
+      ...(contextRecords ? { contextRecords: contextRecords.map(record => {
+        if (record.sourceType !== "care_update" || !represented.has(record.id)) return record;
+        const { value: _text, ...metadata } = record;
+        return { ...metadata, valueSource: "evidenceContract.represented.text joined by sourceId = id" };
+      }) } : {}),
+      evidenceContract: { ...evidence,
       sources: evidence.sources.map(source => ({ ...source, loadedIds: source.loadedIds.filter(id => represented.has(id)) })),
       history: { ...evidence.history, candidateCount: evidence.history.candidateIds.length,
         provenance: evidence.history.provenance.filter(source => represented.has(source.sourceId)),
