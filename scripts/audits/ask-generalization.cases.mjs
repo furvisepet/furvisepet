@@ -93,10 +93,13 @@ test('indexes refer to the filtered draft, not a foreign-source original positio
   assert.deepEqual(r.result.reasoning.evidenceContract.answerSourceIds,['care:after']);
   assert.doesNotMatch(r.result.reasoning.answer.summary,/different pet|diagnosis|July/);
 });
-test('conflicting operation, wrong ownership and invalid historical date ranges remain rejected',async t=>{
+test('read conflict recovers while wrong ownership and invalid date ranges remain rejected',async t=>{
   clock(t);
   const pet=fixturePets[0], data=fixture(pet,topics[0]);
-  for(const patch of [{readOperation:'status'},{petNames:['UnknownPet']},{from:'2026-07-01',to:null}]) {
+  const recovered=await exercise('Summarize Nori sleep.',{fixturePets,petId:pet.id,history:true,rows:data.rows,messages:[],interpretationProposal:{...data.plan,readOperation:'status'},providerOverrides:{historyNarrative:null},expectedReviewCalls:null});
+  assert.equal(recovered.context.askInterpretation.readOperation,'overview');
+  assert.deepEqual(recovered.result.acceptedCareActions,[]);
+  for(const patch of [{petNames:['UnknownPet']},{from:'2026-07-01',to:null}]) {
     await assert.rejects(exercise('Summarize Nori sleep.',{fixturePets,petId:pet.id,history:true,rows:data.rows,messages:[],interpretationProposal:{...data.plan,...patch},providerOverrides:{historyNarrative:null}}));
   }
 });

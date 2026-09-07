@@ -1,3 +1,5 @@
+import { safetyTemporalScope } from "../../ai/safety-temporal-scope.ts";
+import { buildImmediateEmergencyGuidance, detectAskConcernTags, detectImmediateAskEmergency } from "../../ask-safety-context.ts";
 import { preserveReviewedLayout } from "../history-presentation.ts";
 import { readReviewedHistoryAnswer } from "../history-review-receipt.ts";
 import type { AskReasoningResult } from "../../ai/ask-reasoning.ts";
@@ -24,16 +26,23 @@ export function validateGeneratedAnswer(
   authoritativePetIds: readonly string[] = [context.pet.id],
 ): AnswerValidationResult {
   const repairs: string[] = []; const errors: string[] = []; const qualityWarnings: string[] = [];
-  const reviewedHistory = readReviewedHistoryAnswer(result);
+  const urgent = canonicalSafety === "urgent" || canonicalSafety === "emergency";
+  const currentSafetyText = safetyTemporalScope(context.currentMessage).currentText;
+  const currentEmergency = urgent && Boolean(detectAskConcernTags(currentSafetyText).length || detectImmediateAskEmergency(currentSafetyText));
+  const reviewedHistory = currentEmergency ? null : readReviewedHistoryAnswer(result);
   const response = structuredClone(result);
+  if (currentEmergency && (response.evidenceContract || context.episodeResult)) {
+    response.answer = buildImmediateEmergencyGuidance(detectImmediateAskEmergency(currentSafetyText) || { tags: [] });
+    response.suggestedFollowUps = [];
+    repairs.push("preserved_current_emergency_priority");
+  }
   if (reviewedHistory && response.evidenceContract) {
     response.evidenceContract.answerSourceIds = reviewedHistory.sourceIds;
     response.evidenceContract.answerContent = [];
   }
   const sourceNote = response.evidenceContract?.scope.requestKind === "record_lookup" && response.evidenceContract.scope.status === "resolved"
     ? sourceNoteAnswer(response.evidenceContract) : null;
-  const urgent = canonicalSafety === "urgent" || canonicalSafety === "emergency";
-  const scopedAnswer = reviewedHistory?.text || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
+  const scopedAnswer = currentEmergency ? null : reviewedHistory?.text || (response.evidenceContract ? evidenceAnswerPolicy(response.evidenceContract, response.historySynthesis) : null);
   const hasSourceQuote = Boolean(sourceNote?.sourceIds.length && scopedAnswer === sourceNote.text);
   if (scopedAnswer) {
     // Only assistant-authored prose goes through prose rewriting. The complete
@@ -146,14 +155,14 @@ export function validateGeneratedAnswer(
   if (hasSourceQuote && sourceNote) {
     response.answer.summary = `${urgent ? "Contact an emergency veterinarian now. " : ""}${sourceNote.text}`;
   }
-  const resolution = !reviewedHistory && response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract, response.historySynthesis) : null;
+  const resolution = !currentEmergency && !reviewedHistory && response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract, response.historySynthesis) : null;
   if (resolution) {
     // Final authority is the provider-independent contract AFTER budgeting.
     response.answer = { title: "Furvise", summary: resolution, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
     response.suggestedFollowUps = [];
     if (!response.evidenceContract?.interpretation) { response.relevantContextIds = []; response.referencedRecords = []; }
     repairs.push("applied_server_resolution_status");
-  } else if (context.episodeResult) {
+  } else if (!currentEmergency && context.episodeResult) {
     // Compose after all prose transforms. A model count/list or a prose normalizer
     // cannot change the server's count, displayed ordering or stable identities.
     const authoritative = episodeAnswer(context.episodeResult);

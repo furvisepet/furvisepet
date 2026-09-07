@@ -1,3 +1,4 @@
+import { normalizeAskReadProposal, unavailableAskReadPlan } from "./ask-plan-recovery.ts";
 import { normalizeHistoricalSearchTerms } from "./history-search-terms.ts";
 import "server-only";
 import OpenAI from "openai";
@@ -25,6 +26,8 @@ export type AskInterpretation = {
   operation: Operation;
   /** Server-derived general conversation scope; no pet evidence or writes. */
   conversationOnly?: boolean;
+  /** No saved-data or write authority after failed planning. */
+  planningRecovery?: string;
   /** Read intent is independent of current owner assertions. */
   readOperation?: Exclude<Operation, "update"> | null;
   selection?: typeof selections[number];
@@ -187,6 +190,18 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
       to: p.to ? `${p.to}T00:00:00.000Z` : null, interpretation: terms.length ? "lexical" : p.from ? "period" : "broad_comparison" } : null };
 }
 
+export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
+  try { return validateAskInterpretation(normalizeAskReadProposal(value, context), context); }
+  catch (error) {
+    if (error instanceof AskInterpretationValidationError) {
+      const completeProposal = value && typeof value === "object" && askInterpretationSchema.required.every(key => key in value);
+      if (["ASK_INTERPRETATION_READ_OPERATION", "ASK_INTERPRETATION_UPDATE_INTENT", "ASK_INTERPRETATION_SUBJECT"].includes(error.reason)
+        || error.reason === "ASK_INTERPRETATION_SCHEMA" && completeProposal) return unavailableAskReadPlan(error.reason);
+    }
+    throw error;
+  }
+}
+
 export async function interpretAskQuestion({ context, model, client, onProviderEvent }: {
   context: InterpretationContext; model: string;
   onProviderEvent?: (event: AskProviderEvent) => void;
@@ -224,7 +239,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       throw fail(`ASK_INTERPRETATION_${kind.toUpperCase()}`, kind, metadata);
     }
     let parsed: AskInterpretation;
-    try { parsed = validateAskInterpretation(result.parsed, context); }
+    try { parsed = recoverAskInterpretation(result.parsed, context); }
     catch (error) {
       if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
       throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);

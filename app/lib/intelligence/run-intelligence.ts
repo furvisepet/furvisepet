@@ -1,3 +1,4 @@
+import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
 import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
 import "server-only";
@@ -112,7 +113,7 @@ export async function runFurviseIntelligence({
   });
   // Recall remains read-only even when model classifications propose writes.
   // Mixed owner observations and explicit saves are not question-only recall.
-  const readOnlyRecall = Boolean(reasoning.evidenceContract?.scope.readOnlyRecall);
+  const readOnlyRecall = Boolean(context.askInterpretation?.readOnly || reasoning.evidenceContract?.scope.readOnlyRecall);
   if (readOnlyRecall) {
     reasoning.learnings = [];
     reasoning.careActions = [];
@@ -200,6 +201,8 @@ export async function runFurviseIntelligence({
     shouldOffer: reasoning.proposedHistoryUpdate.shouldOffer,
     userIsResolvingConcern: reasoning.messageUnderstanding.userIsResolvingConcern,
   });
+  if (safetyTemporalScope(context.currentMessage).hasNonCurrentContext && safety.level === "routine"
+    && !reasoning.intelligenceSafety.requiresImmediateAction) reasoning.intelligenceSafety.level = "routine";
   reasoning.intelligenceSafety.level = lossContext === "confirmed_current" || lossContext === "continuation"
     ? "routine"
     : modelGroundedResolution || semanticGroundedResolution
@@ -280,11 +283,11 @@ export async function runFurviseIntelligence({
   const confirmedLossCareAction = !readOnlyRecall && hasOwnedPetSubject
     ? buildConfirmedLossCareAction({ message: context.currentMessage, petName: context.pet.name || "the pet" })
     : null;
-  const acceptedCareActions = confirmedLossCareAction ? [confirmedLossCareAction]
+  const acceptedCareActions = readOnlyRecall || !hasOwnedPetSubject ? [] : confirmedLossCareAction ? [confirmedLossCareAction]
     : explicitCareHistoryAction ? [explicitCareHistoryAction] : routedPersistence.careActions;
-  const acceptedSemanticEvents = confirmedLossCareAction ? [] : semanticGovernance.accepted;
+  const acceptedSemanticEvents = confirmedLossCareAction ? [] : readOnlyRecall || !hasOwnedPetSubject ? [] : semanticGovernance.accepted;
   const projectedPreferenceIdentities = new Set(projectedPreferences.map(learningPreferenceIdentity).filter(Boolean));
-  const acceptedLearnings = dedupeLearnings([
+  const acceptedLearnings = readOnlyRecall || !hasOwnedPetSubject ? [] : dedupeLearnings([
     ...routedPersistence.learnings.filter((item) =>
       !(multiPetTurn && isPreferenceLearning(item))
       && (!projectedPreferenceIdentities.has(learningPreferenceIdentity(item)) || !isPreferenceLearning(item))),

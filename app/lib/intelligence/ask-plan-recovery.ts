@@ -1,0 +1,39 @@
+import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
+import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
+import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
+import type { FurviseLiveContext } from "./types.ts";
+import type { AskInterpretation } from "./interpret-ask.ts";
+
+type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns">;
+const reads = new Set(["overview", "recall", "comparison", "status", "general"]);
+/** Repair redundant read metadata, never identities, filters or write evidence.
+ * The strict validator must still approve the entire normalized proposal. */
+export function normalizeAskReadProposal(value: unknown, context: Context): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const p = { ...value as Record<string, unknown> };
+  const initialOperation = p.operation;
+  const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
+  const named = explicitlyNamedOwnedPets(context.currentMessage, owned);
+  if (p.operation !== "update" && Array.isArray(p.petNames) && p.petNames.length > 3 && named.length > 0 && named.length <= 3
+    && p.petNames.every(name => owned.some(pet => pet.name === name))) p.petNames = named.map(pet => pet.name);
+  if (p.operation === "update" && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    p.operation = reads.has(String(p.readOperation)) ? p.readOperation : "recall";
+    p.readOperation = p.operation;
+    p.frame = emptyProposedSemanticFrame();
+  }
+  if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.operation !== "general") p.readOperation = p.operation;
+  if (reads.has(String(p.operation)) && p.readOperation === "clarify" && named.length === 1 && p.ordinal === null) p.readOperation = p.operation;
+  if (p.subject === "non_pet" && !named.length && Array.isArray(p.petNames) && !p.petNames.length
+    && ["general", "clarify", "update"].includes(String(initialOperation))) {
+    Object.assign(p, { operation: "general", readOperation: "general", selection: "summary", terms: [], from: null, to: null, ordinal: null, episodeTopic: null, frame: emptyProposedSemanticFrame() });
+  }
+  return p;
+}
+
+/** Failed planning can still yield conversation, with zero saved-data authority.
+ * An empty frame/read-only scope prevents a recovery path from granting writes. */
+export function unavailableAskReadPlan(reason: string): AskInterpretation {
+  return { version: "ask-interpretation.v1", operation: "general", readOperation: "general", selection: "summary",
+    conversationOnly: true, planningRecovery: reason, petIds: [], topic: "general conversation", history: null,
+    episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
+}
