@@ -717,3 +717,17 @@ test('interpretation search terms match both candidate readers and correction bo
     assert.deepEqual(result.history.terms, [term]);
   }
 });
+
+// Synthetic medication follow-ups: assistant prose cannot establish pet identity or facts.
+test('medication-name follow-up recovers a read for the user-established pet', async t => {
+  clock(t);
+  const medication = care('medication-detail', 'luna', '2026-06-17', 'medication', 'The medication name and dose were not recorded.');
+  const r = await exercise('Do we know its name?', { history: true, rows: [medication],
+    messages: [userTurn('Now focus on Luna.', 1), userTurn('Did she finish that medication?', 3)],
+    interpretationProposal: proposal({ operation: 'clarify', readOperation: 'clarify', subject: 'unclear', topic: 'medication name', terms: [] }),
+    answer: 'The medication name is not recorded.' });
+  assert.equal(r.context.askInterpretation.clarification, null);
+  assert.deepEqual(r.context.askInterpretation.petIds, ['luna']);
+  assert.ok(r.context.askHistory?.entries.some(entry => entry.id === medication.id));
+  noWrites(r);
+});

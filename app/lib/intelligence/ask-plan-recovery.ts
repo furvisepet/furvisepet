@@ -1,3 +1,4 @@
+import { medicationReferencePet } from "./medication-reference.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
@@ -63,6 +64,19 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   if (p.subject === "non_pet" && !named.length && Array.isArray(p.petNames) && !p.petNames.length
     && ["general", "clarify", "update"].includes(String(initialOperation))) {
     Object.assign(p, { operation: "general", readOperation: "general", selection: "summary", terms: [], from: null, to: null, ordinal: null, episodeTopic: null, frame: emptyProposedSemanticFrame() });
+  }
+  // A clear user-established medication referent can repair an unnecessary
+  // clarification. Ownership, schema and write governance still validate later.
+  const medicationPet = p.operation === "clarify" && p.readOperation === "clarify"
+    && p.from === null && p.to === null && p.ordinal === null && p.episodeTopic === null
+    && Array.isArray(p.terms) && p.terms.length <= 6
+    && p.terms.every(term => typeof term === "string" && term.length >= 3 && term.length <= 32 && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term))
+    ? medicationReferencePet(context) : null;
+  if (medicationPet && Array.isArray(p.petNames) && p.petNames.length <= 1
+    && p.petNames.every(name => name === medicationPet.name)
+    && ["unclear", "conversation", "selected", "explicit"].includes(String(p.subject))) {
+    Object.assign(p, { operation: "recall", readOperation: "recall", subject: "conversation",
+      petNames: [medicationPet.name], topic: "medication details", terms: ["medic", "prescri", "course"], selection: "summary" });
   }
   return p;
 }
