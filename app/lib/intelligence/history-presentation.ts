@@ -1,3 +1,5 @@
+import { parsePlainTable } from "../plain-table.ts";
+
 /** Layout changes only: no factual paraphrase, truncation, duplication or reordering. */
 type Layout = { style: "paragraph" | "bullets" | "numbered"; count?: number };
 const counts: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
@@ -27,6 +29,8 @@ export function stripHistoryBullet(text: string): string {
 
 export function presentReviewedHistory(sentences: readonly string[], question: string): string {
   if (!sentences.length) return "";
+  const table = sentences.join("\n");
+  if (parsePlainTable(table)) return table;
   const layout = requestedHistoryLayout(question);
   const groups: string[][] = [];
   if (layout?.count) {

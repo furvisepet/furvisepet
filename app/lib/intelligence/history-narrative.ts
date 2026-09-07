@@ -1,3 +1,5 @@
+import { parsePlainTable } from "../plain-table.ts";
+
 /** Draft prose is a model proposal, never persistence or source authority. */
 export type HistoryNarrative = { sentences: Array<{ text: string; sourceIds: string[] }> };
 export const historyNarrativeSchema = {
@@ -19,7 +21,7 @@ export function parseHistoryNarrative(value: unknown): HistoryNarrative | undefi
     const sentence = raw as Record<string, unknown>;
     if (Object.keys(sentence).sort().join() !== "sourceIds,text" || typeof sentence.text !== "string"
       || !sentence.text.trim() || sentence.text.length > 650
-      || /[\r\n]/.test(sentence.text) || !Array.isArray(sentence.sourceIds)
+      || /[\r\n]/.test(sentence.text) && !parsePlainTable(sentence.text) || !Array.isArray(sentence.sourceIds)
       || sentence.sourceIds.length < 1 || sentence.sourceIds.length > 12
       || sentence.sourceIds.some(id => typeof id !== "string" || !id || id.length > 160)) return;
     sentences.push({ text: sentence.text.trim(), sourceIds: [...new Set(sentence.sourceIds as string[])] });
