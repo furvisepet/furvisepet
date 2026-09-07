@@ -25,9 +25,9 @@ export function preserveAttributedReportQuotes(value: string, transform: (prose:
 }
 
 function enforceUnquotedStateClaims(value: string, verifiedSuccess: boolean) {
-  const clean = value.replace(assistantOffer, " ").replace(/\s+/g, " ").trim();
+  const clean = value.replace(assistantOffer, " ").replace(/[^\S\r\n]+/g, " ").trim();
   if (!clean) return "I can help with that.";
   if (verifiedSuccess || !containsUnverifiedStateClaim(clean)) return clean;
-  const safe = clean.split(/(?<=[.!?])\s+/).filter((sentence) => !containsUnverifiedStateClaim(sentence)).join(" ").trim();
+  const safe = clean.split(/(?<=[.!?])(?=\s)/).filter((sentence) => !containsUnverifiedStateClaim(sentence)).join("").trim();
   return safe || "I can help with that.";
 }
