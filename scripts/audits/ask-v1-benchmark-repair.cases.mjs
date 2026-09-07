@@ -113,6 +113,8 @@ test('dated source quotes stay intact while surrounding action claims are remove
  const {enforceVerifiedStateClaims}=await import('../../app/lib/application-actions/state-claims.ts');
  const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
  const quote='Luna\'s 2026-07-10 report: "We moved the tray. We changed both things together."';
+ const withOffer=enforceVerifiedStateClaims(quote+' I can read what the correction says, but its link is unverified. I would not treat it as confirmed history.',false);
+ assert.ok(withOffer.includes(quote));assert.doesNotMatch(withOffer,/FURVISEQUOTEDREPORT/);
  const input=quote+' I saved your profile.';
  const governed=enforceVerifiedStateClaims(input,false);
  assert.ok(governed.includes(quote));assert.doesNotMatch(governed,/I saved/);
