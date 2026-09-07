@@ -77,3 +77,14 @@ test('an unrelated correction cannot replace a dated food answer',async t=>{
  assert.doesNotMatch(r.result.reasoning.answer.summary,/^The correction note/);
  assert.match(r.result.reasoning.answer.summary,/food|treat/i);
 });
+
+test('old relative days cannot become current narrative claims',()=>{
+ const sources=[{text:'He finished the course today.',occurredAt:'2026-06-24T12:00:00Z'}];
+ assert.equal(anchors('He finished the course today.',sources),false);
+ assert.equal(anchors('He finished the course on June 24.',sources),true);
+ assert.equal(anchors('The June 24 note says: "He finished the course today."',sources),true);
+});
+test('short bullet request retains the requested count',async()=>{
+ const {presentReviewedHistory}=await import('../../app/lib/intelligence/history-presentation.ts');
+ assert.equal(presentReviewedHistory(['First.','Second.','Third.'],'In three short bullets.'),'- First.\n- Second.\n- Third.');
+});
