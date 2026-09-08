@@ -474,3 +474,18 @@ test('compact coverage leaves room for thirteen complete multi-pet food notes',a
  assert.ok(r.result.reasoning.evidenceContract.sources.length>r.prompt.evidenceContract.sources.length);
  noWrites(r);
 });
+
+test('whole-history improvement and recurrence does not inherit an invented medication filter',async t=>{
+ clock(t);
+ const entries=[care('course','oscar','2026-06-17','general','Oscar began a medication course.'),care('comfort','oscar','2026-07-01','general','Oscar was comfortable again.'),care('return','oscar','2026-08-12','symptom','Oscar was stiff again after a longer walk.')];
+ const r=await exercise("In Oscar's notes, what improved and what later came back?",{history:true,rows:entries,messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',selection:'reference',petNames:['Oscar'],terms:['medication']}});
+ assert.deepEqual(r.context.askInterpretation.history.terms,[]);
+ for(const row of entries) assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:'+row.id));noWrites(r);
+});
+test('a named symptom still keeps its topic filter in a change question',async t=>{
+ clock(t);const {normalizeAskReadProposal}=await import('../../app/lib/intelligence/ask-plan-recovery.ts');
+ const {pets,ownerId}=await import('./fixtures/ask-lifetime-history.mjs');
+ const context={owner:{userId:ownerId},eligiblePets:pets.slice(0,3),pet:pets[0],conversationTurns:[],currentMessage:"In Oscar's notes, what changed about his stiffness?"};
+ const p={...plan,terms:['stiffness']};
+ assert.deepEqual(normalizeAskReadProposal(p,context).terms,['stiffness']);
+});
