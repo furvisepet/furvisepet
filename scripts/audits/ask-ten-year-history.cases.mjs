@@ -71,3 +71,25 @@ test('conflicting tied newest weights remain unsupported',async t=>{
  const r=await run(t,endpointQuestion,{operation:'comparison',readOperation:'comparison',terms:['weigh']},{rows:[...denseRows,conflict]});
  assert.doesNotMatch(r.result.reasoning.answer.summary,/kg (?:lower|higher)/);
 });
+
+test('simpler dated count is computed without paraphrasing unrelated uncertainty',async t=>{
+ const q="How many accidents are in Luna's April 8, 2018 note?";
+ const r=await run(t,'Say that more simply.',{operation:'recall',readOperation:'recall',subject:'conversation',petNames:[],terms:[]},{messages:[{id:'prior',user_id:'synthetic-owner',conversation_id:'chat',role:'user',user_text:q,sequence_number:1}]});
+ assert.equal(r.result.reasoning.answer.summary,'The 2018-04-08 note describes two accidents.');
+ const {withinNoteCountAnswer}=await import('../../app/lib/intelligence/within-note-count.ts');
+ for(const change of ['lost','foreign','uncertain','correction','episodes','mixed','extra','compound','other-pet']) {
+  const c=structuredClone(r.result.reasoning.evidenceContract);
+  const source=c.represented.find(s=>s.sourceId==='care:decade-accidents');
+  if(change==='lost')c.losses.push({sourceId:source.sourceId,reason:'prompt_budget'});
+  if(change==='foreign')source.petId='unowned';
+  if(change==='uncertain')source.text=source.text.replace('urinated','may have urinated');
+  if(change==='correction')source.text+=' Correction: that observation was mistaken.';
+  if(change==='extra')source.text+=' Luna had another accident.';
+  if(change==='compound')source.text=source.text.replace('once today.','once today and again later.');
+  if(change==='other-pet')source.text=source.text.replace('Luna urinated','Bruno urinated');
+  if(['uncertain','correction','extra','compound','other-pet'].includes(change))source.end=source.text.length;
+  if(change==='episodes')c.interpretation.referenceQuestion='How many episodes are in Luna April 8, 2018 note?';
+  if(change==='mixed')c.interpretation.referenceQuestion=q+' What was the cause?';
+  assert.equal(withinNoteCountAnswer(c),null,change);
+ }
+});

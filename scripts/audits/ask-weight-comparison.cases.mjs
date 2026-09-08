@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exercise, clock } from './helpers/lifetime-harness.mjs';
+import { exercise as exerciseBase, clock } from './helpers/lifetime-harness.mjs';
+import {emptyProposedSemanticFrame} from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
+// The production route supplies a validated interpretation before this callback.
+const exercise=(question,options={})=>exerciseBase(question,{
+ interpretationProposal:{operation:'comparison',readOperation:'comparison',selection:'summary',subject:'explicit',petNames:['Milo'],topic:'weight',terms:['weigh'],from:null,to:null,ordinal:null,episodeTopic:null,frame:emptyProposedSemanticFrame()},
+ ...options,
+});
 import { care } from './fixtures/ask-lifetime-history.mjs';
 const question='Compare Milo earliest and latest recorded weight.';
 test('actual callback computes a qualified comparison of retrieved dated measurements', async t=>{
@@ -34,7 +40,7 @@ test('changed source, missing source and unavailable correction graph retain lim
  for(const options of [{graph:{missingSourceIds:['w2']}},{graph:{sources:[{...last,note:'Milo weighed 29 kg.'}]}},{failGraph:true}]) {
   const run=await exercise(question,{history:true,rows:[first,last],...options});
   assert.doesNotMatch(run.result.reasoning.answer.summary,/0\.6 kg/);
-  assert.match(run.result.reasoning.answer.summary,/incomplete|unavailable|uncertain/i);
+  assert.match(run.result.reasoning.answer.summary,/incomplete|unavailable|uncertain|could not be checked or included|can't reliably attribute/i);
  }
 });
 
@@ -91,4 +97,12 @@ test('weight bullets are composed from source measurements despite a disclaimer-
  assert.match(text,/- 2011-02-01: 28\.4 kg/);assert.match(text,/- 2026-08-19: 27\.8 kg/);
  assert.equal((text.match(/^- /gm)||[]).length,2);
  assert.deepEqual(run.result.acceptedCareActions,[]);
+});
+
+test('two named weight months do not include an intervening measurement',async t=>{
+ clock(t);const rows=[care('june','milo','2026-06-04','general','Milo weighed 7.2 kg.'),care('july','milo','2026-07-20','general','Milo weighed 7.1 kg.'),care('september','milo','2026-09-03','general','Milo enjoys walks. His appetite is normal and he weighs 7.1 kg.')];
+ const r=await exercise('Show Milo June and September weights as two bullets.',{history:true,rows});
+ const text=r.result.reasoning.answer.summary;
+ assert.match(text,/- 2026-06-04: 7\.2 kg/);assert.match(text,/- 2026-09-03: 7\.1 kg/);assert.doesNotMatch(text,/2026-07-20/);
+ assert.deepEqual(r.result.acceptedCareActions,[]);
 });

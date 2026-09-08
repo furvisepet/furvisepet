@@ -45,6 +45,16 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "overview", readOperation: "overview", selection: "summary", topic: "recorded recurrence", terms: [] });
   }
+  // A broad saved-food question supplies a category, not an ingredient or a
+  // prior weight question's lexical filter. Keep invalid metadata invalid.
+  if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
+    && /\b(?:recorded|saved)\s+(?:foods?|diets?)\b|\b(?:foods?|diets?)\b[\s\S]{0,60}\b(?:notes|history|records)\b/i.test(context.currentMessage)
+    && !/\b(?:weight|weighs|symptoms?|stools?|medication|allergy|chicken|turkey|salmon|beef|rice)\b/i.test(context.currentMessage)
+    && Array.isArray(p.terms) && p.terms.length <= 6 && p.terms.every(term => typeof term === "string"
+      && term.length >= 3 && term.length <= 32 && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term))
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p, { topic: "recorded food", terms: ["food", "diet", "kibble", "eat", "treat"] });
+  }
   // Row ordering is not a request to discard all but the first measurement.
   if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
     && /\bweights?\b/i.test(context.currentMessage) && /\btable\b/i.test(context.currentMessage)
