@@ -1,7 +1,7 @@
 import { parsePlainTable } from "../plain-table.ts";
 
 /** Layout changes only: no factual paraphrase, truncation, duplication or reordering. */
-type Layout = { style: "paragraph" | "bullets" | "numbered"; count?: number };
+type Layout = { style: "paragraph" | "bullets" | "numbered" | "lines"; count?: number };
 const counts: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
 
 export function requestedHistoryLayout(question: string): Layout | null {
@@ -20,6 +20,7 @@ export function requestedHistoryLayout(question: string): Layout | null {
         ...(token ? { count: counts[token] || Number(token) } : {}) };
     }
   }
+  if (!layout && /\b(?:a separate line for each|one line (?:for|per) (?:each )?pet|each pet on (?:a|its) (?:separate|own) line)\b/i.test(text)) return { style: "lines" };
   return layout;
 }
 
@@ -54,7 +55,7 @@ export function presentReviewedHistory(sentences: readonly string[], question: s
       const end = Math.floor((i + 1) * sentences.length / count);
       groups.push(sentences.slice(start, end));
     }
-  } else if (layout?.style === "bullets" || layout?.style === "numbered") {
+  } else if (layout?.style === "bullets" || layout?.style === "numbered" || layout?.style === "lines") {
     for (const sentence of sentences) groups.push([sentence]);
   } else {
     // Longer prose remains readable without splitting a sentence or its numbers.
