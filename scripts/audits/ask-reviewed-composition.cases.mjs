@@ -417,3 +417,33 @@ test('food summary keeps explicit diet changes ahead of incidental eating matche
  }
  assert.ok(r.result.reasoning.evidenceContract.losses.length>0);noWrites(r);
 });
+
+test('a shorter dated-note count cannot become an episode clarification',async t=>{
+ clock(t);const {ownerId}=await import('./fixtures/ask-lifetime-history.mjs');
+ const question='Can you explain that last answer more briefly?';
+ const messages=[{id:'prior-q',user_id:ownerId,conversation_id:'chat',role:'user',user_text:'How many accidents are described in Luna July 8 note?',sequence_number:1}];
+ const source=care('accidents','luna','2026-07-08','general','Luna urinated on the bath mat once yesterday and once today.');
+ const r=await exercise(question,{history:true,rows:[source],messages,interpretationProposal:{...plan,operation:'count',readOperation:'count',subject:'conversation',petNames:[],selection:'summary',terms:[],from:null,to:null},providerOverrides:{historyNarrative:{sentences:[{text:'The note describes two accidents, one on July 7 and one on July 8.',sourceIds:['care:accidents']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ assert.equal(r.context.askInterpretation.readOperation,'recall');
+ assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:accidents'));
+ assert.match(r.result.reasoning.answer.summary,/two accidents/);assert.doesNotMatch(r.result.reasoning.answer.summary,/Which symptom/);noWrites(r);
+});
+test('medication-change hypothetical remains advice, with no pet clarification or writes',async t=>{
+ clock(t);const {readInterpretationSubject}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ for(const operation of ['clarify','update','general']) {
+ const r=await exercise('If Oscar is comfortable today, should I change the recorded medication dose myself?',{history:true,rows:[],messages:[],interpretationProposal:{...plan,operation,readOperation:operation==='update'?null:operation,subject:'unclear',petNames:[],terms:[]},providerOverrides:{answer:'Do not change a prescribed dose yourself; ask the prescribing vet.',historyNarrative:null}});
+ assert.equal(readInterpretationSubject(r.context.askInterpretation,'milo').resolution.requiresClarification,false);
+ assert.equal(r.context.askInterpretation.conversationOnly,true);noWrites(r);
+ }
+});
+
+test('dated-note reformulation refuses ambiguous, foreign, mutating and assistant-only references',async t=>{
+ clock(t);const {pets,ownerId}=await import('./fixtures/ask-lifetime-history.mjs');
+ const {datedNoteReformulation}=await import('../../app/lib/intelligence/ask-plan-recovery.ts');
+ const base={owner:{userId:ownerId},eligiblePets:pets.slice(0,3),pet:pets[0],currentMessage:'Can you explain that last answer more briefly?'};
+ for(const text of ['Save Luna July 8 note.','How many accidents are in Luna July 8 and July 9 notes?','How many accidents are in Bruno July 8 note?']) {
+ assert.equal(datedNoteReformulation({...base,conversationTurns:[{role:'user',text}]}),null);
+ }
+ assert.equal(datedNoteReformulation({...base,conversationTurns:[{role:'furvise',text:'How many accidents are in Luna July 8 note?'}]}),null);
+ assert.equal(datedNoteReformulation({...base,currentMessage:base.currentMessage+' Also delete it.',conversationTurns:[{role:'user',text:'How many accidents are in Luna July 8 note?'}]}),null);
+});

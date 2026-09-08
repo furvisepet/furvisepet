@@ -1,4 +1,4 @@
-import { normalizeExplicitHistoryDates } from "./explicit-history-dates.ts";
+import { explicitHistoryDays, normalizeExplicitHistoryDates } from "./explicit-history-dates.ts";
 import { requestedCalendarInterval } from "./calendar-interval.ts";
 import { medicationReferencePet } from "./medication-reference.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
@@ -15,6 +15,15 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const p = { ...value as Record<string, unknown> };
   const initialOperation = p.operation;
+  const reference = datedNoteReformulation(context);
+  if (reference && p.ordinal === null) {
+    const { day, after } = reference;
+    if ([null, day].includes(p.from as string | null) && [null, day, after].includes(p.to as string | null)
+      && Array.isArray(p.terms) && p.terms.length <= 6 && p.terms.every(term => typeof term === "string" && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term) && term.length <= 32)) {
+      Object.assign(p, { operation: "recall", readOperation: "recall", selection: "reference", subject: "conversation",
+        petNames: [], topic: "dated note", terms: [], from: day, to: after, ordinal: null, episodeTopic: null, frame: emptyProposedSemanticFrame() });
+    }
+  }
   // Row ordering is not a request to discard all but the first measurement.
   if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
     && /\bweights?\b/i.test(context.currentMessage) && /\btable\b/i.test(context.currentMessage)
@@ -34,10 +43,13 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   }
   // Conditional safety guidance must not become a saved-record lookup merely
   // because the hypothetical mentions an old problem returning.
-  if (p.operation !== "update" && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+  if (!analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
     && /\b(?:if|hypothetically|suppose|supposing)\b/i.test(context.currentMessage)
-    && /\b(?:breath\w*|collaps\w*|urin\w*|poison\w*|ibuprofen)\b/i.test(context.currentMessage)
-    && /\b(?:urgency|urgent|emergency|safe|wait|what (?:should|would))\b/i.test(context.currentMessage)) {
+    && (/\b(?:breath\w*|collaps\w*|urin\w*|poison\w*|ibuprofen)\b/i.test(context.currentMessage)
+      && /\b(?:urgency|urgent|emergency|safe|wait|what (?:should|would))\b/i.test(context.currentMessage)
+      || /\b(?:medication|medicine|dose|dosage)\b/i.test(context.currentMessage)
+      && /\b(?:should|can|could) I\b/i.test(context.currentMessage)
+      && /\b(?:change|increase|decrease|double|stop)\b/i.test(context.currentMessage))) {
     Object.assign(p, { operation: "general", readOperation: "general", subject: "non_pet", petNames: [],
       selection: "summary", terms: [], from: null, to: null, ordinal: null, episodeTopic: null, frame: emptyProposedSemanticFrame() });
   }
@@ -168,4 +180,17 @@ export function unavailableAskReadPlan(reason: string): AskInterpretation {
   return { version: "ask-interpretation.v1", operation: "general", readOperation: "general", selection: "summary",
     conversationOnly: true, planningRecovery: reason, petIds: [], topic: "general conversation", history: null,
     episodeTopic: null, ordinal: null, readOnly: true, clarification: null, frame: emptyProposedSemanticFrame() };
+}
+
+/** Prior user wording is a question reference, never medical or write evidence. */
+export function datedNoteReformulation(context: Context): { question: string; day: string; after: string; petId: string } | null {
+  if (!/^(?:(?:can|could|would) you |please )?(?:explain|rephrase|shorten|summarize) (?:that|the) (?:last |previous )?(?:answer|response)(?: (?:more briefly|in fewer words|more simply|briefly|again))?[?.!]*$/i.test(context.currentMessage.trim())
+    || analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) return null;
+  const prior = context.conversationTurns.filter(turn => turn.role === "user" && turn.text.trim() !== context.currentMessage.trim()).at(-1)?.text;
+  if (!prior || analyzeOwnerAssertions(prior).hasOwnerAssertion || !/\b(?:note|entry|report)\b/i.test(prior)
+    || !/\?|^(?:how|what|which|when|show|quote)\b/i.test(prior)) return null;
+  const days = explicitHistoryDays(prior, new Date().getUTCFullYear());
+  const named = explicitlyNamedOwnedPets(prior, context.eligiblePets.filter(pet => pet.user_id === context.owner.userId));
+  if (days.length !== 1 || named.length !== 1) return null;
+  return { question: prior, day: days[0], after: new Date(Date.parse(days[0]) + 86400000).toISOString().slice(0, 10), petId: named[0].id };
 }
