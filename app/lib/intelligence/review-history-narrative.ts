@@ -37,6 +37,9 @@ const instructions = [
 function usableSources(evidence: AskEvidenceContract) {
   return evidence.represented.filter(span => span.sourceType === "care_update"
     && evidence.scope.authorizedPetIds.includes(span.petId)
+    // Future-dated notes are not evidence of events that have already occurred.
+    // Exact source lookups retain the quoted-report fallback instead.
+    && (!span.occurredAt || Date.parse(span.occurredAt) <= Date.now())
     && span.start === 0 && span.end === span.text.length && span.text.trim()
     && !evidence.losses.some(loss => loss.sourceId === span.sourceId)
     && evidence.sources.some(source => source.petId === span.petId && source.loadedIds.includes(span.sourceId)

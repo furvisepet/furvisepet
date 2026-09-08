@@ -332,3 +332,25 @@ test('exact lifetime illness total explains evidence limits across multiple pets
  const r=await exercise('Can you give me the exact number of illnesses these three pets have ever had?',{history:true,rows:[],fixturePets:pets.slice(0,3),messages:[],interpretationProposal:{...plan,operation:'count',readOperation:'count',petNames:pets.slice(0,3).map(p=>p.name),terms:['illness'],episodeTopic:null}});
  assert.match(r.result.reasoning.answer.summary,/unrecorded/);assert.doesNotMatch(r.result.reasoning.answer.summary,/Which displayed/);noWrites(r);
 });
+
+test('future-dated recurrence cannot be approved as an event that already happened',async t=>{
+ clock(t);
+ const r=await exercise('Does Milo improvement prove the stiffness will never return?',{history:true,rows:[care('past-comfort','milo','2026-06-04','general','Milo was comfortable for three days.'),care('future-stiff','milo','2099-06-04','symptom','Milo was stiff again.')],messages:[],interpretationProposal:{...plan,terms:[],from:null,to:null},providerOverrides:{historyNarrative:{sentences:[{text:'Milo was comfortable for three days.',sourceIds:['care:past-comfort']},{text:'His stiffness already returned in 2099.',sourceIds:['care:future-stiff']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/already returned|2099/);noWrites(r);
+});
+
+test('compacted history transport preserves source text or records its omission',async t=>{
+ clock(t);const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+ const many=Array.from({length:12},(_,i)=>care('00000000-0000-4000-8000-'+String(i).padStart(12,'0'),pets[i%3].id,'2026-06-'+String(i+1).padStart(2,'0'),'food',`${pets[i%3].name} ate the recorded food. ${'An ordinary recorded observation about food and appetite. '.repeat(8)}`));
+ const r=await exercise('List recorded food for each pet.',{history:true,rows:many,fixturePets:pets.slice(0,3),messages:[],interpretationProposal:{...plan,petNames:pets.slice(0,3).map(p=>p.name),terms:['food']}});
+ assert.ok(r.serialized.length<=48000);
+ const evidence=r.result.reasoning.evidenceContract;
+ const kept=evidence.represented.filter(span=>span.sourceType==='care_update');
+ assert.equal(new Set(kept.map(span=>span.petId)).size,3);
+ for(const row of many) {
+ const span=kept.find(span=>span.sourceId==='care:'+row.id);
+ if(span) assert.equal(span.text,[row.title,row.note].filter(Boolean).join(': '));
+ else assert.ok(evidence.losses.some(loss=>loss.sourceId==='care:'+row.id));
+ }
+ noWrites(r);
+});

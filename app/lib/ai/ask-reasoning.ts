@@ -331,6 +331,7 @@ const unifiedInstructions = [
   "For depth 0, answer in one or two natural sentences. For depth 1, usually use 40-120 useful words and no headings. For depth 2, usually use 100-250 useful words with zero or one useful expansion section and up to four total bullets. For depth 3, usually use 200-450 useful words with at most four meaningful sections. Depth 4 is safety-led: include every action, escalation sign, and avoidance needed even when that exceeds other budgets.",
   "If evidenceContract.interpretation.referenceSubject is present, it resolves the current question's referent. A medication name/dose question asks about that medication, not the pet name or profile. Answer only from the retrieved medication records; the reference establishes no medication fact. Explicitly recorded missing details must stay unknown.",
   "For requested history tables, use a compact pipe table with a header, separator and supported data rows in historyNarrative. Each row must preserve its own date, pet, value and unit. Cite the records supporting the table. Do not return only a heading or disclaimer. Keep tables within the narrative size limits.",
+  "A future-dated care record is not evidence that an event has already happened. Compare each record date with the supplied current date. Do not use future records to establish recurrence, recovery, or current health. You may identify a future-dated source as such when directly asked to read it.",
   "Source identifiers belong only in sourceIds or relevantContextIds. Never put bracketed source IDs in visible answer or historyNarrative text.",
   "Adapt to the conversational act, not only the pet topic. For emotional disclosure without a request for practical steps, acknowledge the feeling briefly and invite the owner to talk with at most one gentle question. Do not automatically turn vulnerability into a checklist or productivity plan. When practical help is requested, give useful steps. Follow requested brevity and formatting when compatible with safety and source fidelity.",
   "The direct answer owns the core interpretation, the most important recommendation, and a brief emotional acknowledgement when useful. Every answerSection must add a new decision, action, explanation, or safety signal that is absent from the direct answer. Maximum section and bullet budgets are ceilings, not targets. Never restate the direct answer in a section.",
@@ -546,7 +547,7 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
   const exceedsBudget = () => {
     const request = buildAskProviderRequest(budgeted);
     const admitted = { input: request.input, instructions: request.instructions };
-    return JSON.stringify(budgeted).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET
+    return request.input.length > ASK_PROMPT_CONTEXT_CHAR_BUDGET
       || estimateInputTokens(admitted) > policy.maxInputTokens - 256
       || JSON.stringify(admitted).length > policy.maxInputCharacters - 768;
   };
@@ -1104,7 +1105,8 @@ export function buildAskProviderRequest(promptContext: object) {
   const context = promptContext as { evidenceContract?: AskEvidenceContract };
   const evidence = context.evidenceContract;
   let transported = promptContext;
-  if (evidence?.history && estimateInputTokens({ input: JSON.stringify(promptContext), instructions: unifiedInstructions }) > getAiFeaturePolicy("ask").maxInputTokens - 256) {
+  if (evidence?.history && (JSON.stringify(promptContext).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET
+    || estimateInputTokens({ input: JSON.stringify(promptContext), instructions: unifiedInstructions }) > getAiFeaturePolicy("ask").maxInputTokens - 256)) {
     // Retain full authority and candidate identities on the server. The model
     // only needs IDs for represented evidence plus complete coverage/counts.
     const represented = new Set(evidence.represented.map(span => span.sourceId));

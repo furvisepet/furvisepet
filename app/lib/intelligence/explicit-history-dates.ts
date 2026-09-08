@@ -11,8 +11,7 @@ export function normalizeExplicitHistoryDates(p: Record<string,unknown>, questio
  const valid=(v:unknown):v is string=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;
  if(p.from!==null&&!valid(p.from)||p.to!==null&&!valid(p.to)) return;
  const anchor=valid(p.from)?p.from:valid(p.to)?p.to:null;
- if(!anchor) return;
- const days=explicitHistoryDays(question,Number(anchor.slice(0,4)));
+ const days=explicitHistoryDays(question,anchor?Number(anchor.slice(0,4)):new Date().getUTCFullYear());
  const after=(d:string)=>new Date(Date.parse(d)+86400000).toISOString().slice(0,10);
  if(days.length===1&&/^\s*by\s+/i.test(question)
    && [null,'1900-01-01',days[0]].includes(p.from as string|null)
@@ -20,8 +19,9 @@ export function normalizeExplicitHistoryDates(p: Record<string,unknown>, questio
    p.from='1900-01-01';p.to=after(days[0]);p.selection='period';
  }
  if(days.length===2&&/\b(?:compare|comparison|versus|vs)\b/i.test(question)
-   && days[0]<days[1]&&p.from===days[0]&&[days[1],after(days[1]),after(days[0])].includes(String(p.to))
+   && days[0]<days[1]&&((p.from===null&&p.to===null)
+     || p.from===days[0]&&[days[1],after(days[1]),after(days[0])].includes(String(p.to)))
    && Array.isArray(p.terms)&&p.terms.length<=6&&p.terms.every(t=>typeof t==='string'&&t.length>=3&&t.length<=32&&/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(t))) {
-   p.to=after(days[1]);p.selection='period';p.terms=[];
+   p.from=days[0];p.to=after(days[1]);p.selection='period';p.terms=[];
  }
 }
