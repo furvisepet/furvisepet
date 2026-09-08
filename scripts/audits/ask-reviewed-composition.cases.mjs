@@ -501,7 +501,7 @@ test('explicit four-day timeline retains all requested evidence after latest-onl
  ];
  const r=await exercise('For Milo, list June 15, June 20, August 8 and August 10 in chronological order.',{
  history:true,rows:entries,messages:[],interpretationProposal:{...plan,operation:'general',readOperation:'general',selection:'latest',terms:[],from:null,to:null},
- providerOverrides:{historyNarrative:{sentences:[{text:'Milo stools were normal again on August 10.',sourceIds:['care:a10']}]}},reviewResponse:{approved:true},expectedReviewCalls:0});
+ providerResponse:async()=>{throw new Error('Timeline must not call the answer provider');},expectedProviderCalls:0,expectedReviewCalls:0});
  const answer=r.result.reasoning.answer.summary;
  for(const day of ['2026-06-15','2026-06-20','2026-08-08','2026-08-10'])assert.ok(answer.includes(day),answer);
  assert.ok(answer.indexOf('2026-06-15')<answer.indexOf('2026-06-20'));
@@ -574,4 +574,39 @@ test('standalone no cannot overstate a note with unrecorded diagnosis',async t=>
  reviewResponse:{approved:true},expectedReviewCalls:0});
  assert.doesNotMatch(r.result.reasoning.answer.summary,/^No[.!]/);
  assert.match(r.result.reasoning.answer.summary,/not recorded a diagnosis/);noWrites(r);
+});
+
+test('direct timeline requires complete scoped records and an unmixed request',async t=>{
+ clock(t);
+ const q='Milo: what happened on June 15, June 20, August 8, and August 10? Please show the events in chronological order.';
+ const entries=[care('t1','milo','2026-06-15','general','Milo had two soft stools.'),care('t2','milo','2026-06-20','general','Milo stools were normal for three days.'),care('t3','milo','2026-08-08','general','Milo had one soft stool.'),care('t4','milo','2026-08-10','general','Milo stools were normal again.')];
+ const r=await exercise(q,{history:true,rows:entries,messages:[],
+ interpretationProposal:{...plan,operation:'recall',readOperation:'recall',selection:'period',terms:[],from:'2026-06-15',to:'2026-08-11'},
+ providerResponse:async()=>{throw new Error('Primary provider unavailable');},expectedProviderCalls:0});
+ assert.equal(r.result.reasoning.model,'server-history-timeline');noWrites(r);
+ for(const detail of ['two soft stools','three days','one soft stool','normal again'])assert.ok(r.result.reasoning.answer.summary.includes(detail));
+ const {directHistoryTimelineAnswer:direct}=await import('../../app/lib/intelligence/direct-history-timeline.ts');
+ const original=r.result.reasoning.evidenceContract;
+ assert.ok(direct(structuredClone(original)));
+ for(const mutate of [
+  e=>{e.scope.requestText+=' What caused these symptoms?';},
+  e=>{e.scope.requestText+=' Milo is vomiting today.';},
+  e=>{e.scope.status='ambiguous';},
+  e=>{e.interpretation.readOnly=false;},
+  e=>{e.interpretation.petIds=['foreign'];},
+  e=>{e.history.corrections='unavailable';},
+  e=>{e.represented=e.represented.filter(s=>s.occurredAt?.slice(0,10)!=='2026-06-15');},
+  e=>{e.losses.push({sourceId:e.represented.find(s=>s.sourceType==='care_update').sourceId,reason:'source_deleted_or_changed'});},
+  e=>{e.sources.forEach(s=>{s.status='unavailable';});}
+ ]) {const e=structuredClone(original);mutate(e);assert.equal(direct(e),null);}
+});
+
+test('dated diagnosis question cannot ask which already-named pet',async t=>{
+ clock(t);const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+ const r=await exercise('Can you tell whether Oscar received a diagnosis at the August 27 visit?',{
+ history:true,messages:[],fixturePets:pets.slice(0,3),
+ rows:[care('diagnosis-visit','oscar','2026-08-27','vet_visit','The vet asked us to observe Oscar comfort. I have not recorded a diagnosis here.')],
+ interpretationProposal:{...plan,operation:'clarify',readOperation:'clarify',subject:'explicit',petNames:['Oscar'],selection:'reference',terms:['diagnosis'],from:null,to:null}});
+ assert.deepEqual(r.context.askInterpretation.petIds,['oscar']);assert.equal(r.context.askInterpretation.clarification,null);
+ assert.match(r.result.reasoning.answer.summary,/not recorded a diagnosis/);assert.doesNotMatch(r.result.reasoning.answer.summary,/Which pet/);noWrites(r);
 });

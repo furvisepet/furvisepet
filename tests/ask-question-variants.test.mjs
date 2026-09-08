@@ -155,3 +155,14 @@ test('missing recorded diagnosis cannot become a clinical nonoccurrence claim',(
  assert.equal(historyNarrativeAnchorsSupported('No diagnosis was recorded in the note.',sources),true);
  assert.equal(historyNarrativeAnchorsSupported('The vet did not establish a diagnosis.',[{text:'The vet did not establish a diagnosis.'}]),true);
 });
+
+test('dated clinical clarification recovery preserves ownership and question limits',()=>{
+ const q='Can you tell whether Pip received a diagnosis at the August 27 visit?';
+ const initial={...proposal('clarify'),terms:['diagnosis'],selection:'reference'};
+ const p=normalizeAskReadProposal(initial,context(q));
+ assert.equal(p.operation,'recall');assert.deepEqual(p.petNames,['Pip']);
+ for(const bad of [{...initial,petNames:['Other']},{...initial,terms:['%']},{...initial,episodeTopic:'vomiting'}])
+  assert.equal(normalizeAskReadProposal(bad,context(q)).operation,bad.operation);
+ for(const text of [q.replace('Pip','Other'),q+' Pip vomited today.',q.replace('at the','before the')])
+  assert.equal(normalizeAskReadProposal(initial,context(text)).operation,'clarify',text);
+});
