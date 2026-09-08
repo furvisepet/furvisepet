@@ -26,3 +26,9 @@ test('topic synonyms broaden narrow terms but keep an unfiltered plan unfiltered
  assert.ok(normalizeHistoricalSearchTerms(['accident'],'What changed back in the litter setup?').includes('tray'));
  assert.deepEqual(normalizeHistoricalSearchTerms([],'Compare food on two dates.'),[]);
 });
+
+test('explicit comparison dates recover a model plan with both bounds missing',()=>{
+ const p={...plan(),operation:'comparison',from:null,to:null,terms:['improvement','update','July','August']};
+ normalizeExplicitHistoryDates(p,'Compare July 1, 2026 and August 12, 2026.');
+ assert.equal(p.from,'2026-07-01');assert.equal(p.to,'2026-08-13');assert.deepEqual(p.terms,[]);
+});
