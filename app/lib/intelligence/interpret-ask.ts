@@ -202,7 +202,7 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
     selection = readOperation === "status" ? "latest" : readOperation === "comparison" ? "comparison" : "summary";
   }
   const historical = !!readOperation && ["overview", "recall", "comparison", "status", "count"].includes(readOperation);
-  const terms = normalizeHistoricalSearchTerms(recoveredTopic ? [recoveredTopic] : p.terms as string[]);
+  const terms = normalizeHistoricalSearchTerms(recoveredTopic ? [recoveredTopic] : p.terms as string[], context.currentMessage);
   const medicationReferent = readOperation === "recall" && !clarification ? medicationReferencePet(context) : null;
   const referenceSubject = medicationReferent && petIds.length === 1
     && owned.find(pet => pet.id === petIds[0])?.name === medicationReferent.name

@@ -26,6 +26,7 @@ export type EpisodeResult = {
   details?: Array<{ sourceId: string; occurredAt: string; note: string }>;
 };
 export function episodeAnswer(result: EpisodeResult): { summary: string; sections: { heading: string; items: string[] }[] } {
+  if (result.reasons.includes("all_illness_lifetime_total_unknown")) return { summary: "I can’t establish the exact number of illnesses your pets have ever had. Saved notes may describe the same illness more than once, and they do not establish unrecorded events. I can summarize documented problems for each pet instead.", sections: [] };
   if (result.conversational) {
     const legacy = episodeAnswer({ ...result, conversational: false });
     if (result.coverage === "unavailable") return { summary: "I couldn't recheck the saved episode notes just now. Please try again before relying on a count or that episode.", sections: [] };

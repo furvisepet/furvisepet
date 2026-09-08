@@ -2,8 +2,15 @@
  * Every result is a prefix of the original term, so existing literal matches
  * remain candidates. This is retrieval only, never fact or write authority.
  * Phrases and short/unknown forms remain literal; source review handles noise. */
-export function normalizeHistoricalSearchTerms(terms: string[]): string[] {
-  return [...new Set(terms.map(term => {
+export function normalizeHistoricalSearchTerms(terms: string[], question = ""): string[] {
+  // An intentionally broad or explicitly dated lookup must remain broad.
+  if (!terms.length) return [];
+  // Topic synonyms supplement model terms within the same bounded read scope.
+  const additions = /\b(?:food|diet)\b/i.test(question) ? ["food", "treat"]
+    : /\blitter\b/i.test(question) ? ["litter", "tray", "urinat"] : [];
+  const expanded = [...terms];
+  for (const term of additions) if (expanded.length < 6 && !expanded.includes(term)) expanded.push(term);
+  return [...new Set(expanded.map(term => {
     const word = term.toLowerCase();
     // Broaden common record vocabulary without granting semantic fact authority.
     // These prefixes preserve matches on the original phrase as well.

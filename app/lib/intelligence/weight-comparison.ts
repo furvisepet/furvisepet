@@ -1,3 +1,4 @@
+import { recordedWeightGrams } from "./recorded-weight.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
 import type { FurviseLiveContext } from "./types.ts";
 
@@ -6,28 +7,23 @@ export type WeightComparisonEvidence = { petId: string; measurements: Array<{ so
  * endpoints. Unsupported, qualified or mixed-unit notes are not discarded to
  * manufacture an apparently complete extraction. */
 export function buildWeightComparison(context: FurviseLiveContext, contract: AskEvidenceContract): WeightComparisonEvidence | undefined {
-  if (!context.askHistory || contract.scope.requestKind !== "comparison" || contract.scope.authorizedPetIds.length !== 1
-    || !/\bweight\b/i.test(context.currentMessage)
-    || !(/\bearliest\b/i.test(context.currentMessage) && /\blatest\b/i.test(context.currentMessage)
-      || /\b(?:change|difference)\b/i.test(context.currentMessage))) return undefined;
+  if (!context.askHistory || !["comparison", "record_lookup"].includes(contract.scope.requestKind) || contract.scope.authorizedPetIds.length !== 1
+    || !/\bweigh(?:t|ts|ed|s|ing)?\b/i.test(context.currentMessage)
+    || !(/\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage)
+      || /\b(?:change|difference|table)\b/i.test(context.currentMessage))) return undefined;
   const petId = contract.scope.authorizedPetIds[0];
   const pet = context.eligiblePets.find(p => p.id === petId && p.user_id === context.owner.userId);
   if (!pet?.name) return undefined;
-  const escaped = pet.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`^(?:Note: )?${escaped} weighed ([0-9]{1,6})(?:\\.([0-9]{1,3}))? kg(?: today)?\\.(?:\\s|$)`, "i");
   const rows = context.askHistory.entries.filter(row => row.pet_profile_id === petId && /\bweigh\w*\b/i.test(`${row.title || ""} ${row.note}`));
   if (rows.length < 2 || rows.length > 32) return undefined;
   const measurements: WeightComparisonEvidence["measurements"] = [];
   for (const row of rows) {
-    const match = pattern.exec(row.note);
+    const grams = recordedWeightGrams(row.note, pet.name);
     const at = Date.parse(row.occurred_at);
-    const remainder = match ? row.note.slice(match[0].length) : "";
-    if (!match || /\b(?:weigh\w*|kg|lb|correct\w*|retract\w*|uncertain|estimated)\b/i.test(remainder)
+    if (grams === null
       || row.user_id !== context.owner.userId || row.deleted_at || !Number.isFinite(at) || at > Date.now()
       || new Date(at).toISOString().slice(0,10) !== row.occurred_at.slice(0,10)
       || row.title && !/^(?:weight(?: measurement)?|note)$/i.test(row.title)) return undefined;
-    const grams = Number(match[1])*1000 + Number((match[2] || "").padEnd(3,"0"));
-    if (!Number.isSafeInteger(grams) || grams <= 0) return undefined;
     measurements.push({ sourceId: `care:${row.id}`, text: row.note, at: row.occurred_at, grams });
   }
   return { petId, measurements };
@@ -35,7 +31,7 @@ export function buildWeightComparison(context: FurviseLiveContext, contract: Ask
 
 export function weightComparisonAnswer(contract: AskEvidenceContract): string | null {
   const evidence = contract.weightComparison;
-  if (!evidence || contract.scope.requestKind !== "comparison" || contract.scope.authorizedPetIds.length !== 1
+  if (!evidence || !["comparison", "record_lookup"].includes(contract.scope.requestKind) || contract.scope.authorizedPetIds.length !== 1
     || contract.scope.authorizedPetIds[0] !== evidence.petId || evidence.measurements.length < 2) return null;
   const source = contract.sources.find(s => s.petId === evidence.petId && s.source === "care_entries");
   if (!source || source.status !== "loaded") return null;
@@ -43,10 +39,10 @@ export function weightComparisonAnswer(contract: AskEvidenceContract): string | 
   for (const measurement of evidence.measurements) {
     const spans = contract.represented.filter(s => s.petId === evidence.petId && s.sourceId === measurement.sourceId && s.sourceType === "care_update");
     const span = spans[0];
-    const number = / weighed ([0-9]{1,6})(?:\.([0-9]{1,3}))? kg(?: today)?\.(?:\s|$)/i.exec(measurement.text);
-    const parsedGrams = number ? Number(number[1])*1000 + Number((number[2] || "").padEnd(3,"0")) : NaN;
+    const petName = contract.petNames?.[evidence.petId];
+    const parsedGrams = petName ? recordedWeightGrams(measurement.text, petName) : null;
     if (spans.length !== 1 || !(span.text === measurement.text || span.text === "Note: " + measurement.text) || span.occurredAt !== measurement.at
-      || parsedGrams !== measurement.grams || !Number.isSafeInteger(parsedGrams) || parsedGrams <= 0
+      || parsedGrams !== measurement.grams || parsedGrams === null || !Number.isSafeInteger(parsedGrams) || parsedGrams <= 0
       || span.start !== 0 || span.end !== span.text.length
       || !source.loadedIds.includes(measurement.sourceId) || contract.losses.some(loss => loss.sourceId === measurement.sourceId)
       || !contract.history?.provenance.some(p => p.sourceId === measurement.sourceId && ["effective_linked","unverified_legacy"].includes(p.status))) return null;
@@ -59,5 +55,10 @@ export function weightComparisonAnswer(contract: AskEvidenceContract): string | 
   if (Date.parse(first.at) === Date.parse(last.at)) return null;
   const difference = last.grams-first.grams;
   const change = difference === 0 ? "no change" : `${Math.abs(difference)/1000} kg ${difference > 0 ? "higher" : "lower"}`;
+  contract.answerSourceIds = ordered.map(measurement => measurement.sourceId);
+  if (/\btable\b/i.test(contract.scope.requestText)) {
+    return ['| Date | Weight |', '| --- | --- |', ...ordered.map(m => `| ${m.at.slice(0,10)} | ${m.grams/1000} kg |`)].join("\n")
+      + `\n\nAmong these retrieved measurements, the latest weight shows ${change} compared with the earliest.`;
+  }
   return `Among the retrieved weight notes, the earliest reports ${first.grams/1000} kg (${first.at.slice(0,10)}) and the latest reports ${last.grams/1000} kg (${last.at.slice(0,10)}): ${change}. This compares those retrieved reports only. I can't verify that they are the lifetime endpoints or that all corrections have been found.`;
 }

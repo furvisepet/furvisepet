@@ -69,3 +69,18 @@ test('detached quantity or date metadata cannot override represented source span
   assert.equal(weightComparisonAnswer(contract),null);
  }
 });
+
+test('first and last weigh-ins compute a change without the literal word weight',async t=>{
+ clock(t);const run=await exercise('What did Milo weigh at the first and last recorded weigh-ins, and how much did it change?',{history:true,rows:[first,last]});
+ assert.match(run.result.reasoning.answer.summary,/0\.6 kg lower/);
+});
+test('weight table and comparison are rendered from validated measurements',async t=>{
+ clock(t);const run=await exercise('Give Milo two saved weights as a date-and-weight table, followed by one sentence comparing them.',{history:true,rows:[first,last]});
+ assert.match(run.result.reasoning.answer.summary,/\| Date \| Weight \|/);assert.match(run.result.reasoning.answer.summary,/0\.6 kg lower/);
+ assert.deepEqual(run.result.acceptedCareActions,[]);
+});
+
+test('table includes a later unambiguous pronoun weight sentence',async t=>{
+ clock(t);const run=await exercise('Give Milo saved weights as a date-and-weight table.',{history:true,rows:[first,{...last,note:'Milo is quiet. His appetite is normal. His weight today was 27.8 kg.'}]});
+ assert.match(run.result.reasoning.answer.summary,/\| 2026-08-19 \| 27\.8 kg \|/);
+});

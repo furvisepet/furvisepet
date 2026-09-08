@@ -74,6 +74,14 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     coverage: "partial", reasons: ["legacy_semantics_and_grouping_not_certified", "bounded_evidence_not_lifetime_total"],
     provenance: [], referenceStatus: follow ? "clarify" : "list" };
   const done = () => ({ ...context, episodeResult: result });
+  // A lifetime total across all illnesses is not a displayed-episode reference.
+  // The records cannot establish unrecorded lifetime events or a universal census.
+  if (!follow && !analyzeOwnerAssertions(message).hasOwnerAssertion
+    && /\b(?:ever|lifetime)\b/i.test(message) && /\billness(?:es)?\b/i.test(message)
+    && /\b(?:how many|number|total|count)\b/i.test(message)) {
+    result.reasons.push("all_illness_lifetime_total_unknown");result.coverage="ambiguous";
+    result.referenceStatus="clarify";return done();
+  }
   const deadline = Date.now()+5000;
   const signal = () => AbortSignal.timeout(Math.max(1,deadline-Date.now()));
   let refs: EpisodeReferences | null = null;

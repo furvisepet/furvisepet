@@ -326,3 +326,9 @@ test('route-facing subject resolution keeps complete thanks conversational',asyn
  assert.equal(subject.requiresClarification,false);assert.equal(subject.petId,'milo');assert.deepEqual(subject.petIds,[]);noWrites(r);
  }
 });
+
+test('exact lifetime illness total explains evidence limits across multiple pets',async t=>{
+ clock(t);const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+ const r=await exercise('Can you give me the exact number of illnesses these three pets have ever had?',{history:true,rows:[],fixturePets:pets.slice(0,3),messages:[],interpretationProposal:{...plan,operation:'count',readOperation:'count',petNames:pets.slice(0,3).map(p=>p.name),terms:['illness'],episodeTopic:null}});
+ assert.match(r.result.reasoning.answer.summary,/unrecorded/);assert.doesNotMatch(r.result.reasoning.answer.summary,/Which displayed/);noWrites(r);
+});

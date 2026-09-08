@@ -8,7 +8,7 @@ export function requestedHistoryLayout(question: string): Layout | null {
   // Only presentation vocabulary is recognized; episode/note quantities are not.
   // Quoted examples are data, not formatting commands.
   const text = question.replace(/"[^"]*"|\u201c[^\u201d]*\u201d/g, "");
-  const expression = /\b(?:(no|without)\s+(?:bullets?|lists?)|(one|a single)\s+paragraph|(?:numbered|ordered)\s+list|(?:in|into|as|use|give me|make it)\s+(?:(?:exactly|precisely)\s+)?(?:(?:a|an)\s+)?(?:(one|two|three|four|five|six|seven|eight|[1-8])\s+)?(?:(?:short|concise|brief)\s+)?(?:bullet\s+points?|bullets?|points|paragraphs?)|bullet\s+points)\b/gi;
+  const expression = /\b(?:(no|without)\s+(?:bullets?|lists?)|(one|a single)\s+paragraph|(?:numbered|ordered)\s+list|(?:in|into|as|use|using|give me|make it)\s+(?:(?:exactly|precisely)\s+)?(?:(?:a|an)\s+)?(?:(one|two|three|four|five|six|seven|eight|[1-8])\s+)?(?:(?:short|concise|brief)\s+)?(?:bullet\s+points?|bullets?|points|paragraphs?)|bullet\s+points)\b/gi;
   let layout: Layout | null = null;
   for (const match of text.matchAll(expression)) {
     const value = match[0].toLowerCase();
