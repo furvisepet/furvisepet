@@ -1,0 +1,50 @@
+{
+  "engine": "PostgreSQL 18.3 (PGlite 0.5.8) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit",
+  "migrations": 102,
+  "suites": [
+    {
+      "name": "ask_history_candidate_read",
+      "status": "passed",
+      "elapsedMs": 606
+    },
+    {
+      "name": "ask_history_latest_candidates",
+      "status": "passed",
+      "elapsedMs": 1833
+    },
+    {
+      "name": "ask_history_scoped_read",
+      "status": "passed",
+      "elapsedMs": 118
+    },
+    {
+      "name": "ask_lifetime_time_and_privileges",
+      "status": "passed",
+      "elapsedMs": 34
+    },
+    {
+      "name": "ask_lifetime_census",
+      "status": "passed",
+      "elapsedMs": 957
+    },
+    {
+      "name": "ask_century_census",
+      "status": "passed",
+      "elapsedMs": 3523
+    },
+    {
+      "name": "ask_century_scale",
+      "status": "passed",
+      "elapsedMs": 7810
+    }
+  ],
+  "callback": {
+    "status": "passed",
+    "output": "{\n  \"passed\": [\n    \"real writer: two episodes, four notes, recurrence, natural wording\",\n    \"old 2011 episode survives 26 newer irrelevant real writer entries\",\n    \"stored sequence 2 displays as ordinal 1 in the requested 2014 period\",\n    \"original four Milo stool-note meanings through real writer and callback establish two episodes\",\n    \"production callback + persisted reload: exact count, displayed second identity\",\n    \"Luna writer in Milo-anchored chat; pronoun/ordinal subject and persisted second reference retain Luna\",\n    \"70 relevant source notes counted as two episodes by SQL; bounded display\",\n    \"real duplicate import retains two episode identities and 70 unique care sources\",\n    \"committed mutation during generation invalidates undisplayed-source aggregate\",\n    \"source correction invalidates census and saved reference; idempotent replay deduplicated\",\n    \"soft deletion invalidates a previously valid saved first episode; hard deletion retains unknown completeness\"\n  ]\n}\nSynthetic owner and data cleaned up.\n(node:28) ExperimentalWarning: Transform Types is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:28) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/8923e735d806/furvise-db-readiness/app/lib/intelligence/retrieve-context.ts is not specified and it doesn't parse as CommonJS.\nReparsing as ES module because module syntax was detected. This incurs a performance overhead.\nTo eliminate this warning, add \"type\": \"module\" to /workspace/scratch/8923e735d806/furvise-db-readiness/package.json.\n✔ scripts/audits/ask-lifetime-postgres.mjs (11252.617424ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 11262.293406\n"
+  },
+  "cleanup": {
+    "users": 0,
+    "care_rows": 0,
+    "disabled_triggers": 0
+  }
+}
