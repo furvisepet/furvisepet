@@ -1,3 +1,4 @@
+import { presentReviewedHistory } from "./history-presentation.ts";
 import { recordedWeightGrams } from "./recorded-weight.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -10,7 +11,7 @@ export function buildWeightComparison(context: FurviseLiveContext, contract: Ask
   if (!context.askHistory || !["comparison", "record_lookup"].includes(contract.scope.requestKind) || contract.scope.authorizedPetIds.length !== 1
     || !/\bweigh(?:t|ts|ed|s|ing)?\b/i.test(context.currentMessage)
     || !(/\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage)
-      || /\b(?:change|difference|table)\b/i.test(context.currentMessage))) return undefined;
+      || /\b(?:change|difference|table|bullets?)\b/i.test(context.currentMessage))) return undefined;
   const petId = contract.scope.authorizedPetIds[0];
   const pet = context.eligiblePets.find(p => p.id === petId && p.user_id === context.owner.userId);
   if (!pet?.name) return undefined;
@@ -56,6 +57,10 @@ export function weightComparisonAnswer(contract: AskEvidenceContract): string | 
   const difference = last.grams-first.grams;
   const change = difference === 0 ? "no change" : `${Math.abs(difference)/1000} kg ${difference > 0 ? "higher" : "lower"}`;
   contract.answerSourceIds = ordered.map(measurement => measurement.sourceId);
+  if (/\bbullet(?:s| points?)?\b/i.test(contract.scope.requestText)) {
+    return presentReviewedHistory(ordered.map(m => `${m.at.slice(0,10)}: ${m.grams/1000} kg.`), contract.scope.requestText)
+      + "\n\nThese are the retrieved weight reports, not a complete lifetime history.";
+  }
   if (/\btable\b/i.test(contract.scope.requestText)) {
     return ['| Date | Weight |', '| --- | --- |', ...ordered.map(m => `| ${m.at.slice(0,10)} | ${m.grams/1000} kg |`)].join("\n")
       + `\n\nAmong these retrieved measurements, the latest weight shows ${change} compared with the earliest.`;

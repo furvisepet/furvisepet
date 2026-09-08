@@ -143,6 +143,20 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   }
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
   const named = explicitlyNamedOwnedPets(context.currentMessage, owned);
+  if (owned.length > 0 && owned.length <= 3 && !named.length && p.ordinal === null
+    && Array.isArray(p.petNames) && p.petNames.length <= 3 && p.petNames.every(name => owned.some(pet => pet.name === name))
+    && /\bwhich (?:of my )?pets?\b/i.test(context.currentMessage)
+    && /\b(?:notes?|records?|recorded|history)\b/i.test(context.currentMessage)
+    && !/\b(?:friend|sister|brother|neighbor|neighbour|someone else)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+    && [...reads, "clarify", "update"].includes(String(p.operation))) {
+    Object.assign(p, { operation: "comparison", readOperation: "comparison", subject: "explicit",
+      petNames: owned.map(pet => pet.name), selection: "summary", episodeTopic: null, frame: emptyProposedSemanticFrame() });
+  }
+  if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
+    && /\bweights?\b/i.test(context.currentMessage) && /\bbullet(?:s| points?)?\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion)
+    Object.assign(p, { operation: "comparison", readOperation: "comparison", selection: "summary" });
   // Which animal a saved correction describes is the fact to retrieve.
   // Search the bounded owned account; quoted external names grant no new owner.
   if (owned.length > 0 && owned.length <= 3
