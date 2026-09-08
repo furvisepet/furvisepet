@@ -349,7 +349,7 @@ test('compacted history transport preserves source text or records its omission'
  assert.equal(new Set(kept.map(span=>span.petId)).size,3);
  for(const row of many) {
  const span=kept.find(span=>span.sourceId==='care:'+row.id);
- if(span) assert.equal(span.text,'Note: '+row.note);
+ if(span) assert.equal(span.text,[row.title,row.note].filter(Boolean).join(': '));
  else assert.ok(evidence.losses.some(loss=>loss.sourceId==='care:'+row.id));
  }
  noWrites(r);
