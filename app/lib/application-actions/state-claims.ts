@@ -14,9 +14,17 @@ export function containsUnverifiedStateClaim(value: string) {
     const subject = value.slice(sentenceStart, match.index);
     const clause = value.slice(sentenceStart).split(/[.!?\n]/, 1)[0];
     const dataSubject = /\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(subject);
+    // Absence in a clinical note does not announce a successful app write.
+    const absentClinicalDetail = match[1].toLowerCase() === "recorded"
+      && /\bno\s+(?:(?:new|medication|medicine|diagnosis|diagnoses|name|dose|dosage|instructions?|treatment|or|and)\s*)+$/i.test(subject)
+      && !/\bby\s+Furvise\b/i.test(clause);
+    if (absentClinicalDetail) continue;
+    const after = value.slice(match.index! + match[0].length).split(/[.!?\n]/,1)[0];
+    const dietTransition = match[1].toLowerCase() === "changed"
+      && /^\s+(?:from\s+[^.!?,;]{1,100}\s+to\s+|to\s+)[^.!?,;]{0,100}\b(?:food|diet|kibble)\b/i.test(after);
     // A physical care event is not a claim that the application changed data.
     // This only classifies the speech act; source grounding is still required.
-    const physical = match[1].toLowerCase() === "changed" && physicalChangeSubject.test(before)
+    const physical = dietTransition || match[1].toLowerCase() === "changed" && physicalChangeSubject.test(before)
       || match[1].toLowerCase() === "completed" && physicalCourseSubject.test(before);
     if (!physical || dataSubject || applicationDestination.test(clause)) return true;
   }

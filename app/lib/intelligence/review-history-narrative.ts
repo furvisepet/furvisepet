@@ -68,6 +68,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
     || evidence.history.corrections === "unavailable"
     || /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)
     || result.safetyLevel === "urgent" || result.responseMode === "grief_support") return false;
+  if (requestedHistoryTimelineDays(evidence.scope.requestText, new Date().getUTCFullYear())) return false;
   if (withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence)) return false;
   const sources = usableSources(evidence);
   const ids = new Set(sources.map(source => source.sourceId));
@@ -116,9 +117,6 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
       providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REVIEW_INVALID" });
     if (parsed.status !== "completed" || !parsed.parsed?.approved || before !== signature(result)) return false;
     const retained = parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]);
-    const timelineDays = requestedHistoryTimelineDays(evidence.scope.requestText, new Date().getUTCFullYear());
-    if (timelineDays && timelineDays.some(day => sources.some(source => source.occurredAt?.slice(0,10) === day)
-      && !retained.some(sentence => sentence.sourceIds.some(id => sources.some(source => source.sourceId === id && source.occurredAt?.slice(0,10) === day))))) return false;
     // A table needs its header and at least one supported data row.
     if (parsePlainTable(proposedDraft.sentences.map(sentence => sentence.text).join("\n"))
       && !parsePlainTable(retained.map(sentence => sentence.text).join("\n"))) return false;

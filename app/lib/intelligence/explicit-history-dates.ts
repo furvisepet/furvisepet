@@ -2,8 +2,16 @@
 export function explicitHistoryDays(question: string, year: number, maximumDays = 2): string[] {
  const months=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
  const matches=[...question.matchAll(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:,?\s+(\d{4}))?\b/gi)];
- if(!Number.isInteger(year)||year<1900||year>2099||matches.length<1||!Number.isInteger(maximumDays)||maximumDays<1||maximumDays>8||matches.length>maximumDays) return [];
- const days=matches.map(m=>`${m[3]||year}-${String(months.indexOf(m[1].slice(0,3).toLowerCase())+1).padStart(2,'0')}-${m[2].padStart(2,'0')}`);
+ // A shared month in "September 13 and 14 entries" is still two explicit days.
+ const coordinated=matches.flatMap(m=>{
+  const tail=question.slice(m.index!+m[0].length);
+  const next=/^\s+and\s+(\d{1,2})(?:,?\s+(\d{4}))?(?=\s+(?:notes?|entries|reports?)\b|\s*[?.!,]|\s*$)/i.exec(tail);
+  if(next?.[2] && !m[3])m[3]=next[2];
+  return next ? [[next[0],m[1],next[1],next[2]||m[3]]] : [];
+ });
+ const labels=[...matches,...coordinated];
+ if(!Number.isInteger(year)||year<1900||year>2099||labels.length<1||!Number.isInteger(maximumDays)||maximumDays<1||maximumDays>8||labels.length>maximumDays) return [];
+ const days=labels.map(m=>`${m[3]||year}-${String(months.indexOf(m[1].slice(0,3).toLowerCase())+1).padStart(2,'0')}-${m[2].padStart(2,'0')}`);
  return days.every(d=>Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d&&d>='1900-01-01'&&d<'2100-01-01') ? days : [];
 }
 export function normalizeExplicitHistoryDates(p: Record<string,unknown>, question: string) {
