@@ -107,7 +107,8 @@ function ownerEvidenceSpans(message: string, evidence: string) {
 
 export function isQuestionClause(value: string) {
   const text = value.trim().replace(/^[\s"'“‘(\[{]+/u, "");
-  return text.endsWith("?") || leadingQuestion.test(text);
+  const question = text.replace(/^(?:in|from|according to)\s+[^,;.!?\n]{1,80}\b(?:notes?|records?|history|timeline|care log)\s*,\s*/i, "");
+  return text.endsWith("?") || leadingQuestion.test(question);
 }
 
 function normalize(value: string) {

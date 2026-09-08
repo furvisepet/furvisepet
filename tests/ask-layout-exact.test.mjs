@@ -20,3 +20,8 @@ test('bullet layout survives safe pronoun substitution without restoring changed
  assert.equal(preserveReviewedLayout('- Pip ate.\n- Pip played.','- He did not eat. - He played.'),'- He did not eat.\n- He played.');
  assert.equal(preserveReviewedLayout('- Pip ate.\n- Pip played.','He did not eat.'),'He did not eat.');
 });
+
+test('using two bullets is an explicit format request',()=>{
+ assert.deepEqual(requestedHistoryLayout('Summarize June and August, using two bullets.'),{style:'bullets',count:2});
+ assert.equal(presentReviewedHistory(['First.','Second.','Third.'],'Summarize, using two bullets.'),'- First.\n- Second. Third.');
+});

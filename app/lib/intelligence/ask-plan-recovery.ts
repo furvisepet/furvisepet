@@ -1,3 +1,4 @@
+import { normalizeExplicitHistoryDates } from "./explicit-history-dates.ts";
 import { requestedCalendarInterval } from "./calendar-interval.ts";
 import { medicationReferencePet } from "./medication-reference.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
@@ -84,6 +85,7 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && Array.isArray(p.terms) && p.terms.length <= 6
     && p.terms.every(term => typeof term === "string" && term.length >= 3 && term.length <= 32
       && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term))) p.terms = [];
+  if (!analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) normalizeExplicitHistoryDates(p, context.currentMessage);
   // Complete only explicitly open-ended ranges. The strict validator still
   // rejects invalid dates, reversed ranges and missing bounds on closed ranges.
   if (p.operation !== "update") {
