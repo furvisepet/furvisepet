@@ -213,3 +213,12 @@ test('account-wide reads resolve every owned pet even with empty or partial mode
  const p=recoverAskInterpretation({...proposal,subject:'selected',petNames:[]},{...c,currentMessage:'For every pet, give the latest recorded weight and date.'});
  assert.equal(p.petIds.length,c.eligiblePets.length);
 });
+
+test('singular which-pet lookup survives recovery and strict subject validation',async t=>{
+ const c={...await context(t),currentMessage:'Which pet has both January and March weight notes at 4.2 kg?'}; c.eligiblePets=c.eligiblePets.slice(0,3);
+ const p={...proposal,operation:'general',readOperation:'general',subject:'non_pet',petNames:[],topic:'weight',terms:['weight']};
+ const read=recoverAskInterpretation(p,c);
+ assert.deepEqual(read.petIds,c.eligiblePets.filter(p=>p.user_id===c.owner.userId).map(p=>p.id));
+ assert.equal(read.readOnly,true);assert.ok(read.history);assert.equal(read.conversationOnly,undefined);
+ assert.throws(()=>recoverAskInterpretation({...p,petNames:['Foreign']},c));
+});

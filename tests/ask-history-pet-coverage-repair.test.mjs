@@ -187,3 +187,13 @@ test('old reports cannot become an unattributed present food state even if a rev
  r.historyNarrative.sentences[0].text='The January 1 note says Aster eats wet food.';
  const receipt=await review(r);assert.match(receipt.text,/January 1 note/);
 });
+
+test('cleanup cannot leave only a disclaimer or restore a false save claim',async()=>{
+ const e=fixture(['a']);const r=result(e);r.historyNarrative.sentences[0].text='I recorded Aster ate wet food.';
+ await review(r);
+ const v=validateGeneratedAnswer(r,context,'routine',['a']);
+ assert.equal(v.valid,true,v.errors.join(','));assert.match(v.response.answer.summary,/Aster ate wet food/);
+ assert.doesNotMatch(v.response.answer.summary,/I recorded/);
+ assert.ok(v.repairs.includes('replaced_disclaimer_only_history_with_sources'));
+ assert.deepEqual(v.response.relevantContextIds,['care:a']);
+});
