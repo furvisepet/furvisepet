@@ -610,3 +610,12 @@ test('dated diagnosis question cannot ask which already-named pet',async t=>{
  assert.deepEqual(r.context.askInterpretation.petIds,['oscar']);assert.equal(r.context.askInterpretation.clarification,null);
  assert.match(r.result.reasoning.answer.summary,/not recorded a diagnosis/);assert.doesNotMatch(r.result.reasoning.answer.summary,/Which pet/);noWrites(r);
 });
+
+test('reviewed litter changes retain two bullets through final presentation', async t => {
+ clock(t);
+ const entries=[care('move','milo','2026-07-05','general','Milo litter tray moved from the spare room to the laundry room and changed to scented litter.'),care('restore','milo','2026-07-10','general','Milo litter tray returned to the spare room and unscented litter together.')];
+ const sentences=[{text:'On July 5, Milo litter tray was moved from the spare room to the laundry room and the litter was changed to scented litter.',sourceIds:['care:move']},{text:'On July 10, Milo litter tray was returned to the spare room and the litter was changed back to unscented.',sourceIds:['care:restore']}];
+ const r=await exercise('Please summarize Milo July litter changes in two bullets.',{history:true,rows:entries,messages:[],interpretationProposal:{...plan,topic:'litter',terms:['litter']},providerOverrides:{historyNarrative:{sentences:[{text:sentences.map(s=>s.text).join(' - '),sourceIds:['care:move','care:restore']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ assert.equal(r.result.reasoning.answer.summary.split('\n').filter(line=>line.startsWith('- ')).length,2,JSON.stringify(r.result.reasoning.answer.summary));
+ noWrites(r);
+});
