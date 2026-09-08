@@ -31,6 +31,19 @@ export function presentReviewedHistory(sentences: readonly string[], question: s
   if (!sentences.length) return "";
   const table = sentences.join("\n");
   if (parsePlainTable(table)) return table;
+  // Keep table rows and nearby prose in distinct blocks. Joining a closing row
+  // to its explanation makes an otherwise valid table impossible to render.
+  const runs: { table: boolean; texts: string[] }[] = [];
+  for (const sentence of sentences) {
+    const isTable = sentence.trim().split(/\r?\n/).every(line => /^\s*\|.*\|\s*$/.test(line));
+    const last = runs.at(-1);
+    if (last?.table === isTable) last.texts.push(sentence);
+    else runs.push({ table: isTable, texts: [sentence] });
+  }
+  if (runs.some(run => run.table && parsePlainTable(run.texts.join("\n")))) {
+    return runs.map(run => run.table ? run.texts.join("\n")
+      : presentReviewedHistory(run.texts, question)).join("\n\n");
+  }
   const layout = requestedHistoryLayout(question);
   const groups: string[][] = [];
   if (layout?.count) {
