@@ -24,6 +24,19 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
         petNames: [], topic: "dated note", terms: [], from: day, to: after, ordinal: null, episodeTopic: null, frame: emptyProposedSemanticFrame() });
     }
   }
+  // A whole-history change question has no named symptom to narrow to. Do not
+  // let a model-invented topic (for example medication) hide other changes.
+  const words = context.currentMessage.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+  const nameWords = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId)
+    .flatMap(pet => (pet.name || "").toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) || []));
+  const changeWords = new Set("in from according to the my pet pets notes history records what which has have had was were is are and but then later recently improved improvement better got get changed change changes came back returned return recur recurred recurrence for of about since that it his her their s health".split(" "));
+  if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
+    && /\b(?:notes|history|records)\b/i.test(context.currentMessage) && /\b(?:what|which)\b/i.test(context.currentMessage)
+    && /\b(?:improved|better|changed|changes|returned|recurred|came back)\b/i.test(context.currentMessage)
+    && words.every(word => changeWords.has(word) || nameWords.has(word))
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p, { operation: "overview", readOperation: "overview", selection: "summary", topic: "recorded changes", terms: [] });
+  }
   // Row ordering is not a request to discard all but the first measurement.
   if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
     && /\bweights?\b/i.test(context.currentMessage) && /\btable\b/i.test(context.currentMessage)

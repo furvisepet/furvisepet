@@ -447,3 +447,45 @@ test('dated-note reformulation refuses ambiguous, foreign, mutating and assistan
  assert.equal(datedNoteReformulation({...base,conversationTurns:[{role:'furvise',text:'How many accidents are in Luna July 8 note?'}]}),null);
  assert.equal(datedNoteReformulation({...base,currentMessage:base.currentMessage+' Also delete it.',conversationTurns:[{role:'user',text:'How many accidents are in Luna July 8 note?'}]}),null);
 });
+
+test('grouped source transport preserves every coverage field without changing server authority',async()=>{
+ const {compactHistorySourceCoverage}=await import('../../app/lib/ai/history-source-transport.ts');
+ const completeness={retrieval:'unknown',corrections:'partial',extraction:'unknown',grouping:'unknown'};
+ const sources=['milo','luna'].flatMap(petId=>[
+ {petId,source:'care_entries',status:'loaded',loadedIds:['care:'+petId],loadedCount:1,cap:25,reasons:['partial read'],completeness},
+ {petId,source:'memory',status:'loaded',loadedIds:['memory:omitted'],loadedCount:3,cap:100,reasons:['not certified'],completeness},
+ {petId,source:'episodes',status:'loaded',loadedIds:[],loadedCount:0,cap:40,reasons:['not certified'],completeness},
+ {petId,source:'corrections',status:'unavailable',loadedIds:[],loadedCount:0,cap:10,reasons:['failed'],completeness,loadedPeriod:{from:'2026-01-01',to:'2026-09-01'}}
+ ]);
+ const before=structuredClone(sources),ids=new Set(['care:milo','care:luna']);
+ const compact=compactHistorySourceCoverage(sources,ids);
+ const expanded=[...compact.sources,...compact.unrepresentedSourceGroups.flatMap(({members,...shared})=>members.map(member=>({...shared,...member})))];
+ const sort=xs=>xs.sort((a,b)=>(a.petId+':'+a.source).localeCompare(b.petId+':'+b.source));
+ assert.deepEqual(sort(expanded),sort(sources.map(s=>({...s,loadedIds:s.loadedIds.filter(id=>ids.has(id))}))));
+ assert.deepEqual(sources,before);
+});
+test('compact coverage leaves room for thirteen complete multi-pet food notes',async t=>{
+ clock(t);const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+ const fixturePets=pets.slice(0,3).map((p,i)=>({...p,id:'00000000-0000-4000-8000-'+String(i).padStart(12,'0')}));
+ const entries=Array.from({length:13},(_,i)=>care('10000000-0000-4000-8000-'+String(i).padStart(12,'0'),fixturePets[i%3].id,'2026-06-'+String(i+1).padStart(2,'0'),'food',fixturePets[i%3].name+' ate the recorded food today. '+ 'The owner recorded ordinary appetite and energy alongside the food observation. '.repeat(2)));
+ const r=await exercise('List recorded food for Milo, Luna and Oscar.',{history:true,rows:entries,fixturePets,petId:fixturePets[0].id,conversationPetId:fixturePets[0].id,messages:[],interpretationProposal:{...plan,operation:'comparison',readOperation:'comparison',selection:'comparison',petNames:fixturePets.map(p=>p.name),terms:['food']}});
+ for(const row of entries) assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:'+row.id&&s.text===row.note));
+ assert.ok(r.prompt.evidenceContract.unrepresentedSourceGroups.length);
+ assert.ok(r.result.reasoning.evidenceContract.sources.length>r.prompt.evidenceContract.sources.length);
+ noWrites(r);
+});
+
+test('whole-history improvement and recurrence does not inherit an invented medication filter',async t=>{
+ clock(t);
+ const entries=[care('course','oscar','2026-06-17','general','Oscar began a medication course.'),care('comfort','oscar','2026-07-01','general','Oscar was comfortable again.'),care('return','oscar','2026-08-12','symptom','Oscar was stiff again after a longer walk.')];
+ const r=await exercise("In Oscar's notes, what improved and what later came back?",{history:true,rows:entries,messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',selection:'reference',petNames:['Oscar'],terms:['medication']}});
+ assert.deepEqual(r.context.askInterpretation.history.terms,[]);
+ for(const row of entries) assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:'+row.id));noWrites(r);
+});
+test('a named symptom still keeps its topic filter in a change question',async t=>{
+ clock(t);const {normalizeAskReadProposal}=await import('../../app/lib/intelligence/ask-plan-recovery.ts');
+ const {pets,ownerId}=await import('./fixtures/ask-lifetime-history.mjs');
+ const context={owner:{userId:ownerId},eligiblePets:pets.slice(0,3),pet:pets[0],conversationTurns:[],currentMessage:"In Oscar's notes, what changed about his stiffness?"};
+ const p={...plan,terms:['stiffness']};
+ assert.deepEqual(normalizeAskReadProposal(p,context).terms,['stiffness']);
+});
