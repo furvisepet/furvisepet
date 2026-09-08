@@ -354,3 +354,24 @@ test('compacted history transport preserves source text or records its omission'
  }
  noWrites(r);
 });
+
+test('retrieval excludes future records even when narrative review falls back',async t=>{
+ clock(t);
+ for(const terms of [[],['stiffness']]) {
+ const r=await exercise('Summarize Milo stiffness history.',{history:true,rows:[care('past','milo','2026-06-04','symptom','Milo had stiffness.'),care('future','milo','2099-06-04','symptom','Milo had stiffness again.')],messages:[],interpretationProposal:{...plan,terms},providerOverrides:{historyNarrative:null},reviewResponse:{approved:false},expectedReviewCalls:1});
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/2099|again/);
+ assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:past'));
+ assert.ok(!r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:future'));noWrites(r);
+ }
+});
+test('explicit future-dated source lookup keeps attribution and time warning',async t=>{
+ clock(t);
+ const r=await exercise('Quote the future-dated June 4, 2099 stiffness note for Milo.',{history:true,rows:[care('future','milo','2099-06-04','symptom','Milo had stiffness again.')],messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',terms:['stiffness'],from:'2099-06-04',to:'2099-06-05'},providerOverrides:{historyNarrative:null}});
+ assert.match(r.result.reasoning.answer.summary,/future-dated/);
+ assert.match(r.result.reasoning.answer.summary,/2099-06-04/);noWrites(r);
+});
+test('mobility retrieval includes dated comfort reports',async t=>{
+ clock(t);
+ const r=await exercise('Does Milo September 3 improvement prove stiffness never returns?',{history:true,rows:[care('comfort','milo','2026-09-03','general','Milo was comfortable for three days.')],messages:[],interpretationProposal:{...plan,operation:'status',readOperation:'status',terms:['stiffness','improvement','return','never'],from:'2026-09-03',to:'2026-09-04'},providerOverrides:{historyNarrative:null},reviewResponse:{approved:false},expectedReviewCalls:1});
+ assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:comfort'));noWrites(r);
+});

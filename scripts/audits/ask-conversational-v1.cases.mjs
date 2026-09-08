@@ -288,7 +288,7 @@ test('mixed observations retrieve the requested period and retain independently 
 });
 
 test('dated status reports preserve improvement, resolution and later recurrence without certifying today', async t => {
-  clock(t);
+  clock(t); t.mock.timers.setTime(new Date('2026-09-08T12:00:00Z').getTime());
   const improvement = care('better', 'milo', '2026-08-20', 'symptom', 'Milo is vomiting less often but still vomited this morning.');
   const resolution = care('resolved', 'milo', '2026-09-04', 'symptom', 'Milo has had no more vomiting since August 20. The vet recorded the vomiting episode as resolved.');
   const recurrence = care('recurred', 'milo', '2026-09-05', 'symptom', 'Milo vomited again this morning.');

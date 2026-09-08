@@ -372,7 +372,9 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
         .map(proposal => supportedHistoryParaphrase(note.text, proposal.text, petName)).find(Boolean) : null;
       contract.answerSourceIds!.push(...group.map(item => item.sourceId));
       const anchored = !boundaryBlocked && !occurrenceUncertain && (selection.startsWith("earliest") || selection === "latest") && note === selected[0] && group.length === 1;
-      const content = natural ? unresolvedCorrection ? `The ${dates} note saved for ${petName} reports: ${natural}` : anchored ? natural : `${natural.replace(/[.!]$/, "")} (${dates}).`
+      const futureDated = group.some(item => !!item.occurredAt && Date.parse(item.occurredAt) > Date.now());
+      const content = futureDated ? `${petName} has a future-dated saved report (${dates}); this is not evidence that it has already happened: ${JSON.stringify(note.text)}`
+        : natural ? unresolvedCorrection ? `The ${dates} note saved for ${petName} reports: ${natural}` : anchored ? natural : `${natural.replace(/[.!]$/, "")} (${dates}).`
         : `${petName}'s ${dates} report: ${JSON.stringify(note.text)}`;
       contract.answerContent!.push(content);
       return content;
