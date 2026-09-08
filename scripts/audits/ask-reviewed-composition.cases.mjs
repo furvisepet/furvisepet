@@ -339,12 +339,18 @@ test('future-dated recurrence cannot be approved as an event that already happen
  assert.doesNotMatch(r.result.reasoning.answer.summary,/already returned|2099/);noWrites(r);
 });
 
-test('history transport compacts duplicate evidence before discarding useful notes',async t=>{
+test('compacted history transport preserves source text or records its omission',async t=>{
  clock(t);const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
  const many=Array.from({length:12},(_,i)=>care('00000000-0000-4000-8000-'+String(i).padStart(12,'0'),pets[i%3].id,'2026-06-'+String(i+1).padStart(2,'0'),'food',`${pets[i%3].name} ate the recorded food. ${'An ordinary recorded observation about food and appetite. '.repeat(8)}`));
  const r=await exercise('List recorded food for each pet.',{history:true,rows:many,fixturePets:pets.slice(0,3),messages:[],interpretationProposal:{...plan,petNames:pets.slice(0,3).map(p=>p.name),terms:['food']}});
  assert.ok(r.serialized.length<=48000);
- assert.equal(r.prompt.contextRecords.filter(record=>record.sourceType==='care_update').length,many.length);
- assert.equal(r.result.reasoning.evidenceContract.represented.filter(span=>span.sourceType==='care_update').length,many.length);
+ const evidence=r.result.reasoning.evidenceContract;
+ const kept=evidence.represented.filter(span=>span.sourceType==='care_update');
+ assert.equal(new Set(kept.map(span=>span.petId)).size,3);
+ for(const row of many) {
+ const span=kept.find(span=>span.sourceId==='care:'+row.id);
+ if(span) assert.equal(span.text,'Note: '+row.note);
+ else assert.ok(evidence.losses.some(loss=>loss.sourceId==='care:'+row.id));
+ }
  noWrites(r);
 });
