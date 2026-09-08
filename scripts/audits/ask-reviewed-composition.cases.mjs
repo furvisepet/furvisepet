@@ -409,7 +409,7 @@ test('food summary keeps explicit diet changes ahead of incidental eating matche
  care(p.id+'-change',p.id,'2026-08-02','food',p.name+' changed to turkey food.'),
  ...Array.from({length:4},(_,i)=>care(p.id+'-noise-'+i,p.id,'2026-08-'+(15+i),'general',p.name+' eats during quiet periods. '+ 'A separate ordinary observation about the surroundings. '.repeat(30)))
  ]);
- const r=await exercise('List the food recorded for each of Milo, Luna and Oscar.',{history:true,rows:entries,fixturePets:pets.slice(0,3),messages:[],interpretationProposal:{...plan,operation:'comparison',readOperation:'comparison',selection:'comparison',petNames:pets.slice(0,3).map(p=>p.name),terms:['food','eat']}});
+ const r=await exercise("Give a separate line for each pet's recorded food: Milo, Luna, Oscar.",{history:true,rows:entries,fixturePets:pets.slice(0,3),messages:[],interpretationProposal:{...plan,operation:'comparison',readOperation:'comparison',selection:'comparison',petNames:pets.slice(0,3).map(p=>p.name),topic:'weight',terms:['weigh']}});
  for(const p of pets.slice(0,3)) {
  const kept=r.result.reasoning.evidenceContract.represented.filter(s=>s.petId===p.id);
  assert.ok(kept.some(s=>s.sourceId==='care:'+p.id+'-before'));
@@ -423,7 +423,7 @@ test('a shorter dated-note count cannot become an episode clarification',async t
  const question='Can you explain that last answer more briefly?';
  const messages=[{id:'prior-q',user_id:ownerId,conversation_id:'chat',role:'user',user_text:'How many accidents are described in Luna July 8 note?',sequence_number:1}];
  const source=care('accidents','luna','2026-07-08','general','Luna urinated on the bath mat once yesterday and once today.');
- const r=await exercise(question,{history:true,rows:[source],messages,interpretationProposal:{...plan,operation:'count',readOperation:'count',subject:'conversation',petNames:[],selection:'summary',terms:[],from:null,to:null},providerOverrides:{historyNarrative:{sentences:[{text:'The note describes two accidents, one on July 7 and one on July 8.',sourceIds:['care:accidents']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ const r=await exercise(question,{history:true,rows:[source],messages,interpretationProposal:{...plan,operation:'count',readOperation:'count',subject:'conversation',petNames:[],selection:'summary',terms:[],from:null,to:null},providerOverrides:{historyNarrative:{sentences:[{text:'The note describes two accidents, one on July 7 and one on July 8.',sourceIds:['care:accidents']}]}},reviewResponse:{approved:true},expectedReviewCalls:0});
  assert.equal(r.context.askInterpretation.readOperation,'recall');
  assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:accidents'));
  assert.match(r.result.reasoning.answer.summary,/two accidents/);assert.doesNotMatch(r.result.reasoning.answer.summary,/Which symptom/);noWrites(r);

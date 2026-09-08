@@ -1,3 +1,4 @@
+import { withinNoteCountAnswer } from "./within-note-count.ts";
 import { hasUndatedHistoricalCareState } from "./historical-care-state.ts";
 import { calendarIntervalAnswer } from "./calendar-interval.ts";
 import { parsePlainTable } from "../plain-table.ts";
@@ -66,7 +67,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
     || evidence.history.corrections === "unavailable"
     || /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)
     || result.safetyLevel === "urgent" || result.responseMode === "grief_support") return false;
-  if (calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence)) return false;
+  if (withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence)) return false;
   const sources = usableSources(evidence);
   const ids = new Set(sources.map(source => source.sourceId));
   // A missing optional narrative must not prevent review of useful plain prose.

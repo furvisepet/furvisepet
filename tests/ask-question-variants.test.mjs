@@ -82,3 +82,12 @@ test('calendar endpoint reads do not depend on the model choosing recall',()=>{
  const foreign=normalizeAskReadProposal({...proposal('comparison'),petNames:['Unowned']},c);
  assert.deepEqual(foreign.petNames,['Unowned']);
 });
+
+test('broad recorded food resets stale weight terms but preserves ingredient-specific and malformed filters',()=>{
+ const p=normalizeAskReadProposal({...proposal('comparison'),terms:['weigh']},context("Give a separate line for each pet's recorded food: Pip."));
+ assert.ok(p.terms.includes('food'));assert.ok(!p.terms.includes('weigh'));
+ for(const q of ['Compare recorded food and weight for Pip.','Which recorded food contained chicken?']) {
+ const p=normalizeAskReadProposal({...proposal('comparison'),terms:['weigh']},context(q));assert.deepEqual(p.terms,['weigh']);
+ }
+ const bad=normalizeAskReadProposal({...proposal('comparison'),terms:['DROP;TABLE']},context('List recorded food for Pip.'));assert.deepEqual(bad.terms,['DROP;TABLE']);
+});

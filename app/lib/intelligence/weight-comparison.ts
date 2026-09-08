@@ -1,3 +1,4 @@
+import { requestedWeightMonths } from "./requested-weight-months.ts";
 import { presentReviewedHistory } from "./history-presentation.ts";
 import { recordedWeightGrams } from "./recorded-weight.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
@@ -15,7 +16,10 @@ export function buildWeightComparison(context: FurviseLiveContext, contract: Ask
   const petId = contract.scope.authorizedPetIds[0];
   const pet = context.eligiblePets.find(p => p.id === petId && p.user_id === context.owner.userId);
   if (!pet?.name) return undefined;
-  const rows = context.askHistory.entries.filter(row => row.pet_profile_id === petId && /\bweigh\w*\b/i.test(`${row.title || ""} ${row.note}`));
+  const months = requestedWeightMonths(context.currentMessage, new Date().getUTCFullYear());
+  const rows = context.askHistory.entries.filter(row => row.pet_profile_id === petId && /\bweigh\w*\b/i.test(`${row.title || ""} ${row.note}`)
+    && (!months || months.includes(row.occurred_at.slice(0,7))));
+  if (months && !months.every(month => rows.some(row => row.occurred_at.startsWith(month)))) return undefined;
   if (rows.length < 2 || rows.length > 32) return undefined;
   const measurements: WeightComparisonEvidence["measurements"] = [];
   for (const row of rows) {
