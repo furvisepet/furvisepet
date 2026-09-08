@@ -160,6 +160,17 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && p.terms.every(term => typeof term === "string" && term.length >= 3 && term.length <= 32 && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term))
     && [p.from,p.to].every(day => day === null || typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day)
       && Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0,10) === day);
+  if (sourceDays.length >= 1 && sourceDays.length <= 2 && named.length === 1 && validReadMetadata
+    && reads.has(String(p.operation)) && reads.has(String(p.readOperation))
+    && Array.isArray(p.petNames) && p.petNames.length <= 1 && p.petNames.every(name => name === named[0].name)
+    && /\b(?:notes?|entr(?:y|ies)|reports?)\b/i.test(context.currentMessage)
+    && !/\b(?:before|after|until|since|between|from|through|onward|last year|previous year|ago)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    const dates=[...sourceDays].sort();
+    Object.assign(p,{operation:"recall",readOperation:"recall",subject:"explicit",petNames:[named[0].name],
+      selection:dates.length===1?"reference":"period",terms:[],from:dates[0],
+      to:new Date(Date.parse(dates.at(-1)!)+86400000).toISOString().slice(0,10)});
+  }
   if (timelineDays && named.length === 1 && reads.has(String(p.operation)) && reads.has(String(p.readOperation))
     && validReadMetadata && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p,{operation:"recall",readOperation:"recall",selection:"period",terms:[],topic:"dated timeline",

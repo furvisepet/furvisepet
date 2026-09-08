@@ -390,7 +390,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
         : occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
         : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `
         : selection === "latest" ? `The latest matching update I could check for ${petName} is dated ${date}. ` : `${petName}'s recorded history: `;
-      reports.push(lead + sentences.join(" "));
+      reports.push(timelineDays ? sentences.join("\n\n") : lead + sentences.join(" "));
     } else {
       reports.push(missingHistoryPetLimitation(contract, petId));
     }

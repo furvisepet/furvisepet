@@ -501,12 +501,13 @@ test('explicit four-day timeline retains all requested evidence after latest-onl
  ];
  const r=await exercise('For Milo, list June 15, June 20, August 8 and August 10 in chronological order.',{
  history:true,rows:entries,messages:[],interpretationProposal:{...plan,operation:'general',readOperation:'general',selection:'latest',terms:[],from:null,to:null},
- providerOverrides:{historyNarrative:{sentences:[{text:'Milo stools were normal again on August 10.',sourceIds:['care:a10']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ providerOverrides:{historyNarrative:{sentences:[{text:'Milo stools were normal again on August 10.',sourceIds:['care:a10']}]}},reviewResponse:{approved:true},expectedReviewCalls:0});
  const answer=r.result.reasoning.answer.summary;
  for(const day of ['2026-06-15','2026-06-20','2026-08-08','2026-08-10'])assert.ok(answer.includes(day),answer);
  assert.ok(answer.indexOf('2026-06-15')<answer.indexOf('2026-06-20'));
  assert.ok(answer.indexOf('2026-06-20')<answer.indexOf('2026-08-08'));
  assert.ok(answer.indexOf('2026-08-08')<answer.indexOf('2026-08-10'));
+ for(const detail of ['two soft stools','normal for three days','one soft stool','normal again'])assert.ok(answer.includes(detail),answer);
  assert.doesNotMatch(answer,/brushing/);noWrites(r);
 });
 
@@ -526,4 +527,13 @@ test('correction lookup can name an outside animal without granting that animal 
  rows:[care('fix','milo','2026-08-20','general','Correction: the vomiting report was about my sister dog Bruno, not Milo. Milo did not vomit.')],
  interpretationProposal:{...plan,operation:'clarify',readOperation:'clarify',subject:'unclear',petNames:['Milo','Bruno'],terms:[],from:null,to:null}});
  assert.deepEqual(r.context.askInterpretation.petIds,['milo']);assert.match(r.result.reasoning.answer.summary,/Bruno/);assert.match(r.result.reasoning.answer.summary,/not Milo/);noWrites(r);
+});
+
+test('two named future entries survive an invented current-status plan',async t=>{
+ clock(t);const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+ const entries=[care('f13','oscar','2026-09-13','general','Oscar walks were shortened.'),care('f14','oscar','2026-09-14','general','Oscar looked stiff after a nap.')];
+ const r=await exercise("Do Oscar's September 13 and 14 entries prove a recurrence has already happened today?",{history:true,rows:entries,messages:[],fixturePets:pets.slice(0,3),
+ interpretationProposal:{...plan,operation:'status',readOperation:'status',petNames:['Oscar'],selection:'latest',terms:['recurrence'],from:'2026-09-04',to:'2026-09-05'}});
+ const answer=r.result.reasoning.answer.summary;
+ assert.match(answer,/2026-09-13/);assert.match(answer,/2026-09-14/);assert.match(answer,/future-dated/);assert.match(answer,/not evidence that it has already happened/);noWrites(r);
 });

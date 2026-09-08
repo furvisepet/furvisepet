@@ -115,3 +115,17 @@ test('explicit named correction lookup excludes the external name from authority
  const p=normalizeAskReadProposal({...proposal('clarify'),petNames:['Pip','Bruno'],subject:'unclear'},context('What does the August 20 correction say about Pip and Bruno?'));
  assert.equal(p.operation,'recall');assert.deepEqual(p.petNames,['Pip']);assert.deepEqual(p.terms,['correct','retract']);
 });
+
+test('shared month dates retain both literal days and the trailing year',async()=>{
+ const {explicitHistoryDays}=await import('../app/lib/intelligence/explicit-history-dates.ts');
+ assert.deepEqual(explicitHistoryDays('September 13 and 14 entries',2026),['2026-09-13','2026-09-14']);
+ assert.deepEqual(explicitHistoryDays('September 13 and 14, 2023 notes',2026),['2023-09-13','2023-09-14']);
+ assert.deepEqual(explicitHistoryDays('February 28 and 30 entries',2026),[]);
+ assert.deepEqual(explicitHistoryDays('September 13 and 14 kg',2026),['2026-09-13']);
+});
+test('explicit two-day source lookup overrides a stale current-status filter',()=>{
+ const q="Do Pip's September 13 and 14 entries prove a recurrence has already happened today?";
+ const p=normalizeAskReadProposal({...proposal('status'),selection:'latest',terms:['recurrence'],from:new Date().getUTCFullYear()+'-09-08',to:new Date().getUTCFullYear()+'-09-09'},context(q));
+ assert.equal(p.operation,'recall');assert.equal(p.selection,'period');assert.deepEqual(p.terms,[]);
+ assert.equal(p.from,new Date().getUTCFullYear()+'-09-13');assert.equal(p.to,new Date().getUTCFullYear()+'-09-15');
+});
