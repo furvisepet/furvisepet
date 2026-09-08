@@ -1,4 +1,5 @@
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
+import { compactHistorySourceCoverage } from "./history-source-transport.ts";
 import { getAiFeaturePolicy } from "./usage-guard/features.ts";
 import { estimateInputTokens } from "./usage-guard/cost-estimator.ts";
 import { historyNarrativeSchema, parseHistoryNarrative, type HistoryNarrative } from "../intelligence/history-narrative.ts";
@@ -310,6 +311,7 @@ export const askUnifiedJsonSchema = {
 } as const;
 
 const unifiedInstructions = [
+  "unrepresentedSourceGroups compress repeated source coverage. Each member retains its source name, loadedCount and cap; the enclosing group supplies its pet, status, reasons, completeness and empty represented-ID list. Loaded records without represented text are unavailable as answer evidence. Empty represented-ID lists never establish an absence in saved history.",
   "In compact history input, a contextRecord may omit its duplicated value and provide valueSource instead. Its complete unchanged text is in evidenceContract.represented.text, joined by sourceId = contextRecord.id. Read that source text with its pet and date metadata; the omission is transport deduplication, not missing evidence.",
   "You are Furvise, a calm, attentive pet-care companion. Return only strict JSON matching the supplied schema.",
   ...FURVISE_SHARED_PROMPT_RULES,
@@ -1119,7 +1121,8 @@ export function buildAskProviderRequest(promptContext: object) {
         return { ...metadata, valueSource: "evidenceContract.represented.text joined by sourceId = id" };
       }) } : {}),
       evidenceContract: { ...evidence,
-      sources: evidence.sources.map(source => ({ ...source, loadedIds: source.loadedIds.filter(id => represented.has(id)) })),
+      ...(evidence.scope.readOnlyRecall ? compactHistorySourceCoverage(evidence.sources, represented)
+        : { sources: evidence.sources.map(source => ({ ...source, loadedIds: source.loadedIds.filter(id => represented.has(id)) })) }),
       history: { ...evidence.history, candidateCount: evidence.history.candidateIds.length,
         provenance: evidence.history.provenance.filter(source => represented.has(source.sourceId)),
         provenanceStatusCounts: evidence.history.provenance.reduce<Record<string, number>>((counts, source) => {
