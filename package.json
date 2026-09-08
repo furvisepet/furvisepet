@@ -29,7 +29,7 @@
     "@supabase/ssr": "0.10.0",
     "@supabase/supabase-js": "^2.108.2",
     "@upstash/redis": "1.38.0",
-    "next": "16.2.12",
+    "next": "16.3.4",
     "openai": "^6.44.0",
     "pdf-lib": "^1.17.1",
     "react": "19.2.4",
@@ -42,7 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.2.12",
+    "eslint-config-next": "16.3.4",
     "supabase": "^2.111.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3"
