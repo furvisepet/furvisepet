@@ -401,3 +401,19 @@ test('reformulation references the prior user question without accepting assista
  const r=await exercise(question,{history:true,rows,messages,interpretationProposal:{...plan,operation:'recall',readOperation:'recall',subject:'conversation',petNames:[],terms:['stool'],from:'2026-06-15',to:'2026-06-16'}});
  assert.equal(JSON.parse(r.interpretationRequests[0].input).reformulation.priorUserQuestion,prior);noWrites(r);
 });
+
+test('food summary keeps explicit diet changes ahead of incidental eating matches',async t=>{
+ clock(t);const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+ const entries=pets.slice(0,3).flatMap(p=>[
+ care(p.id+'-before',p.id,'2026-06-04','food',p.name+' ate chicken food.'),
+ care(p.id+'-change',p.id,'2026-08-02','food',p.name+' changed to turkey food.'),
+ ...Array.from({length:4},(_,i)=>care(p.id+'-noise-'+i,p.id,'2026-08-'+(15+i),'general',p.name+' eats during quiet periods. '+ 'A separate ordinary observation about the surroundings. '.repeat(30)))
+ ]);
+ const r=await exercise('List the food recorded for each of Milo, Luna and Oscar.',{history:true,rows:entries,fixturePets:pets.slice(0,3),messages:[],interpretationProposal:{...plan,operation:'comparison',readOperation:'comparison',selection:'comparison',petNames:pets.slice(0,3).map(p=>p.name),terms:['food','eat']}});
+ for(const p of pets.slice(0,3)) {
+ const kept=r.result.reasoning.evidenceContract.represented.filter(s=>s.petId===p.id);
+ assert.ok(kept.some(s=>s.sourceId==='care:'+p.id+'-before'));
+ assert.ok(kept.some(s=>s.sourceId==='care:'+p.id+'-change'));
+ }
+ assert.ok(r.result.reasoning.evidenceContract.losses.length>0);noWrites(r);
+});
