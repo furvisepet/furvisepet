@@ -129,3 +129,29 @@ test('explicit two-day source lookup overrides a stale current-status filter',()
  assert.equal(p.operation,'recall');assert.equal(p.selection,'period');assert.deepEqual(p.terms,[]);
  assert.equal(p.from,new Date().getUTCFullYear()+'-09-13');assert.equal(p.to,new Date().getUTCFullYear()+'-09-15');
 });
+
+test('by-date bound works after the question subject and keeps competing ranges',()=>{
+ const year=new Date().getUTCFullYear();
+ const initial={...proposal('status'),selection:'period',terms:['food'],from:null,to:year+'-07-11'};
+ const p=normalizeAskReadProposal(initial,context('Did Pip finish changing food by July 10?'));
+ assert.equal(p.from,'1900-01-01');assert.equal(p.to,year+'-07-11');
+ for(const q of ['Did Pip finish after June 20 and by July 10?','Did Pip finish by July 10 last year?','Did Pip finish by July 10 or August 10?']) {
+  assert.equal(normalizeAskReadProposal(initial,context(q)).from,null,q);
+ }
+});
+test('missing medication documentation question retains explicit pet scope',()=>{
+ const q='Does a missing medicine name mean Pip was never prescribed anything?';
+ const initial={...proposal('clarify'),terms:['medicine'],selection:'reference'};
+ const p=normalizeAskReadProposal(initial,context(q));
+ assert.equal(p.operation,'recall');assert.deepEqual(p.petNames,['Pip']);assert.deepEqual(p.terms,['medic','prescri','course']);
+ for(const bad of [{...initial,petNames:['Bruno']},{...initial,terms:['%']},{...initial,episodeTopic:'vomiting'}])
+  assert.equal(normalizeAskReadProposal(bad,context(q)).operation,'clarify');
+ assert.equal(normalizeAskReadProposal(initial,context(q+' Pip vomited today.')).operation,'clarify');
+});
+test('missing recorded diagnosis cannot become a clinical nonoccurrence claim',()=>{
+ const sources=[{text:'I have not recorded a diagnosis or new medication instructions here.',petId:'a'}];
+ for(const text of ['The visit did not establish a diagnosis.','No diagnosis was made.','Pip was not diagnosed.'])
+  assert.equal(historyNarrativeAnchorsSupported(text,sources),false,text);
+ assert.equal(historyNarrativeAnchorsSupported('No diagnosis was recorded in the note.',sources),true);
+ assert.equal(historyNarrativeAnchorsSupported('The vet did not establish a diagnosis.',[{text:'The vet did not establish a diagnosis.'}]),true);
+});
