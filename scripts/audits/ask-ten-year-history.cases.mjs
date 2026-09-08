@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {exercise,clock,ASK_PROMPT_CONTEXT_CHAR_BUDGET} from './helpers/lifetime-harness.mjs';
-import {rows,routine,milestones,stressPets,ownerId,start,end} from './fixtures/ask-ten-year-history.mjs';
+import {rows,routine,stressPets,start,end} from './fixtures/ask-ten-year-history.mjs';
 import {emptyProposedSemanticFrame} from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
 const plan={operation:'recall',readOperation:'recall',selection:'summary',subject:'explicit',petNames:['Milo'],topic:'history',terms:[],from:null,to:null,ordinal:null,episodeTopic:null,frame:emptyProposedSemanticFrame()};
 async function run(t,q,p={},extra={}) {
@@ -11,7 +11,7 @@ async function run(t,q,p={},extra={}) {
  assert.deepEqual(r.result.acceptedCareActions,[]);assert.deepEqual(r.result.acceptedLearnings,[]);assert.deepEqual(r.result.acceptedSemanticEvents,[]);
  assert.equal(r.result.reasoning.proposedHistoryUpdate.shouldOffer,false);
  assert.ok(r.queries.length<80,'bounded retrieval query count');
- t.diagnostic(JSON.stringify({rows:rows.length,queries:r.queries.length,promptCharacters:r.serialized.length,question:q}));
+ t.diagnostic(JSON.stringify({rows:(extra.rows || rows).length,queries:r.queries.length,promptCharacters:r.serialized.length,question:q}));
  return r;
 }
 const includes=(r,id)=>assert.ok(r.prompt.contextRecords.some(s=>s.id==='care:'+id),'missing '+id);
@@ -46,4 +46,28 @@ test('late unlinked correction remains visible when asking about an old vomiting
 test('missing old medical result never becomes an invented diagnosis',async t=>{
  const r=await run(t,"What was Oscar's diagnosis in 2019?",{petNames:['Oscar'],terms:['diagnos'],from:'2019-01-01',to:'2020-01-01'},{answer:'Oscar had arthritis.'});
  assert.doesNotMatch(r.result.reasoning.answer.summary,/had arthritis/);
+});
+
+import {care} from './fixtures/ask-lifetime-history.mjs';
+const monthlyWeights=Array.from({length:120},(_,i)=>care('decade-monthly-'+i,'milo',new Date(Date.UTC(2016,8+i,15)).toISOString().slice(0,10),'weight',`Milo weighed ${(28+(i%5)/10).toFixed(1)} kg.`));
+const denseRows=[...rows,...monthlyWeights];
+const endpointQuestion='Compare Milo earliest and latest recorded weights and calculate the change.';
+test('120 intervening monthly weights retain both decade endpoints within existing budgets',async t=>{
+ const r=await run(t,endpointQuestion,{operation:'comparison',readOperation:'comparison',terms:['weigh']},{rows:denseRows});
+ includes(r,'decade-old-weight');includes(r,'decade-new-weight');
+ assert.match(r.result.reasoning.answer.summary,/0\.6 kg lower/);
+ assert.equal(r.context.askHistory.coverage.retrieval,'partial');
+ assert.match(r.result.reasoning.answer.summary,/retrieved|can't verify/);
+ assert.ok(r.context.askHistory.originals.length<=64);assert.ok(r.context.askHistory.coverage.perPet[0].pages<=4);
+ assert.ok(r.queries.some(q=>q.table==='read_ask_history_candidates_latest'));
+});
+test('failure at the newest end cannot manufacture a successful weight delta',async t=>{
+ const r=await run(t,endpointQuestion,{operation:'comparison',readOperation:'comparison',terms:['weigh']},{rows:denseRows,failHistoryPage:3});
+ assert.equal(r.context.askHistory.coverage.retrieval,'unavailable');
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/kg (?:lower|higher)/);
+});
+test('conflicting tied newest weights remain unsupported',async t=>{
+ const conflict=care('decade-latest-conflict','milo',end,'weight','Milo weighed 29.9 kg.');
+ const r=await run(t,endpointQuestion,{operation:'comparison',readOperation:'comparison',terms:['weigh']},{rows:[...denseRows,conflict]});
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/kg (?:lower|higher)/);
 });

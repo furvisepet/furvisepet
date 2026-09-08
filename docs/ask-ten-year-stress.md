@@ -13,3 +13,9 @@ Observed local run: nine checks pass. Each answer used 17-32 simulated queries a
 Repairs alongside this fixture normalize explicit elapsed-day requests across validated read operations; extract unambiguous recorded weight clauses while rejecting competing subjects/uncertainty; preserve separately requested pet lines; and explicitly instruct generation/review to retain the original question and uncertainty relationship on reformulation.
 
 No schema migration, model change, output-token increase or timeout increase is included. Live quality verification is required after deployment; prompt instructions are not deterministic entailment guarantees.
+
+## Denser monthly measurements
+
+A further 120 monthly weights (11,088 total entries) exposed a failed endpoint comparison: ascending-only retrieval stopped at 2021 and missed the 2026 measurement. The repair divides the existing 64 candidates and four pages between ascending and descending retrieval. It still discloses partial coverage and does not certify global semantic endpoints. Explicit endpoint arithmetic retains every tied endpoint, rejects conflicting quantities and refuses a delta when retrieval or source consistency fails.
+
+The expanded suite has 12 passing checks, including the dense comparison, an unavailable newest page and conflicting newest measurements. The dense comparison used 19 simulated queries and 27,204 input characters in the recorded run; no live provider calls. The overall default suite remains 2,405 top-level tests because these additional cases run inside its existing audit wrapper.
