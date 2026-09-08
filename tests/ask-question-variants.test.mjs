@@ -13,6 +13,7 @@ test('whose historical question and source-reference clause cannot authorize obs
   assert.equal(analyzeOwnerAssertions(q).hasOwnerAssertion,false,q);
  assert.equal(analyzeOwnerAssertions("Whose dog was the correction about? Pip vomited today.").hasOwnerAssertion,true);
  assert.equal(analyzeOwnerAssertions("It is Pip's note. He is vomiting.").hasOwnerAssertion,true);
+ assert.equal(analyzeOwnerAssertions("It is Pip's note, and he is vomiting today.").hasOwnerAssertion,true);
 });
 test('complete thanks variation avoids subject clarification without swallowing an observation',()=>{
  assert.equal(classifyUserTurn('Thanks a lot, that clears it up.').isLowValueAcknowledgement,true);

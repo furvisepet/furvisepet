@@ -1,5 +1,6 @@
 import { splitSentencesPreservingFacts } from "./text-segmentation.ts";
 
+const noteReference = /^(?:it|this|that) is [\p{L}][\p{L} '-]{0,80}['\u2019]s (?:note|entry|report)[.!?]*$/iu;
 const leadingQuestion = /^(?:and\s+|but\s+)?(?:can|could|did|do|does|has|have|how|is|may|might|should|was|were|what|when|where|which|who|whose|why|will|would)\b/i;
 const attributedHistory = /^(?:(?:and|but)\s+)?(?:(?:earlier|previously)\s*,?\s*)?(?:according to\b|in\s+(?:his|her|the)\s+(?:care log|history|memory|note|record|timeline)\b|(?:you|furvise|the assistant)\s+(?:also\s+|previously\s+)?(?:said|mentioned|noted|recorded|remembered|summari[sz]ed|told me)\b|(?:his|her|the)\s+(?:care log|history|memory|note|record|timeline)\s+(?:indicates|lists|mentions|notes|records|says|shows)\b|(?:i|we)\s+(?:asked|mentioned|reported|said|told you)\b)/i;
 const subjectAssertion = /\b(?:(?:i|we|he|she|they|it|this|that)\b|(?:my|our)\s+(?:animal|cat|dog|pet)\b|[A-Z][\p{L}'’-]{1,40}\b)\s+(?:(?:always|currently|never|now|often|sometimes|still|usually)\s+|['’](?:d|ll|re|s|ve)\s+)*(?:acting|am|are|ate|back|became|began|better|came|can|cannot|changed|continued|coughed|did|dislikes?|does|drank|felt|flinched|found|gave|getting|got|had|has|hates?|have|hides?|is|keeps?|likes?|limped|made|may|might|needs?|normal|noticed|observed|okay|prefers?|ran|refuses?|returned|saw|seems?|shops?|started|stopped|switched|takes?|thinks?|threw|uses?|vomited|was|weighs?|went|were|will|won't|worse)\b/iu;
@@ -149,7 +150,7 @@ function scopeIndependentClauses(sentence: string, sentenceStart: number): Owner
       start: sentenceStart + Math.max(0, localStart),
       end: sentenceStart + Math.max(0, localStart) + text.length,
       isAttributed: attributedHistory.test(text.trim())
-        || /^(?:it|this|that) is [\p{L}][\p{L} '-]{0,80}['\u2019]s (?:note|entry|report)[.!?]*$/iu.test(text.trim()),
+        || noteReference.test(text.trim()),
       isConditional: hypotheticalClause.test(text.trim()),
       isNegated: /\b(?:never|no\s+(?:further|more)|not)\b|n['â€™]t\b/i.test(text),
       isQuestion: isQuestionClause(text),
@@ -170,7 +171,7 @@ function scopeIndependentClauses(sentence: string, sentenceStart: number): Owner
     const prior = clauses[index - 1];
     const clause = clauses[index];
     const separator = sentence.slice(prior.end - sentenceStart, clause.start - sentenceStart);
-    if (prior.isAttributed && /\band\b/i.test(separator) && !correctionMarker.test(clause.text)) clause.isAttributed = true;
+    if (prior.isAttributed && !noteReference.test(prior.text.trim()) && /\band\b/i.test(separator) && !correctionMarker.test(clause.text)) clause.isAttributed = true;
     if (prior.isUncertain && /\band\b/i.test(separator)) {
       clause.isCertain = false;
       clause.isUncertain = true;
