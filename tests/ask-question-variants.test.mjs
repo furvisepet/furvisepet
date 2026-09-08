@@ -49,3 +49,12 @@ test('which-sign question does not invent a literal symptom filter',()=>{
  const specific=normalizeAskReadProposal(proposal('recall'),context('What did the notes say about itching returning?'));
  assert.deepEqual(specific.terms,['accident']);
 });
+
+test('which-pet saved-weight lookup resolves the bounded owned account, not a generic missing subject',()=>{
+ const c=context('Which pet has both April and August weight notes at 4.2 kg?');
+ c.eligiblePets.push({id:'b',name:'Fern',user_id:'owner'},{id:'x',name:'Other',user_id:'someone-else'});
+ const p=normalizeAskReadProposal({...proposal('general'),subject:'non_pet',petNames:[]},c);
+ assert.equal(p.operation,'comparison');assert.equal(p.subject,'explicit');assert.deepEqual(p.petNames,['Pip','Fern']);assert.deepEqual(p.frame.claims,[]);
+ const unrelated=normalizeAskReadProposal({...proposal('general'),subject:'non_pet',petNames:[]},context('Which pet should a friend adopt?'));
+ assert.equal(unrelated.subject,'non_pet');
+});

@@ -84,3 +84,11 @@ test('table includes a later unambiguous pronoun weight sentence',async t=>{
  clock(t);const run=await exercise('Give Milo saved weights as a date-and-weight table.',{history:true,rows:[first,{...last,note:'Milo is quiet. His appetite is normal. His weight today was 27.8 kg.'}]});
  assert.match(run.result.reasoning.answer.summary,/\| 2026-08-19 \| 27\.8 kg \|/);
 });
+
+test('weight bullets are composed from source measurements despite a disclaimer-only model answer',async t=>{
+ clock(t);const run=await exercise('Put Milo recorded weights into two bullet points.',{history:true,rows:[first,last],answer:'This covers only the available notes.'});
+ const text=run.result.reasoning.answer.summary;
+ assert.match(text,/- 2011-02-01: 28\.4 kg/);assert.match(text,/- 2026-08-19: 27\.8 kg/);
+ assert.equal((text.match(/^- /gm)||[]).length,2);
+ assert.deepEqual(run.result.acceptedCareActions,[]);
+});

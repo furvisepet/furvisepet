@@ -178,3 +178,12 @@ test('single-sentence history keeps its uncertainty in the same sentence', async
   assert.match(v.response.answer.summary, /uncertain/);
   assert.doesNotMatch(v.response.answer.summary, /\.\s+[A-Z]/);
 });
+
+test('old reports cannot become an unattributed present food state even if a reviewer would approve',async()=>{
+ const e=fixture(['a']);const r=result(e);r.historyNarrative.sentences[0].text='Aster eats wet food.';
+ let calls=0;
+ assert.equal(await reviewHistoricalAnswer({result:r,client:{responses:{create:async()=>{calls++;throw new Error('Must not request review');}}}}),false);
+ assert.equal(calls,0);assert.equal(readReviewedHistoryAnswer(r),null);
+ r.historyNarrative.sentences[0].text='The January 1 note says Aster eats wet food.';
+ const receipt=await review(r);assert.match(receipt.text,/January 1 note/);
+});

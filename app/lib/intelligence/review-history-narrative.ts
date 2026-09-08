@@ -1,3 +1,4 @@
+import { hasUndatedHistoricalCareState } from "./historical-care-state.ts";
 import { calendarIntervalAnswer } from "./calendar-interval.ts";
 import { parsePlainTable } from "../plain-table.ts";
 import { weightComparisonAnswer } from "./weight-comparison.ts";
@@ -77,6 +78,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
   }
   if (!proposedDraft) return false;
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence, text: stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) })).filter(sentence => sentence.sourceIds.every(id => ids.has(id))
+    && !hasUndatedHistoricalCareState(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId)))
     && historyNarrativeAnchorsSupported(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId)), evidence.interpretation?.referenceQuestion || evidence.scope.requestText)) };
   // A coverage caveat is not an answer, even if a reviewer would approve it.
   draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
