@@ -315,3 +315,13 @@ test('correction identity question retrieves the correction without assigning it
  const r=await exercise('Which dog was the vomiting correction about?',{history:true,fixturePets:pets.slice(0,3),rows:[care('correction-read','milo','2026-08-20','general','Correction to yesterday: that vomiting report was my sister dog Rufus, not Milo.')],messages:[],interpretationProposal:{...plan,operation:'general',readOperation:'general',subject:'non_pet',petNames:[],terms:[]}});
  assert.match(r.result.reasoning.answer.summary,/Rufus/);noWrites(r);
 });
+
+test('route-facing subject resolution keeps complete thanks conversational',async t=>{
+ clock(t);
+ const {readInterpretationSubject}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ for(const patch of [{operation:'update',readOperation:null},{operation:'general',readOperation:null},{operation:'recall',readOperation:'recall'}]) {
+ const r=await exercise('Thanks, that helps.',{history:true,rows,messages:[],interpretationProposal:{...plan,...patch,subject:'unclear',petNames:[],terms:[]},providerOverrides:{answer:'You are welcome.',historyNarrative:null}});
+ const subject=readInterpretationSubject(r.context.askInterpretation,'milo').resolution;
+ assert.equal(subject.requiresClarification,false);assert.equal(subject.petId,'milo');assert.deepEqual(subject.petIds,[]);noWrites(r);
+ }
+});

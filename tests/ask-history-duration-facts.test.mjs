@@ -40,3 +40,13 @@ test('uncertain or multiple measurements cannot establish a derived weight delta
  for(const text of ['Pip may weigh 11.8 kg.','Pip weighed 11.8 kg or 12 kg.','Pip did not weigh 11.8 kg.'])
    assert.equal(supported('Pip was 0.6 kg lower.',[weights[0],{...weights[1],text}],q),false);
 });
+
+test('explicit once yesterday and once today supports a within-note total, not episodes',()=>{
+ const q="How many accidents does Fern's July 8 note describe, and on which days?";
+ const source={text:'Fern urinated on the bath mat once yesterday and once today. I do not know the cause.',occurredAt:'2026-07-08T12:00:00Z',petId:'fern'};
+ assert.equal(supported('Two accidents: one on July 7 and one on July 8.',[source],q),true);
+ assert.equal(supported('Three accidents.',[source],q),false);
+ assert.equal(supported('Two episodes.',[source],q),false);
+ assert.equal(supported('Two accidents.',[{...source,text:'Fern may have urinated on the bath mat once yesterday and once today.'}],q),false);
+ assert.equal(supported('Two accidents.',[source],'How many accidents has Fern ever had?'),false);
+});

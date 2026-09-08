@@ -51,6 +51,16 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   });
   const supportedDates = new Set(sourceDates.flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
   const supportedQuantities = new Set(sources.flatMap(source => quantities(source.text)));
+  // Two separately dated, explicitly reported urination events can support a
+  // count within that note. This never authorizes illness-episode totals.
+  if (/\bhow many accidents\b/i.test(requestText) && /\b(?:note|entry|report)\b/i.test(requestText)
+    && !/\b(?:ever|lifetime|episodes?)\b/i.test(requestText)) {
+    for (const source of sources) {
+      const sentence = source.text.split(/(?<=[.!?])\s+/).find(part =>
+        /\burinated on\b[^.!?]{1,80}\bonce yesterday and once today\b/i.test(part));
+      if (sentence && !/\b(?:not|never|may|might|maybe|could|if|whether|possibly)\b/i.test(sentence)) supportedQuantities.add("2:accident");
+    }
+  }
   // Permit arithmetic only for explicit, dated measurements of the same pet.
   // Semantic review remains responsible for direction and endpoint relevance.
   if (/\bweight\b/i.test(requestText) && /\b(?:change|difference|earliest|latest)\b/i.test(requestText)) {
