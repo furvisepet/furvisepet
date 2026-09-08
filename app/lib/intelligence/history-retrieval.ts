@@ -174,6 +174,12 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const relevantIds = new Set(relevant.map(entry => entry.id));
   const ordered = orderHistoryEvidence(matchingEntries, selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
     selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1 : undefined);
+  // Broad food summaries should retain explicit diet records before incidental
+  // appetite/eating matches. This is ranking only; keep all candidates and losses.
+  if (["summary", "comparison"].includes(selection || "") && /\b(?:foods?|diet)\b/i.test(context.currentMessage)) {
+    const explicitFood = (entry: CareEntryRow) => /\b(?:food|diet|kibble|treats?)\b/i.test(`${entry.title || ""} ${entry.note}`) ? 0 : 1;
+    ordered.sort((a, b) => explicitFood(a) - explicitFood(b));
+  }
   if (selection?.startsWith("earliest") || descending) {
     // Save the effective boundary BEFORE either evidence budget. Final rendering
     // checks these IDs against the actual represented spans, never row counts.
