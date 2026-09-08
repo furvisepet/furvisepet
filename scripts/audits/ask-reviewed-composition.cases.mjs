@@ -564,3 +564,14 @@ test('an approving reviewer cannot turn an unrecorded diagnosis into no diagnosi
  assert.doesNotMatch(r.result.reasoning.answer.summary,/did not establish a diagnosis/);
  assert.match(r.result.reasoning.answer.summary,/not recorded a diagnosis/);noWrites(r);
 });
+
+test('standalone no cannot overstate a note with unrecorded diagnosis',async t=>{
+ clock(t);
+ const r=await exercise('Did the August 27 visit establish a diagnosis for Milo?',{history:true,messages:[],
+ rows:[care('missing-dx','milo','2026-08-27','vet_visit','The vet asked us to observe Milo comfort. I have not recorded a diagnosis or new medication instructions here.')],
+ interpretationProposal:{...plan,operation:'recall',readOperation:'recall',selection:'reference',terms:['diagnosis'],from:'2026-08-27',to:'2026-08-28'},
+ providerOverrides:{historyNarrative:{sentences:[{text:'No.',sourceIds:['care:missing-dx']},{text:'No diagnosis was recorded there.',sourceIds:['care:missing-dx']}]}},
+ reviewResponse:{approved:true},expectedReviewCalls:0});
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/^No[.!]/);
+ assert.match(r.result.reasoning.answer.summary,/not recorded a diagnosis/);noWrites(r);
+});
