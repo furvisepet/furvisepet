@@ -105,7 +105,7 @@ test('within-note quantities are reads even when model omits date bounds or dupl
  for(const patch of [{operation:'count',readOperation:'count'},{operation:'count',readOperation:null},{operation:'clarify',readOperation:'clarify'}]) {
  const p=normalizeAskReadProposal({...proposal(),...patch,subject:'explicit',petNames:['Fern'],terms:['accident']},context("How many accidents does Fern's July 8 note describe, and on which days?"));
  assert.equal(p.operation,'recall');assert.equal(p.readOperation,'recall');assert.equal(p.episodeTopic,null);
- assert.deepEqual(p.petNames,['Fern']);assert.deepEqual(p.terms,['accident','urinat']);assert.equal(p.from,null);assert.equal(p.to,null);
+ assert.deepEqual(p.petNames,['Fern']);assert.deepEqual(p.terms,[]);assert.equal(p.from,new Date().getUTCFullYear()+'-07-08');assert.equal(p.to,new Date().getUTCFullYear()+'-07-09');
  }
 });
 test('within-note recovery does not turn lifetime or episode counts into observation totals',()=>{

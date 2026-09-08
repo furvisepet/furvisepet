@@ -1,6 +1,6 @@
 /** Resolve only two explicitly named calendar dates in an elapsed-day question. */
 export function requestedCalendarInterval(question: string, year: number) {
- if (!/\bhow many days\s+(?:are there|passed|elapsed|between|from|apart)\b/i.test(question)) return null;
+ if (!/\bhow many days\s+(?:are there|passed|elapsed|between|from|apart|separate)\b/i.test(question)) return null;
  const months=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
  const matches=[...question.matchAll(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:,?\s+(\d{4}))?\b/gi)];
  if(matches.length!==2 || !Number.isInteger(year) || year<1900 || year>2100) return null;
