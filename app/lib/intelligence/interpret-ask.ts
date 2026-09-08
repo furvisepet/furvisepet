@@ -1,4 +1,4 @@
-import { normalizeAskReadProposal, unavailableAskReadPlan } from "./ask-plan-recovery.ts";
+import { datedNoteReformulation, normalizeAskReadProposal, unavailableAskReadPlan } from "./ask-plan-recovery.ts";
 import { medicationReferencePet } from "./medication-reference.ts";
 import { normalizeHistoricalSearchTerms } from "./history-search-terms.ts";
 import "server-only";
@@ -27,6 +27,8 @@ export type AskInterpretation = {
   operation: Operation;
   /** Server-grounded question referent, never a source of medical facts. */
   referenceSubject?: { kind: "medication"; petId: string; attribute: "name" | "dose" };
+  /** Prior user question, derived by the server and bound to this dated read. */
+  referenceQuestion?: string;
   /** Server-derived general conversation scope; no pet evidence or writes. */
   conversationOnly?: boolean;
   /** No saved-data or write authority after failed planning. */
@@ -209,7 +211,11 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
     && owned.find(pet => pet.id === petIds[0])?.name === medicationReferent.name
     ? { kind: "medication" as const, petId: petIds[0],
       attribute: /\bdose\b/i.test(context.currentMessage) ? "dose" as const : "name" as const } : undefined;
+  const reference = datedNoteReformulation(context);
+  const referenceQuestion = reference && readOperation === "recall" && !clarification && petIds.length === 1
+    && petIds[0] === reference.petId && p.from === reference.day && p.to === reference.after ? reference.question : undefined;
   return { version: "ask-interpretation.v1", operation, readOperation, selection, petIds, topic: p.topic,
+    ...(referenceQuestion ? { referenceQuestion } : {}),
     ...(referenceSubject ? { referenceSubject } : {}), ...(conversationOnly ? { conversationOnly: true } : {}), readOnly: conversationOnly || !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
     episodeTopic: p.episodeTopic as AskInterpretation["episodeTopic"], ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: historical && !clarification ? { terms, from: p.from ? `${p.from}T00:00:00.000Z` : null,

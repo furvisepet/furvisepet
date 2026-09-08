@@ -77,12 +77,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
   }
   if (!proposedDraft) return false;
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence, text: stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) })).filter(sentence => sentence.sourceIds.every(id => ids.has(id))
-    && historyNarrativeAnchorsSupported(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId)), evidence.scope.requestText)) };
+    && historyNarrativeAnchorsSupported(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId)), evidence.interpretation?.referenceQuestion || evidence.scope.requestText)) };
   // A coverage caveat is not an answer, even if a reviewer would approve it.
   draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
   if (!sources.length || !draft.sentences.length) return false;
   const requestInput = JSON.stringify({
     today: new Date().toISOString(), question: evidence.scope.requestText,
+    referenceQuestion: evidence.interpretation?.referenceQuestion || null,
     scope: evidence.scope, plan: evidence.interpretation, petNames: evidence.petNames,
     coverage: evidence.history, losses: evidence.losses, sources, draft: { sentences: draft.sentences.map((sentence, index) => ({ ...sentence, index })) },
   });
