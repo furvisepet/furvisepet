@@ -228,7 +228,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
     }
     // Arbitrary narrative is not an evidence claim. Only complete source reports
     // and independently computed episode results have factual authority.
-    if (kind !== "count" && contract.history) return calendarIntervalAnswer(contract) || weightComparisonAnswer(contract) || attributedHistoryAnswer(contract, false, synthesis);
+    if (kind !== "count" && contract.history) return calendarIntervalAnswer(contract) || correctionReportAnswer(contract) || weightComparisonAnswer(contract) || attributedHistoryAnswer(contract, false, synthesis);
     if (kind !== "count") return null;
   }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";

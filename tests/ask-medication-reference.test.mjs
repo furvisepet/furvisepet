@@ -99,3 +99,18 @@ test('correction subject lookup survives mistaken update and guessed external mo
  const p=normalizeAskReadProposal({...proposal(),operation:'update',readOperation:null,petNames:['Rufus'],episodeTopic:'vomiting'},context('Which dog was the August vomiting correction about?'));
  assert.equal(p.operation,'recall');assert.deepEqual(p.petNames,['Pip','Fern']);assert.equal(p.episodeTopic,null);assert.deepEqual(p.frame.claims,[]);
 });
+
+
+test('within-note quantities are reads even when model omits date bounds or duplicates a clarification',()=>{
+ for(const patch of [{operation:'count',readOperation:'count'},{operation:'count',readOperation:null},{operation:'clarify',readOperation:'clarify'}]) {
+ const p=normalizeAskReadProposal({...proposal(),...patch,subject:'explicit',petNames:['Fern'],terms:['accident']},context("How many accidents does Fern's July 8 note describe, and on which days?"));
+ assert.equal(p.operation,'recall');assert.equal(p.readOperation,'recall');assert.equal(p.episodeTopic,null);
+ assert.deepEqual(p.petNames,['Fern']);assert.deepEqual(p.terms,['accident','urinat']);assert.equal(p.from,null);assert.equal(p.to,null);
+ }
+});
+test('within-note recovery does not turn lifetime or episode counts into observation totals',()=>{
+ for(const q of ['How many accidents has Fern ever had according to the note?','How many separate episodes does the note establish?']) {
+ const p=normalizeAskReadProposal({...proposal(),operation:'count',readOperation:'count'},context(q));
+ assert.equal(p.operation,'count');
+ }
+});

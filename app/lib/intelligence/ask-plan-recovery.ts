@@ -40,11 +40,19 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && /\b(?:stools?|accidents?|tablets?|doses?|courses?)\b/i.test(quantityWording);
   const documentedCourses = /\bmedication courses?\b/i.test(quantityWording)
     && /\b(?:explicitly described|recorded|documented|in (?:the )?(?:notes|records))\b/i.test(quantityWording);
-  if (p.operation === "count" && p.readOperation === "count" && p.ordinal === null
-    && (datedQuantity || documentedCourses)
+  const withinNoteQuantity = /\bhow many\s+(?:stools?|accidents?|tablets?|doses?|courses?)\b/i.test(quantityWording)
+    && /\b(?:note|entry|report)\b/i.test(quantityWording);
+  if (["count", "clarify", "recall"].includes(String(p.operation))
+    && (p.readOperation === null || ["count", "clarify", "recall"].includes(String(p.readOperation))) && p.ordinal === null
+    && (datedQuantity || documentedCourses || withinNoteQuantity)
     && !/\b(?:episodes?|ever|lifetime|separate|distinct)\b/i.test(quantityWording)
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "recall", readOperation: "recall", selection: datedQuantity ? "reference" : "summary", episodeTopic: null });
+    // A note can describe an accident using the observation rather than the label.
+    if (withinNoteQuantity && /\baccidents?\b/i.test(quantityWording)
+      && Array.isArray(p.terms) && p.terms.length > 0 && p.terms.length < 6
+      && p.terms.every(term => typeof term === "string" && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term)
+        && term.length >= 3 && term.length <= 32) && !p.terms.includes("urinat")) p.terms = [...p.terms, "urinat"];
   }
   // The requested unit determines the read task. A duration remains a
   // historical read even when its endpoints mention symptoms or episodes.
