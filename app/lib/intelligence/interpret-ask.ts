@@ -143,7 +143,8 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
   const focus = state.entities.find(entity => entity.key === state.currentFocusKey);
   const pronouns = context.currentMessage.match(/\b(?:he|him|his|she|her|hers|they|them|their|it|its)\b/gi) || [];
   const ambiguousPronoun = !named.length && pronouns.some(pronoun => resolveRecentPronoun(state, pronoun).status === "ambiguous");
-  const accountWide = !named.length && /\b(?:all (?:of )?my pets|all (?:of )?our pets|across my pets|which (?:of my )?pets|(?:each|every) (?:of my )?pet|(?:my|the|these|all) (?:two|three|[23]) pets)\b/i.test(context.currentMessage)
+  const accountWide = !named.length && (/\b(?:all (?:of )?my pets|all (?:of )?our pets|across my pets|which (?:of my )?pets|(?:each|every) (?:of my )?pet|(?:my|the|these|all) (?:two|three|[23]) pets)\b/i.test(context.currentMessage)
+    || /\bwhich pet\b/i.test(context.currentMessage) && /\b(?:notes?|records?|recorded|history)\b/i.test(context.currentMessage))
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion;
   const correctionSubjects = !named.length && /\bwhich (?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
     && /\b(?:correction|corrected (?:note|report)|retraction)\b/i.test(context.currentMessage)

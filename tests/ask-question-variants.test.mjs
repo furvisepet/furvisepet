@@ -58,3 +58,11 @@ test('which-pet saved-weight lookup resolves the bounded owned account, not a ge
  const unrelated=normalizeAskReadProposal({...proposal('general'),subject:'non_pet',petNames:[]},context('Which pet should a friend adopt?'));
  assert.equal(unrelated.subject,'non_pet');
 });
+
+test('explicit interval endpoints override a valid but wrong model range without accepting invalid dates',()=>{
+ const c=context("How many days separate Pip's April 3 and April 9 notes?");
+ const p=normalizeAskReadProposal({...proposal('recall'),from:'2026-05-01',to:'2026-05-02'},c);
+ assert.equal(p.from,new Date().getUTCFullYear()+'-04-03');assert.equal(p.to,new Date().getUTCFullYear()+'-04-10');assert.deepEqual(p.terms,[]);
+ const invalid=normalizeAskReadProposal({...proposal('recall'),from:'2026-02-30',to:'2026-03-01'},c);
+ assert.equal(invalid.from,'2026-02-30');
+});

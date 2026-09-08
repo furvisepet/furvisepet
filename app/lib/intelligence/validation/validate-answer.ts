@@ -8,7 +8,7 @@ import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-inte
 import { neutralizeMalformedPetReferences, normalizePetVisibleAnswer } from "../../ask-safety-context.ts";
 import type { FurviseLiveContext, IntelligenceSafetyLevel } from "../types.ts";
 import { memoryDisplayContent } from "../memory-integrity.ts";
-import { evidenceAnswerPolicy, resolutionStatusAnswer } from "../ask-evidence.ts";
+import { attributedHistoryAnswer, evidenceAnswerPolicy, resolutionStatusAnswer } from "../ask-evidence.ts";
 import { sourceNoteAnswer } from "../source-note-recall.ts";
 import { episodeAnswer } from "../episode-contract.ts";
 
@@ -183,6 +183,16 @@ export function validateGeneratedAnswer(
     // The unforgeable review receipt binds them to unchanged scoped evidence.
     response.answer.summary = [response.answer.summary, ...reviewedHistory.sourceReports].join("\n\n");
     repairs.push("preserved_review_source_supplements");
+  }
+  // If prose cleanup removed every substantive reviewed sentence, use the
+  // existing source-attributed fallback, never rejected model text.
+  if (!currentEmergency && reviewedHistory && response.evidenceContract?.history
+    && /^This covers the matching saved notes I could verify, not necessarily every event in their life[.!]?$/i.test(response.answer.summary.trim())
+    && !response.answer.sections.length) {
+    response.answer.summary = attributedHistoryAnswer(response.evidenceContract);
+    response.relevantContextIds = [...(response.evidenceContract.answerSourceIds || [])];
+    response.referencedRecords = response.referencedRecords.filter(record => response.relevantContextIds.includes(record.id));
+    repairs.push("replaced_disclaimer_only_history_with_sources");
   }
   let answerText = JSON.stringify(response.answer);
   if (response.evidenceContract?.interpretation && scopedAnswer) {
