@@ -266,7 +266,7 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
   if (!contract.interpretation || !contract.history) return "";
   const history = contract.history;
   if (history.corrections === "unavailable") return "I couldn't check corrections to these records, so I can't rely on them yet.";
-  if (history.reasons.includes("unlinked_correction_uncertain")) return "A later correction could not be linked to its original report. I can summarize what the saved notes say, but cannot confirm which reports the correction changes or whether they still apply to this pet."
+  if (history.reasons.includes("unlinked_correction_uncertain")) return "An unlinked correction leaves attribution uncertain; I cannot confirm which reports it changes."
     + (history.retrieval === "unavailable" ? " Some saved records also couldn't be loaded." : history.retrieval === "partial" ? " This includes only part of the matching history." : "");
   if (history.retrieval === "unavailable") return "Some saved records couldn't be loaded. This covers only the notes I could check.";
   if (history.retrieval === "partial" || history.excludedIds.length || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "Some history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.";

@@ -229,7 +229,7 @@ test('conflicting unlinked reports remain uncertain and a failed correction read
   clock(t);
   const conflicting = care('conflict', 'milo', '2026-09-01', 'symptom', 'Correction: Luna vomited, not Milo.');
   const uncertain = await run('Remind me about his vomiting.', { operation: 'recall', topic: 'vomiting', terms: ['vomit'] }, { rows: [first, conflicting], answer: 'Milo definitely vomited.' });
-  assert.match(uncertain.result.reasoning.answer.summary, /later correction|reliably attribute/);
+  assert.match(uncertain.result.reasoning.answer.summary, /unlinked correction leaves attribution uncertain|reliably attribute/);
   assert.doesNotMatch(uncertain.result.reasoning.answer.summary, /definitely/);
   const unavailable = await run('Remind me about his vomiting.', { operation: 'recall', terms: ['vomit'] }, { rows: [first], failGraph: true });
   assert.equal(unavailable.context.askHistory.entries.length, 0);
