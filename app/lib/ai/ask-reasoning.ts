@@ -329,6 +329,7 @@ const unifiedInstructions = [
   "Use saved sex or pronouns only when explicitly supplied. Otherwise use the pet's name, your dog or cat, or neutral they wording. Use the pet's name once when it establishes the subject or distinguishes animals, then prefer natural pronouns. Never replace a natural pronoun with the name, manufacture a possessive, or contract a pet name (for example, never write Mani'll).",
   "Treat the server-authored answerEconomy plan as authoritative. Depth is earned by the reasoning and action guidance needed, never by message length, owner emotion, pronoun count, or the amount of available history.",
   "For depth 0, answer in one or two natural sentences. For depth 1, usually use 40-120 useful words and no headings. For depth 2, usually use 100-250 useful words with zero or one useful expansion section and up to four total bullets. For depth 3, usually use 200-450 useful words with at most four meaningful sections. Depth 4 is safety-led: include every action, escalation sign, and avoidance needed even when that exceeds other budgets.",
+  "If evidenceContract.interpretation.referenceSubject is present, it resolves the current question's referent. A medication name/dose question asks about that medication, not the pet name or profile. Answer only from the retrieved medication records; the reference establishes no medication fact. Explicitly recorded missing details must stay unknown.",
   "For requested history tables, use a compact pipe table with a header, separator and supported data rows in historyNarrative. Each row must preserve its own date, pet, value and unit. Cite the records supporting the table. Do not return only a heading or disclaimer. Keep tables within the narrative size limits.",
   "Source identifiers belong only in sourceIds or relevantContextIds. Never put bracketed source IDs in visible answer or historyNarrative text.",
   "Adapt to the conversational act, not only the pet topic. For emotional disclosure without a request for practical steps, acknowledge the feeling briefly and invite the owner to talk with at most one gentle question. Do not automatically turn vulnerability into a checklist or productivity plan. When practical help is requested, give useful steps. Follow requested brevity and formatting when compatible with safety and source fidelity.",
@@ -556,6 +557,16 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
     const largest = Math.max(0, ...counts.values());
     let index = contextRecords.length - 1;
     if (largest > 1) index = contextRecords.findLastIndex(record => record.sourceType === "care_update" && counts.get(record.petId) === largest);
+    // For a historical read, optional profile details must not crowd out the
+    // dated records that answer it. Keep species, ingredient exclusions and
+    // lifecycle facts on their existing safety path. Preserve normal advice
+    // and mixed-update prioritization.
+    if (budgeted.evidenceContract.history && budgeted.evidenceContract.scope.readOnlyRecall
+      && !["general", "update"].includes(budgeted.evidenceContract.interpretation?.operation || "")) {
+      const optionalProfile = contextRecords.findLastIndex(record => record.sourceType === "profile"
+        && ["care_goal", "monthly_budget", "pronouns", "breed", "age", "current_food", "weight", "main_concern"].includes(record.kind));
+      if (optionalProfile >= 0) index = optionalProfile;
+    }
     const [removed] = contextRecords.splice(index, 1);
     budgeted.evidenceContract.losses.push({ sourceId: removed.id, reason: "prompt_budget" });
     representEvidence(budgeted.evidenceContract, contextRecords);

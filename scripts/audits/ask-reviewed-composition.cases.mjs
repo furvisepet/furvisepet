@@ -251,3 +251,39 @@ test('reviewed table rows retain layout when the separator is omitted', async t 
  const r=await exercise('Show Milo recorded weight in a table.',{history:true,rows:[care('table-row','milo','2025-03-02','weight','Milo weighed 11.4 kg.')],messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',topic:'weight',terms:['weigh']},providerOverrides:{historyNarrative:{sentences:table.split('\n').map(text=>({text,sourceIds:['care:table-row']}))}},reviewResponse:{approved:true},expectedReviewCalls:1});
  assert.ok(r.result.reasoning.answer.summary.includes(table),r.result.reasoning.answer.summary);noWrites(r);
 });
+
+test('historical comparison keeps dated evidence before optional profile detail',async t=>{
+  clock(t);
+  const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+  const fixturePets=pets.map(p=>({...p,breed:'Mixed breed',age_value:6,age_unit:'years',weight_value:10,
+    current_food:'Complete adult dry food',main_concern:'Keeping an accurate history of changes',
+    wellness_goal:'Keep comfortable and active',monthly_budget:100,pronouns:'they/them',avoid_ingredients:['none recorded']}));
+  const comparisonRows=['milo','luna','oscar'].flatMap((pet,i)=>[
+    care(pet+'-first',pet,'2026-03-03','general',pet[0].toUpperCase()+pet.slice(1)+' weighed '+(10+i)+' kg today. Appetite was normal.'),
+    care(pet+'-last',pet,'2026-08-03','general',pet[0].toUpperCase()+pet.slice(1)+' weighed '+(9+i)+' kg today. Appetite was normal.'),
+  ]);
+  const r=await exercise('Compare recorded weight changes for Milo, Luna and Oscar.',{
+    history:true,rows:comparisonRows,messages:[],fixturePets,
+    interpretationProposal:{...plan,operation:'comparison',readOperation:'comparison',selection:'comparison',
+      petNames:['Milo','Luna','Oscar'],topic:'weight',terms:['weigh']}});
+  const evidence=r.result.reasoning.evidenceContract;
+  for(const row of comparisonRows){
+    assert.ok(evidence.represented.some(span=>span.sourceId==='care:'+row.id),'missing '+row.id);
+    assert.ok(!evidence.losses.some(loss=>loss.sourceId==='care:'+row.id));
+  }
+  assert.ok(evidence.represented.some(span=>span.sourceId==='profile:luna:avoid_ingredients'));
+  assert.ok(r.serialized.length<=48000);
+  noWrites(r);
+});
+
+test('explicit dated source lookup does not require the question synonym in the note',async t=>{
+  clock(t);
+  const source=care('dated-quantity','luna','2026-04-08','behavior',
+    'Luna urinated on the bath mat once yesterday and once today.');
+  const r=await exercise("How many accidents does Luna's April 8 note describe?",{
+    history:true,rows:[source],messages:[],
+    interpretationProposal:{...plan,operation:'recall',readOperation:'recall',selection:'reference',
+      petNames:['Luna'],topic:'accidents',terms:['accident'],from:'2026-04-08',to:'2026-04-09'}});
+  assert.ok(r.context.askHistory.entries.some(row=>row.id===source.id));
+  noWrites(r);
+});

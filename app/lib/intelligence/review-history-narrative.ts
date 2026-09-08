@@ -27,6 +27,7 @@ const instructions = [
   "Unlinked corrections: only attribute what a specific saved note reports; do not assert that disputed history definitively belongs to the pet. Reject any inference whose premises depend on an unresolved correction.",
   "Reject exact episode counts or ordinals inferred from numbers of notes. Reject first-ever, lifetime completeness, universal negatives, reassurance excluding serious disease, or claims of clinical certainty from a bounded subset.",
   "The retained subset must be coherent on its own: reject dangling references, unsupported conclusions, misleading omissions or dependent claims whose premises were removed. Select indexes in their original increasing order. If no supported, useful, coherent subset remains, return approved false with an empty index array. It must directly address the actual question, not simply list unrelated records. It may answer the supported part of a question. Avoid redundant record dumps.",
+  "If plan.referenceSubject is present, evaluate relevance against that resolved question referent. A pet name is not an answer to a medication-name question. Correct arithmetic derived from the cited quantities or dated endpoints is supported when the operands, units and conclusion match the question; a calculated duration does not establish how long a symptom persisted.",
   "General background or empathy may connect the answer, but must not introduce unsupported pet-specific facts or treatment instructions.",
   "Only supplied source IDs are evidence. Conversational context and prior assistant claims are not saved medical evidence. No statement that information was saved or updated is allowed.",
   "The server adds the coverage limitation separately. Its absence in the draft alone is not a reason to reject. Treat coverage as a constraint on what conclusions are supportable.",
@@ -72,7 +73,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
   }
   if (!proposedDraft) return false;
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence, text: stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) })).filter(sentence => sentence.sourceIds.every(id => ids.has(id))
-    && historyNarrativeAnchorsSupported(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId)))) };
+    && historyNarrativeAnchorsSupported(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId)), evidence.scope.requestText)) };
   // A coverage caveat is not an answer, even if a reviewer would approve it.
   draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
   if (!sources.length || !draft.sentences.length) return false;

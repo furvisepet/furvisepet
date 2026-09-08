@@ -1,4 +1,5 @@
 import { normalizeAskReadProposal, unavailableAskReadPlan } from "./ask-plan-recovery.ts";
+import { medicationReferencePet } from "./medication-reference.ts";
 import { normalizeHistoricalSearchTerms } from "./history-search-terms.ts";
 import "server-only";
 import OpenAI from "openai";
@@ -24,6 +25,8 @@ type Operation = typeof operations[number];
 export type AskInterpretation = {
   version: "ask-interpretation.v1";
   operation: Operation;
+  /** Server-grounded question referent, never a source of medical facts. */
+  referenceSubject?: { kind: "medication"; petId: string; attribute: "name" | "dose" };
   /** Server-derived general conversation scope; no pet evidence or writes. */
   conversationOnly?: boolean;
   /** No saved-data or write authority after failed planning. */
@@ -197,7 +200,13 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
   }
   const historical = !!readOperation && ["overview", "recall", "comparison", "status", "count"].includes(readOperation);
   const terms = normalizeHistoricalSearchTerms(recoveredTopic ? [recoveredTopic] : p.terms as string[]);
-  return { version: "ask-interpretation.v1", operation, readOperation, selection, petIds, topic: p.topic, ...(conversationOnly ? { conversationOnly: true } : {}), readOnly: conversationOnly || !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
+  const medicationReferent = readOperation === "recall" && !clarification ? medicationReferencePet(context) : null;
+  const referenceSubject = medicationReferent && petIds.length === 1
+    && owned.find(pet => pet.id === petIds[0])?.name === medicationReferent.name
+    ? { kind: "medication" as const, petId: petIds[0],
+      attribute: /\bdose\b/i.test(context.currentMessage) ? "dose" as const : "name" as const } : undefined;
+  return { version: "ask-interpretation.v1", operation, readOperation, selection, petIds, topic: p.topic,
+    ...(referenceSubject ? { referenceSubject } : {}), ...(conversationOnly ? { conversationOnly: true } : {}), readOnly: conversationOnly || !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion, clarification, frame: frameValidation.frame,
     episodeTopic: p.episodeTopic as AskInterpretation["episodeTopic"], ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: historical && !clarification ? { terms, from: p.from ? `${p.from}T00:00:00.000Z` : null,
       to: p.to ? `${p.to}T00:00:00.000Z` : null, interpretation: terms.length ? "lexical" : p.from ? "period" : "broad_comparison" } : null };
