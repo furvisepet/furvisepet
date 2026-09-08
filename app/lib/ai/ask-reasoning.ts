@@ -1,3 +1,4 @@
+import { directHistoryTimelineAnswer } from "../intelligence/direct-history-timeline.ts";
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
 import { compactHistorySourceCoverage } from "./history-source-transport.ts";
 import { getAiFeaturePolicy } from "./usage-guard/features.ts";
@@ -600,6 +601,24 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     throw new AskPipelineError("configuration_failed", "OPENAI_API_KEY is not configured.", { elapsedMs: 0, model: models.primary });
   }
   const context = buildAskContext(input);
+  const directTimeline = context.minimumSafetyLevel === "normal"
+    ? directHistoryTimelineAnswer(context.promptContext.evidenceContract) : null;
+  if (directTimeline) {
+    const evidence = context.promptContext.evidenceContract;
+    const ids = evidence.answerSourceIds || [];
+    return {
+      answer: {title:"Furvise",summary:directTimeline,sections:[],safetyNote:null}, evidenceContract:evidence,
+      userIntent:"history recall",relevantContextIds:ids,referencedRecords:context.records.filter(record=>ids.includes(record.id)),
+      safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
+      answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
+      responseMode:"practical_guidance",model:"server-history-timeline",
+      messageUnderstanding:{...defaultMessageUnderstanding(input.question),primaryIntent:"question",userIsAskingQuestion:true},
+      intelligenceSafety:{...defaultIntelligenceSafety("normal"),shoppingSuppressed:true},
+      learnings:[],careActions:[],semanticEvents:[],semanticFrame:emptyProposedSemanticFrame(),semanticFrameValid:true,
+      semanticFrameRecovery:{applied:false,reason:"NOT_ATTEMPTED_FRAME_VALID",validationReason:null},
+      intelligenceMetadata:{confidence:"high",usedPetContext:true,usedCareHistory:true,usedMemories:false},
+    };
+  }
   const request = buildProviderRequest(context.promptContext);
   const parseOutput = (rawText: string) => parseUnifiedResponse(rawText, context.records, input.semanticFrameRecovery
     ? {

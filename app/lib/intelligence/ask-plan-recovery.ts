@@ -176,6 +176,18 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     Object.assign(p,{operation:"recall",readOperation:"recall",selection:"period",terms:[],topic:"dated timeline",
       from:timelineDays[0],to:new Date(Date.parse(timelineDays.at(-1)!) + 86400000).toISOString().slice(0,10)});
   }
+  // A dated diagnosis question supplies both the owned pet and the visit.
+  if (named.length === 1 && sourceDays.length === 1 && validReadMetadata
+    && p.operation === "clarify" && p.readOperation === "clarify" && p.episodeTopic === null
+    && Array.isArray(p.petNames) && p.petNames.length <= 1 && p.petNames.every(name=>name===named[0].name)
+    && /\bdiagnos(?:is|ed)\b/i.test(context.currentMessage) && /\b(?:visit|appointment|examination)\b/i.test(context.currentMessage)
+    && /\b(?:received|establish(?:ed)?|given|made)\b/i.test(context.currentMessage)
+    && !/\b(?:before|after|by|until|since|between|from|through|onward|last year|previous year|ago|should)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p,{operation:"recall",readOperation:"recall",subject:"explicit",petNames:[named[0].name],
+      selection:"reference",terms:[],from:sourceDays[0],to:new Date(Date.parse(sourceDays[0])+86400000).toISOString().slice(0,10),
+      frame:emptyProposedSemanticFrame()});
+  }
   // Missing documentation is an evidence question, not an unidentified episode.
   if (named.length === 1 && validReadMetadata && p.from === null && p.to === null && p.episodeTopic === null
     && [...reads,"clarify"].includes(String(p.operation)) && [...reads,"clarify"].includes(String(p.readOperation))
