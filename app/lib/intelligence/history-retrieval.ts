@@ -1,4 +1,5 @@
 import "server-only";
+import { explicitHistoryDays } from "./explicit-history-dates.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, orderHistoryEvidence } from "./history-synthesis.ts";
 import { createHash } from "node:crypto";
 import { discoverDatedCorrectionNotes } from "./dated-correction-notes.ts";
@@ -83,7 +84,12 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const plan = context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
-  const deadline = Date.now() + HISTORY_BUDGET.timeMs;
+  const asOf = Date.now();
+  const namedDays = [...explicitHistoryDays(context.currentMessage, new Date(asOf).getUTCFullYear()),
+    ...(context.currentMessage.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])];
+  const futureSourceRequested = /\b(?:future[- ]dated|tomorrow)\b/i.test(context.currentMessage)
+    || namedDays.some(day => Date.parse(day) > asOf);
+  const deadline = asOf + HISTORY_BUDGET.timeMs;
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
@@ -109,13 +115,16 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           // The RPC derives auth.uid(). Never pass an owner or fall back to a
           // different lexical authority when its migration/service is missing.
           result = await db.rpc(descending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
-            p_pet_id: petId, p_terms: plan.terms, p_from: plan.from, p_to: plan.to,
+            p_pet_id: petId, p_terms: plan.terms,
+            p_from: plan.from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
+            p_to: futureSourceRequested ? plan.to : new Date(Math.min(plan.to ? Date.parse(plan.to) : Infinity, asOf + 1)).toISOString(),
             p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
           }).abortSignal(signal);
           if (result.error) coverage.reasons.push(signal.aborted || result.error.code === "57014" ? "candidate_rpc_timeout"
             : result.error.code === "55000" ? "candidate_rpc_timeout_configuration" : "candidate_rpc_unavailable");
         } else {
           let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
+          if (!futureSourceRequested) query = query.lt("occurred_at", new Date(asOf + 1).toISOString());
           if (plan.from) query = query.gte("occurred_at", plan.from).lt("occurred_at", plan.to!);
           if (cursor) query = query.or(`occurred_at.${descending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${descending ? "lt" : "gt"}.${cursor.id})`);
           result = await query.order("occurred_at", { ascending: !descending }).order("id", { ascending: !descending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
@@ -158,8 +167,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const selection = context.askInterpretation?.selection;
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
     context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);
-  const matchingEntries = entries.filter(entry => !plan.terms.length || plan.terms.some(term =>
-    `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase())));
+  const matchingEntries = entries.filter(entry => (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
+    && (!plan.terms.length || plan.terms.some(term =>
+    `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
   const relevantIds = new Set(relevant.map(entry => entry.id));
   const ordered = orderHistoryEvidence(matchingEntries, selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,

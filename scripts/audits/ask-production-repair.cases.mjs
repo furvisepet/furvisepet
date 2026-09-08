@@ -12,7 +12,7 @@ const stool = care('stool-source', 'milo', '2011-01-01', 'symptom', 'Milo had so
 const correction = care('unlinked-source', 'milo', '2026-09-06', 'general', 'Correction: the vomiting report was about Bruno, not Milo.');
 
 test('production reproduction: correction-limited digestive summary still presents saved reports', async t => {
-  clock(t);
+  clock(t); t.mock.timers.setTime(new Date('2026-09-08T12:00:00Z').getTime());
   const r = await exercise('Summarize Milo\u2019s stomach history.', {history: true, rows: [stool, correction], messages: [message('Milo had stomach trouble years ago.')], interpretationProposal: plan(),
     providerOverrides: {historySynthesis: [{sourceId: 'care:stool-source', text: stool.note}]}});
   console.log('CORRECTION SUMMARY FINAL:', final(r));
@@ -53,7 +53,7 @@ function reassignmentGraph() {
 }
 
 test('summary, correction-limited follow-up and authoritative Bruno reassignment preserve scope', async t => {
-  clock(t);
+  clock(t); t.mock.timers.setTime(new Date('2026-09-08T12:00:00Z').getTime());
   const rows = [stool, vomit, correction, care('milo-later', 'milo', '2014-01-01', 'symptom', 'Milo vomited after a walk.')];
   const messages = [message('Tell me about Milo.')];
   const opts = {history: true, fixturePets, rows, messages, graph: reassignmentGraph()};

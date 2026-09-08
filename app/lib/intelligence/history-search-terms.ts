@@ -7,7 +7,8 @@ export function normalizeHistoricalSearchTerms(terms: string[], question = ""): 
   if (!terms.length) return [];
   // Topic synonyms supplement model terms within the same bounded read scope.
   const additions = /\b(?:food|diet)\b/i.test(question) ? ["food", "treat"]
-    : /\blitter\b/i.test(question) ? ["litter", "tray", "urinat"] : [];
+    : /\blitter\b/i.test(question) ? ["litter", "tray", "urinat"]
+    : /\b(?:stiffness|stiff|mobility)\b/i.test(question) ? ["comfort"] : [];
   const expanded = [...terms];
   for (const term of additions) if (expanded.length < 6 && !expanded.includes(term)) expanded.push(term);
   return [...new Set(expanded.map(term => {
