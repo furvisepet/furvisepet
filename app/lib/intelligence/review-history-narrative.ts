@@ -1,3 +1,4 @@
+import { directHistoryExplanation } from "./direct-history-explanation.ts";
 import { requestedHistoryTimelineDays } from "./requested-history-timeline.ts";
 import { withinNoteCountAnswer } from "./within-note-count.ts";
 import { hasUndatedHistoricalCareState } from "./historical-care-state.ts";
@@ -69,7 +70,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
     || /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)
     || result.safetyLevel === "urgent" || result.responseMode === "grief_support") return false;
   if (requestedHistoryTimelineDays(evidence.scope.requestText, new Date().getUTCFullYear())) return false;
-  if (withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence)) return false;
+  if (directHistoryExplanation(evidence) || withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence)) return false;
   const sources = usableSources(evidence);
   // A missing diagnosis record cannot answer whether a diagnosis was established.
   // Preserve the attributed note instead of approving a misleading yes/no preface.

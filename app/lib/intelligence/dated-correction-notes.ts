@@ -34,7 +34,8 @@ export async function discoverDatedCorrectionNotes(originals: CareEntryRow[], pe
         // can still be unrelated; retain qualification instead of claiming a link.
         const previousDay = new Date(Date.parse(row.occurred_at) - 86400000).toISOString().slice(0, 10);
         const refersToPreviousDay = /\byesterday(?:['’]s)?\b/i.test(text)
-          && originals.some(original => original.pet_profile_id === petId && original.occurred_at.slice(0, 10) === previousDay);
+          && (originals.some(original => original.pet_profile_id === petId && original.occurred_at.slice(0, 10) === previousDay)
+            || !!coverage.plan.to && previousDay >= coverage.plan.from!.slice(0, 10) && previousDay < coverage.plan.to.slice(0, 10));
         if (!ids.has(row.id) && (new RegExp(`\\b${year}\\b`).test(text) || refersToPreviousDay)
           && /\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(text)) {
           ids.add(row.id); notes.push(row);

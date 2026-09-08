@@ -45,7 +45,9 @@ export type AskInterpretation = {
   clarification: "subject" | "reference" | null;
   frame: ProposedSemanticFrame;
 };
-export const ASK_INTERPRETATION_LIMITS = { outputTokens: 2600, timeoutMs: 15_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
+// Interpretation shares the route's 50-second orchestration budget; this cap
+// leaves 30 seconds for retrieval/generation. No extra provider call is added.
+export const ASK_INTERPRETATION_LIMITS = { outputTokens: 2600, timeoutMs: 20_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
 const nullableString = { type: ["string", "null"] };
 export const askInterpretationSchema = {
   type: "object", additionalProperties: false,
@@ -259,6 +261,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     instructions, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askInterpretationSchema } } };
   const started = Date.now();
   let attempted = false;
+  let providerSignal: AbortSignal | undefined;
   const fail = (reason: string, kind: string, extras: Partial<AskProviderEvent> = {}) => new AskPipelineError("interpretation_failed",
     "I couldn't understand the request reliably this time. Please try again.",
     { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ...extras });
@@ -269,7 +272,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       invoke: () => {
         attempted = true;
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
-        return activeClient.responses.create(request as never, { signal: AbortSignal.timeout(ASK_INTERPRETATION_LIMITS.timeoutMs) });
+        providerSignal = AbortSignal.timeout(ASK_INTERPRETATION_LIMITS.timeoutMs);
+        return activeClient.responses.create(request as never, { signal: providerSignal });
       } });
     // Parse transport/JSON separately from server validation. Never surface or
     // log the parser's raw error message, response text, refusal or field values.
@@ -294,7 +298,8 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       throw error; // preserve admission budgets and settlement classification
     }
     const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
-    const timedOut = error instanceof Error && ["AbortError", "TimeoutError", "APIConnectionTimeoutError"].includes(error.name);
+    const timedOut = providerSignal?.aborted === true
+      || error instanceof Error && ["TimeoutError", "APIConnectionTimeoutError"].includes(error.name);
     const failure = error instanceof AskPipelineError ? error : fail(timedOut ? "ASK_INTERPRETATION_TIMEOUT" : "ASK_INTERPRETATION_TRANSPORT", "transport", { providerStatus: status, timedOut });
     onProviderEvent?.({ stage: "interpretation", outcome: "failed", ...failure.diagnostics });
     throw failure;

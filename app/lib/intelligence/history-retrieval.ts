@@ -187,7 +187,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   if (ids.length > HISTORY_BUDGET.pets) coverage.reasons.push("pet_query_budget");
   if (endpointComparison) coverage.reasons.push("bidirectional_endpoint_subset");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
-  if (correctionReserve && candidates.length) {
+  if (correctionReserve && coverage.retrieval !== "unavailable") {
     candidates.push(...await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, deadline));
   }
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
