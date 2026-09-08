@@ -72,5 +72,13 @@ export function presentReviewedHistory(sentences: readonly string[], question: s
 /** Restore whitespace only when downstream safety/sanitation left every token intact. */
 export function preserveReviewedLayout(reviewed: string, sanitized: string): string {
   const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
-  return normalize(reviewed) === normalize(sanitized) ? reviewed : sanitized;
+  if (normalize(reviewed) === normalize(sanitized)) return reviewed;
+  // Style cleanup may replace a repeated pet name with a pronoun. Restore
+  // line breaks around retained bullet markers without restoring old wording.
+  const bullets = reviewed.match(/^- (?=[A-Za-z])/gm) || [];
+  const markers = sanitized.match(/(?:^|\s)- (?=[A-Za-z])/g) || [];
+  if (bullets.length >= 2 && markers.length === bullets.length && sanitized.startsWith("- ")) {
+    return sanitized.replace(/\s+- (?=[A-Za-z])/g, "\n- ");
+  }
+  return sanitized;
 }

@@ -88,3 +88,14 @@ test('which animal a correction describes is an account-scoped read',()=>{
  const write=normalizeAskReadProposal({...proposal(),operation:'update',readOperation:null},context('Correct the vomiting note to Pip.'));
  assert.notDeepEqual(write.terms,['correct','retract']);
 });
+
+test('pure acknowledgment overrides a mistaken update or incomplete duplicate operation',()=>{
+ for(const patch of [{operation:'update',readOperation:null},{operation:'general',readOperation:null},{operation:'recall',readOperation:'recall'}]) {
+ const p=normalizeAskReadProposal({...proposal(),...patch},context('Thanks, that helps.'));
+ assert.equal(p.operation,'general');assert.equal(p.readOperation,'general');assert.equal(p.subject,'non_pet');assert.deepEqual(p.petNames,[]);
+ }
+});
+test('correction subject lookup survives mistaken update and guessed external model name',()=>{
+ const p=normalizeAskReadProposal({...proposal(),operation:'update',readOperation:null,petNames:['Rufus'],episodeTopic:'vomiting'},context('Which dog was the August vomiting correction about?'));
+ assert.equal(p.operation,'recall');assert.deepEqual(p.petNames,['Pip','Fern']);assert.equal(p.episodeTopic,null);assert.deepEqual(p.frame.claims,[]);
+});

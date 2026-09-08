@@ -15,10 +15,9 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   const p = { ...value as Record<string, unknown> };
   const initialOperation = p.operation;
   // A complete acknowledgment has no animal referent or saved-data request.
-  // Only reduce a general/clarification plan to zero evidence/write authority.
-  if (["general", "clarify"].includes(String(p.operation))
-    && ["general", "clarify"].includes(String(p.readOperation))
-    && /^(?:thanks?(?: you)?|thank you|ty|thx)(?:[,! .]+(?:that helps|that helped|appreciate it|so much))?[.! ]*$/i.test(context.currentMessage.trim())
+  // The entire message is an acknowledgment, regardless of model operation.
+  // Reduce it to zero evidence/write authority; never swallow extra clauses.
+  if (/^(?:thanks?(?: you)?|thank you|ty|thx)(?:[,! .]+(?:that helps|that helped|appreciate it|so much))?[.! ]*$/i.test(context.currentMessage.trim())
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "general", readOperation: "general", subject: "non_pet",
       petNames: [], topic: "acknowledgment", terms: [], from: null, to: null,
@@ -90,14 +89,14 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   if (owned.length > 0 && owned.length <= 3 && !named.length
     && /\bwhich (?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
     && /\b(?:correction|corrected (?:note|report)|retraction)\b/i.test(context.currentMessage)
-    && ["general", "clarify", "recall"].includes(String(p.operation))
-    && ["general", "clarify", "recall"].includes(String(p.readOperation))
-    && p.ordinal === null && p.episodeTopic === null
+    && ["general", "clarify", "recall", "overview", "comparison", "status", "update"].includes(String(p.operation))
+    && (p.readOperation === null || ["general", "clarify", "recall", "overview", "comparison", "status"].includes(String(p.readOperation)))
+    && p.ordinal === null
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
-    && Array.isArray(p.petNames) && p.petNames.every(name => owned.some(pet => pet.name === name))) {
+    && Array.isArray(p.petNames) && p.petNames.length <= 3 && p.petNames.every(name => typeof name === "string" && name.length <= 100)) {
     Object.assign(p, { operation: "recall", readOperation: "recall", subject: "explicit",
       petNames: owned.map(pet => pet.name), selection: "summary", topic: "recorded correction",
-      terms: ["correct", "retract"], frame: emptyProposedSemanticFrame() });
+      terms: ["correct", "retract"], episodeTopic: null, frame: emptyProposedSemanticFrame() });
   }
   if (p.operation !== "update" && Array.isArray(p.petNames) && p.petNames.length > 3 && named.length > 0 && named.length <= 3
     && p.petNames.every(name => owned.some(pet => pet.name === name))) p.petNames = named.map(pet => pet.name);

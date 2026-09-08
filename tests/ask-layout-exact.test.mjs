@@ -13,3 +13,10 @@ test('a reviewed table remains a separate block beside explanatory prose',()=>{
  assert.equal(presentReviewedHistory([table,'Both recorded weights are the same.'],'Show weights in a table.'),table+'\n\nBoth recorded weights are the same.');
  assert.equal(presentReviewedHistory(['Here are the measurements.',...table.split('\n'),'Both recorded weights are the same.'],'Show weights in a table.'),'Here are the measurements.\n\n'+table+'\n\nBoth recorded weights are the same.');
 });
+
+test('bullet layout survives safe pronoun substitution without restoring changed facts',async()=>{
+ const {preserveReviewedLayout}=await import('../app/lib/intelligence/history-presentation.ts');
+ assert.equal(preserveReviewedLayout('- Pip ate.\n- Pip played.','- He ate. - He played.'),'- He ate.\n- He played.');
+ assert.equal(preserveReviewedLayout('- Pip ate.\n- Pip played.','- He did not eat. - He played.'),'- He did not eat.\n- He played.');
+ assert.equal(preserveReviewedLayout('- Pip ate.\n- Pip played.','He did not eat.'),'He did not eat.');
+});
