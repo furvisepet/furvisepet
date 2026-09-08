@@ -95,6 +95,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
     continuation: [], reasons: ["lexical_or_period_matches_not_semantic_completeness", "no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
   const descending = context.askInterpretation?.selection === "latest";
+  const endpointComparison = context.askInterpretation?.readOnly === true
+    && /\bweights?\b/i.test(context.currentMessage)
+    && /\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage);
   const candidates: CareEntryRow[] = [];
   // Reserve coverage/provenance space independently of model evidence. Split
   // the candidate budget fairly so the first pet cannot consume every slot.
@@ -103,60 +106,86 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const correctionReserve = plan.from ? 12 : 0;
   const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
-    let cursor: Cursor | null = null; let exhausted = false; let failed = false; let pages = 0; const rows: CareEntryRow[] = [];
-    try {
-      for (let attempt = 0; attempt < HISTORY_BUDGET.pagesPerPet && !exhausted && rows.length < rowsPerPet; attempt++) {
-        pages++;
-        coverage.queryCount++;
-        const pageLimit = Math.min(HISTORY_BUDGET.pageSize, rowsPerPet - rows.length);
-        const signal = readSignal(deadline);
-        let result: { data: unknown; error: { code?: string } | null };
-        if (plan.terms.length) {
-          // The RPC derives auth.uid(). Never pass an owner or fall back to a
-          // different lexical authority when its migration/service is missing.
-          result = await db.rpc(descending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
-            p_pet_id: petId, p_terms: plan.terms,
-            p_from: plan.from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
-            p_to: futureSourceRequested ? plan.to : new Date(Math.min(plan.to ? Date.parse(plan.to) : Infinity, asOf + 1)).toISOString(),
-            p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
-          }).abortSignal(signal);
-          if (result.error) coverage.reasons.push(signal.aborted || result.error.code === "57014" ? "candidate_rpc_timeout"
-            : result.error.code === "55000" ? "candidate_rpc_timeout_configuration" : "candidate_rpc_unavailable");
-        } else {
-          let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
-          if (!futureSourceRequested) query = query.lt("occurred_at", new Date(asOf + 1).toISOString());
-          if (plan.from) query = query.gte("occurred_at", plan.from).lt("occurred_at", plan.to!);
-          if (cursor) query = query.or(`occurred_at.${descending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${descending ? "lt" : "gt"}.${cursor.id})`);
-          result = await query.order("occurred_at", { ascending: !descending }).order("id", { ascending: !descending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
+    let failed = false; let pages = 0; let exhausted = true;
+    const collected: CareEntryRow[] = [];
+    const directions = endpointComparison ? [false, true] : [descending];
+    // Split the existing candidate/page budget across both ends. Never scan a
+    // decade sequentially just to compare the first and last recorded values.
+    for (const readDescending of directions) {
+      let cursor: Cursor | null = null; let traversalExhausted = false;
+      const rows: CareEntryRow[] = [];
+      const directionRows = Math.floor(rowsPerPet / directions.length);
+      const directionPages = Math.floor(HISTORY_BUDGET.pagesPerPet / directions.length);
+      try {
+        for (let attempt = 0; attempt < directionPages && !traversalExhausted && rows.length < directionRows; attempt++) {
+          pages++;
+          coverage.queryCount++;
+          const pageLimit = Math.min(HISTORY_BUDGET.pageSize, directionRows - rows.length);
+          const signal = readSignal(deadline);
+          let result: { data: unknown; error: { code?: string } | null };
+          if (plan.terms.length) {
+            // The RPC derives auth.uid(). Never pass an owner or fall back to a
+            // different lexical authority when its migration/service is missing.
+            result = await db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
+              p_pet_id: petId, p_terms: plan.terms,
+              p_from: plan.from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
+              p_to: futureSourceRequested ? plan.to : new Date(Math.min(plan.to ? Date.parse(plan.to) : Infinity, asOf + 1)).toISOString(),
+              p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
+            }).abortSignal(signal);
+            if (result.error) coverage.reasons.push(signal.aborted || result.error.code === "57014" ? "candidate_rpc_timeout"
+              : result.error.code === "55000" ? "candidate_rpc_timeout_configuration" : "candidate_rpc_unavailable");
+          } else {
+            let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
+            if (!futureSourceRequested) query = query.lt("occurred_at", new Date(asOf + 1).toISOString());
+            if (plan.from) query = query.gte("occurred_at", plan.from).lt("occurred_at", plan.to!);
+            if (cursor) query = query.or(`occurred_at.${readDescending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${readDescending ? "lt" : "gt"}.${cursor.id})`);
+            result = await query.order("occurred_at", { ascending: !readDescending }).order("id", { ascending: !readDescending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
+          }
+          if (result.error) throw new Error("history_page_unavailable");
+          if (result.data !== null && !Array.isArray(result.data)) throw new Error("history_page_invalid_shape");
+          const page = (result.data || []) as CareEntryRow[];
+          if (page.length > pageLimit) throw new Error("history_page_bound_exceeded");
+          // Never tolerate a mock/misconfigured boundary returning foreign rows.
+          if (page.some(row => row.user_id !== context.owner.userId || row.pet_profile_id !== petId || row.deleted_at)) throw new Error("history_scope_mismatch");
+          if (!page.length) { traversalExhausted = true; break; }
+          for (const row of page) {
+            if (!/^[a-zA-Z0-9_-]+$/.test(row.id) || !row.occurred_at || !Number.isFinite(Date.parse(row.occurred_at))) throw new Error("invalid_history_cursor");
+            const next: Cursor = { petId, occurredAt: row.occurred_at, id: row.id };
+            const advance = cursor ? compareHistoryTime(next.occurredAt, cursor.occurredAt) || next.id.localeCompare(cursor.id) : 0;
+            if (cursor && (readDescending ? advance >= 0 : advance <= 0)) throw new Error("non_advancing_history_cursor");
+            cursor = next; rows.push(row);
+          }
+          // Do not infer exhaustion from a short page: a server row cap may be
+          // smaller than requested. An empty next page is the only traversal end.
         }
-        if (result.error) throw new Error("history_page_unavailable");
-        if (result.data !== null && !Array.isArray(result.data)) throw new Error("history_page_invalid_shape");
-        const page = (result.data || []) as CareEntryRow[];
-        if (page.length > pageLimit) throw new Error("history_page_bound_exceeded");
-        // Never tolerate a mock/misconfigured boundary returning foreign rows.
-        if (page.some(row => row.user_id !== context.owner.userId || row.pet_profile_id !== petId || row.deleted_at)) throw new Error("history_scope_mismatch");
-        if (!page.length) { exhausted = true; break; }
-        for (const row of page) {
-          if (!/^[a-zA-Z0-9_-]+$/.test(row.id) || !row.occurred_at || !Number.isFinite(Date.parse(row.occurred_at))) throw new Error("invalid_history_cursor");
-          const next: Cursor = { petId, occurredAt: row.occurred_at, id: row.id };
-          const advance = cursor ? compareHistoryTime(next.occurredAt, cursor.occurredAt) || next.id.localeCompare(cursor.id) : 0;
-          if (cursor && (descending ? advance >= 0 : advance <= 0)) throw new Error("non_advancing_history_cursor");
-          cursor = next; rows.push(row);
+      } catch (error) {
+        failed = true; coverage.reasons.push("history_page_unavailable_or_changed");
+        if (error instanceof Error && (error.message === "history_time_budget" || ["AbortError", "TimeoutError"].includes(error.name))) {
+          coverage.reasons.push(plan.terms.length ? "candidate_rpc_timeout" : "history_time_budget");
         }
-        // Do not infer exhaustion from a short page: a server row cap may be
-        // smaller than requested. An empty next page is the only traversal end.
       }
-    } catch (error) {
-      failed = true; coverage.reasons.push("history_page_unavailable_or_changed");
-      if (error instanceof Error && (error.message === "history_time_budget" || ["AbortError", "TimeoutError"].includes(error.name))) {
-        coverage.reasons.push(plan.terms.length ? "candidate_rpc_timeout" : "history_time_budget");
-      }
+      if (!traversalExhausted && cursor) coverage.continuation.push(cursor);
+      exhausted = exhausted && traversalExhausted;
+      collected.push(...rows);
     }
-    if (!exhausted && cursor) coverage.continuation.push(cursor);
+    const unique = new Map<string, CareEntryRow>();
+    const changed = new Set<string>();
+    for (const row of collected) {
+      const previous = unique.get(row.id);
+      if (previous && !sameCandidateVersion(previous, row)) changed.add(row.id);
+      unique.set(row.id, row);
+    }
+    if (changed.size) {
+      failed = true;
+      coverage.reasons.push("source_deleted_or_changed");
+      coverage.excludedIds.push(...[...changed].map(id => `care:${id}`));
+    }
+    const rows = [...unique.values()].filter(row => !changed.has(row.id));
     coverage.perPet.push({ petId, rows: rows.length, pages, exhausted, status: failed ? "unavailable" : exhausted ? "unknown" : "partial" });
     candidates.push(...rows);
   }
   if (ids.length > HISTORY_BUDGET.pets) coverage.reasons.push("pet_query_budget");
+  if (endpointComparison) coverage.reasons.push("bidirectional_endpoint_subset");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
   if (correctionReserve && candidates.length) {
     candidates.push(...await discoverDatedCorrectionNotes(candidates, ids.slice(0, HISTORY_BUDGET.pets), context.owner.userId, db, coverage, deadline));

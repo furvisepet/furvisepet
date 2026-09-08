@@ -27,6 +27,12 @@ export function buildWeightComparison(context: FurviseLiveContext, contract: Ask
       || row.title && !/^(?:weight(?: measurement)?|note)$/i.test(row.title)) return undefined;
     measurements.push({ sourceId: `care:${row.id}`, text: row.note, at: row.occurred_at, grams });
   }
+  if (/\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage)) {
+    const times = measurements.map(value => Date.parse(value.at));
+    const first = Math.min(...times), last = Math.max(...times);
+    // Keep every tied endpoint so conflicting values still fail validation.
+    return { petId, measurements: measurements.filter(value => [first, last].includes(Date.parse(value.at))) };
+  }
   return { petId, measurements };
 }
 
@@ -35,7 +41,8 @@ export function weightComparisonAnswer(contract: AskEvidenceContract): string | 
   if (!evidence || !["comparison", "record_lookup"].includes(contract.scope.requestKind) || contract.scope.authorizedPetIds.length !== 1
     || contract.scope.authorizedPetIds[0] !== evidence.petId || evidence.measurements.length < 2) return null;
   const source = contract.sources.find(s => s.petId === evidence.petId && s.source === "care_entries");
-  if (!source || source.status !== "loaded") return null;
+  if (!source || source.status !== "loaded" || contract.history?.retrieval === "unavailable"
+    || contract.history?.corrections === "unavailable" || contract.history?.reasons.includes("source_deleted_or_changed")) return null;
   const times = new Map<number,number>();
   for (const measurement of evidence.measurements) {
     const spans = contract.represented.filter(s => s.petId === evidence.petId && s.sourceId === measurement.sourceId && s.sourceType === "care_update");
