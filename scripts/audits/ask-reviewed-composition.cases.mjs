@@ -523,7 +523,7 @@ test('causal follow-up reads the last user-established pet and both change dates
 });
 test('correction lookup can name an outside animal without granting that animal ownership',async t=>{
  clock(t);
- const r=await exercise('What does the August 20 correction say about Milo and Bruno?',{history:true,messages:[],fixturePets:correctionFixturePets.slice(0,3),
+ const r=await exercise('What does the August 20 correction say about Milo and Bruno?',{expectedProviderCalls:0,history:true,messages:[],fixturePets:correctionFixturePets.slice(0,3),
  rows:[care('fix','milo','2026-08-20','general','Correction: the vomiting report was about my sister dog Bruno, not Milo. Milo did not vomit.')],
  interpretationProposal:{...plan,operation:'clarify',readOperation:'clarify',subject:'unclear',petNames:['Milo','Bruno'],terms:[],from:null,to:null}});
  assert.deepEqual(r.context.askInterpretation.petIds,['milo']);assert.match(r.result.reasoning.answer.summary,/Bruno/);assert.match(r.result.reasoning.answer.summary,/not Milo/);noWrites(r);

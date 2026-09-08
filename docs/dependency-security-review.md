@@ -80,3 +80,7 @@ All resolved lock entries use `https://registry.npmjs.org/` and SHA-512 integrit
 The final locked tree passed `npm ci`, lint, TypeScript, 80 focused S2A-S2E security tests, 982 full tests, and the Next.js 16.2.12 production build. `npm audit --omit=dev` reports zero findings; the full audit retains the documented development-only legacy ESLint chain. Local production-server checks verified proxy redirects and private cache headers on normal, RSC, prefetch, `.rsc`, and `_next/data` private-route forms, plus accepted local image optimization and rejected external, loopback, malformed, oversized, and missing image requests.
 
 Authoritative GitHub repository settings, Dependabot activation, Vercel Node selection, and production deployment remain external checks.
+
+## September 8 Ask repair release gate
+
+Updated the scoped Sharp override from 0.35.3 to 0.35.4 after GHSA-rgj7-g3m4-5g8c blocked CI. The maintainer identifies 0.35.4 as the patched release with libheif 1.23.2. Source: https://github.com/advisories/GHSA-rgj7-g3m4-5g8c. Historical review results above describe the earlier snapshot.

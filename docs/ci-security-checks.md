@@ -22,6 +22,6 @@ After pushing the workflow:
 2. Require the CI job through branch protection.
 3. Enable Dependabot alerts, Dependabot security updates, dependency graph, and secret scanning where the repository plan supports them.
 4. Confirm no organization policy grants broader implicit permissions.
-5. Confirm the Linux clean install selects the expected Sharp 0.35.3/libvips platform packages and passes the image checks.
+5. Confirm the Linux clean install selects the expected Sharp 0.35.4/libvips platform packages and passes the image checks.
 
 None of these external settings are claimed active by S2E.

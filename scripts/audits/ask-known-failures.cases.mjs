@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {exercise,clock,promptHas} from './helpers/lifetime-harness.mjs';
+import {exercise,clock} from './helpers/lifetime-harness.mjs';
 import {care,pets} from './fixtures/ask-lifetime-history.mjs';
 import {emptyProposedSemanticFrame} from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
 const proposal=(patch={})=>({operation:'recall',readOperation:'recall',selection:'reference',subject:'explicit',petNames:['Milo'],topic:'vomiting',terms:['vomit'],from:'2026-08-19',to:'2026-08-20',episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),...patch});
 test('production callback retrieves Bruno correction with no August 19 original',async t=>{
  clock(t);
  const row=care('next-day','milo','2026-08-20','general',"Correction to yesterday's vomiting note: that was my sister's dog Bruno, not Milo. Milo did not vomit and was acting normally.");
- const run=await exercise('Was the dog who vomited on August 19 Milo or Bruno?',{history:true,fixturePets:pets.filter(p=>p.id!=='bruno'),rows:[row],interpretationProposal:proposal(),answer:'Milo vomited.'});
- assert.ok(promptHas(run,'next-day'));
+ const run=await exercise('Was the dog who vomited on August 19 Milo or Bruno?',{history:true,expectedProviderCalls:0,fixturePets:pets.filter(p=>p.id!=='bruno'),rows:[row],interpretationProposal:proposal(),answer:'Milo vomited.'});
+ assert.ok(run.context.askHistory.entries.some(row=>row.id==='next-day'));
  assert.match(run.result.reasoning.answer.summary,/Bruno/);
  assert.match(run.result.reasoning.answer.summary,/not been verified/);
  assert.deepEqual(run.result.acceptedCareActions,[]);

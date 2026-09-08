@@ -14,10 +14,10 @@ test("framework, CSS, and image dependency remediations stay pinned to reviewed 
   assert.equal(packageJson.devDependencies["eslint-config-next"], "16.3.4");
   assert.equal(packageJson.devDependencies["@tailwindcss/postcss"], "^4.3.3");
   assert.equal(packageJson.devDependencies.tailwindcss, "^4.3.3");
-  assert.deepEqual(packageJson.overrides.next, { postcss: "8.5.25", sharp: "0.35.3" });
+  assert.deepEqual(packageJson.overrides.next, { postcss: "8.5.25", sharp: "0.35.4" });
   assert.equal(lock.packages["node_modules/next"].version, "16.3.4");
   assert.equal(lock.packages["node_modules/next/node_modules/postcss"].version, "8.5.25");
-  assert.equal(lock.packages["node_modules/sharp"].version, "0.35.3");
+  assert.equal(lock.packages["node_modules/sharp"].version, "0.35.4");
 });
 
 test("React stays matched and compatible with the reviewed Next patch", () => {
@@ -45,8 +45,8 @@ test("Node 24 and npm 11 are the explicit repository runtime policy", () => {
 
 test("patched Sharp native bindings load with the remediated libvips", () => {
   const sharp = require("sharp");
-  assert.equal(sharp.versions.sharp, "0.35.3");
-  assert.equal(sharp.versions.vips, "8.18.3");
+  assert.equal(sharp.versions.sharp, "0.35.4");
+  assert.equal(sharp.versions.vips, "8.18.6");
   assert.equal(typeof sharp(Buffer.from("not-an-image")).metadata, "function");
 });
 
