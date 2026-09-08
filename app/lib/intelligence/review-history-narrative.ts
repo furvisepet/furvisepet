@@ -71,6 +71,10 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
   if (requestedHistoryTimelineDays(evidence.scope.requestText, new Date().getUTCFullYear())) return false;
   if (withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence)) return false;
   const sources = usableSources(evidence);
+  // A missing diagnosis record cannot answer whether a diagnosis was established.
+  // Preserve the attributed note instead of approving a misleading yes/no preface.
+  if (/\bdiagnos(?:is|es|ed)\b/i.test(evidence.scope.requestText)
+    && sources.some(source => /\bnot\s+(?:recorded|entered|documented)\b[^.!?]{0,100}\bdiagnos(?:is|es)\b|\bdiagnos(?:is|es)\b[^.!?]{0,100}\b(?:not\s+(?:recorded|entered|documented)|unrecorded)\b|\bno diagnosis\s+(?:was\s+)?recorded\b/i.test(source.text))) return false;
   const ids = new Set(sources.map(source => source.sourceId));
   // A missing optional narrative must not prevent review of useful plain prose.
   // These broad citations are candidates for the reviewer, never proof.
