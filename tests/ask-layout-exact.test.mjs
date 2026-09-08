@@ -32,3 +32,27 @@ test('requested separate pet lines preserve every reviewed sentence without merg
  assert.equal(presentReviewedHistory(sentences,'Give a separate line for each pet.'),sentences.join('\n\n'));
  assert.equal(requestedHistoryLayout('Explain the quoted phrase "a separate line for each pet".'),null);
 });
+
+test('requested bullets separate retained inline list items without changing facts',()=>{
+ const text='On July 5, the tray moved and litter changed. - On July 10, both changes were reversed.';
+ assert.equal(presentReviewedHistory([text],'Summarize the litter changes in two bullets.'),'- On July 5, the tray moved and litter changed.\n- On July 10, both changes were reversed.');
+});
+
+test('inline list layout leaves quotes, negative quantities and plain prose intact',()=>{
+ const quote='The note says "First. - Second."';
+ assert.equal(presentReviewedHistory([quote],'Use two bullets.'),'- '+quote);
+ assert.equal(presentReviewedHistory(['Weight changed by - 0.6 kg.'],'Use two bullets.'),'- Weight changed by - 0.6 kg.');
+ assert.equal(presentReviewedHistory(['First. - Second.'],'Use one paragraph.'),'First. - Second.');
+ assert.equal(presentReviewedHistory(['No diagnosis recorded. - Medicine name unknown.'],'Use two bullets.'),'- No diagnosis recorded.\n- Medicine name unknown.');
+});
+
+test('just two measurements omits only the generic coverage footer',async()=>{
+ const {presentHistoryLimitation}=await import('../app/lib/intelligence/history-presentation.ts');
+ const prose='27.8 kg and 28.4 kg.';
+ const generic='This covers the matching saved notes I could verify, not necessarily every event in their life.';
+ const q='Give just the two weight measurements behind the 0.6 kg decrease.';
+ assert.equal(presentHistoryLimitation(prose,generic,q),prose);
+ assert.match(presentHistoryLimitation(prose,'Some matching records were unavailable.',q),/unavailable/);
+ assert.match(presentHistoryLimitation(prose,generic,q+' Are these the lifetime endpoints?'),/This covers/);
+ assert.match(presentHistoryLimitation('No weight change.',generic,q),/This covers/);
+});

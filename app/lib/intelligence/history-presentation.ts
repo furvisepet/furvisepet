@@ -46,6 +46,12 @@ export function presentReviewedHistory(sentences: readonly string[], question: s
       : presentReviewedHistory(run.texts, question)).join("\n\n");
   }
   const layout = requestedHistoryLayout(question);
+  // A reviewed item can contain several inline list points. Restore only their
+  // layout after review, retaining every word and never splitting quotations.
+  if (layout?.style === "bullets") {
+    sentences = sentences.flatMap(sentence => /["\u201c\u201d]/.test(sentence) ? [sentence]
+      : sentence.split(/(?<=[.!?])\s+-\s+(?=\p{Lu})/u));
+  }
   const groups: string[][] = [];
   if (layout?.count) {
     // Never invent points to meet a requested count. Keep every retained sentence.
@@ -87,6 +93,12 @@ export function preserveReviewedLayout(reviewed: string, sanitized: string): str
 /** Preserve the coverage warning while honoring a one-sentence presentation. */
 export function presentHistoryLimitation(prose: string, limitation: string, question: string): string {
   if (!limitation) return prose;
+  // Two explicitly requested measurements do not claim exhaustive history.
+  // Only omit the generic footer; missing-evidence warnings remain visible.
+  if (/\b(?:just|only)\s+(?:the\s+)?two\s+weight\s+measurements\b/i.test(question)
+    && !/\b(?:all|every|lifetime|first|last|earliest|latest)\b/i.test(question)
+    && /^\d+(?:\.\d+)?\s*(?:kg|lb|lbs)\s+(?:and|&)\s+\d+(?:\.\d+)?\s*(?:kg|lb|lbs)\.?$/i.test(prose.trim())
+    && limitation === "This covers the matching saved notes I could verify, not necessarily every event in their life.") return prose;
   const oneSentence = /\b(?:one|1|a single|a short|a brief|a concise)\s+sentence\b/i.test(question);
   // Only join a single plain sentence; never flatten tables, lists or quotations.
   if (oneSentence && !/[\n|"\u201c\u201d]/.test(prose) && !/[.!?]\s+\p{Lu}/u.test(prose)
