@@ -1,3 +1,4 @@
+import { directHistoryExplanation } from "./direct-history-explanation.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
@@ -188,7 +189,7 @@ export function resolutionStatusAnswer(contract: AskEvidenceContract, synthesis:
   if (contract.scope.requestKind !== "resolution_status") return null;
   if (contract.interpretation) {
     if (contract.scope.status === "ambiguous" || !contract.scope.requestedTopic.trim()) return "Which issue do you mean?";
-    return attributedHistoryAnswer(contract, true, synthesis);
+    return directHistoryExplanation(contract) || attributedHistoryAnswer(contract, true, synthesis);
   }
   const uncertainty = "I can't establish whether the hiding has ended now from the available dated evidence.";
   if (contract.scope.status !== "resolved" || contract.scope.authorizedPetIds.length !== 1 || contract.scope.requestedTopic !== "hiding") {
@@ -230,7 +231,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
     }
     // Arbitrary narrative is not an evidence claim. Only complete source reports
     // and independently computed episode results have factual authority.
-    if (kind !== "count" && contract.history) return withinNoteCountAnswer(contract) || calendarIntervalAnswer(contract) || correctionReportAnswer(contract) || weightComparisonAnswer(contract) || attributedHistoryAnswer(contract, false, synthesis);
+    if (kind !== "count" && contract.history) return withinNoteCountAnswer(contract) || calendarIntervalAnswer(contract) || correctionReportAnswer(contract) || weightComparisonAnswer(contract) || directHistoryExplanation(contract) || attributedHistoryAnswer(contract, false, synthesis);
     if (kind !== "count") return null;
   }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";

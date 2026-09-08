@@ -106,6 +106,14 @@ function ownerEvidenceSpans(message: string, evidence: string) {
     normalize(sourceClause.text).includes(normalize(evidenceClause))));
 }
 
+/** A statement about existing notes is reference context, not a new event.
+ * Keep independent observations and explicit save/correction commands eligible. */
+function isHistoricalRecordPremise(value: string): boolean {
+  const text = value.trim();
+  if (/\b(?:save|log|remember|correction|actually|incorrect|wrong)\b/i.test(text)) return false;
+  return /^[\p{L}][\p{L}'\u2019 -]{0,60}\s+(?:had|has|have)\s+(?:(?:a|an|the|some|two|three|several|recorded|saved|care|history|stool|vomiting|weight|food|litter|medication|June|July|August|September|October|November|December|January|February|March|April|May|and|in|from|\d{1,4})\s+){0,12}(?:notes|records|entries|reports)\s*[.!]?$/iu.test(text);
+}
+
 export function isQuestionClause(value: string) {
   const text = value.trim().replace(/^[\s"'“‘(\[{]+/u, "");
   const question = text.replace(/^(?:in|from|according to)\s+[^,;.!?\n]{1,80}\b(?:notes?|records?|history|timeline|care log)\s*,\s*/i, "");
@@ -149,7 +157,8 @@ function scopeIndependentClauses(sentence: string, sentenceStart: number): Owner
       text,
       start: sentenceStart + Math.max(0, localStart),
       end: sentenceStart + Math.max(0, localStart) + text.length,
-      isAttributed: attributedHistory.test(text.trim())
+      isAttributed: isHistoricalRecordPremise(text)
+        || attributedHistory.test(text.trim())
         || noteReference.test(text.trim()),
       isConditional: hypotheticalClause.test(text.trim()),
       isNegated: /\b(?:never|no\s+(?:further|more)|not)\b|n['â€™]t\b/i.test(text),
