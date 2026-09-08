@@ -176,6 +176,16 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     Object.assign(p,{operation:"recall",readOperation:"recall",selection:"period",terms:[],topic:"dated timeline",
       from:timelineDays[0],to:new Date(Date.parse(timelineDays.at(-1)!) + 86400000).toISOString().slice(0,10)});
   }
+  // Missing documentation is an evidence question, not an unidentified episode.
+  if (named.length === 1 && validReadMetadata && p.from === null && p.to === null && p.episodeTopic === null
+    && [...reads,"clarify"].includes(String(p.operation)) && [...reads,"clarify"].includes(String(p.readOperation))
+    && Array.isArray(p.petNames) && p.petNames.length <= 1 && p.petNames.every(name => name === named[0].name)
+    && /\b(?:missing|unrecorded)\s+(?:medicine|medication|drug)\s+name\b/i.test(context.currentMessage)
+    && /\b(?:mean|prove|show)\b/i.test(context.currentMessage) && /\b(?:prescribed|prescription)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p,{operation:"recall",readOperation:"recall",subject:"explicit",petNames:[named[0].name],
+      selection:"summary",topic:"recorded medication details",terms:["medic","prescri","course"],frame:emptyProposedSemanticFrame()});
+  }
   const causalReference = causalChangeReference(context);
   if (causalReference && validReadMetadata && [...reads,"clarify"].includes(String(p.operation))
     && (p.readOperation === null || [...reads,"clarify"].includes(String(p.readOperation)))) {

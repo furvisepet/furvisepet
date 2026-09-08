@@ -19,6 +19,11 @@ function quantities(text: string): string[] {
 export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = ""): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
+  // Missing documentation cannot support a claim that a clinical act never occurred.
+  // Reject this stronger prose and let source-attributed fallback preserve the note.
+  const clinicalNonoccurrence = /\b(?:did not|didn't|never)\s+(?:establish|give|make|reach|confirm)\s+(?:a|any|the)\s+diagnosis\b|\bno diagnosis\s+(?:was|has been)\s+(?:made|given|established|confirmed)\b|\b(?:was not|wasn't|never was)\s+diagnosed\b/i;
+  if (clinicalNonoccurrence.test(prose)
+    && !sources.some(source => clinicalNonoccurrence.test(source.text))) return false;
   if (/\b(?:today|yesterday)\b/i.test(prose) && !dates(prose).length
     && !sources.every(source => source.occurredAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))) return false;
   // A displayed quotation must be an exact substring of one source. Dates

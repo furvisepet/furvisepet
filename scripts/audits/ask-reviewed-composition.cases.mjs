@@ -537,3 +537,30 @@ test('two named future entries survive an invented current-status plan',async t=
  const answer=r.result.reasoning.answer.summary;
  assert.match(answer,/2026-09-13/);assert.match(answer,/2026-09-14/);assert.match(answer,/future-dated/);assert.match(answer,/not evidence that it has already happened/);noWrites(r);
 });
+
+test('a by-date food completion lookup recovers a valid half-range',async t=>{
+ clock(t);
+ const r=await exercise('Did Milo finish changing food by July 10?',{history:true,messages:[],
+ rows:[care('food-done','milo','2026-07-10','food','Milo finished the food transition and eats only salmon-and-rice adult dry food.')],
+ interpretationProposal:{...plan,operation:'status',readOperation:'status',selection:'period',terms:['food'],from:null,to:'2026-07-11'}});
+ assert.equal(r.context.askInterpretation.history.from,'1900-01-01T00:00:00.000Z');
+ assert.match(r.result.reasoning.answer.summary,/finished the food transition/);noWrites(r);
+});
+test('missing medicine-name question reads the named pet without episode clarification',async t=>{
+ clock(t);const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+ const r=await exercise('Does a missing medicine name mean Oscar was never prescribed anything?',{history:true,messages:[],fixturePets:pets.slice(0,3),
+ rows:[care('rx','oscar','2026-06-17','vet_visit','Oscar was prescribed a seven-day medication course. I have not recorded the medicine name.')],
+ interpretationProposal:{...plan,operation:'clarify',readOperation:'clarify',selection:'reference',petNames:['Oscar'],terms:['medicine'],from:null,to:null}});
+ assert.deepEqual(r.context.askInterpretation.petIds,['oscar']);assert.equal(r.context.askInterpretation.clarification,null);
+ assert.match(r.result.reasoning.answer.summary,/seven-day/);assert.doesNotMatch(r.result.reasoning.answer.summary,/Which pet/);noWrites(r);
+});
+test('an approving reviewer cannot turn an unrecorded diagnosis into no diagnosis made',async t=>{
+ clock(t);
+ const r=await exercise('Did the August 27 visit establish a diagnosis for Milo?',{history:true,messages:[],
+ rows:[care('vet-no-record','milo','2026-08-27','vet_visit','The vet asked us to observe Milo comfort. I have not recorded a diagnosis or new medication instructions here.')],
+ interpretationProposal:{...plan,operation:'recall',readOperation:'recall',selection:'reference',terms:['diagnosis'],from:'2026-08-27',to:'2026-08-28'},
+ providerOverrides:{historyNarrative:{sentences:[{text:'The August 27 visit did not establish a diagnosis, and no diagnosis was recorded.',sourceIds:['care:vet-no-record']}]}},
+ reviewResponse:{approved:true},expectedReviewCalls:0});
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/did not establish a diagnosis/);
+ assert.match(r.result.reasoning.answer.summary,/not recorded a diagnosis/);noWrites(r);
+});

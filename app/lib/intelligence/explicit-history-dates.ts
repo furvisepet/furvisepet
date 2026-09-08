@@ -21,7 +21,8 @@ export function normalizeExplicitHistoryDates(p: Record<string,unknown>, questio
  const anchor=valid(p.from)?p.from:valid(p.to)?p.to:null;
  const days=explicitHistoryDays(question,anchor?Number(anchor.slice(0,4)):new Date().getUTCFullYear());
  const after=(d:string)=>new Date(Date.parse(d)+86400000).toISOString().slice(0,10);
- if(days.length===1&&/^\s*by\s+/i.test(question)
+ if(days.length===1&&/\bby\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}\b/i.test(question)
+   && !/\b(?:after|before|since|from|between|until|last year|previous year|ago)\b/i.test(question)
    && [null,'1900-01-01',days[0]].includes(p.from as string|null)
    && [null,days[0],after(days[0])].includes(p.to as string|null)) {
    p.from='1900-01-01';p.to=after(days[0]);p.selection='period';
