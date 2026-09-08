@@ -313,7 +313,8 @@ test('correction identity question retrieves the correction without assigning it
  clock(t);
  const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
  const r=await exercise('Which dog was the vomiting correction about?',{history:true,fixturePets:pets.slice(0,3),rows:[care('correction-read','milo','2026-08-20','general','Correction to yesterday: that vomiting report was my sister dog Rufus, not Milo.')],messages:[],interpretationProposal:{...plan,operation:'general',readOperation:'general',subject:'non_pet',petNames:[],terms:[]}});
- assert.match(r.result.reasoning.answer.summary,/Rufus/);noWrites(r);
+ assert.match(r.result.reasoning.answer.summary,/Rufus/);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/Luna:|Oscar:|couldn't verify/);noWrites(r);
 });
 
 test('route-facing subject resolution keeps complete thanks conversational',async t=>{
