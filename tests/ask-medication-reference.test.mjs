@@ -70,3 +70,21 @@ for (const patch of [
     subject:'non_pet',...patch},context());
   assert.notEqual(p.topic,'medication details');
 });
+
+test('complete thanks has no pet or history authority even after ambiguous dialogue',()=>{
+ for(const q of ['Thanks, that helps.','Thank you!','Thx','Thanks so much!']) {
+ const p=normalizeAskReadProposal(proposal(),context(q,['Pip and Fern took medication.']));
+ assert.equal(p.operation,'general');assert.equal(p.subject,'non_pet');assert.deepEqual(p.petNames,[]);assert.deepEqual(p.terms,[]);assert.deepEqual(p.frame.claims,[]);
+ }
+});
+test('thanks prefix cannot swallow a question or owner observation',()=>{
+ for(const q of ['Thanks, but she is vomiting.','Thanks. What is its dose?','Thanks, save this.'])
+ assert.notEqual(normalizeAskReadProposal(proposal(),context(q)).subject,'non_pet');
+});
+
+test('which animal a correction describes is an account-scoped read',()=>{
+ const p=normalizeAskReadProposal({...proposal(),operation:'general',readOperation:'general',subject:'non_pet'},context('Which dog was the August vomiting correction about?'));
+ assert.equal(p.operation,'recall');assert.deepEqual(p.petNames,['Pip','Fern']);assert.deepEqual(p.terms,['correct','retract']);assert.deepEqual(p.frame.claims,[]);
+ const write=normalizeAskReadProposal({...proposal(),operation:'update',readOperation:null},context('Correct the vomiting note to Pip.'));
+ assert.notDeepEqual(write.terms,['correct','retract']);
+});

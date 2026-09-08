@@ -1,3 +1,4 @@
+import { requestedCalendarInterval } from "./calendar-interval.ts";
 import { medicationReferencePet } from "./medication-reference.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
@@ -13,6 +14,16 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const p = { ...value as Record<string, unknown> };
   const initialOperation = p.operation;
+  // A complete acknowledgment has no animal referent or saved-data request.
+  // Only reduce a general/clarification plan to zero evidence/write authority.
+  if (["general", "clarify"].includes(String(p.operation))
+    && ["general", "clarify"].includes(String(p.readOperation))
+    && /^(?:thanks?(?: you)?|thank you|ty|thx)(?:[,! .]+(?:that helps|that helped|appreciate it|so much))?[.! ]*$/i.test(context.currentMessage.trim())
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p, { operation: "general", readOperation: "general", subject: "non_pet",
+      petNames: [], topic: "acknowledgment", terms: [], from: null, to: null,
+      ordinal: null, episodeTopic: null, selection: "summary", frame: emptyProposedSemanticFrame() });
+  }
   // Conditional safety guidance must not become a saved-record lookup merely
   // because the hypothetical mentions an old problem returning.
   if (p.operation !== "update" && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
@@ -46,6 +57,15 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "recall", readOperation: "recall", episodeTopic: null });
   }
+  const interval = typeof p.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.from)
+    ? requestedCalendarInterval(context.currentMessage, Number(p.from.slice(0, 4))) : null;
+  if (interval && p.from === interval.from && p.operation === "recall" && p.readOperation === "recall"
+    && p.ordinal === null && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+    && [interval.last, interval.to, new Date(Date.parse(interval.from) + 86400000).toISOString().slice(0, 10)].includes(String(p.to))
+    && Array.isArray(p.terms) && p.terms.length <= 6
+    && p.terms.every(term => typeof term === "string" && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term) && term.length <= 32)) {
+    Object.assign(p, { selection: "period", from: interval.from, to: interval.to, terms: [] });
+  }
   // A specifically dated source is located by its day. Requiring a lexical
   // synonym as well can hide that very note (e.g. accidents versus urinated).
   // Keep date, ownership and source-version validation unchanged.
@@ -65,6 +85,20 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   }
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
   const named = explicitlyNamedOwnedPets(context.currentMessage, owned);
+  // Which animal a saved correction describes is the fact to retrieve.
+  // Search the bounded owned account; quoted external names grant no new owner.
+  if (owned.length > 0 && owned.length <= 3 && !named.length
+    && /\bwhich (?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
+    && /\b(?:correction|corrected (?:note|report)|retraction)\b/i.test(context.currentMessage)
+    && ["general", "clarify", "recall"].includes(String(p.operation))
+    && ["general", "clarify", "recall"].includes(String(p.readOperation))
+    && p.ordinal === null && p.episodeTopic === null
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+    && Array.isArray(p.petNames) && p.petNames.every(name => owned.some(pet => pet.name === name))) {
+    Object.assign(p, { operation: "recall", readOperation: "recall", subject: "explicit",
+      petNames: owned.map(pet => pet.name), selection: "summary", topic: "recorded correction",
+      terms: ["correct", "retract"], frame: emptyProposedSemanticFrame() });
+  }
   if (p.operation !== "update" && Array.isArray(p.petNames) && p.petNames.length > 3 && named.length > 0 && named.length <= 3
     && p.petNames.every(name => owned.some(pet => pet.name === name))) p.petNames = named.map(pet => pet.name);
   if (p.operation === "update" && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
