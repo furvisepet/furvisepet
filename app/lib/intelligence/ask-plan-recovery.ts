@@ -15,6 +15,14 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const p = { ...value as Record<string, unknown> };
   const initialOperation = p.operation;
+  // Row ordering is not a request to discard all but the first measurement.
+  if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
+    && /\bweights?\b/i.test(context.currentMessage) && /\btable\b/i.test(context.currentMessage)
+    && /\b(?:older|oldest)\b[\w\s-]{0,30}\bfirst\b|\bchronological(?:ly)?\b/i.test(context.currentMessage)
+    && !/\bonly\b|\bfirst\s+\d+\b|\blast\s+\d+\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p, { operation: "comparison", readOperation: "comparison", selection: "summary" });
+  }
   // A complete acknowledgment has no animal referent or saved-data request.
   // The entire message is an acknowledgment, regardless of model operation.
   // Reduce it to zero evidence/write authority; never swallow extra clauses.

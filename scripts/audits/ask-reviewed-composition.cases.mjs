@@ -375,3 +375,29 @@ test('mobility retrieval includes dated comfort reports',async t=>{
  const r=await exercise('Does Milo September 3 improvement prove stiffness never returns?',{history:true,rows:[care('comfort','milo','2026-09-03','general','Milo was comfortable for three days.')],messages:[],interpretationProposal:{...plan,operation:'status',readOperation:'status',terms:['stiffness','improvement','return','never'],from:'2026-09-03',to:'2026-09-04'},providerOverrides:{historyNarrative:null},reviewResponse:{approved:false},expectedReviewCalls:1});
  assert.ok(r.result.reasoning.evidenceContract.represented.some(s=>s.sourceId==='care:comfort'));noWrites(r);
 });
+
+test('weight table row ordering retains both measurements despite earliest model selection',async t=>{
+ clock(t);
+ const r=await exercise('Show Milo recorded weights in a table, with the older measurement first.',{history:true,rows:[care('light','milo','2026-06-04','general','Milo weighed 20 kg today.'),care('heavy','milo','2026-09-03','general','Milo weighed 21 kg today.')],messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',selection:'earliest',terms:['weight']}});
+ assert.match(r.result.reasoning.answer.summary,/\| 2026-06-04 \| 20 kg \|/);
+ assert.match(r.result.reasoning.answer.summary,/\| 2026-09-03 \| 21 kg \|/);noWrites(r);
+});
+test('complete thanks variants use the provider-independent route without swallowing requests',async()=>{
+ const {planProviderIndependentAskTurn}=await import('../../app/lib/ai/ask-orchestrator.ts');
+ for(const message of ['Thanks, that helped.','Thank you so much!','thx, appreciate it']) {
+ const r=planProviderIndependentAskTurn({concerns:[],message,petName:'Milo'});
+ assert.equal(r?.handledWithoutAi,true);assert.equal(r?.suggestion,null);
+ }
+ for(const message of ['Thanks, but Milo is vomiting.','Thanks. What should I do?','Thanks, that helped his breathing.']) {
+ assert.equal(planProviderIndependentAskTurn({concerns:[],message,petName:'Milo'}),null);
+ }
+});
+
+test('reformulation references the prior user question without accepting assistant facts',async t=>{
+ clock(t);const {ownerId}=await import('./fixtures/ask-lifetime-history.mjs');
+ const question='Can you explain that last answer more briefly?';
+ const prior='How many stools are described in Milo June 15 note?';
+ const messages=[{id:'prior-q',user_id:ownerId,conversation_id:'chat',role:'user',user_text:prior,sequence_number:1}];
+ const r=await exercise(question,{history:true,rows,messages,interpretationProposal:{...plan,operation:'recall',readOperation:'recall',subject:'conversation',petNames:[],terms:['stool'],from:'2026-06-15',to:'2026-06-16'}});
+ assert.equal(JSON.parse(r.interpretationRequests[0].input).reformulation.priorUserQuestion,prior);noWrites(r);
+});
