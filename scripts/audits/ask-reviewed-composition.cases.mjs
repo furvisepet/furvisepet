@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exercise, clock } from './helpers/lifetime-harness.mjs';
-import { care } from './fixtures/ask-lifetime-history.mjs';
+import { care, pets as correctionFixturePets } from './fixtures/ask-lifetime-history.mjs';
 import { emptyProposedSemanticFrame } from '../../app/lib/intelligence/semantic-frame/extract-frame.ts';
 const plan = {operation:'overview',readOperation:'overview',selection:'summary',subject:'explicit',petNames:['Milo'],topic:'stomach',terms:['stool'],from:null,to:null,episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame()};
 const rows = [care('june','milo','2026-06-15','symptom','Milo had two soft stools today. He was eating normally.'),care('better','milo','2026-06-20','general','Milo has had normal stools for three days.')];
@@ -488,4 +488,42 @@ test('a named symptom still keeps its topic filter in a change question',async t
  const context={owner:{userId:ownerId},eligiblePets:pets.slice(0,3),pet:pets[0],conversationTurns:[],currentMessage:"In Oscar's notes, what changed about his stiffness?"};
  const p={...plan,terms:['stiffness']};
  assert.deepEqual(normalizeAskReadProposal(p,context).terms,['stiffness']);
+});
+
+test('explicit four-day timeline retains all requested evidence after latest-only review',async t=>{
+ clock(t);
+ const entries=[
+ care('j15','milo','2026-06-15','general','Milo had two soft stools.'),
+ care('j20','milo','2026-06-20','general','Milo stools have been normal for three days.'),
+ care('a8','milo','2026-08-08','general','Milo had one soft stool.'),
+ care('a10','milo','2026-08-10','general','Milo stools are normal again.'),
+ care('extra','milo','2026-07-01','general','Milo enjoyed brushing.')
+ ];
+ const r=await exercise('For Milo, list June 15, June 20, August 8 and August 10 in chronological order.',{
+ history:true,rows:entries,messages:[],interpretationProposal:{...plan,operation:'general',readOperation:'general',selection:'latest',terms:[],from:null,to:null},
+ providerOverrides:{historyNarrative:{sentences:[{text:'Milo stools were normal again on August 10.',sourceIds:['care:a10']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ const answer=r.result.reasoning.answer.summary;
+ for(const day of ['2026-06-15','2026-06-20','2026-08-08','2026-08-10'])assert.ok(answer.includes(day),answer);
+ assert.ok(answer.indexOf('2026-06-15')<answer.indexOf('2026-06-20'));
+ assert.ok(answer.indexOf('2026-06-20')<answer.indexOf('2026-08-08'));
+ assert.ok(answer.indexOf('2026-08-08')<answer.indexOf('2026-08-10'));
+ assert.doesNotMatch(answer,/brushing/);noWrites(r);
+});
+
+test('causal follow-up reads the last user-established pet and both change dates',async t=>{
+ clock(t);const {ownerId}=await import('./fixtures/ask-lifetime-history.mjs');
+ const messages=[{id:'prior',user_id:ownerId,conversation_id:'chat',role:'user',user_text:"What did Luna's July 9 vet recommend, and what was changed on July 10?",sequence_number:1}];
+ const entries=[care('advice','luna','2026-07-09','vet_visit','The vet asked us to restore Luna previous litter arrangement and monitor her.'),care('changes','luna','2026-07-10','general','We moved Luna tray back and returned to unscented litter. We changed both things together.')];
+ const r=await exercise('Does that tell us which change caused the improvement?',{history:true,rows:entries,messages,
+ interpretationProposal:{...plan,operation:'clarify',readOperation:'clarify',subject:'unclear',petNames:[],terms:[],from:null,to:null},
+ providerOverrides:{historyNarrative:{sentences:[{text:'Both changes were made together on July 10, so the notes do not establish which caused improvement.',sourceIds:['care:changes']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ assert.deepEqual(r.context.askInterpretation.petIds,['luna']);
+ assert.match(r.result.reasoning.answer.summary,/both|Both/);assert.doesNotMatch(r.result.reasoning.answer.summary,/Which pet/);noWrites(r);
+});
+test('correction lookup can name an outside animal without granting that animal ownership',async t=>{
+ clock(t);
+ const r=await exercise('What does the August 20 correction say about Milo and Bruno?',{history:true,messages:[],fixturePets:correctionFixturePets.slice(0,3),
+ rows:[care('fix','milo','2026-08-20','general','Correction: the vomiting report was about my sister dog Bruno, not Milo. Milo did not vomit.')],
+ interpretationProposal:{...plan,operation:'clarify',readOperation:'clarify',subject:'unclear',petNames:['Milo','Bruno'],terms:[],from:null,to:null}});
+ assert.deepEqual(r.context.askInterpretation.petIds,['milo']);assert.match(r.result.reasoning.answer.summary,/Bruno/);assert.match(r.result.reasoning.answer.summary,/not Milo/);noWrites(r);
 });

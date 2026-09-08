@@ -91,3 +91,27 @@ test('broad recorded food resets stale weight terms but preserves ingredient-spe
  }
  const bad=normalizeAskReadProposal({...proposal('comparison'),terms:['DROP;TABLE']},context('List recorded food for Pip.'));assert.deepEqual(bad.terms,['DROP;TABLE']);
 });
+
+test('literal four-date timeline cannot become general or latest-only',()=>{
+ const q='For Pip, list June 15, June 20, August 8 and August 10 in chronological order.';
+ for(const operation of ['general','recall','comparison','status']) {
+  const p=normalizeAskReadProposal({...proposal(operation),selection:'latest',from:new Date().getUTCFullYear()+'-08-10',to:new Date().getUTCFullYear()+'-08-11'},context(q));
+  assert.equal(p.operation,'recall');assert.equal(p.selection,'period');assert.deepEqual(p.terms,[]);
+  assert.equal(p.from,new Date().getUTCFullYear()+'-06-15');assert.equal(p.to,new Date().getUTCFullYear()+'-08-11');
+ }
+ const bad={...proposal('recall'),terms:['%']};assert.deepEqual(normalizeAskReadProposal(bad,context(q)),bad);
+});
+test('causal change reference inherits only the last explicit owned user question',()=>{
+ const q='Does that tell us which change caused the improvement?';
+ const prior="What did Pip's July 9 vet recommend, and what was changed on July 10?";
+ const p=normalizeAskReadProposal({...proposal('clarify'),subject:'unclear',petNames:[]},context(q,[prior]));
+ assert.equal(p.operation,'recall');assert.deepEqual(p.petNames,['Pip']);assert.deepEqual(p.terms,[]);
+ for(const previous of [prior.replace('Pip','Bruno'),prior+' Pip vomited.',prior+' and Bruno?','Which pet was that?']) {
+  const initial={...proposal('clarify'),subject:'unclear',petNames:[]};
+  assert.equal(normalizeAskReadProposal(initial,context(q,[previous])).operation,'clarify');
+ }
+});
+test('explicit named correction lookup excludes the external name from authority',()=>{
+ const p=normalizeAskReadProposal({...proposal('clarify'),petNames:['Pip','Bruno'],subject:'unclear'},context('What does the August 20 correction say about Pip and Bruno?'));
+ assert.equal(p.operation,'recall');assert.deepEqual(p.petNames,['Pip']);assert.deepEqual(p.terms,['correct','retract']);
+});

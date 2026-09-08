@@ -1,6 +1,7 @@
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
+import { requestedHistoryTimelineDays } from "./requested-history-timeline.ts";
 import { withinNoteCountAnswer } from "./within-note-count.ts";
 import { calendarIntervalAnswer } from "./calendar-interval.ts";
 import { buildWeightComparison, weightComparisonAnswer } from "./weight-comparison.ts";
@@ -328,8 +329,10 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
   const unresolvedCorrection = !!contract.history?.reasons.includes("unlinked_correction_uncertain");
   const period = contract.interpretation?.history;
   const terms = period?.terms || [];
+  const timelineDays = requestedHistoryTimelineDays(contract.scope.requestText, new Date().getUTCFullYear());
   const notes = contract.represented.filter(span => span.sourceType === "care_update"
     && contract.scope.authorizedPetIds.includes(span.petId)
+    && (!timelineDays || !!span.occurredAt && timelineDays.includes(span.occurredAt.slice(0,10)))
     && (!period?.from || !!span.occurredAt && span.occurredAt >= period.from && span.occurredAt < period.to!)
     && span.start === 0 && span.end === span.text.length && span.text.trim()
     && (!terms.length || terms.some(term => span.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())))
