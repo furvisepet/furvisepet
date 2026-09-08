@@ -26,7 +26,7 @@ Do not use `npm audit fix --force`, `--legacy-peer-deps`, package-manager migrat
 Overrides are exceptional and must be scoped to the vulnerable parent, list a removal condition, and have runtime/build compatibility evidence. Current overrides:
 
 - `next -> postcss 8.5.18`: remove when Next declares a version at or above 8.5.18.
-- `next -> sharp 0.35.3`: remove when Next declares Sharp at or above 0.35.0.
+- `next -> sharp 0.35.4`: remove when Next declares Sharp at or above 0.35.0.
 
 Dependabot patches/minors must not delete or broaden these overrides without rerunning image and CSS verification. Native packages must not be overridden across a major merely on audit advice.
 
