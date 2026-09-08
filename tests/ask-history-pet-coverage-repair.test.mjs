@@ -151,3 +151,30 @@ test('unrelated projection losses do not turn an exhausted empty history search 
  e.representation='partial';e.losses=[{sourceId:'episode:unrelated',reason:'episode_projection'}];
  assert.match(evidenceAnswerPolicy(e),/couldn't find matching saved notes/);
 });
+
+test('reviewed cross-pet sentence with each named and cited pet does not append duplicate extracts', async () => {
+  const r = result(fixture(), ['care:a', 'care:b']);
+  r.historyNarrative.sentences[0].text = 'Aster ate wet food, and Birch ate wet food.';
+  const receipt = await review(r);
+  assert.deepEqual(receipt.sourceReports, []);
+  assert.deepEqual(receipt.sourceIds, ['care:a', 'care:b']);
+  const v = validateGeneratedAnswer(r, context, 'routine', ['a', 'b']);
+  assert.equal(v.valid, true, v.errors.join(','));
+  assert.equal(v.response.answer.summary.split('Birch ate wet food').length - 1, 1);
+});
+test('mentioning another pet without citing its records does not satisfy coverage', async () => {
+  const r = result(fixture(), ['care:a']);
+  r.historyNarrative.sentences[0].text = 'Aster ate wet food; Birch is also in the question.';
+  const receipt = await review(r);
+  assert.equal(receipt.sourceReports.length, 1);
+  assert.match(receipt.sourceReports[0], /Birch ate wet food/);
+});
+test('single-sentence history keeps its uncertainty in the same sentence', async () => {
+  const e = fixture(['a']); e.scope.requestText = 'Write one sentence about Aster food.';
+  e.history.reasons = ['unlinked_correction_uncertain'];
+  const r = result(e); await review(r);
+  const v = validateGeneratedAnswer(r, { ...context, currentMessage: e.scope.requestText }, 'routine', ['a']);
+  assert.match(v.response.answer.summary, /Aster ate wet food; an unlinked correction/);
+  assert.match(v.response.answer.summary, /uncertain/);
+  assert.doesNotMatch(v.response.answer.summary, /\.\s+[A-Z]/);
+});
