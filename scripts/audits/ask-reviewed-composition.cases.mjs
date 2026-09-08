@@ -287,3 +287,31 @@ test('explicit dated source lookup does not require the question synonym in the 
   assert.ok(r.context.askHistory.entries.some(row=>row.id===source.id));
   noWrites(r);
 });
+
+test('natural-language dates and pet headings preserve reviewed table content',async t=>{
+ clock(t);
+ const weights=[care('table-first','milo','2026-06-04','general','Milo weighed 4.2 kg today.'),care('table-last','milo','2026-09-02','general','His weight today was 4.2 kg.')];
+ for(const table of ['| Date | Weight |\n| --- | --- |\n| June 4, 2026 | 4.2 kg |\n| September 2, 2026 | 4.2 kg |','| Pet | Date | Weight |\n| --- | --- | --- |\n| Milo | June 4, 2026 | 4.2 kg |\n| Milo | September 2, 2026 | 4.2 kg |']) {
+ const r=await exercise('Show Milo recorded weights in a table with dates.',{history:true,rows:weights,messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',topic:'weight',terms:['weigh']},providerOverrides:{historyNarrative:{sentences:[{text:table,sourceIds:['care:table-first','care:table-last']}]}},reviewResponse:{approved:true},expectedReviewCalls:1});
+ assert.match(r.result.reasoning.answer.summary,/June 4, 2026/);assert.match(r.result.reasoning.answer.summary,/September 2, 2026/);noWrites(r);
+ }
+});
+
+test('elapsed dates include the final day and compute only from retained endpoints',async t=>{
+ clock(t);
+ const q="How many days are there from Milo's June 15 soft-stool note to June 20?";
+ const r=await exercise(q,{history:true,rows,messages:[],interpretationProposal:{...plan,operation:'recall',readOperation:'recall',selection:'reference',from:'2026-06-15',to:'2026-06-16',terms:['soft stool']}});
+ assert.equal(r.context.askHistory.entries.length,2);
+ assert.match(r.result.reasoning.answer.summary,/5 calendar days/);noWrites(r);
+ const {calendarIntervalAnswer}=await import('../../app/lib/intelligence/calendar-interval.ts');
+ const e=structuredClone(r.result.reasoning.evidenceContract);
+ e.losses.push({sourceId:'care:better',reason:'prompt_budget'});
+ assert.equal(calendarIntervalAnswer(e),null);
+});
+
+test('correction identity question retrieves the correction without assigning its external subject',async t=>{
+ clock(t);
+ const {pets}=await import('./fixtures/ask-lifetime-history.mjs');
+ const r=await exercise('Which dog was the vomiting correction about?',{history:true,fixturePets:pets.slice(0,3),rows:[care('correction-read','milo','2026-08-20','general','Correction to yesterday: that vomiting report was my sister dog Rufus, not Milo.')],messages:[],interpretationProposal:{...plan,operation:'general',readOperation:'general',subject:'non_pet',petNames:[],terms:[]}});
+ assert.match(r.result.reasoning.answer.summary,/Rufus/);noWrites(r);
+});

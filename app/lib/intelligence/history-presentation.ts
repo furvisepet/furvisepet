@@ -8,7 +8,7 @@ export function requestedHistoryLayout(question: string): Layout | null {
   // Only presentation vocabulary is recognized; episode/note quantities are not.
   // Quoted examples are data, not formatting commands.
   const text = question.replace(/"[^"]*"|\u201c[^\u201d]*\u201d/g, "");
-  const expression = /\b(?:(no|without)\s+(?:bullets?|lists?)|(one|a single)\s+paragraph|(?:numbered|ordered)\s+list|(?:in|into|as|use|give me|make it)\s+(?:(?:a|an)\s+)?(?:(one|two|three|four|five|six|seven|eight|[1-8])\s+)?(?:(?:short|concise|brief)\s+)?(?:bullet\s+points?|bullets?|points|paragraphs?)|bullet\s+points)\b/gi;
+  const expression = /\b(?:(no|without)\s+(?:bullets?|lists?)|(one|a single)\s+paragraph|(?:numbered|ordered)\s+list|(?:in|into|as|use|give me|make it)\s+(?:(?:exactly|precisely)\s+)?(?:(?:a|an)\s+)?(?:(one|two|three|four|five|six|seven|eight|[1-8])\s+)?(?:(?:short|concise|brief)\s+)?(?:bullet\s+points?|bullets?|points|paragraphs?)|bullet\s+points)\b/gi;
   let layout: Layout | null = null;
   for (const match of text.matchAll(expression)) {
     const value = match[0].toLowerCase();
@@ -31,6 +31,19 @@ export function presentReviewedHistory(sentences: readonly string[], question: s
   if (!sentences.length) return "";
   const table = sentences.join("\n");
   if (parsePlainTable(table)) return table;
+  // Keep table rows and nearby prose in distinct blocks. Joining a closing row
+  // to its explanation makes an otherwise valid table impossible to render.
+  const runs: { table: boolean; texts: string[] }[] = [];
+  for (const sentence of sentences) {
+    const isTable = sentence.trim().split(/\r?\n/).every(line => /^\s*\|.*\|\s*$/.test(line));
+    const last = runs.at(-1);
+    if (last?.table === isTable) last.texts.push(sentence);
+    else runs.push({ table: isTable, texts: [sentence] });
+  }
+  if (runs.some(run => run.table && parsePlainTable(run.texts.join("\n")))) {
+    return runs.map(run => run.table ? run.texts.join("\n")
+      : presentReviewedHistory(run.texts, question)).join("\n\n");
+  }
   const layout = requestedHistoryLayout(question);
   const groups: string[][] = [];
   if (layout?.count) {

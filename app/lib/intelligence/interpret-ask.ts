@@ -142,7 +142,10 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
   const ambiguousPronoun = !named.length && pronouns.some(pronoun => resolveRecentPronoun(state, pronoun).status === "ambiguous");
   const accountWide = !named.length && /\b(?:all (?:of )?my pets|all (?:of )?our pets|across my pets|which (?:of my )?pets|(?:each|every) (?:of my )?pet|(?:my|the|these|all) (?:two|three|[23]) pets)\b/i.test(context.currentMessage)
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion;
-  if (accountWide && p.subject !== "non_pet") {
+  const correctionSubjects = !named.length && /\bwhich (?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
+    && /\b(?:correction|corrected (?:note|report)|retraction)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion;
+  if ((accountWide || correctionSubjects) && p.subject !== "non_pet") {
     // The explicit account-wide request supplies scope, not optional model names.
     // Proposed names still pass ownership validation above; read bounds remain.
     if (owned.length > ASK_INTERPRETATION_LIMITS.pets) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
@@ -160,7 +163,7 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
       && owned.some(pet => pet.id === context.pet.id)) petIds = [context.pet.id];
     if (p.subject === "explicit" && (!proposed.length || !petIds.length)) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
   } else if (!ambiguousPronoun && p.subject === "selected") petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
-  if (!accountWide && !ambiguousPronoun && p.subject !== "unclear" && p.subject !== "non_pet" && proposed.length && (proposed.length !== petIds.length || proposed.some(id => !petIds.includes(id)))) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
+  if (!accountWide && !correctionSubjects && !ambiguousPronoun && p.subject !== "unclear" && p.subject !== "non_pet" && proposed.length && (proposed.length !== petIds.length || proposed.some(id => !petIds.includes(id)))) return invalid("ASK_INTERPRETATION_SUBJECT", "semantic");
   if (petIds.length > ASK_INTERPRETATION_LIMITS.pets) return invalid();
   // A plain named-topic follow-up is an ordinary read, even if the model labels
   // it clarify. Only recover a topic literally present after one owned name;
