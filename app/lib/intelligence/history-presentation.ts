@@ -86,7 +86,7 @@ export function preserveReviewedLayout(reviewed: string, sanitized: string): str
 /** Preserve the coverage warning while honoring a one-sentence presentation. */
 export function presentHistoryLimitation(prose: string, limitation: string, question: string): string {
   if (!limitation) return prose;
-  const oneSentence = /\b(?:one|1|a single)\s+sentence\b/i.test(question);
+  const oneSentence = /\b(?:one|1|a single|a short|a brief|a concise)\s+sentence\b/i.test(question);
   // Only join a single plain sentence; never flatten tables, lists or quotations.
   if (oneSentence && !/[\n|"\u201c\u201d]/.test(prose) && !/[.!?]\s+\p{Lu}/u.test(prose)
     && !/[.!?]\s+\p{Lu}/u.test(limitation)) {

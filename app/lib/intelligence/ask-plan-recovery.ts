@@ -37,6 +37,14 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "overview", readOperation: "overview", selection: "summary", topic: "recorded changes", terms: [] });
   }
+  // Asking which sign recurred supplies no specific symptom search term.
+  if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
+    && /\bwhich\b[\s\S]{0,60}\b(?:symptom|sign)\b/i.test(context.currentMessage)
+    && /\b(?:recorded|notes|history|report)\b/i.test(context.currentMessage)
+    && /\b(?:returning|returned|recurred|recurring|came back)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p, { operation: "overview", readOperation: "overview", selection: "summary", topic: "recorded recurrence", terms: [] });
+  }
   // Row ordering is not a request to discard all but the first measurement.
   if (reads.has(String(p.operation)) && reads.has(String(p.readOperation)) && p.ordinal === null
     && /\bweights?\b/i.test(context.currentMessage) && /\btable\b/i.test(context.currentMessage)
@@ -48,7 +56,7 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   // A complete acknowledgment has no animal referent or saved-data request.
   // The entire message is an acknowledgment, regardless of model operation.
   // Reduce it to zero evidence/write authority; never swallow extra clauses.
-  if (/^(?:thanks?(?: you)?|thank you|ty|thx)(?:[,! .]+(?:that helps|that helped|appreciate it|so much))?[.! ]*$/i.test(context.currentMessage.trim())
+  if (/^(?:thanks?(?: you)?(?: a lot| so much)?|thank you(?: so much)?|ty|thx)(?:[,! .]+(?:that helps|that helped|that clears it up|that makes sense|appreciate it|so much))?[.! ]*$/i.test(context.currentMessage.trim())
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "general", readOperation: "general", subject: "non_pet",
       petNames: [], topic: "acknowledgment", terms: [], from: null, to: null,
@@ -74,7 +82,7 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && /\b(?:stools?|accidents?|tablets?|doses?|courses?)\b/i.test(quantityWording);
   const documentedCourses = /\bmedication courses?\b/i.test(quantityWording)
     && /\b(?:explicitly described|recorded|documented|in (?:the )?(?:notes|records))\b/i.test(quantityWording);
-  const withinNoteQuantity = /\bhow many\s+(?:stools?|accidents?|tablets?|doses?|courses?)\b/i.test(quantityWording)
+  const withinNoteQuantity = /\b(?:how many\s+(?:stools?|accidents?|tablets?|doses?|courses?)|one accident or two|one or two accidents)\b/i.test(quantityWording)
     && /\b(?:note|entry|report)\b/i.test(quantityWording);
   if (["count", "clarify", "recall"].includes(String(p.operation))
     && (p.readOperation === null || ["count", "clarify", "recall"].includes(String(p.readOperation))) && p.ordinal === null
@@ -98,14 +106,22 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "recall", readOperation: "recall", episodeTopic: null });
   }
-  const interval = typeof p.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.from)
-    ? requestedCalendarInterval(context.currentMessage, Number(p.from.slice(0, 4))) : null;
-  if (interval && p.from === interval.from && p.operation === "recall" && p.readOperation === "recall"
+  const interval = requestedCalendarInterval(context.currentMessage, new Date().getUTCFullYear());
+  if (interval && (p.from === null || p.from === interval.from) && p.operation === "recall" && p.readOperation === "recall"
     && p.ordinal === null && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
-    && [interval.last, interval.to, new Date(Date.parse(interval.from) + 86400000).toISOString().slice(0, 10)].includes(String(p.to))
+    && [null, interval.last, interval.to, new Date(Date.parse(interval.from) + 86400000).toISOString().slice(0, 10)].includes(p.to as string | null)
     && Array.isArray(p.terms) && p.terms.length <= 6
     && p.terms.every(term => typeof term === "string" && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term) && term.length <= 32)) {
     Object.assign(p, { selection: "period", from: interval.from, to: interval.to, terms: [] });
+  }
+  const sourceDays = explicitHistoryDays(context.currentMessage, new Date().getUTCFullYear());
+  if (p.operation === "recall" && p.readOperation === "recall" && p.ordinal === null
+    && sourceDays.length === 1 && /\b(?:note|entry|report)\b/i.test(context.currentMessage)
+    && !/\b(?:before|after|until|since|between|from|through|onward)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    const day = sourceDays[0]; const after = new Date(Date.parse(day) + 86400000).toISOString().slice(0, 10);
+    if ([null, day].includes(p.from as string | null) && [null, day, after].includes(p.to as string | null))
+      Object.assign(p, { from: day, to: after, selection: "reference" });
   }
   // A specifically dated source is located by its day. Requiring a lexical
   // synonym as well can hide that very note (e.g. accidents versus urinated).
@@ -129,8 +145,8 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   const named = explicitlyNamedOwnedPets(context.currentMessage, owned);
   // Which animal a saved correction describes is the fact to retrieve.
   // Search the bounded owned account; quoted external names grant no new owner.
-  if (owned.length > 0 && owned.length <= 3 && !named.length
-    && /\bwhich (?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
+  if (owned.length > 0 && owned.length <= 3
+    && /\b(?:which|whose) (?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
     && /\b(?:correction|corrected (?:note|report)|retraction)\b/i.test(context.currentMessage)
     && ["general", "clarify", "recall", "overview", "comparison", "status", "update"].includes(String(p.operation))
     && (p.readOperation === null || ["general", "clarify", "recall", "overview", "comparison", "status"].includes(String(p.readOperation)))
@@ -138,7 +154,7 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
     && Array.isArray(p.petNames) && p.petNames.length <= 3 && p.petNames.every(name => typeof name === "string" && name.length <= 100)) {
     Object.assign(p, { operation: "recall", readOperation: "recall", subject: "explicit",
-      petNames: owned.map(pet => pet.name), selection: "summary", topic: "recorded correction",
+      petNames: (named.length ? named : owned).map(pet => pet.name), selection: "summary", topic: "recorded correction", from: null, to: null,
       terms: ["correct", "retract"], episodeTopic: null, frame: emptyProposedSemanticFrame() });
   }
   if (p.operation !== "update" && Array.isArray(p.petNames) && p.petNames.length > 3 && named.length > 0 && named.length <= 3
@@ -197,7 +213,7 @@ export function unavailableAskReadPlan(reason: string): AskInterpretation {
 
 /** Prior user wording is a question reference, never medical or write evidence. */
 export function datedNoteReformulation(context: Context): { question: string; day: string; after: string; petId: string } | null {
-  if (!/^(?:(?:can|could|would) you |please )?(?:explain|rephrase|shorten|summarize) (?:that|the) (?:last |previous )?(?:answer|response)(?: (?:more briefly|in fewer words|more simply|briefly|again))?[?.!]*$/i.test(context.currentMessage.trim())
+  if (!/^(?:(?:can|could|would) you |please )?(?:(?:explain|rephrase|shorten|summarize) (?:that|the) (?:last |previous )?(?:answer|response)(?: (?:more briefly|in fewer words|more simply|briefly|again))?|(?:say|explain|put) that (?:more simply|more briefly|in simpler words))[?.!]*$/i.test(context.currentMessage.trim())
     || analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) return null;
   const prior = context.conversationTurns.filter(turn => turn.role === "user" && turn.text.trim() !== context.currentMessage.trim()).at(-1)?.text;
   if (!prior || analyzeOwnerAssertions(prior).hasOwnerAssertion || !/\b(?:note|entry|report)\b/i.test(prior)

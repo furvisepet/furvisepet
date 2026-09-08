@@ -53,7 +53,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   const supportedQuantities = new Set(sources.flatMap(source => quantities(source.text)));
   // Two separately dated, explicitly reported urination events can support a
   // count within that note. This never authorizes illness-episode totals.
-  if (/\bhow many accidents\b/i.test(requestText) && /\b(?:note|entry|report)\b/i.test(requestText)
+  if (/\b(?:how many accidents|one accident or two|one or two accidents)\b/i.test(requestText) && /\b(?:note|entry|report)\b/i.test(requestText)
     && !/\b(?:ever|lifetime|episodes?)\b/i.test(requestText)) {
     for (const source of sources) {
       const sentence = source.text.split(/(?<=[.!?])\s+/).find(part =>
@@ -91,7 +91,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   // A derived calendar interval is not a reported symptom duration. Require
   // an explicit elapsed-day question and two uniquely grounded endpoints.
   // Semantic review still checks the meaning of the complete sentence.
-  if (/\bhow many days\s+(?:are there|passed|elapsed|between|from|apart)\b/i.test(requestText)
+  if (/\bhow many days\s+(?:are there|passed|elapsed|between|from|apart|separate)\b/i.test(requestText)
     && new Set(sources.map(source => source.petId)).size === 1) {
     const requested = dates(requestText);
     const grounded = requested.map(date => [...new Set(sourceDates.filter(value =>
