@@ -1,4 +1,4 @@
-type Source = { text: string; occurredAt?: string | null };
+type Source = { text: string; occurredAt?: string | null; petId?: string };
 const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 const words: Record<string, number> = {one:1,single:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
 function dates(text: string): string[] {
@@ -16,7 +16,7 @@ function quantities(text: string): string[] {
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
  * prevents an approving model from manufacturing a date or dose. */
-export function historyNarrativeAnchorsSupported(text: string, sources: Source[]): boolean {
+export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = ""): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
   if (/\b(?:today|yesterday)\b/i.test(prose) && !dates(prose).length
@@ -51,6 +51,53 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   });
   const supportedDates = new Set(sourceDates.flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
   const supportedQuantities = new Set(sources.flatMap(source => quantities(source.text)));
+  // Permit arithmetic only for explicit, dated measurements of the same pet.
+  // Semantic review remains responsible for direction and endpoint relevance.
+  if (/\bweight\b/i.test(requestText) && /\b(?:change|difference|earliest|latest)\b/i.test(requestText)) {
+    const groups = new Map<string, { at: number; grams: number }[]>();
+    const invalid = new Set<string>();
+    for (const source of sources) {
+      if (!source.petId) continue;
+      const matches = [...source.text.matchAll(/\b(\d+(?:\.\d{1,3})?)\s*kg\b/gi)];
+      if (!matches.length) continue;
+      const at = Date.parse(source.occurredAt || "");
+      if (matches.length !== 1 || !Number.isFinite(at)
+        || /\b(?:may|might|maybe|approximately|about|not|never|or|correction|incorrect|estimated)\b/i.test(source.text)
+        || !/\b(?:weighed|weighs|weight)\b/i.test(source.text)) {
+        invalid.add(source.petId);
+        continue;
+      }
+      const measurements = groups.get(source.petId) || [];
+      measurements.push({ at, grams: Math.round(Number(matches[0][1]) * 1000) });
+      groups.set(source.petId, measurements);
+    }
+    for (const [petId, measurements] of groups) {
+      if (invalid.has(petId) || measurements.length < 2) continue;
+      measurements.sort((a, b) => a.at - b.at);
+      if (measurements.some((value, i) => i > 0 && value.at === measurements[i - 1].at)) continue;
+      supportedQuantities.add(`${Math.abs(measurements.at(-1)!.grams - measurements[0].grams) / 1000}:kg`);
+    }
+  }
+  // A derived calendar interval is not a reported symptom duration. Require
+  // an explicit elapsed-day question and two uniquely grounded endpoints.
+  // Semantic review still checks the meaning of the complete sentence.
+  if (/\bhow many days\s+(?:are there|passed|elapsed|between|from|apart)\b/i.test(requestText)
+    && new Set(sources.map(source => source.petId)).size === 1) {
+    const requested = dates(requestText);
+    const grounded = requested.map(date => [...new Set(sourceDates.filter(value =>
+      /^\d{4}:/.test(value) && (value === date || value.replace(/^\d{4}:/, "") === date)))]);
+    if (requested.length === 2 && grounded.every(values => values.length === 1)) {
+      const instants = grounded.map(values => {
+        const [year, month, day] = values[0].split(/[:-]/).map(Number);
+        const instant = Date.UTC(year, month - 1, day);
+        const parsed = new Date(instant);
+        return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1
+          && parsed.getUTCDate() === day ? instant : NaN;
+      });
+      const elapsed = (instants[1] - instants[0]) / 86400000;
+      if (Number.isSafeInteger(elapsed) && elapsed >= 0) supportedQuantities.add(elapsed + ":day");
+    }
+  }
   return dates(text).every(date => supportedDates.has(date))
     && quantities(text).every(quantity => supportedQuantities.has(quantity));
 }

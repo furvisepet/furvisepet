@@ -46,6 +46,17 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
     Object.assign(p, { operation: "recall", readOperation: "recall", episodeTopic: null });
   }
+  // A specifically dated source is located by its day. Requiring a lexical
+  // synonym as well can hide that very note (e.g. accidents versus urinated).
+  // Keep date, ownership and source-version validation unchanged.
+  if (p.operation === "recall" && p.readOperation === "recall" && p.selection === "reference"
+    && typeof p.from === "string" && typeof p.to === "string"
+    && Date.parse(p.to) - Date.parse(p.from) === 86400000 && p.ordinal === null
+    && /\b(?:note|entry|report)\b/i.test(context.currentMessage)
+    && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+    && Array.isArray(p.terms) && p.terms.length <= 6
+    && p.terms.every(term => typeof term === "string" && term.length >= 3 && term.length <= 32
+      && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term))) p.terms = [];
   // Complete only explicitly open-ended ranges. The strict validator still
   // rejects invalid dates, reversed ranges and missing bounds on closed ranges.
   if (p.operation !== "update") {
