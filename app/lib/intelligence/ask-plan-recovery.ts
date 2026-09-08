@@ -107,12 +107,13 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
     Object.assign(p, { operation: "recall", readOperation: "recall", episodeTopic: null });
   }
   const interval = requestedCalendarInterval(context.currentMessage, new Date().getUTCFullYear());
-  if (interval && p.operation === "recall" && p.readOperation === "recall"
+  if (interval && reads.has(String(p.operation)) && reads.has(String(p.readOperation))
     && p.ordinal === null && !competingCount && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
     && [p.from, p.to].every(bound => bound === null || typeof bound === "string" && /^\d{4}-\d{2}-\d{2}$/.test(bound) && Number.isFinite(Date.parse(bound)) && new Date(bound).toISOString().slice(0,10) === bound)
     && Array.isArray(p.terms) && p.terms.length <= 6
     && p.terms.every(term => typeof term === "string" && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term) && term.length <= 32)) {
-    Object.assign(p, { selection: "period", from: interval.from, to: interval.to, terms: [] });
+    Object.assign(p, { operation: "recall", readOperation: "recall", episodeTopic: null,
+      selection: "period", from: interval.from, to: interval.to, terms: [] });
   }
   const sourceDays = explicitHistoryDays(context.currentMessage, new Date().getUTCFullYear());
   if (p.operation === "recall" && p.readOperation === "recall" && p.ordinal === null

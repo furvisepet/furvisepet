@@ -25,3 +25,10 @@ test('using two bullets is an explicit format request',()=>{
  assert.deepEqual(requestedHistoryLayout('Summarize June and August, using two bullets.'),{style:'bullets',count:2});
  assert.equal(presentReviewedHistory(['First.','Second.','Third.'],'Summarize, using two bullets.'),'- First.\n- Second. Third.');
 });
+
+
+test('requested separate pet lines preserve every reviewed sentence without merging them',()=>{
+ const sentences=['Pip ate salmon food in July.','Fern changed from chicken to turkey in August.','Nori ate senior food in September.'];
+ assert.equal(presentReviewedHistory(sentences,'Give a separate line for each pet.'),sentences.join('\n\n'));
+ assert.equal(requestedHistoryLayout('Explain the quoted phrase "a separate line for each pet".'),null);
+});

@@ -66,3 +66,19 @@ test('explicit interval endpoints override a valid but wrong model range without
  const invalid=normalizeAskReadProposal({...proposal('recall'),from:'2026-02-30',to:'2026-03-01'},c);
  assert.equal(invalid.from,'2026-02-30');
 });
+
+
+test('calendar endpoint reads do not depend on the model choosing recall',()=>{
+ const c=context("How many days separate Pip's April 3 and April 9 notes?");
+ for(const operation of ['comparison','overview','status','recall','count']) {
+  const p=normalizeAskReadProposal({...proposal(operation),from:'2026-05-01',to:'2026-05-02'},c);
+  assert.equal(p.operation,'recall',operation);assert.equal(p.readOperation,'recall');
+  assert.equal(p.from,new Date().getUTCFullYear()+'-04-03');assert.equal(p.to,new Date().getUTCFullYear()+'-04-10');assert.deepEqual(p.terms,[]);
+ }
+ for(const q of [c.currentMessage+' Pip vomited today.', 'How many days separate April 3 and April 9, and how many episodes were there?']) {
+  const p=normalizeAskReadProposal(proposal('comparison'),context(q));
+  assert.equal(p.operation,'comparison');
+ }
+ const foreign=normalizeAskReadProposal({...proposal('comparison'),petNames:['Unowned']},c);
+ assert.deepEqual(foreign.petNames,['Unowned']);
+});
