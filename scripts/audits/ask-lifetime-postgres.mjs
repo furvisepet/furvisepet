@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {openSync,writeFileSync,closeSync,unlinkSync} from 'node:fs';
+import { embeddedPostgres } from './helpers/embedded-postgres.mjs';
 import { exercise, resolveAskTurnSubject, ASK_PROMPT_CONTEXT_CHAR_BUDGET } from './helpers/lifetime-harness.mjs'; // installs offline provider hooks
 console.info=()=>{}; // only synthetic semantic trace chatter
 const { governCanonicalEvents } = await import('../../app/lib/intelligence/semantic-events.ts');
@@ -11,7 +12,8 @@ const { persistSemanticEventRpc } = await import('../../app/lib/intelligence/sem
 const { generateAskHistoryAnswer } = await import('../../app/lib/intelligence/generate-ask-history.ts');
 const { attachEpisodeReferences } = await import('../../app/lib/intelligence/episode-contract.ts');
 const { buildAskConversationResponse } = await import('../../app/lib/ask.mjs');
-const container='furvise-stage2-db-2788f0b', database='stage2_validation';
+const embedded = process.env.FURVISE_EMBEDDED_POSTGRES_DIR ? embeddedPostgres({dataDir:process.env.FURVISE_EMBEDDED_POSTGRES_DIR,packageDir:process.env.FURVISE_PGLITE_PACKAGE_DIR}) : null;
+const container='furvise-stage2-db-2788f0b', database=embedded ? embedded.sql('select current_database();') : 'stage2_validation';
 // A second invocation must not overlap this writer. A retained lock after a
 // crash requires inspecting its PID before recovery; never restart blindly.
 const lockPath=new URL('../../tmp/lifetime-postgres.lock',import.meta.url);
@@ -20,6 +22,7 @@ const owner=randomUUID(), milo=randomUUID(), luna=randomUUID(), chat=randomUUID(
 const quote=v=>v==null?'null':Array.isArray(v)?`array[${v.map(quote).join(',')}]::uuid[]`:typeof v==='object'?`${quote(JSON.stringify(v))}::jsonb`:`'${String(v).replaceAll("'","''")}'`;
 let calls=0;
 function sql(statement) {
+ if (embedded) return embedded.sql(`set statement_timeout='8s'; set request.jwt.claim.sub=${quote(owner)}; set request.jwt.claim.role='service_role'; ${statement}`);
  if(calls++%10===0){
   const r=spawnSync('powershell.exe',['-NoProfile','-Command','(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory'],{encoding:'utf8'});
   assert.equal(r.status,0,r.stderr); assert.ok(Number(r.stdout.trim())>2*1024*1024,'RAM cutoff: stopped below 2 GB free');
@@ -171,5 +174,5 @@ try {
   sql(`delete from auth.users where id=${quote(owner)};`);
   assert.equal(sql(`select count(*) from public.pet_care_entries where user_id=${quote(owner)};`),'0');
   console.log('Synthetic owner and data cleaned up.');
- } finally {closeSync(lock);unlinkSync(lockPath);}
+ } finally {closeSync(lock);unlinkSync(lockPath);await embedded?.close();}
 }

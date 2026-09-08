@@ -132,6 +132,7 @@ import {
 } from "../../lib/ask-conversation-authority.ts";
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/ask-errors.ts";
+import { readAskProfiles } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
@@ -252,11 +253,13 @@ export async function POST(request: Request) {
     return askFailure("INVALID_MESSAGE", "Choose a pet before asking Furvise.", 400, {}, "request_validation");
   }
 
-  const profileQuery = supabase.from("dog_profiles").select("*").eq("user_id", userId).neq("lifecycle_status", "archived");
-  const { data: profiles, error: profileError } =
-    petId === "all"
-      ? await profileQuery.returns<DogProfileRow[]>()
-      : await profileQuery.eq("id", petId).returns<DogProfileRow[]>();
+  const { data: profiles, error: profileError, diagnostic: profileDiagnostic } = await readAskProfiles<DogProfileRow[]>((signal) => {
+    const profileQuery = supabase.from("dog_profiles").select("*").eq("user_id", userId).neq("lifecycle_status", "archived").retry(false).abortSignal(signal);
+    return petId === "all" ? profileQuery.returns<DogProfileRow[]>() : profileQuery.eq("id", petId).returns<DogProfileRow[]>();
+  }, { signal: request.signal });
+  // Fixed enums/numbers only: never log profile data, SQL text, tokens, or raw SDK errors.
+  if (profileError) console.warn("[Ask database] profile read", { requestId, ...profileDiagnostic });
+  else if (profileDiagnostic.recovered) console.info("[Ask database] profile read recovered", { requestId, ...profileDiagnostic });
   if (profileError) {
     logAskServerError("pet_ownership", profileError, { requestId }, 503);
     return askFailure("DATABASE_ERROR", "Furvise could not load this pet's saved details. Please try again.", 503, {}, "pet_ownership");

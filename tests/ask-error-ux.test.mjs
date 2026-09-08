@@ -20,6 +20,6 @@ test("rate, plan, provider, database, and in-progress states remain distinct", (
   assert.match(getAskErrorPresentation("RATE_LIMIT", 12).message, /12 seconds/);
   assert.equal(getAskErrorPresentation("PLAN_LIMIT").retryable, false);
   assert.equal(getAskErrorPresentation("TEMPORARY_PROVIDER_FAILURE").retryable, true);
-  assert.match(getAskErrorPresentation("TEMPORARY_DATABASE_FAILURE").title, /save/i);
+  assert.match(getAskErrorPresentation("TEMPORARY_DATABASE_FAILURE").title, /finish/i);
   assert.equal(getAskErrorPresentation("REQUEST_IN_PROGRESS").recommendedAction, "wait");
 });

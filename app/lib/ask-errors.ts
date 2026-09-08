@@ -63,7 +63,7 @@ export function getAskErrorPresentation(code: AskFailureCode, retryAfterSeconds?
     case "RATE_LIMIT": return state("You're sending questions a little too quickly", retryAfter ? `Try again in about ${formatSeconds(retryAfter)}.` : "Wait a moment, then try again.", true, "retry", retryAfter);
     case "REQUEST_IN_PROGRESS": return state("Furvise is still working on this question", retryAfter ? `Please wait about ${formatSeconds(retryAfter)} before checking again.` : "Please wait while the current answer finishes.", false, "wait", retryAfter);
     case "ACTION_FAILED": return state("That action didn't finish", "Your answer is still available. Review the action and try it again when you're ready.", true, "retry");
-    case "TEMPORARY_DATABASE_FAILURE": return state("Furvise couldn't save this answer", "Your question is still here. Try again in a moment.", true, "retry");
+    case "TEMPORARY_DATABASE_FAILURE": return state("Furvise couldn't finish this answer", "Your question is still here. Try again in a moment.", true, "retry");
     case "TEMPORARY_PROVIDER_FAILURE": return state("Furvise couldn't finish that answer", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
     case "ANSWER_RETRYABLE": return state("Furvise couldn't finish that answer", buildFurviseUnavailableMessage(), true, "retry", retryAfter);
   }
