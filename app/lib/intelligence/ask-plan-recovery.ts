@@ -1,4 +1,5 @@
 import { explicitHistoryDays, normalizeExplicitHistoryDates } from "./explicit-history-dates.ts";
+import { requestedHistoryTimelineDays } from "./requested-history-timeline.ts";
 import { requestedCalendarInterval } from "./calendar-interval.ts";
 import { medicationReferencePet } from "./medication-reference.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
@@ -154,6 +155,23 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   }
   const owned = context.eligiblePets.filter(pet => pet.user_id === context.owner.userId);
   const named = explicitlyNamedOwnedPets(context.currentMessage, owned);
+  const timelineDays = requestedHistoryTimelineDays(context.currentMessage, new Date().getUTCFullYear());
+  const validReadMetadata = p.ordinal === null && Array.isArray(p.terms) && p.terms.length <= 6
+    && p.terms.every(term => typeof term === "string" && term.length >= 3 && term.length <= 32 && /^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(term))
+    && [p.from,p.to].every(day => day === null || typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day)
+      && Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0,10) === day);
+  if (timelineDays && named.length === 1 && reads.has(String(p.operation)) && reads.has(String(p.readOperation))
+    && validReadMetadata && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion) {
+    Object.assign(p,{operation:"recall",readOperation:"recall",selection:"period",terms:[],topic:"dated timeline",
+      from:timelineDays[0],to:new Date(Date.parse(timelineDays.at(-1)!) + 86400000).toISOString().slice(0,10)});
+  }
+  const causalReference = causalChangeReference(context);
+  if (causalReference && validReadMetadata && [...reads,"clarify"].includes(String(p.operation))
+    && (p.readOperation === null || [...reads,"clarify"].includes(String(p.readOperation)))) {
+    Object.assign(p,{operation:"recall",readOperation:"recall",subject:"explicit",petNames:[causalReference.petName],
+      selection:"period",topic:"recorded changes and causal uncertainty",terms:[],from:causalReference.from,to:causalReference.to,
+      episodeTopic:null,frame:emptyProposedSemanticFrame()});
+  }
   if (owned.length > 0 && owned.length <= 3 && !named.length && p.ordinal === null
     && Array.isArray(p.petNames) && p.petNames.length <= 3 && p.petNames.every(name => owned.some(pet => pet.name === name))
     && /\bwhich (?:of my )?pets?\b/i.test(context.currentMessage)
@@ -171,7 +189,8 @@ export function normalizeAskReadProposal(value: unknown, context: Context): unkn
   // Which animal a saved correction describes is the fact to retrieve.
   // Search the bounded owned account; quoted external names grant no new owner.
   if (owned.length > 0 && owned.length <= 3
-    && /\b(?:which|whose) (?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
+    && (/\b(?:which|whose) (?:pet|dog|cat|animal)\b/i.test(context.currentMessage)
+      || named.length === 1 && validReadMetadata && /^What does\b[^?!.]{0,180}\bcorrection say about\b[^?!.]+[?!.]*$/i.test(context.currentMessage.trim()))
     && /\b(?:correction|corrected (?:note|report)|retraction)\b/i.test(context.currentMessage)
     && ["general", "clarify", "recall", "overview", "comparison", "status", "update"].includes(String(p.operation))
     && (p.readOperation === null || ["general", "clarify", "recall", "overview", "comparison", "status"].includes(String(p.readOperation)))
@@ -247,4 +266,19 @@ export function datedNoteReformulation(context: Context): { question: string; da
   const named = explicitlyNamedOwnedPets(prior, context.eligiblePets.filter(pet => pet.user_id === context.owner.userId));
   if (days.length !== 1 || named.length !== 1) return null;
   return { question: prior, day: days[0], after: new Date(Date.parse(days[0]) + 86400000).toISOString().slice(0, 10), petId: named[0].id };
+}
+
+/** A narrow causal follow-up inherits only the last user's dated change question. */
+export function causalChangeReference(context: Context): {petName: string; from: string; to: string} | null {
+ if(!/^Does that tell us which change caused the improvement[?.!]*$/i.test(context.currentMessage.trim()))return null;
+ const prior=context.conversationTurns.filter(t=>t.role==='user' && t.text.trim()!==context.currentMessage.trim()).at(-1)?.text;
+ if(!prior || analyzeOwnerAssertions(prior).hasOwnerAssertion || !/\bchanged?\b/i.test(prior) || !/\brecommend\b/i.test(prior))return null;
+ const owned=context.eligiblePets.filter(p=>p.user_id===context.owner.userId);
+ const named=explicitlyNamedOwnedPets(prior,owned);
+ const days=explicitHistoryDays(prior,new Date().getUTCFullYear()).sort();
+ if(named.length!==1 || !days.length)return null;
+ const allowed=new Set(("what did s vet recommend and was changed on "+named[0].name.toLowerCase()).split(/\s+/));
+ const wording=prior.replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s+\d{4})?\b/gi,'');
+ if((wording.toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]).some(word=>!allowed.has(word)))return null;
+ return {petName:named[0].name,from:days[0],to:new Date(Date.parse(days.at(-1)!)+86400000).toISOString().slice(0,10)};
 }
