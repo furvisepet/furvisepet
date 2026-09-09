@@ -2,8 +2,8 @@
   "authorizedUsd": 15,
   "reservationStopUsd": 3,
   "priorAdditionalUsd": 8.422958,
-  "reservedUsd": 0.7492604999999998,
-  "measuredUsd": 0.7492604999999999,
+  "reservedUsd": 0.7822972499999998,
+  "measuredUsd": 0.7822972499999999,
   "calls": [
     {
       "number": 1,
@@ -11343,6 +11343,1426 @@
         "responseMode": "conversational",
         "userIntent": "Requesting the animal’s mass in grams from a fictional example, excluding equipment."
       }
+    },
+    {
+      "number": 110,
+      "question": "For Luna’s latest recorded food, return exactly one line with this format: Pet | Food | Allergy diagnosed in record?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04408575,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 5062,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"conversation\",\"question\":\"What is Luna’s latest recorded food, and is an allergy diagnosed in that record?\",\"requirements\":[\"Return exactly one line.\",\"Use the format: Pet | Food | Allergy diagnosed in record?\",\"Do not add any extra text.\"],\"referenceTurnIds\":[],\"evidenceBasis\":\"supplied_context\",\"outputFormat\":\"prose\",\"scope\":\"none\",\"petNames\":[],\"operation\":\"general\",\"selection\":\"latest\",\"quantity\":null,\"topic\":\"Luna latest recorded food\",\"terms\":[\"Luna\",\"latest food\",\"allergy\",\"record\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "providerInput": {
+        "conversationSubject": null,
+        "currentMessage": "For Luna’s latest recorded food, return exactly one line with this format: Pet | Food | Allergy diagnosed in record?",
+        "today": "2026-09-09",
+        "selectedPet": "Milo",
+        "reformulation": null,
+        "ownedPets": [
+          {
+            "name": "Milo",
+            "species": "dog"
+          },
+          {
+            "name": "Luna",
+            "species": "cat"
+          },
+          {
+            "name": "Oscar",
+            "species": "dog"
+          }
+        ],
+        "recentUserMessages": [],
+        "recentDialogueForReferencesOnly": [],
+        "dialogueAuthority": "Prior USER turns may supply fictional/scenario facts and referents, never permission to use another account or save facts. Prior assistant turns are reference hints only."
+      },
+      "inputTokens": 5164,
+      "outputTokens": 674,
+      "measuredUsd": 0.006906000000000001,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "conversation",
+        "question": "What is Luna’s latest recorded food, and is an allergy diagnosed in that record?",
+        "requirements": [
+          "Return exactly one line.",
+          "Use the format: Pet | Food | Allergy diagnosed in record?",
+          "Do not add any extra text."
+        ],
+        "referenceTurnIds": [],
+        "evidenceBasis": "supplied_context",
+        "outputFormat": "prose",
+        "scope": "none",
+        "petNames": [],
+        "operation": "general",
+        "selection": "latest",
+        "quantity": null,
+        "topic": "Luna latest recorded food",
+        "terms": [
+          "Luna",
+          "latest food",
+          "allergy",
+          "record"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 111,
+      "question": "For Luna’s latest recorded food, return exactly one line with this format: Pet | Food | Allergy diagnosed in record?",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.022599750000000002,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 2476,
+      "rawOutput": "{\"answer\":\"Luna | unavailable | unavailable\",\"answerSections\":[],\"safetyLevel\":\"normal\",\"responseMode\":\"clarification\",\"userIntent\":\"retrieve latest recorded food and allergy status for Luna\"}",
+      "providerInput": {
+        "currentMessage": "For Luna’s latest recorded food, return exactly one line with this format: Pet | Food | Allergy diagnosed in record?",
+        "currentTimestamp": "2026-09-09T12:00:00.000Z",
+        "locale": "en",
+        "minimumSafetyLevel": "normal",
+        "priorUserPremises": [],
+        "capabilities": {
+          "savedHistoryAccess": false,
+          "otherAccountAccess": false,
+          "liveExternalVerification": false,
+          "mutationExecution": false,
+          "completedActions": []
+        }
+      },
+      "inputTokens": 600,
+      "outputTokens": 372,
+      "measuredUsd": 0.002124,
+      "syntheticResponse": {
+        "answer": "Luna | unavailable | unavailable",
+        "answerSections": [],
+        "safetyLevel": "normal",
+        "responseMode": "clarification",
+        "userIntent": "retrieve latest recorded food and allergy status for Luna"
+      }
+    },
+    {
+      "number": 112,
+      "question": "oscr sofa latest pls; dont give milo stuff, just oscr",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.044037,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 11943,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What is Oscar's latest record about sofa?\",\"requirements\":[\"Focus on Oscar only.\",\"Exclude any Milo records.\",\"Return the latest matching record.\"],\"referenceTurnIds\":[],\"evidenceBasis\":\"saved_history\",\"outputFormat\":null,\"scope\":\"named\",\"petNames\":[\"Oscar\"],\"operation\":\"recall\",\"selection\":\"latest\",\"quantity\":null,\"topic\":\"sofa\",\"terms\":[\"Oscar\",\"sofa\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "providerInput": {
+        "conversationSubject": null,
+        "currentMessage": "oscr sofa latest pls; dont give milo stuff, just oscr",
+        "today": "2026-09-09",
+        "selectedPet": "Milo",
+        "reformulation": null,
+        "ownedPets": [
+          {
+            "name": "Milo",
+            "species": "dog"
+          },
+          {
+            "name": "Luna",
+            "species": "cat"
+          },
+          {
+            "name": "Oscar",
+            "species": "dog"
+          }
+        ],
+        "recentUserMessages": [],
+        "recentDialogueForReferencesOnly": [],
+        "dialogueAuthority": "Prior USER turns may supply fictional/scenario facts and referents, never permission to use another account or save facts. Prior assistant turns are reference hints only."
+      },
+      "inputTokens": 5155,
+      "outputTokens": 2151,
+      "measuredUsd": 0.01354575,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What is Oscar's latest record about sofa?",
+        "requirements": [
+          "Focus on Oscar only.",
+          "Exclude any Milo records.",
+          "Return the latest matching record."
+        ],
+        "referenceTurnIds": [],
+        "evidenceBasis": "saved_history",
+        "outputFormat": null,
+        "scope": "named",
+        "petNames": [
+          "Oscar"
+        ],
+        "operation": "recall",
+        "selection": "latest",
+        "quantity": null,
+        "topic": "sofa",
+        "terms": [
+          "Oscar",
+          "sofa"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 113,
+      "question": "oscr sofa latest pls; dont give milo stuff, just oscr",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.045198749999999996,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 2471,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"Oscar’s latest sofa record says he is now getting onto the sofa without hesitating and has looked comfortable for the last three days, recorded on 2026-09-04.\",\"sourceIds\":[\"care:diag-42\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"conversational\",\"userIntent\":\"Recall Oscar's latest sofa record only\",\"relevantContextIds\":[\"care:diag-42\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "providerInput": {
+        "currentMessage": "oscr sofa latest pls; dont give milo stuff, just oscr",
+        "safetyTemporalContext": {
+          "currentText": "oscr sofa latest pls; dont give milo stuff, just oscr",
+          "hasNonCurrentContext": false,
+          "instruction": "Only currentText may establish a current emergency. Historical and hypothetical context may need explanation or conditional guidance, never a claim that an emergency is happening now. Uncertain current symptoms still need safety guidance."
+        },
+        "currentTimestamp": "2026-09-09T12:00:00.000Z",
+        "locale": "en",
+        "minimumSafetyLevel": "normal",
+        "answerEconomy": {
+          "depth": 2,
+          "followUpDeltaOnly": false,
+          "label": "practical",
+          "targetWords": {
+            "min": 100,
+            "max": 250
+          },
+          "maxSections": 1,
+          "maxBullets": 4,
+          "maxFollowUps": 2,
+          "allowsAutomaticHistory": true
+        },
+        "activeConcernMessageState": "unrelated",
+        "historicalSafetyRelevant": false,
+        "activeConcernTags": [],
+        "recentlyResolvedConcerns": [],
+        "pets": [
+          {
+            "id": "oscar",
+            "name": "Oscar",
+            "species": "dog",
+            "referenceGuidance": "Use he and him consistently. Use Oscar once when useful to establish the subject, then prefer those natural pronouns. Never contract the pet's name or replace a natural pronoun with the name."
+          }
+        ],
+        "dialogueContext": {
+          "purpose": "reference_and_tone_only_not_medical_evidence",
+          "turns": [],
+          "missingReferenceIds": [],
+          "truncatedReferenceIds": []
+        },
+        "contextRecords": [
+          {
+            "id": "profile:oscar:lifecycle_status",
+            "sourceType": "profile",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "lifecycle_status",
+            "value": "active",
+            "occurredAt": null,
+            "createdAt": "2026-09-04T18:00:00.000Z",
+            "status": null,
+            "priority": null,
+            "metadata": {}
+          },
+          {
+            "id": "profile:oscar:sex",
+            "sourceType": "profile",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "sex",
+            "value": "male",
+            "occurredAt": null,
+            "createdAt": "2026-09-04T18:00:00.000Z",
+            "status": null,
+            "priority": null,
+            "metadata": {}
+          },
+          {
+            "id": "profile:oscar:species",
+            "sourceType": "profile",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "species",
+            "value": "dog",
+            "occurredAt": null,
+            "createdAt": "2026-09-04T18:00:00.000Z",
+            "status": null,
+            "priority": null,
+            "metadata": {}
+          },
+          {
+            "id": "care:diag-42",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+            "occurredAt": "2026-09-04T12:00:00Z",
+            "createdAt": "2026-09-04T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-41",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+            "occurredAt": "2026-09-03T12:00:00Z",
+            "createdAt": "2026-09-03T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-39",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+            "occurredAt": "2026-08-18T12:00:00Z",
+            "createdAt": "2026-08-18T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-33",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar hesitated before jumping onto the sofa twice this week. He is still willing to walk. I do not know why he hesitated.",
+            "occurredAt": "2026-06-11T12:00:00Z",
+            "createdAt": "2026-06-11T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-40",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+            "occurredAt": "2026-08-27T12:00:00Z",
+            "createdAt": "2026-08-27T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-38",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar seemed stiff again after a much longer walk than usual yesterday. This is the first stiffness I have noticed since late June.",
+            "occurredAt": "2026-08-12T12:00:00Z",
+            "createdAt": "2026-08-12T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-37",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar weighed 7.1 kg today. His appetite is normal and he is still eating chicken-and-rice senior food.",
+            "occurredAt": "2026-07-20T12:00:00Z",
+            "createdAt": "2026-07-20T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-36",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar is getting up comfortably again and is willing to take his normal walks. I have not noticed stiffness this week.",
+            "occurredAt": "2026-07-01T12:00:00Z",
+            "createdAt": "2026-07-01T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-35",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+            "occurredAt": "2026-06-24T12:00:00Z",
+            "createdAt": "2026-06-24T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-34",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+            "occurredAt": "2026-06-17T12:00:00Z",
+            "createdAt": "2026-06-17T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-32",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+            "occurredAt": "2026-06-04T12:00:00Z",
+            "createdAt": "2026-06-04T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-31",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+            "occurredAt": "2026-05-22T12:00:00Z",
+            "createdAt": "2026-05-22T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-30",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+            "occurredAt": "2023-03-13T12:00:00Z",
+            "createdAt": "2023-03-13T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          },
+          {
+            "id": "care:diag-29",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "petName": "Oscar",
+            "kind": "general",
+            "value": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+            "occurredAt": "2021-10-07T12:00:00Z",
+            "createdAt": "2021-10-07T12:01:00Z",
+            "status": "unknown",
+            "priority": "routine",
+            "metadata": {
+              "category": "general",
+              "severity": null,
+              "title": "Care update",
+              "concerns": ""
+            }
+          }
+        ],
+        "evidenceContract": {
+          "version": "ask-evidence.v1",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "sofa",
+            "requestText": "oscr sofa latest pls; dont give milo stuff, just oscr",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "sources": [
+            {
+              "petId": "oscar",
+              "source": "profile",
+              "loadedIds": [
+                "oscar"
+              ],
+              "loadedCount": 1,
+              "cap": null,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "legacy_memories",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": 100,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "furvise_memories",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": 200,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "inactive_memories",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": 40,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "product_feedback",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": 80,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "owner_profile",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": null,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "conversation_messages",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": 12,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "active_concerns",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": null,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "resolved_concerns",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": 5,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified",
+                "seven_day_window"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "care_episodes",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": 20,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "current_state",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": null,
+              "status": "loaded",
+              "reasons": [
+                "effective_history_not_certified"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "care_entries",
+              "loadedIds": [
+                "care:diag-42",
+                "care:diag-41",
+                "care:diag-39",
+                "care:diag-33",
+                "care:diag-40",
+                "care:diag-38",
+                "care:diag-37",
+                "care:diag-36",
+                "care:diag-35",
+                "care:diag-34",
+                "care:diag-32",
+                "care:diag-31",
+                "care:diag-30",
+                "care:diag-29"
+              ],
+              "loadedCount": 14,
+              "cap": null,
+              "status": "loaded",
+              "reasons": [
+                "lexical_or_period_matches_not_semantic_completeness",
+                "no_cross_query_snapshot",
+                "bounded_period_context_not_semantic_completeness"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            },
+            {
+              "petId": "oscar",
+              "source": "correction_claims",
+              "loadedIds": [],
+              "loadedCount": 0,
+              "cap": null,
+              "status": "loaded",
+              "reasons": [
+                "lexical_or_period_matches_not_semantic_completeness",
+                "no_cross_query_snapshot",
+                "bounded_period_context_not_semantic_completeness"
+              ],
+              "completeness": {
+                "retrieval": "unknown",
+                "corrections": "unknown",
+                "extraction": "unknown",
+                "grouping": "unknown"
+              }
+            }
+          ],
+          "completeness": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown"
+          },
+          "losses": [],
+          "represented": [
+            {
+              "sourceId": "profile:oscar:lifecycle_status",
+              "petId": "oscar",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 6,
+              "text": "active",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:sex",
+              "petId": "oscar",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 4,
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "petId": "oscar",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-42",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 111,
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 136,
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 113,
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-33",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 128,
+              "text": "Note: Oscar hesitated before jumping onto the sofa twice this week. He is still willing to walk. I do not know why he hesitated.",
+              "occurredAt": "2026-06-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 201,
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-38",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 137,
+              "text": "Note: Oscar seemed stiff again after a much longer walk than usual yesterday. This is the first stiffness I have noticed since late June.",
+              "occurredAt": "2026-08-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-37",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 109,
+              "text": "Note: Oscar weighed 7.1 kg today. His appetite is normal and he is still eating chicken-and-rice senior food.",
+              "occurredAt": "2026-07-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-36",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 124,
+              "text": "Note: Oscar is getting up comfortably again and is willing to take his normal walks. I have not noticed stiffness this week.",
+              "occurredAt": "2026-07-01T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-35",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 114,
+              "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+              "occurredAt": "2026-06-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-34",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 210,
+              "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 114,
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 109,
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 159,
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "petId": "oscar",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 119,
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            }
+          ],
+          "representation": "complete",
+          "verifiedFacts": [],
+          "interpretation": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": null,
+              "question": "What is Oscar's latest record about sofa?",
+              "requirements": [
+                "Focus on Oscar only.",
+                "Exclude any Milo records.",
+                "Return the latest matching record."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "latest",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "sofa",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What is Oscar's latest record about sofa?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "Oscar",
+                "sofa"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "history": {
+            "plan": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "Oscar",
+                "sofa"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:diag-42",
+              "care:diag-41",
+              "care:diag-39",
+              "care:diag-33",
+              "care:diag-40",
+              "care:diag-38",
+              "care:diag-37",
+              "care:diag-36",
+              "care:diag-35",
+              "care:diag-34",
+              "care:diag-32",
+              "care:diag-31",
+              "care:diag-30",
+              "care:diag-29"
+            ],
+            "queryCount": 5,
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "oscar",
+                "rows": 14,
+                "pages": 4,
+                "exhausted": true,
+                "status": "unknown"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:diag-42",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-41",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-39",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-33",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-40",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-38",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-37",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-36",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-35",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-34",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-32",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-31",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-30",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:diag-29",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "oscar",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": [],
+            "chronology": [
+              {
+                "petId": "oscar",
+                "boundaryIds": [
+                  "care:diag-42"
+                ],
+                "blocked": false
+              }
+            ]
+          }
+        },
+        "olderUpdateSummary": null
+      },
+      "inputTokens": 7295,
+      "outputTokens": 338,
+      "measuredUsd": 0.00699225,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "Oscar’s latest sofa record says he is now getting onto the sofa without hesitating and has looked comfortable for the last three days, recorded on 2026-09-04.",
+              "sourceIds": [
+                "care:diag-42"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "conversational",
+        "userIntent": "Recall Oscar's latest sofa record only",
+        "relevantContextIds": [
+          "care:diag-42"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 114,
+      "question": "oscr sofa latest pls; dont give milo stuff, just oscr",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.024467250000000003,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2096,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "providerInput": {
+        "deterministicInvalidSentenceIndexes": [],
+        "deterministicCalculationHints": [],
+        "today": "2026-09-09T12:00:00.000Z",
+        "question": "oscr sofa latest pls; dont give milo stuff, just oscr",
+        "referenceQuestion": "What is Oscar's latest record about sofa?",
+        "scope": {
+          "authorizedPetIds": [
+            "oscar"
+          ],
+          "requestedTopic": "sofa",
+          "requestText": "oscr sofa latest pls; dont give milo stuff, just oscr",
+          "requestedPeriod": {
+            "kind": "unspecified",
+            "surface": null
+          },
+          "requestKind": "ordinary",
+          "readOnlyRecall": true,
+          "status": "resolved",
+          "resolutionSubject": "Oscar"
+        },
+        "plan": {
+          "version": "ask-interpretation.v1",
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": null,
+            "question": "What is Oscar's latest record about sofa?",
+            "requirements": [
+              "Focus on Oscar only.",
+              "Exclude any Milo records.",
+              "Return the latest matching record."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "operation": "recall",
+          "readOperation": "recall",
+          "selection": "latest",
+          "petIds": [
+            "oscar"
+          ],
+          "topic": "sofa",
+          "readOnly": true,
+          "clarification": null,
+          "referenceQuestion": "What is Oscar's latest record about sofa?",
+          "episodeTopic": null,
+          "ordinal": null,
+          "history": {
+            "from": null,
+            "to": null,
+            "terms": [
+              "Oscar",
+              "sofa"
+            ],
+            "interpretation": "lexical"
+          }
+        },
+        "petNames": {
+          "oscar": "Oscar"
+        },
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": null,
+          "question": "What is Oscar's latest record about sofa?",
+          "requirements": [
+            "Focus on Oscar only.",
+            "Exclude any Milo records.",
+            "Return the latest matching record."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "historyAccess": null,
+        "execution": {
+          "readOnly": true,
+          "mutationAuthority": false
+        },
+        "obligations": [
+          {
+            "index": 0,
+            "text": "What is Oscar's latest record about sofa?"
+          },
+          {
+            "index": 1,
+            "text": "Focus on Oscar only."
+          },
+          {
+            "index": 2,
+            "text": "Exclude any Milo records."
+          },
+          {
+            "index": 3,
+            "text": "Return the latest matching record."
+          }
+        ],
+        "coverage": {
+          "retrieval": "unknown",
+          "corrections": "unknown",
+          "reasons": [
+            "lexical_or_period_matches_not_semantic_completeness",
+            "no_cross_query_snapshot",
+            "bounded_period_context_not_semantic_completeness"
+          ],
+          "chronology": [
+            {
+              "petId": "oscar",
+              "boundaryIds": [
+                "care:diag-42"
+              ],
+              "blocked": false
+            }
+          ]
+        },
+        "losses": [],
+        "sources": [
+          {
+            "sourceId": "profile:oscar:sex",
+            "sourceType": "profile",
+            "petId": "oscar",
+            "text": "male",
+            "occurredAt": null
+          },
+          {
+            "sourceId": "profile:oscar:species",
+            "sourceType": "profile",
+            "petId": "oscar",
+            "text": "dog",
+            "occurredAt": null
+          },
+          {
+            "sourceId": "care:diag-42",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+            "occurredAt": "2026-09-04T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-41",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+            "occurredAt": "2026-09-03T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-39",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+            "occurredAt": "2026-08-18T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-33",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar hesitated before jumping onto the sofa twice this week. He is still willing to walk. I do not know why he hesitated.",
+            "occurredAt": "2026-06-11T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-40",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+            "occurredAt": "2026-08-27T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-38",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar seemed stiff again after a much longer walk than usual yesterday. This is the first stiffness I have noticed since late June.",
+            "occurredAt": "2026-08-12T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-37",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar weighed 7.1 kg today. His appetite is normal and he is still eating chicken-and-rice senior food.",
+            "occurredAt": "2026-07-20T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-36",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar is getting up comfortably again and is willing to take his normal walks. I have not noticed stiffness this week.",
+            "occurredAt": "2026-07-01T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-35",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+            "occurredAt": "2026-06-24T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-34",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+            "occurredAt": "2026-06-17T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-32",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+            "occurredAt": "2026-06-04T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-31",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+            "occurredAt": "2026-05-22T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-30",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+            "occurredAt": "2023-03-13T12:00:00Z"
+          },
+          {
+            "sourceId": "care:diag-29",
+            "sourceType": "care_update",
+            "petId": "oscar",
+            "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+            "occurredAt": "2021-10-07T12:00:00Z"
+          }
+        ],
+        "draft": {
+          "sentences": [
+            {
+              "text": "Oscar’s latest sofa record says he is now getting onto the sofa without hesitating and has looked comfortable for the last three days, recorded on 2026-09-04.",
+              "sourceIds": [
+                "care:diag-42"
+              ],
+              "index": 0
+            }
+          ]
+        }
+      },
+      "inputTokens": 2993,
+      "outputTokens": 272,
+      "measuredUsd": 0.0034687499999999996,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
     }
   ],
   "pricingSource": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
