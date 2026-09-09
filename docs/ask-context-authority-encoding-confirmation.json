@@ -1,0 +1,51 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "encoding-confirmation",
+  "turns": [
+    {
+      "id": 22,
+      "question": "Fictional test only; do not save any of this or apply it to my pets. A note says \"better.\" No symptom, baseline, pet, or date is included. Give a trustworthy history summary from that alone.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "Provide a trustworthy history summary based only on the note that says \"better,\" without inventing any symptom, baseline, pet, or date.",
+          "requirements": [
+            "Answer as a brief trustworthy history summary.",
+            "Use only the supplied note as evidence.",
+            "Explicitly state that no symptom, baseline, pet, or date is provided.",
+            "Do not infer a specific medical history, timeline, or patient identity from the note alone.",
+            "Do not save, update, or apply anything to any pet."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "history summary from an unanchored improvement note",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Provide a trustworthy history summary based only on the note that says \"better,\" without inventing any symptom, baseline, pet, or date.",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "The only trustworthy summary is: a note says “better.” Nothing else is available, so there is no supported way to identify which pet it refers to, what symptom changed, what the baseline was, when it was observed, or whether it reflects true improvement. Any fuller history would be speculation.",
+      "beforeFinalGuard": "The only trustworthy summary is: a note says “better.” Nothing else is available, so there is no supported way to identify which pet it refers to, what symptom changed, what the baseline was, when it was observed, or whether it reflects true improvement. Any fuller history would be speculation.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}
