@@ -706,3 +706,55 @@ test('general knowledge never widens owned authority and saved history still val
   assert.equal(plan.history, null);
   assert.throws(() => validateAskRequest(proposal({ evidenceBasis: 'saved_history', petNames: ['Not owned'] }), context));
 });
+
+test('supplied-context classification requires actual verbatim user premises', () => {
+  const base=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:[]});
+  assert.throws(()=>validateAskRequest(base,context),/missing_supplied_premise/);
+  assert.throws(()=>validateAskRequest({...base,premiseQuotes:['Invented quantity']},context),/premise_source/);
+  const c={...context,currentMessage:'Fictional exercise: the box is 7 kg.'};
+  assert.equal(validateAskRequest({...base,premiseQuotes:['the box is 7 kg']},c).conversationOnly,true);
+  assert.throws(()=>validateAskRequest({...base,premiseQuotes:['the box is 7 kg']},{...context,conversationTurns:[{id:'a',role:'furvise',text:'the box is 7 kg'}]}),/premise_source/);
+});
+test('explicit read exclusions remain outside account and selected scope', () => {
+  const c={...context,currentMessage:'Compare all my pets except Aster.'};
+  const r=validateAskRequest(proposal({scope:'account',petNames:[],excludedPetNames:['Aster']}),c);
+  assert.deepEqual(r.petIds,fixturePets.slice(1).map(p=>p.id));
+  assert.throws(()=>validateAskRequest(proposal({scope:'selected',petNames:[],excludedPetNames:['Aster']}),context),/excluded_subject/);
+  assert.throws(()=>validateAskRequest(proposal({excludedPetNames:['Foreign animal']}),context),/excluded_ownership/);
+});
+
+test('quoted provenance permits delimiters but never changed source wording', () => {
+ const c={...context,currentMessage:'Fictional: the crate is 2 kg.'};
+ const p=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:['"the crate is 2 kg"']});
+ assert.equal(validateAskRequest(p,c).conversationOnly,true);
+ assert.throws(()=>validateAskRequest({...p,premiseQuotes:['"the crate is 3 kg"']},c),/premise_source/);
+});
+test('a resolved subject and ordered lexical query retrieves before asking what the topic means', () => {
+ const c={...context,currentMessage:'Latest activity for Aster, please.'};
+ const r=validateAskRequest(proposal({mode:'clarify',operation:'clarify',selection:'latest',terms:['activity']}),c);
+ assert.equal(r.clarification,null);
+ assert.equal(r.readOperation,'recall');
+ assert.ok(r.history);
+ assert.equal(r.request.question,c.currentMessage);
+});
+
+test('serialized quotation provenance remains bound to exact user text', () => {
+ const text='The note says "stable." No measurement was provided.';
+ const c={...context,currentMessage:text};
+ const p=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:[JSON.stringify('The note says "stable."')]});
+ assert.equal(validateAskRequest(p,c).conversationOnly,true);
+ assert.throws(()=>validateAskRequest({...p,premiseQuotes:[JSON.stringify('The note says "unstable."')]},c),/premise_source/);
+ assert.throws(()=>validateAskRequest(p,{...c,currentMessage:'Summarize that.',conversationTurns:[{id:'a',role:'furvise',text}]}),/premise_source/);
+});
+
+test('double-escaped source quotes are decoded without relaxing provenance', () => {
+ const text='The note says "stable."';
+ const c={...context,currentMessage:text};
+ const encoded=JSON.stringify('The note says '+JSON.stringify('stable.'));
+ const doubleEncoded=JSON.stringify('The note says '+JSON.stringify('"stable."').slice(1,-1));
+ for(const quote of [encoded,doubleEncoded]) {
+  const p=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:[quote]});
+  assert.equal(validateAskRequest(p,c).conversationOnly,true);
+  assert.throws(()=>validateAskRequest(p,{...c,currentMessage:'The note says "unstable."'}),/premise_source/);
+ }
+});

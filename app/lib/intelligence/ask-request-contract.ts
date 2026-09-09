@@ -28,12 +28,13 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object) {
   return { type: "object", additionalProperties: false,
-    required: ["version", "mode", "question", "requirements", "outputFormat", "evidenceBasis", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["version", "mode", "question", "requirements", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
       version: { type: "string", enum: [ASK_REQUEST_VERSION] }, mode: { type: "string", enum: modes },
       question: { type: "string", minLength: 1, maxLength: 1600 }, requirements: strings(8, 240), referenceTurnIds: strings(8, 160),
       evidenceBasis: { type: ["string", "null"], enum: ["saved_history", "supplied_context", "general", null] },
       outputFormat: { type: ["string", "null"], enum: ["prose", "bullets", "table", "json", "csv", null] },
+      premiseQuotes: strings(6, 400), excludedPetNames: strings(3, 100),
       scope: { type: "string", enum: scopes }, petNames: strings(3, 100), operation: { type: "string", enum: operations },
       selection: { type: "string", enum: selections }, quantity: { type: ["string", "null"], enum: quantities },
       topic: { type: "string", maxLength: 160 }, terms: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } },
@@ -45,6 +46,8 @@ export function askRequestSchema(frame: object) {
 
 export const ASK_REQUEST_INSTRUCTIONS = [
   "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
+  "premiseQuotes contains verbatim factual premises from current or prior USER text only when evidenceBasis is supplied_context. Questions, output labels, requested column names and formatting instructions are NOT supplied facts. If the required values were not supplied and belong to an owned pet, choose saved_history and retrieve them, even for a one-line or structured answer. Use [] for saved_history/general. Never quote an instruction or question as if it supplied a missing value.",
+  "excludedPetNames lists owned pets explicitly excluded from this read; petNames lists only the requested subjects. Use canonical supplied owned names, resolving obvious unique spelling abbreviations from the whole request. An excluded name is not the subject. A clear subject, topic and ordering request needs retrieval, not reference clarification.",
   "First identify evidenceBasis independently of topic and formatting: saved_history requires owned stored records; supplied_context uses facts or fictional premises supplied in this message or prior USER messages; general needs no personal records. Dates, animal names and words like record inside a supplied example do not turn it into a database lookup. Supplied-context and general tasks use scope none, mode conversation, operation general, petNames [], frame null, even when asking for comparison, arithmetic, or clarification. Their referents may be fictional or non-pet and must not be forced into an owned profile. Never use these bases for genuine updates or mixed current observations.",
   "mode read covers questions, explanations, comparisons, formatting requests, quotations and challenges to a premise. A premise or a quoted instruction is not an owner update. mode mixed requires a genuine new owner observation plus a question; update is a genuine observation without a question. conversation needs no saved pet facts. clarify is only for an unresolved identity or ambiguous reference after reading the supplied dialogue. Missing factual evidence is a reason to retrieve, not clarify; the planner has not read the history yet.",
   "question is a standalone restatement of the current requested task. Resolve follow-up references from recentDialogueForReferencesOnly, listing the IDs used in referenceTurnIds. Preserve negation, uncertainty and all requested parts. Do not turn assistant claims into saved facts: dialogue identifies a referent only; saved-history factual premises must be checked against retrieved evidence. For supplied_context, prior USER messages supply the scenario premises; preserve them and their fictional status. Assistant text never establishes an owned pet, a new fact or write permission.",
@@ -61,7 +64,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { outputFormat: null, evidenceBasis: null, ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
+  const p = { outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -73,6 +76,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || !member(ordinals, p.ordinal) || !member(["vomiting", "soft stool", "breathing", null], p.episodeTopic)
     || typeof p.question !== "string" || !p.question.trim() || p.question.length > 1600
     || typeof p.topic !== "string" || p.topic.length > 160
+    || p.premiseQuotes !== null && !list(p.premiseQuotes, 6, 400) || !list(p.excludedPetNames, 3, 100)
     || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, 3, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
@@ -81,6 +85,20 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!date(p.from) || !date(p.to) || p.from !== null && p.to !== null && p.from >= p.to) return fail("dates");
   const turnIds = new Set(context.conversationTurns.map(turn => turn.id));
   if (p.referenceTurnIds.some(id => !turnIds.has(id))) return fail("reference");
+  if (p.premiseQuotes !== null) {
+    const userPremises = [context.currentMessage, ...context.conversationTurns.filter(t => t.role === "user").map(t => t.text)];
+    if ((p.premiseQuotes as string[]).some(quote => {
+      // Decode quote/backslash serialization only, at most three layers.
+      // Accepted candidates must still occur verbatim in a USER source.
+      const candidates = new Set([quote]);
+      for (let layer = 0; layer < 3; layer++) for (const candidate of [...candidates]) {
+        candidates.add(candidate.replace(/\\(["\\])/g, "$1"));
+        if (/^(?:"[\s\S]*"|\u201c[\s\S]*\u201d)$/.test(candidate)) candidates.add(candidate.slice(1,-1));
+      }
+      return !userPremises.some(text => [...candidates].some(candidate => candidate.length > 0 && text.includes(candidate)));
+    })) return fail("premise_source");
+    if (p.evidenceBasis === "supplied_context" && !(p.premiseQuotes as string[]).length) return fail("missing_supplied_premise");
+  }
   // Non-record evidence can only narrow authority. A fictional name or date
   // does not grant access to the selected profile, and cannot become a write.
   if (p.evidenceBasis === "supplied_context" || p.evidenceBasis === "general") {
@@ -95,12 +113,18 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     return matches[0].id;
   });
   let petIds = [...new Set(proposed)];
-  const explicitPets = explicitlyNamedOwnedPets(context.currentMessage, owned);
+  const excluded = new Set((p.excludedPetNames as string[]).map(name => {
+    const matches = owned.filter(pet => pet.name?.toLocaleLowerCase() === name.toLocaleLowerCase());
+    if (matches.length !== 1) return fail("excluded_ownership");
+    return matches[0].id;
+  }));
+  if (petIds.some(id => excluded.has(id))) return fail("conflicting_subjects");
+  const explicitPets = explicitlyNamedOwnedPets(context.currentMessage, owned).filter(pet => !excluded.has(pet.id));
   // A selected conversation container is not a cohort-search constraint. Resolve
   // explicit scope language before allocating bounded evidence across profiles.
   const cohortRequested = /\b(?:all|each|every|other|both|three|two|across|among)\b[^.!?]{0,35}\b(?:pets?|dogs?|cats?|animals?)\b|\b(?:which|whose)\s+(?:(?:of|the|my|our)\s+)*(?:pets?|dogs?|cats?|animals?)\b|\bname\s+the\s+(?:pet|dog|cat|animal)\b/i.test(context.currentMessage);
   if (["read", "clarify"].includes(String(p.mode)) && cohortRequested && !explicitPets.length) {
-    p.scope = "account"; p.mode = "read"; petIds = owned.map(pet => pet.id);
+    p.scope = "account"; p.mode = "read"; petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id);
     if (p.operation === "clarify") p.operation = "recall";
   } else if (p.mode === "read" && p.scope === "account" && explicitPets.length && !cohortRequested) {
     p.scope = "named"; petIds = explicitPets.map(pet => pet.id);
@@ -112,7 +136,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
   }
   // A redundant group label cannot widen an explicit, validated subject list.
-  if (p.scope === "account" && !proposed.length) petIds = owned.map(pet => pet.id);
+  if (p.scope === "account" && !proposed.length) petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id);
   if (p.scope === "selected") {
     if (proposed.some(id => id !== context.pet.id)) return fail("selected_subject");
     petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
@@ -133,9 +157,18 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     const established = new Set(explicitlyNamedOwnedPets(userText, owned).map(pet => pet.id));
     if (petIds.some(id => id !== context.pet.id && !established.has(id))) return fail("conversation_subject");
   }
+  if (petIds.some(id => excluded.has(id))) return fail("excluded_subject");
   const readOnly = !["update", "mixed"].includes(String(p.mode));
   const frame = readOnly ? emptyProposedSemanticFrame() : validateProposedSemanticFrame(p.frame).frame;
   if (!frame) return fail("frame");
+  // A resolved owner and lexical ordering query can retrieve evidence before
+  // asking what an unfamiliar topic means. This grants no new identity or write.
+  if (p.mode === "clarify" && petIds.length === 1 && p.terms.length > 0
+    && ["latest", "earliest", "earliest_occurrence"].includes(String(p.selection))) {
+    p.mode = "read";
+    if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
+    p.question = context.currentMessage;
+  }
   let operation = p.operation as typeof operations[number];
   // Quantity is a separate semantic axis. Counting records or measurements
   // cannot accidentally invoke the illness episode membership subsystem.
@@ -160,11 +193,11 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const from = p.from === null ? null : `${p.from}T00:00:00.000Z`;
   const to = p.to === null ? null : `${p.to}T00:00:00.000Z`;
   const request: AskRequestContract = { version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
-    evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question, requirements: p.requirements, referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
+    evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question as string, requirements: p.requirements, referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
   return { version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
     readOperation: p.mode === "update" ? null : operation, selection: p.selection as AskInterpretation["selection"],
     petIds, topic: p.topic, readOnly, clarification, frame,
-    referenceQuestion: p.question, ...(conversationOnly ? { conversationOnly: true } : {}),
+    referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
     episodeTopic: operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: historical ? { from, to, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };

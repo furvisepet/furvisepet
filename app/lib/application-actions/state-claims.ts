@@ -1,3 +1,4 @@
+import { mapAskProse, askProseOnly } from "../ask-text-blocks.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 const authoritativeMutationClaim = /\b(?:i(?:'ve| have|'ll| will)?|furvise has|we(?:'ve| have|'ll| will)?)\s+(?:save(?:d)?|delete(?:d)?|remove(?:d)?|forget|forgotten|change(?:d)?|update(?:d)?|archive(?:d)?|prepare(?:d)?|record(?:ed)?|complete(?:d)?|mark(?:ed)?)\b|\bi(?:'ll| will)\s+(?:treat|consider)\b[^.!?]{0,120}\bas\s+(?:removed|forgotten|changed|updated|deleted)\b/i;
 const assistantOffer = /(?:^|[.!?]\s+)(?:(?:if you want,?\s*)(?:i can(?: also)?|would you like me to)\s+|would you like me to\s+|i can(?: also)?\s+(?:help|assist|save|update|delete|prepare)\b)[^.!?]*[.!?]?/gi;
@@ -8,6 +9,7 @@ const physicalCourseSubject = /\b(?:medication|treatment|antibiotic)\s+course\s*
 const applicationDestination = /\b(?:in|on|to|from)\s+(?:(?:the|your|her|his|their|its|pet['’]s)\s+)*(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b|\bby\s+Furvise\b/i;
 
 export function containsUnverifiedStateClaim(value: string) {
+  value = askProseOnly(value);
   if (authoritativeMutationClaim.test(value)) return true;
   for (const clause of splitSentencesPreservingFacts(value)) for (const match of clause.matchAll(passiveMutationClaim)) {
     const before = clause.slice(0, match.index);
@@ -47,7 +49,7 @@ export function isHistoricalRecordingAttribution(value: string) {
 }
 
 export function enforceVerifiedStateClaims(value: string, verifiedSuccess: boolean) {
-  return preserveAttributedReportQuotes(value, prose => enforceUnquotedStateClaims(prose, verifiedSuccess));
+  return mapAskProse(value, prose => preserveAttributedReportQuotes(prose, text => enforceUnquotedStateClaims(text, verifiedSuccess)));
 }
 
 /** A dated quotation is source content, never an action receipt. Keep it opaque

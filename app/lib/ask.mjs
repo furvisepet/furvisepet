@@ -1,3 +1,4 @@
+import { mapAskProse } from "./ask-text-blocks.ts";
 import {
   FURVISE_URGENT_SAFETY_MESSAGE,
   buildFurviseSafetyLine,
@@ -780,9 +781,9 @@ function cleanText(value) {
 
 function cleanAnswerProse(value) {
   // Preserve layout and literal quantities; presentation must not synthesize prose.
-  return String(value || "").replace(/\r\n?/g, "\n").split("\n").map((line) => {
+  return mapAskProse(String(value || ""), prose => prose.replace(/\r\n?/g, "\n").split("\n").map((line) => {
     const marker = /^(\s*(?:[-+\u2022]|\d+[.)])\s+)/.exec(line);
     const body = cleanText(marker ? line.slice(marker[0].length) : line);
     return body ? (marker ? marker[0].trimStart() : "") + body : "";
-  }).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }).join("\n").replace(/\n{3,}/g, "\n\n").trim()).trim();
 }

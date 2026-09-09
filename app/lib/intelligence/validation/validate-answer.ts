@@ -1,3 +1,4 @@
+import { mapAskProse, askProseOnly } from "../../ask-text-blocks.ts";
 import { safetyTemporalScope } from "../../ai/safety-temporal-scope.ts";
 import { buildImmediateEmergencyGuidance, detectAskConcernTags, detectImmediateAskEmergency } from "../../ask-safety-context.ts";
 import { preserveReviewedLayout } from "../history-presentation.ts";
@@ -66,8 +67,8 @@ export function validateGeneratedAnswer(
   }
   const contextText = `${context.currentMessage} ${context.careEntries.map((entry) => `${entry.title || ""} ${entry.note}`).join(" ")} ${context.memories.map((memory) => `${memory.fact_key} ${memoryDisplayContent(memory)}`).join(" ")}`;
   const unrelatedResolved = context.currentState?.state.breathing?.status === "normal" && !/breath|breathing/i.test(context.currentMessage);
-  const sanitize = (source: string) => {
-    let text = source;
+  const sanitize = (source: string) => mapAskProse(source, prose => {
+    let text = prose;
     const replace = (pattern: RegExp, value: string, repair: string) => {
       const next = text.replace(pattern, value);
       if (next !== text) { text = next; repairs.push(repair); }
@@ -82,7 +83,7 @@ export function validateGeneratedAnswer(
       replace(/[^.]*\bbreath(?:ing)?\b[^.]*\.?/gi, "", "removed_irrelevant_resolved_warning");
     }
     return text.replace(/[^\S\r\n]+/g, " ").trim();
-  };
+  });
   // A review receipt binds the complete wording to evidence. Style rewriting
   // must not remove clauses, alter quotations or damage structured values.
   // Unsafe content in a reviewed answer is rejected, never silently edited.
@@ -98,6 +99,12 @@ export function validateGeneratedAnswer(
   const productMetadataGuard = sanitizeInternalProductMetadataFromCareAnswer(response.answer);
   response.answer = productMetadataGuard.answer;
   if (productMetadataGuard.removedCount > 0) repairs.push("removed_internal_product_metadata");
+  }
+  if (conversationOnly && repairs.includes("removed_false_persistence_claim")) {
+    // Read-only scope has no action receipt. Replace a rejected claim with a
+    // coherent truthful boundary, never a fragment left by regex deletion.
+    response.answer = { title: "Furvise", summary: "I haven’t performed that action. No requested action was completed.", sections: [], safetyNote: response.answer.safetyNote };
+    repairs.push("replaced_unverified_action_claim");
   }
   if (canonicalSafety === "urgent" || canonicalSafety === "emergency") { response.safetyLevel = "urgent"; response.shoppingSuppressed = true; }
   else if (canonicalSafety === "recently_resolved") {
@@ -161,7 +168,7 @@ export function validateGeneratedAnswer(
     const reviewedText = `${urgent ? "Contact an emergency veterinarian now. " : ""}${reviewedHistory.proseText || reviewedHistory.text}`;
     response.answer.summary = preserveReviewedLayout(reviewedText, response.answer.summary);
   }
-  const assistantProse = JSON.stringify(response.answer);
+  const assistantProse = askProseOnly([response.answer.title, response.answer.summary, ...response.answer.sections.flatMap(s => [s.heading, ...s.items]), response.answer.safetyNote || ""].join("\n"));
   if (hasSourceQuote && sourceNote) {
     response.answer.summary = `${urgent ? "Contact an emergency veterinarian now. " : ""}${sourceNote.text}`;
   }

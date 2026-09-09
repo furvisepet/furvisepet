@@ -56,11 +56,29 @@ export function planDeterministicAskCommand(message: string, petName: string): D
 }
 
 function explicitAnswerLanguage(message: string) {
-  const match = /\b(?:answer|reply|respond|speak)\s+(?:(?:to\s+)?me\s+)?in\s+([\p{L}][\p{L}\p{M} -]{1,38}?)(?:\s+(?:please|now|from now on))?[.!?]*$/iu.exec(message)
-    || /\b(?:switch|change|set|use)\s+(?:the\s+)?(?:answer\s+)?language\s+to\s+([\p{L}][\p{L}\p{M} -]{1,38}?)(?:\s+(?:please|now|from now on))?[.!?]*$/iu.exec(message);
+  const match = /^(?:please\s+)?(?:answer|reply|respond|speak)\s+(?:(?:to\s+)?me\s+)?in\s+([\p{L}][\p{L}\p{M} -]{1,38}?)(?:\s+(?:please|now|from now on))?[.!?]*$/iu.exec(message)
+    || /^(?:please\s+)?(?:switch|change|set|use)\s+(?:the\s+)?(?:answer\s+)?language\s+to\s+([\p{L}][\p{L}\p{M} -]{1,38}?)(?:\s+(?:please|now|from now on))?[.!?]*$/iu.exec(message);
   if (!match) return null;
   const value = match[1].trim().replace(/\s+/g, " ");
-  return value ? `${value.charAt(0).toLocaleUpperCase()}${value.slice(1).toLocaleLowerCase()}` : null;
+  return languageNames().has(value.toLocaleLowerCase()) ? `${value.charAt(0).toLocaleUpperCase()}${value.slice(1).toLocaleLowerCase()}` : null;
+}
+
+let knownLanguageNames: Map<string, string> | undefined;
+/** Validate a language value against the runtime language registry, not a
+ * blacklist of units, formats, topics or benchmark phrases. */
+function languageNames() {
+  if (knownLanguageNames) return knownLanguageNames;
+  const names = new Map<string, string>();
+  const english = new Intl.DisplayNames(["en"], { type: "language", fallback: "none" });
+  for (let a = 97; a <= 122; a++) for (let b = 97; b <= 122; b++) {
+    const code = String.fromCharCode(a, b);
+    const name = english.of(code);
+    if (!name) continue;
+    names.set(code, name); names.set(name.toLocaleLowerCase(), name);
+    const native = new Intl.DisplayNames([code], { type: "language", fallback: "none" }).of(code);
+    if (native) names.set(native.toLocaleLowerCase(), name);
+  }
+  return knownLanguageNames = names;
 }
 
 function deterministicResult(title: string, summary: string, intent: "preference" | "question"): AskOrchestratorResult {

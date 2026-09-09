@@ -30,3 +30,10 @@ test("ordinary care language does not become an application command", () => {
     assert.equal(planDeterministicAskCommand(message, "Mani"), null, message);
   }
 });
+
+test('one-off output constraints and compound requests never become language settings', () => {
+  for (const message of ['Answer in grams only.', 'Reply in JSON.', 'Respond in two words.', 'What is the total? Answer in French.', 'A bag weighs 800 grams. Answer in kilograms.']) {
+    assert.equal(planDeterministicAskCommand(message, 'Mani'), null, message);
+  }
+  assert.equal(planDeterministicAskCommand('Please reply in français.', 'Mani')?.proposals[0].input.value, 'Français');
+});
