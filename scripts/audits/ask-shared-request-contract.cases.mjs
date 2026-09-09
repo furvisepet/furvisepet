@@ -241,11 +241,11 @@ for (const answer of ['{\n  "observation": "slept normally"\n}', '- Aster slept 
     assert.equal(r.result.reasoning.answer.summary, answer);
   });
 }
-test('shared review still rejects invented quotes before model approval', async t => {
+test('shared review cannot approve invented quotes even when the model approves', async t => {
   clock(t);
   const r = await exercise('Quote Aster observation.', { fixturePets, rows: [care('quote', 'milo', '2026-06-04', 'general', 'Aster slept normally.')], messages: [], history: true,
     interpretationProposal: proposal(), providerOverrides: { historyNarrative: { sentences: [{ text: 'The note says "Aster has a confirmed disease."', sourceIds: ['care:quote'] }] } },
-    reviewResponse: { approved: true } });
+    reviewResponse: { approved: true }, expectedReviewCalls: 2 });
   assert.doesNotMatch(r.result.reasoning.answer.summary, /confirmed disease/);
 });
 test('unlinked correction may be reported but does not create a verified edge', async t => {
@@ -467,4 +467,86 @@ test('a redundant account label cannot widen an explicitly resolved owned-pet su
   const subset = validateAskRequest(proposal({ scope: 'account', petNames: ['Aster', 'Bramble'] }), context);
   assert.deepEqual(subset.petIds, [fixturePets[0].id, fixturePets[1].id]);
   assert.equal(validateAskRequest(proposal({ scope: 'account', petNames: [] }), context).petIds.length, 3);
+});
+
+// New structural regressions; these are not additional benchmark successes.
+test('as-of retrieval retains preceding history and respects explicit lower bounds', () => {
+  const query = { ...context, currentMessage: 'What was known about Aster as of August 18?' };
+  const r = validateAskRequest(proposal({ from: '2026-08-18', to: '2026-08-19' }), query);
+  assert.equal(r.history.from, null);
+  assert.equal(r.history.to, '2026-08-19T00:00:00.000Z');
+  const bounded = validateAskRequest(proposal({ from: '2026-07-01', to: '2026-08-19' }), { ...query, currentMessage: 'From July 1, what was known as of August 18?' });
+  assert.equal(bounded.history.from, '2026-07-01T00:00:00.000Z');
+});
+test('explicit owned identity survives an empty planner clarification without authorizing writes', () => {
+  const r = validateAskRequest(proposal({ mode: 'clarify', scope: 'none', petNames: [] }), { ...context, currentMessage: 'Summarize Bramble’s saved observations.' });
+  assert.deepEqual(r.petIds, ['luna']);
+  assert.equal(r.readOnly, true);
+});
+test('hyphenated minutes support arithmetic without accepting partial numeric tokens', () => {
+  const source = [{ sourceId: 'duration', text: 'An 18-minute session followed a 7-minute session.' }];
+  const operands = ['18-minute', '7-minute'].map(literal => ({ sourceId: 'duration', field: 'text', literal }));
+  assert.deepEqual(verifiedCalculationQuantities([{ operation: 'difference', operands, value: 11, unit: 'minutes' }], source), ['11:minute']);
+  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: '8-minute' }], value: 480, unit: 'seconds' }], source), null);
+});
+test('reviewed quotes and all clauses survive final conversation rendering', async t => {
+  clock(t);
+  const { buildAskConversationResponse } = await import('../../app/lib/ask.mjs');
+  const { restoreAskEvidencePresentation } = await import('../../app/lib/intelligence/ask-evidence-presentation.ts');
+  const note = 'Aster’s blanket was dry. Aster settled after the door closed.';
+  const answer = `The note says “${note}” The observation does not establish why Aster settled.`;
+  const r = await exercise('Quote the blanket and settling observation exactly, then explain its limitation.', { fixturePets,
+    rows: [care('blanket', 'milo', '2026-08-11', 'general', note)], messages: [], history: true,
+    interpretationProposal: proposal(), providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:blanket'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  const visible = restoreAskEvidencePresentation(buildAskConversationResponse(r.result.reasoning.answer), r.result.reasoning.evidenceContract, r.context.episodeResult);
+  assert.equal(visible.directAnswer, answer);
+  assert.deepEqual(r.result.acceptedCareActions, []);
+});
+test('conditional emergencies bypass identity without replacing actual emergency detection', async () => {
+  const { conditionalEmergencyGuidance, detectImmediateAskEmergency } = await import('../../app/lib/ask-safety-context.ts');
+  const question = 'If a dog cannot breathe, should I wait until I can identify the pet?';
+  assert.match(conditionalEmergencyGuidance(question)?.summary || '', /emergency veterinarian immediately/);
+  assert.equal(conditionalEmergencyGuidance('My dog cannot breathe right now.'), null);
+  assert.ok(detectImmediateAskEmergency('My dog cannot breathe right now.'));
+  assert.equal(conditionalEmergencyGuidance('If the old note says “my dog cannot breathe”, quote the note.'), null);
+  assert.equal(conditionalEmergencyGuidance('If my dog sleeps normally, should I record it?'), null);
+});
+
+test('measurement grounding accepts equivalent grammar but rejects invented time quantities', () => {
+  const sources = [{ sourceId: 'time', text: 'An 18-minute session followed a 7-minute session.' }];
+  const operands = ['18 minutes', '7 minutes'].map(literal => ({ sourceId: 'time', field: 'text', literal }));
+  const derived = verifiedCalculationQuantities([{ operation: 'difference', operands, value: 11, unit: 'minutes' }], sources);
+  assert.deepEqual(derived, ['11:minute']);
+  assert.equal(historyNarrativeAnchorsSupported('It was 11 minutes longer.', sources, '', derived, false), true);
+  assert.equal(historyNarrativeAnchorsSupported('It was 13 minutes longer.', sources, '', derived, false), false);
+});
+
+test('reference lookup prioritizes matching evidence over years of period distractors', async t => {
+  clock(t);
+  const note = 'Cedar’s towel was folded beside the carrier.';
+  const rows = Array.from({ length: 110 }, (_, i) => care('noise-'+i, 'oscar', new Date(Date.UTC(2022, 0, 1+i*10)).toISOString().slice(0,10), 'general', 'Cedar had a routine grooming check.'));
+  rows.push(care('towel', 'oscar', '2026-08-11', 'general', note));
+  const r = await exercise('Quote Cedar’s towel note.', { fixturePets, rows, messages: [], history: true,
+    interpretationProposal: proposal({ petNames: ['Cedar'], selection: 'reference', terms: ['towel'], topic: 'towel' }),
+    providerOverrides: { historyNarrative: { sentences: [{ text: `“${note}”`, sourceIds: ['care:towel'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.equal(r.result.reasoning.answer.summary, `“${note}”`);
+});
+test('inclusive as-of date is a scope anchor while the event keeps its own date', async t => {
+  clock(t);
+  const answer = 'As of August 20, the latest saved rest note was August 17: Aster slept normally.';
+  const r = await exercise('As of August 20, what was Aster’s latest rest note?', { fixturePets,
+    rows: [care('rest', 'milo', '2026-08-17', 'general', 'Aster slept normally.')], messages: [], history: true,
+    interpretationProposal: proposal({ selection: 'latest', from: '2026-08-20', to: '2026-08-21' }),
+    providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:rest'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.equal(r.result.reasoning.answer.summary, answer);
+});
+
+test('verbatim operand spans retain context and reject multiple measurements', () => {
+ const sources = [{ sourceId: 's', text: 'A 22-minute session followed a 6-minute session.' }];
+ const operands = ['22-minute session', '6-minute session'].map(literal => ({ sourceId: 's', field: 'text', literal }));
+ assert.deepEqual(verifiedCalculationQuantities([{ operation: 'difference', operands, value: 16, unit: 'minutes' }], sources), ['16:minute']);
+ assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: sources[0].text }], value: 22, unit: 'minutes' }], sources), null);
 });

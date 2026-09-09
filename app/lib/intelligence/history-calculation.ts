@@ -25,6 +25,8 @@ const units: Record<string, { dimension: string; scale: number; canonical: strin
   lbs: { dimension: "mass", scale: 453.59237, canonical: "lb" },
   ml: { dimension: "volume", scale: 1, canonical: "ml" }, l: { dimension: "volume", scale: 1000, canonical: "l" },
   hour: { dimension: "time", scale: 1, canonical: "hour" }, hours: { dimension: "time", scale: 1, canonical: "hour" },
+  minute: { dimension: "time", scale: 1 / 60, canonical: "minute" }, minutes: { dimension: "time", scale: 1 / 60, canonical: "minute" },
+  second: { dimension: "time", scale: 1 / 3600, canonical: "second" }, seconds: { dimension: "time", scale: 1 / 3600, canonical: "second" },
   day: { dimension: "time", scale: 24, canonical: "day" }, days: { dimension: "time", scale: 24, canonical: "day" },
   week: { dimension: "time", scale: 168, canonical: "week" }, weeks: { dimension: "time", scale: 168, canonical: "week" },
 };
@@ -56,12 +58,22 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
         operands.push({ value: Date.parse(operand.literal), dimension: "instant", scale: 1 });
       } else {
         // Require a complete numeric token, not a substring of a larger value.
-        const match = operand.literal.match(/^(-?\d+(?:\.\d+)?)\s+([A-Za-z]+)$/);
+        const tokens = [...operand.literal.matchAll(/(?<![\p{L}\p{N}_.-])(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
+          .filter(token => units[token[2].toLowerCase()]);
+        const exactToken = operand.literal.match(/^(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
+        // A longer verbatim source span may identify the measured object. It
+        // must contain exactly one supported measurement, never ambiguous data.
+        const match = exactToken || (source.text.includes(operand.literal) && tokens.length === 1 ? tokens[0] : null);
         if (!match) return null;
-        const escaped = operand.literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        if (!new RegExp(`(?<![\\p{L}\\p{N}_.-])${escaped}(?![\\p{L}\\p{N}_])`, "u").test(source.text)) return null;
         const unit = units[match[2].toLowerCase()];
         if (!unit || !finite(Number(match[1]))) return null;
+        // Bind a complete source token. Pluralization and an adjectival hyphen
+        // do not change a measurement ("18 minutes" / "18-minute"). Never
+        // accept a numeric substring or silently substitute a converted value.
+        const grounded = [...source.text.matchAll(/(?<![\p{L}\p{N}_.-])(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
+          .some(token => Number(token[1]) === Number(match[1])
+            && units[token[2].toLowerCase()]?.canonical === unit.canonical);
+        if (!grounded) return null;
         operands.push({ value: Number(match[1]), ...unit });
       }
     }

@@ -38,6 +38,8 @@ const instructions = [
   "Reject exact episode counts or ordinals inferred from numbers of notes. Reject first-ever, lifetime completeness, universal negatives, reassurance excluding serious disease, or claims of clinical certainty from a bounded subset.",
   "The retained subset must be coherent on its own: reject dangling references, unsupported conclusions, misleading omissions or dependent claims whose premises were removed. Select indexes in their original increasing order. If no supported, useful, coherent subset remains, return approved false with an empty index array. It must directly address the actual question, not simply list unrelated records. It may answer the supported part of a question. Avoid redundant record dumps.",
   "If plan.referenceSubject is present, evaluate relevance against that resolved question referent. A pet name is not an answer to a medication-name question. Correct arithmetic derived from the cited quantities or dated endpoints is supported when the operands, units and conclusion match the question; a calculated duration does not establish how long a symptom persisted.",
+  "For shared requests approve the COMPLETE answer or reject for repair: do not approve a subset that drops requested facts, qualifications, cells or temporal endpoints. Check the original question as well as planner requirements. Deterministic invalid sentence indexes must be repaired, never approved. Missing sources can support an explicit limitation, never invented facts.",
+  "For every number, including JSON values and table cells, verify the measured entity/object, quantity, units and observation occasion against the sources. A pet profile identifier is not the identity of every object measured in that pet's notes. Arithmetic correctness is insufficient: subtracting readings from unrelated occasions does not measure intake, consumption or symptom duration. Missing/spilled/unmeasured quantities cannot become known through arithmetic. Compare measurements only for the requested entity and quantity; preserve unavailable values as unknown. A single positive observation does not establish improvement without a baseline; a report date is not a proven onset. Treatment names/doses absent from records must not be invented or recommended for restarting; advise confirmation with the prescribing vet.",
   "General background or empathy may connect the answer, but must not introduce unsupported pet-specific facts or treatment instructions.",
   "Only supplied source IDs are evidence. Conversational context and prior assistant claims are not saved medical evidence. No statement that information was saved or updated is allowed.",
   "The server adds the coverage limitation separately. Its absence in the draft alone is not a reason to reject. Treat coverage as a constraint on what conclusions are supportable.",
@@ -98,18 +100,27 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   try { if (sharedRequest) for (const chunk of proposedDraft.sentences) assertNoInternalReasoningLeak(chunk.text,
     evidence.represented.map(span => ({ id: span.sourceId }))); }
   catch { return false; }
-  const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence, text: sharedRequest ? sentence.text : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) })).filter(sentence => sentence.sourceIds.every(id => ids.has(id))
-    && (sharedRequest || !hasUndatedHistoricalCareState(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId))))
-    && (() => {
-      const cited = sources.filter(source => sentence.sourceIds.includes(source.sourceId));
-      const derived = verifiedCalculationQuantities(sentence.calculations || [], cited);
-      return derived !== null && historyNarrativeAnchorsSupported(sentence.text, cited,
-        evidence.interpretation?.referenceQuestion || evidence.scope.requestText, derived, !sharedRequest, sharedRequest ? [evidence.interpretation?.history?.from, evidence.interpretation?.history?.to].filter((date): date is string => !!date) : []);
-    })()) };
-  // A coverage caveat is not an answer, even if a reviewer would approve it.
-  draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
-  if (!sources.length || !draft.sentences.length) return false;
+  const supported = (sentence: typeof proposedDraft.sentences[number]) => {
+    if (!sentence.sourceIds.every(id => ids.has(id))) return false;
+    const cited = sources.filter(source => sentence.sourceIds.includes(source.sourceId));
+    const derived = verifiedCalculationQuantities(sentence.calculations || [], cited);
+    return derived !== null && historyNarrativeAnchorsSupported(sentence.text, cited,
+      evidence.interpretation?.referenceQuestion || evidence.scope.requestText, derived, !sharedRequest,
+      sharedRequest ? [evidence.interpretation?.history?.from, evidence.interpretation?.history?.to,
+        evidence.interpretation?.history?.to ? new Date(Date.parse(evidence.interpretation.history.to) - 86400000).toISOString() : null].filter((date): date is string => !!date) : [])
+      && (sharedRequest || !hasUndatedHistoricalCareState(sentence.text, cited));
+  };
+  // Review the entire shared answer, including invalid clauses. Removing them
+  // first hides omissions from the reviewer and can turn a complete task into
+  // a confidently approved fragment. Validation failures enter bounded repair.
+  const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence,
+    text: sharedRequest ? sentence.text : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
+    .filter(sentence => sharedRequest || supported(sentence)) };
+  const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence) ? [] : [index]);
+  if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
+  if (!draft.sentences.length || repairAttempted && invalidIndexes.length) return false;
   const requestInput = JSON.stringify({
+    deterministicInvalidSentenceIndexes: invalidIndexes,
     today: new Date().toISOString(), question: evidence.scope.requestText,
     referenceQuestion: evidence.interpretation?.referenceQuestion || null,
     scope: evidence.scope, plan: evidence.interpretation, petNames: evidence.petNames,
@@ -139,9 +150,11 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REVIEW_INVALID" });
     if (parsed.status !== "completed" || !parsed.parsed || before !== signature(result)) return false;
     const selectedText = (parsed.parsed.approved ? parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]) : draft.sentences).map(chunk => chunk.text).join("\n");
-    const formatValid = matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat);
+    const completeSelection = !parsed.parsed.approved || !sharedRequest || parsed.parsed.retainedSentenceIndexes.length === draft.sentences.length;
+    const anchorsValid = !parsed.parsed.approved || parsed.parsed.retainedSentenceIndexes.every(index => !invalidIndexes.includes(index));
+    const formatValid = matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid;
     if (!parsed.parsed.approved || !formatValid) {
-      const reason = !formatValid ? `The answer must be valid ${sharedRequest?.outputFormat} as specified by the request contract.`
+      const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
         : "rejectionReason" in parsed.parsed ? parsed.parsed.rejectionReason : null;
       if (repairAttempted || !sharedRequest || !evidence.scope.readOnlyRecall || typeof reason !== "string" || !reason) return false;
       const repaired = await repairRejectedRead(provider, model, requestInput, reason);
@@ -168,7 +181,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const supplements: string[] = [];
     const supplementIds: string[] = [];
     const supplementContent: string[] = [];
-    if (evidence.scope.authorizedPetIds.length > 1) {
+    if (!sharedRequest && evidence.scope.authorizedPetIds.length > 1) {
       for (const petId of evidence.scope.authorizedPetIds) {
         const name = evidence.petNames?.[petId];
         const uniqueName = name && Object.values(evidence.petNames || {}).filter(value => value.toLowerCase() === name.toLowerCase()).length === 1;
@@ -197,6 +210,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     if (proposedDraft.sentences.some(sentence => isStructuredHistoryText(sentence.text))
       && (!isStructuredHistoryText(composed) || supplements.length)) return false;
     if (!matchesHistoryOutputFormat([composed, ...supplements].join("\n\n"), sharedRequest?.outputFormat)) return false;
+    if (sharedRequest) assertNoInternalReasoningLeak(composed, evidence.represented.map(span => ({ id: span.sourceId })));
     recordHistoryReview(result, { signature: before,
       proseText: presentHistoryLimitation(composed, limitation, evidence.scope.requestText),
       sourceReports: supplements, sourceContent: supplementContent,

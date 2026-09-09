@@ -11,7 +11,7 @@ function dates(text: string): string[] {
   return found;
 }
 function quantities(text: string): string[] {
-  return [...text.toLowerCase().matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
+  return [...text.toLowerCase().matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^soft /, "").replace(/^pound$/, "lb")}`);
 }
 /** A deterministic guard for explicit factual anchors, not semantic entailment.

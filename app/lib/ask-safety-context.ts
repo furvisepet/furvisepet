@@ -184,6 +184,19 @@ export function detectImmediateAskEmergency(value: string): ImmediateAskEmergenc
   return tags.length ? { tags: [...new Set(tags)] } : null;
 }
 
+/** Conditional emergency education needs no pet identity or saved history.
+ * Reuse the emergency taxonomy without turning a hypothetical into a current
+ * observation. Current emergencies keep their earlier, separate route. */
+export function conditionalEmergencyGuidance(value: string) {
+  if (detectImmediateAskEmergency(value) || !/\b(?:if|hypothetical(?:ly)?|suppos(?:e|ing)|imagine)\b/i.test(value)
+    || !explicitPetSubjectPattern.test(value)) return null;
+  const text = value.replace(/"[^"]*"|“[^”]*”/g, "");
+  if (!immediateEmergencyPatterns.some(({ pattern }) => pattern.test(text))) return null;
+  return { title: "If a pet is in immediate distress",
+    summary: "If a pet cannot breathe, is unresponsive, is actively seizing, or has uncontrolled bleeding, contact an emergency veterinarian immediately. Do not wait for a history review or for Furvise to identify the pet. Follow the emergency clinic’s instructions; do not give medicine or home remedies unless a veterinarian directs you to.",
+    sections: [], safetyNote: null };
+}
+
 export function buildImmediateEmergencyGuidance(emergency: ImmediateAskEmergency) {
   const classSpecificActions: Partial<Record<ImmediateAskEmergency["tags"][number], string>> = {
     breathing_difficulty: "Keep handling and exertion to a minimum while arranging transport.",
