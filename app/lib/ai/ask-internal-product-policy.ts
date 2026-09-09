@@ -24,11 +24,15 @@ export function classifyFurviseCapabilityQuestion(question: string): FurviseCapa
 
 export function sanitizeInternalProductMetadataFromCareAnswer<T extends VisibleAskAnswer>(answer: T) {
   let removedCount = 0;
-  const sanitize = (value: string) => splitVisibleSentences(value).filter((sentence) => {
-    if (!isInternalProductMetadata(sentence)) return true;
-    removedCount += 1;
-    return false;
-  }).join(" ").trim();
+  const sanitize = (value: string) => {
+    // Do not reserialize safe content: newlines and spacing may be data.
+    if (!containsInternalProductMetadata(value)) return value;
+    return value.split(/(?<=[.!?])(?=\s)/).filter((sentence) => {
+      if (!isInternalProductMetadata(sentence)) return true;
+      removedCount += 1;
+      return false;
+    }).join("").trim();
+  };
   const title = isInternalProductMetadata(answer.title) ? (removedCount += 1, "Furvise") : answer.title;
   let summary = sanitize(answer.summary);
   const sections = answer.sections.flatMap((section) => {

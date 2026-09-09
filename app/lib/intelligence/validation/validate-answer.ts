@@ -31,6 +31,8 @@ export function validateGeneratedAnswer(
   const currentEmergency = urgent && Boolean(detectAskConcernTags(currentSafetyText).length || detectImmediateAskEmergency(currentSafetyText));
   const reviewedHistory = currentEmergency ? null : readReviewedHistoryAnswer(result);
   const response = structuredClone(result);
+  const conversationOnly = result.evidenceContract?.interpretation?.conversationOnly === true;
+  const preserveFormat = Boolean(result.evidenceContract?.interpretation?.request?.outputFormat);
   if (currentEmergency && (response.evidenceContract || context.episodeResult)) {
     response.answer = buildImmediateEmergencyGuidance(detectImmediateAskEmergency(currentSafetyText) || { tags: [] });
     response.suggestedFollowUps = [];
@@ -79,7 +81,7 @@ export function validateGeneratedAnswer(
     if (unrelatedResolved && /groom|brush|coat|fur|bath|nail/i.test(context.currentMessage) && /breath|breathing/i.test(text)) {
       replace(/[^.]*\bbreath(?:ing)?\b[^.]*\.?/gi, "", "removed_irrelevant_resolved_warning");
     }
-    return text.replace(/\s+/g, " ").trim();
+    return text.replace(/[^\S\r\n]+/g, " ").trim();
   };
   // A review receipt binds the complete wording to evidence. Style rewriting
   // must not remove clauses, alter quotations or damage structured values.
@@ -126,7 +128,7 @@ export function validateGeneratedAnswer(
     species: context.pet.species,
   };
   try {
-    if (!immutableHistory) {
+    if (!immutableHistory && !conversationOnly && !preserveFormat) {
     const beforeQuality = measureAskAnswerEconomy(response.answer, { petName: context.pet.name });
     response.answer = normalizeAskListIntegrity(response.answer);
     response.answer = savedPronouns.presentWithoutValue
@@ -210,7 +212,7 @@ export function validateGeneratedAnswer(
       answerText = answerText.replace(JSON.stringify(content).slice(1, -1), "");
     }
   }
-  const unauthorizedPetNamed = (context.eligiblePets || []).some((pet) => pet.name
+  const unauthorizedPetNamed = !conversationOnly && (context.eligiblePets || []).some((pet) => pet.name
     && !authoritativePetIds.includes(pet.id)
     && new RegExp(`\\b${escapeRegex(pet.name)}\\b`, "i").test(answerText));
   if (unauthorizedPetNamed) errors.push("response_subject_disagreement");

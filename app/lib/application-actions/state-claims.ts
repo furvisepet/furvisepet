@@ -71,7 +71,7 @@ export function preserveAttributedReportQuotes(value: string, transform: (prose:
 }
 
 function enforceUnquotedStateClaims(value: string, verifiedSuccess: boolean) {
-  const clean = value.replace(assistantOffer, " ").replace(/[^\S\r\n]+/g, " ").trim();
+  const clean = value.replace(assistantOffer, (offer) => /\b(?:but|however|cannot|unable)\b|can[’'\x27]t|won[’'\x27]t/i.test(offer) ? offer : " ").replace(/[^\S\r\n]+/g, " ").trim();
   if (!clean) return "I can help with that.";
   if (verifiedSuccess || !containsUnverifiedStateClaim(clean)) return clean;
   const safe = clean.split(/(?<=[.!?])(?=\s)/).filter((sentence) => !containsUnverifiedStateClaim(sentence)).join("").trim();

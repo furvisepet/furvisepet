@@ -84,3 +84,9 @@ test('attribution prefixes and dated physical completion survive without creatin
    'It was completed on April 12.', 'The transition was completed in her profile on April 12.'])
    assert.equal(containsUnverifiedStateClaim(text),true,text);
 });
+
+
+test('offer filtering retains a capability boundary in a mixed sentence', () => {
+  const value = 'I can help generally, but I cannot access hidden records. Paste the text if you have it.';
+  assert.equal(enforceVerifiedStateClaims(value, false), value);
+});
