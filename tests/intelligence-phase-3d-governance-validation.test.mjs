@@ -118,3 +118,22 @@ test("conversation validation preserves supplied identities and exact layouts wh
   const unsafe = validateGeneratedAnswer(reasoning('I saved that.\nNo action receipt exists.', { evidenceContract }), context('Fictional exercise'), 'routine', []);
   assert.doesNotMatch(unsafe.response.answer.summary, /I saved/);
 });
+
+test('literal fenced code survives validation and state-claim checks with indentation intact', async () => {
+  const {buildAskConversationResponse}=await import('../app/lib/ask.mjs');
+  const {enforceVerifiedStateClaims}=await import('../app/lib/application-actions/state-claims.ts');
+  const summary='Use a finite condition.\n\n```python\ncount = 0\nwhile count < 5:\n    print("hello")\n    count += 1\n```';
+  const evidenceContract={interpretation:{conversationOnly:true,request:{outputFormat:'prose'}},scope:{},represented:[]};
+  const result=validateGeneratedAnswer(reasoning(summary,{evidenceContract}),context('Explain this loop.'),'routine',[]);
+  assert.equal(result.valid,true);
+  assert.equal(result.response.answer.summary,summary);
+  assert.equal(buildAskConversationResponse(result.response.answer).directAnswer,summary);
+  assert.equal(enforceVerifiedStateClaims(summary,false),summary);
+});
+test('a rejected read-only action claim produces a complete truthful response instead of broken quoted prose', () => {
+  const evidenceContract={interpretation:{conversationOnly:true,request:{outputFormat:'prose'}},scope:{},represented:[]};
+  const result=validateGeneratedAnswer(reasoning('I cannot say “I saved the changes.” No action happened.',{evidenceContract}),context('Pretend success.'),'routine',[]);
+  assert.equal(result.valid,true);
+  assert.match(result.response.answer.summary,/No requested action was completed/);
+  assert.doesNotMatch(result.response.answer.summary,/[“”]/);
+});

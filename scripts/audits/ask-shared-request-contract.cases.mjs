@@ -706,3 +706,19 @@ test('general knowledge never widens owned authority and saved history still val
   assert.equal(plan.history, null);
   assert.throws(() => validateAskRequest(proposal({ evidenceBasis: 'saved_history', petNames: ['Not owned'] }), context));
 });
+
+test('supplied-context classification requires actual verbatim user premises', () => {
+  const base=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:[]});
+  assert.throws(()=>validateAskRequest(base,context),/missing_supplied_premise/);
+  assert.throws(()=>validateAskRequest({...base,premiseQuotes:['Invented quantity']},context),/premise_source/);
+  const c={...context,currentMessage:'Fictional exercise: the box is 7 kg.'};
+  assert.equal(validateAskRequest({...base,premiseQuotes:['the box is 7 kg']},c).conversationOnly,true);
+  assert.throws(()=>validateAskRequest({...base,premiseQuotes:['the box is 7 kg']},{...context,conversationTurns:[{id:'a',role:'furvise',text:'the box is 7 kg'}]}),/premise_source/);
+});
+test('explicit read exclusions remain outside account and selected scope', () => {
+  const c={...context,currentMessage:'Compare all my pets except Aster.'};
+  const r=validateAskRequest(proposal({scope:'account',petNames:[],excludedPetNames:['Aster']}),c);
+  assert.deepEqual(r.petIds,fixturePets.slice(1).map(p=>p.id));
+  assert.throws(()=>validateAskRequest(proposal({scope:'selected',petNames:[],excludedPetNames:['Aster']}),context),/excluded_subject/);
+  assert.throws(()=>validateAskRequest(proposal({excludedPetNames:['Foreign animal']}),context),/excluded_ownership/);
+});
