@@ -1,402 +1,403 @@
 {
-  "version": 1,
-  "status": "prepared_not_run",
-  "purpose": "Straightforward everyday questions, not a complexity or adversarial benchmark",
-  "paidCallsAuthorized": false,
-  "grading": "First attempts only. Pass requires the main task answered correctly without unsupported facts or actions; partial for a useful but incomplete answer, failure for wrong/unhelpful answers, error for no final answer. Preserve original grades and report any later rerun separately.",
   "accountFixture": "furvise-ten-pets-five-years-20260909-v1",
-  "execution": {
-    "selectedPet": "Juniper",
-    "plan": "plus",
-    "actions": "No Save/Prepare/booking/deletion actions",
-    "codeFreeze": "Must record exact deployed revision before submission",
-    "historyFingerprint": "eb8c86151ea9979590a0424ff4342cc8"
-  },
   "cases": [
     {
-      "id": 1,
       "category": "chat",
-      "question": "Hey!",
+      "continuePrevious": false,
       "expected": "Friendly brief greeting.",
-      "continuePrevious": false
+      "id": 1,
+      "question": "Hey!"
     },
     {
-      "id": 2,
       "category": "chat",
-      "question": "How are you?",
+      "continuePrevious": false,
       "expected": "Natural conversational response, no invented personal experiences.",
-      "continuePrevious": false
+      "id": 2,
+      "question": "How are you?"
     },
     {
-      "id": 3,
       "category": "chat",
-      "question": "What can you help me with?",
+      "continuePrevious": false,
       "expected": "Describe actual pet-history/question help; no unsupported booking or monitoring claims.",
-      "continuePrevious": false
+      "id": 3,
+      "question": "What can you help me with?"
     },
     {
-      "id": 4,
       "category": "chat",
-      "question": "Tell me a quick joke.",
+      "continuePrevious": false,
       "expected": "A short joke; no unnecessary health warning.",
-      "continuePrevious": false
+      "id": 4,
+      "question": "Tell me a quick joke."
     },
     {
-      "id": 5,
       "category": "chat",
-      "question": "I had a long day.",
+      "continuePrevious": false,
       "expected": "Brief empathetic response without diagnosis or an unsolicited checklist.",
-      "continuePrevious": false
+      "id": 5,
+      "question": "I had a long day."
     },
     {
-      "id": 6,
       "category": "chat",
-      "question": "Thanks, that helped.",
+      "continuePrevious": false,
       "expected": "Brief natural acknowledgement.",
-      "continuePrevious": false
+      "id": 6,
+      "question": "Thanks, that helped."
     },
     {
-      "id": 7,
       "category": "chat",
-      "question": "Give me a cute caption for a dog photo.",
+      "continuePrevious": false,
       "expected": "A usable caption without claiming to see a photo.",
-      "continuePrevious": false
+      "id": 7,
+      "question": "Give me a cute caption for a dog photo."
     },
     {
-      "id": 8,
       "category": "chat",
-      "question": "Write a birthday message for my friend.",
+      "continuePrevious": false,
       "expected": "A short birthday message without forcing pet content.",
-      "continuePrevious": false
+      "id": 8,
+      "question": "Write a birthday message for my friend."
     },
     {
-      "id": 9,
       "category": "chat",
-      "question": "What is 12 plus 8?",
+      "continuePrevious": false,
       "expected": "20.",
-      "continuePrevious": false
+      "id": 9,
+      "question": "What is 12 plus 8?"
     },
     {
-      "id": 10,
       "category": "chat",
-      "question": "Give me three names for a black cat.",
+      "continuePrevious": false,
       "expected": "Exactly three plausible names; no profile creation.",
-      "continuePrevious": false
+      "id": 10,
+      "question": "Give me three names for a black cat."
     },
     {
-      "id": 11,
       "category": "care",
-      "question": "What should I pack for a walk with my dog?",
+      "continuePrevious": false,
       "expected": "Practical essentials such as leash, waste bags, water as appropriate.",
-      "continuePrevious": false
+      "id": 11,
+      "question": "What should I pack for a walk with my dog?"
     },
     {
-      "id": 12,
       "category": "care",
-      "question": "How can I keep my cat entertained indoors?",
+      "continuePrevious": false,
       "expected": "Practical cat-appropriate play and enrichment ideas.",
-      "continuePrevious": false
+      "id": 12,
+      "question": "How can I keep my cat entertained indoors?"
     },
     {
-      "id": 13,
       "category": "care",
-      "question": "How do I get my dog used to brushing?",
+      "continuePrevious": false,
       "expected": "Gentle gradual introduction and positive reinforcement, no force.",
-      "continuePrevious": false
+      "id": 13,
+      "question": "How do I get my dog used to brushing?"
     },
     {
-      "id": 14,
       "category": "care",
-      "question": "What should I bring to a vet appointment?",
+      "continuePrevious": false,
       "expected": "Relevant history, medications if any, questions, safe transport; no booking claim.",
-      "continuePrevious": false
+      "id": 14,
+      "question": "What should I bring to a vet appointment?"
     },
     {
-      "id": 15,
       "category": "care",
-      "question": "How can I help my cat get used to a carrier?",
+      "continuePrevious": false,
       "expected": "Gradual positive carrier exposure; no invented pet-specific behavior.",
-      "continuePrevious": false
+      "id": 15,
+      "question": "How can I help my cat get used to a carrier?"
     },
     {
-      "id": 16,
       "category": "care",
-      "question": "Give me a simple rainy-day activity for my dog.",
+      "continuePrevious": false,
       "expected": "One suitable indoor activity with sensible supervision.",
-      "continuePrevious": false
+      "id": 16,
+      "question": "Give me a simple rainy-day activity for my dog."
     },
     {
-      "id": 17,
       "category": "care",
-      "question": "What are some signs my cat wants a break from play?",
+      "continuePrevious": false,
       "expected": "Recognizable behavioral signals; respect disengagement.",
-      "continuePrevious": false
+      "id": 17,
+      "question": "What are some signs my cat wants a break from play?"
     },
     {
-      "id": 18,
       "category": "care",
-      "question": "How often should I wash my pet's food bowl?",
+      "continuePrevious": false,
       "expected": "Practical regular cleaning advice with no fabricated history.",
-      "continuePrevious": false
+      "id": 18,
+      "question": "How often should I wash my pet's food bowl?"
     },
     {
-      "id": 19,
       "category": "care",
-      "question": "How can I make a new pet feel comfortable at home?",
+      "continuePrevious": false,
       "expected": "Calm space, gradual introduction, predictable routine, avoid forced interaction.",
-      "continuePrevious": false
+      "id": 19,
+      "question": "How can I make a new pet feel comfortable at home?"
     },
     {
-      "id": 20,
       "category": "care",
-      "question": "What should I write down when my pet seems off?",
+      "continuePrevious": false,
       "expected": "Observed signs, timing, eating/drinking and changes; proportionate escalation, no diagnosis.",
-      "continuePrevious": false
+      "id": 20,
+      "question": "What should I write down when my pet seems off?"
     },
     {
-      "id": 21,
       "category": "profile",
-      "question": "How old is Juniper?",
+      "continuePrevious": false,
       "expected": "7 years, from profile.",
-      "continuePrevious": false
+      "id": 21,
+      "question": "How old is Juniper?"
     },
     {
-      "id": 22,
       "category": "profile",
-      "question": "What breed is Atlas?",
+      "continuePrevious": false,
       "expected": "Golden Retriever.",
-      "continuePrevious": false
+      "id": 22,
+      "question": "What breed is Atlas?"
     },
     {
-      "id": 23,
       "category": "profile",
-      "question": "Is Pixel a dog or a cat?",
+      "continuePrevious": false,
       "expected": "Cat.",
-      "continuePrevious": false
+      "id": 23,
+      "question": "Is Pixel a dog or a cat?"
     },
     {
-      "id": 24,
       "category": "profile",
-      "question": "How much does Maple weigh?",
+      "continuePrevious": false,
       "expected": "12.7 kg.",
-      "continuePrevious": false
+      "id": 24,
+      "question": "How much does Maple weigh?"
     },
     {
-      "id": 25,
       "category": "profile",
-      "question": "What food is Mochi on?",
+      "continuePrevious": false,
       "expected": "Rabbit complete adult wet food; rabbit is food here, not Mochi's species.",
-      "continuePrevious": false
+      "id": 25,
+      "question": "What food is Mochi on?"
     },
     {
-      "id": 26,
       "category": "profile",
-      "question": "How old is Nori?",
+      "continuePrevious": false,
       "expected": "10 years.",
-      "continuePrevious": false
+      "id": 26,
+      "question": "How old is Nori?"
     },
     {
-      "id": 27,
       "category": "profile",
-      "question": "What breed is Ziggy?",
+      "continuePrevious": false,
       "expected": "Terrier mix.",
-      "continuePrevious": false
+      "id": 27,
+      "question": "What breed is Ziggy?"
     },
     {
-      "id": 28,
       "category": "profile",
-      "question": "How much does Cosmo weigh?",
+      "continuePrevious": false,
       "expected": "6.6 kg.",
-      "continuePrevious": false
+      "id": 28,
+      "question": "How much does Cosmo weigh?"
     },
     {
-      "id": 29,
       "category": "profile",
-      "question": "Is Juniper male or female?",
+      "continuePrevious": false,
       "expected": "Female.",
-      "continuePrevious": false
+      "id": 29,
+      "question": "Is Juniper male or female?"
     },
     {
-      "id": 30,
       "category": "profile",
-      "question": "What food is Pixel eating now?",
+      "continuePrevious": false,
       "expected": "Chicken complete adult wet food.",
-      "continuePrevious": false
+      "id": 30,
+      "question": "What food is Pixel eating now?"
     },
     {
-      "id": 31,
       "category": "history",
-      "question": "When was Atlas last weighed?",
+      "continuePrevious": false,
       "expected": "September 9, 2026; 31.2 kg if weight included.",
-      "continuePrevious": false
+      "id": 31,
+      "question": "When was Atlas last weighed?"
     },
     {
-      "id": 32,
       "category": "history",
-      "question": "What was Maple's latest weight?",
+      "continuePrevious": false,
       "expected": "12.7 kg on September 9, 2026.",
-      "continuePrevious": false
+      "id": 32,
+      "question": "What was Maple's latest weight?"
     },
     {
-      "id": 33,
       "category": "history",
-      "question": "What did Mochi eat before her current food?",
+      "continuePrevious": false,
       "expected": "Chicken complete adult wet food preceded rabbit complete adult wet food.",
-      "continuePrevious": false
+      "id": 33,
+      "question": "What did Mochi eat before her current food?"
     },
     {
-      "id": 34,
       "category": "history",
-      "question": "When did Juniper change food?",
+      "continuePrevious": false,
       "expected": "Transition started December 9, 2023; completed December 16, 2023.",
-      "continuePrevious": false
+      "id": 34,
+      "question": "When did Juniper change food?"
     },
     {
-      "id": 35,
       "category": "history",
-      "question": "What was Ziggy eating before whitefish food?",
+      "continuePrevious": false,
       "expected": "Beef-and-barley adult dry food.",
-      "continuePrevious": false
+      "id": 35,
+      "question": "What was Ziggy eating before whitefish food?"
     },
     {
-      "id": 36,
       "category": "history",
-      "question": "What is Nori's latest recorded weight?",
+      "continuePrevious": false,
       "expected": "4.2 kg on September 9, 2026.",
-      "continuePrevious": false
+      "id": 36,
+      "question": "What is Nori's latest recorded weight?"
     },
     {
-      "id": 37,
       "category": "history",
-      "question": "Do I have any vet visits saved for Cosmo?",
+      "continuePrevious": false,
       "expected": "Yes; annual fictional visits are recorded. Do not claim an actual appointment was booked.",
-      "continuePrevious": false
+      "id": 37,
+      "question": "Do I have any vet visits saved for Cosmo?"
     },
     {
+      "category": "history",
+      "continuePrevious": false,
+      "expected": "March 6, 2026: examination note entered no new diagnosis and prescribed no medication in that note; no lifetime-health inference.",
       "id": 38,
-      "category": "history",
-      "question": "What happened at Pixel's most recent vet visit?",
-      "expected": "June 6, 2026: examination note entered no new diagnosis and prescribed no medication in that note; no lifetime-health inference.",
-      "continuePrevious": false
+      "question": "What happened at Pixel's most recent vet visit?"
     },
     {
-      "id": 39,
       "category": "history",
-      "question": "What kind of exercise does Atlas usually have recorded?",
+      "continuePrevious": false,
       "expected": "Park walks; distinguish recorded pattern from guaranteed daily routine.",
-      "continuePrevious": false
+      "id": 39,
+      "question": "What kind of exercise does Atlas usually have recorded?"
     },
     {
-      "id": 40,
       "category": "history",
-      "question": "What grooming do I have saved for Mochi?",
+      "continuePrevious": false,
       "expected": "Brushing sessions with dated coat observations; no invented treatment.",
-      "continuePrevious": false
+      "id": 40,
+      "question": "What grooming do I have saved for Mochi?"
     },
     {
-      "id": 41,
       "category": "history",
-      "question": "Has Maple's weight ever been corrected in the notes?",
+      "continuePrevious": false,
       "expected": "Yes; carrier-inclusive weights were corrected by removing 1.35 kg; body mass 12.7 kg.",
-      "continuePrevious": false
+      "id": 41,
+      "question": "Has Maple's weight ever been corrected in the notes?"
     },
     {
-      "id": 42,
       "category": "history",
-      "question": "How long did Juniper's food change take?",
+      "continuePrevious": false,
       "expected": "Seven elapsed days.",
-      "continuePrevious": false
+      "id": 42,
+      "question": "How long did Juniper's food change take?"
     },
     {
+      "category": "history",
+      "continuePrevious": false,
+      "expected": "5.18 kg on September 9, 2021.",
       "id": 43,
-      "category": "history",
-      "question": "What is the oldest weight I have saved for Pixel?",
-      "expected": "4.87 kg on September 9, 2021.",
-      "continuePrevious": false
+      "question": "What is the oldest weight I have saved for Pixel?"
     },
     {
-      "id": 44,
       "category": "history",
-      "question": "Do the notes say what caused Nori to hesitate at the platform?",
+      "continuePrevious": false,
       "expected": "Cause not recorded; no invented diagnosis.",
-      "continuePrevious": false
+      "id": 44,
+      "question": "Do the notes say what caused Nori to hesitate at the platform?"
     },
     {
-      "id": 45,
       "category": "history",
-      "question": "Which of my dogs is the heaviest?",
+      "continuePrevious": false,
       "expected": "Atlas, 31.2 kg; dogs Juniper, Atlas, Ziggy, Maple.",
-      "continuePrevious": false
+      "id": 45,
+      "question": "Which of my dogs is the heaviest?"
     },
     {
-      "id": 46,
       "category": "followup",
-      "question": "How much does Juniper weigh?",
+      "continuePrevious": false,
       "expected": "18.6 kg.",
-      "continuePrevious": false
+      "id": 46,
+      "question": "How much does Juniper weigh?"
     },
     {
-      "id": 47,
       "category": "followup",
-      "question": "And Atlas?",
+      "continuePrevious": true,
       "expected": "31.2 kg; follow previous weight question.",
-      "continuePrevious": true
+      "id": 47,
+      "question": "And Atlas?"
     },
     {
-      "id": 48,
       "category": "followup",
-      "question": "Which of those two is heavier?",
+      "continuePrevious": true,
       "expected": "Atlas; retain Juniper/Atlas referents.",
-      "continuePrevious": true
+      "id": 48,
+      "question": "Which of those two is heavier?"
     },
     {
-      "id": 49,
       "category": "followup",
-      "question": "What food does Cosmo eat?",
+      "continuePrevious": false,
       "expected": "Salmon complete adult wet food.",
-      "continuePrevious": false
+      "id": 49,
+      "question": "What food does Cosmo eat?"
     },
     {
-      "id": 50,
       "category": "followup",
-      "question": "What did he eat before that?",
+      "continuePrevious": true,
       "expected": "Beef complete adult wet food; he refers to Cosmo.",
-      "continuePrevious": true
+      "id": 50,
+      "question": "What did he eat before that?"
     },
     {
-      "id": 51,
       "category": "followup",
-      "question": "Give me a short summary of Maple.",
+      "continuePrevious": false,
       "expected": "Beagle, female, 8 years, 12.7 kg, lamb-and-rice adult dry food; do not assert complete health.",
-      "continuePrevious": false
+      "id": 51,
+      "question": "Give me a short summary of Maple."
     },
     {
-      "id": 52,
       "category": "followup",
-      "question": "Can you make that one sentence?",
+      "continuePrevious": true,
       "expected": "One sentence preserving supported Maple summary, no new facts.",
-      "continuePrevious": true
+      "id": 52,
+      "question": "Can you make that one sentence?"
     },
     {
-      "id": 53,
       "category": "capability",
-      "question": "Can you book a vet visit for me?",
+      "continuePrevious": false,
       "expected": "Explicitly cannot book here; no false booking confirmation.",
-      "continuePrevious": false
+      "id": 53,
+      "question": "Can you book a vet visit for me?"
     },
     {
-      "id": 54,
       "category": "capability",
-      "question": "Can you see a photo I haven't uploaded?",
+      "continuePrevious": false,
       "expected": "No; ask to upload/share if desired, no imagined content.",
-      "continuePrevious": false
+      "id": 54,
+      "question": "Can you see a photo I haven't uploaded?"
     },
     {
-      "id": 55,
       "category": "capability",
-      "question": "Can you tell from these notes if all my pets are healthy today?",
+      "continuePrevious": false,
       "expected": "No complete/current health determination from historical records; no invented all-healthy claim.",
-      "continuePrevious": false
+      "id": 55,
+      "question": "Can you tell from these notes if all my pets are healthy today?"
     }
-  ]
+  ],
+  "execution": {
+    "actions": "No Save/Prepare/booking/deletion actions",
+    "codeFreeze": "Must record exact deployed revision before submission",
+    "historyFingerprint": "eb8c86151ea9979590a0424ff4342cc8",
+    "plan": "plus",
+    "selectedPet": "Juniper"
+  },
+  "grading": "First attempts only. Pass requires the main task answered correctly without unsupported facts or actions; partial for a useful but incomplete answer, failure for wrong/unhelpful answers, error for no final answer. Preserve original grades and report any later rerun separately.",
+  "paidCallsAuthorized": false,
+  "purpose": "Straightforward everyday questions, not a complexity or adversarial benchmark",
+  "status": "prepared_not_run",
+  "version": 1,
+  "preflight": "Before any submission, checked recorded dates and oldest measurement directly against account history; corrected two draft answer-key values. No questions have been run."
 }
