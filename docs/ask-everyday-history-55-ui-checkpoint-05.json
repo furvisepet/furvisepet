@@ -1,0 +1,51 @@
+{
+  "frozenCommit": "dd817b5ac4365219212465ad8e45d5b02908a3ef",
+  "budget": {
+    "calls": "1991",
+    "costMicrodollars": "11884833",
+    "day": "2026-09-09",
+    "status": 200,
+    "time": "2026-09-09T22:07:10.390Z"
+  },
+  "results": [
+    {
+      "answer": "The currently recorded food for Juniper is lamb-and-oat adult dry food.",
+      "grade": "pass",
+      "id": 1,
+      "observedAt": "2026-09-09T22:04:44.057Z",
+      "startedAt": "2026-09-09T22:03:56.047Z"
+    },
+    {
+      "id": 2,
+      "question": "What was Juniper eating back in 2021?",
+      "startedAt": "2026-09-09T22:04:47.485Z",
+      "finishedAt": "2026-09-09T22:05:48.111Z",
+      "snapshot": "- banner:\n  - link \"Furvise home\":\n    - /url: /\n  - navigation \"Primary navigation\":\n    - link \"Today\":\n      - /url: /today\n    - link \"Pets\":\n      - /url: /pets\n    - link \"History\":\n      - /url: /history\n    - link \"Ask\":\n      - /url: /ask\n  - generic \"Open account menu\":\n    - generic: G\n- main:\n  - paragraph: ASK\n  - heading \"WHAT'S ON YOUR MIND ABOUT JUNIPER?\" [level=1]\n  - paragraph: Ask a question, tell Furvise what changed, or just share something that's on your mind.\n  - navigation \"Conversation actions\":\n    - button \"Rename current conversation\": Rename\n    - button \"Conversations\"\n    - button \"New question\"\n  - combobox \"Pet\":\n    - option \"Juniper\" [selected]\n    - option \"Pixel\"\n    - option \"Atlas\"\n    - option \"Mochi\"\n    - option \"Clover\"\n    - option \"Ziggy\"\n    - option \"Nori\"\n    - option \"Pebble\"\n    - option \"Maple\"\n    - option \"Cosmo\"\n  - generic: · Dog · 7 years\n  - main:\n    - region \"Conversation with Furvise\":\n      - article \"You\":\n        - paragraph: You\n        - paragraph: What was Juniper eating back in 2021?\n      - article:\n        - generic: Furvise\n        - paragraph: In the 2021 records, Juniper was offered chicken-and-rice adult dry food on the documented food checks in September, October, and November. That is the food type recorded here, but this bounded history does not prove what she ate at every unobserved meal in 2021.\n        - button \"Copy\"\n      - generic: Juniper\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Juniper\":\n        - /placeholder: Ask or tell Furvise more about Juniper…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "visibleText": "You\n\nWhat was Juniper eating back in 2021?\n\nFurvise\n\nIn the 2021 records, Juniper was offered chicken-and-rice adult dry food on the documented food checks in September, October, and November.\nThat is the food type recorded here, but this bounded history does not prove what she ate at every unobserved meal in 2021.\n\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care."
+    },
+    {
+      "id": 3,
+      "question": "What is the earliest weight you have saved for Juniper?",
+      "startedAt": "2026-09-09T22:05:55.215Z",
+      "finishedAt": "2026-09-09T22:06:09.637Z",
+      "snapshot": "- banner:\n  - link \"Furvise home\":\n    - /url: /\n  - navigation \"Primary navigation\":\n    - link \"Today\":\n      - /url: /today\n    - link \"Pets\":\n      - /url: /pets\n    - link \"History\":\n      - /url: /history\n    - link \"Ask\":\n      - /url: /ask\n  - generic \"Open account menu\":\n    - generic: G\n- main:\n  - paragraph: ASK\n  - heading \"WHAT'S ON YOUR MIND ABOUT JUNIPER?\" [level=1]\n  - paragraph: Ask a question, tell Furvise what changed, or just share something that's on your mind.\n  - navigation \"Conversation actions\":\n    - button \"Rename current conversation\": Rename\n    - button \"Conversations\"\n    - button \"New question\"\n  - combobox \"Pet\":\n    - option \"Juniper\" [selected]\n    - option \"Pixel\"\n    - option \"Atlas\"\n    - option \"Mochi\"\n    - option \"Clover\"\n    - option \"Ziggy\"\n    - option \"Nori\"\n    - option \"Pebble\"\n    - option \"Maple\"\n    - option \"Cosmo\"\n  - generic: · Dog · 7 years\n  - main:\n    - region \"Conversation with Furvise\":\n      - article \"You\":\n        - paragraph: You\n        - paragraph: What is the earliest weight you have saved for Juniper?\n      - article:\n        - generic: Furvise\n        - paragraph: The earliest saved weight I can see for Juniper is 19.22 kg on 2021-09-09, recorded as body mass with no carrier or harness included.\n        - button \"Copy\"\n      - generic: Juniper\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Juniper\":\n        - /placeholder: Ask or tell Furvise more about Juniper…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "visibleText": "You\n\nWhat is the earliest weight you have saved for Juniper?\n\nFurvise\n\nThe earliest saved weight I can see for Juniper is 19.22 kg on 2021-09-09, recorded as body mass with no carrier or harness included.\n\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care."
+    },
+    {
+      "id": 4,
+      "question": "How much did Juniper weigh on September 9, 2022?",
+      "startedAt": "2026-09-09T22:06:18.579Z",
+      "finishedAt": "2026-09-09T22:06:35.744Z",
+      "snapshot": "- banner:\n  - link \"Furvise home\":\n    - /url: /\n  - navigation \"Primary navigation\":\n    - link \"Today\":\n      - /url: /today\n    - link \"Pets\":\n      - /url: /pets\n    - link \"History\":\n      - /url: /history\n    - link \"Ask\":\n      - /url: /ask\n  - generic \"Open account menu\":\n    - generic: G\n- main:\n  - paragraph: ASK\n  - heading \"WHAT'S ON YOUR MIND ABOUT JUNIPER?\" [level=1]\n  - paragraph: Ask a question, tell Furvise what changed, or just share something that's on your mind.\n  - navigation \"Conversation actions\":\n    - button \"Rename current conversation\": Rename\n    - button \"Conversations\"\n    - button \"New question\"\n  - combobox \"Pet\":\n    - option \"Juniper\" [selected]\n    - option \"Pixel\"\n    - option \"Atlas\"\n    - option \"Mochi\"\n    - option \"Clover\"\n    - option \"Ziggy\"\n    - option \"Nori\"\n    - option \"Pebble\"\n    - option \"Maple\"\n    - option \"Cosmo\"\n  - generic: · Dog · 7 years\n  - main:\n    - region \"Conversation with Furvise\":\n      - article \"You\":\n        - paragraph: You\n        - paragraph: How much did Juniper weigh on September 9, 2022?\n      - article:\n        - generic: Furvise\n        - paragraph: Juniper weighed 19.51 kg on September 9, 2022. The record says that was body mass on the household scale with no carrier or harness included, and the reason for any change was not established.\n        - button \"Copy\"\n      - generic: Juniper\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Juniper\":\n        - /placeholder: Ask or tell Furvise more about Juniper…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "visibleText": "You\n\nHow much did Juniper weigh on September 9, 2022?\n\nFurvise\n\nJuniper weighed 19.51 kg on September 9, 2022.\nThe record says that was body mass on the household scale with no carrier or harness included, and the reason for any change was not established.\n\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care."
+    },
+    {
+      "id": 5,
+      "question": "When did Juniper go to the vet in 2022?",
+      "startedAt": "2026-09-09T22:06:39.163Z",
+      "finishedAt": "2026-09-09T22:06:53.646Z",
+      "snapshot": "- banner:\n  - link \"Furvise home\":\n    - /url: /\n  - navigation \"Primary navigation\":\n    - link \"Today\":\n      - /url: /today\n    - link \"Pets\":\n      - /url: /pets\n    - link \"History\":\n      - /url: /history\n    - link \"Ask\":\n      - /url: /ask\n  - generic \"Open account menu\":\n    - generic: G\n- main:\n  - paragraph: ASK\n  - heading \"WHAT'S ON YOUR MIND ABOUT JUNIPER?\" [level=1]\n  - paragraph: Ask a question, tell Furvise what changed, or just share something that's on your mind.\n  - navigation \"Conversation actions\":\n    - button \"Rename current conversation\": Rename\n    - button \"Conversations\"\n    - button \"New question\"\n  - combobox \"Pet\":\n    - option \"Juniper\" [selected]\n    - option \"Pixel\"\n    - option \"Atlas\"\n    - option \"Mochi\"\n    - option \"Clover\"\n    - option \"Ziggy\"\n    - option \"Nori\"\n    - option \"Pebble\"\n    - option \"Maple\"\n    - option \"Cosmo\"\n  - generic: · Dog · 7 years\n  - main:\n    - region \"Conversation with Furvise\":\n      - article \"You\":\n        - paragraph: You\n        - paragraph: When did Juniper go to the vet in 2022?\n      - article:\n        - generic: Furvise\n        - paragraph: The available records show Juniper went to the vet on April 5, 2022.\n        - button \"Prepare vet brief\"\n        - button \"Copy\"\n      - generic: Juniper\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Juniper\":\n        - /placeholder: Ask or tell Furvise more about Juniper…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "visibleText": "You\n\nWhen did Juniper go to the vet in 2022?\n\nFurvise\n\nThe available records show Juniper went to the vet on April 5, 2022.\n\nPrepare vet brief\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care."
+    }
+  ]
+}
