@@ -635,3 +635,9 @@ test('a single report-day comparison keeps preceding context without crossing th
  assert.equal(result.history.from,null);
  assert.equal(result.history.to,'2026-04-21T00:00:00.000Z');
 });
+
+test('a day number next to an event noun is not a quantity anchor', () => {
+ const source=[{text:'No more accidents since April 10.',occurredAt:'2026-04-17T00:00:00Z'}];
+ assert.equal(historyNarrativeAnchorsSupported('The April 17 accident-free update followed April 10.',source,'',[],false),true);
+ assert.equal(historyNarrativeAnchorsSupported('There were 17 accidents on April 17.',source,'',[],false),false);
+});

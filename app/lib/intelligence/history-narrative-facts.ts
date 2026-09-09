@@ -11,7 +11,11 @@ function dates(text: string): string[] {
   return found;
 }
 function quantities(text: string): string[] {
-  return [...text.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
+  // Date tokens cannot also be quantities: "April 17 accident-free update"
+  // contains a day number, not seventeen accidents. Keep the two anchor axes separate.
+  const prose = text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
+    .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi, " ");
+  return [...prose.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`);
 }
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
