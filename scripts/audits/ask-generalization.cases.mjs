@@ -112,7 +112,8 @@ test('ordinary conversation does not require a pet or expose the selected pet hi
     providerOverrides:{answer:'Of course. What has been on your mind?',historyNarrative:null}});
   assert.doesNotMatch(r.result.reasoning.answer.summary,/Which pet|Which issue/);
   assert.match(r.result.reasoning.answer.summary,/mind/);
-  assert.deepEqual(r.prompt.contextRecords,[]);
+  assert.equal(r.prompt.contextRecords,undefined);
+  assert.equal(r.prompt.capabilities.savedHistoryAccess,false);
   assert.deepEqual(r.result.acceptedCareActions,[]);
   assert.deepEqual(r.result.acceptedLearnings,[]);
   assert.deepEqual(r.result.reasoning.evidenceContract.scope.authorizedPetIds,[]);
@@ -138,7 +139,8 @@ test('owner emotional conversation remains read-only even with invented save pro
   assert.deepEqual(r.result.acceptedCareActions,[]);
   assert.deepEqual(r.result.acceptedLearnings,[]);
   assert.deepEqual(r.result.acceptedSemanticEvents,[]);
-  assert.deepEqual(r.prompt.contextRecords,[]);
+  assert.equal(r.prompt.contextRecords,undefined);
+  assert.equal(r.prompt.capabilities.savedHistoryAccess,false);
   assert.match(r.result.reasoning.answer.summary,/hardest/);
 });
 test('current emergency language remains safety-led without borrowing the selected pet history',async t=>{
@@ -149,7 +151,8 @@ test('current emergency language remains safety-led without borrowing the select
     providerOverrides:{answer:'Contact an emergency veterinarian now.',historyNarrative:null}});
   assert.ok(['urgent','emergency'].includes(r.result.reasoning.intelligenceSafety.level));
   assert.match(r.result.reasoning.answer.summary,/emergency veterinarian/);
-  assert.deepEqual(r.prompt.contextRecords,[]);
+  assert.equal(r.prompt.contextRecords,undefined);
+  assert.equal(r.prompt.capabilities.savedHistoryAccess,false);
   assert.deepEqual(r.result.acceptedCareActions,[]);
 });
 
@@ -164,15 +167,16 @@ test('irrelevant malformed mutation frames do not block read-only questions',asy
     assert.deepEqual(r.result.acceptedLearnings,[]);
   }
 });
-test('prior user dialogue in ordinary conversation remains reference context rather than cited evidence',async t=>{
+test('prior user dialogue remains supplied premises without saved-history citations',async t=>{
   clock(t);
   const data=fixture(fixturePets[0],topics[0]);
   const messages=[{id:'prior',user_id:fixturePets[0].user_id,conversation_id:'chat',role:'user',user_text:'I previously worried about Nori sleep.',sequence_number:1}];
   const r=await exercise('Can we just talk for a minute?',{fixturePets,petId:'nori',history:true,rows:data.rows,messages,
     interpretationProposal:{...data.plan,operation:'general',readOperation:'general',subject:'non_pet',petNames:[],topic:'conversation',terms:[]},
     providerOverrides:{answer:'Of course. What is on your mind?',historyNarrative:null}});
-  assert.deepEqual(r.prompt.contextRecords,[]);
-  assert.ok(r.prompt.dialogueContext.turns.some(turn=>turn.text.includes('worried')));
+  assert.equal(r.prompt.contextRecords,undefined);
+  assert.equal(r.prompt.capabilities.savedHistoryAccess,false);
+  assert.ok(r.prompt.priorUserPremises.some(turn=>turn.text.includes('worried')));
   assert.deepEqual(r.result.acceptedCareActions,[]);
 });
 
