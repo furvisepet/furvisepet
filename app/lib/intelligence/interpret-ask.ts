@@ -250,7 +250,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     recentDialogueForReferencesOnly: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns)
       .map(turn => ({ id: turn.id, role: turn.role, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })) };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
-    ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
+    ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "medium" } } : {}),
     instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestSchema(proposedSemanticFrameJsonSchema) } } };
   const started = Date.now();
   let attempted = false;

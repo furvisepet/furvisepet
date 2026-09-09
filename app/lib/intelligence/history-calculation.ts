@@ -30,6 +30,11 @@ const units: Record<string, { dimension: string; scale: number; canonical: strin
   day: { dimension: "time", scale: 24, canonical: "day" }, days: { dimension: "time", scale: 24, canonical: "day" },
   week: { dimension: "time", scale: 168, canonical: "week" }, weeks: { dimension: "time", scale: 168, canonical: "week" },
 };
+// Provider and source spelling share one dimensional registry; spelling is not
+// a different unit, and must not cause a correct calculation to fail review.
+for (const [alias, canonical] of Object.entries({ kilogram: "kg", kilograms: "kg", gram: "g", grams: "g",
+  milligram: "mg", milligrams: "mg", pound: "lb", pounds: "lb", milliliter: "ml", milliliters: "ml",
+  millilitre: "ml", millilitres: "ml", liter: "l", liters: "l", litre: "l", litres: "l" })) units[alias] = units[canonical];
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= 1e12;
 export function parseHistoryCalculations(value: unknown): HistoryCalculation[] | null {
   if (value === undefined) return [];
@@ -47,7 +52,8 @@ export function parseHistoryCalculations(value: unknown): HistoryCalculation[] |
 }
 export function verifiedCalculationQuantities(proposals: HistoryCalculation[], sources: Source[]): string[] | null {
   const output: string[] = [];
-  for (const p of proposals) {
+  for (const proposal of proposals) {
+    const p = { ...proposal, unit: /^(?:percent|percentage)$/i.test(proposal.unit) ? "%" : proposal.unit.toLowerCase() };
     const operands: Array<{ value: number; dimension: string; scale: number }> = [];
     for (const operand of p.operands) {
       const matches = sources.filter(source => source.sourceId === operand.sourceId);

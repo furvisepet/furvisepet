@@ -641,3 +641,38 @@ test('a day number next to an event noun is not a quantity anchor', () => {
  assert.equal(historyNarrativeAnchorsSupported('The April 17 accident-free update followed April 10.',source,'',[],false),true);
  assert.equal(historyNarrativeAnchorsSupported('There were 17 accidents on April 17.',source,'',[],false),false);
 });
+
+test('equivalent spelled units share numeric grounding and dimension checks', () => {
+ const sources=[{sourceId:'a',text:'Recorded mass 3 kilograms.'},{sourceId:'b',text:'Recorded mass 2 kg.'}];
+ const operands=[{sourceId:'a',field:'text',literal:'3 kilograms'},{sourceId:'b',field:'text',literal:'2 kg'}];
+ assert.deepEqual(verifiedCalculationQuantities([{operation:'difference',operands,value:1000,unit:'grams'}],sources),['1000:g']);
+ assert.equal(verifiedCalculationQuantities([{operation:'difference',operands,value:1000,unit:'milliliters'}],sources),null);
+ assert.deepEqual(verifiedCalculationQuantities([{operation:'percent_change',operands,value:-33.33,unit:'percent'}],sources),['33.33:%']);
+});
+test('empty lexical searches return their unused capacity to bounded period context',async t=>{
+ clock(t);
+ const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-empty-'+i,pet.id,
+   '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' slept normally.')));
+ const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+   interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['nonmatchingphrase']})});
+ assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
+ assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
+ assert.ok(r.context.askHistory.entries.length<=32);
+});
+
+test('latest and comparison ordering never reverse source relevance',async()=>{
+ const {orderHistoryEvidence}=await import('../../app/lib/intelligence/history-synthesis.ts');
+ const rows=[{id:'needed-old',at:'2026-01-01',rank:0},{id:'unrelated-new',at:'2026-03-01',rank:1},{id:'needed-new',at:'2026-02-01',rank:0}];
+ for(const selection of ['latest','comparison']) {
+  const actual=orderHistoryEvidence(rows,selection,x=>x.at,x=>x.id,undefined,x=>x.rank);
+  assert.deepEqual(new Set(actual.slice(0,2).map(x=>x.id)),new Set(['needed-old','needed-new']));
+  assert.equal(actual.at(-1).id,'unrelated-new');
+ }
+});
+test('bounded phrase hints match morphological variants without treating them as evidence',async()=>{
+ const {historyQueryTerms,historyQueryRelevance}=await import('../../app/lib/intelligence/history-query-relevance.ts');
+ const terms=historyQueryTerms(['Aster training-treat change','seven day medication course'],['Aster']);
+ assert.ok(terms.length<=6);assert.ok(!terms.includes('aster'));
+ assert.ok(historyQueryRelevance('New training treats were stopped.',terms)>historyQueryRelevance('The appetite is normal.',terms));
+ assert.ok(historyQueryRelevance('A seven-day medication course was given.',terms)>0);
+});

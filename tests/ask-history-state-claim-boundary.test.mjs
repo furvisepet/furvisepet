@@ -75,3 +75,12 @@ test('negative saved-detail answers are not successful mutation receipts', () =>
   assert.equal(enforceVerifiedStateClaims(text,false),text);
   assert.equal(containsUnverifiedStateClaim('No numeric dose was saved; her profile was updated.'),true);
 });
+
+test('attribution prefixes and dated physical completion survive without creating action authority', () => {
+ for(const text of ['The later record says no reason for the difference was recorded, so the records do not explain why.',
+   'The transition started on April 3, and it was completed on April 10.',
+   'The scheduled session was completed on April 12.']) assert.equal(enforceVerifiedStateClaims(text,false),text);
+ for(const text of ['The note says her profile was updated.', 'The request was completed on April 12.',
+   'It was completed on April 12.', 'The transition was completed in her profile on April 12.'])
+   assert.equal(containsUnverifiedStateClaim(text),true,text);
+});
