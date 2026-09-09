@@ -266,6 +266,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     for (let attempt = 0; attempt < 2; attempt++) {
     const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed USER-premise verification. Reconstruct the contract from the original input. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. All original scope and mutation restrictions still apply." };
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
+      ...(attempt === 1 ? { purpose: "interpretation_repair" as const } : {}),
       providerInput: { input: attemptRequest.input, instructions: attemptRequest.instructions },
       invoke: () => {
         attempted = true;

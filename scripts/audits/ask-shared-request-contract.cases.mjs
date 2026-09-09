@@ -392,6 +392,24 @@ for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected',
   assert.equal(r.result.acceptedSemanticEvents.length, 0);
 });
 
+test('real admission lets a repaired planner reach composition without opening extra repair cycles', async t => {
+ clock(t);
+ const {runAdmittedAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts');
+ const {MemoryAiGuardTestStore}=await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
+ const {OPENAI_ANALYSIS_MODEL}=await import('../../app/lib/ai/config.ts');
+ const {executeAdmittedProviderCall}=await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
+ const store=new MemoryAiGuardTestStore();let calls=0;
+ await runAdmittedAiOperation({store,feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'planner-repair'},async()=>{
+  const r=await exercise('Fictional only: the box is 3 kg. Give the mass.',{fixturePets,rows:[],messages:[],history:true,
+   interpretationModel:OPENAI_ANALYSIS_MODEL,interpretationProposal:{},interpretationResponse:async()=>({status:'completed',output_text:JSON.stringify(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes:[++calls===1?'the box weighs 3 kg':'the box is 3 kg']})),usage:{input_tokens:500,output_tokens:200}}),
+   providerOverrides:{answer:'3 kg'}});
+  assert.equal(r.result.reasoning.answer.summary,'3 kg');assert.equal(calls,2);
+  const forbidden=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,maxOutputTokens:100,providerInput:'test',invoke:async()=>{throw Error('must not invoke');}});
+  for(const purpose of [undefined,'interpretation_repair','history_repair','history_rereview'])await assert.rejects(forbidden(purpose));
+ });
+ assert.equal(store.getSnapshot('2026-09-04').calls,3);
+});
+
 test('real admission allows one ordered repair and re-review, charges all five calls and denies a sixth', async t => {
   clock(t);
   const { runAdmittedAiOperation } = await import('../../app/lib/ai/usage-guard/admission.ts');

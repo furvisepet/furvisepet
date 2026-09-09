@@ -2,7 +2,7 @@ import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
 
 export async function executeAdmittedProviderCall<T>(input: {
-  purpose?: "history_review" | "history_repair" | "history_rereview";
+  purpose?: "interpretation_repair" | "history_review" | "history_repair" | "history_rereview";
   invoke: () => Promise<T>;
   maxOutputTokens: number;
   model: string;
