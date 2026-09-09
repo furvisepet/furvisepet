@@ -758,3 +758,29 @@ test('double-escaped source quotes are decoded without relaxing provenance', () 
   assert.throws(()=>validateAskRequest(p,{...c,currentMessage:'The note says "unstable."'}),/premise_source/);
  }
 });
+
+test('ordering hints do not become episode references on ordinary reads',()=>{
+ for(const selection of ['latest','earliest','earliest_occurrence']){
+  const r=validateAskRequest(proposal({operation:'status',selection,ordinal:'last',quantity:null}),context);
+  assert.equal(r.ordinal,null);assert.equal(r.readOperation,'status');assert.ok(r.history);
+ }
+});
+test('measurement and duration quantities override a stale episode operation',()=>{
+ for(const quantity of ['measurement','duration','records']){
+  const r=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:null,quantity}),context);
+  assert.equal(r.readOperation,'recall');assert.equal(r.ordinal,null);assert.ok(r.history);
+ }
+});
+test('genuine episode requests still require a valid episode referent',()=>{
+ assert.throws(()=>validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:null}),context),/episode_reference/);
+ const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),context);
+ assert.equal(r.readOperation,'episode');assert.equal(r.ordinal,'second');
+});
+
+test('standalone task wording cannot be replaced by a planner paraphrase', () => {
+ const original = 'Total Aster\'s recorded activity durations, then label each activity.';
+ const result = validateAskRequest(proposal({question:'List the activities.',requirements:['List activities only']}),{...context,currentMessage:original});
+ assert.equal(result.request.question,original);
+ assert.equal(result.referenceQuestion,original);
+ assert.deepEqual(result.request.requirements,[]);
+});

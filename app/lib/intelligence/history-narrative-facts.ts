@@ -14,6 +14,7 @@ function quantities(text: string): string[] {
   // Date tokens cannot also be quantities: "April 17 accident-free update"
   // contains a day number, not seventeen accidents. Keep the two anchor axes separate.
   const prose = text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
+    .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{4}\b/gi, " ")
     .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi, " ");
   return [...prose.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`);
@@ -21,7 +22,7 @@ function quantities(text: string): string[] {
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
  * prevents an approving model from manufacturing a date or dose. */
-export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = []): boolean {
+export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = [], onUnsupported?: (reason: string) => void): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
   // Missing documentation cannot support a claim that a clinical act never occurred.
@@ -43,6 +44,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
       // grants no factual authority: the independent reviewer must still check
       // whether the answer accepts, rejects or qualifies that claim correctly.
       if (!legacyDerivations && requestText.includes(quote)) continue;
+      onUnsupported?.("Quotation is not an exact case-sensitive source substring: " + quote);
       return false;
     }
     const attribution = dates(text.slice(0, match.index));
@@ -126,6 +128,9 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
       if (Number.isSafeInteger(elapsed) && elapsed >= 0) supportedQuantities.add(elapsed + ":day");
     }
   }
-  return dates(text).every(date => supportedDates.has(date))
-    && quantities(text).every(quantity => supportedQuantities.has(quantity));
+  const unsupportedDates = dates(text).filter(date => !supportedDates.has(date));
+  const unsupportedQuantities = quantities(text).filter(quantity => !supportedQuantities.has(quantity));
+  for (const date of unsupportedDates) onUnsupported?.("Unsupported date anchor: " + date);
+  for (const quantity of unsupportedQuantities) onUnsupported?.("Unsupported quantity anchor: " + quantity + ". A derived value requires valid calculations metadata grounded in original source operands; otherwise qualify or remove it.");
+  return !unsupportedDates.length && !unsupportedQuantities.length;
 }

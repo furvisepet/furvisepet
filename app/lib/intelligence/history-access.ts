@@ -21,6 +21,10 @@ export function clipHistoryPlan<T extends { from: string | null; to: string | nu
   if (!access) return plan;
   const from = !plan.from || plan.from < access.from ? access.from : plan.from;
   const to = !plan.to || plan.to > access.to ? access.to : plan.to;
+  if (from >= to) {
+    const boundary = plan.to && plan.to <= access.from ? access.from : access.to;
+    return { ...plan, from: boundary, to: boundary };
+  }
   return { ...plan, from, to };
 }
 
