@@ -1,41 +1,64 @@
 {
-  "deployment": "ccdd7e391e5f1cc02204c342ab3f5ca459a7b1ee",
+  "deployments": {
+    "initial": "ccdd7e391e5f1cc02204c342ab3f5ca459a7b1ee",
+    "followup": "e0e43b95c7fb9f2eb5b06951a022694a09afde89"
+  },
   "results": [
     {
       "id": "conditional-safety",
       "question": "If a pet cannot breathe, should I wait to identify which profile to use before getting help?",
       "answer": "FurviseIf a pet is in immediate distressIf a pet cannot breathe, is unresponsive, is actively seizing, or has uncontrolled bleeding, contact an emergency veterinarian immediately. Do not wait for a history review or for Furvise to identify the pet. Follow the emergency clinic’s instructions; do not give medicine or home remedies unless a veterinarian directs you to.Copy",
-      "elapsedMs": 2102
+      "elapsedMs": 2102,
+      "deployment": "initial"
     },
     {
       "id": "dated-recall",
       "question": "As of September 7, what is the newest saved evidence about Oscar getting onto the sofa? Include when it was recorded.",
       "answer": "FurviseI can help with that.Copy",
-      "elapsedMs": 13303
+      "elapsedMs": 13303,
+      "deployment": "initial"
     },
     {
       "id": "measurement-json",
       "question": "Return only JSON: Milo’s first and last saved empty-carrier weights as earlier_kg and later_kg, plus difference_kg.",
       "error": "INTERPRETATION_FAILED",
-      "answer": "Furvise could not finish; no AI credit used"
+      "answer": "Furvise could not finish; no AI credit used",
+      "deployment": "initial"
     },
     {
       "id": "exact-quote",
       "question": "Quote Oscar’s May 22 travel-bag note exactly. Keep its wording unchanged.",
       "answer": "FurviseSynthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.Copy",
-      "elapsedMs": 10226
+      "elapsedMs": 10226,
+      "deployment": "initial"
     },
     {
       "id": "duration",
       "question": "Compare Oscar’s recorded walks from October 2021 and March 2023: give both durations and the difference in minutes.",
       "answer": "FurviseWalkDuration (minutes)October 2021 walk12March 2023 walk18Difference6Copy",
-      "elapsedMs": 14275
+      "elapsedMs": 14275,
+      "deployment": "initial"
     },
     {
       "id": "unknown-intake",
       "question": "Do Luna’s two saved bowl-water readings establish how much she actually drank? Explain what the records do and do not measure.",
       "answer": "FurviseNo—the two bowl-water records do not establish how much Luna actually drank.\nOne record measures that the bowl was filled with 250 mL, and the other measures that 100 mL remained in the bowl; neither record measures Luna’s consumed amount, and the second also says the spilled amount was unknown.\nSo the practical meaning is that they describe bowl water at specific moments, but they do not by themselves tell us her true intake.Copy",
-      "elapsedMs": 11224
+      "elapsedMs": 11224,
+      "deployment": "initial"
+    },
+    {
+      "id": "dated-recall-recheck",
+      "question": "As of September 7, what is the newest saved evidence about Oscar getting onto the sofa? Include when it was recorded.",
+      "answer": "FurviseThe newest saved evidence says Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days; it was recorded on September 4, 2026 at 23:42 UTC.Copy",
+      "elapsedMs": 11264,
+      "deployment": "followup"
+    },
+    {
+      "id": "measurement-json-recheck",
+      "question": "Return only JSON: Milo’s first and last saved empty-carrier weights as earlier_kg and later_kg, plus difference_kg.",
+      "answer": "Furvise{\"earlier_kg\":2,\"later_kg\":2.5,\"difference_kg\":0.5}Copy",
+      "elapsedMs": 11293,
+      "deployment": "followup"
     }
   ]
 }
