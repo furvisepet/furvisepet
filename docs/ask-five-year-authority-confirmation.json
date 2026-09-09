@@ -1,0 +1,1526 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "productionRoute": false,
+  "productionBrowser": false,
+  "fixtureFile": "ask-five-year-fixture.json",
+  "fixtureRows": 1169,
+  "phase": "authority-confirmation",
+  "turns": [
+    {
+      "id": 34,
+      "elapsedMs": 16491,
+      "planTier": "plus",
+      "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+          "requirements": [],
+          "referenceTurnIds": [],
+          "quantity": "duration"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "training and grooming durations",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2023-05-05T00:00:00.000Z",
+          "to": "2023-05-06T00:00:00.000Z",
+          "terms": [
+            "Oscar",
+            "training",
+            "grooming",
+            "duration",
+            "May  ical"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "On May 5, 2023, Oscar's training session lasted 12 minutes and his grooming session lasted 8 minutes, for a total of 20 minutes.",
+      "beforeFinalGuard": "On May 5, 2023, Oscar's training session lasted 12 minutes and his grooming session lasted 8 minutes, for a total of 20 minutes.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "On May 5, 2023, Oscar's training session lasted 12 minutes and his grooming session lasted 8 minutes, for a total of 20 minutes.",
+            "sourceIds": [
+              "care:fy-1112"
+            ],
+            "calculations": [
+              {
+                "operation": "sum",
+                "operands": [
+                  {
+                    "sourceId": "care:fy-1112",
+                    "field": "text",
+                    "literal": "12 minutes"
+                  },
+                  {
+                    "sourceId": "care:fy-1112",
+                    "field": "text",
+                    "literal": "8 minutes"
+                  }
+                ],
+                "value": 20,
+                "unit": "minutes"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+          "referenceQuestion": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "training and grooming durations",
+            "requestText": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2023-05-05T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+              "requirements": [],
+              "referenceTurnIds": [],
+              "quantity": "duration"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "training and grooming durations",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2023-05-05T00:00:00.000Z",
+              "to": "2023-05-06T00:00:00.000Z",
+              "terms": [
+                "Oscar",
+                "training",
+                "grooming",
+                "duration",
+                "May  ical"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "requirements": [],
+            "referenceTurnIds": [],
+            "quantity": "duration"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1112",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-1112: Oscar's training session lasted 12 minutes; his grooming session lasted 8 minutes.",
+              "occurredAt": "2023-05-05T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "On May 5, 2023, Oscar’s training session lasted 12 minutes, and his grooming session lasted 8 minutes.",
+                "sourceIds": [
+                  "care:fy-1112"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+          "referenceQuestion": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "training and grooming durations",
+            "requestText": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2023-05-05T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+              "requirements": [],
+              "referenceTurnIds": [],
+              "quantity": "duration"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "training and grooming durations",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2023-05-05T00:00:00.000Z",
+              "to": "2023-05-06T00:00:00.000Z",
+              "terms": [
+                "Oscar",
+                "training",
+                "grooming",
+                "duration",
+                "May  ical"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "requirements": [],
+            "referenceTurnIds": [],
+            "quantity": "duration"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "On May 5, 2023, Oscar’s training session lasted 12 minutes, and his grooming session lasted 8 minutes.",
+                "sourceIds": [
+                  "care:fy-1112"
+                ],
+                "index": 0
+              }
+            ]
+          },
+          "rejectionReason": "The draft gives the two activity durations but does not add them as requested; it omits the total and therefore does not fully answer the question.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:oscar:sex"
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:oscar:species"
+            },
+            {
+              "sourceId": "care:fy-1112",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-1112: Oscar's training session lasted 12 minutes; his grooming session lasted 8 minutes.",
+              "occurredAt": "2023-05-05T12:00:00Z",
+              "id": "care:fy-1112"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "evidenceBasis": "saved_history",
+                "outputFormat": "prose",
+                "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+                "requirements": [],
+                "referenceTurnIds": [],
+                "quantity": "duration"
+              },
+              "operation": "recall",
+              "readOperation": "recall",
+              "selection": "period",
+              "petIds": [
+                "oscar"
+              ],
+              "topic": "training and grooming durations",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": "2023-05-05T00:00:00.000Z",
+                "to": "2023-05-06T00:00:00.000Z",
+                "terms": [
+                  "Oscar",
+                  "training",
+                  "grooming",
+                  "duration",
+                  "May  ical"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+          "referenceQuestion": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "training and grooming durations",
+            "requestText": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2023-05-05T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+              "requirements": [],
+              "referenceTurnIds": [],
+              "quantity": "duration"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "training and grooming durations",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2023-05-05T00:00:00.000Z",
+              "to": "2023-05-06T00:00:00.000Z",
+              "terms": [
+                "Oscar",
+                "training",
+                "grooming",
+                "duration",
+                "May  ical"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "requirements": [],
+            "referenceTurnIds": [],
+            "quantity": "duration"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1112",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-1112: Oscar's training session lasted 12 minutes; his grooming session lasted 8 minutes.",
+              "occurredAt": "2023-05-05T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "On May 5, 2023, Oscar's training session lasted 12 minutes and his grooming session lasted 8 minutes, for a total of 20 minutes.",
+                "sourceIds": [
+                  "care:fy-1112"
+                ],
+                "calculations": [
+                  {
+                    "operation": "sum",
+                    "operands": [
+                      {
+                        "sourceId": "care:fy-1112",
+                        "field": "text",
+                        "literal": "12 minutes"
+                      },
+                      {
+                        "sourceId": "care:fy-1112",
+                        "field": "text",
+                        "literal": "8 minutes"
+                      }
+                    ],
+                    "value": 20,
+                    "unit": "minutes"
+                  }
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 5,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 56,
+      "elapsedMs": 21425,
+      "planTier": "plus",
+      "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "requirements": [],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "reference",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "drinking amount",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2025-04-01T00:00:00.000Z",
+          "to": "2025-05-01T00:00:00.000Z",
+          "terms": [
+            "Milo",
+            "April  iven",
+            "bowl drop",
+            "drink amount"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "No.\nOn April 4, Milo's water bowl fell from 500 mL to 200 mL while he was alone, which is a 300 mL change.\nThe note says a spill was possible and not measured, so the record does not verify that this was a drinking amount.",
+      "beforeFinalGuard": "No.\nOn April 4, Milo's water bowl fell from 500 mL to 200 mL while he was alone, which is a 300 mL change.\nThe note says a spill was possible and not measured, so the record does not verify that this was a drinking amount.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "No.",
+            "sourceIds": [
+              "care:fy-1138"
+            ]
+          },
+          {
+            "text": "On April 4, Milo's water bowl fell from 500 mL to 200 mL while he was alone, which is a 300 mL change.",
+            "sourceIds": [
+              "care:fy-1138"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:fy-1138",
+                    "field": "text",
+                    "literal": "500 mL"
+                  },
+                  {
+                    "sourceId": "care:fy-1138",
+                    "field": "text",
+                    "literal": "200 mL"
+                  }
+                ],
+                "value": 300,
+                "unit": "mL"
+              }
+            ]
+          },
+          {
+            "text": "The note says a spill was possible and not measured, so the record does not verify that this was a drinking amount.",
+            "sourceIds": [
+              "care:fy-1138"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [
+            1
+          ],
+          "deterministicAnchorHints": [
+            {
+              "index": 1,
+              "reasons": [
+                "Unsupported quantity anchor: 300:ml. A derived value requires valid calculations metadata grounded in original source operands; otherwise qualify or remove it."
+              ]
+            }
+          ],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "referenceQuestion": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "drinking amount",
+            "requestText": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2025-04-01T00:00:00.000Z"
+            },
+            "requestKind": "resolution_status",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+              "requirements": [],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "status",
+            "readOperation": "status",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "drinking amount",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2025-04-01T00:00:00.000Z",
+              "to": "2025-05-01T00:00:00.000Z",
+              "terms": [
+                "Milo",
+                "April  iven",
+                "bowl drop",
+                "drink amount"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "requirements": [],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1138",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1138: Milo's water bowl fell from 500 mL to 200 mL while alone. A spill was possible and not measured.",
+              "occurredAt": "2025-04-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0775",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0775: Milo's body weight was 27.15 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2025-04-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0776",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0776: Milo's regular main food this month was beef-and-barley adult dry food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2025-04-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0777",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0777: Milo completed a 26-minute walk. The note describes this single walk, not daily activity or fitness.",
+              "occurredAt": "2025-04-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0778",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0778: Milo rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2025-04-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0779",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0779: Milo tolerated 5 minutes of brushing. The brush weighed 80 g; this was equipment mass.",
+              "occurredAt": "2025-04-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0780",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0780: Milo's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2025-04-25T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No. The April 4 note records Milo's water bowl falling from 500 mL to 200 mL, which is a 300 mL change, but it also says a spill was possible and not measured.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:fy-1138",
+                        "field": "text",
+                        "literal": "500 mL"
+                      },
+                      {
+                        "sourceId": "care:fy-1138",
+                        "field": "text",
+                        "literal": "200 mL"
+                      }
+                    ],
+                    "value": 300,
+                    "unit": "mL"
+                  }
+                ],
+                "index": 0
+              },
+              {
+                "text": "So the 300 mL drop is not a verified drinking amount from the record; it is only a bowl-volume change.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [
+            1
+          ],
+          "deterministicAnchorHints": [
+            {
+              "index": 1,
+              "reasons": [
+                "Unsupported quantity anchor: 300:ml. A derived value requires valid calculations metadata grounded in original source operands; otherwise qualify or remove it."
+              ]
+            }
+          ],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "referenceQuestion": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "drinking amount",
+            "requestText": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2025-04-01T00:00:00.000Z"
+            },
+            "requestKind": "resolution_status",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+              "requirements": [],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "status",
+            "readOperation": "status",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "drinking amount",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2025-04-01T00:00:00.000Z",
+              "to": "2025-05-01T00:00:00.000Z",
+              "terms": [
+                "Milo",
+                "April  iven",
+                "bowl drop",
+                "drink amount"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "requirements": [],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No. The April 4 note records Milo's water bowl falling from 500 mL to 200 mL, which is a 300 mL change, but it also says a spill was possible and not measured.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:fy-1138",
+                        "field": "text",
+                        "literal": "500 mL"
+                      },
+                      {
+                        "sourceId": "care:fy-1138",
+                        "field": "text",
+                        "literal": "200 mL"
+                      }
+                    ],
+                    "value": 300,
+                    "unit": "mL"
+                  }
+                ],
+                "index": 0
+              },
+              {
+                "text": "So the 300 mL drop is not a verified drinking amount from the record; it is only a bowl-volume change.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "index": 1
+              }
+            ]
+          },
+          "rejectionReason": "Repair the complete answer, preserving every requested obligation. Invalid source/date/quantity anchors at sentence indexes: 1. Server-computed corrections for grounded calculation operands: []. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: prose.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:milo:sex"
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:milo:species"
+            },
+            {
+              "sourceId": "care:fy-1138",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1138: Milo's water bowl fell from 500 mL to 200 mL while alone. A spill was possible and not measured.",
+              "occurredAt": "2025-04-04T12:00:00Z",
+              "id": "care:fy-1138"
+            },
+            {
+              "sourceId": "care:fy-0775",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0775: Milo's body weight was 27.15 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2025-04-10T12:00:00Z",
+              "id": "care:fy-0775"
+            },
+            {
+              "sourceId": "care:fy-0776",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0776: Milo's regular main food this month was beef-and-barley adult dry food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2025-04-13T12:00:00Z",
+              "id": "care:fy-0776"
+            },
+            {
+              "sourceId": "care:fy-0777",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0777: Milo completed a 26-minute walk. The note describes this single walk, not daily activity or fitness.",
+              "occurredAt": "2025-04-16T12:00:00Z",
+              "id": "care:fy-0777"
+            },
+            {
+              "sourceId": "care:fy-0778",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0778: Milo rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2025-04-19T12:00:00Z",
+              "id": "care:fy-0778"
+            },
+            {
+              "sourceId": "care:fy-0779",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0779: Milo tolerated 5 minutes of brushing. The brush weighed 80 g; this was equipment mass.",
+              "occurredAt": "2025-04-22T12:00:00Z",
+              "id": "care:fy-0779"
+            },
+            {
+              "sourceId": "care:fy-0780",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0780: Milo's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2025-04-25T12:00:00Z",
+              "id": "care:fy-0780"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "evidenceBasis": "saved_history",
+                "outputFormat": "prose",
+                "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+                "requirements": [],
+                "referenceTurnIds": [],
+                "quantity": "measurement"
+              },
+              "operation": "status",
+              "readOperation": "status",
+              "selection": "reference",
+              "petIds": [
+                "milo"
+              ],
+              "topic": "drinking amount",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": "2025-04-01T00:00:00.000Z",
+                "to": "2025-05-01T00:00:00.000Z",
+                "terms": [
+                  "Milo",
+                  "April  iven",
+                  "bowl drop",
+                  "drink amount"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "referenceQuestion": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "drinking amount",
+            "requestText": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2025-04-01T00:00:00.000Z"
+            },
+            "requestKind": "resolution_status",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+              "requirements": [],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "status",
+            "readOperation": "status",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "drinking amount",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2025-04-01T00:00:00.000Z",
+              "to": "2025-05-01T00:00:00.000Z",
+              "terms": [
+                "Milo",
+                "April  iven",
+                "bowl drop",
+                "drink amount"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "requirements": [],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1138",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1138: Milo's water bowl fell from 500 mL to 200 mL while alone. A spill was possible and not measured.",
+              "occurredAt": "2025-04-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0775",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0775: Milo's body weight was 27.15 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2025-04-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0776",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0776: Milo's regular main food this month was beef-and-barley adult dry food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2025-04-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0777",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0777: Milo completed a 26-minute walk. The note describes this single walk, not daily activity or fitness.",
+              "occurredAt": "2025-04-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0778",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0778: Milo rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2025-04-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0779",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0779: Milo tolerated 5 minutes of brushing. The brush weighed 80 g; this was equipment mass.",
+              "occurredAt": "2025-04-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0780",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0780: Milo's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2025-04-25T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "index": 0
+              },
+              {
+                "text": "On April 4, Milo's water bowl fell from 500 mL to 200 mL while he was alone, which is a 300 mL change.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:fy-1138",
+                        "field": "text",
+                        "literal": "500 mL"
+                      },
+                      {
+                        "sourceId": "care:fy-1138",
+                        "field": "text",
+                        "literal": "200 mL"
+                      }
+                    ],
+                    "value": 300,
+                    "unit": "mL"
+                  }
+                ],
+                "index": 1
+              },
+              {
+                "text": "The note says a spill was possible and not measured, so the record does not verify that this was a drinking amount.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "index": 2
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 5,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 59,
+      "elapsedMs": 6848,
+      "planTier": "plus",
+      "question": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+          "requirements": [],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "reference",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "sneeze entry",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2025-07-07T00:00:00.000Z",
+          "to": "2025-07-08T00:00:00.000Z",
+          "terms": [
+            "sneeze",
+            "one",
+            "July  ivers  or"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "‘One’ counts a single sneeze event: Milo had one sneeze at 08:00, and the note explicitly says the word ‘one’ describes an event in that entry.",
+      "beforeFinalGuard": "‘One’ counts a single sneeze event: Milo had one sneeze at 08:00, and the note explicitly says the word ‘one’ describes an event in that entry.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "‘One’ counts a single sneeze event: Milo had one sneeze at 08:00, and the note explicitly says the word ‘one’ describes an event in that entry.",
+            "sourceIds": [
+              "care:fy-1141"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+          "referenceQuestion": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "sneeze entry",
+            "requestText": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2025-07-07T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+              "requirements": [],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "sneeze entry",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2025-07-07T00:00:00.000Z",
+              "to": "2025-07-08T00:00:00.000Z",
+              "terms": [
+                "sneeze",
+                "one",
+                "July  ivers  or"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+            "requirements": [],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1141",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1141: Milo had one sneeze at 08:00. The word 'one' describes an event in this note.",
+              "occurredAt": "2025-07-07T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "‘One’ counts a single sneeze event: Milo had one sneeze at 08:00, and the note explicitly says the word ‘one’ describes an event in that entry.",
+                "sourceIds": [
+                  "care:fy-1141"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}
