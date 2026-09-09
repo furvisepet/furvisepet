@@ -137,3 +137,16 @@ test('a rejected read-only action claim produces a complete truthful response in
   assert.match(result.response.answer.summary,/No requested action was completed/);
   assert.doesNotMatch(result.response.answer.summary,/[“”]/);
 });
+
+test('fictional dialogue retains its attribution through generation validation', () => {
+ const evidenceContract={interpretation:{conversationOnly:true,request:{outputFormat:'prose'}},scope:{},represented:[]};
+ for (const summary of ['“I saved the booking” is fictional dialogue, not an action by Furvise.',
+  'The fictional character says "I updated the profile."']) {
+  const result=validateGeneratedAnswer(reasoning(summary,{evidenceContract}),context('Identify the dialogue in a novel.'),'routine',[]);
+  assert.equal(result.valid,true);
+  assert.equal(result.response.answer.summary,summary);
+  assert.ok(!result.repairs.includes('replaced_unverified_action_claim'));
+ }
+ const result=validateGeneratedAnswer(reasoning('The fictional character says “Hello.” I saved your booking.',{evidenceContract}),context('Identify the dialogue.'),'routine',[]);
+ assert.match(result.response.answer.summary,/No requested action was completed/);
+});

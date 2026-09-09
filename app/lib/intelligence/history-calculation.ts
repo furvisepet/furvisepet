@@ -30,6 +30,11 @@ const units: Record<string, { dimension: string; scale: number; canonical: strin
   day: { dimension: "time", scale: 24, canonical: "day" }, days: { dimension: "time", scale: 24, canonical: "day" },
   week: { dimension: "time", scale: 168, canonical: "week" }, weeks: { dimension: "time", scale: 168, canonical: "week" },
 };
+// Explicit currency codes are independent dimensions. No exchange rate or
+// ambiguous dollar-symbol interpretation may be inferred from a price.
+for (const currency of ["cad", "usd", "eur", "gbp", "aud", "nzd", "jpy", "chf", "cny"]) {
+  units[currency] = { dimension: `currency:${currency}`, scale: 1, canonical: currency };
+}
 // Provider and source spelling share one dimensional registry; spelling is not
 // a different unit, and must not cause a correct calculation to fail review.
 for (const [alias, canonical] of Object.entries({ kilogram: "kg", kilograms: "kg", gram: "g", grams: "g",

@@ -90,3 +90,23 @@ test('offer filtering retains a capability boundary in a mixed sentence', () => 
   const value = 'I can help generally, but I cannot access hidden records. Paste the text if you have it.';
   assert.equal(enforceVerifiedStateClaims(value, false), value);
 });
+
+test('explicit literary quotations survive action checks without exempting surrounding claims', () => {
+ for (const text of [
+  'The fictional character says “I saved the booking.”',
+  '“I updated the entry” is fictional dialogue, not an action by Furvise.',
+  'The quotation from a novel is \'I saved a booking\'.',
+  'The fictional dialogue is "The history was deleted."',
+ ]) {
+  assert.equal(containsUnverifiedStateClaim(text),false,text);
+  assert.equal(enforceVerifiedStateClaims(text,false),text);
+ }
+ for (const text of [
+  'The fictional character says “Hello”; I saved your booking.',
+  'The fictional dialogue is “I saved a booking.” I updated your profile.',
+  'The fictional dialogue is “Hello.” Your profile was updated.',
+  'I saved the booking for a fictional character.',
+  '“I saved the booking.”',
+  'The fictional character says “I saved the booking.',
+ ]) assert.equal(containsUnverifiedStateClaim(text),true,text);
+});

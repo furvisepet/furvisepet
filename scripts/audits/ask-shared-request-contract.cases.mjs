@@ -19,6 +19,55 @@ const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', questio
   operation: 'recall', selection: 'summary', quantity: null, topic: 'observations', terms: [],
   from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...patch });
 
+test('explicit currency arithmetic binds each source and keeps currencies separate', () => {
+ const sources = [{sourceId:'a',text:'The collar cost 13.25 CAD; shipping cost 4.50 CAD.'},
+  {sourceId:'b',text:'The collar cost 13.25 USD.'}];
+ const operands = ['13.25 CAD','4.50 CAD'].map(literal=>({sourceId:'a',field:'text',literal}));
+ const calculation = {operation:'sum',operands,value:17.75,unit:'CAD'};
+ const derived = verifiedCalculationQuantities([calculation],sources);
+ assert.deepEqual(derived,['17.75:cad']);
+ assert.equal(historyNarrativeAnchorsSupported('The combined cost was 17.75 CAD.',sources,'',derived,false),true);
+ assert.equal(historyNarrativeAnchorsSupported('The combined cost was 17.75 CAD.',sources,'',[],false),false);
+ for (const patch of [{value:18.75},{unit:'USD'},{operands:[operands[0],{sourceId:'b',field:'text',literal:'13.25 USD'}]},
+  {operands:[{...operands[0],literal:'3.25 CAD'},operands[1]]}, {operands:[{...operands[0],sourceId:'missing'},operands[1]]}])
+  assert.equal(verifiedCalculationQuantities([{...calculation,...patch}],sources),null);
+ assert.equal(verifiedCalculationQuantities([{...calculation,operands:[{sourceId:'a',field:'text',literal:'$13.25'}]}],sources),null);
+});
+
+test('an omitted exact report-day window reaches retrieval without changing subject authority', async t => {
+ clock(t);
+ const question='Separate the note date and observation date in Aster’s April 7, 2024 report.';
+ const parsed=validateAskRequest(proposal(),{...context,currentMessage:question});
+ assert.equal(parsed.history.from,'2024-04-07T00:00:00.000Z');
+ assert.equal(parsed.history.to,'2024-04-08T00:00:00.000Z');
+ const rows=[care('dated','milo','2024-04-07','general','Aster sneezed yesterday.'),
+  care('irrelevant','milo','2023-04-07','general','Aster played normally.')];
+ const r=await exercise(question,{fixturePets,rows,messages:[],history:true,interpretationProposal:proposal()});
+ assert.ok(r.context.askHistory.entries.some(entry=>entry.id==='dated'));
+ assert.ok(!r.context.askHistory.entries.some(entry=>entry.id==='irrelevant'));
+ assert.deepEqual(r.context.askInterpretation.petIds,[fixturePets[0].id]);
+});
+
+test('literal report-day fallback preserves existing server-validated ranges and comparison scope', () => {
+ const currentMessage='Explain Aster’s April 7, 2024 report.';
+ const bounded=validateAskRequest(proposal({from:'2024-04-01',to:'2024-05-01'}),{...context,currentMessage});
+ assert.equal(bounded.history.from,'2024-04-01T00:00:00.000Z');
+ assert.equal(bounded.history.to,'2024-05-01T00:00:00.000Z');
+ const comparison=validateAskRequest(proposal({operation:'comparison'}),{...context,currentMessage});
+ assert.equal(comparison.history.from,null);
+ assert.equal(comparison.history.to,null);
+});
+
+test('persisted conversation presentation retains fictional dialogue and rejects a separate receipt claim', async () => {
+ const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
+ const summary='The fictional dialogue is “The history was deleted.”';
+ const response=presentationOnlyAskResponse({title:'Furvise',summary,directAnswer:summary,sections:[]},[]);
+ assert.equal(response.directAnswer,summary);
+ const mixed=presentationOnlyAskResponse({title:'Furvise',summary:summary+' Your profile was updated.',sections:[]},[]);
+ assert.doesNotMatch(mixed.directAnswer,/Your profile was updated/);
+ assert.match(mixed.directAnswer,/fictional dialogue/);
+});
+
 test('historical read schema excludes mutation and duplicate extraction fields', () => {
   const schema = historicalReadSchema({ answer: {}, historyNarrative: {}, safetyLevel: {}, responseMode: {}, userIntent: {}, relevantContextIds: {}, careActions: {}, semanticFrame: {} });
   assert.equal(schema.additionalProperties, false);
