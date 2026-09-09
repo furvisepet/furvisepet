@@ -595,3 +595,49 @@ test('difference converts original operands directly; invented intermediate lite
   assert.deepEqual(verifiedCalculationQuantities([{operation:'difference',operands,value:400,unit:'g'}],sources),['400:g']);
   assert.equal(verifiedCalculationQuantities([{operation:'convert',operands:[{sourceId:'a',field:'text',literal:'0.4 kg'}],value:400,unit:'g'}],sources),null);
 });
+
+test('general read scope can answer without guessing a pet or retrieving saved facts', () => {
+  const result = validateAskRequest(proposal({mode:'read',scope:'none',petNames:[],operation:'general',
+    question:'Does one observation establish a cause?'}), {...context,currentMessage:'Does one observation establish a cause?'});
+  assert.equal(result.conversationOnly,true);
+  assert.equal(result.clarification,null);
+  assert.equal(result.history,null);
+  assert.deepEqual(result.petIds,[]);
+  assert.equal(result.readOnly,true);
+});
+test('duplicate search hits do not consume independent candidate slots', async t => {
+  clock(t);
+  const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-overlap-'+i,pet.id,
+    '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' had a rest observation.')));
+  const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+    interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['rest']})});
+  assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
+  assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
+  assert.ok(r.context.askHistory.entries.length<=32);
+  assert.ok(r.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
+});
+
+test('cohort reads ignore the selected conversation container; explicit named reads stay narrow', () => {
+  const cohort=validateAskRequest(proposal({scope:'selected',petNames:[]}), {...context,currentMessage:'Which pet has the saved travel observation?'});
+  assert.equal(cohort.petIds.length,3);
+  const narrow=validateAskRequest(proposal({scope:'account',petNames:fixturePets.map(x=>x.name)}), {...context,currentMessage:'Compare Aster’s two travel observations.'});
+  assert.deepEqual(narrow.petIds,[fixturePets[0].id]);
+});
+test('question dates can be discussed without becoming source evidence', () => {
+  const source=[{text:'Aster rested.',occurredAt:'2026-04-10T00:00:00Z'}];
+  assert.equal(historyNarrativeAnchorsSupported('The April 10 report was not available as of April 9.',source,'As of April 9, was the April 10 report available?',[],false),true);
+  assert.equal(historyNarrativeAnchorsSupported('The report was available on May 7.',source,'As of April 9, was the April 10 report available?',[],false),false);
+});
+
+test('a single report-day comparison keeps preceding context without crossing the upper bound', () => {
+ const result=validateAskRequest(proposal({operation:'comparison',selection:'period',from:'2026-04-20',to:'2026-04-21'}),
+   {...context,currentMessage:'Did the April 20 update happen before or after the earlier change?'});
+ assert.equal(result.history.from,null);
+ assert.equal(result.history.to,'2026-04-21T00:00:00.000Z');
+});
+
+test('a day number next to an event noun is not a quantity anchor', () => {
+ const source=[{text:'No more accidents since April 10.',occurredAt:'2026-04-17T00:00:00Z'}];
+ assert.equal(historyNarrativeAnchorsSupported('The April 17 accident-free update followed April 10.',source,'',[],false),true);
+ assert.equal(historyNarrativeAnchorsSupported('There were 17 accidents on April 17.',source,'',[],false),false);
+});

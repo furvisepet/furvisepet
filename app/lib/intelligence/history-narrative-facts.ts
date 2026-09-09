@@ -11,7 +11,11 @@ function dates(text: string): string[] {
   return found;
 }
 function quantities(text: string): string[] {
-  return [...text.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
+  // Date tokens cannot also be quantities: "April 17 accident-free update"
+  // contains a day number, not seventeen accidents. Keep the two anchor axes separate.
+  const prose = text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
+    .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi, " ");
+  return [...prose.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`);
 }
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
@@ -53,7 +57,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     if (!timestamp) return explicit;
     const relative = /\byesterday\b/i.test(source.text);
     const attributed = /\b(?:note|report|entry|update)\b/i.test(text);
-    if (!relative || attributed || /\btoday\b/i.test(source.text)) explicit.push(...dates(timestamp));
+    if (!legacyDerivations || !relative || attributed || /\btoday\b/i.test(source.text)) explicit.push(...dates(timestamp));
     if (relative) {
       const day = new Date(timestamp + "T12:00:00Z");
       if (Number.isFinite(day.getTime())) {
@@ -63,7 +67,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
     return explicit;
   });
-  const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date.slice(0, 10)))].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
+  const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date.slice(0, 10))), ...(!legacyDerivations ? dates(requestText) : [])].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
   const supportedQuantities = new Set([...sources.flatMap(source => quantities(source.text)), ...derivedQuantities]);
   // Two separately dated, explicitly reported urination events can support a
   // count within that note. This never authorizes illness-episode totals.
