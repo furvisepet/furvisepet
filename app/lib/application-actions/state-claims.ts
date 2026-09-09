@@ -1,3 +1,4 @@
+import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 const authoritativeMutationClaim = /\b(?:i(?:'ve| have|'ll| will)?|furvise has|we(?:'ve| have|'ll| will)?)\s+(?:save(?:d)?|delete(?:d)?|remove(?:d)?|forget|forgotten|change(?:d)?|update(?:d)?|archive(?:d)?|prepare(?:d)?|record(?:ed)?|complete(?:d)?|mark(?:ed)?)\b|\bi(?:'ll| will)\s+(?:treat|consider)\b[^.!?]{0,120}\bas\s+(?:removed|forgotten|changed|updated|deleted)\b/i;
 const assistantOffer = /(?:^|[.!?]\s+)(?:(?:if you want,?\s*)(?:i can(?: also)?|would you like me to)\s+|would you like me to\s+|i can(?: also)?\s+(?:help|assist|save|update|delete|prepare)\b)[^.!?]*[.!?]?/gi;
 
@@ -8,11 +9,9 @@ const applicationDestination = /\b(?:in|on|to|from)\s+(?:(?:the|your|her|his|the
 
 export function containsUnverifiedStateClaim(value: string) {
   if (authoritativeMutationClaim.test(value)) return true;
-  for (const match of value.matchAll(passiveMutationClaim)) {
-    const before = value.slice(0, match.index);
-    const sentenceStart = Math.max(before.lastIndexOf('.'), before.lastIndexOf('!'), before.lastIndexOf('?'), before.lastIndexOf('\n')) + 1;
-    const subject = value.slice(sentenceStart, match.index);
-    const clause = value.slice(sentenceStart).split(/[.!?\n]/, 1)[0];
+  for (const clause of splitSentencesPreservingFacts(value)) for (const match of clause.matchAll(passiveMutationClaim)) {
+    const before = clause.slice(0, match.index);
+    const subject = before;
     const dataSubject = /\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(subject);
     // Absence in a clinical note does not announce a successful app write.
     const absentClinicalDetail = match[1].toLowerCase() === "recorded"
@@ -20,7 +19,7 @@ export function containsUnverifiedStateClaim(value: string) {
       && !dataSubject
       && !/\bby\s+Furvise\b/i.test(clause);
     if (absentClinicalDetail) continue;
-    const after = value.slice(match.index! + match[0].length).split(/[.!?\n]/,1)[0];
+    const after = clause.slice(match.index! + match[0].length);
     // Dated attribution describes an existing observation, not a new app write.
     if (match[1].toLowerCase() === "recorded" && isHistoricalRecordingAttribution(clause)) continue;
     const dietTransition = match[1].toLowerCase() === "changed"
