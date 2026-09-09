@@ -1,0 +1,785 @@
+{
+  "budgetUsd": 2,
+  "date": "2026-09-09",
+  "deployment": "dpl_Wjf4nSRjnPYR3V2VVLNruTyGupmq",
+  "historyFingerprint": "eb8c86151ea9979590a0424ff4342cc8",
+  "historyRange": [
+    "2021-09-09",
+    "2026-09-09"
+  ],
+  "historyRecords": 3729,
+  "mode": "production browser UI, Furvise existing provider API",
+  "name": "Furvise everyday history 55",
+  "productionCommit": "23a4d1794b8f950bf3af2d64929e742e8f306ce4",
+  "questions": [
+    {
+      "category": "current_food",
+      "expected": "lamb-and-oat adult dry food",
+      "id": 1,
+      "newConversation": true,
+      "pet": "Juniper",
+      "question": "What food is Juniper eating now?",
+      "source": []
+    },
+    {
+      "category": "old_food",
+      "expected": "chicken-and-rice adult dry food",
+      "id": 2,
+      "newConversation": true,
+      "pet": "Juniper",
+      "question": "What was Juniper eating back in 2021?",
+      "source": []
+    },
+    {
+      "category": "earliest_weight",
+      "expected": "Juniper weighed 19.22 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 3,
+      "newConversation": true,
+      "pet": "Juniper",
+      "question": "What is the earliest weight you have saved for Juniper?",
+      "source": [
+        {
+          "name": "Juniper",
+          "note": "Juniper weighed 19.22 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2021-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_weight",
+      "expected": "Juniper weighed 19.51 kg on 2022-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 4,
+      "newConversation": true,
+      "pet": "Juniper",
+      "question": "How much did Juniper weigh on September 9, 2022?",
+      "source": [
+        {
+          "name": "Juniper",
+          "note": "Juniper weighed 19.51 kg on 2022-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2022-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_vet_visit",
+      "expected": "2022-04-05",
+      "id": 5,
+      "newConversation": true,
+      "pet": "Juniper",
+      "question": "When did Juniper go to the vet in 2022?",
+      "source": [
+        {
+          "name": "Juniper",
+          "note": "Fictional clinic visit for Juniper on 2022-04-05. The examination note said no new diagnosis was entered. No medication was prescribed in this note. This does not establish lifetime absence of illness or unrecorded care.",
+          "record_date": "2022-04-05",
+          "title": "Synthetic history — Annual examination"
+        }
+      ]
+    },
+    {
+      "category": "food_transition",
+      "expected": "2023-12-09 Juniper started a gradual transition from chicken-and-rice adult dry food to lamb-and-oat adult dry food today. The owner recorded a preference change, not a diagnosed food allergy.\n2023-12-16 Juniper completed the transition to lamb-and-oat adult dry food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+      "id": 6,
+      "newConversation": true,
+      "pet": "Juniper",
+      "question": "When did we switch Juniper to the current food?",
+      "source": [
+        {
+          "name": "Juniper",
+          "note": "Juniper started a gradual transition from chicken-and-rice adult dry food to lamb-and-oat adult dry food today. The owner recorded a preference change, not a diagnosed food allergy.",
+          "record_date": "2023-12-09",
+          "title": "Synthetic history — Diet transition started"
+        },
+        {
+          "name": "Juniper",
+          "note": "Juniper completed the transition to lamb-and-oat adult dry food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+          "record_date": "2023-12-16",
+          "title": "Synthetic history — Diet transition completed"
+        }
+      ]
+    },
+    {
+      "category": "current_food",
+      "expected": "chicken complete adult wet food",
+      "id": 7,
+      "newConversation": true,
+      "pet": "Pixel",
+      "question": "What food is Pixel eating now?",
+      "source": []
+    },
+    {
+      "category": "old_food",
+      "expected": "turkey complete adult wet food",
+      "id": 8,
+      "newConversation": true,
+      "pet": "Pixel",
+      "question": "What was Pixel eating back in 2021?",
+      "source": []
+    },
+    {
+      "category": "earliest_weight",
+      "expected": "Pixel weighed 5.18 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 9,
+      "newConversation": true,
+      "pet": "Pixel",
+      "question": "What is the earliest weight you have saved for Pixel?",
+      "source": [
+        {
+          "name": "Pixel",
+          "note": "Pixel weighed 5.18 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2021-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_weight",
+      "expected": "Pixel weighed 4.98 kg on 2023-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 10,
+      "newConversation": true,
+      "pet": "Pixel",
+      "question": "How much did Pixel weigh on September 9, 2023?",
+      "source": [
+        {
+          "name": "Pixel",
+          "note": "Pixel weighed 4.98 kg on 2023-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2023-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_vet_visit",
+      "expected": "2023-08-06",
+      "id": 11,
+      "newConversation": true,
+      "pet": "Pixel",
+      "question": "When did Pixel go to the vet in 2023?",
+      "source": [
+        {
+          "name": "Pixel",
+          "note": "Fictional clinic visit for Pixel on 2023-08-06. The examination note said no new diagnosis was entered. No medication was prescribed in this note. This does not establish lifetime absence of illness or unrecorded care.",
+          "record_date": "2023-08-06",
+          "title": "Synthetic history — Annual examination"
+        }
+      ]
+    },
+    {
+      "category": "food_transition",
+      "expected": "2024-07-09 Pixel started a gradual transition from turkey complete adult wet food to chicken complete adult wet food today. The owner recorded a preference change, not a diagnosed food allergy.\n2024-07-16 Pixel completed the transition to chicken complete adult wet food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+      "id": 12,
+      "newConversation": true,
+      "pet": "Pixel",
+      "question": "When did we switch Pixel to the current food?",
+      "source": [
+        {
+          "name": "Pixel",
+          "note": "Pixel started a gradual transition from turkey complete adult wet food to chicken complete adult wet food today. The owner recorded a preference change, not a diagnosed food allergy.",
+          "record_date": "2024-07-09",
+          "title": "Synthetic history — Diet transition started"
+        },
+        {
+          "name": "Pixel",
+          "note": "Pixel completed the transition to chicken complete adult wet food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+          "record_date": "2024-07-16",
+          "title": "Synthetic history — Diet transition completed"
+        }
+      ]
+    },
+    {
+      "category": "current_food",
+      "expected": "turkey senior dry food",
+      "id": 13,
+      "newConversation": true,
+      "pet": "Atlas",
+      "question": "What food is Atlas eating now?",
+      "source": []
+    },
+    {
+      "category": "old_food",
+      "expected": "salmon-and-rice adult dry food",
+      "id": 14,
+      "newConversation": true,
+      "pet": "Atlas",
+      "question": "What was Atlas eating back in 2021?",
+      "source": []
+    },
+    {
+      "category": "earliest_weight",
+      "expected": "Atlas weighed 31.49 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 15,
+      "newConversation": true,
+      "pet": "Atlas",
+      "question": "What is the earliest weight you have saved for Atlas?",
+      "source": [
+        {
+          "name": "Atlas",
+          "note": "Atlas weighed 31.49 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2021-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_weight",
+      "expected": "Atlas weighed 30.70 kg on 2024-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 16,
+      "newConversation": true,
+      "pet": "Atlas",
+      "question": "How much did Atlas weigh on September 9, 2024?",
+      "source": [
+        {
+          "name": "Atlas",
+          "note": "Atlas weighed 30.70 kg on 2024-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2024-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_vet_visit",
+      "expected": "2024-04-07",
+      "id": 17,
+      "newConversation": true,
+      "pet": "Atlas",
+      "question": "When did Atlas go to the vet in 2024?",
+      "source": [
+        {
+          "name": "Atlas",
+          "note": "Fictional clinic visit for Atlas on 2024-04-07. The examination note said no new diagnosis was entered. No medication was prescribed in this note. This does not establish lifetime absence of illness or unrecorded care.",
+          "record_date": "2024-04-07",
+          "title": "Synthetic history — Annual examination"
+        }
+      ]
+    },
+    {
+      "category": "food_transition",
+      "expected": "2025-02-09 Atlas started a gradual transition from salmon-and-rice adult dry food to turkey senior dry food today. The owner recorded a preference change, not a diagnosed food allergy.\n2025-02-16 Atlas completed the transition to turkey senior dry food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+      "id": 18,
+      "newConversation": true,
+      "pet": "Atlas",
+      "question": "When did we switch Atlas to the current food?",
+      "source": [
+        {
+          "name": "Atlas",
+          "note": "Atlas started a gradual transition from salmon-and-rice adult dry food to turkey senior dry food today. The owner recorded a preference change, not a diagnosed food allergy.",
+          "record_date": "2025-02-09",
+          "title": "Synthetic history — Diet transition started"
+        },
+        {
+          "name": "Atlas",
+          "note": "Atlas completed the transition to turkey senior dry food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+          "record_date": "2025-02-16",
+          "title": "Synthetic history — Diet transition completed"
+        }
+      ]
+    },
+    {
+      "category": "current_food",
+      "expected": "rabbit complete adult wet food",
+      "id": 19,
+      "newConversation": true,
+      "pet": "Mochi",
+      "question": "What food is Mochi eating now?",
+      "source": []
+    },
+    {
+      "category": "old_food",
+      "expected": "chicken complete adult wet food",
+      "id": 20,
+      "newConversation": true,
+      "pet": "Mochi",
+      "question": "What was Mochi eating back in 2021?",
+      "source": []
+    },
+    {
+      "category": "earliest_weight",
+      "expected": "Mochi weighed 3.93 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 21,
+      "newConversation": true,
+      "pet": "Mochi",
+      "question": "What is the earliest weight you have saved for Mochi?",
+      "source": [
+        {
+          "name": "Mochi",
+          "note": "Mochi weighed 3.93 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2021-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_weight",
+      "expected": "Mochi weighed 3.89 kg on 2025-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 22,
+      "newConversation": true,
+      "pet": "Mochi",
+      "question": "How much did Mochi weigh on September 9, 2025?",
+      "source": [
+        {
+          "name": "Mochi",
+          "note": "Mochi weighed 3.89 kg on 2025-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2025-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_vet_visit",
+      "expected": "2025-08-08",
+      "id": 23,
+      "newConversation": true,
+      "pet": "Mochi",
+      "question": "When did Mochi go to the vet in 2025?",
+      "source": [
+        {
+          "name": "Mochi",
+          "note": "Fictional clinic visit for Mochi on 2025-08-08. The examination note said no new diagnosis was entered. No medication was prescribed in this note. This does not establish lifetime absence of illness or unrecorded care.",
+          "record_date": "2025-08-08",
+          "title": "Synthetic history — Annual examination"
+        }
+      ]
+    },
+    {
+      "category": "food_transition",
+      "expected": "2023-09-09 Mochi started a gradual transition from chicken complete adult wet food to rabbit complete adult wet food today. The owner recorded a preference change, not a diagnosed food allergy.\n2023-09-16 Mochi completed the transition to rabbit complete adult wet food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+      "id": 24,
+      "newConversation": true,
+      "pet": "Mochi",
+      "question": "When did we switch Mochi to the current food?",
+      "source": [
+        {
+          "name": "Mochi",
+          "note": "Mochi started a gradual transition from chicken complete adult wet food to rabbit complete adult wet food today. The owner recorded a preference change, not a diagnosed food allergy.",
+          "record_date": "2023-09-09",
+          "title": "Synthetic history — Diet transition started"
+        },
+        {
+          "name": "Mochi",
+          "note": "Mochi completed the transition to rabbit complete adult wet food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+          "record_date": "2023-09-16",
+          "title": "Synthetic history — Diet transition completed"
+        }
+      ]
+    },
+    {
+      "category": "current_food",
+      "expected": "whitefish-and-potato adult dry food",
+      "id": 25,
+      "newConversation": true,
+      "pet": "Ziggy",
+      "question": "What food is Ziggy eating now?",
+      "source": []
+    },
+    {
+      "category": "old_food",
+      "expected": "beef-and-barley adult dry food",
+      "id": 26,
+      "newConversation": true,
+      "pet": "Ziggy",
+      "question": "What was Ziggy eating back in 2021?",
+      "source": []
+    },
+    {
+      "category": "earliest_weight",
+      "expected": "Ziggy weighed 9.49 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 27,
+      "newConversation": true,
+      "pet": "Ziggy",
+      "question": "What is the earliest weight you have saved for Ziggy?",
+      "source": [
+        {
+          "name": "Ziggy",
+          "note": "Ziggy weighed 9.49 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2021-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_weight",
+      "expected": "Ziggy weighed 9.78 kg on 2023-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 28,
+      "newConversation": true,
+      "pet": "Ziggy",
+      "question": "How much did Ziggy weigh on September 9, 2023?",
+      "source": [
+        {
+          "name": "Ziggy",
+          "note": "Ziggy weighed 9.78 kg on 2023-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2023-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_vet_visit",
+      "expected": "2026-07-10",
+      "id": 29,
+      "newConversation": true,
+      "pet": "Ziggy",
+      "question": "When did Ziggy go to the vet in 2026?",
+      "source": [
+        {
+          "name": "Ziggy",
+          "note": "Fictional clinic visit for Ziggy on 2026-07-10. The examination note said no new diagnosis was entered. No medication was prescribed in this note. This does not establish lifetime absence of illness or unrecorded care.",
+          "record_date": "2026-07-10",
+          "title": "Synthetic history — Annual examination"
+        }
+      ]
+    },
+    {
+      "category": "food_transition",
+      "expected": "2024-11-09 Ziggy started a gradual transition from beef-and-barley adult dry food to whitefish-and-potato adult dry food today. The owner recorded a preference change, not a diagnosed food allergy.\n2024-11-16 Ziggy completed the transition to whitefish-and-potato adult dry food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+      "id": 30,
+      "newConversation": true,
+      "pet": "Ziggy",
+      "question": "When did we switch Ziggy to the current food?",
+      "source": [
+        {
+          "name": "Ziggy",
+          "note": "Ziggy started a gradual transition from beef-and-barley adult dry food to whitefish-and-potato adult dry food today. The owner recorded a preference change, not a diagnosed food allergy.",
+          "record_date": "2024-11-09",
+          "title": "Synthetic history — Diet transition started"
+        },
+        {
+          "name": "Ziggy",
+          "note": "Ziggy completed the transition to whitefish-and-potato adult dry food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+          "record_date": "2024-11-16",
+          "title": "Synthetic history — Diet transition completed"
+        }
+      ]
+    },
+    {
+      "category": "current_food",
+      "expected": "turkey complete adult wet food",
+      "id": 31,
+      "newConversation": true,
+      "pet": "Nori",
+      "question": "What food is Nori eating now?",
+      "source": []
+    },
+    {
+      "category": "old_food",
+      "expected": "whitefish complete adult wet food",
+      "id": 32,
+      "newConversation": true,
+      "pet": "Nori",
+      "question": "What was Nori eating back in 2021?",
+      "source": []
+    },
+    {
+      "category": "earliest_weight",
+      "expected": "Nori weighed 4.34 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 33,
+      "newConversation": true,
+      "pet": "Nori",
+      "question": "What is the earliest weight you have saved for Nori?",
+      "source": [
+        {
+          "name": "Nori",
+          "note": "Nori weighed 4.34 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2021-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_weight",
+      "expected": "Nori weighed 4.23 kg on 2024-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 34,
+      "newConversation": true,
+      "pet": "Nori",
+      "question": "How much did Nori weigh on September 9, 2024?",
+      "source": [
+        {
+          "name": "Nori",
+          "note": "Nori weighed 4.23 kg on 2024-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2024-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_vet_visit",
+      "expected": "2022-06-11",
+      "id": 35,
+      "newConversation": true,
+      "pet": "Nori",
+      "question": "When did Nori go to the vet in 2022?",
+      "source": [
+        {
+          "name": "Nori",
+          "note": "Fictional clinic visit for Nori on 2022-06-11. The examination note said no new diagnosis was entered. No medication was prescribed in this note. This does not establish lifetime absence of illness or unrecorded care.",
+          "record_date": "2022-06-11",
+          "title": "Synthetic history — Annual examination"
+        }
+      ]
+    },
+    {
+      "category": "food_transition",
+      "expected": "2023-06-09 Nori started a gradual transition from whitefish complete adult wet food to turkey complete adult wet food today. The owner recorded a preference change, not a diagnosed food allergy.\n2023-06-16 Nori completed the transition to turkey complete adult wet food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+      "id": 36,
+      "newConversation": true,
+      "pet": "Nori",
+      "question": "When did we switch Nori to the current food?",
+      "source": [
+        {
+          "name": "Nori",
+          "note": "Nori started a gradual transition from whitefish complete adult wet food to turkey complete adult wet food today. The owner recorded a preference change, not a diagnosed food allergy.",
+          "record_date": "2023-06-09",
+          "title": "Synthetic history — Diet transition started"
+        },
+        {
+          "name": "Nori",
+          "note": "Nori completed the transition to turkey complete adult wet food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+          "record_date": "2023-06-16",
+          "title": "Synthetic history — Diet transition completed"
+        }
+      ]
+    },
+    {
+      "category": "current_food",
+      "expected": "lamb-and-rice adult dry food",
+      "id": 37,
+      "newConversation": true,
+      "pet": "Maple",
+      "question": "What food is Maple eating now?",
+      "source": []
+    },
+    {
+      "category": "old_food",
+      "expected": "turkey-and-oat adult dry food",
+      "id": 38,
+      "newConversation": true,
+      "pet": "Maple",
+      "question": "What was Maple eating back in 2021?",
+      "source": []
+    },
+    {
+      "category": "earliest_weight",
+      "expected": "Maple weighed 12.82 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 39,
+      "newConversation": true,
+      "pet": "Maple",
+      "question": "What is the earliest weight you have saved for Maple?",
+      "source": [
+        {
+          "name": "Maple",
+          "note": "Maple weighed 12.82 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2021-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_weight",
+      "expected": "Maple weighed 12.70 kg on 2025-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 40,
+      "newConversation": true,
+      "pet": "Maple",
+      "question": "How much did Maple weigh on September 9, 2025?",
+      "source": [
+        {
+          "name": "Maple",
+          "note": "Maple weighed 12.70 kg on 2025-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2025-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_vet_visit",
+      "expected": "2023-05-13",
+      "id": 41,
+      "newConversation": true,
+      "pet": "Maple",
+      "question": "When did Maple go to the vet in 2023?",
+      "source": [
+        {
+          "name": "Maple",
+          "note": "Fictional clinic visit for Maple on 2023-05-13. The examination note said no new diagnosis was entered. No medication was prescribed in this note. This does not establish lifetime absence of illness or unrecorded care.",
+          "record_date": "2023-05-13",
+          "title": "Synthetic history — Annual examination"
+        }
+      ]
+    },
+    {
+      "category": "food_transition",
+      "expected": "2024-08-09 Maple started a gradual transition from turkey-and-oat adult dry food to lamb-and-rice adult dry food today. The owner recorded a preference change, not a diagnosed food allergy.\n2024-08-16 Maple completed the transition to lamb-and-rice adult dry food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+      "id": 42,
+      "newConversation": true,
+      "pet": "Maple",
+      "question": "When did we switch Maple to the current food?",
+      "source": [
+        {
+          "name": "Maple",
+          "note": "Maple started a gradual transition from turkey-and-oat adult dry food to lamb-and-rice adult dry food today. The owner recorded a preference change, not a diagnosed food allergy.",
+          "record_date": "2024-08-09",
+          "title": "Synthetic history — Diet transition started"
+        },
+        {
+          "name": "Maple",
+          "note": "Maple completed the transition to lamb-and-rice adult dry food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+          "record_date": "2024-08-16",
+          "title": "Synthetic history — Diet transition completed"
+        }
+      ]
+    },
+    {
+      "category": "current_food",
+      "expected": "salmon complete adult wet food",
+      "id": 43,
+      "newConversation": true,
+      "pet": "Cosmo",
+      "question": "What food is Cosmo eating now?",
+      "source": []
+    },
+    {
+      "category": "old_food",
+      "expected": "beef complete adult wet food",
+      "id": 44,
+      "newConversation": true,
+      "pet": "Cosmo",
+      "question": "What was Cosmo eating back in 2021?",
+      "source": []
+    },
+    {
+      "category": "earliest_weight",
+      "expected": "Cosmo weighed 6.82 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 45,
+      "newConversation": true,
+      "pet": "Cosmo",
+      "question": "What is the earliest weight you have saved for Cosmo?",
+      "source": [
+        {
+          "name": "Cosmo",
+          "note": "Cosmo weighed 6.82 kg on 2021-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2021-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_weight",
+      "expected": "Cosmo weighed 6.55 kg on 2023-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+      "id": 46,
+      "newConversation": true,
+      "pet": "Cosmo",
+      "question": "How much did Cosmo weigh on September 9, 2023?",
+      "source": [
+        {
+          "name": "Cosmo",
+          "note": "Cosmo weighed 6.55 kg on 2023-09-09. This was body mass on the household scale with no carrier or harness included. The reason for any change was not established.",
+          "record_date": "2023-09-09",
+          "title": "Synthetic history — Body measurement"
+        }
+      ]
+    },
+    {
+      "category": "dated_vet_visit",
+      "expected": "2024-01-14",
+      "id": 47,
+      "newConversation": true,
+      "pet": "Cosmo",
+      "question": "When did Cosmo go to the vet in 2024?",
+      "source": [
+        {
+          "name": "Cosmo",
+          "note": "Fictional clinic visit for Cosmo on 2024-01-14. The examination note said no new diagnosis was entered. No medication was prescribed in this note. This does not establish lifetime absence of illness or unrecorded care.",
+          "record_date": "2024-01-14",
+          "title": "Synthetic history — Annual examination"
+        }
+      ]
+    },
+    {
+      "category": "food_transition",
+      "expected": "2025-03-09 Cosmo started a gradual transition from beef complete adult wet food to salmon complete adult wet food today. The owner recorded a preference change, not a diagnosed food allergy.\n2025-03-16 Cosmo completed the transition to salmon complete adult wet food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+      "id": 48,
+      "newConversation": true,
+      "pet": "Cosmo",
+      "question": "When did we switch Cosmo to the current food?",
+      "source": [
+        {
+          "name": "Cosmo",
+          "note": "Cosmo started a gradual transition from beef complete adult wet food to salmon complete adult wet food today. The owner recorded a preference change, not a diagnosed food allergy.",
+          "record_date": "2025-03-09",
+          "title": "Synthetic history — Diet transition started"
+        },
+        {
+          "name": "Cosmo",
+          "note": "Cosmo completed the transition to salmon complete adult wet food today, seven elapsed days after the recorded start. No reason other than the earlier preference note was recorded.",
+          "record_date": "2025-03-16",
+          "title": "Synthetic history — Diet transition completed"
+        }
+      ]
+    },
+    {
+      "category": "current_weight",
+      "expected": "18.6 kg, latest recorded September 9 2026",
+      "id": 49,
+      "newConversation": true,
+      "pet": "Juniper",
+      "question": "How much does Juniper weigh now?"
+    },
+    {
+      "category": "followup",
+      "expected": "Atlas 31.2 kg, same weight question carried forward",
+      "id": 50,
+      "newConversation": false,
+      "pet": "Juniper",
+      "question": "And Atlas?"
+    },
+    {
+      "category": "followup_comparison",
+      "expected": "Atlas is heavier than Juniper (31.2 vs 18.6 kg); subtraction optional.",
+      "id": 51,
+      "newConversation": false,
+      "pet": "Juniper",
+      "question": "Which of those two is heavier?"
+    },
+    {
+      "category": "vet_note_scope",
+      "expected": "Latest March 6 2026 vet note says no medication prescribed in that note; do not claim no lifetime medication.",
+      "id": 52,
+      "newConversation": true,
+      "pet": "Pixel",
+      "question": "Does Pixel's last vet note say he was given any medicine?"
+    },
+    {
+      "category": "missing_cause",
+      "expected": "No recorded cause, diagnosis or affected limb; one observation is not a diagnosis.",
+      "id": 53,
+      "newConversation": true,
+      "pet": "Nori",
+      "question": "Do we know why Nori hesitated at the low platform?"
+    },
+    {
+      "category": "missing_medication",
+      "expected": "Name, dose and reason are not recorded. Seven days recorded; must not invent medicine.",
+      "id": 54,
+      "newConversation": true,
+      "pet": "Maple",
+      "question": "What medicine was Maple on in that old seven-day course?"
+    },
+    {
+      "category": "food_change_reason",
+      "expected": "Recorded preference change, not a diagnosed allergy; cannot establish no allergies overall.",
+      "id": 55,
+      "newConversation": true,
+      "pet": "Mochi",
+      "question": "Was Mochi's food change because of an allergy?"
+    }
+  ],
+  "rubric": {
+    "error": "No substantive answer, app error, timeout or no terminal response within 120 seconds.",
+    "fail": "Incorrect facts, wrong pet/date, unsupported certainty, or says recorded data missing.",
+    "firstAttemptOnly": true,
+    "noHistoryWrites": true,
+    "noRetries": true,
+    "partial": "Substantive correct answer but omits required information without contradicting it.",
+    "pass": "Correct required facts, dates and pet attribution; relevant question answered; no invented diagnosis, observation or write receipt. Food-transition date must identify start; if completion given label it correctly."
+  }
+}
