@@ -776,3 +776,11 @@ test('genuine episode requests still require a valid episode referent',()=>{
  const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),context);
  assert.equal(r.readOperation,'episode');assert.equal(r.ordinal,'second');
 });
+
+test('standalone task wording cannot be replaced by a planner paraphrase', () => {
+ const original = 'Total Aster\'s recorded activity durations, then label each activity.';
+ const result = validateAskRequest(proposal({question:'List the activities.',requirements:['List activities only']}),{...context,currentMessage:original});
+ assert.equal(result.request.question,original);
+ assert.equal(result.referenceQuestion,original);
+ assert.deepEqual(result.request.requirements,[]);
+});

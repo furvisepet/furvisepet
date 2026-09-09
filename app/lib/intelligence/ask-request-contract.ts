@@ -204,6 +204,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     const literalWindow = literalHistoryMonthWindow(context.currentMessage);
     if (literalWindow) { p.from = literalWindow.from; p.to = literalWindow.to; }
   }
+  // Standalone reads need no model rewrite. Keep the user task authoritative
+  // across every writer/reviewer input, not merely in an instruction footer.
+  if (historical && !p.referenceTurnIds.length) {
+    p.question = context.currentMessage;
+    p.requirements = [];
+  }
   const from = p.from === null ? null : `${p.from}T00:00:00.000Z`;
   const to = p.to === null ? null : `${p.to}T00:00:00.000Z`;
   const request: AskRequestContract = { version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
