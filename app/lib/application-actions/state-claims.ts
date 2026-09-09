@@ -2,7 +2,7 @@ import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 const authoritativeMutationClaim = /\b(?:i(?:'ve| have|'ll| will)?|furvise has|we(?:'ve| have|'ll| will)?)\s+(?:save(?:d)?|delete(?:d)?|remove(?:d)?|forget|forgotten|change(?:d)?|update(?:d)?|archive(?:d)?|prepare(?:d)?|record(?:ed)?|complete(?:d)?|mark(?:ed)?)\b|\bi(?:'ll| will)\s+(?:treat|consider)\b[^.!?]{0,120}\bas\s+(?:removed|forgotten|changed|updated|deleted)\b/i;
 const assistantOffer = /(?:^|[.!?]\s+)(?:(?:if you want,?\s*)(?:i can(?: also)?|would you like me to)\s+|would you like me to\s+|i can(?: also)?\s+(?:help|assist|save|update|delete|prepare)\b)[^.!?]*[.!?]?/gi;
 
-const passiveMutationClaim = /\b(?:has been|was)\s+(saved|deleted|removed|forgotten|changed|updated|archived|prepared|recorded|completed|marked)\b/gi;
+const passiveMutationClaim = /\b(?:has been|was)\s+(?:(?:just|now|successfully)\s+)?(saved|deleted|removed|forgotten|changed|updated|archived|prepared|recorded|completed|marked)\b/gi;
 const physicalChangeSubject = /\b(?:food|diet|litter|litter tray|tray(?: location|position|setup)?)\s*$/i;
 const physicalCourseSubject = /\b(?:medication|treatment|antibiotic)\s+course\s*$/i;
 const applicationDestination = /\b(?:in|on|to|from)\s+(?:(?:the|your|her|his|their|its|pet['’]s)\s+)*(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b|\bby\s+Furvise\b/i;
@@ -37,7 +37,9 @@ export function isHistoricalRecordingAttribution(value: string) {
   return !authoritativeMutationClaim.test(value) && !applicationDestination.test(value)
     && !/\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(value)
     && /\b(?:was|has been)\s+recorded\b/i.test(value)
-    && /\b(?:on|in)\s+(?:\d{4}-\d{2}-\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2})\b/i.test(value);
+    // Passive reporting without an app actor/destination describes evidence.
+    // Dating is an evidence-review concern, not proof of application authority.
+    && !/\b(?:just|now|successfully)\s+(?:been\s+)?recorded\b|\brecorded\s+(?:now|successfully)\b/i.test(value);
 }
 
 export function enforceVerifiedStateClaims(value: string, verifiedSuccess: boolean) {

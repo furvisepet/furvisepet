@@ -60,3 +60,12 @@ test('capability limitations and dated measurements are not offers or write rece
   for (const text of ['Her profile was recorded on April 12.', 'Aster was recorded on April 12 by Furvise.', 'I recorded her weight on April 12.'])
     assert.equal(containsUnverifiedStateClaim(text), true);
 });
+
+test('reporting language does not require a date to survive every final prose guard', () => {
+  for (const text of ['A seven-day course was recorded, but its name is unavailable.',
+    'The measurement was recorded as 8.3 kg.', 'The duration was recorded in the clinical note.'])
+    assert.equal(enforceVerifiedStateClaims(text, false), text);
+  for (const text of ['The profile was recorded.', 'I recorded the measurement.',
+    'The measurement was recorded in your history.', 'The measurement was just recorded.',
+    'The measurement was recorded by Furvise.']) assert.equal(containsUnverifiedStateClaim(text), true);
+});

@@ -129,12 +129,15 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
       const directionRows = Math.floor(rowsPerPet / strategies.length);
+      const priorIds = new Set(collected.map(row => row.id));
       const directionPages = Math.floor(HISTORY_BUDGET.pagesPerPet / strategies.length);
       try {
         for (let attempt = 0; attempt < directionPages && !traversalExhausted && rows.length < directionRows; attempt++) {
           pages++;
           coverage.queryCount++;
-          const pageLimit = Math.min(HISTORY_BUDGET.pageSize, directionRows - rows.length);
+          // Duplicate hits from another strategy do not consume new-evidence quota.
+          // Overfetch remains bounded by pageSize; only unique rows count toward candidateRows.
+          const pageLimit = Math.min(HISTORY_BUDGET.pageSize, directionRows - rows.length + priorIds.size);
           const signal = readSignal(deadline);
           let result: { data: unknown; error: { code?: string } | null };
           if (lexical) {
@@ -168,7 +171,14 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
             const next: Cursor = { petId, occurredAt: row.occurred_at, id: row.id };
             const advance = cursor ? compareHistoryTime(next.occurredAt, cursor.occurredAt) || next.id.localeCompare(cursor.id) : 0;
             if (cursor && (readDescending ? advance >= 0 : advance <= 0)) throw new Error("non_advancing_history_cursor");
-            cursor = next; rows.push(row);
+            cursor = next;
+            if (!priorIds.has(row.id)) rows.push(row);
+            else {
+              // A duplicate must still match the earlier source version.
+              const prior = collected.find(item => item.id === row.id);
+              if (!sameCandidateVersion(row, prior)) { failed = true; coverage.excludedIds.push(`care:${row.id}`); coverage.reasons.push("source_deleted_or_changed"); }
+            }
+            if (rows.length >= directionRows) break;
           }
           // Do not infer exhaustion from a short page: a server row cap may be
           // smaller than requested. An empty next page is the only traversal end.
@@ -195,7 +205,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       coverage.reasons.push("source_deleted_or_changed");
       coverage.excludedIds.push(...[...changed].map(id => `care:${id}`));
     }
-    const rows = [...unique.values()].filter(row => !changed.has(row.id));
+    const rows = [...unique.values()].filter(row => !changed.has(row.id) && !coverage.excludedIds.includes(`care:${row.id}`));
     coverage.perPet.push({ petId, rows: rows.length, pages, exhausted, status: failed ? "unavailable" : exhausted ? "unknown" : "partial" });
     candidates.push(...rows);
   }

@@ -595,3 +595,24 @@ test('difference converts original operands directly; invented intermediate lite
   assert.deepEqual(verifiedCalculationQuantities([{operation:'difference',operands,value:400,unit:'g'}],sources),['400:g']);
   assert.equal(verifiedCalculationQuantities([{operation:'convert',operands:[{sourceId:'a',field:'text',literal:'0.4 kg'}],value:400,unit:'g'}],sources),null);
 });
+
+test('general read scope can answer without guessing a pet or retrieving saved facts', () => {
+  const result = validateAskRequest(proposal({mode:'read',scope:'none',petNames:[],operation:'general',
+    question:'Does one observation establish a cause?'}), {...context,currentMessage:'Does one observation establish a cause?'});
+  assert.equal(result.conversationOnly,true);
+  assert.equal(result.clarification,null);
+  assert.equal(result.history,null);
+  assert.deepEqual(result.petIds,[]);
+  assert.equal(result.readOnly,true);
+});
+test('duplicate search hits do not consume independent candidate slots', async t => {
+  clock(t);
+  const rows=fixturePets.flatMap(pet=>Array.from({length:16},(_,i)=>care(pet.id+'-overlap-'+i,pet.id,
+    '2026-06-'+String(i+1).padStart(2,'0'),'general',pet.name+' had a rest observation.')));
+  const r=await exercise('Compare the saved observations across the account.',{fixturePets,rows,messages:[],history:true,
+    interpretationProposal:proposal({scope:'account',petNames:[],operation:'comparison',selection:'comparison',terms:['rest']})});
+  assert.equal(new Set(r.context.askHistory.coverage.candidateIds).size,48);
+  assert.ok(r.context.askHistory.coverage.perPet.every(pet=>pet.pages<=4));
+  assert.ok(r.context.askHistory.entries.length<=32);
+  assert.ok(r.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
+});
