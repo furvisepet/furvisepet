@@ -106,3 +106,15 @@ test("governance metadata and service-only diagnostics are persisted securely", 
   assert.match(sql, /persistence_governance jsonb/); assert.match(sql, /INTEGRITY_DIAGNOSTIC_FORBIDDEN/);
   assert.match(sql, /grant execute on function public\.diagnose_furvise_integrity\(uuid\) to service_role/);
 });
+
+
+test("conversation validation preserves supplied identities and exact layouts while retaining safety filters", () => {
+  const evidenceContract = { interpretation: { conversationOnly: true, request: { outputFormat: "csv" } }, scope: {}, represented: [] };
+  for (const summary of ['name,value\n"Name, suffix",2\nOther,7', '- First.\n- Second.', "Ana’s sister saw Bea sneeze.", 'First line.\nSecond line.']) {
+    const result = validateGeneratedAnswer(reasoning(summary, { evidenceContract }), {...context('Fictional exercise'), eligiblePets:[{id:'other',name:'Bea'}]}, 'routine', []);
+    assert.equal(result.valid, true);
+    assert.equal(result.response.answer.summary, summary);
+  }
+  const unsafe = validateGeneratedAnswer(reasoning('I saved that.\nNo action receipt exists.', { evidenceContract }), context('Fictional exercise'), 'routine', []);
+  assert.doesNotMatch(unsafe.response.answer.summary, /I saved/);
+});

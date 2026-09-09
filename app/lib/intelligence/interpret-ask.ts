@@ -49,7 +49,7 @@ export type AskInterpretation = {
 };
 // Interpretation shares the route's 50-second orchestration budget; this cap
 // leaves 30 seconds for retrieval/generation. No extra provider call is added.
-export const ASK_INTERPRETATION_LIMITS = { outputTokens: 2600, timeoutMs: 20_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
+export const ASK_INTERPRETATION_LIMITS = { outputTokens: 4096, timeoutMs: 20_000, turns: 8, turnChars: 600, terms: 6, pets: 3 } as const;
 const nullableString = { type: ["string", "null"] };
 export const askInterpretationSchema = {
   type: "object", additionalProperties: false,
