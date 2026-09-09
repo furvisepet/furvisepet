@@ -628,3 +628,10 @@ test('question dates can be discussed without becoming source evidence', () => {
   assert.equal(historyNarrativeAnchorsSupported('The April 10 report was not available as of April 9.',source,'As of April 9, was the April 10 report available?',[],false),true);
   assert.equal(historyNarrativeAnchorsSupported('The report was available on May 7.',source,'As of April 9, was the April 10 report available?',[],false),false);
 });
+
+test('a single report-day comparison keeps preceding context without crossing the upper bound', () => {
+ const result=validateAskRequest(proposal({operation:'comparison',selection:'period',from:'2026-04-20',to:'2026-04-21'}),
+   {...context,currentMessage:'Did the April 20 update happen before or after the earlier change?'});
+ assert.equal(result.history.from,null);
+ assert.equal(result.history.to,'2026-04-21T00:00:00.000Z');
+});

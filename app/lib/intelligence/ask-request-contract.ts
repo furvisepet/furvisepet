@@ -141,6 +141,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // As-of is an upper bound, not an exact-date lookup. Preserve a separately
   // requested lower bound, but never turn an as-of day into a one-day window.
   if (/\bas\s+of\b/i.test(context.currentMessage) && !/\b(?:since|from|between)\b/i.test(context.currentMessage)) p.from = null;
+  // One report date in a comparison is an endpoint, not proof that all
+  // comparison evidence belongs to that same day. Retain earlier context.
+  if (operation === "comparison" && p.from && p.to && Date.parse(p.to) - Date.parse(p.from) <= 86400000
+    && !/\b(?:between|since|from|only on|on that day only)\b/i.test(context.currentMessage)) p.from = null;
   const from = p.from === null ? null : `${p.from}T00:00:00.000Z`;
   const to = p.to === null ? null : `${p.to}T00:00:00.000Z`;
   const request: AskRequestContract = { version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
