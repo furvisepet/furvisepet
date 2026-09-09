@@ -50,7 +50,7 @@ export function parseHistoryCalculations(value: unknown): HistoryCalculation[] |
   }
   return structuredClone(value) as HistoryCalculation[];
 }
-export function verifiedCalculationQuantities(proposals: HistoryCalculation[], sources: Source[]): string[] | null {
+export function verifiedCalculationQuantities(proposals: HistoryCalculation[], sources: Source[], onMismatch?: (hint: { operation: string; expectedValue: number; unit: string }) => void): string[] | null {
   const output: string[] = [];
   for (const proposal of proposals) {
     const p = { ...proposal, unit: /^(?:percent|percentage)$/i.test(proposal.unit) ? "%" : proposal.unit.toLowerCase() };
@@ -102,7 +102,12 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
     }
     // Exact arithmetic or explicit rounding to the proposal's decimal precision.
     const decimals = String(p.value).split(".")[1]?.length || 0;
-    if (!finite(computed) || Math.abs(Number(computed.toFixed(Math.min(decimals, 10))) - p.value) > 1e-9) return null;
+    if (!finite(computed)) return null;
+    const expectedValue = Number(computed.toFixed(Math.min(decimals, 10)));
+    if (Math.abs(expectedValue - p.value) > 1e-9) {
+      onMismatch?.({ operation: p.operation, expectedValue, unit: p.unit });
+      return null;
+    }
     // Difference magnitude is also an anchor; semantic review verifies the
     // direction stated in prose (loss/decrease versus gain/increase).
     const canonical = p.unit === "%" || p.unit === "" ? p.unit : target?.canonical || "day";

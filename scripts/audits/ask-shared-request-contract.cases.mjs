@@ -676,3 +676,9 @@ test('bounded phrase hints match morphological variants without treating them as
  assert.ok(historyQueryRelevance('New training treats were stopped.',terms)>historyQueryRelevance('The appetite is normal.',terms));
  assert.ok(historyQueryRelevance('A seven-day medication course was given.',terms)>0);
 });
+
+test('wrong arithmetic remains rejected with a server-computed repair hint',()=>{
+ const hints=[];const source=[{sourceId:'a',text:'Mass 2 kg.'},{sourceId:'b',text:'Mass 2.5 kg.'}];
+ const result=verifiedCalculationQuantities([{operation:'difference',operands:[{sourceId:'a',field:'text',literal:'2 kg'},{sourceId:'b',field:'text',literal:'2.5 kg'}],value:.5,unit:'kg'}],source,h=>hints.push(h));
+ assert.equal(result,null);assert.deepEqual(hints,[{operation:'difference',expectedValue:-.5,unit:'kg'}]);
+});
