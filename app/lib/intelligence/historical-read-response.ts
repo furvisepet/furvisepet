@@ -3,6 +3,7 @@
 import { historyJsonDefinitions, historyJsonSchema, renderHistoricalJson } from "./structured-history-json.ts";
 import { historyCalculationSchema } from "./history-calculation.ts";
 import { isStructuredHistoryText } from "./structured-history-text.ts";
+import { unwrapProseEnvelope } from "./prose-envelope.ts";
 import { parsePlainTable } from "../plain-table.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
 const tableCell = { type: "string", maxLength: 300, pattern: "^[^|\\r\\n]*$" };
@@ -45,6 +46,9 @@ export function canonicalHistoricalRead(value: unknown): unknown {
     || !["prose", "bullets", "table", "json"].includes(String(p.layout))) throw new Error("INVALID_READ_RESPONSE");
   if (p.layout === "table" && p.historyNarrative !== null) throw new Error("DUPLICATE_READ_BODY");
   let narrative = parseHistoryNarrative(p.historyNarrative);
+  if (narrative && ["prose", "bullets"].includes(String(p.layout))) {
+    narrative = { ...narrative, sentences: narrative.sentences.map(sentence => ({ ...sentence, text: unwrapProseEnvelope(sentence.text) })) };
+  }
   if (p.json !== null) {
     if (p.layout !== "json" || p.historyNarrative !== null || p.table !== null || p.limitation !== null) throw new Error("DUPLICATE_READ_BODY");
     narrative = renderHistoricalJson(p.json);

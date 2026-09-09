@@ -19,7 +19,10 @@ export function containsUnverifiedStateClaim(value: string) {
 
 function containsUnquotedStateClaim(value: string) {
   value = askProseOnly(value);
-  if (authoritativeMutationClaim.test(value)) return true;
+  // A relative clause describing a retrieved measurement is not a receipt.
+  // Keep affirmative app writes elsewhere in the same text subject to checks.
+  const speech = value.replace(/\b((?:(?:earliest|latest|first|last|oldest|newest|saved|recorded)\s+)*(?:weight|measurement|temperature|dose|duration|distance|reading))\s+(?:that\s+)?I\s+(?:have\s+)?(?:saved|recorded)\s+(?:for\s+[^.!?;]{1,60}?\s+)?(?=is\b|was\b)/gi, "$1 ");
+  if (authoritativeMutationClaim.test(speech)) return true;
   for (const clause of splitSentencesPreservingFacts(value)) for (const match of clause.matchAll(passiveMutationClaim)) {
     const before = clause.slice(0, match.index);
     // Negated speech is not a receipt; a later affirmative clause still is.

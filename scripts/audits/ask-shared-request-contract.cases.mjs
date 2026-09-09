@@ -967,3 +967,33 @@ test('final presentation preserves negation, uncertainty and exact line breaks',
  const r=presentationOnlyAskResponse({summary:'Your history was deleted.'},[]);
  assert.doesNotMatch(r.directAnswer,/was deleted/);
 });
+
+test('event aliases cannot be starved by newer routine notes or a common alias', async t => {
+ clock(t);
+ for(const [question,category,eventText,terms] of [
+  ['When did Aster switch food?','food','Aster started a gradual transition from food A to food B.',['food']],
+  ['When did Aster stop the supplement?','medication','The supplement was discontinued on this date.',['supplement']],
+ ]) {
+  const rows=Array.from({length:120},(_,i)=>care('noise-'+i,'milo',new Date(Date.UTC(2025,0,i+1)).toISOString().slice(0,10),category,'Routine food and supplement check. Reason for any change unknown.'));
+  rows.push(care('decisive-event','milo','2022-04-07',category,eventText));
+  const r=await exercise(question,{fixturePets,messages:[],history:true,rows,
+   interpretationProposal:proposal({terms,selection:'latest'}),
+   answer:'The event was reported on April 7, 2022.'});
+  assert.ok(r.context.askHistory.entries.some(e=>e.id==='decisive-event'),question);
+  assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+  assert.ok(r.context.askHistory.coverage.candidateIds.length<=64);
+ }
+});
+test('final persisted presentation retains relative-clause measurements',async()=>{
+ const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
+ const summary='The earliest weight I have saved for Rowan is 7.21 kg on 2020-03-04. The reason for any change was not established.';
+ assert.equal(presentationOnlyAskResponse({summary},[]).directAnswer,summary);
+});
+test('prose transport envelope is decoded before factual review, not after it',()=>{
+ const text='{"answer":"The prior food was offered.","note":"Unobserved meals are unknown."}';
+ const response=canonicalHistoricalRead({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
+  historyNarrative:{sentences:[{text,sourceIds:['care:a'],calculations:[]}]},
+  safetyLevel:'monitor',responseMode:'direct_answer',userIntent:'general_pet_question',relevantContextIds:[]});
+ assert.equal(response.historyNarrative.sentences[0].text,'The prior food was offered.\nUnobserved meals are unknown.');
+ assert.deepEqual(response.historyNarrative.sentences[0].sourceIds,['care:a']);
+});

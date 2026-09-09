@@ -1,4 +1,4 @@
-import { historyQueryTerms, historyQueryRelevance } from "./history-query-relevance.ts";
+import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups } from "./history-query-relevance.ts";
 import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
 import { explicitHistoryDays } from "./explicit-history-dates.ts";
@@ -87,7 +87,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const plan = proposedPlan ? clipHistoryPlan(proposedPlan, context.historyAccess) : null;
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
-  const searchTerms = context.askInterpretation?.request ? historyQueryTerms(plan.terms, context.eligiblePets.map(pet=>pet.name || "")) : plan.terms;
+  const sharedRead = context.askInterpretation?.request?.mode === "read";
+  const eventTerms = sharedRead ? historyEventTerms(context.currentMessage) : [];
+  const searchTerms = context.askInterpretation?.request
+    ? historyQueryTerms(plan.terms, context.eligiblePets.map(pet => pet.name || ""))
+    : plan.terms;
   const asOf = Date.now();
   const namedDays = [...explicitHistoryDays(context.currentMessage, new Date(asOf).getUTCFullYear()),
     ...(context.currentMessage.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])];
@@ -125,8 +129,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // Reserve separate candidate slots for distinct hints so common terms
     // cannot consume every slot before a rare, decisive middle-history record.
     const diversify = context.askInterpretation?.request && !endpointComparison
-      && !["latest", "earliest", "earliest_occurrence"].includes(context.askInterpretation.selection || "") && searchTerms.length > 1;
-    const termGroups = Array.from({ length: Math.min(3, searchTerms.length) }, (_, index) => searchTerms.filter((_, n) => n % Math.min(3, searchTerms.length) === index));
+      && (eventTerms.length > 0 || !["latest", "earliest", "earliest_occurrence"].includes(context.askInterpretation.selection || "") && searchTerms.length > 1);
+    const termGroups = historySearchGroups(searchTerms, sharedRead ? context.currentMessage : "");
     const strategies = diversify
       ? [...termGroups.map(terms => ({ descending, lexical: true, terms })), { descending, lexical: false, terms: searchTerms }]
       : context.askInterpretation?.request && plan.terms.length
