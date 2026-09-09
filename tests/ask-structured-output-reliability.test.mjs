@@ -229,3 +229,17 @@ test("Ask logs provider calls, output completion details, retry reuse, and credi
     assert.match(route, new RegExp(field));
   }
 });
+
+test('conversation composer receives original user premises without planner-invented facts or mutation fields', () => {
+  const request = buildAskProviderRequest({currentMessage:'What can be known?',
+    evidenceContract:{interpretation:{conversationOnly:true,request:{question:'Invented certainty',requirements:['Invent a duration']}}},
+    pets:[{name:'Selected private pet'}], contextRecords:[{value:'Private saved fact'}],
+    dialogueContext:{turns:[{role:'user',text:'Original scenario'},{role:'furvise',text:'Unsupported inference'}]}});
+  const payload=JSON.parse(request.input);
+  assert.equal(payload.currentMessage,'What can be known?');
+  assert.deepEqual(payload.priorUserPremises,[{role:'user',text:'Original scenario'}]);
+  assert.doesNotMatch(request.input,/Invented|Invent a duration|Private saved|Selected private|Unsupported inference/);
+  assert.equal(payload.capabilities.mutationExecution,false);
+  assert.equal(payload.capabilities.liveExternalVerification,false);
+  assert.deepEqual(Object.keys(request.text.format.schema.properties).sort(),['answer','answerSections','responseMode','safetyLevel','userIntent']);
+});
