@@ -214,7 +214,10 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
 export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
   if (value && typeof value === "object" && "version" in value && value.version === ASK_REQUEST_VERSION) {
     try { return validateAskRequest(value, context); }
-    catch { throw new AskInterpretationValidationError("ASK_REQUEST_CONTRACT", "semantic"); }
+    catch (error) {
+      const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
+      throw new AskInterpretationValidationError(reason ? `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}` : "ASK_REQUEST_CONTRACT", "semantic");
+    }
   }
   try { return validateAskInterpretation(normalizeAskReadProposal(value, context), context); }
   catch (error) {

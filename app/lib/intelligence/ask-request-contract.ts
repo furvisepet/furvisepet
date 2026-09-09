@@ -108,6 +108,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // Quantity is a separate semantic axis. Counting records or measurements
   // cannot accidentally invoke the illness episode membership subsystem.
   if (operation === "count" && p.quantity !== "episodes") operation = "recall";
+  // An episode ordinal cannot change a measurement comparison. Discard this
+  // irrelevant planner hint only when the quantity and operation are explicit.
+  if (["measurement", "duration"].includes(String(p.quantity)) && ["recall", "comparison", "overview"].includes(operation)) p.ordinal = null;
   if (operation === "episode" && p.ordinal === null || operation !== "episode" && p.ordinal !== null) return fail("episode_reference");
   const conversationOnly = p.mode === "conversation" && p.scope === "none";
   if (p.mode === "conversation" && !conversationOnly) return fail("conversation_scope");

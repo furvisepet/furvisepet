@@ -550,3 +550,10 @@ test('verbatim operand spans retain context and reject multiple measurements', (
  assert.deepEqual(verifiedCalculationQuantities([{ operation: 'difference', operands, value: 16, unit: 'minutes' }], sources), ['16:minute']);
  assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: sources[0].text }], value: 22, unit: 'minutes' }], sources), null);
 });
+
+test('measurement comparisons discard irrelevant episode ordinal hints', () => {
+ const r=validateAskRequest(proposal({ operation:'comparison', quantity:'measurement', ordinal:'first' }), context);
+ assert.equal(r.ordinal, null);
+ assert.equal(r.readOperation, 'comparison');
+ assert.equal(r.readOnly, true);
+});

@@ -16,10 +16,13 @@ export function containsUnverifiedStateClaim(value: string) {
     const dataSubject = /\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(subject);
     // Absence in a clinical note does not announce a successful app write.
     const absentClinicalDetail = match[1].toLowerCase() === "recorded"
-      && /\bno\s+(?:(?:new|medication|medicine|diagnosis|diagnoses|name|dose|dosage|instructions?|treatment|or|and)\s*)+$/i.test(subject)
+      && /\bno\s+(?:[a-z-]+\s+){0,10}$/i.test(subject)
+      && !dataSubject
       && !/\bby\s+Furvise\b/i.test(clause);
     if (absentClinicalDetail) continue;
     const after = value.slice(match.index! + match[0].length).split(/[.!?\n]/,1)[0];
+    // Dated attribution describes an existing observation, not a new app write.
+    if (match[1].toLowerCase() === "recorded" && isHistoricalRecordingAttribution(clause)) continue;
     const dietTransition = match[1].toLowerCase() === "changed"
       && /^\s+(?:from\s+[^.!?,;]{1,100}\s+to\s+|to\s+)[^.!?,;]{0,100}\b(?:food|diet|kibble)\b/i.test(after);
     // A physical care event is not a claim that the application changed data.
@@ -29,6 +32,12 @@ export function containsUnverifiedStateClaim(value: string) {
     if (!physical || dataSubject || applicationDestination.test(clause)) return true;
   }
   return false;
+}
+
+export function isHistoricalRecordingAttribution(value: string) {
+  return !authoritativeMutationClaim.test(value) && !applicationDestination.test(value)
+    && !/\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(value)
+    && /\b(?:note|report|observation|evidence|update)\b[^.!?\n]{0,180}\b(?:was|has been)\s+recorded\s+(?:on|in)\s+(?:\d{4}-\d{2}-\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2})\b/i.test(value);
 }
 
 export function enforceVerifiedStateClaims(value: string, verifiedSuccess: boolean) {
