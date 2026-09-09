@@ -87,7 +87,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (p.referenceTurnIds.some(id => !turnIds.has(id))) return fail("reference");
   if (p.premiseQuotes !== null) {
     const userPremises = [context.currentMessage, ...context.conversationTurns.filter(t => t.role === "user").map(t => t.text)];
-    if ((p.premiseQuotes as string[]).some(quote => !userPremises.some(text => text.includes(quote)))) return fail("premise_source");
+    if ((p.premiseQuotes as string[]).some(quote => {
+      const unwrapped = /^(?:"[\s\S]*"|“[\s\S]*”)$/.test(quote) ? quote.slice(1,-1) : quote;
+      return !userPremises.some(text => text.includes(quote) || unwrapped.length > 0 && text.includes(unwrapped));
+    })) return fail("premise_source");
     if (p.evidenceBasis === "supplied_context" && !(p.premiseQuotes as string[]).length) return fail("missing_supplied_premise");
   }
   // Non-record evidence can only narrow authority. A fictional name or date
@@ -152,6 +155,14 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const readOnly = !["update", "mixed"].includes(String(p.mode));
   const frame = readOnly ? emptyProposedSemanticFrame() : validateProposedSemanticFrame(p.frame).frame;
   if (!frame) return fail("frame");
+  // A resolved owner and lexical ordering query can retrieve evidence before
+  // asking what an unfamiliar topic means. This grants no new identity or write.
+  if (p.mode === "clarify" && petIds.length === 1 && p.terms.length > 0
+    && ["latest", "earliest", "earliest_occurrence"].includes(String(p.selection))) {
+    p.mode = "read";
+    if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
+    p.question = context.currentMessage;
+  }
   let operation = p.operation as typeof operations[number];
   // Quantity is a separate semantic axis. Counting records or measurements
   // cannot accidentally invoke the illness episode membership subsystem.
@@ -176,11 +187,11 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const from = p.from === null ? null : `${p.from}T00:00:00.000Z`;
   const to = p.to === null ? null : `${p.to}T00:00:00.000Z`;
   const request: AskRequestContract = { version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
-    evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question, requirements: p.requirements, referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
+    evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question as string, requirements: p.requirements, referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
   return { version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
     readOperation: p.mode === "update" ? null : operation, selection: p.selection as AskInterpretation["selection"],
     petIds, topic: p.topic, readOnly, clarification, frame,
-    referenceQuestion: p.question, ...(conversationOnly ? { conversationOnly: true } : {}),
+    referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
     episodeTopic: operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: historical ? { from, to, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };

@@ -722,3 +722,18 @@ test('explicit read exclusions remain outside account and selected scope', () =>
   assert.throws(()=>validateAskRequest(proposal({scope:'selected',petNames:[],excludedPetNames:['Aster']}),context),/excluded_subject/);
   assert.throws(()=>validateAskRequest(proposal({excludedPetNames:['Foreign animal']}),context),/excluded_ownership/);
 });
+
+test('quoted provenance permits delimiters but never changed source wording', () => {
+ const c={...context,currentMessage:'Fictional: the crate is 2 kg.'};
+ const p=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:['"the crate is 2 kg"']});
+ assert.equal(validateAskRequest(p,c).conversationOnly,true);
+ assert.throws(()=>validateAskRequest({...p,premiseQuotes:['"the crate is 3 kg"']},c),/premise_source/);
+});
+test('a resolved subject and ordered lexical query retrieves before asking what the topic means', () => {
+ const c={...context,currentMessage:'Latest activity for Aster, please.'};
+ const r=validateAskRequest(proposal({mode:'clarify',operation:'clarify',selection:'latest',terms:['activity']}),c);
+ assert.equal(r.clarification,null);
+ assert.equal(r.readOperation,'recall');
+ assert.ok(r.history);
+ assert.equal(r.request.question,c.currentMessage);
+});
