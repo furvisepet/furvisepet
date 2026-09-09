@@ -105,7 +105,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const cited = sources.filter(source => sentence.sourceIds.includes(source.sourceId));
     const derived = verifiedCalculationQuantities(sentence.calculations || [], cited);
     return derived !== null && historyNarrativeAnchorsSupported(sentence.text, cited,
-      evidence.interpretation?.referenceQuestion || evidence.scope.requestText, derived, !sharedRequest,
+      (sharedRequest ? [evidence.scope.requestText, evidence.interpretation?.referenceQuestion].filter(Boolean).join("\n") : evidence.interpretation?.referenceQuestion || evidence.scope.requestText), derived, !sharedRequest,
       sharedRequest ? [evidence.interpretation?.history?.from, evidence.interpretation?.history?.to,
         evidence.interpretation?.history?.to ? new Date(Date.parse(evidence.interpretation.history.to) - 86400000).toISOString() : null].filter((date): date is string => !!date) : [])
       && (sharedRequest || !hasUndatedHistoricalCareState(sentence.text, cited));
@@ -154,7 +154,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const anchorsValid = !parsed.parsed.approved || parsed.parsed.retainedSentenceIndexes.every(index => !invalidIndexes.includes(index));
     const formatValid = matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid;
     if (!parsed.parsed.approved || !formatValid) {
-      const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
+      const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
         : "rejectionReason" in parsed.parsed ? parsed.parsed.rejectionReason : null;
       if (repairAttempted || !sharedRequest || !evidence.scope.readOnlyRecall || typeof reason !== "string" || !reason) return false;
       const repaired = await repairRejectedRead(provider, model, requestInput, reason);

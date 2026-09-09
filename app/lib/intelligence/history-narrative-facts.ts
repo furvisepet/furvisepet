@@ -11,8 +11,8 @@ function dates(text: string): string[] {
   return found;
 }
 function quantities(text: string): string[] {
-  return [...text.toLowerCase().matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
-    .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^soft /, "").replace(/^pound$/, "lb")}`);
+  return [...text.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?)\b/g)]
+    .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`);
 }
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
@@ -34,7 +34,13 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   for (const match of (isStructuredHistoryText(text) ? [] : text.matchAll(/"([^"]+)"|“([^”]+)”/g))) {
     const quote = match[1] ?? match[2];
     const matching = sources.filter(source => source.text.includes(quote));
-    if (!matching.length) return false;
+    if (!matching.length) {
+      // Quoting the user's claim to assess it is not a source quotation. This
+      // grants no factual authority: the independent reviewer must still check
+      // whether the answer accepts, rejects or qualifies that claim correctly.
+      if (!legacyDerivations && requestText.includes(quote)) continue;
+      return false;
+    }
     const attribution = dates(text.slice(0, match.index));
     if (attribution.length && !matching.some(source => {
       const recorded = dates(source.occurredAt?.slice(0, 10) || "");

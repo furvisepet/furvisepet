@@ -1,6 +1,7 @@
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
+import { buildRecentSubjectState } from "./entities/recent-subject-state.ts";
 import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
 
 /** One semantic read request. This is not evidence and grants no mutation authority.
@@ -84,8 +85,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const explicitPets = explicitlyNamedOwnedPets(context.currentMessage, owned);
   // A planner clarification cannot erase an explicitly identified owned pet.
   // This only recovers read scope, never grants mutation authority.
-  if (!petIds.length && p.mode === "clarify" && explicitPets.length === 1) {
-    petIds = [explicitPets[0].id]; p.scope = "named"; p.mode = "read"; p.operation = "recall";
+  if (!petIds.length && ["read", "clarify"].includes(String(p.mode)) && explicitPets.length === 1 && p.scope !== "account") {
+    petIds = [explicitPets[0].id]; p.scope = "named"; p.mode = "read";
+    if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
   }
   // A redundant group label cannot widen an explicit, validated subject list.
   if (p.scope === "account" && !proposed.length) petIds = owned.map(pet => pet.id);
@@ -97,6 +99,14 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // Conversational referents may choose only identities established by a user,
   // never an assistant's guessed profile or a model-proposed database ID.
   if (p.scope === "conversation") {
+    // The model often omits a redundant name in a follow-up. Recover only
+    // the unique USER-established focus; assistant mentions confer no identity.
+    if (!petIds.length && ["read", "clarify"].includes(String(p.mode))) {
+      const state = buildRecentSubjectState({ pets: owned, selectedPetId: context.pet.id,
+        recentConversation: context.conversationTurns });
+      const focus = state.entities.find(entity => entity.key === state.currentFocusKey);
+      if (focus?.kind === "pet" && focus.petId) petIds = [focus.petId];
+    }
     const userText = context.conversationTurns.filter(t => t.role === "user").map(t => t.text).join("\n").toLocaleLowerCase();
     const established = new Set(explicitlyNamedOwnedPets(userText, owned).map(pet => pet.id));
     if (petIds.some(id => id !== context.pet.id && !established.has(id))) return fail("conversation_subject");
