@@ -21,3 +21,8 @@ CI includes the request-contract suite, React server-rendering checks for indent
 Measured spend in this turn: $2.465599 ($0.629995 production plus $1.835604 diagnostic). Including $8.422958 from prior additional work gives $10.888557 of the $15 authorization. Failed diagnostic calls retain $0.09071175 reserved because final provider usage was unavailable; the conservative committed total is $10.97926875, leaving $4.02073125. No more paid requests are running.
 
 Production care-entry, memory and suggestion fingerprints matched their baselines after benchmarks 8 and 9; no care/memory/suggestion mutation occurred. Normal test conversations were saved. Diagnostic runs used synthetic state; accepted care, memory and event writes were zero. Raw attempts and the cumulative diagnostic ledger are retained alongside this report.
+
+## Reliability measurements
+Across the frozen core80, the planner made 80 calls: median 6,376 ms, p95 19,234 ms, with two 25-second timeouts. Total core provider calls were 168 at $0.91734675 measured cost. The remaining architecture work is planner latency/recovery and semantic fidelity, plus stronger uncertainty and access-boundary explanations. These measurements support addressing shared pipeline behavior rather than adding question-specific answers.
+
+Final code candidate after bounded quote-decoding coverage: 97fca18c06d131ee331f7e5d0ae7281abcdfa90e. The frozen core score belongs to a8c04bd, not this later candidate. Nested-quotation and exact-source counterexample tests passed locally; final CI/deployment is recorded in PR256.
