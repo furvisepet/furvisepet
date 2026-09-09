@@ -122,12 +122,19 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     const directions = endpointComparison ? [false, true] : [descending];
     // Reserve half of the same budget for period context: lexical candidates
     // alone cannot expose synonyms, intervening reports or missing search terms.
-    const strategies = context.askInterpretation?.request && plan.terms.length
-      ? directions.flatMap(descending => [{ descending, lexical: true }, { descending, lexical: false }])
-      : directions.map(descending => ({ descending, lexical: !!plan.terms.length }));
+    // Reserve separate candidate slots for distinct hints so common terms
+    // cannot consume every slot before a rare, decisive middle-history record.
+    const diversify = context.askInterpretation?.request && !endpointComparison
+      && !["latest", "earliest", "earliest_occurrence"].includes(context.askInterpretation.selection || "") && searchTerms.length > 1;
+    const termGroups = Array.from({ length: Math.min(3, searchTerms.length) }, (_, index) => searchTerms.filter((_, n) => n % Math.min(3, searchTerms.length) === index));
+    const strategies = diversify
+      ? [...termGroups.map(terms => ({ descending, lexical: true, terms })), { descending, lexical: false, terms: searchTerms }]
+      : context.askInterpretation?.request && plan.terms.length
+        ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
+        : directions.map(descending => ({ descending, lexical: !!plan.terms.length, terms: searchTerms }));
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
-    for (const [strategyIndex, { descending: readDescending, lexical }] of strategies.entries()) {
+    for (const [strategyIndex, { descending: readDescending, lexical, terms }] of strategies.entries()) {
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
       const priorIds = new Set(collected.map(row => row.id));
@@ -148,7 +155,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
             // The RPC derives auth.uid(). Never pass an owner or fall back to a
             // different lexical authority when its migration/service is missing.
             result = await db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
-              p_pet_id: petId, p_terms: searchTerms.length ? searchTerms : plan.terms,
+              p_pet_id: petId, p_terms: terms.length ? terms : plan.terms,
               p_from: plan.from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
               p_to: futureSourceRequested ? plan.to : new Date(Math.min(plan.to ? Date.parse(plan.to) : Infinity, asOf + 1)).toISOString(),
               p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
@@ -233,7 +240,10 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const relevantIds = new Set(relevant.map(entry => entry.id));
   const ordered = orderHistoryEvidence(matchingEntries, selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
     selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1
-      : context.askInterpretation?.request && searchTerms.length ? entry => historyQueryRelevance(`${entry.title || ""} ${entry.note}`, searchTerms) > 0 ? 0 : 1 : undefined);
+      : context.askInterpretation?.request && searchTerms.length ? entry => {
+        const score = historyQueryRelevance(`${entry.title || ""} ${entry.note}`, searchTerms);
+        return ["latest", "earliest"].includes(selection || "") ? score > 0 ? 0 : 1 : -score;
+      } : undefined);
   // Broad food summaries should retain explicit diet records before incidental
   // appetite/eating matches. This is ranking only; keep all candidates and losses.
   if (!context.askInterpretation?.request && ["summary", "comparison"].includes(selection || "") && /\b(?:foods?|diet)\b/i.test(context.currentMessage)) {

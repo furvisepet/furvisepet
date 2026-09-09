@@ -3,6 +3,7 @@ import { medicationReferencePet } from "./medication-reference.ts";
 import { normalizeHistoricalSearchTerms } from "./history-search-terms.ts";
 import "server-only";
 import OpenAI from "openai";
+import { withProviderDeadline } from "../ai/provider-deadline.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
@@ -264,15 +265,17 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
     for (let attempt = 0; attempt < 2; attempt++) {
-    const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed USER-premise verification. Reconstruct the contract from the original input. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. All original scope and mutation restrictions still apply." };
+    const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed USER-premise verification. Reconstruct the contract from the original input. Supplied context requires at least one factual USER premise. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. All original scope and mutation restrictions still apply." };
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
       ...(attempt === 1 ? { purpose: "interpretation_repair" as const } : {}),
       providerInput: { input: attemptRequest.input, instructions: attemptRequest.instructions },
       invoke: () => {
         attempted = true;
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
-        providerSignal = AbortSignal.timeout(boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs));
-        return activeClient.responses.create(attemptRequest as never, { signal: providerSignal });
+        return withProviderDeadline(signal => {
+          providerSignal = signal;
+          return activeClient.responses.create(attemptRequest as never, { signal });
+        }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs));
       } });
     // Parse transport/JSON separately from server validation. Never surface or
     // log the parser's raw error message, response text, refusal or field values.
@@ -286,7 +289,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     let parsed: AskInterpretation;
     try { parsed = recoverAskInterpretation(result.parsed, context); }
     catch (error) {
-      if (attempt === 0 && error instanceof AskInterpretationValidationError && error.reason === "ASK_REQUEST_CONTRACT_PREMISE_SOURCE") {
+      if (attempt === 0 && error instanceof AskInterpretationValidationError && ["ASK_REQUEST_CONTRACT_PREMISE_SOURCE", "ASK_REQUEST_CONTRACT_MISSING_SUPPLIED_PREMISE"].includes(error.reason)) {
         onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started,
           providerErrorCode: error.reason, providerErrorType: error.category, ...metadata });
         continue; // One admitted repair; never accept or weaken the rejected contract.

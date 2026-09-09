@@ -1,3 +1,4 @@
+import {units, compoundUnit} from "./history-units.ts";
 /** Arithmetic proposals cite literal operands. The server computes the value;
  * semantic review checks whether that calculation answers the actual question.
  * This validates arithmetic, not clinical recommendations or causal inference. */
@@ -19,27 +20,6 @@ export const historyCalculationSchema = { type: "array", maxItems: 4, items: {
   },
 } };
 type Source = { sourceId: string; text: string; occurredAt?: string | null };
-const units: Record<string, { dimension: string; scale: number; canonical: string }> = {
-  kg: { dimension: "mass", scale: 1000, canonical: "kg" }, g: { dimension: "mass", scale: 1, canonical: "g" },
-  mg: { dimension: "mass", scale: .001, canonical: "mg" }, lb: { dimension: "mass", scale: 453.59237, canonical: "lb" },
-  lbs: { dimension: "mass", scale: 453.59237, canonical: "lb" },
-  ml: { dimension: "volume", scale: 1, canonical: "ml" }, l: { dimension: "volume", scale: 1000, canonical: "l" },
-  hour: { dimension: "time", scale: 1, canonical: "hour" }, hours: { dimension: "time", scale: 1, canonical: "hour" },
-  minute: { dimension: "time", scale: 1 / 60, canonical: "minute" }, minutes: { dimension: "time", scale: 1 / 60, canonical: "minute" },
-  second: { dimension: "time", scale: 1 / 3600, canonical: "second" }, seconds: { dimension: "time", scale: 1 / 3600, canonical: "second" },
-  day: { dimension: "time", scale: 24, canonical: "day" }, days: { dimension: "time", scale: 24, canonical: "day" },
-  week: { dimension: "time", scale: 168, canonical: "week" }, weeks: { dimension: "time", scale: 168, canonical: "week" },
-};
-// Explicit currency codes are independent dimensions. No exchange rate or
-// ambiguous dollar-symbol interpretation may be inferred from a price.
-for (const currency of ["cad", "usd", "eur", "gbp", "aud", "nzd", "jpy", "chf", "cny"]) {
-  units[currency] = { dimension: `currency:${currency}`, scale: 1, canonical: currency };
-}
-// Provider and source spelling share one dimensional registry; spelling is not
-// a different unit, and must not cause a correct calculation to fail review.
-for (const [alias, canonical] of Object.entries({ kilogram: "kg", kilograms: "kg", gram: "g", grams: "g",
-  milligram: "mg", milligrams: "mg", pound: "lb", pounds: "lb", milliliter: "ml", milliliters: "ml",
-  millilitre: "ml", millilitres: "ml", liter: "l", liters: "l", litre: "l", litres: "l" })) units[alias] = units[canonical];
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= 1e12;
 export function parseHistoryCalculations(value: unknown): HistoryCalculation[] | null {
   if (value === undefined) return [];
@@ -89,11 +69,17 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
       }
     }
     const dimension = operands[0].dimension;
-    if (operands.some(operand => operand.dimension !== dimension)) return null;
+    const rate = p.operation === "ratio" ? compoundUnit(p.unit) : null;
+    if (!rate && operands.some(operand => operand.dimension !== dimension)) return null;
     const values = operands.map(operand => operand.value * operand.scale);
     const target = units[p.unit.toLowerCase()];
     let computed: number;
-    if (p.operation === "elapsed_days") {
+    if (rate) {
+      if (values.length !== 2 || values[0] === 0
+        || operands[0].dimension !== rate.denominator.dimension || operands[1].dimension !== rate.numerator.dimension
+        || operands.some(operand => operand.dimension.startsWith("currency:"))) return null;
+      computed = values[1] / values[0] / rate.scale;
+    } else if (p.operation === "elapsed_days") {
       if (dimension !== "instant" || values.length !== 2 || !["day", "days"].includes(p.unit)) return null;
       computed = (values[1] - values[0]) / 86400000;
     } else if (p.operation === "ratio" || p.operation === "percent_change") {
@@ -115,7 +101,7 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
     }
     // Difference magnitude is also an anchor; semantic review verifies the
     // direction stated in prose (loss/decrease versus gain/increase).
-    const canonical = p.unit === "%" || p.unit === "" ? p.unit : target?.canonical || "day";
+    const canonical = p.unit === "%" || p.unit === "" ? p.unit : rate?.canonical || target?.canonical || "day";
     output.push(`${Math.abs(p.value)}:${canonical}`);
   }
   return output;

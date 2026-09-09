@@ -84,9 +84,11 @@ test('negated recurrence and separate changes never produce direct inference',()
 });
 const context={owner:{userId:'owner'},pet:{id:'a',name:'Aster',user_id:'owner'},eligiblePets:[{id:'a',name:'Aster',user_id:'owner'}],currentMessage:'What are Aster recorded weights?',conversationTurns:[]};
 test('SDK user-abort caused by our deadline is classified as timeout',async t=>{
- const controller=new AbortController();
- t.mock.method(AbortSignal,'timeout',()=>controller.signal);
- const client={responses:{create:async()=>{controller.abort(new DOMException('deadline','TimeoutError'));const error=new Error('sensitive text');error.name='APIUserAbortError';throw error;}}};
+ const {setTimeout: realTimeout}=await import('node:timers');
+ t.mock.method(globalThis,'setTimeout',(fn,ms,...args)=>realTimeout(fn,Math.min(ms,5),...args));
+ const client={responses:{create:async(_request,{signal})=>new Promise((_resolve,reject)=>{
+  signal.addEventListener('abort',()=>{const error=new Error('sensitive text');error.name='APIUserAbortError';reject(error);},{once:true});
+ })}};
  await assert.rejects(interpretAskQuestion({context,model:'gpt-5-mini',client}),e=>e.diagnostics.timedOut===true&&e.diagnostics.providerErrorCode==='ASK_INTERPRETATION_TIMEOUT'&&!JSON.stringify(e.diagnostics).includes('sensitive'));
 });
 test('ordinary connection failure is not mislabeled timeout',async()=>{

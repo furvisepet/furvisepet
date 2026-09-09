@@ -61,3 +61,12 @@ function pushSentence(value: string, sentences: string[]) {
   const sentence = value.trim();
   if (sentence) sentences.push(sentence);
 }
+
+/** Remove rejected sentences without reflowing the retained answer's format. */
+export function filterSentencesPreservingFacts(value: string, keep: (sentence: string) => boolean) {
+  let result = value;
+  for (const sentence of splitSentencesPreservingFacts(value)) {
+    if (!keep(sentence)) result = result.replace(sentence, "");
+  }
+  return result.trim();
+}

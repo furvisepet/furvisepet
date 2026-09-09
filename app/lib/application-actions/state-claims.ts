@@ -22,6 +22,8 @@ function containsUnquotedStateClaim(value: string) {
   if (authoritativeMutationClaim.test(value)) return true;
   for (const clause of splitSentencesPreservingFacts(value)) for (const match of clause.matchAll(passiveMutationClaim)) {
     const before = clause.slice(0, match.index);
+    // Negated speech is not a receipt; a later affirmative clause still is.
+    if (isNegatedReceiptSpeech(before)) continue;
     // Attribution prefixes are not the subject of the embedded statement.
     const subject = before.split(/\b(?:says|said|reports|states|documents)\b/i).at(-1) || before;
     const dataSubject = /\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(subject);
@@ -48,9 +50,22 @@ function containsUnquotedStateClaim(value: string) {
   return false;
 }
 
+function isNegatedReceiptSpeech(before: string) {
+  const clause = before.split(/[,;.!?]|\b(?:but|however|and|yet)\b/i).at(-1) || "";
+  return /\b(?:cannot|can['’]t|could not|couldn['’]t|will not|won['’]t)\s+(?:honestly\s+|truthfully\s+)?(?:say|claim|confirm|pretend)\s+(?:that\s+)?(?:[\w'’]+\s+){0,5}$/i.test(clause);
+}
+export function containsUntrustedTerminalMutationClaim(value: string) {
+  const pattern = /\b(?:profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(saved|deleted|removed|forgotten|changed|updated|archived|recorded|completed|marked)\b/gi;
+  for (const match of value.matchAll(pattern)) {
+    if (isNegatedReceiptSpeech(value.slice(0, match.index))) continue;
+    if (match[1].toLowerCase() === "recorded" && isHistoricalRecordingAttribution(value)) continue;
+    return true;
+  }
+  return false;
+}
 export function isHistoricalRecordingAttribution(value: string) {
   return !authoritativeMutationClaim.test(value) && !applicationDestination.test(value)
-    && !/\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(value)
+    && !/\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(value.split(/\b(?:was|has been)\s+recorded\b/i)[0])
     && /\b(?:was|has been)\s+recorded\b/i.test(value)
     // Passive reporting without an app actor/destination describes evidence.
     // Dating is an evidence-review concern, not proof of application authority.
@@ -109,6 +124,6 @@ function enforceUnquotedStateClaims(value: string, verifiedSuccess: boolean) {
   const clean = value.replace(assistantOffer, (offer) => /\b(?:but|however|cannot|unable)\b|can[’'\x27]t|won[’'\x27]t/i.test(offer) ? offer : " ").replace(/[^\S\r\n]+/g, " ").trim();
   if (!clean) return "I can help with that.";
   if (verifiedSuccess || !containsUnverifiedStateClaim(clean)) return clean;
-  const safe = clean.split(/(?<=[.!?])(?=\s)/).filter((sentence) => !containsUnverifiedStateClaim(sentence)).join("").trim();
+  const safe = splitSentencesPreservingFacts(clean).filter((sentence) => !containsUnverifiedStateClaim(sentence)).join(" ").trim();
   return safe || "I can help with that.";
 }

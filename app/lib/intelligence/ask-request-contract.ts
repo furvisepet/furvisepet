@@ -99,6 +99,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       return !userPremises.some(text => [...candidates].some(candidate => candidate.length > 0 && text.includes(candidate)));
     })) return fail("premise_source");
     if (p.evidenceBasis === "supplied_context" && !(p.premiseQuotes as string[]).length) return fail("missing_supplied_premise");
+    // A quoted retrieval instruction supplies no stored values.
+    if (p.evidenceBasis === "supplied_context" && (p.premiseQuotes as string[]).every(quote =>
+      /^(?:read|retrieve|look up|find|show|give|tell)\b/i.test(quote.trim()) && quote.trim() === context.currentMessage.trim())) return fail("missing_supplied_premise");
   }
   // Non-record evidence can only narrow authority. A fictional name or date
   // does not grant access to the selected profile, and cannot become a write.
@@ -180,6 +183,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // Quantity and ordering are independent axes. A stale episode operation
   // cannot turn an explicit measurement/duration into an episode reference.
   if (operation === "episode" && ["measurement", "duration", "records"].includes(String(p.quantity))) operation = "recall";
+  // A generic incident is a source lookup, not an ordinal illness episode.
+  if (operation === "episode" && p.quantity !== "episodes" && p.selection === "reference" && p.episodeTopic === null && p.ordinal === null) operation = "recall";
   if (operation !== "episode" && ["latest", "earliest", "earliest_occurrence"].includes(String(p.selection))) p.ordinal = null;
   // An episode ordinal cannot change a measurement comparison. Discard this
   // irrelevant planner hint only when the quantity and operation are explicit.
@@ -204,6 +209,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     const literalWindow = operation === "comparison" ? literalHistoryMonthWindow(context.currentMessage)
       : literalHistoryReportDayWindow(context.currentMessage) || literalHistoryMonthWindow(context.currentMessage);
     if (literalWindow) { p.from = literalWindow.from; p.to = literalWindow.to; }
+  }
+  // Include the explicit report when an exclusive upper bound drops it.
+  // Subscription clipping still applies downstream.
+  if (historical) {
+    const report = literalHistoryReportDayWindow(context.currentMessage);
+    if (report && p.to === report.from) p.to = report.to;
   }
   // Standalone reads need no model rewrite. Keep the user task authoritative
   // across every writer/reviewer input, not merely in an instruction footer.
