@@ -5,6 +5,7 @@ export type AskFailureCode =
   | "AUTH_REQUIRED"
   | "PET_UNAVAILABLE"
   | "CLARIFICATION_REQUIRED"
+  | "SERVICE_DAILY_LIMIT"
   | "PLAN_LIMIT"
   | "RATE_LIMIT"
   | "TEMPORARY_PROVIDER_FAILURE"
@@ -18,6 +19,7 @@ export type AskInternalFailure =
   | "auth_required"
   | "pet_unavailable"
   | "clarification_required"
+  | "service_daily_limit"
   | "plan_limit"
   | "rate_limit"
   | "provider_failure"
@@ -39,6 +41,7 @@ const publicCodeByFailure: Readonly<Record<AskInternalFailure, AskFailureCode>> 
   auth_required: "AUTH_REQUIRED",
   pet_unavailable: "PET_UNAVAILABLE",
   clarification_required: "CLARIFICATION_REQUIRED",
+  service_daily_limit: "SERVICE_DAILY_LIMIT",
   plan_limit: "PLAN_LIMIT",
   rate_limit: "RATE_LIMIT",
   provider_failure: "TEMPORARY_PROVIDER_FAILURE",
@@ -59,6 +62,7 @@ export function getAskErrorPresentation(code: AskFailureCode, retryAfterSeconds?
     case "INVALID_CURRENT_INPUT": return state("Check this message", "This message could not be sent as written. Review it and try again.", false, "edit");
     case "PET_UNAVAILABLE": return state("Choose another pet", "That pet or conversation is no longer available.", false, "saved_data");
     case "CLARIFICATION_REQUIRED": return state("One detail is missing", "Choose the intended pet so Furvise can continue safely.", false, "clarify");
+    case "SERVICE_DAILY_LIMIT": return state("Ask has reached its daily service limit", "Furvise has reached its daily AI limit. Please return after the daily limit resets. Your question is still here, and your saved pet information and history remain available.", false, "saved_data");
     case "PLAN_LIMIT": return state("You've reached your Ask plan limit", buildFurviseQuotaMessage(), false, "saved_data");
     case "RATE_LIMIT": return state("You're sending questions a little too quickly", retryAfter ? `Try again in about ${formatSeconds(retryAfter)}.` : "Wait a moment, then try again.", true, "retry", retryAfter);
     case "REQUEST_IN_PROGRESS": return state("Furvise is still working on this question", retryAfter ? `Please wait about ${formatSeconds(retryAfter)} before checking again.` : "Please wait while the current answer finishes.", false, "wait", retryAfter);
