@@ -1,7 +1,7 @@
 {
   "version": 5,
   "frozenAt": "2026-09-09T07:00:18.902854+00:00",
-  "deployment": "pending PR250 release",
+  "deployment": "623a424073269f448b663ad1edf574477f277db4",
   "method": "Matched repeat of all 120 questions from benchmark4 on the unchanged synthetic fixture. The former 20-question fresh set is now part of the known regression set, not a new holdout. First attempts only; no code changes or replacement retries during the run. Same strict rubric and disclosed source-date clarification. Twelve questions per category.",
   "previousResult": {
     "pass": 107,
@@ -18,8 +18,10 @@
     "additionalAuthorizationUsd": 10,
     "productionLedgerBaselineUsd": 7.589938,
     "productionLedgerBaselineCalls": 1261,
-    "runCeilingUsd": 3.75,
-    "stopRule": "Check every six questions; stop starting turns at $3.40 run delta and reserve $0.35 for a final started batch. Aggregate additional spending including all diagnostics must stay below $10."
+    "runCeilingUsd": 4,
+    "stopRule": "Check every six questions; stop starting turns at $3.65 run delta and reserve $0.35 for a final started batch. Aggregate additional spending including all diagnostics must stay below $10. No additional diagnostics run during this evaluation.",
+    "additionalSpendBeforeRunUsd": 5.280491,
+    "diagnosticSpendUsd": 1.446255
   },
   "gradingClarifications": [
     "Q23 gold corrected before repeat: August 12 note describes stiffness after a longer walk yesterday (August 11); it does not unambiguously date stiffness onset to August 11. Accept June 24 completion followed by recurrence recorded August 12, distinguishing report and walk dates when supplied. Benchmark3 Q23 remains non-pass because it gave only a source dump.",
