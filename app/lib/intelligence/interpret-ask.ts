@@ -263,13 +263,15 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     { model, elapsedMs: Date.now() - started, providerErrorCode: reason, providerErrorType: kind, ...extras });
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
+    for (let attempt = 0; attempt < 2; attempt++) {
+    const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed USER-premise verification. Reconstruct the contract from the original input. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. All original scope and mutation restrictions still apply." };
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
-      providerInput: { input: request.input, instructions: request.instructions },
+      providerInput: { input: attemptRequest.input, instructions: attemptRequest.instructions },
       invoke: () => {
         attempted = true;
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
         providerSignal = AbortSignal.timeout(boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs));
-        return activeClient.responses.create(request as never, { signal: providerSignal });
+        return activeClient.responses.create(attemptRequest as never, { signal: providerSignal });
       } });
     // Parse transport/JSON separately from server validation. Never surface or
     // log the parser's raw error message, response text, refusal or field values.
@@ -283,11 +285,18 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     let parsed: AskInterpretation;
     try { parsed = recoverAskInterpretation(result.parsed, context); }
     catch (error) {
+      if (attempt === 0 && error instanceof AskInterpretationValidationError && error.reason === "ASK_REQUEST_CONTRACT_PREMISE_SOURCE") {
+        onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started,
+          providerErrorCode: error.reason, providerErrorType: error.category, ...metadata });
+        continue; // One admitted repair; never accept or weaken the rejected contract.
+      }
       if (error instanceof AskInterpretationValidationError) throw fail(error.reason, error.category, metadata);
       throw fail("ASK_INTERPRETATION_VALIDATION", "semantic", metadata);
     }
     onProviderEvent?.({ stage: "interpretation", outcome: "succeeded", model, elapsedMs: Date.now() - started, ...metadata });
     return parsed;
+    }
+    throw fail("ASK_INTERPRETATION_VALIDATION", "semantic");
   } catch (error) {
     if (error instanceof AiAdmissionError) {
       if (attempted) onProviderEvent?.({ stage: "interpretation", outcome: "failed", model, elapsedMs: Date.now() - started, providerErrorCode: "ASK_INTERPRETATION_ADMISSION" });

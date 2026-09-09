@@ -220,9 +220,23 @@ export function validateGeneratedAnswer(
       answerText = answerText.replace(JSON.stringify(content).slice(1, -1), "");
     }
   }
-  const unauthorizedPetNamed = !conversationOnly && (context.eligiblePets || []).some((pet) => pet.name
-    && !authoritativePetIds.includes(pet.id)
-    && new RegExp(`\\b${escapeRegex(pet.name)}\\b`, "i").test(answerText));
+  const reviewedSources = reviewedHistory?.sourceIds.map(id =>
+    response.evidenceContract?.represented.filter(span => span.sourceId === id) || []) || [];
+  const scopedReview = reviewedSources.length > 0 && reviewedSources.every(spans => spans.length > 0
+    && spans.every(span => authoritativePetIds.includes(span.petId)));
+  const unauthorizedPetNamed = !conversationOnly && (context.eligiblePets || []).some((pet) => {
+    if (!pet.name || authoritativePetIds.includes(pet.id)) return false;
+    const named = new RegExp(`\\b${escapeRegex(pet.name)}\\b`, "i");
+    let unchecked = answerText;
+    // A reviewed note may mention another animal without reading that animal's
+    // records. Exempt only immutable reviewed prose, backed by cited sources
+    // belonging to the authorized subject. Other generated prose stays checked.
+    if (scopedReview && reviewedSources.some(spans => spans.some(span => named.test(span.text)))) {
+      const prose = reviewedHistory?.proseText || reviewedHistory?.text;
+      if (prose) unchecked = unchecked.replace(JSON.stringify(prose).slice(1, -1), "");
+    }
+    return named.test(unchecked);
+  });
   if (unauthorizedPetNamed) errors.push("response_subject_disagreement");
   if (!response.answer.summary) errors.push("empty_after_grounding_repair");
   preserveFictionalDialogueQuotes(assistantProse, prose => {

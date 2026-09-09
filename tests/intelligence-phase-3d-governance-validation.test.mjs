@@ -3,11 +3,27 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { authorizeProposedActions } from "../app/lib/intelligence/governance/authorize-actions.ts";
 import { validateGeneratedAnswer } from "../app/lib/intelligence/validation/validate-answer.ts";
+import { recordHistoryReview, historyReviewSignature } from "../app/lib/intelligence/history-review-receipt.ts";
 
 const care = (overrides = {}) => ({ action: "resolve_concern", category: "symptom", title: "Breathing returned to normal", details: "Owner reports Mani breathing is normal", severity: "routine", confidence: 0.99, relatedRecordId: "c", ...overrides });
 const memory = (overrides = {}) => ({ subjectType: "pet", subjectId: "pet", category: "preference", factKey: "grooming", factValue: "brush", confidence: 0.95, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "likes the brush", ...overrides });
 const reasoning = (summary, overrides = {}) => ({ answer: { title: "Answer", summary, sections: [], safetyNote: null }, userIntent: "question", relevantContextIds: [], referencedRecords: [], safetyLevel: "normal", shoppingSuppressed: false, suggestedFollowUps: [], proposedHistoryUpdate: { shouldOffer: false, category: null, title: null, details: null, severity: null, resolvesConcernId: null }, responseMode: "conversational", model: "test", messageUnderstanding: {}, intelligenceSafety: { level: "routine", reason: "", requiresImmediateAction: false, shoppingSuppressed: false }, learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: "high", usedPetContext: true, usedCareHistory: true, usedMemories: false }, ...overrides });
 const context = (message, memories = []) => ({ currentMessage: message, pet: { id: "pet", name: "Mani" }, memories, careEntries: [], currentState: { state: { breathing: { status: "normal" } } } });
+
+test('reviewed incidental names require unchanged authorized cited evidence', () => {
+ const live={...context('Explain the shared observation.'),eligiblePets:[{id:'pet',name:'Mani'},{id:'other',name:'Bramble'}]};
+ const text='Mani and Bramble shared the food; individual portions are unknown.';
+ for(const variation of ['valid','foreign-source','uncited-name','changed-evidence','forged-receipt']) {
+  const evidenceContract={interpretation:{request:{outputFormat:'prose'}},scope:{},represented:[
+   {sourceId:'source',petId:variation==='foreign-source'?'other':'pet',text:variation==='uncited-name'?'Mani ate food.':text}],answerSourceIds:[]};
+  const result=reasoning(text,{evidenceContract});
+  if(variation!=='forged-receipt')recordHistoryReview(result,{signature:historyReviewSignature(result),text,proseText:text,sourceIds:['source']});
+  if(variation==='changed-evidence')result.evidenceContract.represented[0].text='Changed';
+  const checked=validateGeneratedAnswer(result,live,'routine',['pet']);
+  assert.equal(checked.valid,variation==='valid',variation);
+  if(variation!=='valid')assert.ok(checked.errors.includes('response_subject_disagreement'),variation);
+ }
+});
 
 test("model proposal alone cannot write and explicit care evidence is accepted only by governance", () => {
   const result = authorizeProposedActions({ message: "Mani breathing is normal", petId: "pet", careActions: [care()], memories: [] });
