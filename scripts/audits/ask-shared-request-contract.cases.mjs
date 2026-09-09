@@ -543,3 +543,10 @@ test('inclusive as-of date is a scope anchor while the event keeps its own date'
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
   assert.equal(r.result.reasoning.answer.summary, answer);
 });
+
+test('verbatim operand spans retain context and reject multiple measurements', () => {
+ const sources = [{ sourceId: 's', text: 'A 22-minute session followed a 6-minute session.' }];
+ const operands = ['22-minute session', '6-minute session'].map(literal => ({ sourceId: 's', field: 'text', literal }));
+ assert.deepEqual(verifiedCalculationQuantities([{ operation: 'difference', operands, value: 16, unit: 'minutes' }], sources), ['16:minute']);
+ assert.equal(verifiedCalculationQuantities([{ operation: 'convert', operands: [{ ...operands[0], literal: sources[0].text }], value: 22, unit: 'minutes' }], sources), null);
+});

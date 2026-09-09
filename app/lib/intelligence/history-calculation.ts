@@ -58,7 +58,12 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
         operands.push({ value: Date.parse(operand.literal), dimension: "instant", scale: 1 });
       } else {
         // Require a complete numeric token, not a substring of a larger value.
-        const match = operand.literal.match(/^(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
+        const tokens = [...operand.literal.matchAll(/(?<![\p{L}\p{N}_.-])(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
+          .filter(token => units[token[2].toLowerCase()]);
+        const exactToken = operand.literal.match(/^(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
+        // A longer verbatim source span may identify the measured object. It
+        // must contain exactly one supported measurement, never ambiguous data.
+        const match = exactToken || (source.text.includes(operand.literal) && tokens.length === 1 ? tokens[0] : null);
         if (!match) return null;
         const unit = units[match[2].toLowerCase()];
         if (!unit || !finite(Number(match[1]))) return null;

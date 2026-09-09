@@ -56,7 +56,7 @@ const admission={async beginProviderCall(input){
   turnCalls++; return {reservation:{}};
 },async recordProviderUsage(){},recordProviderFailure(){}};
 
-const phase = process.argv.includes('--verification') ? 'general-blockers-verification' : 'general-blockers';
+const phase = process.argv.includes('--duration-check') ? 'general-blockers-duration-check' : process.argv.includes('--verification') ? 'general-blockers-verification' : 'general-blockers';
 const fixturePets=['Juniper','Maple','Tansy'].map((name,index)=>({...pets[index],id:name.toLowerCase(),name}));
 const scenarios=[];
 for (const years of [false,true]) {
@@ -85,6 +85,15 @@ if (phase.endsWith('-verification')) {
     scenario.id += '-new';
     for (const row of scenario.rows) row.note = row.note.replaceAll('7-minute', '9-minute').replaceAll('18-minute', '26-minute').replaceAll('blanket', 'mat').replaceAll('door closed', 'lights dimmed');
     scenario.question = scenario.question.replace('blanket', 'mat').replace('September 5', 'September 7');
+  }
+}
+if (phase.endsWith('-duration-check')) {
+  const durationScenarios = scenarios.filter(scenario => scenario.id.endsWith('-duration'));
+  scenarios.splice(0, scenarios.length, ...durationScenarios);
+  for (const scenario of scenarios) {
+    scenario.id += '-final';
+    for (const row of scenario.rows) row.note = row.note.replaceAll('7-minute', '8-minute').replaceAll('18-minute', '23-minute');
+    scenario.question = 'What are Juniper’s two saved ride lengths, and how many minutes longer was the later one?';
   }
 }
 const outputPath=new URL('../../docs/ask-typed-'+phase+'-live.json',import.meta.url);
