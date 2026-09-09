@@ -1,0 +1,24 @@
+{
+  "frozenCommit": "e33b442828bd39ae4b812a01ce67bd2067884a82",
+  "status": "aborted_pending_fixture_investigation",
+  "attempted": 2,
+  "notAttempted": 53,
+  "providerCalls": 0,
+  "costUsd": 0,
+  "results": [
+    {
+      "answer": "This message could not be sent as written. Review it and try again.",
+      "grade": "error",
+      "id": 1,
+      "observedAt": "2026-09-09T21:59:41.161Z",
+      "startedAt": "2026-09-09T21:59:15.473Z"
+    },
+    {
+      "answer": "This message could not be sent as written. Review it and try again.",
+      "grade": "error",
+      "id": 2,
+      "observedAt": "2026-09-09T22:00:21.066Z",
+      "startedAt": "2026-09-09T21:59:58.882Z"
+    }
+  ]
+}
