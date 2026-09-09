@@ -168,6 +168,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     p.mode = "read";
     if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
     p.question = context.currentMessage;
+    // Procedural clarification hints no longer apply once the server resolves a read.
+    // Language, format and factual obligations remain in the original user text.
+    p.requirements = [];
   }
   let operation = p.operation as typeof operations[number];
   // Quantity is a separate semantic axis. Counting records or measurements
