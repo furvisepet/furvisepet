@@ -200,7 +200,8 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       const hasProvenance = membership.memberships?.some(m => m.care_entry_id === s.id && m.recorded_provenance !== undefined);
       const b=governed === "opening" ? { separate:true, occurrences:null }
         : hasProvenance ? null : boundary(s,context.pet.name,result.topic);
-      if (!b || s.deleted_at || (result.from && (Date.parse(s.occurred_at)<Date.parse(result.from) || Date.parse(s.occurred_at)>=Date.parse(result.to!)))) continue;
+      if (!b || s.deleted_at || result.from && Date.parse(s.occurred_at) < Date.parse(result.from)
+        || result.to && Date.parse(s.occurred_at) >= Date.parse(result.to)) continue;
       const ep=episodes.find(e=>e.id===s.episode_id);
       if (!ep || ["superseded","archived","dismissed"].includes(ep.status)) continue;
       const id=`episode:${ep.id}`;

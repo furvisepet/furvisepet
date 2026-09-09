@@ -95,7 +95,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
     continuation: [], reasons: ["lexical_or_period_matches_not_semantic_completeness", "no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
   const descending = context.askInterpretation?.selection === "latest";
-  const endpointComparison = context.askInterpretation?.readOnly === true
+  const endpointComparison = context.askInterpretation?.request
+    ? context.askInterpretation.selection === "comparison" || context.askInterpretation.readOperation === "comparison"
+    : context.askInterpretation?.readOnly === true
     && /\bweights?\b/i.test(context.currentMessage)
     && /\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage);
   const candidates: CareEntryRow[] = [];
@@ -137,7 +139,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           } else {
             let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
             if (!futureSourceRequested) query = query.lt("occurred_at", new Date(asOf + 1).toISOString());
-            if (plan.from) query = query.gte("occurred_at", plan.from).lt("occurred_at", plan.to!);
+            if (plan.from) query = query.gte("occurred_at", plan.from);
+            if (plan.to) query = query.lt("occurred_at", plan.to);
             if (cursor) query = query.or(`occurred_at.${readDescending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${readDescending ? "lt" : "gt"}.${cursor.id})`);
             result = await query.order("occurred_at", { ascending: !readDescending }).order("id", { ascending: !readDescending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
           }
@@ -205,7 +208,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1 : undefined);
   // Broad food summaries should retain explicit diet records before incidental
   // appetite/eating matches. This is ranking only; keep all candidates and losses.
-  if (["summary", "comparison"].includes(selection || "") && /\b(?:foods?|diet)\b/i.test(context.currentMessage)) {
+  if (!context.askInterpretation?.request && ["summary", "comparison"].includes(selection || "") && /\b(?:foods?|diet)\b/i.test(context.currentMessage)) {
     const explicitFood = (entry: CareEntryRow) => /\b(?:food|diet|kibble|treats?)\b/i.test(`${entry.title || ""} ${entry.note}`) ? 0 : 1;
     ordered.sort((a, b) => explicitFood(a) - explicitFood(b));
   }
@@ -395,7 +398,9 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
     const replacementAuthors = new Set(graphRelations.filter(edge => ["corrects", "supersedes"].includes(edge.relation_type)).map(edge => edge.from_claim_id));
     for (const claim of mapped.filter(claim => graph.effectiveClaimIds.has(claim.id) && !linkedCandidates.has(claim.id) && replacementAuthors.has(claim.id))) {
       const eventTime = claim.occurredAt ? Date.parse(claim.occurredAt) : NaN;
-      const outsidePeriod = Boolean(coverage.plan.from && (!Number.isFinite(eventTime) || eventTime < Date.parse(coverage.plan.from) || eventTime >= Date.parse(coverage.plan.to!)));
+      const outsidePeriod = Boolean((coverage.plan.from || coverage.plan.to) && (!Number.isFinite(eventTime)
+        || coverage.plan.from && eventTime < Date.parse(coverage.plan.from)
+        || coverage.plan.to && eventTime >= Date.parse(coverage.plan.to)));
       coverage.provenance.push({ sourceId: `claim:${claim.id}`, claimIds: [claim.id], status: !requestedPets.includes(claim.subjectId!) ? "reassigned_outside_requested_pet" : outsidePeriod ? "outside_requested_period" : "effective_replacement", subjectId: claim.subjectId });
       if (outsidePeriod) continue;
       if (!requestedPets.includes(claim.subjectId!) || claim.persistenceDestination !== "history") continue;

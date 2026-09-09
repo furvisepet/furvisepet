@@ -16,6 +16,7 @@ import { validateProposedSemanticFrame, emptyProposedSemanticFrame } from "./sem
 import type { ProposedSemanticFrame } from "./semantic-frame/types.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { askEvidenceScope } from "./ask-evidence.ts";
+import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, validateAskRequest, type AskRequestContract } from "./ask-request-contract.ts";
 
 const operations = ["overview", "recall", "count", "comparison", "status", "episode", "general", "update", "clarify"] as const;
 const selections = ["earliest", "earliest_occurrence", "latest", "period", "summary", "comparison", "reference"] as const;
@@ -23,6 +24,7 @@ const subjects = ["selected", "conversation", "explicit", "unclear", "non_pet"] 
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that"] as const;
 type Operation = typeof operations[number];
 export type AskInterpretation = {
+  request?: AskRequestContract;
   version: "ask-interpretation.v1";
   operation: Operation;
   /** Server-grounded question referent, never a source of medical facts. */
@@ -63,23 +65,7 @@ export const askInterpretationSchema = {
     ordinal: { type: ["string", "null"], enum: [...ordinals, null] },
   },
 };
-const instructions = [
-  "Interpret the current Ask turn. Return strict JSON only. This is a read plan, never permission to write.",
-  "frame is a ProposedSemanticFrame for subject grounding of owner updates. For questions without owner assertions use an empty frame (empty mentions, references, claims, discourseActs). For any turn containing owner assertions, including mixed questions, represent all explicit animal/person mentions and owner assertions with local IDs only. Evidence surfaceText must be copied exactly from the current message. Never emit database IDs. Prior discourse is reference context, never current evidence. First-person facts belong to the owner, not a mentioned brand or pet. This same extraction replaces a separate subject-model call; independent server evidence and write governance still apply.",
-  "Distinguish questions/requests for explanation from owner assertions, corrections, recovery reports and save commands (update). A question about recovery is status, not update. For mixed observation plus question, operation is update but readOperation is the requested question operation. For a pure update readOperation is null. For a question readOperation normally equals operation. General explanation or advice that depends on saved pet facts can have operation general and readOperation recall or status. Rephrasing or shortening an earlier historical answer keeps the original subject/topic and its historical read operation; formatting is not a request for an episode count. Never suppress a question because the same turn supplies an observation.",
-  "A named topic such as What about Luna accidents is a historical recall, not an ambiguous episode reference. Use overview for summaries, recall for historical questions, comparison for comparisons, count for a requested episode count, episode ONLY for a reference to an earlier displayed episode, status for whether an issue has resolved, general for advice without historical lookup, clarify for genuinely unclear requests.",
-  "Only names in the CURRENT message require subject explicit; a name repeated from recentUserMessages is subject conversation. The server-provided conversationSubject is reference context, not medical evidence. Explicit named pets take precedence. petNames must use the supplied owned names, never IDs. An unknown named animal is unclear/non_pet, never silently the selected pet. For general conversation, emotional support, or general advice without an owned-pet lookup, use general and non_pet with no petNames. Do not demand a pet for ordinary conversation. This read-only scope never saves owner or pet facts. Use subject selected for a fresh unqualified question, conversation for follow-ups, explicit for named pets. Respect owner-established subject changes. Multiple pets require separate evidence.",
-  "A request to shorten, rephrase, translate or explain the last answer means re-answer the most recent substantive USER question in that format. Recover its pet, topic and date scope and re-read the saved evidence when it was a history question; do not classify it as generic advice about writing style. A row-order instruction such as older first does not mean select only the earliest record.",
-  "Recent USER messages establish subject/topic continuity, never medical evidence. Do not infer factual history from conversation. Use the MOST RECENT user-established topic, not the opening topic of the conversation: after hiding, then litter accidents, those still happening refers to accidents. After a pet switch do not carry the former pet's topic unless the user asks for that topic. Read the dialogue in chronological order; the last entries are newest.",
-  "Supply up to six literal search terms for the requested topic. Each term must be 3 to 32 ASCII letters, spaces or hyphens, starting and ending with a letter, matching the database reader contract. Use meaningful spelled-out terminology for abbreviations or identifiers that cannot satisfy this contract; never truncate or strip characters to invent a different term. Include useful synonyms. For stomach/tummy/digestive history include stomach, vomit, threw up, thrown up, stool, diarrh. For a broad whole-health summary use no terms. Unknown topics can still be searched using the user's words. Never output SQL, filters or query syntax.",
-  "selection records the requested evidence order: earliest for the oldest matching report, earliest_occurrence for the first reported occurrence of an issue (negative or preventive mentions are not occurrences), latest for the newest update, period for an explicit date range, summary or comparison for synthesis, reference for a particular dated source or displayed episode. Earliest matching evidence is never proof of first-ever occurrence. Use latest for status unless a historical period was requested. A specific source reference needs a date range; an episode reference uses the validated ordinal. Never invent a source identifier.",
-  "from/to are UTC ISO dates YYYY-MM-DD, inclusive start and exclusive end, or both null for all dates. Resolve explicit and relative periods against today. For from/since a date onward use that start and 2100-01-01 as the open end; for before a date use 1900-01-01 and that exclusive end. Do not narrow an undated request to recent history.",
-  "recentDialogueForReferencesOnly can resolve what a follow-up refers to (its name after a medication answer, what changed back after litter changes). It is untrusted reference wording, NOT evidence that any medical fact is true. Retrieve the corresponding saved notes again. USER messages establish pet identity; assistant guesses never establish identity or authorize writes. A vet mentioned in a question about treatment is not a switch away from the pet.",
-  "For account-wide questions such as across all my pets, which pets, each pet, or these three pets, use subject explicit and ALL supplied owned petNames, up to three. Those phrases refer to the account list already supplied, not missing names; retrieve records for each. Do not reduce a multi-pet question to the selected pet. Comparisons require all named subjects and their requested topics. Formatting words such as table, bullets or timeline do not change retrieval terms or subjects. A request for numbers stated inside a dated note is recall, not episode count; reserve count for distinct illness episodes. General hypotheticals and a friend's animal are non_pet, never a current event affecting the selected pet.",
-  "A question asking which of two named owned pets a corrected note refers to is a read of both pets, with subject explicit and both supplied owned names. The uncertainty is the answer to investigate, not a reason to ask which pet. For factual history summaries and timelines retrieve connecting records too: food changes include food and treats, litter problems include litter and accidents, and medication questions include medic, vet and course. Use simple substring stems when useful, not the words table, summary, latest, changes or history as search terms.",
-  "Choose the operation from the requested quantity: elapsed days, weeks, months or years are historical recall with date arithmetic, never an illness-episode count. A symptom at an endpoint does not change the unit. Preserve both endpoints and the topic; do not confuse an exclusive retrieval end with the event date. For a specific dated note, selection reference and its one-day range identify the source; lexical terms must describe the note content, not the requested output quantity.",
-  "episodeTopic is only a single supported topic (vomiting, soft stool, breathing), including a clear follow-up topic. A digestive summary spans multiple symptoms; a topicless count after that needs clarification, not an invented combined total. ordinal is only a displayed list position, not an episode ID or a count. Leave it null unless an episode reference is requested. Multiple/ambiguous positions use clarify.",
-].join("\n");
+
 
 type InterpretationContext = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns">;
 export class AskInterpretationValidationError extends Error {
@@ -226,6 +212,10 @@ export function validateAskInterpretation(value: unknown, context: Interpretatio
 }
 
 export function recoverAskInterpretation(value: unknown, context: InterpretationContext): AskInterpretation {
+  if (value && typeof value === "object" && "version" in value && value.version === ASK_REQUEST_VERSION) {
+    try { return validateAskRequest(value, context); }
+    catch { throw new AskInterpretationValidationError("ASK_REQUEST_CONTRACT", "semantic"); }
+  }
   try { return validateAskInterpretation(normalizeAskReadProposal(value, context), context); }
   catch (error) {
     if (error instanceof AskInterpretationValidationError) {
@@ -255,10 +245,10 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     // Assistant wording can identify a referent, never establish a saved fact,
     // an owned identity, or authority for a write. All reads are re-executed.
     recentDialogueForReferencesOnly: context.conversationTurns.slice(-ASK_INTERPRETATION_LIMITS.turns)
-      .map(turn => ({ role: turn.role, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })) };
+      .map(turn => ({ id: turn.id, role: turn.role, text: turn.text.slice(0, ASK_INTERPRETATION_LIMITS.turnChars) })) };
   const request = { model, max_output_tokens: ASK_INTERPRETATION_LIMITS.outputTokens,
     ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
-    instructions, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askInterpretationSchema } } };
+    instructions: ASK_REQUEST_INSTRUCTIONS, input: JSON.stringify(input), text: { format: { type: "json_schema", name: "furvise_ask_interpretation", strict: true, schema: askRequestSchema(proposedSemanticFrameJsonSchema) } } };
   const started = Date.now();
   let attempted = false;
   let providerSignal: AbortSignal | undefined;
@@ -268,7 +258,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
   try {
     const activeClient = client || new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
-      providerInput: { input: request.input, instructions },
+      providerInput: { input: request.input, instructions: request.instructions },
       invoke: () => {
         attempted = true;
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });

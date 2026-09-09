@@ -193,7 +193,10 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
   globalThis.__historyAuditReviewClient = {responses:{async create(request, options) {
     reviewRequests.push(request);
     if (reviewProviderResponse) return reviewProviderResponse(request, options);
-    return {status:'completed',output_text:JSON.stringify(reviewResponse && 'retainedSentenceIndexes' in reviewResponse ? reviewResponse : {approved:!!reviewResponse?.approved,retainedSentenceIndexes:reviewResponse?.approved ? JSON.parse(request.input).draft.sentences.map((_,index)=>index) : []}),usage:{input_tokens:800,output_tokens:30}};
+    const selected = reviewResponse && 'retainedSentenceIndexes' in reviewResponse ? reviewResponse : {approved:!!reviewResponse?.approved,retainedSentenceIndexes:reviewResponse?.approved ? JSON.parse(request.input).draft.sentences.map((_,index)=>index) : []};
+    const payload = request.text.format.schema.properties.obligations && !('obligations' in selected)
+      ? {...selected, obligations: JSON.parse(request.input).obligations.map(({index})=>({index,status:selected.approved?'answered':'missing',sentenceIndexes:selected.approved?selected.retainedSentenceIndexes:[]}))} : selected;
+    return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:800,output_tokens:30}};
   }}};
   const requests = [];
   globalThis.__historyAuditAfterGeneration = afterGeneration;
