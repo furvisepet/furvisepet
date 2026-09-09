@@ -140,7 +140,7 @@ const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 const askRequestTimeoutMs = 50_000;
 const askGuardOperationTtlSeconds = 90 * 24 * 60 * 60;
 
-type InternalAskFailureCode = "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "IDEMPOTENCY_CONFLICT" | "REQUEST_IN_PROGRESS" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
+type InternalAskFailureCode = "AI_DAILY_CAP_REACHED" | "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "IDEMPOTENCY_CONFLICT" | "REQUEST_IN_PROGRESS" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
 
 type ConversationMessage =
   | { id: string; role: "user"; text: string }
@@ -836,7 +836,9 @@ export async function POST(request: Request) {
         providerCallAttempted: false,
         requestId,
       });
-      turnLifecycle.fail(error.reason, true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+      const dailyCapReached = error.code === "AI_DAILY_CAP_REACHED";
+      turnLifecycle.fail(error.reason, !dailyCapReached); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+      if (dailyCapReached) return askFailure("AI_DAILY_CAP_REACHED", "Furvise has reached its daily AI limit. Please return after the daily limit resets.", error.status, { retryable: false }, error.reason);
       return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, error.status, {}, error.reason);
     }
     if (error instanceof AiCreditLimitError) {
@@ -2234,6 +2236,7 @@ function askFailure(code: InternalAskFailureCode, message: string, status: numbe
 }
 
 function internalFailureClass(code: InternalAskFailureCode): AskInternalFailure {
+  if (code === "AI_DAILY_CAP_REACHED") return "service_daily_limit";
   if (code === "AUTH_REQUIRED") return "auth_required";
   if (code === "PET_NOT_FOUND") return "pet_unavailable";
   if (code === "INVALID_MESSAGE") return "invalid_input";

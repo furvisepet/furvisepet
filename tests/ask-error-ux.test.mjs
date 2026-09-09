@@ -23,3 +23,15 @@ test("rate, plan, provider, database, and in-progress states remain distinct", (
   assert.match(getAskErrorPresentation("TEMPORARY_DATABASE_FAILURE").title, /finish/i);
   assert.equal(getAskErrorPresentation("REQUEST_IN_PROGRESS").recommendedAction, "wait");
 });
+
+ test("daily service cap does not invite retry, editing, or a plan upgrade", () => {
+  const code = publicAskFailureCode("service_daily_limit");
+  assert.equal(code, "SERVICE_DAILY_LIMIT");
+  const presentation = getAskErrorPresentation(code);
+  assert.equal(presentation.retryable, false);
+  assert.equal(presentation.recommendedAction, "saved_data");
+  assert.match(presentation.message, /daily.*limit.*reset/i);
+  assert.match(presentation.message, /saved pet information and history remain available/i);
+  assert.doesNotMatch(presentation.message, /try again|upgrade|your.*plan limit/i);
+  assert.equal(getAskErrorPresentation("TEMPORARY_PROVIDER_FAILURE").retryable, true);
+});
