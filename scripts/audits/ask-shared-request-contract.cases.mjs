@@ -7,7 +7,7 @@ import { emptyProposedSemanticFrame } from '../../app/lib/intelligence/semantic-
 import { requestReferenceContext } from '../../app/lib/intelligence/request-reference-context.ts';
 import { parseTaskHistoryReview } from '../../app/lib/intelligence/history-review-selection.ts';
 import { verifiedCalculationQuantities, parseHistoryCalculations } from '../../app/lib/intelligence/history-calculation.ts';
-import { historicalReadSchema } from '../../app/lib/intelligence/historical-read-response.ts';
+import { matchesHistoryOutputFormat, historicalReadSchema, canonicalHistoricalRead } from '../../app/lib/intelligence/historical-read-response.ts';
 import { stripKnownHistoryCitations } from '../../app/lib/intelligence/public-history-text.ts';
 import { historyNarrativeAnchorsSupported } from '../../app/lib/intelligence/history-narrative-facts.ts';
 
@@ -24,7 +24,19 @@ test('historical read schema excludes mutation and duplicate extraction fields',
   assert.equal(schema.additionalProperties, false);
   assert.equal(schema.properties.careActions, undefined);
   assert.equal(schema.properties.semanticFrame, undefined);
-  assert.equal(schema.required.length, 6);
+  assert.equal(schema.properties.answer, undefined);
+  assert.equal(schema.required.length, 9);
+});
+test('canonical read table renders once and rejects competing or malformed bodies', () => {
+  const output = { readVersion: 'history-answer.v1', layout: 'table', limitation: null, historyNarrative: null,
+    safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history', relevantContextIds: ['care:a'],
+    table: { headers: ['Pet', 'Observation'], rows: [{ cells: ['Aster', 'Slept normally.'], sourceIds: ['care:a'], calculations: [] }] } };
+  const parsed = canonicalHistoricalRead(output);
+  assert.equal(parsed.answer, '| Pet | Observation |\n| --- | --- |\n| Aster | Slept normally. |');
+  assert.equal(parsed.answer, parsed.historyNarrative.sentences[0].text);
+  assert.throws(() => canonicalHistoricalRead({ ...output, answer: 'A competing answer' }));
+  assert.throws(() => canonicalHistoricalRead({ ...output, table: { ...output.table, rows: [{ cells: ['Missing column'], sourceIds: ['care:a'], calculations: [] }] } }));
+  assert.throws(() => canonicalHistoricalRead({ ...output, table: null, historyNarrative: { sentences: [{ text: 'Prose instead of the required table.', sourceIds: ['care:a'] }] } }));
 });
 test('read planner can omit extraction while writes still require a valid frame', () => {
   assert.equal(validateAskRequest(proposal({ frame: null }), context).readOnly, true);
@@ -32,8 +44,8 @@ test('read planner can omit extraction while writes still require a valid frame'
 });
 test('validated query boundaries are scope anchors, unrelated invented dates remain unsupported', () => {
   const source = [{ text: 'Aster travelled calmly.', occurredAt: '2026-06-15T12:00:00Z' }];
-  assert.equal(historyNarrativeAnchorsSupported('Before 2026-07-01, a report recorded calm travel.', source, '', [], false, ['2026-07-01']), true);
-  assert.equal(historyNarrativeAnchorsSupported('Travel happened on 2026-08-01.', source, '', [], false, ['2026-07-01']), false);
+  assert.equal(historyNarrativeAnchorsSupported('Before 2026-07-01, a report recorded calm travel.', source, '', [], false, ['2026-07-01T00:00:00.000Z']), true);
+  assert.equal(historyNarrativeAnchorsSupported('Travel happened on 2026-08-01.', source, '', [], false, ['2026-07-01T00:00:00.000Z']), false);
 });
 test('public citation projection removes only known source annotations', () => {
   const ids = new Set(['care:a', 'care:b']);
@@ -195,6 +207,20 @@ test('shared lexical retrieval reserves scoped context for different wording wit
   const schema = r.prompt && r.serialized;
   assert.ok(schema);
 });
+test('shared status reads retain resolved multi-pet scope through evidence creation', async t => {
+  clock(t);
+  const r = await exercise('Summarize both pets recorded status.', { fixturePets, messages: [], history: true,
+    rows: [care('first-status', 'milo', '2026-06-04', 'general', 'Aster travelled calmly.'),
+      care('second-status', 'luna', '2026-06-04', 'general', 'Bramble slept through the night.')],
+    interpretationProposal: proposal({ operation: 'status', petNames: ['Aster', 'Bramble'] }),
+    providerOverrides: { historyNarrative: { sentences: [
+      { text: 'Aster travelled calmly.', sourceIds: ['care:first-status'] },
+      { text: 'Bramble slept through the night.', sourceIds: ['care:second-status'] },
+    ] } }, reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.equal(r.result.reasoning.evidenceContract.scope.status, 'resolved');
+  assert.match(r.result.reasoning.answer.summary, /Aster travelled calmly/);
+  assert.match(r.result.reasoning.answer.summary, /Bramble slept through the night/);
+});
 test('read premise produces no memory or care proposal through full pipeline', async t => {
   clock(t);
   const r = await exercise('Aster has a diagnosis. Is that premise supported?', { fixturePets, rows: [], messages: [], history: true,
@@ -232,4 +258,99 @@ test('unlinked correction may be reported but does not create a verified edge', 
   assert.equal(r.result.reasoning.answer.summary, answer);
   assert.equal(r.context.askHistory.coverage.provenance[0].status, 'unlinked_correction_uncertain');
   assert.deepEqual(r.result.acceptedSemanticEvents, []);
+});
+
+for (const outcome of ['approved', 'empty-body', 'malformed-denial', 'rejected', 'unknown-source', 'mutation-field']) test(`shared read repair is bounded and independently checked: ${outcome}`, async t => {
+  clock(t);
+  let calls = 0;
+  const r = await exercise('Summarize the saved rest observation.', { fixturePets, messages: [], history: true,
+    rows: [care('rest', 'milo', '2026-06-04', 'general', 'Aster slept normally.')], interpretationProposal: proposal(),
+    providerOverrides: { historyNarrative: { sentences: [{ text: 'Aster slept peacefully.', sourceIds: ['care:rest'] }] } },
+    providerResponse: outcome === 'empty-body' ? async () => ({ status: 'completed', usage: { input_tokens: 800, output_tokens: 100 },
+      output_text: JSON.stringify({ readVersion: 'history-answer.v1', layout: 'json', historyNarrative: null, table: null, limitation: null,
+        relevantContextIds: ['care:rest'], safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history' }) }) : undefined,
+    expectedReviewCalls: ['approved', 'empty-body', 'malformed-denial', 'rejected'].includes(outcome) ? 3 : 2,
+    reviewProviderResponse: async request => {
+      calls++;
+      const input = JSON.parse(request.input);
+      let payload;
+      if (request.text.format.name === 'furvise_history_repair') {
+        assert.equal(calls, 2);
+        assert.match(input.rejectionReason, /peacefully/);
+        payload = { readVersion: 'history-answer.v1', layout: 'prose', limitation: null, table: null,
+          safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history', relevantContextIds: ['care:rest'],
+          historyNarrative: { sentences: [{ text: outcome === 'rejected' ? 'Aster has cancer.' : 'Aster slept normally.',
+            sourceIds: [outcome === 'unknown-source' ? 'care:foreign' : 'care:rest'], calculations: [] }] } };
+        if (outcome === 'mutation-field') payload.careActions = [{ action: 'save' }];
+      } else {
+        const approved = calls === 3 && ['approved', 'empty-body', 'malformed-denial'].includes(outcome);
+        payload = { approved, retainedSentenceIndexes: approved ? [0] : [], rejectionReason: approved ? null : 'The modifier peacefully is unsupported.',
+          obligations: input.obligations.map(({ index }) => ({ index, status: approved ? 'answered' : 'missing', sentenceIndexes: approved ? [0] : [] })) };
+      }
+      if (calls === 1 && outcome === 'malformed-denial') payload.obligations[0] = { index: 0, status: 'answered', sentenceIndexes: [0] };
+      return { status: 'completed', output_text: JSON.stringify(payload), usage: { input_tokens: 800, output_tokens: 200 } };
+    } });
+  if (['approved', 'empty-body', 'malformed-denial'].includes(outcome)) assert.equal(r.result.reasoning.answer.summary, 'Aster slept normally.');
+  assert.doesNotMatch(r.result.reasoning.answer.summary, /peacefully|has cancer|care:foreign/);
+  assert.equal(r.result.acceptedCareActions.length, 0);
+  assert.equal(r.result.acceptedSemanticEvents.length, 0);
+});
+
+test('real admission allows one ordered repair and re-review, charges all five calls and denies a sixth', async t => {
+  clock(t);
+  const { runAdmittedAiOperation } = await import('../../app/lib/ai/usage-guard/admission.ts');
+  const { MemoryAiGuardTestStore } = await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
+  const { OPENAI_ANALYSIS_MODEL } = await import('../../app/lib/ai/config.ts');
+  const { executeAdmittedProviderCall } = await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
+  const store = new MemoryAiGuardTestStore(); let invoked = 0;
+  const call = purpose => executeAdmittedProviderCall({ purpose, model: OPENAI_ANALYSIS_MODEL, maxOutputTokens: 100,
+    providerInput: 'synthetic', invoke: async () => { invoked++; return { usage: { input_tokens: 10, output_tokens: 10 } }; } });
+  await runAdmittedAiOperation({ store, feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL, env: { NODE_ENV: 'test' },
+    payload: {}, userId: ownerId, requestId: 'one-repair' }, async () => {
+    await assert.rejects(call('history_repair'));
+    await assert.rejects(call('history_rereview'));
+    await call();
+    await assert.rejects(call('history_repair'));
+    await assert.rejects(call('history_rereview'));
+    await call(); await call('history_review');
+    await assert.rejects(call()); await assert.rejects(call('history_review'));
+    await call('history_repair'); await assert.rejects(call('history_repair'));
+    await call('history_rereview'); await assert.rejects(call('history_rereview'));
+  });
+  assert.equal(invoked, 5);
+  assert.equal(store.getSnapshot('2026-09-04').calls, 5);
+});
+
+
+test('shared review receives unknown present-state claims intact instead of a legacy keyword filter', async t => {
+  clock(t);
+  const text = 'It is unknown today whether Aster takes medicine now, because the record says no current medication list was recorded.';
+  const r = await exercise('Does the saved history establish current medication?', { fixturePets, messages: [], history: true,
+    rows: [care('list', 'milo', '2026-06-04', 'general', 'No current medication list was recorded.')], interpretationProposal: proposal(),
+    providerOverrides: { historyNarrative: { sentences: [{ text, sourceIds: ['care:list'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.equal(r.result.reasoning.answer.summary, text);
+});
+
+
+test('typed format rejects prose posing as JSON or a table without reinterpreting the question', () => {
+  assert.equal(matchesHistoryOutputFormat('Recorded amount is 25.', 'json'), false);
+  assert.equal(matchesHistoryOutputFormat('{"amount":25}', 'json'), true);
+  assert.equal(matchesHistoryOutputFormat('Pet: Aster; status: unknown', 'table'), false);
+  assert.equal(matchesHistoryOutputFormat('- Aster slept normally.', 'bullets'), true);
+  assert.equal(validateAskRequest(proposal({ outputFormat: 'json' }), context).request.outputFormat, 'json');
+  assert.throws(() => validateAskRequest(proposal({ outputFormat: 'html' }), context));
+});
+
+
+test('a specified format with sources requires a canonical body in the provider schema', () => {
+  const properties = { historyNarrative: { type: ['object', 'null'], properties: { sentences: {} } } };
+  const json = historicalReadSchema(properties, 'json');
+  assert.equal(json.properties.historyNarrative.type, 'object');
+  assert.equal(json.properties.table.type, 'null');
+  assert.equal(json.properties.limitation.type, 'null');
+  assert.deepEqual(json.properties.layout.enum, ['json']);
+  const table = historicalReadSchema(properties, 'table');
+  assert.equal(table.properties.historyNarrative.type, 'null');
+  assert.equal(table.properties.table.type, 'object');
 });

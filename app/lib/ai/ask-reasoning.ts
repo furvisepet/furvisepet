@@ -1,5 +1,5 @@
 import { stripKnownHistoryCitations } from "../intelligence/public-history-text.ts";
-import { historicalReadInstructions, historicalReadSchema } from "../intelligence/historical-read-response.ts";
+import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
 import { directHistoryTimelineAnswer } from "../intelligence/direct-history-timeline.ts";
 import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
@@ -686,6 +686,13 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
         client, fallbackFrom: models.primary, model: retryModel, onEvent: input.onProviderEvent,
         parseOutput, request, stage: "fallback", timeoutMs: 20_000,
       });
+    } else if (isRepairableStructuredOutput(error) && input.evidenceContract?.interpretation?.request
+      && input.evidenceContract.history && input.evidenceContract.scope.readOnlyRecall && input.evidenceContract.scope.requestKind !== "count") {
+      // A malformed read enters the same bounded review/repair path. It grants
+      // no evidence or mutation authority and cannot spend a third ordinary call.
+      parsed = parseOutput(JSON.stringify({ answer: "I couldn't produce a complete answer from the supplied records.",
+        historyNarrative: null, relevantContextIds: context.records.filter(record => record.sourceType === "care_update").map(record => record.id),
+        safetyLevel: context.minimumSafetyLevel, responseMode: "practical_guidance" }));
     } else if (isRepairableStructuredOutput(error)) {
       const repairModel = models.fallback && models.fallback !== usedModel ? models.fallback : usedModel;
       retryUsed = true;
@@ -989,9 +996,17 @@ export function parseUnifiedResponse(
   recoveryContext?: OwnerPreferenceRecoveryContext,
   sourceMessage = recoveryContext?.sourceMessage || "",
 ): ParsedUnifiedResponse {
-  const value = JSON.parse(outputText) as Partial<ParsedUnifiedResponse>;
+  const value = canonicalHistoricalRead(JSON.parse(outputText)) as Partial<ParsedUnifiedResponse> & { layout?: string };
   if (!value || typeof value.answer !== "string") {
     throw new Error("Ask provider returned an invalid response.");
+  }
+  if (value.layout === "bullets") {
+    const narrative = parseHistoryNarrative(value.historyNarrative);
+    if (narrative) {
+      for (const chunk of narrative.sentences) chunk.text = /^[-*•]\s/.test(chunk.text) ? chunk.text : "- " + chunk.text;
+      value.historyNarrative = narrative;
+      value.answer = narrative.sentences.map(chunk => chunk.text).join("\n");
+    }
   }
   const safetyLevel = safetyLevels.includes(value.safetyLevel as never) ? value.safetyLevel as ParsedUnifiedResponse["safetyLevel"] : "normal";
   const intelligenceSafety = normalizeIntelligenceSafety(value.intelligenceSafety) || defaultIntelligenceSafety(safetyLevel);
@@ -1177,9 +1192,10 @@ export function buildAskProviderRequest(promptContext: object) {
   }
   return {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
+    ...(dedicatedRead ? { reasoning: { effort: "medium" } } : {}),
     instructions: requestInstructions,
     input: JSON.stringify(transported),
-    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties) : askUnifiedJsonSchema } },
+    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence?.represented.some(span => span.sourceType === "care_update") ? evidence.interpretation?.request?.outputFormat : null) : askUnifiedJsonSchema } },
   };
 }
 
@@ -1202,7 +1218,7 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
     if (supportsReasoningEffort(model)) delete compatibleRequest.temperature;
     const response = await createWithTimeout(client, {
       ...compatibleRequest,
-      ...(supportsReasoningEffort(model) ? { reasoning: { effort: "low" } } : {}),
+      ...(supportsReasoningEffort(model) ? { reasoning: compatibleRequest.reasoning || { effort: "low" } } : {}),
       model,
     }, timeoutMs, () => onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit }));
     const result = interpretStructuredProviderResponse(response, parseOutput);

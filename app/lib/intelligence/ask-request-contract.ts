@@ -19,30 +19,32 @@ export type AskRequestContract = {
   mode: typeof modes[number];
   question: string;
   requirements: string[];
+  outputFormat?: "prose" | "bullets" | "table" | "json" | null;
   referenceTurnIds: string[];
   quantity: typeof quantities[number];
 };
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object) {
   return { type: "object", additionalProperties: false,
-    required: ["version", "mode", "question", "requirements", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["version", "mode", "question", "requirements", "outputFormat", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
       version: { type: "string", enum: [ASK_REQUEST_VERSION] }, mode: { type: "string", enum: modes },
       question: { type: "string", minLength: 1, maxLength: 1600 }, requirements: strings(8, 240), referenceTurnIds: strings(8, 160),
+      outputFormat: { type: ["string", "null"], enum: ["prose", "bullets", "table", "json", null] },
       scope: { type: "string", enum: scopes }, petNames: strings(3, 100), operation: { type: "string", enum: operations },
       selection: { type: "string", enum: selections }, quantity: { type: ["string", "null"], enum: quantities },
       topic: { type: "string", maxLength: 160 }, terms: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } },
-      from: { type: ["string", "null"] }, to: { type: ["string", "null"] },
+      from: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }, to: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
       episodeTopic: { type: ["string", "null"], enum: ["vomiting", "soft stool", "breathing", null] },
       ordinal: { type: ["string", "null"], enum: ordinals }, frame: { anyOf: [frame, { type: "null" }] },
     } };
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
-  "Return one ask-request.v2 contract. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
+  "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
   "mode read covers questions, explanations, comparisons, formatting requests, quotations and challenges to a premise. A premise or a quoted instruction is not an owner update. mode mixed requires a genuine new owner observation plus a question; update is a genuine observation without a question. conversation needs no saved pet facts. clarify is only for an unresolved identity or ambiguous reference after reading the supplied dialogue. Missing factual evidence is a reason to retrieve, not clarify; the planner has not read the history yet.",
   "question is a standalone restatement of the current requested task. Resolve follow-up references from recentDialogueForReferencesOnly, listing the IDs used in referenceTurnIds. Preserve negation, uncertainty and all requested parts. Do not turn assistant claims into saved facts: dialogue identifies a referent only; all factual premises must be checked against retrieved evidence.",
-  "requirements lists the requested answer obligations, including format, language, brevity, calculations and comparisons. Carry every part forward; formatting is not a retrieval topic. Do not invent requirements.",
+  "outputFormat is the explicitly requested output container (prose, bullets, table, json), or null when none is requested. Carry it through reference-based format requests. requirements lists the requested answer obligations, including format, language, brevity, calculations and comparisons. Carry every part forward; formatting is not a retrieval topic. Do not invent requirements.",
   "scope names the records to read, not every animal mentioned in the sentence. named uses owned names requested now; conversation uses owned names established by prior USER turns; selected uses the supplied selected pet; account means the user asks across their pets, and the server expands the owned list; none means no owned-history lookup. An external animal mentioned inside an owned pet's records can be the object of a question without becoming an owned profile. Do not invent a profile for that animal or change its ownership.",
   "Use recall for factual lookup or derivation, overview for synthesis, comparison for comparisons, status for dated recovery/recurrence. quantity describes what is being counted/calculated: records, measurement, duration or episodes. Only quantity episodes may use operation count. A number of measurements, events stated in one note, elapsed days or arithmetic is recall/comparison, not episode grouping. episode and ordinal are only for a previously displayed episode reference, never a record position or sentence count.",
   "Supply at most six meaningful lexical terms for evidence needed to answer the whole task; use stems or synonyms when useful. Terms use 3–32 ASCII letters/spaces/hyphens, never SQL or identifiers. For broad account or health summaries use no terms. Preserve the subject's actual topic across follow-ups. Retrieve related context needed for changes, recurrence, corrections or causal uncertainty. Words used only for output formatting are not search terms.",
@@ -53,13 +55,14 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = value as Record<string, unknown>;
+  const p = { outputFormat: null, ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
     && value.every(x => typeof x === "string" && x.trim().length > 0 && x.length <= size);
   if (p.version !== ASK_REQUEST_VERSION || !member(modes, p.mode) || !member(scopes, p.scope)
     || !member(operations, p.operation) || !member(selections, p.selection) || !member(quantities, p.quantity)
+    || !member(["prose", "bullets", "table", "json", null], p.outputFormat)
     || !member(ordinals, p.ordinal) || !member(["vomiting", "soft stool", "breathing", null], p.episodeTopic)
     || typeof p.question !== "string" || !p.question.trim() || p.question.length > 1600
     || typeof p.topic !== "string" || p.topic.length > 160
@@ -108,7 +111,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const from = p.from === null ? null : `${p.from}T00:00:00.000Z`;
   const to = p.to === null ? null : `${p.to}T00:00:00.000Z`;
   const request: AskRequestContract = { version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
-    question: p.question, requirements: p.requirements, referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
+    outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question, requirements: p.requirements, referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
   return { version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
     readOperation: p.mode === "update" ? null : operation, selection: p.selection as AskInterpretation["selection"],
     petIds, topic: p.topic, readOnly, clarification, frame,

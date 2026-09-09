@@ -29,13 +29,14 @@ async function liveCall(request,options={}) {
   assert.ok(Number.isInteger(request.max_output_tokens)&&request.max_output_tokens>0&&request.max_output_tokens<=4096);
   const bytes=Buffer.byteLength(JSON.stringify(request),'utf8')+2048;
   const worst=bytes*0.75/1e6+request.max_output_tokens*4.5/1e6;
-  if(ledger.calls.length>=100||ledger.reservedUsd+worst>1.5) throw new Error('LOCAL_TEST_BUDGET_STOP');
+  if(ledger.calls.length>=170||ledger.reservedUsd+worst>1.5) throw new Error('LOCAL_TEST_BUDGET_STOP');
   const item={number:ledger.calls.length+1,question:currentQuestion,model,reservedUsd:worst,phase:request.text?.format?.name,status:'reserved'};
   ledger.reservedUsd+=worst;ledger.calls.push(item);save();
   const start=performance.now();
   try {
     const response=await provider.responses.create({...request,store:false},{signal:options?.signal||AbortSignal.timeout(30000)});
     item.elapsedMs=Math.round(performance.now()-start);item.status=response.status;
+    item.rawOutput=response.output_text;
     item.inputTokens=response.usage?.input_tokens;item.outputTokens=response.usage?.output_tokens;
     if(!Number.isInteger(item.inputTokens)||!Number.isInteger(item.outputTokens)) throw new Error('USAGE_UNAVAILABLE');
     item.measuredUsd=item.inputTokens*0.75/1e6+item.outputTokens*4.5/1e6;
@@ -49,14 +50,16 @@ async function liveCall(request,options={}) {
   }
 }
 const admission={async beginProviderCall(input){
-  if(++turnCalls>3||input.purpose!=='history_review'&&++turnOrdinary>2)throw new AiAdmissionError('AI_PROVIDER_BUDGET_EXHAUSTED','provider_call_budget_exhausted');
-  return {reservation:{}};
+  const cap=input.purpose==='history_rereview'?5:input.purpose==='history_repair'?4:input.purpose==='history_review'?3:2;
+  if(input.purpose==='history_repair'&&turnCalls!==3||input.purpose==='history_rereview'&&turnCalls!==4||turnCalls>=cap)throw new AiAdmissionError('AI_PROVIDER_BUDGET_EXHAUSTED','provider_call_budget_exhausted');
+  turnCalls++; return {reservation:{}};
 },async recordProviderUsage(){},recordProviderFailure(){}};
 
-const phase = process.argv.includes('--regression') ? 'regression' : process.argv.includes('--holdout') ? 'holdout' : process.argv.includes('--recheck') ? 'recheck' : 'diagnostic';
+const phase = process.argv.includes('--schema-check') ? 'schema-check' : process.argv.includes('--json-diagnostic') ? 'json-diagnostic' : process.argv.includes('--final-check') ? 'final-check' : process.argv.includes('--unseen-recheck') ? 'unseen-recheck' : process.argv.includes('--unseen') ? 'unseen' : process.argv.includes('--repair-check') ? 'repair-check' : process.argv.includes('--canonical-check') ? 'canonical-check' : process.argv.includes('--reasoning-check') ? 'reasoning-check' : process.argv.includes('--confirm') ? 'confirmation' : process.argv.includes('--fresh') ? 'fresh' : process.argv.includes('--regression') ? 'regression' : process.argv.includes('--holdout') ? 'holdout' : process.argv.includes('--recheck') ? 'recheck' : 'diagnostic';
 const fixturePets=['Saffron','Basil','Clover'].map((name,index)=>({...pets[index],id:name.toLowerCase(),name}));
 const scenarios = [];
 for (const years of [false,true]) {
+  if (['confirmation','reasoning-check','canonical-check','repair-check'].includes(phase) && years) continue;
   const start = years ? '2021-09-15' : '2026-06-15';
   const rows = [
     care('start','saffron',start,'general','Saffron tolerated a ten-minute car ride calmly. Her carrier weighed 2 kg.'),
@@ -67,11 +70,26 @@ for (const years of [false,true]) {
     care('clover-note','clover','2026-08-25','general','Clover played with a visiting dog named Finch. Finch belongs to a neighbour. Clover ate normally afterwards.'),
     care('clover-correction','clover','2026-09-02','general','Correction: the visiting dog in the August 25 note was named Wren, not Finch. This is a correction to the name, not a new visit.'),
   ];
+  if (['unseen','unseen-recheck','final-check','json-diagnostic','schema-check'].includes(phase)) rows.splice(0, rows.length,
+    care('walk-old','saffron',start,'general','Saffron limped after a walk.'),
+    care('walk-better','saffron','2026-07-10','general','Saffron walked without limping.'),
+    care('walk-latest','saffron','2026-09-01','general','Saffron limped again after the afternoon walk. The cause is unknown.'),
+    care('portion-old','basil',start,'general','The feeder dispensed 50 g for Basil at breakfast.'),
+    care('portion-new','basil','2026-08-20','general','The feeder dispensed 75 g for Basil at breakfast. No reason for the setting change was recorded.'),
+    care('course','clover','2026-08-25','general','Clover completed the prescribed amoxicillin course today. No current medication list was recorded.')
+  );
   // Evenly spread distractors exercise years of retrieval without changing the expected facts.
   const n=years?180:30, first=Date.parse(start), last=Date.parse('2026-09-01');
   for(let i=0;i<n;i++) rows.push(care('routine-'+i,fixturePets[i%3].id,new Date(first+(last-first)*i/n).toISOString().slice(0,10),'general',fixturePets[i%3].name+' had a routine grooming check. Coat looked clean.'));
   const scope=years?'5years':'3months';
-  const qs=!['holdout','regression'].includes(phase) ? [
+  const qs=['unseen','unseen-recheck','final-check','json-diagnostic','schema-check'].includes(phase) ? [
+    ['recurrence', 'Can I honestly tell the sitter that Saffron no longer limps? Reconcile the improvement with the newest relevant note in two bullets.'],
+    ['portion-json', 'Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.'],
+    ['medication-premise', 'Clover finished the course, so Clover takes no medicine now. Does the saved history establish that? Name the completed medicine and separate it from what is unknown today. Do not save this claim.'],
+  ] : ['fresh','confirmation','reasoning-check','canonical-check','repair-check'].includes(phase) ? [
+    ['scoped-format','In two bullets, tell me the travel evidence for Saffron from before July 2026 and what that evidence cannot tell us.'],
+    ['paired-status','Compare the changes in Saffron and Basil in a two-row table: pet, recorded change, unknowns. Use their travel and sleep notes respectively.'],
+  ] : !['holdout','regression'].includes(phase) ? [
     ['summary','Compare Saffron’s oldest and newest car-ride reports and say what happened in between. Keep it to three bullets.'],
     ['json','Return only a JSON object with Basil’s latest sleep observation and whether its cause is known.'],
   ] : [
@@ -82,7 +100,7 @@ for (const years of [false,true]) {
     ['language','Resume en español los cambios registrados en el sueño de Basil. No inventes una causa.'],
     ['premise','Basil definitely has a sleep disorder. Does the saved history actually establish that diagnosis? Do not save anything.'],
   ];
-  for(const [id,question] of qs) scenarios.push({id:scope+'-'+id,scope,rows,question});
+  for(const [id,question] of qs.filter(([id])=>['json-diagnostic','schema-check'].includes(phase)?!years&&id==='portion-json':!['unseen-recheck','final-check'].includes(phase)||!years&&id!=='recurrence')) scenarios.push({id:scope+'-'+id,scope,rows,question});
 }
 const outputPath=new URL('../../docs/ask-shared-'+phase+'-live.json',import.meta.url);
 if(existsSync(outputPath)) throw new Error('Refusing to overwrite first attempts');
@@ -101,7 +119,7 @@ for(const scenario of scenarios) {
     const response=restoreAskEvidencePresentation(buildAskConversationResponse(r.result.reasoning.answer),r.result.reasoning.evidenceContract,r.context.episodeResult);
     const item={id:scenario.id,history:scenario.scope,records:scenario.rows.length,question:currentQuestion,
       plan:r.context.askInterpretation,answer:response.directAnswer,sections:response.sections,
-      reviewed:r.reviewRequests.length>0,draft:r.result.reasoning.historyNarrative,
+      reviewed:r.reviewRequests.length>0,draft:r.result.reasoning.historyNarrative,reviewInputs:r.reviewRequests.map(request=>JSON.parse(request.input)),
       retainedIds:r.prompt?.contextRecords?.filter(x=>x.sourceType==='care_update').map(x=>x.id),
       review:r.reviewRequests.length ? ledger.calls.at(-1)?.review : null,
       providerCalls:ledger.calls.length-initial,elapsedMs:Math.round(performance.now()-start),

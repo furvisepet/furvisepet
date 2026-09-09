@@ -25,7 +25,9 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   const clinicalNonoccurrence = /\b(?:did not|didn't|never)\s+(?:establish|give|make|reach|confirm)\s+(?:a|any|the)\s+diagnosis\b|\bno diagnosis\s+(?:was|has been)\s+(?:made|given|established|confirmed)\b|\b(?:was not|wasn't|never was)\s+diagnosed\b/i;
   if (clinicalNonoccurrence.test(prose)
     && !sources.some(source => clinicalNonoccurrence.test(source.text))) return false;
-  if (/\b(?:today|yesterday)\b/i.test(prose) && !dates(prose).length
+  // Shared requests leave relative-time meaning (including unknown today) to
+  // independent semantic review; explicit dates and quantities remain guarded.
+  if (legacyDerivations && /\b(?:today|yesterday)\b/i.test(prose) && !dates(prose).length
     && !sources.every(source => source.occurredAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))) return false;
   // A displayed quotation must be an exact substring of one source. Dates
   // outside the quotation must identify that source, not a different citation.
@@ -55,7 +57,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
     return explicit;
   });
-  const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date))].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
+  const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date.slice(0, 10)))].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
   const supportedQuantities = new Set([...sources.flatMap(source => quantities(source.text)), ...derivedQuantities]);
   // Two separately dated, explicitly reported urination events can support a
   // count within that note. This never authorizes illness-episode totals.

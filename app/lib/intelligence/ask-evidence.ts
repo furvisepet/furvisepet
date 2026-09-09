@@ -119,7 +119,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
       requestKind: kind, readOnlyRecall: plan.readOnly, status: plan.clarification ? "ambiguous" : "resolved",
       resolutionSubject: ids.length === 1 ? context.eligiblePets.find(pet => pet.id === ids[0])?.name || context.pet.name : context.pet.name };
   }
-  if (contract.scope.requestKind === "resolution_status") {
+  if (!contract.interpretation?.request && contract.scope.requestKind === "resolution_status") {
     const pet = context.eligiblePets.find(pet => pet.id === ids[0]);
     if (ids.length !== 1 || pet?.name?.toLowerCase() !== contract.scope.resolutionSubject?.toLowerCase()) contract.scope.status = "ambiguous";
   }
@@ -148,9 +148,9 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const changedSources = new Set(history.coverage.provenance.filter(source => source.status === "deleted_or_changed").map(source => source.sourceId));
     contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: changedSources.has(sourceId) ? "source_deleted_or_changed" : "historical_evidence_budget" })));
   }
-  const weightComparison = buildWeightComparison(context, contract);
+  const weightComparison = contract.interpretation?.request ? null : buildWeightComparison(context, contract);
   if (weightComparison) contract.weightComparison = weightComparison;
-  const sourceNoteRecall = buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
+  const sourceNoteRecall = contract.interpretation?.request ? null : buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
   return refreshEvidenceCoverage(contract);
 }

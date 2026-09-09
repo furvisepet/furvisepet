@@ -57,3 +57,28 @@ export function parseTaskHistoryReview(value: unknown, sentenceCount: number, ob
   }
   return result;
 }
+
+/** Feedback is untrusted repair guidance, never approval or new evidence. */
+export const repairableTaskHistoryReviewSchema = {
+  ...taskHistoryReviewSchema,
+  required: [...taskHistoryReviewSchema.required, "rejectionReason"],
+  properties: { ...taskHistoryReviewSchema.properties,
+    rejectionReason: { type: ["string", "null"], maxLength: 800 },
+  },
+};
+export function parseRepairableTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_TASK_REVIEW");
+  const { rejectionReason, ...selection } = value as Record<string, unknown>;
+  if (rejectionReason !== undefined && rejectionReason !== null
+    && (typeof rejectionReason !== "string" || !rejectionReason.trim() || rejectionReason.length > 800)) throw new Error("INVALID_TASK_REVIEW");
+  // A malformed denial still grants no approval. Its bounded feedback can guide
+  // one repair; the repaired body must obtain a fully valid independent receipt.
+  let parsed: HistoryReviewSelection;
+  try { parsed = parseTaskHistoryReview(selection, sentenceCount, obligationCount); }
+  catch (error) {
+    if (selection.approved !== false || typeof rejectionReason !== "string"
+      || Object.keys(selection).sort().join() !== "approved,obligations,retainedSentenceIndexes") throw error;
+    parsed = { approved: false, retainedSentenceIndexes: [] };
+  }
+  return { ...parsed, rejectionReason: !parsed.approved && typeof rejectionReason === "string" ? rejectionReason : null };
+}
