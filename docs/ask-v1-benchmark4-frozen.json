@@ -1,7 +1,7 @@
 {
   "version": 4,
   "frozenAt": "2026-09-09T06:05:28.874552+00:00",
-  "deployment": "pending production merge of PR248 head 89bb348",
+  "deployment": "pending production merge of PR248 head 9d8658e16d52cae37bc8ae2377d307f3ddd3972d",
   "method": "Matched repeat of all 100 benchmark3 questions on the same unchanged synthetic fixture, first attempt per release. Known-question regression evaluation, not an unseen generalization score. No code changes during the run; no retries replace failures. All ten categories and five follow-up pairs retained.",
   "grading": "Native boolean types are required only when explicitly requested. Plain-text bullet markers on separate rendered lines count as bullets; semantic list rendering is also verified. Do not penalize omitted gold context that was not requested.",
   "accountPlan": "Effective Plus QA, five-year window; free-tier production UI not measured.",
@@ -14,7 +14,7 @@
   "budget": {
     "additionalAuthorizationUsd": 10,
     "priorTrackedCumulativeUsd": 9.765873,
-    "diagnosticSpendUsd": 1.00804275,
+    "diagnosticSpendUsd": 1.02955725,
     "previousBenchmarkSpendUsd": 1.87618,
     "productionLedgerBaselineUsd": 5.631882,
     "productionLedgerBaselineCalls": 911,
