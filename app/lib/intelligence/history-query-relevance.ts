@@ -24,6 +24,16 @@ const eventFacets: Array<[RegExp, string[]]> = [
 export function historyEventTerms(message: string): string[] {
   return [...new Set(eventFacets.filter(([pattern]) => pattern.test(message)).flatMap(([,terms]) => terms))].slice(0,6);
 }
+/** Preserve rare event facets through evidence budgets. Frequency is measured
+ * only inside the already authorized candidate subset, never as factual proof.
+ * Repeated "reason for any change unknown" must not outrank a rare transition.
+ * Prefix matching mirrors the lexical search, including stopped/discontinued. */
+export function historyEventRelevance(documents: string[], terms: string[]): (text: string) => number {
+  const matches = (text: string, term: string) => words(text).some(word => word.startsWith(term));
+  const frequencies = new Map(terms.map(term => [term, documents.filter(text => matches(text, term)).length]));
+  return text => Math.max(0, ...terms.map(term =>
+    matches(text, term) ? documents.length / Math.max(1, frequencies.get(term) || 0) : 0));
+}
 export function historySearchGroups(terms: string[], message: string): string[][] {
   const events = historyEventTerms(message);
   if (!events.length) return Array.from({length: Math.min(3,terms.length)}, (_,i) => terms.filter((_,n) => n%Math.min(3,terms.length)===i));
