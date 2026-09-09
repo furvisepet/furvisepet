@@ -19,6 +19,53 @@ const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', questio
   operation: 'recall', selection: 'summary', quantity: null, topic: 'observations', terms: [],
   from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...patch });
 
+test('reviewed shared-source attribution does not widen the record subject', async t => {
+ clock(t);
+ const text='Aster and Bramble shared the food. Their individual portions were not recorded.';
+ const r=await exercise('What does Aster’s shared-food note establish about individual portions?', {
+  fixturePets,messages:[],history:true,
+  rows:[care('shared','milo','2026-06-04','general',text)],interpretationProposal:proposal(),
+  providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:shared']}]}},
+  reviewResponse:{approved:true},expectedReviewCalls:1,
+ });
+ assert.equal(r.result.reasoning.answer.summary,text);
+ assert.deepEqual(r.context.askInterpretation.petIds,[fixturePets[0].id]);
+});
+
+test('premise repair is bounded and revalidates exact user evidence', async t => {
+ clock(t);
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ const currentMessage='Fictional comparison: the crate is 7 kg; the box is 3 kg.';
+ const good=proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,
+  evidenceBasis:'supplied_context',premiseQuotes:['the crate is 7 kg','the box is 3 kg']});
+ for(const permanent of [false,true]) {
+  let calls=0;
+  const events=[];
+  const pending=interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',onProviderEvent:e=>events.push(e),
+   client:{responses:{async create(request){
+    calls++;
+    if(calls===2)assert.match(request.instructions,/exact contiguous substring/);
+    return {status:'completed',output_text:JSON.stringify(calls===1||permanent ? {...good,premiseQuotes:['the crate weighs 7 kg']} : good),usage:{input_tokens:500,output_tokens:200}};
+   }}}});
+  if(permanent)await assert.rejects(pending,/understand the request reliably/);
+  else {const result=await pending;assert.equal(result.conversationOnly,true);assert.deepEqual(result.petIds,[]);}
+  assert.equal(calls,2);
+  assert.ok(events.some(e=>e.providerErrorCode==='ASK_REQUEST_CONTRACT_PREMISE_SOURCE'));
+ }
+});
+
+test('a premise repair cannot authorize invented pets or mutation scope', async t => {
+ clock(t);
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ for(const patch of [{mode:'update'}, {evidenceBasis:'saved_history',scope:'named',petNames:['Foreign']}]) {
+  let calls=0;
+  const p=proposal({evidenceBasis:'supplied_context',premiseQuotes:['the box is 3 kg'],frame:null});
+  await assert.rejects(interpretAskQuestion({context:{...context,currentMessage:'the box is 3 kg'},model:'gpt-5-mini',
+   client:{responses:{async create(){calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...p,premiseQuotes:['invented']}:{...p,...patch})};}}}}));
+  assert.equal(calls,2);
+ }
+});
+
 test('explicit currency arithmetic binds each source and keeps currencies separate', () => {
  const sources = [{sourceId:'a',text:'The collar cost 13.25 CAD; shipping cost 4.50 CAD.'},
   {sourceId:'b',text:'The collar cost 13.25 USD.'}];

@@ -307,7 +307,11 @@ export async function runFurviseIntelligence({
     reasoning.intelligenceSafety.level,
     hasOwnedPetSubject ? authoritativePetIds : [context.pet.id],
   );
-  if (!answerValidation.valid) throw new Error(`FURVISE_ANSWER_VALIDATION_FAILED:${answerValidation.errors.join(",")}`);
+  if (!answerValidation.valid) throw Object.assign(
+    new Error(`FURVISE_ANSWER_VALIDATION_FAILED:${answerValidation.errors.join(",")}`),
+    // Enumerated validator codes only; never include answer or source text.
+    { code: `ASK_ANSWER_${answerValidation.errors[0] || "VALIDATION_FAILED"}`.toUpperCase() },
+  );
   Object.assign(reasoning, answerValidation.response);
   const shadow = buildShadowSemanticAnalysis({
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
