@@ -88,10 +88,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (p.premiseQuotes !== null) {
     const userPremises = [context.currentMessage, ...context.conversationTurns.filter(t => t.role === "user").map(t => t.text)];
     if ((p.premiseQuotes as string[]).some(quote => {
-      // Decode quote/backslash serialization only, at most two layers.
+      // Decode quote/backslash serialization only, at most three layers.
       // Accepted candidates must still occur verbatim in a USER source.
       const candidates = new Set([quote]);
-      for (let layer = 0; layer < 2; layer++) for (const candidate of [...candidates]) {
+      for (let layer = 0; layer < 3; layer++) for (const candidate of [...candidates]) {
         candidates.add(candidate.replace(/\\(["\\])/g, "$1"));
         if (/^(?:"[\s\S]*"|\u201c[\s\S]*\u201d)$/.test(candidate)) candidates.add(candidate.slice(1,-1));
       }

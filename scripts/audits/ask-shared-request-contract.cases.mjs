@@ -746,3 +746,15 @@ test('serialized quotation provenance remains bound to exact user text', () => {
  assert.throws(()=>validateAskRequest({...p,premiseQuotes:[JSON.stringify('The note says "unstable."')]},c),/premise_source/);
  assert.throws(()=>validateAskRequest(p,{...c,currentMessage:'Summarize that.',conversationTurns:[{id:'a',role:'furvise',text}]}),/premise_source/);
 });
+
+test('double-escaped source quotes are decoded without relaxing provenance', () => {
+ const text='The note says "stable."';
+ const c={...context,currentMessage:text};
+ const encoded=JSON.stringify('The note says '+JSON.stringify('stable.'));
+ const doubleEncoded=JSON.stringify('The note says '+JSON.stringify('"stable."').slice(1,-1));
+ for(const quote of [encoded,doubleEncoded]) {
+  const p=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:[quote]});
+  assert.equal(validateAskRequest(p,c).conversationOnly,true);
+  assert.throws(()=>validateAskRequest(p,{...c,currentMessage:'The note says "unstable."'}),/premise_source/);
+ }
+});
