@@ -9,6 +9,15 @@ const physicalCourseSubject = /\b(?:medication|treatment|antibiotic)\s+course\s*
 const applicationDestination = /\b(?:in|on|to|from)\s+(?:(?:the|your|her|his|their|its|pet['’]s)\s+)*(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b|\bby\s+Furvise\b/i;
 
 export function containsUnverifiedStateClaim(value: string) {
+  let contains = false;
+  preserveFictionalDialogueQuotes(value, prose => {
+    contains = containsUnquotedStateClaim(prose);
+    return prose;
+  });
+  return contains;
+}
+
+function containsUnquotedStateClaim(value: string) {
   value = askProseOnly(value);
   if (authoritativeMutationClaim.test(value)) return true;
   for (const clause of splitSentencesPreservingFacts(value)) for (const match of clause.matchAll(passiveMutationClaim)) {
@@ -49,7 +58,31 @@ export function isHistoricalRecordingAttribution(value: string) {
 }
 
 export function enforceVerifiedStateClaims(value: string, verifiedSuccess: boolean) {
-  return mapAskProse(value, prose => preserveAttributedReportQuotes(prose, text => enforceUnquotedStateClaims(text, verifiedSuccess)));
+  return mapAskProse(value, prose => preserveFictionalDialogueQuotes(prose,
+    text => preserveAttributedReportQuotes(text, unquoted => enforceUnquotedStateClaims(unquoted, verifiedSuccess))));
+}
+
+/** Literary dialogue is a character's speech, not an application receipt.
+ * Protect only balanced quotes with explicit literary attribution in the same
+ * sentence. The surrounding assistant claims always remain subject to checks. */
+export function preserveFictionalDialogueQuotes(value: string, transform: (prose: string) => string): string {
+  let marker = "FURVISEFICTIONALDIALOGUE";
+  while (value.includes(marker)) marker += "X";
+  const quotes: string[] = [];
+  const prose = value.replace(/"(?:\\.|[^"\\\n])*"|“[^”\n]*”|(?<!\w)'[^'\n]+'(?!\w)|‘[^’\n]*’/g, (quote, offset: number) => {
+    const before = value.slice(0, offset).split(/[.!?\n]/).at(-1) || "";
+    const after = value.slice(offset + quote.length).split(/[.!?\n]/)[0];
+    const attribution = before + " QUOTE " + after;
+    if (!/\b(?:fictional\s+(?:dialogue|character|quote|quotation)|(?:dialogue|line|quote|quotation)\s+(?:in|from)\s+(?:a|the)\s+(?:novel|story|script)|(?:novel|story|script)['’]s\s+(?:character|narrator))\b/i.test(attribution)) return quote;
+    return marker + (quotes.push(quote) - 1) + "END" + (/[.!?]["'”’]$/.test(quote) ? "." : "");
+  });
+  let result = transform(prose);
+  quotes.forEach((quote, index) => {
+    const token = marker + index + "END";
+    if (/[.!?]["'”’]$/.test(quote)) result = result.replaceAll(token + ".", quote);
+    result = result.replaceAll(token, quote);
+  });
+  return result;
 }
 
 /** A dated quotation is source content, never an action receipt. Keep it opaque

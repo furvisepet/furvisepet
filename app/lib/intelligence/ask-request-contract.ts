@@ -1,4 +1,4 @@
-import { literalHistoryMonthWindow } from "./literal-history-window.ts";
+import { literalHistoryMonthWindow, literalHistoryReportDayWindow } from "./literal-history-window.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -201,7 +201,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // Literal month/year constraints survive a planner omission. Avoid altering
   // existing ranges, conversation premises or open-ended temporal requests.
   if (historical && p.from === null && p.to === null) {
-    const literalWindow = literalHistoryMonthWindow(context.currentMessage);
+    const literalWindow = operation === "comparison" ? literalHistoryMonthWindow(context.currentMessage)
+      : literalHistoryReportDayWindow(context.currentMessage) || literalHistoryMonthWindow(context.currentMessage);
     if (literalWindow) { p.from = literalWindow.from; p.to = literalWindow.to; }
   }
   // Standalone reads need no model rewrite. Keep the user task authoritative

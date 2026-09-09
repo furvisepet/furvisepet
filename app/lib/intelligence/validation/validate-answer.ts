@@ -1,4 +1,5 @@
 import { mapAskProse, askProseOnly } from "../../ask-text-blocks.ts";
+import { preserveFictionalDialogueQuotes } from "../../application-actions/state-claims.ts";
 import { safetyTemporalScope } from "../../ai/safety-temporal-scope.ts";
 import { buildImmediateEmergencyGuidance, detectAskConcernTags, detectImmediateAskEmergency } from "../../ask-safety-context.ts";
 import { preserveReviewedLayout } from "../history-presentation.ts";
@@ -67,7 +68,7 @@ export function validateGeneratedAnswer(
   }
   const contextText = `${context.currentMessage} ${context.careEntries.map((entry) => `${entry.title || ""} ${entry.note}`).join(" ")} ${context.memories.map((memory) => `${memory.fact_key} ${memoryDisplayContent(memory)}`).join(" ")}`;
   const unrelatedResolved = context.currentState?.state.breathing?.status === "normal" && !/breath|breathing/i.test(context.currentMessage);
-  const sanitize = (source: string) => mapAskProse(source, prose => {
+  const sanitize = (source: string) => mapAskProse(source, outer => preserveFictionalDialogueQuotes(outer, prose => {
     let text = prose;
     const replace = (pattern: RegExp, value: string, repair: string) => {
       const next = text.replace(pattern, value);
@@ -83,7 +84,7 @@ export function validateGeneratedAnswer(
       replace(/[^.]*\bbreath(?:ing)?\b[^.]*\.?/gi, "", "removed_irrelevant_resolved_warning");
     }
     return text.replace(/[^\S\r\n]+/g, " ").trim();
-  });
+  }));
   // A review receipt binds the complete wording to evidence. Style rewriting
   // must not remove clauses, alter quotations or damage structured values.
   // Unsafe content in a reviewed answer is rejected, never silently edited.
@@ -224,7 +225,10 @@ export function validateGeneratedAnswer(
     && new RegExp(`\\b${escapeRegex(pet.name)}\\b`, "i").test(answerText));
   if (unauthorizedPetNamed) errors.push("response_subject_disagreement");
   if (!response.answer.summary) errors.push("empty_after_grounding_repair");
-  if (/\b(?:I saved|I added|stack trace|requestId|Supabase|context id|internal classifier)\b/i.test(assistantProse)) errors.push("unsafe_content_remaining");
+  preserveFictionalDialogueQuotes(assistantProse, prose => {
+    if (/\b(?:I saved|I added|stack trace|requestId|Supabase|context id|internal classifier)\b/i.test(prose)) errors.push("unsafe_content_remaining");
+    return prose;
+  });
   return {
     response,
     valid: errors.length === 0,
