@@ -155,9 +155,9 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { historyAccess, fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { fixturePets, conversationPetId, messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
-  let context = await buildFurviseContext({ supabase, userId: ownerId, petId, conversationId: messages ? 'chat' : null,
+  let context = await buildFurviseContext({ supabase, userId: ownerId, historyAccess, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? conversationPetId : null, currentMessage: question, dateRange });
   prepareContext?.(context);
   const interpretationRequests = [];
@@ -171,7 +171,7 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
       const subject = readInterpretationSubject(interpretation, context.pet.id).resolution;
       if (interpretation.conversationOnly) assert.ok(subject.petId && !subject.requiresClarification && !subject.petIds.length);
       authoritativePetIds = subject.petIds;
-      if (interpretation.petIds[0] && interpretation.petIds[0] !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
+      if (interpretation.petIds[0] && interpretation.petIds[0] !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId, historyAccess: context.historyAccess,
         petId: interpretation.petIds[0], conversationId: messages ? 'chat' : null, conversationPetId: messages ? conversationPetId : null, currentMessage: question });
     }
     if (!interpretation.readOnly) {
@@ -181,7 +181,7 @@ async function exercise(question, { fixturePets = pets, onProviderEvent, onStage
       assert.ok(!decision.resolution.requiresClarification && decision.resolution.petId, 'route subject gate must allow this fixture');
       authoritativePetIds = decision.resolution.petIds;
       authoritativeSemanticFrame = decision.frame;
-      if (decision.resolution.petId !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId,
+      if (decision.resolution.petId !== context.pet.id) context = await buildFurviseContext({ supabase, userId: ownerId, historyAccess: context.historyAccess,
         petId: decision.resolution.petId, conversationId: messages ? 'chat' : null, conversationPetId: petId, currentMessage: question });
     }
     context.askInterpretation = interpretation;
