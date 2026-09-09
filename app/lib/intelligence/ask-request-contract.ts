@@ -88,8 +88,14 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (p.premiseQuotes !== null) {
     const userPremises = [context.currentMessage, ...context.conversationTurns.filter(t => t.role === "user").map(t => t.text)];
     if ((p.premiseQuotes as string[]).some(quote => {
-      const unwrapped = /^(?:"[\s\S]*"|“[\s\S]*”)$/.test(quote) ? quote.slice(1,-1) : quote;
-      return !userPremises.some(text => text.includes(quote) || unwrapped.length > 0 && text.includes(unwrapped));
+      // Decode quote/backslash serialization only, at most two layers.
+      // Accepted candidates must still occur verbatim in a USER source.
+      const candidates = new Set([quote]);
+      for (let layer = 0; layer < 2; layer++) for (const candidate of [...candidates]) {
+        candidates.add(candidate.replace(/\\(["\\])/g, "$1"));
+        if (/^(?:"[\s\S]*"|\u201c[\s\S]*\u201d)$/.test(candidate)) candidates.add(candidate.slice(1,-1));
+      }
+      return !userPremises.some(text => [...candidates].some(candidate => candidate.length > 0 && text.includes(candidate)));
     })) return fail("premise_source");
     if (p.evidenceBasis === "supplied_context" && !(p.premiseQuotes as string[]).length) return fail("missing_supplied_premise");
   }

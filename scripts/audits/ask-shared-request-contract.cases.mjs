@@ -737,3 +737,12 @@ test('a resolved subject and ordered lexical query retrieves before asking what 
  assert.ok(r.history);
  assert.equal(r.request.question,c.currentMessage);
 });
+
+test('serialized quotation provenance remains bound to exact user text', () => {
+ const text='The note says "stable." No measurement was provided.';
+ const c={...context,currentMessage:text};
+ const p=proposal({evidenceBasis:'supplied_context',mode:'conversation',scope:'none',petNames:[],operation:'general',premiseQuotes:[JSON.stringify('The note says "stable."')]});
+ assert.equal(validateAskRequest(p,c).conversationOnly,true);
+ assert.throws(()=>validateAskRequest({...p,premiseQuotes:[JSON.stringify('The note says "unstable."')]},c),/premise_source/);
+ assert.throws(()=>validateAskRequest(p,{...c,currentMessage:'Summarize that.',conversationTurns:[{id:'a',role:'furvise',text}]}),/premise_source/);
+});
