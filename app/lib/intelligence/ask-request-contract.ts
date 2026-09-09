@@ -81,6 +81,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     return matches[0].id;
   });
   let petIds = [...new Set(proposed)];
+  const explicitPets = explicitlyNamedOwnedPets(context.currentMessage, owned);
+  // A planner clarification cannot erase an explicitly identified owned pet.
+  // This only recovers read scope, never grants mutation authority.
+  if (!petIds.length && p.mode === "clarify" && explicitPets.length === 1) {
+    petIds = [explicitPets[0].id]; p.scope = "named"; p.mode = "read"; p.operation = "recall";
+  }
   // A redundant group label cannot widen an explicit, validated subject list.
   if (p.scope === "account" && !proposed.length) petIds = owned.map(pet => pet.id);
   if (p.scope === "selected") {
@@ -109,6 +115,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (p.mode === "read" && operation === "general") operation = "recall";
   const clarification = conversationOnly ? null : !petIds.length ? "subject" : p.mode === "clarify" || operation === "clarify" ? "reference" : null;
   const historical = !conversationOnly && p.mode !== "update" && operation !== "general" && !clarification;
+  // As-of is an upper bound, not an exact-date lookup. Preserve a separately
+  // requested lower bound, but never turn an as-of day into a one-day window.
+  if (/\bas\s+of\b/i.test(context.currentMessage) && !/\b(?:since|from|between)\b/i.test(context.currentMessage)) p.from = null;
   const from = p.from === null ? null : `${p.from}T00:00:00.000Z`;
   const to = p.to === null ? null : `${p.to}T00:00:00.000Z`;
   const request: AskRequestContract = { version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],

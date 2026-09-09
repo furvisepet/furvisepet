@@ -81,16 +81,22 @@ export function validateGeneratedAnswer(
     }
     return text.replace(/\s+/g, " ").trim();
   };
-  response.answer.title = sanitize(response.answer.title);
-  response.answer.summary = sanitize(response.answer.summary);
-  response.answer.sections = response.answer.sections.map((section) => ({
-    heading: sanitize(section.heading),
-    items: section.items.map(sanitize).filter(Boolean),
+  // A review receipt binds the complete wording to evidence. Style rewriting
+  // must not remove clauses, alter quotations or damage structured values.
+  // Unsafe content in a reviewed answer is rejected, never silently edited.
+  const immutableHistory = Boolean(reviewedHistory && result.evidenceContract?.interpretation?.request);
+  if (!immutableHistory) {
+    response.answer.title = sanitize(response.answer.title);
+    response.answer.summary = sanitize(response.answer.summary);
+    response.answer.sections = response.answer.sections.map((section) => ({
+      heading: sanitize(section.heading),
+      items: section.items.map(sanitize).filter(Boolean),
   })).filter((section) => section.heading && section.items.length > 0);
   if (response.answer.safetyNote) response.answer.safetyNote = sanitize(response.answer.safetyNote) || null;
   const productMetadataGuard = sanitizeInternalProductMetadataFromCareAnswer(response.answer);
   response.answer = productMetadataGuard.answer;
   if (productMetadataGuard.removedCount > 0) repairs.push("removed_internal_product_metadata");
+  }
   if (canonicalSafety === "urgent" || canonicalSafety === "emergency") { response.safetyLevel = "urgent"; response.shoppingSuppressed = true; }
   else if (canonicalSafety === "recently_resolved") {
     const reconcile = (value: string) => {
@@ -120,6 +126,7 @@ export function validateGeneratedAnswer(
     species: context.pet.species,
   };
   try {
+    if (!immutableHistory) {
     const beforeQuality = measureAskAnswerEconomy(response.answer, { petName: context.pet.name });
     response.answer = normalizeAskListIntegrity(response.answer);
     response.answer = savedPronouns.presentWithoutValue
@@ -144,6 +151,7 @@ export function validateGeneratedAnswer(
     if (visibleQuality.bulletIntegrityViolationCount > 0) qualityWarnings.push("mixed_purpose_bullet_remaining");
     if (proseDefectsBefore > proseDefectsAfter) repairs.push("repaired_visible_prose_syntax");
     if (proseDefectsAfter > 0) qualityWarnings.push("visible_prose_sanity_remaining");
+  }
   } catch {
     qualityWarnings.push("quality_normalization_failed");
   }
@@ -155,7 +163,7 @@ export function validateGeneratedAnswer(
   if (hasSourceQuote && sourceNote) {
     response.answer.summary = `${urgent ? "Contact an emergency veterinarian now. " : ""}${sourceNote.text}`;
   }
-  const resolution = !currentEmergency && !reviewedHistory && response.evidenceContract ? resolutionStatusAnswer(response.evidenceContract, response.historySynthesis) : null;
+  const resolution = !currentEmergency && !reviewedHistory && response.evidenceContract && !response.evidenceContract.interpretation?.request ? resolutionStatusAnswer(response.evidenceContract, response.historySynthesis) : null;
   if (resolution) {
     // Final authority is the provider-independent contract AFTER budgeting.
     response.answer = { title: "Furvise", summary: resolution, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };

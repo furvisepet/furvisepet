@@ -227,7 +227,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
   if (contract.interpretation?.request) {
     if (contract.historyAccess && contract.history?.reasons.includes("requested_period_outside_subscription_window")) {
       contract.answerSourceIds = []; contract.answerContent = [];
-      return `Your plan lets Ask use saved pet history from ${contract.historyAccess.from.slice(0, 10)}. The requested period is outside that window; this does not mean those records do not exist.`;
+      return `Ask can use saved history from ${contract.historyAccess.from.slice(0, 10)} through ${new Date(Date.parse(contract.historyAccess.to) - 86400000).toISOString().slice(0, 10)} for your plan. The requested dates are outside that window. Future-dated notes cannot establish what has happened already, and older excluded records are not evidence that nothing happened.`;
     }
     if (contract.scope.status === "ambiguous") return "I couldn't resolve the requested subject or reference reliably. Could you clarify what you mean?";
     if (contract.history && contract.scope.requestKind !== "count") return attributedHistoryAnswer(contract, false, synthesis);

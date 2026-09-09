@@ -69,6 +69,7 @@ import {
   buildRecentAskUpdates,
   concernKeyToAskTags,
   detectImmediateAskEmergency,
+  conditionalEmergencyGuidance,
   evaluateAskSafetyContext,
   formatConcernTag,
 } from "../../lib/ask-safety-context";
@@ -438,7 +439,14 @@ export async function POST(request: Request) {
     });
     const preconfirmedOrchestration = confirmedExistingCarePersistence ? buildAlreadyPersistedOrchestration(liveContext.pet.name || "your pet")
       : null;
-    if (preconfirmedOrchestration) {
+    const conditionalSafety = conditionalEmergencyGuidance(question);
+    if (conditionalSafety) {
+      turnLifecycle.route("clarification", "deterministic");
+      turnAuthoritativePetIds = [];
+      contextUsed = { petName: null, usedSources: [] };
+      orchestration = { ...buildSubjectClarificationOrchestration(question), answer: conditionalSafety,
+        clarificationQuestion: null, handledWithoutAi: true };
+    } else if (preconfirmedOrchestration) {
       turnLifecycle.route("application_action", "deterministic");
       orchestration = preconfirmedOrchestration;
     } else if (pendingLifecycle && pendingLifecycleResolution && pendingLifecycleResolution.kind !== "continuation") {

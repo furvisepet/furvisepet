@@ -25,6 +25,8 @@ const units: Record<string, { dimension: string; scale: number; canonical: strin
   lbs: { dimension: "mass", scale: 453.59237, canonical: "lb" },
   ml: { dimension: "volume", scale: 1, canonical: "ml" }, l: { dimension: "volume", scale: 1000, canonical: "l" },
   hour: { dimension: "time", scale: 1, canonical: "hour" }, hours: { dimension: "time", scale: 1, canonical: "hour" },
+  minute: { dimension: "time", scale: 1 / 60, canonical: "minute" }, minutes: { dimension: "time", scale: 1 / 60, canonical: "minute" },
+  second: { dimension: "time", scale: 1 / 3600, canonical: "second" }, seconds: { dimension: "time", scale: 1 / 3600, canonical: "second" },
   day: { dimension: "time", scale: 24, canonical: "day" }, days: { dimension: "time", scale: 24, canonical: "day" },
   week: { dimension: "time", scale: 168, canonical: "week" }, weeks: { dimension: "time", scale: 168, canonical: "week" },
 };
@@ -56,7 +58,7 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
         operands.push({ value: Date.parse(operand.literal), dimension: "instant", scale: 1 });
       } else {
         // Require a complete numeric token, not a substring of a larger value.
-        const match = operand.literal.match(/^(-?\d+(?:\.\d+)?)\s+([A-Za-z]+)$/);
+        const match = operand.literal.match(/^(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
         if (!match) return null;
         const escaped = operand.literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         if (!new RegExp(`(?<![\\p{L}\\p{N}_.-])${escaped}(?![\\p{L}\\p{N}_])`, "u").test(source.text)) return null;
