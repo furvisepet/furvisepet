@@ -237,6 +237,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
 }): Promise<AskInterpretation> {
   const state = buildRecentSubjectState({ pets: context.eligiblePets.filter(pet => pet.user_id === context.owner.userId), selectedPetId: context.pet.id, recentConversation: context.conversationTurns });
   const input = { conversationSubject: state.entities.find(entity => entity.key === state.currentFocusKey)?.label || null, currentMessage: context.currentMessage, today: new Date().toISOString().slice(0, 10),
+    inputAuthority: "Only currentMessage and recentUserMessages are user-supplied factual premises. selectedPet, ownedPets, conversationSubject, today and reformulation are server routing metadata, never premiseQuotes. Profile identifiers alone do not supply the stored values the user asks for. Output labels are instructions, not factual values.",
     selectedPet: context.pet.name,
     reformulation: /\b(?:last|previous|that)\s+(?:answer|response)\b/i.test(context.currentMessage)
       && /\b(?:briefly|shorter|shorten|rephrase|explain|translate)\b/i.test(context.currentMessage)
