@@ -1,3 +1,4 @@
+import { unquotedOwnerText } from "./owner-assertion.ts";
 import type { ModelApplicationAction, FurviseApplicationAction } from "../application-actions/types.ts";
 import type { IntelligenceCareAction } from "../intelligence/types.ts";
 import { hasPendingReportedLifecycle } from "./pending-lifecycle.ts";
@@ -9,6 +10,7 @@ const uncertaintyPattern = /\b(?:i think|i thought|maybe|may|might|possibly|prob
 const correctedLossPattern = /\b(?:but|actually|correction)[^.!?]{0,80}\b(?:alive|did not die|didn't die|is not dead|isn't dead)\b/i;
 
 export function classifyCurrentPetLoss(message: string): Exclude<PetLossContext, "continuation"> {
+  message = unquotedOwnerText(message);
   const death = confirmedLossPattern.exec(message);
   if (!death) return "none";
   // A single question seeking words for another person is not an owner loss

@@ -847,7 +847,9 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     summary: answerText,
     sections: parsed.answerSections,
     safetyNote: null,
-  }, historicalRead ? { ...answerDepth, followUpDeltaOnly: false } : answerDepth, { previousAssistantText });
+  }, historicalRead ? { ...answerDepth, followUpDeltaOnly: false } : answerDepth, { previousAssistantText,
+    preserveFormat: Boolean(context.promptContext.evidenceContract.interpretation?.request?.outputFormat),
+  });
   if (profile) {
     economicalAnswer = normalizePetVisibleAnswer(economicalAnswer, {
       name: profile.name || "your pet",
@@ -1161,8 +1163,9 @@ export function buildAskProviderRequest(promptContext: object) {
   const context = promptContext as { evidenceContract?: AskEvidenceContract };
   const evidence = context.evidenceContract;
   const dedicatedRead = !!evidence?.interpretation?.request && !!evidence.history && evidence.scope.readOnlyRecall && evidence.scope.requestKind !== "count";
+  const conversationOnly = evidence?.interpretation?.conversationOnly === true;
   const sharedInstructions = unifiedInstructions.split("\n").filter(line => !line.startsWith("When evidenceContract.interpretation is present")).join("\n");
-  const requestInstructions = dedicatedRead ? historicalReadInstructions : (evidence?.interpretation?.request ? sharedInstructions : unifiedInstructions) + (evidence?.interpretation?.request
+  const requestInstructions = conversationOnly ? sharedInstructions + "\nThis is a read-only conversation task, not a saved-history answer. Use the current USER message and prior USER dialogue as supplied scenario premises. Preserve fictional/quoted status. Do not demand a saved pet identity for fictional entities, non-pet requests or clarification of an ambiguous topic. Ignore selected-profile facts. Respond to access or capability requests truthfully: no other-user records, secrets, appointments or excluded history can be promised. Satisfy every requested language and format obligation in interpretation.request; put the complete final formatted text in answer and leave answerSections empty when an exact layout is requested. Retain CSV newlines, bullets, JSON, and requested line counts. No historyNarrative or source IDs are required for supplied scenarios. Arithmetic requires not only correct numbers but justified operands and assumptions: an unmeasured inflow/outflow, unknown baseline or shared measurement prevents an exact individual quantity; do not compute a factual result from unjustified assumptions. Preserve reporter relationships explicitly. Never emit writes, memories, actions, updates or semantic claims for fictional/quoted premises. Current real emergency guidance still has priority." : dedicatedRead ? historicalReadInstructions : (evidence?.interpretation?.request ? sharedInstructions : unifiedInstructions) + (evidence?.interpretation?.request
     ? "\nFor ask-request.v2 the standalone question and requirements are the shared task, never factual evidence. Answer every obligation from contextRecords and cite the supplied sourceIds. Prior dialogue resolves references only. Reject invented medical facts, causation, lifetime completeness and current recovery inferred from old notes. Preserve chronology, negation, and uncertainty. This final rule supersedes legacy history formatting rules: represent historical answers as historyNarrative, including exact quotes and missing-documentation explanations. Use calculations for derived numeric values: cite exact numeric-and-unit literals from each operand source, or the exact occurredAt timestamp for elapsed_days. The server computes sum, difference (first minus second), ratio (second divided by first), percent_change, unit conversion, and elapsed_days. The value is signed, with requested rounding, and unit is explicit. Calculations validate arithmetic only, not medical recommendations or symptom duration. Use an empty calculations array when there is no derivation. Each chunk preserves its final requested layout, including bullet markers or table rows. A JSON-only answer is one complete valid JSON object or array in one chunk, with all supporting sourceIds; JSON keys are output labels, not source quotations. Do not use null merely because the task asks for a quote. No generic coverage footer is added. Include any material limitation inside the requested answer. Keep source quotations exact and uncertainty attached to the disputed claim."
     : "");
   let transported = promptContext;
@@ -1192,7 +1195,7 @@ export function buildAskProviderRequest(promptContext: object) {
   }
   return {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
-    ...(dedicatedRead ? { reasoning: { effort: "medium" } } : {}),
+    ...(dedicatedRead || conversationOnly ? { reasoning: { effort: "medium" } } : {}),
     instructions: requestInstructions,
     input: JSON.stringify(transported),
     text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence?.represented.some(span => span.sourceType === "care_update") ? evidence.interpretation?.request?.outputFormat : null) : askUnifiedJsonSchema } },

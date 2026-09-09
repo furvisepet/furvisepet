@@ -73,7 +73,9 @@ export function planAskAnswerDepth(input: {
   return plan(2, isFollowUpDelta(message, input.recentConversation || []));
 }
 
-export function applyAskAnswerEconomy<T extends AskEconomyAnswer>(answer: T, economy: AskAnswerEconomyPlan, context: { previousAssistantText?: string } = {}): T {
+export function applyAskAnswerEconomy<T extends AskEconomyAnswer>(answer: T, economy: AskAnswerEconomyPlan, context: { previousAssistantText?: string; preserveFormat?: boolean } = {}): T {
+  // Explicit output layout is part of the task, not optional verbosity.
+  if (context.preserveFormat) return answer;
   if (economy.depth === 4) {
     return {
       ...answer,

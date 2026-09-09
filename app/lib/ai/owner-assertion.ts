@@ -41,6 +41,12 @@ export type OwnerAssertionSpan = {
   isUncertain: boolean;
 };
 
+/** Quoted content is not an independent owner assertion. Preserve offsets so
+ * downstream assertion gates can still attach spans to the original message. */
+export function unquotedOwnerText(message: string): string {
+  return message.replace(quotedText, text => " ".repeat(text.length));
+}
+
 /** Server-owned source classification. Model discourse labels are not evidence. */
 export function analyzeOwnerAssertions(message: string): OwnerAssertionAnalysis {
   const source = String(message || "").normalize("NFKC").trim();
@@ -54,7 +60,7 @@ export function analyzeOwnerAssertions(message: string): OwnerAssertionAnalysis 
     if ((clause.isQuestion && !explicitAssertionRequest.test(clause.text))
       || clause.isAttributed
       || clause.isConditional) return false;
-    const unquoted = clause.text.replace(quotedText, " ");
+    const unquoted = unquotedOwnerText(clause.text);
     return looksLikeOwnerAssertion(unquoted);
   });
   const clauses = scopedClauses.map((clause) => clause.text);

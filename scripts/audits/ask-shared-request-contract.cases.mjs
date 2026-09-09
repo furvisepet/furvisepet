@@ -682,3 +682,27 @@ test('wrong arithmetic remains rejected with a server-computed repair hint',()=>
  const result=verifiedCalculationQuantities([{operation:'difference',operands:[{sourceId:'a',field:'text',literal:'2 kg'},{sourceId:'b',field:'text',literal:'2.5 kg'}],value:.5,unit:'kg'}],source,h=>hints.push(h));
  assert.equal(result,null);assert.deepEqual(hints,[{operation:'difference',expectedValue:-.5,unit:'kg'}]);
 });
+
+test('supplied premises narrow stale owned-history plans without granting writes', () => {
+  const plan = validateAskRequest(proposal({ evidenceBasis: 'supplied_context', outputFormat: 'csv',
+    petNames: ['An invented animal'], scope: 'selected', from: '2022-01-01', to: '2022-02-01' }), context);
+  assert.equal(plan.conversationOnly, true);
+  assert.deepEqual(plan.petIds, []);
+  assert.equal(plan.history, null);
+  assert.equal(plan.readOnly, true);
+  assert.equal(plan.request.outputFormat, 'csv');
+  for (const mode of ['update', 'mixed']) assert.throws(() => validateAskRequest(proposal({ evidenceBasis: 'supplied_context', mode }), context));
+});
+test('general clarification is a conversation task without an owned-pet requirement', () => {
+  const plan = validateAskRequest(proposal({ mode: 'clarify', scope: 'none', petNames: [], operation: 'clarify' }),
+    { ...context, currentMessage: 'Which event did you mean?', conversationTurns: [] });
+  assert.equal(plan.conversationOnly, true);
+  assert.equal(plan.clarification, null);
+  assert.equal(plan.history, null);
+});
+test('general knowledge never widens owned authority and saved history still validates ownership', () => {
+  const plan = validateAskRequest(proposal({ evidenceBasis: 'general', scope: 'account' }), context);
+  assert.deepEqual(plan.petIds, []);
+  assert.equal(plan.history, null);
+  assert.throws(() => validateAskRequest(proposal({ evidenceBasis: 'saved_history', petNames: ['Not owned'] }), context));
+});
