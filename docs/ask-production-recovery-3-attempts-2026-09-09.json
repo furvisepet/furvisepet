@@ -1,0 +1,60 @@
+{
+  "applicationHead": "847508d92f0228dff816ac1d456c63cbecd7d522",
+  "productionMerge": "a022d4c7d12f668795f66f37d99f6858e9ee3a62",
+  "deploymentId": "dpl_CxrF73neuN7QJGiefttPLXZQ55fC",
+  "frozenCommit": "10fee86e5247ba8972ce0b2c46ae2b7708d45853",
+  "attempts": [
+    {
+      "answer": "Furvise\n\nThe bag-mass decreased by 50 g, from 250 g to 200 g.\nThat is not Milo's personal intake, because the note says the treats may have been shared with Oscar and that each dog's intake was not measured.\n\nCopy",
+      "capturedAt": "2026-09-09T20:05:27.241Z",
+      "continuePrevious": false,
+      "expected": "50g decrease;sharedwithOscar possible;individualintakeunknown.",
+      "grade": "pass",
+      "group": "new_history",
+      "id": 13,
+      "pet": "Milo",
+      "question": "From Milo's April 5, 2026 treat-bag note, give the bag-mass decrease and explain whether that is Milo's personal intake.",
+      "reason": "50 g net decrease; explicitly explains shared treats and unmeasured individual intake.",
+      "submittedAt": "2026-09-09T20:04:49.197Z"
+    },
+    {
+      "answer": "Furvise\n\nNo. What is established: the collar costs 8 CAD and the tag costs 6 USD. What is not established: any exchange rate between USD and CAD. Without that exchange rate, 6 USD cannot be converted into a CAD amount, so the two prices cannot be totaled as 14 CAD. You can only say the combined cost is 8 CAD plus 6 USD unless an exchange rate is provided.\n\nCopy",
+      "capturedAt": "2026-09-09T20:06:00.273Z",
+      "continuePrevious": false,
+      "expected": "No;differentcurrencies;exchange raterequired;noinventedrate.",
+      "grade": "pass",
+      "group": "new_supplied",
+      "id": 16,
+      "pet": "Milo",
+      "question": "Fictional exercise, no saving: a collar costs 8 CAD and a tag costs 6 USD. Can these be totaled as 14 CAD without an exchange rate?",
+      "reason": "Keeps CAD and USD separate and explicitly identifies the missing exchange rate.",
+      "submittedAt": "2026-09-09T20:05:30.325Z"
+    },
+    {
+      "answer": "Furvise\n\nJo is reported to have had the headache. For Vale, the record establishes only that cat Vale stayed home; it does not establish whether Vale had a headache.\n\nCopy",
+      "capturedAt": "2026-09-09T20:06:45.316Z",
+      "continuePrevious": false,
+      "expected": "Jo;Vale headache/healthunknown;avoidVale didnot haveit.",
+      "grade": "pass",
+      "group": "new_supplied",
+      "id": 17,
+      "pet": "Milo",
+      "question": "Fictional record interpretation, no saving: 'Owner Jo had a headache; cat Vale stayed home.' Who is reported to have the headache, and what is unknown about Vale?",
+      "reason": "Attributes headache to Jo and explicitly states that Vale headache status is not established.",
+      "submittedAt": "2026-09-09T20:06:03.333Z"
+    }
+  ],
+  "telemetry": {
+    "operations": 3,
+    "providerCalls": 7,
+    "allReconciled": true,
+    "costUsd": 0.028203,
+    "internalPremiseRepairsObserved": 0
+  },
+  "history": {
+    "beforeCount": 1169,
+    "afterCount": 1169,
+    "beforeFingerprint": "e4f01af840175bbadff48bdaab0ad521",
+    "afterFingerprint": "e4f01af840175bbadff48bdaab0ad521"
+  }
+}
