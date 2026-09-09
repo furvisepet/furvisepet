@@ -106,14 +106,15 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const derived = verifiedCalculationQuantities(sentence.calculations || [], cited);
     return derived !== null && historyNarrativeAnchorsSupported(sentence.text, cited,
       evidence.interpretation?.referenceQuestion || evidence.scope.requestText, derived, !sharedRequest,
-      sharedRequest ? [evidence.interpretation?.history?.from, evidence.interpretation?.history?.to].filter((date): date is string => !!date) : [])
+      sharedRequest ? [evidence.interpretation?.history?.from, evidence.interpretation?.history?.to,
+        evidence.interpretation?.history?.to ? new Date(Date.parse(evidence.interpretation.history.to) - 86400000).toISOString() : null].filter((date): date is string => !!date) : [])
       && (sharedRequest || !hasUndatedHistoricalCareState(sentence.text, cited));
   };
   // Review the entire shared answer, including invalid clauses. Removing them
   // first hides omissions from the reviewer and can turn a complete task into
   // a confidently approved fragment. Validation failures enter bounded repair.
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence,
-    text: sharedRequest ? sentence.text : stripHistoryBullet(sentence.text) }))
+    text: sharedRequest ? sentence.text : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
     .filter(sentence => sharedRequest || supported(sentence)) };
   const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence) ? [] : [index]);
   if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
@@ -209,7 +210,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     if (proposedDraft.sentences.some(sentence => isStructuredHistoryText(sentence.text))
       && (!isStructuredHistoryText(composed) || supplements.length)) return false;
     if (!matchesHistoryOutputFormat([composed, ...supplements].join("\n\n"), sharedRequest?.outputFormat)) return false;
-    assertNoInternalReasoningLeak(composed, evidence.represented.map(span => ({ id: span.sourceId })));
+    if (sharedRequest) assertNoInternalReasoningLeak(composed, evidence.represented.map(span => ({ id: span.sourceId })));
     recordHistoryReview(result, { signature: before,
       proseText: presentHistoryLimitation(composed, limitation, evidence.scope.requestText),
       sourceReports: supplements, sourceContent: supplementContent,

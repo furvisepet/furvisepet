@@ -512,3 +512,34 @@ test('conditional emergencies bypass identity without replacing actual emergency
   assert.equal(conditionalEmergencyGuidance('If the old note says “my dog cannot breathe”, quote the note.'), null);
   assert.equal(conditionalEmergencyGuidance('If my dog sleeps normally, should I record it?'), null);
 });
+
+test('measurement grounding accepts equivalent grammar but rejects invented time quantities', () => {
+  const sources = [{ sourceId: 'time', text: 'An 18-minute session followed a 7-minute session.' }];
+  const operands = ['18 minutes', '7 minutes'].map(literal => ({ sourceId: 'time', field: 'text', literal }));
+  const derived = verifiedCalculationQuantities([{ operation: 'difference', operands, value: 11, unit: 'minutes' }], sources);
+  assert.deepEqual(derived, ['11:minute']);
+  assert.equal(historyNarrativeAnchorsSupported('It was 11 minutes longer.', sources, '', derived, false), true);
+  assert.equal(historyNarrativeAnchorsSupported('It was 13 minutes longer.', sources, '', derived, false), false);
+});
+
+test('reference lookup prioritizes matching evidence over years of period distractors', async t => {
+  clock(t);
+  const note = 'Cedar’s towel was folded beside the carrier.';
+  const rows = Array.from({ length: 110 }, (_, i) => care('noise-'+i, 'oscar', new Date(Date.UTC(2022, 0, 1+i*10)).toISOString().slice(0,10), 'general', 'Cedar had a routine grooming check.'));
+  rows.push(care('towel', 'oscar', '2026-08-11', 'general', note));
+  const r = await exercise('Quote Cedar’s towel note.', { fixturePets, rows, messages: [], history: true,
+    interpretationProposal: proposal({ petNames: ['Cedar'], selection: 'reference', terms: ['towel'], topic: 'towel' }),
+    providerOverrides: { historyNarrative: { sentences: [{ text: `“${note}”`, sourceIds: ['care:towel'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.equal(r.result.reasoning.answer.summary, `“${note}”`);
+});
+test('inclusive as-of date is a scope anchor while the event keeps its own date', async t => {
+  clock(t);
+  const answer = 'As of August 20, the latest saved rest note was August 17: Aster slept normally.';
+  const r = await exercise('As of August 20, what was Aster’s latest rest note?', { fixturePets,
+    rows: [care('rest', 'milo', '2026-08-17', 'general', 'Aster slept normally.')], messages: [], history: true,
+    interpretationProposal: proposal({ selection: 'latest', from: '2026-08-20', to: '2026-08-21' }),
+    providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:rest'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.equal(r.result.reasoning.answer.summary, answer);
+});

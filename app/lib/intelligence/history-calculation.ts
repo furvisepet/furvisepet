@@ -60,10 +60,15 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
         // Require a complete numeric token, not a substring of a larger value.
         const match = operand.literal.match(/^(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
         if (!match) return null;
-        const escaped = operand.literal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        if (!new RegExp(`(?<![\\p{L}\\p{N}_.-])${escaped}(?![\\p{L}\\p{N}_])`, "u").test(source.text)) return null;
         const unit = units[match[2].toLowerCase()];
         if (!unit || !finite(Number(match[1]))) return null;
+        // Bind a complete source token. Pluralization and an adjectival hyphen
+        // do not change a measurement ("18 minutes" / "18-minute"). Never
+        // accept a numeric substring or silently substitute a converted value.
+        const grounded = [...source.text.matchAll(/(?<![\p{L}\p{N}_.-])(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
+          .some(token => Number(token[1]) === Number(match[1])
+            && units[token[2].toLowerCase()]?.canonical === unit.canonical);
+        if (!grounded) return null;
         operands.push({ value: Number(match[1]), ...unit });
       }
     }

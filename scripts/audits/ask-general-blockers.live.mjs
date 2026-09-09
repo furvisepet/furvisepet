@@ -56,7 +56,7 @@ const admission={async beginProviderCall(input){
   turnCalls++; return {reservation:{}};
 },async recordProviderUsage(){},recordProviderFailure(){}};
 
-const phase = 'general-blockers';
+const phase = process.argv.includes('--verification') ? 'general-blockers-verification' : 'general-blockers';
 const fixturePets=['Juniper','Maple','Tansy'].map((name,index)=>({...pets[index],id:name.toLowerCase(),name}));
 const scenarios=[];
 for (const years of [false,true]) {
@@ -79,6 +79,13 @@ for (const years of [false,true]) {
  ['asof','As of September 5, what was Tansy’s latest recorded overnight waking observation? Include the date and any unknown cause.'],
  ];
  for(const [id,question] of qs) scenarios.push({id:(years?'5years':'3months')+'-'+id,scope:years?'5years':'3months',rows,question});
+}
+if (phase.endsWith('-verification')) {
+  for (const scenario of scenarios) {
+    scenario.id += '-new';
+    for (const row of scenario.rows) row.note = row.note.replaceAll('7-minute', '9-minute').replaceAll('18-minute', '26-minute').replaceAll('blanket', 'mat').replaceAll('door closed', 'lights dimmed');
+    scenario.question = scenario.question.replace('blanket', 'mat').replace('September 5', 'September 7');
+  }
 }
 const outputPath=new URL('../../docs/ask-typed-'+phase+'-live.json',import.meta.url);
 if(existsSync(outputPath)) throw new Error('Refusing to overwrite first attempts');
