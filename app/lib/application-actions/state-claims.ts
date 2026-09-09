@@ -14,8 +14,7 @@ export function containsUnverifiedStateClaim(value: string) {
     const subject = before;
     const dataSubject = /\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(subject);
     // Absence in a clinical note does not announce a successful app write.
-    const absentClinicalDetail = match[1].toLowerCase() === "recorded"
-      && /\bno\s+(?:[a-z-]+\s+){0,10}$/i.test(subject)
+    const absentClinicalDetail = /\bno\s+(?:[a-z-]+\s+){0,10}$/i.test(subject)
       && !dataSubject
       && !/\bby\s+Furvise\b/i.test(clause);
     if (absentClinicalDetail) continue;

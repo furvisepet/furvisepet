@@ -69,3 +69,9 @@ test('reporting language does not require a date to survive every final prose gu
     'The measurement was recorded in your history.', 'The measurement was just recorded.',
     'The measurement was recorded by Furvise.']) assert.equal(containsUnverifiedStateClaim(text), true);
 });
+
+test('negative saved-detail answers are not successful mutation receipts', () => {
+  const text='No numeric dose was saved for the medication; the clinical note says its dose is unavailable.';
+  assert.equal(enforceVerifiedStateClaims(text,false),text);
+  assert.equal(containsUnverifiedStateClaim('No numeric dose was saved; her profile was updated.'),true);
+});

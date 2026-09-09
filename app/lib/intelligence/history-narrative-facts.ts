@@ -53,7 +53,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     if (!timestamp) return explicit;
     const relative = /\byesterday\b/i.test(source.text);
     const attributed = /\b(?:note|report|entry|update)\b/i.test(text);
-    if (!relative || attributed || /\btoday\b/i.test(source.text)) explicit.push(...dates(timestamp));
+    if (!legacyDerivations || !relative || attributed || /\btoday\b/i.test(source.text)) explicit.push(...dates(timestamp));
     if (relative) {
       const day = new Date(timestamp + "T12:00:00Z");
       if (Number.isFinite(day.getTime())) {
@@ -63,7 +63,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
     return explicit;
   });
-  const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date.slice(0, 10)))].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
+  const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date.slice(0, 10))), ...(!legacyDerivations ? dates(requestText) : [])].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
   const supportedQuantities = new Set([...sources.flatMap(source => quantities(source.text)), ...derivedQuantities]);
   // Two separately dated, explicitly reported urination events can support a
   // count within that note. This never authorizes illness-episode totals.

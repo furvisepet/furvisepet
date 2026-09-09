@@ -616,3 +616,15 @@ test('duplicate search hits do not consume independent candidate slots', async t
   assert.ok(r.context.askHistory.entries.length<=32);
   assert.ok(r.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
 });
+
+test('cohort reads ignore the selected conversation container; explicit named reads stay narrow', () => {
+  const cohort=validateAskRequest(proposal({scope:'selected',petNames:[]}), {...context,currentMessage:'Which pet has the saved travel observation?'});
+  assert.equal(cohort.petIds.length,3);
+  const narrow=validateAskRequest(proposal({scope:'account',petNames:fixturePets.map(x=>x.name)}), {...context,currentMessage:'Compare Aster’s two travel observations.'});
+  assert.deepEqual(narrow.petIds,[fixturePets[0].id]);
+});
+test('question dates can be discussed without becoming source evidence', () => {
+  const source=[{text:'Aster rested.',occurredAt:'2026-04-10T00:00:00Z'}];
+  assert.equal(historyNarrativeAnchorsSupported('The April 10 report was not available as of April 9.',source,'As of April 9, was the April 10 report available?',[],false),true);
+  assert.equal(historyNarrativeAnchorsSupported('The report was available on May 7.',source,'As of April 9, was the April 10 report available?',[],false),false);
+});
