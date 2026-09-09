@@ -1,0 +1,863 @@
+{
+  "authorizedUsd": 3.5,
+  "reservationStopUsd": 3.5,
+  "priorTrackedUsd": 5.46095525,
+  "reservedUsd": 0.13015350000000003,
+  "measuredUsd": 0.1301535,
+  "calls": [
+    {
+      "number": 1,
+      "question": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035442,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 4004,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What were Basil’s earlier feeder portion grams, later feeder portion grams, and increase in grams, and is the reason known, using recorded grams rather than a count of meals?\",\"requirements\":[\"Return only JSON.\",\"Include the fields earlier_g, later_g, increase_g, and reason_known.\",\"Use recorded grams, not a count of meals.\"],\"referenceTurnIds\":[],\"outputFormat\":\"json\",\"scope\":\"named\",\"petNames\":[\"Basil\"],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"measurement\",\"topic\":\"feeder portions\",\"terms\":[\"feeder portions\",\"grams\",\"increase\",\"reason known\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4720,
+      "outputTokens": 427,
+      "measuredUsd": 0.0054615,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What were Basil’s earlier feeder portion grams, later feeder portion grams, and increase in grams, and is the reason known, using recorded grams rather than a count of meals?",
+        "requirements": [
+          "Return only JSON.",
+          "Include the fields earlier_g, later_g, increase_g, and reason_known.",
+          "Use recorded grams, not a count of meals."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "json",
+        "scope": "named",
+        "petNames": [
+          "Basil"
+        ],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "measurement",
+        "topic": "feeder portions",
+        "terms": [
+          "feeder portions",
+          "grams",
+          "increase",
+          "reason known"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 2,
+      "question": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.04010325,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 8805,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare Basil’s feeder portion grams and whether the reason for the change is known.\",\"relevantContextIds\":[\"care:portion-old\",\"care:portion-new\"],\"json\":{\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"earlier_g\",\"value\":50},{\"key\":\"later_g\",\"value\":75},{\"key\":\"increase_g\",\"value\":25},{\"key\":\"reason_known\",\"value\":false}]},\"sourceIds\":[\"care:portion-old\",\"care:portion-new\"],\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:portion-new\",\"field\":\"text\",\"literal\":\"75 g\"},{\"sourceId\":\"care:portion-old\",\"field\":\"text\",\"literal\":\"50 g\"}],\"value\":25,\"unit\":\"g\"}]},\"readVersion\":\"history-answer.v1\",\"layout\":\"json\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 5970,
+      "outputTokens": 1201,
+      "measuredUsd": 0.009881999999999998,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare Basil’s feeder portion grams and whether the reason for the change is known.",
+        "relevantContextIds": [
+          "care:portion-old",
+          "care:portion-new"
+        ],
+        "json": {
+          "value": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "earlier_g",
+                "value": 50
+              },
+              {
+                "key": "later_g",
+                "value": 75
+              },
+              {
+                "key": "increase_g",
+                "value": 25
+              },
+              {
+                "key": "reason_known",
+                "value": false
+              }
+            ]
+          },
+          "sourceIds": [
+            "care:portion-old",
+            "care:portion-new"
+          ],
+          "calculations": [
+            {
+              "operation": "difference",
+              "operands": [
+                {
+                  "sourceId": "care:portion-new",
+                  "field": "text",
+                  "literal": "75 g"
+                },
+                {
+                  "sourceId": "care:portion-old",
+                  "field": "text",
+                  "literal": "50 g"
+                }
+              ],
+              "value": 25,
+              "unit": "g"
+            }
+          ]
+        },
+        "readVersion": "history-answer.v1",
+        "layout": "json",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 3,
+      "question": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.018942,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1561,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 3325,
+      "outputTokens": 118,
+      "measuredUsd": 0.0030247499999999997,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 4,
+      "question": "Return only JSON with Saffron’s oldest and newest recorded carrier weights in an array named weights_kg, and a nested change object with increase_kg and medical_conclusion_known. Do not infer a medical conclusion.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035499,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 5292,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What are Saffron’s oldest and newest recorded carrier weights, and what is the increase in kilograms? Return the answer as JSON only, with an array named weights_kg and a nested change object containing increase_kg and medical_conclusion_known, without inferring any medical conclusion.\",\"requirements\":[\"Return only JSON.\",\"Use Saffron as the selected pet.\",\"Report the oldest and newest recorded carrier weights.\",\"Include an array named weights_kg.\",\"Include a nested change object with increase_kg and medical_conclusion_known.\",\"Do not infer or state a medical conclusion.\"],\"referenceTurnIds\":[],\"outputFormat\":\"json\",\"scope\":\"selected\",\"petNames\":[\"Saffron\"],\"operation\":\"comparison\",\"selection\":\"earliest\",\"quantity\":\"measurement\",\"topic\":\"carrier weights\",\"terms\":[\"carrier weight\",\"weights\",\"increase\",\"medical conclusion\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4732,
+      "outputTokens": 321,
+      "measuredUsd": 0.0049935,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What are Saffron’s oldest and newest recorded carrier weights, and what is the increase in kilograms? Return the answer as JSON only, with an array named weights_kg and a nested change object containing increase_kg and medical_conclusion_known, without inferring any medical conclusion.",
+        "requirements": [
+          "Return only JSON.",
+          "Use Saffron as the selected pet.",
+          "Report the oldest and newest recorded carrier weights.",
+          "Include an array named weights_kg.",
+          "Include a nested change object with increase_kg and medical_conclusion_known.",
+          "Do not infer or state a medical conclusion."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "json",
+        "scope": "selected",
+        "petNames": [
+          "Saffron"
+        ],
+        "operation": "comparison",
+        "selection": "earliest",
+        "quantity": "measurement",
+        "topic": "carrier weights",
+        "terms": [
+          "carrier weight",
+          "weights",
+          "increase",
+          "medical conclusion"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 5,
+      "question": "Return only JSON with Saffron’s oldest and newest recorded carrier weights in an array named weights_kg, and a nested change object with increase_kg and medical_conclusion_known. Do not infer a medical conclusion.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.041784749999999996,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 9608,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Return Saffron’s oldest and newest recorded carrier weights and the increase in kilograms as JSON only, without infining\",\n\"relevantContextIds\":[\"care:start\",\"care:recent\"],\"json\":{\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"weights_kg\",\"value\":{\"kind\":\"array\",\"items\":[2,3]}},{\"key\":\"change\",\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"increase_kg\",\"value\":1},{\"key\":\"medical_conclusion_known\",\"value\":false}]}}]},\"sourceIds\":[\"care:start\",\"care:recent\"],\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:recent\",\"field\":\"text\",\"literal\":\"3 kg\"},{\"sourceId\":\"care:start\",\"field\":\"text\",\"literal\":\"2 kg\"}],\"value\":1,\"unit\":\"kg\"}]},\"readVersion\":\"history-answer.v1\",\"layout\":\"json\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 6561,
+      "outputTokens": 1161,
+      "measuredUsd": 0.01014525,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Return Saffron’s oldest and newest recorded carrier weights and the increase in kilograms as JSON only, without infining",
+        "relevantContextIds": [
+          "care:start",
+          "care:recent"
+        ],
+        "json": {
+          "value": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "weights_kg",
+                "value": {
+                  "kind": "array",
+                  "items": [
+                    2,
+                    3
+                  ]
+                }
+              },
+              {
+                "key": "change",
+                "value": {
+                  "kind": "object",
+                  "entries": [
+                    {
+                      "key": "increase_kg",
+                      "value": 1
+                    },
+                    {
+                      "key": "medical_conclusion_known",
+                      "value": false
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "sourceIds": [
+            "care:start",
+            "care:recent"
+          ],
+          "calculations": [
+            {
+              "operation": "difference",
+              "operands": [
+                {
+                  "sourceId": "care:recent",
+                  "field": "text",
+                  "literal": "3 kg"
+                },
+                {
+                  "sourceId": "care:start",
+                  "field": "text",
+                  "literal": "2 kg"
+                }
+              ],
+              "value": 1,
+              "unit": "kg"
+            }
+          ]
+        },
+        "readVersion": "history-answer.v1",
+        "layout": "json",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 6,
+      "question": "Return only JSON with Saffron’s oldest and newest recorded carrier weights in an array named weights_kg, and a nested change object with increase_kg and medical_conclusion_known. Do not infer a medical conclusion.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02048625,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 1801,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":6,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 3815,
+      "outputTokens": 181,
+      "measuredUsd": 0.00367575,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":6,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 7,
+      "question": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354225,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 5084,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Summarize Saffron’s travel and Basil’s sleep in a two-row table with columns for pet, recorded change, and unknown cause.\",\"requirements\":[\"Use a two-row table.\",\"Include the columns pet, recorded change, and unknown cause.\",\"Summarize Saffron’s travel and Basil’s sleep.\",\"Keep the answer in English.\"],\"referenceTurnIds\":[],\"outputFormat\":\"table\",\"scope\":\"named\",\"petNames\":[\"Saffron\",\"Basil\"],\"operation\":\"overview\",\"selection\":\"summary\",\"quantity\":null,\"topic\":\"travel and sleep\",\"terms\":[\"travel\",\"sleep\",\"unknown cause\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4715,
+      "outputTokens": 428,
+      "measuredUsd": 0.00546225,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with columns for pet, recorded change, and unknown cause.",
+        "requirements": [
+          "Use a two-row table.",
+          "Include the columns pet, recorded change, and unknown cause.",
+          "Summarize Saffron’s travel and Basil’s sleep.",
+          "Keep the answer in English."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "table",
+        "scope": "named",
+        "petNames": [
+          "Saffron",
+          "Basil"
+        ],
+        "operation": "overview",
+        "selection": "summary",
+        "quantity": null,
+        "topic": "travel and sleep",
+        "terms": [
+          "travel",
+          "sleep",
+          "unknown cause"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 8,
+      "question": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.05208675,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 6521,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.\",\"relevantContextIds\":[\"care:start\",\"care:middle\",\"care:recent\",\"care:basil-start\",\"care:basil-end\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"table\",\"limitation\":null,\"table\":{\"headers\":[\"pet\",\"recorded change\",\"unknown cause\"],\"rows\":[{\"cells\":[\"Saffron\",\"She first tolerated a ten-minute car ride calmly, later tolerated a twenty-minute car ride calmly, and once hid when the carrier came out before settling after a blanket was added.\",\"No cause recorded.\"],\"sourceIds\":[\"care:start\",\"care:middle\",\"care:recent\"],\"calculations\":[]},{\"cells\":[\"Basil\",\"She woke twice during the night, then later slept through the night.\",\"The owner does not know why the waking stopped.\"],\"sourceIds\":[\"care:basil-start\",\"care:basil-end\"],\"calculations\":[]}]}}",
+      "inputTokens": 10053,
+      "outputTokens": 759,
+      "measuredUsd": 0.01095525,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+        "relevantContextIds": [
+          "care:start",
+          "care:middle",
+          "care:recent",
+          "care:basil-start",
+          "care:basil-end"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "table",
+        "limitation": null,
+        "table": {
+          "headers": [
+            "pet",
+            "recorded change",
+            "unknown cause"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Saffron",
+                "She first tolerated a ten-minute car ride calmly, later tolerated a twenty-minute car ride calmly, and once hid when the carrier came out before settling after a blanket was added.",
+                "No cause recorded."
+              ],
+              "sourceIds": [
+                "care:start",
+                "care:middle",
+                "care:recent"
+              ],
+              "calculations": []
+            },
+            {
+              "cells": [
+                "Basil",
+                "She woke twice during the night, then later slept through the night.",
+                "The owner does not know why the waking stopped."
+              ],
+              "sourceIds": [
+                "care:basil-start",
+                "care:basil-end"
+              ],
+              "calculations": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "number": 9,
+      "question": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02278575,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 3499,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 4782,
+      "outputTokens": 313,
+      "measuredUsd": 0.0049949999999999994,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 10,
+      "question": "What does Saffron’s saved history say about travel in May 2026? Explain any access boundary.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03540825,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3614,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What does Saffron’s saved history say about travel in May 2026, and what access boundary applies?\",\"requirements\":[\"Return the answer in prose.\",\"Summarize only the relevant saved-history evidence for Saffron.\",\"Include any access boundary or limitation that affects reading the history.\",\"Keep the response focused on travel in May 2026.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"selected\",\"petNames\":[\"Saffron\"],\"operation\":\"recall\",\"selection\":\"period\",\"quantity\":null,\"topic\":\"travel history\",\"terms\":[\"travel\",\"May  ipl\",\"history\",\"boundary\"],\"from\":\"2026-05-01\",\"to\":\"2026-06-01\",\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4710,
+      "outputTokens": 345,
+      "measuredUsd": 0.005085,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What does Saffron’s saved history say about travel in May 2026, and what access boundary applies?",
+        "requirements": [
+          "Return the answer in prose.",
+          "Summarize only the relevant saved-history evidence for Saffron.",
+          "Include any access boundary or limitation that affects reading the history.",
+          "Keep the response focused on travel in May 2026."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "selected",
+        "petNames": [
+          "Saffron"
+        ],
+        "operation": "recall",
+        "selection": "period",
+        "quantity": null,
+        "topic": "travel history",
+        "terms": [
+          "travel",
+          "May  ipl",
+          "history",
+          "boundary"
+        ],
+        "from": "2026-05-01",
+        "to": "2026-06-01",
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 11,
+      "question": "What does Saffron’s saved history say about travel in May 2026? Explain any access boundary.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0349965,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 14583,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"The accessible saved-history window runs from 2026-06-15 to 2026-09-16, so May 2026 is outside the boundary.\",\"sourceIds\":[\"profile:saffron:lifecycle_status\"]},{\"calculations\":[],\"text\":\"Because of that, I cannot determine from the accessible saved history whether Saffron traveled in May 2026.\",\"sourceIds\":[\"profile:saffron:lifecycle_status\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Summarize saved history about travel in May 2026 and explain the access boundary.\",\"relevantContextIds\":[\"profile:saffron:lifecycle_status\",\"profile:saffron:sex\",\"profile:saffron:species\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 3915,
+      "outputTokens": 1581,
+      "measuredUsd": 0.01005075,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "The accessible saved-history window runs from 2026-06-15 to 2026-09-16, so May 2026 is outside the boundary.",
+              "sourceIds": [
+                "profile:saffron:lifecycle_status"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "Because of that, I cannot determine from the accessible saved history whether Saffron traveled in May 2026.",
+              "sourceIds": [
+                "profile:saffron:lifecycle_status"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Summarize saved history about travel in May 2026 and explain the access boundary.",
+        "relevantContextIds": [
+          "profile:saffron:lifecycle_status",
+          "profile:saffron:sex",
+          "profile:saffron:species"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 12,
+      "question": "Return only JSON with Saffron’s oldest and newest recorded carrier weights in an array named weights_kg, and a nested change object with increase_kg and medical_conclusion_known. Do not infer a medical conclusion.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.035499,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3559,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What are Saffron’s oldest and newest recorded carrier weights, returned only as JSON with a weights_kg array and a nested change object containing increase_kg and medical_conclusion_known, without inferring any medical conclusion?\",\"requirements\":[\"Return only JSON.\",\"Include an array named weights_kg with Saffron’s oldest and newest recorded carrier weights.\",\"Include a nested change object with increase_kg and medical_conclusion_known.\",\"Do not infer a medical conclusion.\"],\"referenceTurnIds\":[],\"outputFormat\":\"json\",\"scope\":\"selected\",\"petNames\":[\"Saffron\"],\"operation\":\"comparison\",\"selection\":\"comparison\",\"quantity\":\"measurement\",\"topic\":\"carrier weights\",\"terms\":[\"carrier weight\",\"weight\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4732,
+      "outputTokens": 373,
+      "measuredUsd": 0.0052275,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What are Saffron’s oldest and newest recorded carrier weights, returned only as JSON with a weights_kg array and a nested change object containing increase_kg and medical_conclusion_known, without inferring any medical conclusion?",
+        "requirements": [
+          "Return only JSON.",
+          "Include an array named weights_kg with Saffron’s oldest and newest recorded carrier weights.",
+          "Include a nested change object with increase_kg and medical_conclusion_known.",
+          "Do not infer a medical conclusion."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "json",
+        "scope": "selected",
+        "petNames": [
+          "Saffron"
+        ],
+        "operation": "comparison",
+        "selection": "comparison",
+        "quantity": "measurement",
+        "topic": "carrier weights",
+        "terms": [
+          "carrier weight",
+          "weight"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 13,
+      "question": "Return only JSON with Saffron’s oldest and newest recorded carrier weights in an array named weights_kg, and a nested change object with increase_kg and medical_conclusion_known. Do not infer a medical conclusion.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0493815,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 5749,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Compare Saffron’s recorded carrier weights and report the change without medical inference.\",\"relevantContextIds\":[\"care:start\",\"care:recent\"],\"json\":{\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"weights_kg\",\"value\":{\"kind\":\"array\",\"items\":[2,3]}},{\"key\":\"change\",\"value\":{\"kind\":\"object\",\"entries\":[{\"key\":\"increase_kg\",\"value\":1},{\"key\":\"medical_conclusion_known\",\"value\":false}]}}]},\"sourceIds\":[\"care:start\",\"care:recent\"],\"calculations\":[{\"operation\":\"difference\",\"operands\":[{\"sourceId\":\"care:recent\",\"field\":\"text\",\"literal\":\"3 kg\"},{\"sourceId\":\"care:start\",\"field\":\"text\",\"literal\":\"2 kg\"}],\"value\":1,\"unit\":\"kg\"}]},\"readVersion\":\"history-answer.v1\",\"layout\":\"json\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 9251,
+      "outputTokens": 735,
+      "measuredUsd": 0.01024575,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Compare Saffron’s recorded carrier weights and report the change without medical inference.",
+        "relevantContextIds": [
+          "care:start",
+          "care:recent"
+        ],
+        "json": {
+          "value": {
+            "kind": "object",
+            "entries": [
+              {
+                "key": "weights_kg",
+                "value": {
+                  "kind": "array",
+                  "items": [
+                    2,
+                    3
+                  ]
+                }
+              },
+              {
+                "key": "change",
+                "value": {
+                  "kind": "object",
+                  "entries": [
+                    {
+                      "key": "increase_kg",
+                      "value": 1
+                    },
+                    {
+                      "key": "medical_conclusion_known",
+                      "value": false
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "sourceIds": [
+            "care:start",
+            "care:recent"
+          ],
+          "calculations": [
+            {
+              "operation": "difference",
+              "operands": [
+                {
+                  "sourceId": "care:recent",
+                  "field": "text",
+                  "literal": "3 kg"
+                },
+                {
+                  "sourceId": "care:start",
+                  "field": "text",
+                  "literal": "2 kg"
+                }
+              ],
+              "value": 1,
+              "unit": "kg"
+            }
+          ]
+        },
+        "readVersion": "history-answer.v1",
+        "layout": "json",
+        "limitation": null,
+        "table": null
+      }
+    },
+    {
+      "number": 14,
+      "question": "Return only JSON with Saffron’s oldest and newest recorded carrier weights in an array named weights_kg, and a nested change object with increase_kg and medical_conclusion_known. Do not infer a medical conclusion.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02348025,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2063,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 4918,
+      "outputTokens": 181,
+      "measuredUsd": 0.004503,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 15,
+      "question": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.0354225,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 2712,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.\",\"requirements\":[\"Return a two-row table.\",\"Include the columns: pet, recorded change, and unknown cause.\",\"Summarize both Saffron’s travel and Basil’s sleep.\",\"Preserve that the cause is unknown.\",\"Use the current conversation language: English.\"],\"referenceTurnIds\":[],\"outputFormat\":\"table\",\"scope\":\"account\",\"petNames\":[\"Saffron\",\"Basil\"],\"operation\":\"overview\",\"selection\":\"summary\",\"quantity\":null,\"topic\":\"travel and sleep changes with unknown cause\",\"terms\":[\"travel\",\"sleep\",\"unknown cause\"],\"from\":null,\"to\":null,\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4715,
+      "outputTokens": 279,
+      "measuredUsd": 0.00479175,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+        "requirements": [
+          "Return a two-row table.",
+          "Include the columns: pet, recorded change, and unknown cause.",
+          "Summarize both Saffron’s travel and Basil’s sleep.",
+          "Preserve that the cause is unknown.",
+          "Use the current conversation language: English."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "table",
+        "scope": "account",
+        "petNames": [
+          "Saffron",
+          "Basil"
+        ],
+        "operation": "overview",
+        "selection": "summary",
+        "quantity": null,
+        "topic": "travel and sleep changes with unknown cause",
+        "terms": [
+          "travel",
+          "sleep",
+          "unknown cause"
+        ],
+        "from": null,
+        "to": null,
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 16,
+      "question": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.05724750000000001,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 7312,
+      "rawOutput": "{\"historyNarrative\":null,\"safetyLevel\":\"normal\",\"responseMode\":\"practical_guidance\",\"userIntent\":\"Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.\",\"relevantContextIds\":[\"care:start\",\"care:recent\",\"care:basil-start\",\"care:basil-end\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"table\",\"limitation\":null,\"table\":{\"headers\":[\"pet\",\"recorded change\",\"unknown cause\"],\"rows\":[{\"cells\":[\"Saffron\",\"Tolerated a longer car ride: ten minutes at first, then twenty minutes later.\",\"Cause not stated in the records.\"],\"sourceIds\":[\"care:start\",\"care:recent\"],\"calculations\":[]},{\"cells\":[\"Basil\",\"Woke twice during the night, then later slept through the night.\",\"The owner does not know why the waking stopped.\"],\"sourceIds\":[\"care:basil-start\",\"care:basil-end\"],\"calculations\":[]}]}}",
+      "inputTokens": 11606,
+      "outputTokens": 1021,
+      "measuredUsd": 0.013299,
+      "syntheticResponse": {
+        "historyNarrative": null,
+        "safetyLevel": "normal",
+        "responseMode": "practical_guidance",
+        "userIntent": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+        "relevantContextIds": [
+          "care:start",
+          "care:recent",
+          "care:basil-start",
+          "care:basil-end"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "table",
+        "limitation": null,
+        "table": {
+          "headers": [
+            "pet",
+            "recorded change",
+            "unknown cause"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Saffron",
+                "Tolerated a longer car ride: ten minutes at first, then twenty minutes later.",
+                "Cause not stated in the records."
+              ],
+              "sourceIds": [
+                "care:start",
+                "care:recent"
+              ],
+              "calculations": []
+            },
+            {
+              "cells": [
+                "Basil",
+                "Woke twice during the night, then later slept through the night.",
+                "The owner does not know why the waking stopped."
+              ],
+              "sourceIds": [
+                "care:basil-start",
+                "care:basil-end"
+              ],
+              "calculations": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "number": 17,
+      "question": "Summarize Saffron’s travel and Basil’s sleep in a two-row table with pet, recorded change, and unknown cause.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.02354325,
+      "phase": "furvise_history_review",
+      "status": "completed",
+      "elapsedMs": 2411,
+      "rawOutput": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}",
+      "inputTokens": 5032,
+      "outputTokens": 217,
+      "measuredUsd": 0.0047505,
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":2,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":3,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":4,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":5,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rejectionReason\":null}"
+    },
+    {
+      "number": 18,
+      "question": "What does Saffron’s saved history say about travel in 2020? Explain any access boundary.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03540525,
+      "phase": "furvise_ask_interpretation",
+      "status": "completed",
+      "elapsedMs": 3088,
+      "rawOutput": "{\"version\":\"ask-request.v2\",\"mode\":\"read\",\"question\":\"What does Saffron’s saved history say about travel in 2020, and what is the access boundary for answering it?\",\"requirements\":[\"Answer in prose.\",\"Explain any access boundary clearly.\",\"Focus on Saffron’s selected pet history.\",\"Preserve the 2020 time focus.\"],\"referenceTurnIds\":[],\"outputFormat\":\"prose\",\"scope\":\"selected\",\"petNames\":[\"Saffron\"],\"operation\":\"overview\",\"selection\":\"summary\",\"quantity\":null,\"topic\":\"travel in 2020 and access boundary\",\"terms\":[\"travel\",\"history\",\"saved history\",\"access boundary\",\"Saffron\",\"self-identified  pet\"],\"from\":\"2020-01-01\",\"to\":\"2021-01-01\",\"episodeTopic\":null,\"ordinal\":null,\"frame\":null}",
+      "inputTokens": 4709,
+      "outputTokens": 304,
+      "measuredUsd": 0.0048997500000000005,
+      "syntheticPlan": {
+        "version": "ask-request.v2",
+        "mode": "read",
+        "question": "What does Saffron’s saved history say about travel in 2020, and what is the access boundary for answering it?",
+        "requirements": [
+          "Answer in prose.",
+          "Explain any access boundary clearly.",
+          "Focus on Saffron’s selected pet history.",
+          "Preserve the 2020 time focus."
+        ],
+        "referenceTurnIds": [],
+        "outputFormat": "prose",
+        "scope": "selected",
+        "petNames": [
+          "Saffron"
+        ],
+        "operation": "overview",
+        "selection": "summary",
+        "quantity": null,
+        "topic": "travel in 2020 and access boundary",
+        "terms": [
+          "travel",
+          "history",
+          "saved history",
+          "access boundary",
+          "Saffron",
+          "self-identified  pet"
+        ],
+        "from": "2020-01-01",
+        "to": "2021-01-01",
+        "episodeTopic": null,
+        "ordinal": null,
+        "frame": null
+      }
+    },
+    {
+      "number": 19,
+      "question": "What does Saffron’s saved history say about travel in 2020? Explain any access boundary.",
+      "model": "gpt-5.4-mini",
+      "reservedUsd": 0.03499875,
+      "phase": "furvise_ask_response",
+      "status": "completed",
+      "elapsedMs": 11162,
+      "rawOutput": "{\"historyNarrative\":{\"sentences\":[{\"calculations\":[],\"text\":\"I do not have any retrievable saved-history records about Saffron traveling in 2020.\",\"sourceIds\":[ \"profile:saffron:lifecycle_status\",\"profile:saffron:sex\",\"profile:saffron:species\"]},{\"calculations\":[],\"text\":\"The access boundary is that this plan’s history window runs from 2021-09-15 through 2026-09-16, so 2020 is outside the retrievable range and cannot be established from the loaded history.\",\"sourceIds\": [ \"profile:saffron:lifecycle_status\",\"profile:saffron:sex\",\"profile:saffron:species\"]}]},\"safetyLevel\":\"normal\",\"responseMode\":\"conversational\",\"userIntent\":\"Explain what Saffron’s saved history says about travel in 2020 and the access boundary.\",\"relevantContextIds\":[\"profile:saffron:lifecycle_status\",\"profile:saffron:sex\",\"profile:saffron:species\"],\"json\":null,\"readVersion\":\"history-answer.v1\",\"layout\":\"prose\",\"limitation\":null,\"table\":null}",
+      "inputTokens": 3915,
+      "outputTokens": 1282,
+      "measuredUsd": 0.00870525,
+      "syntheticResponse": {
+        "historyNarrative": {
+          "sentences": [
+            {
+              "calculations": [],
+              "text": "I do not have any retrievable saved-history records about Saffron traveling in 2020.",
+              "sourceIds": [
+                "profile:saffron:lifecycle_status",
+                "profile:saffron:sex",
+                "profile:saffron:species"
+              ]
+            },
+            {
+              "calculations": [],
+              "text": "The access boundary is that this plan’s history window runs from 2021-09-15 through 2026-09-16, so 2020 is outside the retrievable range and cannot be established from the loaded history.",
+              "sourceIds": [
+                "profile:saffron:lifecycle_status",
+                "profile:saffron:sex",
+                "profile:saffron:species"
+              ]
+            }
+          ]
+        },
+        "safetyLevel": "normal",
+        "responseMode": "conversational",
+        "userIntent": "Explain what Saffron’s saved history says about travel in 2020 and the access boundary.",
+        "relevantContextIds": [
+          "profile:saffron:lifecycle_status",
+          "profile:saffron:sex",
+          "profile:saffron:species"
+        ],
+        "json": null,
+        "readVersion": "history-answer.v1",
+        "layout": "prose",
+        "limitation": null,
+        "table": null
+      }
+    }
+  ],
+  "pricingSource": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+  "pricing": {
+    "inputPerMillion": 0.75,
+    "outputPerMillion": 4.5
+  },
+  "syntheticClock": "2026-09-15T12:00:00Z"
+}

@@ -1,3 +1,4 @@
+import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
 import { interpretAskQuestion, readInterpretationSubject } from "../../lib/intelligence/interpret-ask.ts";
@@ -248,6 +249,7 @@ export async function POST(request: Request) {
   }
   if ("response" in context) return context.response;
   const { capabilities, usage } = context;
+  const historyAccess = resolveAskHistoryAccess(context.planId);
 
   if (!petId || (petId !== "all" && !isSecurityUuid(petId)) || (conversationId && !isSecurityUuid(conversationId))) {
     return askFailure("INVALID_MESSAGE", "Choose a pet before asking Furvise.", 400, {}, "request_validation");
@@ -352,6 +354,7 @@ export async function POST(request: Request) {
   let liveContext: FurviseLiveContext;
   try {
     liveContext = await buildFurviseContext({
+      historyAccess,
       conversationId: preparedRequest.conversationId,
       currentMessage: question,
       feature: "ask",
@@ -528,6 +531,7 @@ export async function POST(request: Request) {
         turnPetId = lossSubject.petId;
         if (turnPetId !== petId) {
           liveContext = await buildFurviseContext({
+            historyAccess,
             conversationId: preparedRequest.conversationId,
             conversationPetId: petId,
             currentMessage: question,
@@ -716,6 +720,7 @@ export async function POST(request: Request) {
       if (turnPetId !== petId) {
         generationStage = "context_loading";
         liveContext = await buildFurviseContext({
+          historyAccess,
           conversationId: preparedRequest.conversationId,
           conversationPetId: petId,
           currentMessage: question,

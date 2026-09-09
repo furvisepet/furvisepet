@@ -7,6 +7,7 @@ import { requestedHistoryTimelineDays } from "./requested-history-timeline.ts";
  * This is a read composer; normal downstream safety and write governance still run. */
 export function directHistoryTimelineAnswer(contract: AskEvidenceContract): string | null {
   const plan = contract.interpretation;
+  if (plan?.request) return null;
   const q = contract.scope.requestText;
   if (!plan?.readOnly || plan.clarification || !plan.history || !contract.history
     || contract.scope.status !== "resolved" || !contract.scope.readOnlyRecall

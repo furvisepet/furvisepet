@@ -67,7 +67,7 @@ test('three admitted calls cover interpretation, generation and one review', asy
   const {getAiFeaturePolicy}=await import('../../app/lib/ai/usage-guard/features.ts');
   const {AiAdmissionError}=await import('../../app/lib/ai/usage-guard/errors.ts');
   const {executeAdmittedProviderCall}=await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
-  assert.equal(getAiFeaturePolicy('ask').maximumProviderCalls,3);
+  assert.equal(getAiFeaturePolicy('ask').maximumProviderCalls,5);
   let calls=0,invoked=false;
   const admission={async beginProviderCall(){if(++calls>3)throw new AiAdmissionError('AI_PROVIDER_BUDGET_EXHAUSTED','provider_call_budget_exhausted');return {reservation:{}};},async recordProviderUsage(){},recordProviderFailure(){}};
   await runWithAiAdmission(admission,async()=>{

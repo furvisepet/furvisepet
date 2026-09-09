@@ -1,0 +1,910 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "phase": "schema-check",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "id": "3months-portion-json",
+      "history": "3months",
+      "records": 36,
+      "question": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "json",
+          "question": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+          "requirements": [
+            "Return only JSON.",
+            "Use recorded grams, not a count of meals.",
+            "Include the fields earlier_g, later_g, increase_g, and reason_known."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "comparison",
+        "petIds": [
+          "basil"
+        ],
+        "topic": "feeder portions",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "feeder portions",
+            "grams",
+            "increase",
+            "reason known"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Basil: Basil's 2026-06-15 report: \"The feeder dispensed 50 g for Basil at breakfast.\" Basil's 2026-06-17, 2026-06-25, 2026-07-03, 2026-07-11, 2026-07-18, 2026-07-26, 2026-08-03, 2026-08-11, 2026-08-19, 2026-08-26 report: \"Basil had a routine grooming check. Coat looked clean.\" Basil's 2026-08-20 report: \"The feeder dispensed 75 g for Basil at breakfast. No reason for the setting change was recorded.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "sections": [],
+      "reviewed": true,
+      "reviewInputs": [
+        {
+          "today": "2026-09-15T12:00:00.000Z",
+          "question": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+          "referenceQuestion": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+          "scope": {
+            "authorizedPetIds": [
+              "basil"
+            ],
+            "requestedTopic": "feeder portions",
+            "requestText": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Basil"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "json",
+              "question": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+              "requirements": [
+                "Return only JSON.",
+                "Use recorded grams, not a count of meals.",
+                "Include the fields earlier_g, later_g, increase_g, and reason_known."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "comparison",
+            "petIds": [
+              "basil"
+            ],
+            "topic": "feeder portions",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "feeder portions",
+                "grams",
+                "increase",
+                "reason known"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "basil": "Basil"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "json",
+            "question": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+            "requirements": [
+              "Return only JSON.",
+              "Use recorded grams, not a count of meals.",
+              "Include the fields earlier_g, later_g, increase_g, and reason_known."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals."
+            },
+            {
+              "index": 1,
+              "text": "Return only JSON."
+            },
+            {
+              "index": 2,
+              "text": "Use recorded grams, not a count of meals."
+            },
+            {
+              "index": 3,
+              "text": "Include the fields earlier_g, later_g, increase_g, and reason_known."
+            }
+          ],
+          "coverage": {
+            "plan": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "feeder portions",
+                "grams",
+                "increase",
+                "reason known"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:portion-old",
+              "care:routine-1",
+              "care:routine-4",
+              "care:routine-7",
+              "care:routine-10",
+              "care:routine-13",
+              "care:routine-16",
+              "care:routine-19",
+              "care:routine-22",
+              "care:routine-25",
+              "care:portion-new",
+              "care:routine-28"
+            ],
+            "queryCount": 5,
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [
+              {
+                "petId": "basil",
+                "occurredAt": "2026-08-26T12:00:00Z",
+                "id": "routine-28"
+              },
+              {
+                "petId": "basil",
+                "occurredAt": "2026-06-15T12:00:00Z",
+                "id": "portion-old"
+              }
+            ],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "basil",
+                "rows": 12,
+                "pages": 4,
+                "exhausted": false,
+                "status": "partial"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:portion-old",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-1",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-4",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-7",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-10",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-13",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-16",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-19",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-22",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-25",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:portion-new",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-28",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "basil",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": []
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:basil:sex",
+              "petId": "basil",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 6,
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:basil:species",
+              "petId": "basil",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:portion-old",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 49,
+              "text": "The feeder dispensed 50 g for Basil at breakfast.",
+              "occurredAt": "2026-06-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-28",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-26T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-1",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:portion-new",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 96,
+              "text": "The feeder dispensed 75 g for Basil at breakfast. No reason for the setting change was recorded.",
+              "occurredAt": "2026-08-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-4",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-25",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-7",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-22",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-10",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-19",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-13",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:routine-16",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-26T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "I couldn't produce a complete answer from the supplied records.",
+                "sourceIds": [
+                  "care:portion-old",
+                  "care:routine-1",
+                  "care:routine-4",
+                  "care:routine-7",
+                  "care:routine-10",
+                  "care:routine-13",
+                  "care:routine-16",
+                  "care:routine-19"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        },
+        {
+          "today": "2026-09-15T12:00:00.000Z",
+          "question": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+          "referenceQuestion": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+          "scope": {
+            "authorizedPetIds": [
+              "basil"
+            ],
+            "requestedTopic": "feeder portions",
+            "requestText": "Return only JSON for Basil’s feeder portions: earlier_g, later_g, increase_g, and reason_known. Use recorded grams, not a count of meals.",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Basil"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "json",
+              "question": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+              "requirements": [
+                "Return only JSON.",
+                "Use recorded grams, not a count of meals.",
+                "Include the fields earlier_g, later_g, increase_g, and reason_known."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "comparison",
+            "petIds": [
+              "basil"
+            ],
+            "topic": "feeder portions",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "feeder portions",
+                "grams",
+                "increase",
+                "reason known"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "basil": "Basil"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "json",
+            "question": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+            "requirements": [
+              "Return only JSON.",
+              "Use recorded grams, not a count of meals.",
+              "Include the fields earlier_g, later_g, increase_g, and reason_known."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals."
+            },
+            {
+              "index": 1,
+              "text": "Return only JSON."
+            },
+            {
+              "index": 2,
+              "text": "Use recorded grams, not a count of meals."
+            },
+            {
+              "index": 3,
+              "text": "Include the fields earlier_g, later_g, increase_g, and reason_known."
+            }
+          ],
+          "coverage": {
+            "plan": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "feeder portions",
+                "grams",
+                "increase",
+                "reason known"
+              ],
+              "interpretation": "lexical"
+            },
+            "candidateIds": [
+              "care:portion-old",
+              "care:routine-1",
+              "care:routine-4",
+              "care:routine-7",
+              "care:routine-10",
+              "care:routine-13",
+              "care:routine-16",
+              "care:routine-19",
+              "care:routine-22",
+              "care:routine-25",
+              "care:portion-new",
+              "care:routine-28"
+            ],
+            "queryCount": 5,
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "extraction": "unknown",
+            "grouping": "unknown",
+            "continuation": [
+              {
+                "petId": "basil",
+                "occurredAt": "2026-08-26T12:00:00Z",
+                "id": "routine-28"
+              },
+              {
+                "petId": "basil",
+                "occurredAt": "2026-06-15T12:00:00Z",
+                "id": "portion-old"
+              }
+            ],
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset"
+            ],
+            "consistency": "read_committed_no_snapshot",
+            "perPet": [
+              {
+                "petId": "basil",
+                "rows": 12,
+                "pages": 4,
+                "exhausted": false,
+                "status": "partial"
+              }
+            ],
+            "provenance": [
+              {
+                "sourceId": "care:portion-old",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-1",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-4",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-7",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-10",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-13",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-16",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-19",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-22",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-25",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:portion-new",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              },
+              {
+                "sourceId": "care:routine-28",
+                "claimIds": [],
+                "status": "unverified_legacy"
+              }
+            ],
+            "claimSources": [
+              {
+                "petId": "basil",
+                "sourceIds": []
+              }
+            ],
+            "excludedIds": []
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "I couldn't produce a complete answer from the supplied records.",
+                "sourceIds": [
+                  "care:portion-old",
+                  "care:routine-1",
+                  "care:routine-4",
+                  "care:routine-7",
+                  "care:routine-10",
+                  "care:routine-13",
+                  "care:routine-16",
+                  "care:routine-19"
+                ],
+                "index": 0
+              }
+            ]
+          },
+          "rejectionReason": "The answer must be valid json as specified by the request contract.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:basil:sex",
+              "petId": "basil",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 6,
+              "text": "female",
+              "occurredAt": null,
+              "id": "profile:basil:sex"
+            },
+            {
+              "sourceId": "profile:basil:species",
+              "petId": "basil",
+              "sourceType": "profile",
+              "field": "value",
+              "start": 0,
+              "end": 3,
+              "text": "cat",
+              "occurredAt": null,
+              "id": "profile:basil:species"
+            },
+            {
+              "sourceId": "care:portion-old",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 49,
+              "text": "The feeder dispensed 50 g for Basil at breakfast.",
+              "occurredAt": "2026-06-15T12:00:00Z",
+              "id": "care:portion-old"
+            },
+            {
+              "sourceId": "care:routine-28",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-26T12:00:00Z",
+              "id": "care:routine-28"
+            },
+            {
+              "sourceId": "care:routine-1",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-17T12:00:00Z",
+              "id": "care:routine-1"
+            },
+            {
+              "sourceId": "care:portion-new",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 96,
+              "text": "The feeder dispensed 75 g for Basil at breakfast. No reason for the setting change was recorded.",
+              "occurredAt": "2026-08-20T12:00:00Z",
+              "id": "care:portion-new"
+            },
+            {
+              "sourceId": "care:routine-4",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-06-25T12:00:00Z",
+              "id": "care:routine-4"
+            },
+            {
+              "sourceId": "care:routine-25",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-19T12:00:00Z",
+              "id": "care:routine-25"
+            },
+            {
+              "sourceId": "care:routine-7",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-03T12:00:00Z",
+              "id": "care:routine-7"
+            },
+            {
+              "sourceId": "care:routine-22",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-11T12:00:00Z",
+              "id": "care:routine-22"
+            },
+            {
+              "sourceId": "care:routine-10",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-11T12:00:00Z",
+              "id": "care:routine-10"
+            },
+            {
+              "sourceId": "care:routine-19",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-08-03T12:00:00Z",
+              "id": "care:routine-19"
+            },
+            {
+              "sourceId": "care:routine-13",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-18T12:00:00Z",
+              "id": "care:routine-13"
+            },
+            {
+              "sourceId": "care:routine-16",
+              "petId": "basil",
+              "sourceType": "care_update",
+              "field": "value",
+              "start": 0,
+              "end": 54,
+              "text": "Basil had a routine grooming check. Coat looked clean.",
+              "occurredAt": "2026-07-26T12:00:00Z",
+              "id": "care:routine-16"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "outputFormat": "json",
+                "question": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+                "requirements": [
+                  "Return only JSON.",
+                  "Use recorded grams, not a count of meals.",
+                  "Include the fields earlier_g, later_g, increase_g, and reason_known."
+                ],
+                "referenceTurnIds": [],
+                "quantity": "measurement"
+              },
+              "operation": "recall",
+              "readOperation": "recall",
+              "selection": "comparison",
+              "petIds": [
+                "basil"
+              ],
+              "topic": "feeder portions",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "What were Basil’s earlier feeder portion grams, later feeder portion grams, the increase in grams, and whether the reason is known? Use recorded grams, not a count of meals.",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": null,
+                "to": null,
+                "terms": [
+                  "feeder portions",
+                  "grams",
+                  "increase",
+                  "reason known"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        }
+      ],
+      "retainedIds": [
+        "care:portion-old",
+        "care:routine-1",
+        "care:routine-4",
+        "care:routine-7",
+        "care:routine-10",
+        "care:routine-13",
+        "care:routine-16",
+        "care:routine-19",
+        "care:routine-22",
+        "care:routine-25",
+        "care:portion-new",
+        "care:routine-28"
+      ],
+      "providerCalls": 4,
+      "elapsedMs": 11352,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

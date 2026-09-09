@@ -1,0 +1,19 @@
+{
+  "realReviewer": true,
+  "mockedInterpretationAndDraft": true,
+  "results": [
+    {
+      "id": "supported",
+      "answer": "| Pet | Recorded change | Unknowns |\n| --- | --- | --- |\n| Saffron | The saved reports changed from a calm ten-minute car ride to a calm twenty-minute ride. | The cause of any change is unknown. |\n| Basil | The saved reports changed from waking twice at night to sleeping through the night. | The owner does not know why the waking stopped. |",
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]}],\"rationale\":\"The single retained table row set is fully supported by the cited care updates and directly compares Saffron’s travel change with Basil’s sleep change, including the stated unknowns.\"}",
+      "rationale": "The single retained table row set is fully supported by the cited care updates and directly compares Saffron’s travel change with Basil’s sleep change, including the stated unknowns."
+    },
+    {
+      "id": "unsupported",
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Saffron: Saffron's 2026-06-15 report: \"Saffron tolerated a ten-minute car ride calmly.\" Saffron's 2026-09-01 report: \"Saffron tolerated a twenty-minute car ride calmly. The cause of any change is unknown.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Basil: Basil's 2026-06-15 report: \"Basil woke twice during the night.\" Basil's 2026-08-20 report: \"Basil slept through the night. The owner does not know why the waking stopped.\"\n\nThis covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]}],\"rationale\":\"The only draft sentence includes an unsupported claim that a veterinarian diagnosed incurable cancer and caused the travel changes. With no separable supported sentence, there is no coherent approved subset that answers the table request.\"}",
+      "rationale": "The only draft sentence includes an unsupported claim that a veterinarian diagnosed incurable cancer and caused the travel changes. With no separable supported sentence, there is no coherent approved subset that answers the table request."
+    }
+  ]
+}
+

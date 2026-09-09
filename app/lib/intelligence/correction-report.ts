@@ -3,6 +3,7 @@ import type { AskEvidenceContract } from "./ask-evidence.ts";
 /** Reading a correction's wording does not apply a correction edge or reassign
  * an event. Return complete validated text with the unresolved-link limitation. */
 export function correctionReportAnswer(contract: AskEvidenceContract): string | null {
+  if (contract.interpretation?.request) return null;
   if (contract.history?.corrections === "unavailable" || !contract.interpretation
     || !(/\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(contract.scope.requestText) || contract.interpretation.history?.from)) return null;
   const asksForCorrection = /\b(?:correct\w*|retract\w*|supersed\w*)\b/i.test(contract.scope.requestText);

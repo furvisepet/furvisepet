@@ -1,3 +1,4 @@
+import { isStructuredHistoryText } from "./structured-history-text.ts";
 type Source = { text: string; occurredAt?: string | null; petId?: string };
 const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 const words: Record<string, number> = {one:1,single:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
@@ -16,7 +17,7 @@ function quantities(text: string): string[] {
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
  * prevents an approving model from manufacturing a date or dose. */
-export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = ""): boolean {
+export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = []): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
   // Missing documentation cannot support a claim that a clinical act never occurred.
@@ -24,11 +25,13 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   const clinicalNonoccurrence = /\b(?:did not|didn't|never)\s+(?:establish|give|make|reach|confirm)\s+(?:a|any|the)\s+diagnosis\b|\bno diagnosis\s+(?:was|has been)\s+(?:made|given|established|confirmed)\b|\b(?:was not|wasn't|never was)\s+diagnosed\b/i;
   if (clinicalNonoccurrence.test(prose)
     && !sources.some(source => clinicalNonoccurrence.test(source.text))) return false;
-  if (/\b(?:today|yesterday)\b/i.test(prose) && !dates(prose).length
+  // Shared requests leave relative-time meaning (including unknown today) to
+  // independent semantic review; explicit dates and quantities remain guarded.
+  if (legacyDerivations && /\b(?:today|yesterday)\b/i.test(prose) && !dates(prose).length
     && !sources.every(source => source.occurredAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))) return false;
   // A displayed quotation must be an exact substring of one source. Dates
   // outside the quotation must identify that source, not a different citation.
-  for (const match of text.matchAll(/"([^"]+)"|“([^”]+)”/g)) {
+  for (const match of (isStructuredHistoryText(text) ? [] : text.matchAll(/"([^"]+)"|“([^”]+)”/g))) {
     const quote = match[1] ?? match[2];
     const matching = sources.filter(source => source.text.includes(quote));
     if (!matching.length) return false;
@@ -54,11 +57,11 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
     return explicit;
   });
-  const supportedDates = new Set(sourceDates.flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
-  const supportedQuantities = new Set(sources.flatMap(source => quantities(source.text)));
+  const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date.slice(0, 10)))].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
+  const supportedQuantities = new Set([...sources.flatMap(source => quantities(source.text)), ...derivedQuantities]);
   // Two separately dated, explicitly reported urination events can support a
   // count within that note. This never authorizes illness-episode totals.
-  if (/\b(?:how many accidents|one accident or two|one or two accidents)\b/i.test(requestText) && /\b(?:note|entry|report)\b/i.test(requestText)
+  if (legacyDerivations && /\b(?:how many accidents|one accident or two|one or two accidents)\b/i.test(requestText) && /\b(?:note|entry|report)\b/i.test(requestText)
     && !/\b(?:ever|lifetime|episodes?)\b/i.test(requestText)) {
     for (const source of sources) {
       const sentence = source.text.split(/(?<=[.!?])\s+/).find(part =>
@@ -68,7 +71,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   }
   // Permit arithmetic only for explicit, dated measurements of the same pet.
   // Semantic review remains responsible for direction and endpoint relevance.
-  if (/\bweight\b/i.test(requestText) && /\b(?:change|difference|earliest|latest)\b/i.test(requestText)) {
+  if (legacyDerivations && /\bweight\b/i.test(requestText) && /\b(?:change|difference|earliest|latest)\b/i.test(requestText)) {
     const groups = new Map<string, { at: number; grams: number }[]>();
     const invalid = new Set<string>();
     for (const source of sources) {
@@ -96,7 +99,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   // A derived calendar interval is not a reported symptom duration. Require
   // an explicit elapsed-day question and two uniquely grounded endpoints.
   // Semantic review still checks the meaning of the complete sentence.
-  if (/\bhow many days\s+(?:are there|passed|elapsed|between|from|apart|separate)\b/i.test(requestText)
+  if (legacyDerivations && /\bhow many days\s+(?:are there|passed|elapsed|between|from|apart|separate)\b/i.test(requestText)
     && new Set(sources.map(source => source.petId)).size === 1) {
     const requested = dates(requestText);
     const grounded = requested.map(date => [...new Set(sourceDates.filter(value =>

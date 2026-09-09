@@ -1,3 +1,4 @@
+import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
 import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
@@ -67,6 +68,10 @@ export async function runFurviseIntelligence({
   discourseFocus?: import("./entities/resolve-turn-subject.ts").AskDiscourseFocus;
   evidenceContract?: AskEvidenceContract;
 }): Promise<FurviseIntelligenceResult> {
+  if (context.historyAccess) {
+    context = enforceAskHistoryAccess(context);
+    evidenceContract = createAskEvidenceContract(context, authoritativePetIds);
+  }
   if (context.askInterpretation?.conversationOnly) {
     context = scopeConversationContext(context);
     authoritativePetIds = [];

@@ -1,3 +1,4 @@
+import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
 import { explicitHistoryDays } from "./explicit-history-dates.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, orderHistoryEvidence } from "./history-synthesis.ts";
@@ -81,7 +82,8 @@ function isHistoricalRecall(message: string) {
  * generation callback. Recent safety context is retained separately. */
 export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
-  const plan = context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
+  const proposedPlan = context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
+  const plan = proposedPlan ? clipHistoryPlan(proposedPlan, context.historyAccess) : null;
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
   const asOf = Date.now();
@@ -94,8 +96,15 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
     continuation: [], reasons: ["lexical_or_period_matches_not_semantic_completeness", "no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
+  if (context.historyAccess) coverage.reasons.push("subscription_history_window");
+  if (plan.from && plan.to && plan.from >= plan.to) {
+    coverage.reasons.push("requested_period_outside_subscription_window");
+    return { ...context, askHistory: { coverage, entries: [], originals: [] } };
+  }
   const descending = context.askInterpretation?.selection === "latest";
-  const endpointComparison = context.askInterpretation?.readOnly === true
+  const endpointComparison = context.askInterpretation?.request
+    ? ["summary", "comparison"].includes(context.askInterpretation.selection || "") || ["comparison", "overview"].includes(context.askInterpretation.readOperation || "")
+    : context.askInterpretation?.readOnly === true
     && /\bweights?\b/i.test(context.currentMessage)
     && /\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage);
   const candidates: CareEntryRow[] = [];
@@ -109,13 +118,18 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     let failed = false; let pages = 0; let exhausted = true;
     const collected: CareEntryRow[] = [];
     const directions = endpointComparison ? [false, true] : [descending];
+    // Reserve half of the same budget for period context: lexical candidates
+    // alone cannot expose synonyms, intervening reports or missing search terms.
+    const strategies = context.askInterpretation?.request && plan.terms.length
+      ? directions.flatMap(descending => [{ descending, lexical: true }, { descending, lexical: false }])
+      : directions.map(descending => ({ descending, lexical: !!plan.terms.length }));
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
-    for (const readDescending of directions) {
+    for (const { descending: readDescending, lexical } of strategies) {
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
-      const directionRows = Math.floor(rowsPerPet / directions.length);
-      const directionPages = Math.floor(HISTORY_BUDGET.pagesPerPet / directions.length);
+      const directionRows = Math.floor(rowsPerPet / strategies.length);
+      const directionPages = Math.floor(HISTORY_BUDGET.pagesPerPet / strategies.length);
       try {
         for (let attempt = 0; attempt < directionPages && !traversalExhausted && rows.length < directionRows; attempt++) {
           pages++;
@@ -123,7 +137,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           const pageLimit = Math.min(HISTORY_BUDGET.pageSize, directionRows - rows.length);
           const signal = readSignal(deadline);
           let result: { data: unknown; error: { code?: string } | null };
-          if (plan.terms.length) {
+          if (lexical) {
             // The RPC derives auth.uid(). Never pass an owner or fall back to a
             // different lexical authority when its migration/service is missing.
             result = await db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
@@ -137,7 +151,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           } else {
             let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
             if (!futureSourceRequested) query = query.lt("occurred_at", new Date(asOf + 1).toISOString());
-            if (plan.from) query = query.gte("occurred_at", plan.from).lt("occurred_at", plan.to!);
+            if (plan.from) query = query.gte("occurred_at", plan.from);
+            if (plan.to) query = query.lt("occurred_at", plan.to);
             if (cursor) query = query.or(`occurred_at.${readDescending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${readDescending ? "lt" : "gt"}.${cursor.id})`);
             result = await query.order("occurred_at", { ascending: !readDescending }).order("id", { ascending: !readDescending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
           }
@@ -185,6 +200,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     candidates.push(...rows);
   }
   if (ids.length > HISTORY_BUDGET.pets) coverage.reasons.push("pet_query_budget");
+  if (context.askInterpretation?.request && plan.terms.length) coverage.reasons.push("bounded_period_context_not_semantic_completeness");
   if (endpointComparison) coverage.reasons.push("bidirectional_endpoint_subset");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
   if (correctionReserve && coverage.retrieval !== "unavailable") {
@@ -193,11 +209,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
   if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") coverage.reasons.push("no_matching_candidates_not_absence");
-  const selection = context.askInterpretation?.selection;
+  const selection = context.askInterpretation?.request && endpointComparison ? "comparison" : context.askInterpretation?.selection;
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
     context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);
-  const matchingEntries = entries.filter(entry => (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
-    && (!plan.terms.length || plan.terms.some(term =>
+  const matchingEntries = entries.filter(entry => historyDateAccessible(entry.occurred_at, context.historyAccess) && (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
+    && (!!context.askInterpretation?.request || !plan.terms.length || plan.terms.some(term =>
     `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
   const relevantIds = new Set(relevant.map(entry => entry.id));
@@ -205,7 +221,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1 : undefined);
   // Broad food summaries should retain explicit diet records before incidental
   // appetite/eating matches. This is ranking only; keep all candidates and losses.
-  if (["summary", "comparison"].includes(selection || "") && /\b(?:foods?|diet)\b/i.test(context.currentMessage)) {
+  if (!context.askInterpretation?.request && ["summary", "comparison"].includes(selection || "") && /\b(?:foods?|diet)\b/i.test(context.currentMessage)) {
     const explicitFood = (entry: CareEntryRow) => /\b(?:food|diet|kibble|treats?)\b/i.test(`${entry.title || ""} ${entry.note}`) ? 0 : 1;
     ordered.sort((a, b) => explicitFood(a) - explicitFood(b));
   }
@@ -395,7 +411,9 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
     const replacementAuthors = new Set(graphRelations.filter(edge => ["corrects", "supersedes"].includes(edge.relation_type)).map(edge => edge.from_claim_id));
     for (const claim of mapped.filter(claim => graph.effectiveClaimIds.has(claim.id) && !linkedCandidates.has(claim.id) && replacementAuthors.has(claim.id))) {
       const eventTime = claim.occurredAt ? Date.parse(claim.occurredAt) : NaN;
-      const outsidePeriod = Boolean(coverage.plan.from && (!Number.isFinite(eventTime) || eventTime < Date.parse(coverage.plan.from) || eventTime >= Date.parse(coverage.plan.to!)));
+      const outsidePeriod = Boolean((coverage.plan.from || coverage.plan.to) && (!Number.isFinite(eventTime)
+        || coverage.plan.from && eventTime < Date.parse(coverage.plan.from)
+        || coverage.plan.to && eventTime >= Date.parse(coverage.plan.to)));
       coverage.provenance.push({ sourceId: `claim:${claim.id}`, claimIds: [claim.id], status: !requestedPets.includes(claim.subjectId!) ? "reassigned_outside_requested_pet" : outsidePeriod ? "outside_requested_period" : "effective_replacement", subjectId: claim.subjectId });
       if (outsidePeriod) continue;
       if (!requestedPets.includes(claim.subjectId!) || claim.persistenceDestination !== "history") continue;

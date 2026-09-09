@@ -1,3 +1,4 @@
+import { enforceAskHistoryAccess } from "./history-access.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -12,7 +13,7 @@ import { episodeAnswer, type EpisodeResult } from "./episode-contract.ts";
  * provider/database dependencies. generationInput is not a second authority. */
 export type AskHistoryStage = "history_retrieval" | "episode_retrieval" | "answer_generation" | "episode_revalidation" | "final_presentation";
 export async function generateAskHistoryAnswer({ supabase, onStage, ...input }: Omit<Parameters<typeof runFurviseIntelligence>[0], "evidenceContract"> & { supabase: SupabaseClient; onStage?: (stage: AskHistoryStage) => void }) {
-  input.context = scopeConversationContext(input.context);
+  input.context = enforceAskHistoryAccess(scopeConversationContext(input.context));
   const petIds = input.context.askInterpretation?.conversationOnly ? [] : input.authoritativePetIds ?? [input.context.pet.id];
   input.authoritativePetIds = petIds;
   onStage?.("history_retrieval");

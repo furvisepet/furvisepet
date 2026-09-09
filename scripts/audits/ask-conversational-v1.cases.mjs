@@ -326,7 +326,7 @@ test('actual provider admission reconciles mocked usage and enforces two calls a
   const { MemoryAiGuardTestStore } = await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
   const { OPENAI_ANALYSIS_MODEL } = await import('../../app/lib/ai/config.ts');
   const { AI_FEATURE_POLICIES } = await import('../../app/lib/ai/usage-guard/features.ts');
-  assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls, 3); // Third slot is review-only; ordinary failures below still stop at two.
+  assert.equal(AI_FEATURE_POLICIES.ask.maximumProviderCalls, 5); // Ordered review/repair phases only; ordinary failures below still stop at two.
   const store = new MemoryAiGuardTestStore();
   let attempt = 0;
   const admitted = action => runAdmittedAiOperation({ store, feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL,

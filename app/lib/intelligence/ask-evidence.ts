@@ -29,6 +29,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  historyAccess?: import("./history-access.ts").AskHistoryAccess;
   answerSourceIds?: string[];
   /** Server-validated report renderings; never taken from provider JSON. */
   answerContent?: string[];
@@ -100,7 +101,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     }
   }
   const selected = new Set(context.selectedCareEntries.map(row => row.id));
-  const contract: AskEvidenceContract = { version: "ask-evidence.v1", scope: askEvidenceScope(context.currentMessage, ids), sources,
+  const contract: AskEvidenceContract = { ...(context.historyAccess ? { historyAccess: context.historyAccess } : {}), version: "ask-evidence.v1", scope: askEvidenceScope(context.currentMessage, ids), sources,
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
@@ -115,11 +116,11 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
       : operation === "count" ? "count" : operation === "overview" ? "overview"
       : operation === "comparison" ? "comparison" : "ordinary";
     contract.scope = { authorizedPetIds: ids, requestedTopic: plan.topic, requestText: context.currentMessage,
-      requestedPeriod: { kind: plan.history?.from ? "requested" : "unspecified", surface: plan.history?.from || null },
+      requestedPeriod: { kind: plan.history?.from || plan.history?.to ? "requested" : "unspecified", surface: plan.history?.from || plan.history?.to || null },
       requestKind: kind, readOnlyRecall: plan.readOnly, status: plan.clarification ? "ambiguous" : "resolved",
-      resolutionSubject: context.pet.name };
+      resolutionSubject: ids.length === 1 ? context.eligiblePets.find(pet => pet.id === ids[0])?.name || context.pet.name : context.pet.name };
   }
-  if (contract.scope.requestKind === "resolution_status") {
+  if (!contract.interpretation?.request && contract.scope.requestKind === "resolution_status") {
     const pet = context.eligiblePets.find(pet => pet.id === ids[0]);
     if (ids.length !== 1 || pet?.name?.toLowerCase() !== contract.scope.resolutionSubject?.toLowerCase()) contract.scope.status = "ambiguous";
   }
@@ -148,9 +149,9 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const changedSources = new Set(history.coverage.provenance.filter(source => source.status === "deleted_or_changed").map(source => source.sourceId));
     contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: changedSources.has(sourceId) ? "source_deleted_or_changed" : "historical_evidence_budget" })));
   }
-  const weightComparison = buildWeightComparison(context, contract);
+  const weightComparison = contract.interpretation?.request ? null : buildWeightComparison(context, contract);
   if (weightComparison) contract.weightComparison = weightComparison;
-  const sourceNoteRecall = buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
+  const sourceNoteRecall = contract.interpretation?.request ? null : buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
   return refreshEvidenceCoverage(contract);
 }
@@ -186,6 +187,7 @@ export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringif
  * Exact bounded sentence forms avoid stripping a qualification or quoting a
  * terminal phrase into the answer. All other prose remains uncertain. */
 export function resolutionStatusAnswer(contract: AskEvidenceContract, synthesis: HistorySynthesisProposal[] = []): string | null {
+  if (contract.interpretation?.request) return null;
   if (contract.scope.requestKind !== "resolution_status") return null;
   if (contract.interpretation) {
     if (contract.scope.status === "ambiguous" || !contract.scope.requestedTopic.trim()) return "Which issue do you mean?";
@@ -220,6 +222,17 @@ export function resolutionStatusAnswer(contract: AskEvidenceContract, synthesis:
 /** Deliberately bounded policy, not general factual entailment. Recognized
  * evidence requests receive server authority; ordinary answers stay intact. */
 export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: HistorySynthesisProposal[] = []): string | null {
+  // The shared request path is composed and reviewed semantically. Its safe
+  // fallback may quote source reports, but never runs wording-specific answers.
+  if (contract.interpretation?.request) {
+    if (contract.historyAccess && contract.history?.reasons.includes("requested_period_outside_subscription_window")) {
+      contract.answerSourceIds = []; contract.answerContent = [];
+      return `Your plan lets Ask use saved pet history from ${contract.historyAccess.from.slice(0, 10)}. The requested period is outside that window; this does not mean those records do not exist.`;
+    }
+    if (contract.scope.status === "ambiguous") return "I couldn't resolve the requested subject or reference reliably. Could you clarify what you mean?";
+    if (contract.history && contract.scope.requestKind !== "count") return attributedHistoryAnswer(contract, false, synthesis);
+    if (contract.scope.requestKind !== "count") return null;
+  }
   const resolution = resolutionStatusAnswer(contract, synthesis);
   if (resolution) return resolution;
   const kind = contract.scope.requestKind;
@@ -269,7 +282,7 @@ export function conversationalHistoryLimitation(contract: AskEvidenceContract): 
   if (!contract.interpretation || !contract.history) return "";
   const history = contract.history;
   if (history.corrections === "unavailable") return "I couldn't check corrections to these records, so I can't rely on them yet.";
-  if (history.reasons.includes("unlinked_correction_uncertain")) return "An unlinked correction leaves attribution uncertain; I cannot confirm which reports it changes."
+  if (!contract.interpretation.request && history.reasons.includes("unlinked_correction_uncertain")) return "An unlinked correction leaves attribution uncertain; I cannot confirm which reports it changes."
     + (history.retrieval === "unavailable" ? " Some saved records also couldn't be loaded." : history.retrieval === "partial" ? " This includes only part of the matching history." : "");
   if (history.retrieval === "unavailable") return "Some saved records couldn't be loaded. This covers only the notes I could check.";
   if (history.retrieval === "partial" || history.excludedIds.length || contract.losses.some(loss => /^(care|claim):/.test(loss.sourceId))) return "Some history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.";
@@ -327,21 +340,23 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
   }
   contract.answerSourceIds = [];
   contract.answerContent = [];
-  const unresolvedCorrection = !!contract.history?.reasons.includes("unlinked_correction_uncertain");
+  const sharedRequest = contract.interpretation?.request;
+  const unresolvedCorrection = !sharedRequest && !!contract.history?.reasons.includes("unlinked_correction_uncertain");
   const period = contract.interpretation?.history;
   const terms = period?.terms || [];
-  const timelineDays = requestedHistoryTimelineDays(contract.scope.requestText, new Date().getUTCFullYear());
+  const timelineDays = sharedRequest ? null : requestedHistoryTimelineDays(contract.scope.requestText, new Date().getUTCFullYear());
   const notes = contract.represented.filter(span => span.sourceType === "care_update"
     && contract.scope.authorizedPetIds.includes(span.petId)
     && (!timelineDays || !!span.occurredAt && timelineDays.includes(span.occurredAt.slice(0,10)))
-    && (!period?.from || !!span.occurredAt && span.occurredAt >= period.from && span.occurredAt < period.to!)
+    && (!period?.from || !!span.occurredAt && span.occurredAt >= period.from)
+    && (!period?.to || !!span.occurredAt && span.occurredAt < period.to)
     && span.start === 0 && span.end === span.text.length && span.text.trim()
-    && (!terms.length || terms.some(term => span.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())))
+    && (sharedRequest || !terms.length || terms.some(term => span.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())))
     && !contract.losses.some(loss => loss.sourceId === span.sourceId)
     && contract.sources.some(source => source.petId === span.petId && source.loadedIds.includes(span.sourceId)
       && source.status !== "not_loaded")
     && !contract.history?.provenance.some(source => source.sourceId === span.sourceId
-      && !["effective_linked", "effective_replacement", "unverified_legacy"].includes(source.status)))
+      && !["effective_linked", "effective_replacement", "unverified_legacy", ...(sharedRequest ? ["unlinked_correction_uncertain"] : [])].includes(source.status)))
     .sort((a, b) => (b.occurredAt || "").localeCompare(a.occurredAt || ""));
   const selection = contract.interpretation?.selection || (status ? "latest" : "summary");
   const quote = /\b(?:quote|verbatim|exact wording)\b/i.test(contract.scope.requestText);
@@ -378,7 +393,9 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
       contract.answerSourceIds!.push(...group.map(item => item.sourceId));
       const anchored = !boundaryBlocked && !occurrenceUncertain && (selection.startsWith("earliest") || selection === "latest") && note === selected[0] && group.length === 1;
       const futureDated = group.some(item => !!item.occurredAt && Date.parse(item.occurredAt) > Date.now());
-      const content = futureDated ? `${petName} has a future-dated saved report (${dates}); this is not evidence that it has already happened: ${JSON.stringify(note.text)}`
+      const unlinked = sharedRequest && contract.history?.provenance.some(source => source.sourceId === note.sourceId && source.status === "unlinked_correction_uncertain");
+      const content = unlinked ? `The correction note saved under ${petName} on ${dates} says: ${JSON.stringify(note.text)} Its link to an original report has not been verified.${futureDated ? " This is future-dated and does not establish that the reported event has already happened." : ""}`
+        : futureDated ? `${petName} has a future-dated saved report (${dates}); this is not evidence that it has already happened: ${JSON.stringify(note.text)}`
         : natural ? unresolvedCorrection ? `The ${dates} note saved for ${petName} reports: ${natural}` : anchored ? natural : `${natural.replace(/[.!]$/, "")} (${dates}).`
         : `${petName}'s ${dates} report: ${JSON.stringify(note.text)}`;
       contract.answerContent!.push(content);
@@ -386,7 +403,8 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     });
     if (sentences.length) {
       const date = selected[0].occurredAt?.slice(0, 10) || "an unknown date";
-      const lead = unresolvedCorrection ? `${petName} has these saved reports, with correction uncertainty noted below. `
+      const lead = sharedRequest ? `I couldn't verify a complete answer to the request. These are the saved reports I could check for ${petName}: `
+        : unresolvedCorrection ? `${petName} has these saved reports, with correction uncertainty noted below. `
         : boundaryBlocked ? `I could verify this dated history for ${petName}, but could not establish the ${selection === "latest" ? "latest" : "earliest"} matching report because some candidates could not be checked. `
         : occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
         : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `

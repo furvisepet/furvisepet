@@ -1,0 +1,115 @@
+[
+  {
+    "id": "3months-scoped-format",
+    "result": {
+      "approved": true,
+      "retainedSentenceIndexes": [
+        0,
+        1
+      ],
+      "obligations": [
+        {
+          "index": 0,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        },
+        {
+          "index": 1,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        },
+        {
+          "index": 2,
+          "status": "answered",
+          "sentenceIndexes": [
+            0
+          ]
+        },
+        {
+          "index": 3,
+          "status": "answered",
+          "sentenceIndexes": [
+            1
+          ]
+        },
+        {
+          "index": 4,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        },
+        {
+          "index": 5,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    "rationale": "Both retained sentences are supported by the cited June 15 car-ride record and together answer the two-bullet request, including the limitation that the evidence cannot establish broader travel history or frequency."
+  },
+  {
+    "id": "3months-paired-status",
+    "result": {
+      "approved": true,
+      "retainedSentenceIndexes": [
+        0,
+        1
+      ],
+      "obligations": [
+        {
+          "index": 0,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        },
+        {
+          "index": 1,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        },
+        {
+          "index": 2,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        },
+        {
+          "index": 3,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        },
+        {
+          "index": 4,
+          "status": "answered",
+          "sentenceIndexes": [
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    "rationale": "Both retained sentences are directly supported by the cited records and together provide the requested comparison for Saffron and Basil, including the stated unknowns."
+  }
+]
+

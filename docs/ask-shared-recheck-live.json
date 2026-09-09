@@ -1,0 +1,130 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "phase": "recheck",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "id": "3months-summary",
+      "question": "Compare Saffron’s oldest and newest car-ride reports and say what happened in between. Keep it to three bullets.",
+      "errorClass": "Error",
+      "code": null,
+      "message": "Ask response exposed internal reasoning data.",
+      "providerCalls": 2
+    },
+    {
+      "id": "3months-json",
+      "question": "Return only a JSON object with Basil’s latest sleep observation and whether its cause is known.",
+      "errorClass": "Error",
+      "code": null,
+      "message": "Ask response exposed internal reasoning data.",
+      "providerCalls": 2
+    },
+    {
+      "id": "5years-summary",
+      "question": "Compare Saffron’s oldest and newest car-ride reports and say what happened in between. Keep it to three bullets.",
+      "errorClass": "Error",
+      "code": null,
+      "message": "Ask response exposed internal reasoning data.",
+      "providerCalls": 2
+    },
+    {
+      "id": "5years-json",
+      "history": "5years",
+      "records": 187,
+      "question": "Return only a JSON object with Basil’s latest sleep observation and whether its cause is known.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "question": "What is Basil’s latest sleep observation, and is the cause known?",
+          "requirements": [
+            "Return only a JSON object."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "latest",
+        "petIds": [
+          "basil"
+        ],
+        "topic": "sleep observation and cause",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What is Basil’s latest sleep observation, and is the cause known?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "sleep",
+            "observation",
+            "cause",
+            "known"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "{\"latestSleepObservation\":\"Basil slept through the night.\",\"causeKnown\":\"No. The owner does not know why the waking stopped.\"}",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "{\"latestSleepObservation\":\"Basil slept through the night.\",\"causeKnown\":\"No. The owner does not know why the waking stopped.\"}",
+            "sourceIds": [
+              "care:basil-end"
+            ]
+          }
+        ]
+      },
+      "retainedIds": [
+        "care:basil-end",
+        "care:routine-178",
+        "care:routine-175",
+        "care:routine-172",
+        "care:routine-169",
+        "care:routine-166",
+        "care:routine-163",
+        "care:routine-160",
+        "care:routine-157",
+        "care:routine-154",
+        "care:routine-151",
+        "care:routine-148",
+        "care:routine-145",
+        "care:routine-142",
+        "care:routine-139",
+        "care:routine-136",
+        "care:routine-133",
+        "care:routine-130",
+        "care:routine-127",
+        "care:routine-124",
+        "care:routine-121",
+        "care:routine-118",
+        "care:routine-115",
+        "care:routine-112",
+        "care:routine-109",
+        "care:routine-106",
+        "care:routine-103",
+        "care:routine-100",
+        "care:routine-97",
+        "care:routine-94",
+        "care:routine-91",
+        "care:routine-88"
+      ],
+      "review": "{\"approved\":true,\"retainedSentenceIndexes\":[0],\"obligations\":[{\"index\":0,\"status\":\"answered\",\"sentenceIndexes\":[0]},{\"index\":1,\"status\":\"answered\",\"sentenceIndexes\":[0]}]}",
+      "providerCalls": 3,
+      "elapsedMs": 4862,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

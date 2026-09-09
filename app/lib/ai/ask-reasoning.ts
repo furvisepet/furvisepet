@@ -1,4 +1,7 @@
+import { stripKnownHistoryCitations } from "../intelligence/public-history-text.ts";
+import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
 import { directHistoryTimelineAnswer } from "../intelligence/direct-history-timeline.ts";
+import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
 import { compactHistorySourceCoverage } from "./history-source-transport.ts";
 import { getAiFeaturePolicy } from "./usage-guard/features.ts";
@@ -6,7 +9,7 @@ import { estimateInputTokens } from "./usage-guard/cost-estimator.ts";
 import { historyNarrativeSchema, parseHistoryNarrative, type HistoryNarrative } from "../intelligence/history-narrative.ts";
 import OpenAI from "openai";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
-import { executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow } from "../supabase.ts";
 import { FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import {
@@ -523,7 +526,9 @@ export function buildAskContext(input: BuildContextInput) {
       })),
       pets: petReferences,
       ...(input.discourseFocus ? { discourseFocus: input.discourseFocus } : {}),
-      dialogueContext: { purpose: "reference_and_tone_only_not_medical_evidence", turns: (input.dialogueContext || []).filter(turn => turn.role === "user").slice(-6).map(turn => ({ role: turn.role, text: turn.text.slice(0, 700) })) },
+      dialogueContext: evidence.interpretation?.request
+        ? requestReferenceContext(input.dialogueContext || [], evidence.interpretation.request.referenceTurnIds)
+        : { purpose: "reference_and_tone_only_not_medical_evidence", turns: (input.dialogueContext || []).filter(turn => turn.role === "user").slice(-6).map(turn => ({ role: turn.role, text: turn.text.slice(0, 700) })) },
       contextRecords: records,
       evidenceContract: evidence,
       olderUpdateSummary: updateSummary,
@@ -681,6 +686,13 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
         client, fallbackFrom: models.primary, model: retryModel, onEvent: input.onProviderEvent,
         parseOutput, request, stage: "fallback", timeoutMs: 20_000,
       });
+    } else if (isRepairableStructuredOutput(error) && input.evidenceContract?.interpretation?.request
+      && input.evidenceContract.history && input.evidenceContract.scope.readOnlyRecall && input.evidenceContract.scope.requestKind !== "count") {
+      // A malformed read enters the same bounded review/repair path. It grants
+      // no evidence or mutation authority and cannot spend a third ordinary call.
+      parsed = parseOutput(JSON.stringify({ answer: "I couldn't produce a complete answer from the supplied records.",
+        historyNarrative: null, relevantContextIds: context.records.filter(record => record.sourceType === "care_update").map(record => record.id),
+        safetyLevel: context.minimumSafetyLevel, responseMode: "practical_guidance" }));
     } else if (isRepairableStructuredOutput(error)) {
       const repairModel = models.fallback && models.fallback !== usedModel ? models.fallback : usedModel;
       retryUsed = true;
@@ -816,6 +828,11 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     if (parsed.intelligenceSafety.level === "routine") parsed.intelligenceSafety.level = "monitor";
   }
 
+  if (historicalRead && context.promptContext.evidenceContract.interpretation?.request) {
+    const ids = new Set(context.records.map(record => record.id));
+    parsed.answer = stripKnownHistoryCitations(parsed.answer, ids);
+    if (parsed.historyNarrative) for (const chunk of parsed.historyNarrative.sentences) chunk.text = stripKnownHistoryCitations(chunk.text, ids);
+  }
   let answerText = parsed.answer;
   if (profile && isUselessQuestionEcho(input.question, answerText, profile.name || "your pet")) {
     answerText = buildObservationAssessmentFallback(input.question, profile.name || "your pet");
@@ -843,7 +860,15 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   parsed.answerSections = economicalAnswer.sections;
   parsed.suggestedFollowUps = parsed.suggestedFollowUps.slice(0, answerDepth.maxFollowUps);
   if (!answerDepth.allowsAutomaticHistory) parsed.proposedHistoryUpdate = emptyHistoryUpdate();
-  assertNoInternalReasoningLeak(answerText, context.records);
+  try { assertNoInternalReasoningLeak(answerText, context.records); }
+  catch (error) {
+    if (!historicalRead || !context.promptContext.evidenceContract.interpretation?.request) throw error;
+    // Reject malformed public output into the governed fallback, never an ID leak.
+    answerText = "I couldn't verify a complete answer from the saved records.";
+    parsed.answerSections = [];
+    parsed.historyNarrative = undefined;
+    parsed.historyNarrativeDeclined = true;
+  }
   const petName = profile?.name || "Your pet";
   const title = input.concernStateHint === "improved" || input.concernStateHint === "resolved"
     ? `It sounds like ${petName} is improving`
@@ -971,9 +996,17 @@ export function parseUnifiedResponse(
   recoveryContext?: OwnerPreferenceRecoveryContext,
   sourceMessage = recoveryContext?.sourceMessage || "",
 ): ParsedUnifiedResponse {
-  const value = JSON.parse(outputText) as Partial<ParsedUnifiedResponse>;
+  const value = canonicalHistoricalRead(JSON.parse(outputText)) as Partial<ParsedUnifiedResponse> & { layout?: string };
   if (!value || typeof value.answer !== "string") {
     throw new Error("Ask provider returned an invalid response.");
+  }
+  if (value.layout === "bullets") {
+    const narrative = parseHistoryNarrative(value.historyNarrative);
+    if (narrative) {
+      for (const chunk of narrative.sentences) chunk.text = /^[-*•]\s/.test(chunk.text) ? chunk.text : "- " + chunk.text;
+      value.historyNarrative = narrative;
+      value.answer = narrative.sentences.map(chunk => chunk.text).join("\n");
+    }
   }
   const safetyLevel = safetyLevels.includes(value.safetyLevel as never) ? value.safetyLevel as ParsedUnifiedResponse["safetyLevel"] : "normal";
   const intelligenceSafety = normalizeIntelligenceSafety(value.intelligenceSafety) || defaultIntelligenceSafety(safetyLevel);
@@ -1127,9 +1160,14 @@ export function areAskResponsesMateriallyIdentical(left: string, right: string) 
 export function buildAskProviderRequest(promptContext: object) {
   const context = promptContext as { evidenceContract?: AskEvidenceContract };
   const evidence = context.evidenceContract;
+  const dedicatedRead = !!evidence?.interpretation?.request && !!evidence.history && evidence.scope.readOnlyRecall && evidence.scope.requestKind !== "count";
+  const sharedInstructions = unifiedInstructions.split("\n").filter(line => !line.startsWith("When evidenceContract.interpretation is present")).join("\n");
+  const requestInstructions = dedicatedRead ? historicalReadInstructions : (evidence?.interpretation?.request ? sharedInstructions : unifiedInstructions) + (evidence?.interpretation?.request
+    ? "\nFor ask-request.v2 the standalone question and requirements are the shared task, never factual evidence. Answer every obligation from contextRecords and cite the supplied sourceIds. Prior dialogue resolves references only. Reject invented medical facts, causation, lifetime completeness and current recovery inferred from old notes. Preserve chronology, negation, and uncertainty. This final rule supersedes legacy history formatting rules: represent historical answers as historyNarrative, including exact quotes and missing-documentation explanations. Use calculations for derived numeric values: cite exact numeric-and-unit literals from each operand source, or the exact occurredAt timestamp for elapsed_days. The server computes sum, difference (first minus second), ratio (second divided by first), percent_change, unit conversion, and elapsed_days. The value is signed, with requested rounding, and unit is explicit. Calculations validate arithmetic only, not medical recommendations or symptom duration. Use an empty calculations array when there is no derivation. Each chunk preserves its final requested layout, including bullet markers or table rows. A JSON-only answer is one complete valid JSON object or array in one chunk, with all supporting sourceIds; JSON keys are output labels, not source quotations. Do not use null merely because the task asks for a quote. No generic coverage footer is added. Include any material limitation inside the requested answer. Keep source quotations exact and uncertainty attached to the disputed claim."
+    : "");
   let transported = promptContext;
   if (evidence?.history && (JSON.stringify(promptContext).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET
-    || estimateInputTokens({ input: JSON.stringify(promptContext), instructions: unifiedInstructions }) > getAiFeaturePolicy("ask").maxInputTokens - 256)) {
+    || estimateInputTokens({ input: JSON.stringify(promptContext), instructions: requestInstructions }) > getAiFeaturePolicy("ask").maxInputTokens - 256)) {
     // Retain full authority and candidate identities on the server. The model
     // only needs IDs for represented evidence plus complete coverage/counts.
     const represented = new Set(evidence.represented.map(span => span.sourceId));
@@ -1154,9 +1192,10 @@ export function buildAskProviderRequest(promptContext: object) {
   }
   return {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
-    instructions: unifiedInstructions,
+    ...(dedicatedRead ? { reasoning: { effort: "medium" } } : {}),
+    instructions: requestInstructions,
     input: JSON.stringify(transported),
-    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: askUnifiedJsonSchema } },
+    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence?.represented.some(span => span.sourceType === "care_update") ? evidence.interpretation?.request?.outputFormat : null) : askUnifiedJsonSchema } },
   };
 }
 
@@ -1179,7 +1218,7 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
     if (supportsReasoningEffort(model)) delete compatibleRequest.temperature;
     const response = await createWithTimeout(client, {
       ...compatibleRequest,
-      ...(supportsReasoningEffort(model) ? { reasoning: { effort: "low" } } : {}),
+      ...(supportsReasoningEffort(model) ? { reasoning: compatibleRequest.reasoning || { effort: "low" } } : {}),
       model,
     }, timeoutMs, () => onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit }));
     const result = interpretStructuredProviderResponse(response, parseOutput);
@@ -1234,6 +1273,7 @@ function isRepairableStructuredOutput(error: AskPipelineError) {
 }
 
 async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number, onAttempt?: () => void) {
+  timeoutMs = boundedProviderTimeout(timeoutMs);
   const controller = new AbortController();
   let timeoutTriggered = false;
   const timeout = setTimeout(() => {
@@ -1472,7 +1512,7 @@ function cleanProposedHistoryUpdate(value: ProposedHistoryUpdate): ProposedHisto
   };
 }
 
-function assertNoInternalReasoningLeak(answer: string, records: AskContextRecord[]) {
+export function assertNoInternalReasoningLeak(answer: string, records: readonly Pick<AskContextRecord, "id">[]) {
   if (/\b(?:context ids?|internal classifiers?|response schema|system instructions?|severity engine)\b/i.test(answer) || records.some((record) => answer.includes(record.id))) {
     throw new Error("Ask response exposed internal reasoning data.");
   }
