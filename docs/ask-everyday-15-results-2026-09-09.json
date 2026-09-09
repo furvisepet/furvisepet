@@ -1,0 +1,190 @@
+{
+  "finishedAt": "2026-09-09T23:29:00.084Z",
+  "results": [
+    {
+      "grade": "pass",
+      "id": 1,
+      "observedAt": "2026-09-09T23:18:19.102Z",
+      "visibleText": "You\n\nWhat food is Juniper eating now?\n\nFurvise\n\nJuniper is currently recorded as eating lamb-and-oat adult dry food.\n\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "What food is Juniper eating now?",
+      "originalId": 1,
+      "previousGrade": "pass"
+    },
+    {
+      "grade": "pass",
+      "id": 2,
+      "observedAt": "2026-09-09T23:19:07.200Z",
+      "visibleText": "You\n\nWhat was Pixel eating back in 2021?\n\nFurvise\n\nIn the 2021 records I can see, Pixel was offered turkey complete adult wet food at the food checks on September 12, October 12, November 12, and December 12, and he was observed eating normally at each check.\nThose notes do not establish everything he ate at unobserved meals.\n\nCopy\nPixel\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "What was Pixel eating back in 2021?",
+      "originalId": 8,
+      "previousGrade": "pass"
+    },
+    {
+      "grade": "pass",
+      "id": 3,
+      "observedAt": "2026-09-09T23:19:48.734Z",
+      "visibleText": "You\n\nHow much did Pixel weigh on September 9, 2023?\n\nFurvise\n\nPixel weighed 4.98 kg on September 9, 2023.\n\nCopy\nPixel\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "How much did Pixel weigh on September 9, 2023?",
+      "originalId": 10,
+      "previousGrade": "pass"
+    },
+    {
+      "grade": "pass",
+      "id": 4,
+      "observedAt": "2026-09-09T23:20:48.266Z",
+      "visibleText": "You\n\nWhen did Atlas go to the vet in 2024?\n\nFurvise\n\nThe available 2024 records show Atlas went to the vet on 2024-04-07 for an annual examination.\nThe retrieved 2024 history is partial, so I can’t confirm whether that was Atlas’s only vet visit that year.\n\nPrepare vet brief\nCopy\nAtlas\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "When did Atlas go to the vet in 2024?",
+      "originalId": 17,
+      "previousGrade": "pass"
+    },
+    {
+      "grade": "fail",
+      "id": 5,
+      "observedAt": "2026-09-09T23:21:35.370Z",
+      "reason": "Missed recorded December 2023 transition and incorrectly treated January 2022 food as latest accessible observation.",
+      "visibleText": "You\n\nWhen did we switch Juniper to the current food?\n\nFurvise\n\nFrom the history available here, I can’t tell exactly when Juniper switched to the current food.\nThe latest food observation in the accessible history still shows chicken-and-rice adult dry food on 2022-01-12.\n\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "When did we switch Juniper to the current food?",
+      "originalId": 6,
+      "previousGrade": "fail"
+    },
+    {
+      "grade": "fail",
+      "id": 6,
+      "observedAt": "2026-09-09T23:22:32.668Z",
+      "reason": "Missed July 2024 transition; returned 2021/2022 routine food observations.",
+      "visibleText": "You\n\nWhen did we switch Pixel to the current food?\n\nFurvise\n\nThe records I can see first show Pixel being offered turkey complete adult wet food on 2021-09-12, with the same food noted again on 2021-10-12, 2021-11-12, 2021-12-12, and 2022-01-12.\nThey do not establish when Pixel switched to the current food, so the switch date cannot be determined from these records.\n\nCopy\nPixel\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "When did we switch Pixel to the current food?",
+      "originalId": 12,
+      "previousGrade": "error"
+    },
+    {
+      "grade": "pass",
+      "id": 7,
+      "observedAt": "2026-09-09T23:23:20.788Z",
+      "visibleText": "You\n\nWhen did we switch Mochi to the current food?\n\nFurvise\n\nMochi’s currently recorded food is rabbit complete adult wet food.\nThe gradual switch to it started on September 9, 2023 and was completed on September 16, 2023.\n\nCopy\nMochi\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "When did we switch Mochi to the current food?",
+      "originalId": 24,
+      "previousGrade": "fail"
+    },
+    {
+      "grade": "pass",
+      "id": 8,
+      "observedAt": "2026-09-09T23:24:07.522Z",
+      "visibleText": "You\n\nWhat is the earliest weight you have saved for Ziggy?\n\nFurvise\n\nThe earliest weight I have saved for Ziggy is 9.49 kg on 2021-09-09.\n\nCopy\nZiggy\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "What is the earliest weight you have saved for Ziggy?",
+      "originalId": 27,
+      "previousGrade": "error"
+    },
+    {
+      "grade": "pass",
+      "id": 9,
+      "observedAt": "2026-09-09T23:24:47.300Z",
+      "visibleText": "You\n\nWhat is the earliest weight you have saved for Nori?\n\nFurvise\n\nThe earliest saved weight for Nori is 4.34 kg on 2021-09-09.\nI can only confirm that as the earliest weight in the saved history I can access here.\n\nCopy\nNori\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "What is the earliest weight you have saved for Nori?",
+      "originalId": 33,
+      "previousGrade": "error"
+    },
+    {
+      "grade": "pass",
+      "id": 10,
+      "observedAt": "2026-09-09T23:25:26.526Z",
+      "visibleText": "You\n\nHow much does Juniper weigh now?\n\nFurvise\n\nJuniper's latest recorded body weight is 18.6 kg, measured on September 9, 2026, without equipment.\n\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "How much does Juniper weigh now?",
+      "originalId": 49,
+      "previousGrade": "pass"
+    },
+    {
+      "grade": "pass",
+      "id": 11,
+      "observedAt": "2026-09-09T23:26:00.889Z",
+      "visibleText": "You\n\nHow much does Juniper weigh now?\n\nFurvise\n\nJuniper's latest recorded body weight is 18.6 kg, measured on September 9, 2026, without equipment.\n\nCopy\n\nYou\n\nAnd Atlas?\n\nFurvise\n\nAtlas's latest recorded body weight is 31.2 kg, recorded on 2026-09-09.\nA prior 2026-06-27 weighing note was corrected because the 32.55 kg display included a carrier; the corrected body mass was 31.2 kg.\n\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "And Atlas?",
+      "originalId": 50,
+      "previousGrade": "pass"
+    },
+    {
+      "grade": "pass",
+      "id": 12,
+      "observedAt": "2026-09-09T23:26:44.890Z",
+      "visibleText": "You\n\nHow much does Juniper weigh now?\n\nFurvise\n\nJuniper's latest recorded body weight is 18.6 kg, measured on September 9, 2026, without equipment.\n\nCopy\n\nYou\n\nAnd Atlas?\n\nFurvise\n\nAtlas's latest recorded body weight is 31.2 kg, recorded on 2026-09-09.\nA prior 2026-06-27 weighing note was corrected because the 32.55 kg display included a carrier; the corrected body mass was 31.2 kg.\n\nCopy\n\nYou\n\nWhich of those two is heavier?\n\nFurvise\n\nAtlas is heavier.\nAtlas’s latest recorded body weight is 31.2 kg, and Juniper’s is 18.6 kg, so Atlas is heavier by 12.6 kg.\n\nCopy\nJuniper\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "Which of those two is heavier?",
+      "originalId": 51,
+      "previousGrade": "error"
+    },
+    {
+      "grade": "pass",
+      "id": 13,
+      "observedAt": "2026-09-09T23:27:25.060Z",
+      "visibleText": "You\n\nDo we know why Nori hesitated at the low platform?\n\nFurvise\n\nNo—the notes say she hesitated before stepping onto the usual low platform, but the affected limb, cause, onset date, and any diagnosis were not recorded.\nFour days later she used the same low platform without hesitation, and the exact recovery date and continuous state were still unknown.\n\nCopy\nNori\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "Do we know why Nori hesitated at the low platform?",
+      "originalId": 53,
+      "previousGrade": "pass"
+    },
+    {
+      "grade": "pass",
+      "id": 14,
+      "observedAt": "2026-09-09T23:28:13.936Z",
+      "visibleText": "You\n\nWhat medicine was Maple on in that old seven-day course?\n\nFurvise\n\nI can’t tell from the available record: Maple’s seven-day course is documented as an incomplete medication note that says the medicine name, dose, and reason were omitted, so the medicine itself is unknown.\n\nCopy\nMaple\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "What medicine was Maple on in that old seven-day course?",
+      "originalId": 54,
+      "previousGrade": "fail"
+    },
+    {
+      "grade": "pass",
+      "id": 15,
+      "observedAt": "2026-09-09T23:29:00.070Z",
+      "visibleText": "You\n\nWas Mochi's food change because of an allergy?\n\nFurvise\n\nNo—there is no record here that Mochi's food change was because of an allergy.\nThe available note says it was a gradual diet transition based on a recorded preference change, not a diagnosed food allergy, and the later completion note does not add another reason.\n\nCopy\nMochi\nEnter to send · Shift + Enter for a new line\nSend\n\nFurvise helps keep your pet's story together. It does not replace veterinary care.",
+      "question": "Was Mochi's food change because of an allergy?",
+      "originalId": 55,
+      "previousGrade": "partial"
+    }
+  ],
+  "startedAt": "2026-09-09T23:17:24.192Z",
+  "suiteCommit": "a441b3d",
+  "productionCommit": "f57fc7e61cc10989ce9abe26924134dfa9bffbf0",
+  "counts": {
+    "pass": 13,
+    "fail": 2,
+    "partial": 0,
+    "error": 0
+  },
+  "firstAttemptOnly": true,
+  "submissions": 15,
+  "providerCalls": 57,
+  "costUsd": 0.503677,
+  "history": {
+    "records": 3729,
+    "before": "4ef19ccd440b5664850fe760565d4729",
+    "after": "4ef19ccd440b5664850fe760565d4729"
+  },
+  "telemetry": {
+    "operations": 15,
+    "completedProviderCalls": 57,
+    "unreconciledProviderCalls": 0,
+    "dailyBefore": {
+      "calls": 2174,
+      "costMicrodollars": 13476061
+    },
+    "dailyAfter": {
+      "calls": 2231,
+      "costMicrodollars": 13979738
+    },
+    "perQuestionCostsMicrodollars": [
+      43800,
+      23756,
+      13373,
+      48411,
+      45139,
+      50162,
+      44877,
+      24300,
+      30004,
+      41085,
+      28322,
+      29184,
+      30647,
+      25886,
+      24731
+    ]
+  }
+}
