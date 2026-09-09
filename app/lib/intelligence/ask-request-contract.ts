@@ -1,3 +1,4 @@
+import { literalHistoryMonthWindow } from "./literal-history-window.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -176,6 +177,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // Quantity is a separate semantic axis. Counting records or measurements
   // cannot accidentally invoke the illness episode membership subsystem.
   if (operation === "count" && p.quantity !== "episodes") operation = "recall";
+  // Quantity and ordering are independent axes. A stale episode operation
+  // cannot turn an explicit measurement/duration into an episode reference.
+  if (operation === "episode" && ["measurement", "duration", "records"].includes(String(p.quantity))) operation = "recall";
+  if (operation !== "episode" && ["latest", "earliest", "earliest_occurrence"].includes(String(p.selection))) p.ordinal = null;
   // An episode ordinal cannot change a measurement comparison. Discard this
   // irrelevant planner hint only when the quantity and operation are explicit.
   if (["measurement", "duration"].includes(String(p.quantity)) && ["recall", "comparison", "overview"].includes(operation)) p.ordinal = null;
@@ -193,6 +198,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // comparison evidence belongs to that same day. Retain earlier context.
   if (operation === "comparison" && typeof p.from === "string" && typeof p.to === "string" && Date.parse(p.to) - Date.parse(p.from) <= 86400000
     && !/\b(?:between|since|from|only on|on that day only)\b/i.test(context.currentMessage)) p.from = null;
+  // Literal month/year constraints survive a planner omission. Avoid altering
+  // existing ranges, conversation premises or open-ended temporal requests.
+  if (historical && p.from === null && p.to === null) {
+    const literalWindow = literalHistoryMonthWindow(context.currentMessage);
+    if (literalWindow) { p.from = literalWindow.from; p.to = literalWindow.to; }
+  }
   const from = p.from === null ? null : `${p.from}T00:00:00.000Z`;
   const to = p.to === null ? null : `${p.to}T00:00:00.000Z`;
   const request: AskRequestContract = { version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],

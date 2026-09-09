@@ -381,6 +381,9 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
       if (later) selected.push(...ordered.filter(note => compareHistoryTime(note.occurredAt || "", later.occurredAt || "") === 0 && !selected.includes(note)));
     }
     if (!selection.startsWith("earliest") && selection !== "latest") selected.sort((a, b) => (a.occurredAt || "").localeCompare(b.occurredAt || ""));
+    // Failed shared reads show a bounded sample, never pages of unreviewed prose.
+    const omittedFallbackReports = sharedRequest ? Math.max(0, selected.length - 3) : 0;
+    if (omittedFallbackReports) selected.splice(3);
     const groups = new Map<string, typeof selected>();
     for (const note of selected) groups.set(note.text, [...(groups.get(note.text) || []), note]);
     const sentences = [...groups.values()].map(group => {
@@ -403,13 +406,13 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     });
     if (sentences.length) {
       const date = selected[0].occurredAt?.slice(0, 10) || "an unknown date";
-      const lead = sharedRequest ? `I couldn't verify a complete answer to the request. These are the saved reports I could check for ${petName}: `
+      const lead = sharedRequest ? `I couldn't verify a complete answer to the request. Here are ${omittedFallbackReports ? "three sample source excerpts" : "the source excerpts"} for ${petName}${omittedFallbackReports ? "; additional matching records are not displayed" : ""}: `
         : unresolvedCorrection ? `${petName} has these saved reports, with correction uncertainty noted below. `
         : boundaryBlocked ? `I could verify this dated history for ${petName}, but could not establish the ${selection === "latest" ? "latest" : "earliest"} matching report because some candidates could not be checked. `
         : occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
         : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `
         : selection === "latest" ? `The latest matching update I could check for ${petName} is dated ${date}. ` : `${petName}'s recorded history: `;
-      reports.push(timelineDays ? sentences.join("\n\n") : lead + sentences.join(" "));
+      reports.push(timelineDays ? sentences.join("\n\n") : lead + sentences.join(sharedRequest ? "\n\n" : " "));
     } else {
       reports.push(missingHistoryPetLimitation(contract, petId));
     }
