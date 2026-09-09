@@ -1,3 +1,4 @@
+import { historyQueryTerms, historyQueryRelevance } from "./history-query-relevance.ts";
 import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
 import { explicitHistoryDays } from "./explicit-history-dates.ts";
@@ -86,6 +87,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const plan = proposedPlan ? clipHistoryPlan(proposedPlan, context.historyAccess) : null;
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
+  const searchTerms = context.askInterpretation?.request ? historyQueryTerms(plan.terms, context.eligiblePets.map(pet=>pet.name || "")) : plan.terms;
   const asOf = Date.now();
   const namedDays = [...explicitHistoryDays(context.currentMessage, new Date(asOf).getUTCFullYear()),
     ...(context.currentMessage.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])];
@@ -125,11 +127,13 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       : directions.map(descending => ({ descending, lexical: !!plan.terms.length }));
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
-    for (const { descending: readDescending, lexical } of strategies) {
+    for (const [strategyIndex, { descending: readDescending, lexical }] of strategies.entries()) {
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
-      const directionRows = Math.floor(rowsPerPet / strategies.length);
       const priorIds = new Set(collected.map(row => row.id));
+      // Empty and overlapping strategies return unused capacity to the remaining
+      // searches. Total distinct candidates and page limits stay unchanged.
+      const directionRows = Math.floor((rowsPerPet - priorIds.size) / (strategies.length - strategyIndex));
       const directionPages = Math.floor(HISTORY_BUDGET.pagesPerPet / strategies.length);
       try {
         for (let attempt = 0; attempt < directionPages && !traversalExhausted && rows.length < directionRows; attempt++) {
@@ -144,7 +148,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
             // The RPC derives auth.uid(). Never pass an owner or fall back to a
             // different lexical authority when its migration/service is missing.
             result = await db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
-              p_pet_id: petId, p_terms: plan.terms,
+              p_pet_id: petId, p_terms: searchTerms.length ? searchTerms : plan.terms,
               p_from: plan.from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
               p_to: futureSourceRequested ? plan.to : new Date(Math.min(plan.to ? Date.parse(plan.to) : Infinity, asOf + 1)).toISOString(),
               p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
@@ -229,8 +233,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const relevantIds = new Set(relevant.map(entry => entry.id));
   const ordered = orderHistoryEvidence(matchingEntries, selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
     selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1
-      : context.askInterpretation?.request && plan.terms.length ? entry => plan.terms.some(term =>
-        `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase())) ? 0 : 1 : undefined);
+      : context.askInterpretation?.request && searchTerms.length ? entry => historyQueryRelevance(`${entry.title || ""} ${entry.note}`, searchTerms) > 0 ? 0 : 1 : undefined);
   // Broad food summaries should retain explicit diet records before incidental
   // appetite/eating matches. This is ranking only; keep all candidates and losses.
   if (!context.askInterpretation?.request && ["summary", "comparison"].includes(selection || "") && /\b(?:foods?|diet)\b/i.test(context.currentMessage)) {

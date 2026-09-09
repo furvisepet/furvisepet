@@ -49,7 +49,11 @@ export function orderHistoryEvidence<T>(values: T[], selection: string | undefin
     }
     return fair;
   }
-  const sorted = [...values].sort((a, b) => (priority ? priority(a) - priority(b) : 0) || compareHistoryTime(date(a), date(b)) || id(a).localeCompare(id(b)));
+  // Relevance tiers always stay in priority order. Reversing chronology must
+  // not reverse relevance, and endpoint balancing happens within each tier.
+  if (priority) return [...new Set(values.map(priority))].sort((a,b)=>a-b)
+    .flatMap(rank=>orderHistoryEvidence(values.filter(value=>priority(value)===rank),selection,date,id));
+  const sorted = [...values].sort((a, b) => compareHistoryTime(date(a), date(b)) || id(a).localeCompare(id(b)));
   if (selection === "latest") return sorted.reverse();
   if (selection === "summary" || selection === "comparison") {
     // Under an upstream budget, retain both temporal boundaries before interior

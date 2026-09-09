@@ -11,7 +11,8 @@ export function containsUnverifiedStateClaim(value: string) {
   if (authoritativeMutationClaim.test(value)) return true;
   for (const clause of splitSentencesPreservingFacts(value)) for (const match of clause.matchAll(passiveMutationClaim)) {
     const before = clause.slice(0, match.index);
-    const subject = before;
+    // Attribution prefixes are not the subject of the embedded statement.
+    const subject = before.split(/\b(?:says|said|reports|states|documents)\b/i).at(-1) || before;
     const dataSubject = /\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(subject);
     // Absence in a clinical note does not announce a successful app write.
     const absentClinicalDetail = /\bno\s+(?:[a-z-]+\s+){0,10}$/i.test(subject)
@@ -25,7 +26,11 @@ export function containsUnverifiedStateClaim(value: string) {
       && /^\s+(?:from\s+[^.!?,;]{1,100}\s+to\s+|to\s+)[^.!?,;]{0,100}\b(?:food|diet|kibble)\b/i.test(after);
     // A physical care event is not a claim that the application changed data.
     // This only classifies the speech act; source grounding is still required.
-    const physical = dietTransition || match[1].toLowerCase() === "changed" && physicalChangeSubject.test(before)
+    const datedCompletion = match[1].toLowerCase() === "completed"
+      && /\b(?:on|in)\s+(?:\d{4}-\d{2}-\d{2}|(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{1,2})\b/i.test(after)
+      && !/\b(?:save|deletion|update|request|task|action|operation|setup|data|note)\b/i.test(subject)
+      && !/^\s*(?:it|this|that|the task)\s*$/i.test(subject);
+    const physical = datedCompletion || dietTransition || match[1].toLowerCase() === "changed" && physicalChangeSubject.test(before)
       || match[1].toLowerCase() === "completed" && physicalCourseSubject.test(before);
     if (!physical || dataSubject || applicationDestination.test(clause)) return true;
   }
