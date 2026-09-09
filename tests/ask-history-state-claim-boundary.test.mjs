@@ -110,3 +110,12 @@ test('explicit literary quotations survive action checks without exempting surro
   'The fictional character says “I saved the booking.',
  ]) assert.equal(containsUnverifiedStateClaim(text),true,text);
 });
+
+test('negated receipt speech survives while affirmative clauses remain blocked', () => {
+ for(const text of ["I can’t say your history was deleted, because no deletion occurred and I did not perform any action.",
+  'I cannot confirm that the profile was updated.', 'I will not pretend your records were deleted.'])
+  assert.equal(enforceVerifiedStateClaims(text,false),text);
+ for(const text of ['I cannot confirm your profile was updated, but your history was deleted.',
+  'I cannot say your history was deleted. I deleted it.', 'I can confirm your history was deleted.'])
+  assert.equal(containsUnverifiedStateClaim(text),true);
+});

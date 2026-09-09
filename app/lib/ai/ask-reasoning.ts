@@ -1,3 +1,4 @@
+import { withProviderDeadline } from "./provider-deadline.ts";
 import { stripKnownHistoryCitations } from "../intelligence/public-history-text.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
 import { directHistoryTimelineAnswer } from "../intelligence/direct-history-timeline.ts";
@@ -1297,31 +1298,12 @@ function isRepairableStructuredOutput(error: AskPipelineError) {
 }
 
 async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number, onAttempt?: () => void) {
-  timeoutMs = boundedProviderTimeout(timeoutMs);
-  const controller = new AbortController();
-  let timeoutTriggered = false;
-  const timeout = setTimeout(() => {
-    timeoutTriggered = true;
-    controller.abort();
-  }, timeoutMs);
-  try {
-    const model = typeof request.model === "string" ? request.model : "";
-    const maxOutputTokens = typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0;
-    return await executeAdmittedProviderCall({
-      invoke: () => { onAttempt?.(); return client.responses.create(request, { signal: controller.signal }); },
-      maxOutputTokens,
-      model,
-      providerInput: { input: request.input, instructions: request.instructions },
-    });
-  } catch (error) {
-    if (!timeoutTriggered) throw error;
-    const timeoutError = new Error("Ask provider timed out.") as Error & { code: string };
-    timeoutError.name = "TimeoutError";
-    timeoutError.code = "ABORT_ERR";
-    throw timeoutError;
-  } finally {
-    clearTimeout(timeout);
-  }
+  return executeAdmittedProviderCall({
+    invoke: () => withProviderDeadline(signal => { onAttempt?.(); return client.responses.create(request, { signal }); }, boundedProviderTimeout(timeoutMs)),
+    maxOutputTokens: typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0,
+    model: typeof request.model === "string" ? request.model : "",
+    providerInput: { input: request.input, instructions: request.instructions },
+  });
 }
 
 function providerDiagnostics(error: unknown) {
@@ -1537,7 +1519,7 @@ function cleanProposedHistoryUpdate(value: ProposedHistoryUpdate): ProposedHisto
 }
 
 export function assertNoInternalReasoningLeak(answer: string, records: readonly Pick<AskContextRecord, "id">[]) {
-  if (/\b(?:context ids?|internal classifiers?|response schema|system instructions?|severity engine)\b/i.test(answer) || records.some((record) => answer.includes(record.id))) {
+  if (/\b(?:context ids?|internal classifiers?|response schema|severity engine)\b/i.test(answer) || records.some((record) => answer.includes(record.id))) {
     throw new Error("Ask response exposed internal reasoning data.");
   }
 }

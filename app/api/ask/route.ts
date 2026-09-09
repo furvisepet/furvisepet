@@ -87,6 +87,8 @@ import {
   type CarePersistenceResult,
   type IntelligencePersistenceSummary,
 } from "../../lib/intelligence";
+import { answerIntegrityFailure } from "../../lib/answer-integrity.ts";
+import { presentationOnlyAskResponse } from "../../lib/ask-conversation-server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 import { claimIdempotentOperation } from "../../lib/security/idempotency";
@@ -1020,10 +1022,17 @@ export async function POST(request: Request) {
     urgent: safetyLevel === "urgent",
     usedContextSummary: contextUsed.usedSources,
   });
-  if (!conversationResponse) {
-    await failAiAdmission(aiAdmission, new Error("ASK_RESPONSE_SERIALIZATION_FAILED"), aiAdmissionFinalized, requestId);
+  if (conversationResponse) Object.assign(conversationResponse, restoreAskEvidencePresentation(conversationResponse, reasoning?.evidenceContract, liveContext.episodeResult));
+  // Include the sanitizer used after a conversation reload in the admission gate.
+  const displayedResponse = conversationResponse && liveContext.askInterpretation?.readOnly
+    ? presentationOnlyAskResponse(conversationResponse, []) as typeof conversationResponse : conversationResponse;
+  const integrityFailure = displayedResponse && liveContext.askInterpretation?.readOnly
+    ? answerIntegrityFailure(orchestration.answer, displayedResponse) : null;
+  if (!conversationResponse || integrityFailure) {
+    await failAiAdmission(aiAdmission, new Error(integrityFailure ? "ASK_ANSWER_INTEGRITY_FAILED" : "ASK_RESPONSE_SERIALIZATION_FAILED"), aiAdmissionFinalized, requestId);
     aiAdmissionFinalized = Boolean(aiAdmission);
-    logAskServerError("response_serialization", new Error("ASK_RESPONSE_SERIALIZATION_FAILED"), {
+    logAskServerError("response_serialization", new Error(integrityFailure ? "ASK_ANSWER_INTEGRITY_FAILED" : "ASK_RESPONSE_SERIALIZATION_FAILED"), {
+      integrityFailure,
       conversationId: preparedRequest.conversationId,
       petId: turnPetId,
       requestId,
@@ -1039,7 +1048,6 @@ export async function POST(request: Request) {
     if (rateGateRef.current) await rateGateRef.current.release();
     return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, {}, "response_serialization");
   }
-  Object.assign(conversationResponse, restoreAskEvidencePresentation(conversationResponse, reasoning?.evidenceContract, liveContext.episodeResult));
   turnLifecycle.transition("ANSWER_VALIDATED");
   const actionTargetBindings = resolveFurviseActionTargetBindings({
     actions: preparedApplicationActions,

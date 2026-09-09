@@ -156,11 +156,9 @@ test("a released Ask attempt receives a new ledger UUID without changing message
   assert.match(route, /completeAiCredit\(\{ feature: "ask", logicalRequestId: requestId, payloadHash, requestId: creditRequestId/);
 });
 
-test("provider aborts at the configured deadline are classified as timeouts", () => {
-  const reasoning = read("app/lib/ai/ask-reasoning.ts");
-  assert.match(reasoning, /timeoutTriggered = true;[\s\S]*controller\.abort\(\)/);
-  assert.match(reasoning, /timeoutError\.name = "TimeoutError"/);
-  assert.match(reasoning, /timeoutError\.code = "ABORT_ERR"/);
+test("provider aborts at the configured deadline are classified as timeouts", async () => {
+  const {withProviderDeadline}=await import('../app/lib/ai/provider-deadline.ts');
+  await assert.rejects(withProviderDeadline(()=>new Promise(()=>{}),5), error=>error.name==='TimeoutError'&&error.code==='ABORT_ERR');
 });
 
 test("the production first message derives a standalone title without another provider call", () => {

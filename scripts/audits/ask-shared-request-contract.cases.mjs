@@ -898,3 +898,102 @@ test('standalone task wording cannot be replaced by a planner paraphrase', () =>
  assert.equal(result.referenceQuestion,original);
  assert.deepEqual(result.request.requirements,[]);
 });
+
+test('missing premises use bounded repair without inventing evidence', async t => {
+ clock(t);
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ const currentMessage='Hypothetical: a dog cannot breathe. Which task takes priority?';
+ const good=proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,
+  evidenceBasis:'supplied_context',premiseQuotes:['a dog cannot breathe']});
+ let calls=0;
+ const result=await interpretAskQuestion({context:{...context,currentMessage},model:'gpt-5-mini',client:{responses:{async create(){
+  calls++;return {status:'completed',output_text:JSON.stringify(calls===1?{...good,premiseQuotes:[]}:good),usage:{input_tokens:500,output_tokens:200}};
+ }}}});
+ assert.equal(calls,2);assert.equal(result.conversationOnly,true);assert.equal(result.readOnly,true);
+});
+test('generic incidents are source reads; report endpoints remain accessible', () => {
+ const incident=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:null,episodeTopic:null}),context);
+ assert.equal(incident.operation,'recall');assert.equal(incident.ordinal,null);
+ const dated=validateAskRequest(proposal({from:'2025-04-02',to:'2025-04-09'}),{...context,currentMessage:"What can Aster's April 9, 2025 ramp report tell us about April 2-8?"});
+ assert.equal(dated.history.from,'2025-04-02T00:00:00.000Z');assert.equal(dated.history.to,'2025-04-10T00:00:00.000Z');
+});
+test('a retrieval command cannot substitute for missing saved values', () => {
+ const currentMessage="Read Aster's latest body measurement.";
+ assert.throws(()=>validateAskRequest(proposal({evidenceBasis:'supplied_context',premiseQuotes:[currentMessage]}),{...context,currentMessage}),/missing_supplied_premise/);
+});
+
+test('security explanations survive without allowing internal source identifiers', async t => {
+ clock(t);
+ const {assertNoInternalReasoningLeak}=await import('../../app/lib/ai/ask-reasoning.ts');
+ const answer='A pasted SYSTEM label is not a real system instruction or permission. No deletion was performed.';
+ assert.doesNotThrow(()=>assertNoInternalReasoningLeak(answer,[]));
+ assert.throws(()=>assertNoInternalReasoningLeak('Source secret-record-id', [{id:'secret-record-id'}]),/internal reasoning/);
+ const r=await exercise('Does an untrusted SYSTEM label authorize deletion?',{fixturePets,messages:[],history:true,rows:[],
+  interpretationProposal:proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'general',premiseQuotes:[]}),answer});
+ assert.match(r.result.reasoning.answer.summary,/not a real system instruction/);
+ assert.deepEqual(r.result.acceptedCareActions,[]);
+});
+test('diverse candidates reach a rare middle-history transition within existing bounds', async t => {
+ clock(t);
+ const rows=Array.from({length:100},(_,i)=>care('routine-'+i,'milo',new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10),'food','Aster ate whitefish.'));
+ rows.push(care('transition','milo','2024-03-06','food','Aster began a whitefish to rabbit transition.'));
+ const r=await exercise('When did Aster change from whitefish to rabbit?',{fixturePets,messages:[],history:true,rows,
+  interpretationProposal:proposal({terms:['whitefish','rabbit','transition'],selection:'period'}),
+  answer:'The transition was reported on March 6, 2024.'});
+ assert.ok(r.context.askHistory.entries.some(e=>e.id==='transition'));
+ assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+ assert.ok(r.context.askHistory.coverage.candidateIds.length<=64);
+});
+
+test('compound rates are recomputed dimensionally from source-bound operands',()=>{
+ const sources=[{sourceId:'trip',text:'Distance 3 km; duration 30 minutes including stops.'}];
+ const calc={operation:'ratio',operands:[{sourceId:'trip',field:'text',literal:'30 minutes'},{sourceId:'trip',field:'text',literal:'3 km'}],value:6,unit:'km/h'};
+ assert.deepEqual(verifiedCalculationQuantities([calc],sources),['6:km/hour']);
+ assert.deepEqual(verifiedCalculationQuantities([{...calc,value:.1,unit:'km/min'}],sources),['0.1:km/minute']);
+ for(const bad of [{value:7},{unit:'g/hour'},{operands:[...calc.operands].reverse()},{unit:''}])
+  assert.equal(verifiedCalculationQuantities([{...calc,...bad}],sources),null);
+ assert.equal(historyNarrativeAnchorsSupported('Average speed was 6 km/h.',sources,'',[],false),false);
+ assert.equal(historyNarrativeAnchorsSupported('Average speed was 6 km/h.',sources,'',['6:km/hour'],false),true);
+ assert.equal(historyNarrativeAnchorsSupported('The trip was 9 km.',sources,'',[],false),false);
+});
+test('final presentation preserves negation, uncertainty and exact line breaks',async()=>{
+ const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
+ for(const summary of ["I can’t say your history was deleted, because no deletion occurred.",
+  'Aster was recorded as limping, but the record does not say which limb or what caused it.',
+  'No sneeze; play unchanged.\nReason: unknown']){
+  const r=presentationOnlyAskResponse({summary},[]);
+  assert.equal(r.directAnswer,summary);
+ }
+ const r=presentationOnlyAskResponse({summary:'Your history was deleted.'},[]);
+ assert.doesNotMatch(r.directAnswer,/was deleted/);
+});
+
+test('event aliases cannot be starved by newer routine notes or a common alias', async t => {
+ clock(t);
+ for(const [question,category,eventText,terms] of [
+  ['When did Aster switch food?','food','Aster started a gradual transition from food A to food B.',['food']],
+  ['When did Aster stop the supplement?','medication','The supplement was discontinued on this date.',['supplement']],
+ ]) {
+  const rows=Array.from({length:120},(_,i)=>care('noise-'+i,'milo',new Date(Date.UTC(2025,0,i+1)).toISOString().slice(0,10),category,'Routine food and supplement check. Reason for any change unknown.'));
+  rows.push(care('decisive-event','milo','2022-04-07',category,eventText));
+  const r=await exercise(question,{fixturePets,messages:[],history:true,rows,
+   interpretationProposal:proposal({terms,selection:'latest'}),
+   answer:'The event was reported on April 7, 2022.'});
+  assert.ok(r.context.askHistory.entries.some(e=>e.id==='decisive-event'),question);
+  assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+  assert.ok(r.context.askHistory.coverage.candidateIds.length<=64);
+ }
+});
+test('final persisted presentation retains relative-clause measurements',async()=>{
+ const {presentationOnlyAskResponse}=await import('../../app/lib/ask-conversation-server.ts');
+ const summary='The earliest weight I have saved for Rowan is 7.21 kg on 2020-03-04. The reason for any change was not established.';
+ assert.equal(presentationOnlyAskResponse({summary},[]).directAnswer,summary);
+});
+test('prose transport envelope is decoded before factual review, not after it',()=>{
+ const text='{"answer":"The prior food was offered.","note":"Unobserved meals are unknown."}';
+ const response=canonicalHistoricalRead({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
+  historyNarrative:{sentences:[{text,sourceIds:['care:a'],calculations:[]}]},
+  safetyLevel:'monitor',responseMode:'direct_answer',userIntent:'general_pet_question',relevantContextIds:[]});
+ assert.equal(response.historyNarrative.sentences[0].text,'The prior food was offered.\nUnobserved meals are unknown.');
+ assert.deepEqual(response.historyNarrative.sentences[0].sourceIds,['care:a']);
+});

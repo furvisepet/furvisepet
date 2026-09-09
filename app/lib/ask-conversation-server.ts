@@ -1,11 +1,12 @@
 import "server-only";
+import { filterSentencesPreservingFacts } from "./ai/text-segmentation.ts";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "./security/idempotency/admin-client.ts";
 import { createCanonicalCareAuthorityClient } from "./intelligence/care-authority-client.ts";
 import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 import { getFurviseActionPolicy } from "./application-actions/policy.ts";
-import { enforceVerifiedStateClaims, preserveAttributedReportQuotes, preserveFictionalDialogueQuotes, isHistoricalRecordingAttribution } from "./application-actions/state-claims.ts";
+import { enforceVerifiedStateClaims, preserveAttributedReportQuotes, preserveFictionalDialogueQuotes, containsUntrustedTerminalMutationClaim } from "./application-actions/state-claims.ts";
 import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
 import { deduplicateLegacyRetriedMessages, type AskConversationDetail, type AskConversationSummary, type StoredAskMessage, type StoredAskSuggestion } from "./ask-conversations";
 
@@ -178,13 +179,11 @@ function scrubUntrustedSection(value: unknown) {
   return heading && items.length ? { ...section, heading, items } : null;
 }
 
-const untrustedTerminalMutationClaim = /\b(?:profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(?:saved|deleted|removed|forgotten|changed|updated|archived|recorded|completed|marked)\b/i;
 function scrubUntrustedMutationClaim(value: unknown, fallback: string) {
   if (typeof value !== "string") return fallback;
   const governed = enforceVerifiedStateClaims(value, false);
-  const safe = preserveFictionalDialogueQuotes(governed, text => preserveAttributedReportQuotes(text, prose => prose.split(/(?<=[.!?])(?=\s)/)
-    .filter((sentence) => (!untrustedTerminalMutationClaim.test(sentence) || isHistoricalRecordingAttribution(sentence)
-      && !/\b(?:profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(?:saved|deleted|removed|forgotten|changed|updated|archived|completed|marked)\b/i.test(sentence))).join("").trim()));
+  const safe = preserveFictionalDialogueQuotes(governed, text => preserveAttributedReportQuotes(text, prose =>
+    filterSentencesPreservingFacts(prose, sentence => !containsUntrustedTerminalMutationClaim(sentence))));
   return safe || fallback;
 }
 

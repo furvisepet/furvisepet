@@ -1,5 +1,6 @@
 import "server-only";
 
+import { recoverTransientClaim } from "./claim-recovery.ts";
 import { createIdempotencyAdminClient } from "./admin-client";
 import type { IdempotencyClaimRow, IdempotencyRetention } from "./types";
 
@@ -11,16 +12,18 @@ const RETENTION_SECONDS: Record<IdempotencyRetention, number> = {
 };
 
 export async function claimStoredOperation(input: { key: string; leaseSeconds: number; operationType: string; payloadHash: string; retention: IdempotencyRetention; userId: string }) {
-  const { data, error } = await createIdempotencyAdminClient().rpc("claim_idempotency_operation", {
+  return recoverTransientClaim(async () => {
+  const { data, error, status } = await createIdempotencyAdminClient().rpc("claim_idempotency_operation", {
     p_idempotency_key: input.key,
     p_lease_seconds: input.leaseSeconds,
     p_operation_type: input.operationType,
     p_payload_hash: input.payloadHash,
     p_retention_seconds: RETENTION_SECONDS[input.retention],
     p_user_id: input.userId,
-  });
-  if (error) throw error;
+  }).abortSignal(AbortSignal.timeout(2000));
+  if (error) throw { ...error, status };
   return (Array.isArray(data) ? data[0] : data) as IdempotencyClaimRow | null;
+  });
 }
 
 export async function completeStoredOperation(input: { body: unknown; key: string; operationType: string; ownerToken: string; resourceId?: string | null; resourceType?: string | null; status: number; userId: string }) {
