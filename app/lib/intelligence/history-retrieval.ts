@@ -1,4 +1,4 @@
-import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups } from "./history-query-relevance.ts";
+import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups, historyEventRelevance } from "./history-query-relevance.ts";
 import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
 import { explicitHistoryDays } from "./explicit-history-dates.ts";
@@ -242,11 +242,17 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
   const relevantIds = new Set(relevant.map(entry => entry.id));
+  const eventRelevance = historyEventRelevance(matchingEntries.map(entry => `${entry.title || ""} ${entry.note}`),
+    endpointComparison ? [] : eventTerms);
   const ordered = orderHistoryEvidence(matchingEntries, selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
     selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1
-      : context.askInterpretation?.request && searchTerms.length ? entry => {
-        const score = historyQueryRelevance(`${entry.title || ""} ${entry.note}`, searchTerms);
-        return ["latest", "earliest"].includes(selection || "") ? score > 0 ? 0 : 1 : -score;
+      : context.askInterpretation?.request && (searchTerms.length || eventTerms.length) ? entry => {
+        const text = `${entry.title || ""} ${entry.note}`;
+        const score = historyQueryRelevance(text, searchTerms);
+        const eventScore = eventRelevance(text);
+        // Keep event facets ahead of routine topic matches through both budgets.
+        // Within the same event tier, retain the requested chronological order.
+        return -1000 * eventScore + (["latest", "earliest"].includes(selection || "") ? score > 0 ? 0 : 1 : -score);
       } : undefined);
   // Broad food summaries should retain explicit diet records before incidental
   // appetite/eating matches. This is ranking only; keep all candidates and losses.

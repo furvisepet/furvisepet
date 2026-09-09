@@ -997,3 +997,24 @@ test('prose transport envelope is decoded before factual review, not after it',(
  assert.equal(response.historyNarrative.sentences[0].text,'The prior food was offered.\nUnobserved meals are unknown.');
  assert.deepEqual(response.historyNarrative.sentences[0].sourceIds,['care:a']);
 });
+
+
+test('event evidence survives both budgets among verbose routine observations', async t => {
+ clock(t);
+ for (const selection of ['period','earliest','latest']) {
+  const rows=Array.from({length:120},(_,i)=>care('verbose-'+i,'milo',new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10),'food',
+   'Aster was offered food A at the routine check. Reason for any change was not established. '+ 'Only this observed meal was recorded; other meals and causes remain unknown. '.repeat(7)));
+  rows.push(care('event-start','milo','2024-03-06','food','Aster started a gradual transition from food A to food B. The owner recorded a preference change, not a diagnosed allergy.'));
+  rows.push(care('event-end','milo','2024-03-13','food','Aster completed the transition to food B. No other reason was recorded.'));
+  const r=await exercise('When did Aster switch to the current food?',{fixturePets,messages:[],history:true,rows,
+   interpretationProposal:proposal({terms:['food'],selection}),answer:'The gradual transition started on March 6, 2024 and completed on March 13, 2024.'});
+  for(const id of ['event-start','event-end']) {
+   assert.ok(r.context.askHistory.coverage.candidateIds.includes('care:'+id),'candidate '+selection+' '+id);
+   assert.ok(r.context.askHistory.entries.some(e=>e.id===id),'retained '+selection+' '+id);
+   assert.ok(r.prompt.evidenceContract.represented.some(e=>e.sourceId==='care:'+id),'prompt '+selection+' '+id);
+  }
+  assert.ok(r.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
+  assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+  assert.ok(r.context.askHistory.coverage.candidateIds.length<=64);
+ }
+});
