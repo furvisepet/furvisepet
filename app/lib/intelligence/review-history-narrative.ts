@@ -14,7 +14,7 @@ import { historyReviewSelectionSchema, parseHistoryReviewSelection, taskHistoryR
 import { historyNarrativeAnchorsSupported } from "./history-narrative-facts.ts";
 import "server-only";
 import OpenAI from "openai";
-import { getAskModelConfiguration, type AskReasoningResult, type AskProviderEvent } from "../ai/ask-reasoning.ts";
+import { getAskModelConfiguration, assertNoInternalReasoningLeak, type AskReasoningResult, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { attributedHistoryAnswer, conversationalHistoryLimitation, type AskEvidenceContract } from "./ask-evidence.ts";
@@ -90,13 +90,16 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
       .map(text => ({ text, sourceIds })) });
   }
   if (!proposedDraft) return false;
+  try { if (sharedRequest) for (const chunk of proposedDraft.sentences) assertNoInternalReasoningLeak(chunk.text,
+    evidence.represented.map(span => ({ id: span.sourceId }))); }
+  catch { return false; }
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence, text: sharedRequest ? sentence.text : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) })).filter(sentence => sentence.sourceIds.every(id => ids.has(id))
     && !hasUndatedHistoricalCareState(sentence.text, sources.filter(source => sentence.sourceIds.includes(source.sourceId)))
     && (() => {
       const cited = sources.filter(source => sentence.sourceIds.includes(source.sourceId));
       const derived = verifiedCalculationQuantities(sentence.calculations || [], cited);
       return derived !== null && historyNarrativeAnchorsSupported(sentence.text, cited,
-        evidence.interpretation?.referenceQuestion || evidence.scope.requestText, derived, !sharedRequest);
+        evidence.interpretation?.referenceQuestion || evidence.scope.requestText, derived, !sharedRequest, sharedRequest ? [evidence.interpretation?.history?.from, evidence.interpretation?.history?.to].filter((date): date is string => !!date) : []);
     })()) };
   // A coverage caveat is not an answer, even if a reviewer would approve it.
   draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
@@ -114,7 +117,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent }
   const model = getAskModelConfiguration().primary;
   const started = Date.now(); const before = signature(result);
   let attempted = false;
-  const request = { model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}), instructions: instructions + (sharedRequest ? "\nThe request contract is the validated task, not evidence. Check each requested obligation. Unlinked correction records support only what their text reports, not a verified reassignment. Scope uncertainty to the disputed claim, never unrelated facts or other pets. Include material missing-evidence limitations in the retained answer itself. A generic coverage footer is not required. Preserve requested language and format. Do not approve a disclaimer-only answer or unrelated source list. Return an obligations item for every supplied index, including the main question. answered means retained sentences fulfill it; limited means retained sentences explicitly explain unavailable evidence; missing means it is not answered. Approve only if every obligation has a non-missing status and supporting retained sentence indexes. Otherwise return approved false, no retained sentences, and missing obligations. Formatting and language requirements must hold for the whole retained answer." : ""), input: requestInput, max_output_tokens: HISTORY_REVIEW_LIMITS.outputTokens,
+  const request = { model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}), instructions: instructions + (sharedRequest ? "\nThe request contract is the validated task, not evidence. Check each requested obligation against all relevant supplied records, including facts omitted from the draft. A limitation is insufficient if the requested fact exists in the supplied records. Query boundary dates describe the requested scope, never evidence that an event happened on that date. Reject any draft that presents a query date as an unsupported event date. Unlinked correction records support only what their text reports, not a verified reassignment. Scope uncertainty to the disputed claim, never unrelated facts or other pets. Include material missing-evidence limitations in the retained answer itself. A generic coverage footer is not required. Preserve requested language and format. Do not approve a disclaimer-only answer or unrelated source list. Return an obligations item for every supplied index, including the main question. answered means retained sentences fulfill it; limited means retained sentences explicitly explain unavailable evidence; missing means it is not answered. Approve only if every obligation has a non-missing status and supporting retained sentence indexes. Otherwise return approved false, no retained sentences, and missing obligations. Formatting and language requirements must hold for the whole retained answer." : ""), input: requestInput, max_output_tokens: HISTORY_REVIEW_LIMITS.outputTokens,
     text: { format: { type: "json_schema", name: "furvise_history_review", strict: true,
       schema: sharedRequest ? taskHistoryReviewSchema : historyReviewSelectionSchema } } };
   try {

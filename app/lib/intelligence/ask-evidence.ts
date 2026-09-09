@@ -346,7 +346,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     && (!period?.from || !!span.occurredAt && span.occurredAt >= period.from)
     && (!period?.to || !!span.occurredAt && span.occurredAt < period.to)
     && span.start === 0 && span.end === span.text.length && span.text.trim()
-    && (!terms.length || terms.some(term => span.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())))
+    && (sharedRequest || !terms.length || terms.some(term => span.text.toLocaleLowerCase().includes(term.toLocaleLowerCase())))
     && !contract.losses.some(loss => loss.sourceId === span.sourceId)
     && contract.sources.some(source => source.petId === span.petId && source.loadedIds.includes(span.sourceId)
       && source.status !== "not_loaded")

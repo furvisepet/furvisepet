@@ -17,7 +17,7 @@ function quantities(text: string): string[] {
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
  * prevents an approving model from manufacturing a date or dose. */
-export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true): boolean {
+export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = []): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
   // Missing documentation cannot support a claim that a clinical act never occurred.
@@ -55,7 +55,7 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
     return explicit;
   });
-  const supportedDates = new Set(sourceDates.flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
+  const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date))].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
   const supportedQuantities = new Set([...sources.flatMap(source => quantities(source.text)), ...derivedQuantities]);
   // Two separately dated, explicitly reported urination events can support a
   // count within that note. This never authorizes illness-episode totals.

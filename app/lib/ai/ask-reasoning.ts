@@ -1,3 +1,5 @@
+import { stripKnownHistoryCitations } from "../intelligence/public-history-text.ts";
+import { historicalReadInstructions, historicalReadSchema } from "../intelligence/historical-read-response.ts";
 import { directHistoryTimelineAnswer } from "../intelligence/direct-history-timeline.ts";
 import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
@@ -819,6 +821,11 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     if (parsed.intelligenceSafety.level === "routine") parsed.intelligenceSafety.level = "monitor";
   }
 
+  if (historicalRead && context.promptContext.evidenceContract.interpretation?.request) {
+    const ids = new Set(context.records.map(record => record.id));
+    parsed.answer = stripKnownHistoryCitations(parsed.answer, ids);
+    if (parsed.historyNarrative) for (const chunk of parsed.historyNarrative.sentences) chunk.text = stripKnownHistoryCitations(chunk.text, ids);
+  }
   let answerText = parsed.answer;
   if (profile && isUselessQuestionEcho(input.question, answerText, profile.name || "your pet")) {
     answerText = buildObservationAssessmentFallback(input.question, profile.name || "your pet");
@@ -846,7 +853,15 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   parsed.answerSections = economicalAnswer.sections;
   parsed.suggestedFollowUps = parsed.suggestedFollowUps.slice(0, answerDepth.maxFollowUps);
   if (!answerDepth.allowsAutomaticHistory) parsed.proposedHistoryUpdate = emptyHistoryUpdate();
-  assertNoInternalReasoningLeak(answerText, context.records);
+  try { assertNoInternalReasoningLeak(answerText, context.records); }
+  catch (error) {
+    if (!historicalRead || !context.promptContext.evidenceContract.interpretation?.request) throw error;
+    // Reject malformed public output into the governed fallback, never an ID leak.
+    answerText = "I couldn't verify a complete answer from the saved records.";
+    parsed.answerSections = [];
+    parsed.historyNarrative = undefined;
+    parsed.historyNarrativeDeclined = true;
+  }
   const petName = profile?.name || "Your pet";
   const title = input.concernStateHint === "improved" || input.concernStateHint === "resolved"
     ? `It sounds like ${petName} is improving`
@@ -1130,9 +1145,10 @@ export function areAskResponsesMateriallyIdentical(left: string, right: string) 
 export function buildAskProviderRequest(promptContext: object) {
   const context = promptContext as { evidenceContract?: AskEvidenceContract };
   const evidence = context.evidenceContract;
+  const dedicatedRead = !!evidence?.interpretation?.request && !!evidence.history && evidence.scope.readOnlyRecall && evidence.scope.requestKind !== "count";
   const sharedInstructions = unifiedInstructions.split("\n").filter(line => !line.startsWith("When evidenceContract.interpretation is present")).join("\n");
-  const requestInstructions = (evidence?.interpretation?.request ? sharedInstructions : unifiedInstructions) + (evidence?.interpretation?.request
-    ? "\nFor ask-request.v2 the standalone question and requirements are the shared task, never factual evidence. Answer every obligation from contextRecords and cite the supplied sourceIds. Prior dialogue resolves references only. Reject invented medical facts, causation, lifetime completeness and current recovery inferred from old notes. Preserve chronology, negation, and uncertainty. This final rule supersedes legacy history formatting rules: represent historical answers as historyNarrative, including exact quotes and missing-documentation explanations. Use calculations for derived numeric values: cite exact numeric-and-unit literals from each operand source, or the exact occurredAt timestamp for elapsed_days. The server computes sum, difference (second minus first), ratio (second divided by first), percent_change, unit conversion, and elapsed_days. The value is signed, with requested rounding, and unit is explicit. Calculations validate arithmetic only, not medical recommendations or symptom duration. Use an empty calculations array when there is no derivation. Each chunk preserves its final requested layout, including bullet markers or table rows. A JSON-only answer is one complete valid JSON object or array in one chunk, with all supporting sourceIds; JSON keys are output labels, not source quotations. Do not use null merely because the task asks for a quote. No generic coverage footer is added. Include any material limitation inside the requested answer. Keep source quotations exact and uncertainty attached to the disputed claim."
+  const requestInstructions = dedicatedRead ? historicalReadInstructions : (evidence?.interpretation?.request ? sharedInstructions : unifiedInstructions) + (evidence?.interpretation?.request
+    ? "\nFor ask-request.v2 the standalone question and requirements are the shared task, never factual evidence. Answer every obligation from contextRecords and cite the supplied sourceIds. Prior dialogue resolves references only. Reject invented medical facts, causation, lifetime completeness and current recovery inferred from old notes. Preserve chronology, negation, and uncertainty. This final rule supersedes legacy history formatting rules: represent historical answers as historyNarrative, including exact quotes and missing-documentation explanations. Use calculations for derived numeric values: cite exact numeric-and-unit literals from each operand source, or the exact occurredAt timestamp for elapsed_days. The server computes sum, difference (first minus second), ratio (second divided by first), percent_change, unit conversion, and elapsed_days. The value is signed, with requested rounding, and unit is explicit. Calculations validate arithmetic only, not medical recommendations or symptom duration. Use an empty calculations array when there is no derivation. Each chunk preserves its final requested layout, including bullet markers or table rows. A JSON-only answer is one complete valid JSON object or array in one chunk, with all supporting sourceIds; JSON keys are output labels, not source quotations. Do not use null merely because the task asks for a quote. No generic coverage footer is added. Include any material limitation inside the requested answer. Keep source quotations exact and uncertainty attached to the disputed claim."
     : "");
   let transported = promptContext;
   if (evidence?.history && (JSON.stringify(promptContext).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET
@@ -1163,7 +1179,7 @@ export function buildAskProviderRequest(promptContext: object) {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
     instructions: requestInstructions,
     input: JSON.stringify(transported),
-    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: askUnifiedJsonSchema } },
+    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties) : askUnifiedJsonSchema } },
   };
 }
 
@@ -1479,7 +1495,7 @@ function cleanProposedHistoryUpdate(value: ProposedHistoryUpdate): ProposedHisto
   };
 }
 
-function assertNoInternalReasoningLeak(answer: string, records: AskContextRecord[]) {
+export function assertNoInternalReasoningLeak(answer: string, records: readonly Pick<AskContextRecord, "id">[]) {
   if (/\b(?:context ids?|internal classifiers?|response schema|system instructions?|severity engine)\b/i.test(answer) || records.some((record) => answer.includes(record.id))) {
     throw new Error("Ask response exposed internal reasoning data.");
   }

@@ -1,0 +1,343 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "model": "gpt-5.4-mini",
+  "phase": "diagnostic",
+  "clock": "2026-09-15T12:00:00Z",
+  "turns": [
+    {
+      "id": "3months-summary",
+      "history": "3months",
+      "records": 37,
+      "question": "Compare Saffron’s oldest and newest car-ride reports and say what happened in between. Keep it to three bullets.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "question": "Compare Saffron’s oldest and newest car-ride reports and explain what happened in between.",
+          "requirements": [
+            "Keep the answer to three bullets."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "records"
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "earliest",
+        "petIds": [
+          "saffron"
+        ],
+        "topic": "car-ride reports",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Compare Saffron’s oldest and newest car-ride reports and explain what happened in between.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "car ride",
+            "oldest",
+            "newest",
+            "between"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Saffron: Saffron tolerated a ten-minute car ride calmly. Her carrier weighed 2 kg.\n\nThese saved reports are not proof of when it first happened in their life.",
+      "sections": [],
+      "reviewed": false,
+      "draft": {
+        "sentences": [
+          {
+            "text": "The ride length increased by 10 minutes, from 10 to 20 minutes.",
+            "sourceIds": [
+              "care:start",
+              "care:recent"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:recent",
+                    "field": "text",
+                    "literal": "twenty-minute"
+                  },
+                  {
+                    "sourceId": "care:start",
+                    "field": "text",
+                    "literal": "ten-minute"
+                  }
+                ],
+                "value": 10,
+                "unit": "minutes"
+              }
+            ]
+          },
+          {
+            "text": "The carrier weighed 1 kg more in the newest report, rising from 2 kg to 3 kg.",
+            "sourceIds": [
+              "care:start",
+              "care:recent"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:recent",
+                    "field": "text",
+                    "literal": "3 kg"
+                  },
+                  {
+                    "sourceId": "care:start",
+                    "field": "text",
+                    "literal": "2 kg"
+                  }
+                ],
+                "value": 1,
+                "unit": "kg"
+              }
+            ]
+          }
+        ]
+      },
+      "retainedIds": [
+        "care:start",
+        "care:recent"
+      ],
+      "review": null,
+      "providerCalls": 2,
+      "elapsedMs": 9796,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": "3months-json",
+      "history": "3months",
+      "records": 37,
+      "question": "Return only a JSON object with Basil’s latest sleep observation and whether its cause is known.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "question": "What is Basil’s latest sleep observation, and is its cause known?",
+          "requirements": [
+            "Return only a JSON object."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "latest",
+        "petIds": [
+          "basil"
+        ],
+        "topic": "sleep observation and cause",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What is Basil’s latest sleep observation, and is its cause known?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "sleep",
+            "observation",
+            "cause",
+            "known"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Basil: I couldn't find matching saved notes for this query. This does not establish an absence in the saved history.",
+      "sections": [],
+      "reviewed": false,
+      "retainedIds": [],
+      "review": null,
+      "providerCalls": 2,
+      "elapsedMs": 10942,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": "5years-summary",
+      "history": "5years",
+      "records": 187,
+      "question": "Compare Saffron’s oldest and newest car-ride reports and say what happened in between. Keep it to three bullets.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "question": "Compare Saffron’s oldest and newest car-ride reports and say what happened in between.",
+          "requirements": [
+            "Keep the answer to three bullets."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "records"
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "saffron"
+        ],
+        "topic": "car-ride reports",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Compare Saffron’s oldest and newest car-ride reports and say what happened in between.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "car ride",
+            "oldest",
+            "newest",
+            "between"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Saffron: Saffron tolerated a ten-minute car ride calmly. Her carrier weighed 2 kg (2021-09-15). Saffron tolerated a twenty-minute car ride calmly. Her carrier weighed 3 kg (2026-09-01).\n\nThis covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "sections": [],
+      "reviewed": true,
+      "draft": {
+        "sentences": [
+          {
+            "text": "The oldest report says Saffron tolerated a ten-minute car ride calmly, and the newest says he tolerated a twenty-minute car ride calmly, so the ride got 10 minutes longer.",
+            "sourceIds": [
+              "care:start",
+              "care:recent"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:start",
+                    "field": "text",
+                    "literal": "ten-minute"
+                  },
+                  {
+                    "sourceId": "care:recent",
+                    "field": "text",
+                    "literal": "twenty-minute"
+                  }
+                ],
+                "value": 10,
+                "unit": "minutes"
+              }
+            ]
+          },
+          {
+            "text": "Both reports describe him as calm on the ride.",
+            "sourceIds": [
+              "care:start",
+              "care:recent"
+            ]
+          },
+          {
+            "text": "No intermediate car-ride reports were provided in the loaded records, so what happened in between isn’t documented here.",
+            "sourceIds": [
+              "care:start",
+              "care:recent"
+            ]
+          }
+        ]
+      },
+      "retainedIds": [
+        "care:start",
+        "care:recent"
+      ],
+      "review": "{\"approved\":false,\"retainedSentenceIndexes\":[],\"obligations\":[{\"index\":0,\"status\":\"missing\",\"sentenceIndexes\":[]},{\"index\":1,\"status\":\"missing\",\"sentenceIndexes\":[]}]}",
+      "providerCalls": 3,
+      "elapsedMs": 12839,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": "5years-json",
+      "history": "5years",
+      "records": 187,
+      "question": "Return only a JSON object with Basil’s latest sleep observation and whether its cause is known.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "question": "What is Basil’s latest sleep observation, and is the cause known?",
+          "requirements": [
+            "Return only a JSON object."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "latest",
+        "petIds": [
+          "basil"
+        ],
+        "topic": "sleep observation and cause",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What is Basil’s latest sleep observation, and is the cause known?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "sleep",
+            "observation",
+            "cause",
+            "known"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Basil: I couldn't find matching saved notes for this query. This does not establish an absence in the saved history.",
+      "sections": [],
+      "reviewed": false,
+      "draft": {
+        "sentences": [
+          {
+            "text": "No sleep observation for Basil is available in the loaded records, so the latest observation and its cause remain unknown.",
+            "sourceIds": [
+              "profile:basil:lifecycle_status",
+              "profile:basil:sex",
+              "profile:basil:species"
+            ]
+          }
+        ]
+      },
+      "retainedIds": [],
+      "review": null,
+      "providerCalls": 2,
+      "elapsedMs": 9675,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

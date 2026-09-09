@@ -10,7 +10,7 @@ export type HistoryCalculation = {
 export const historyCalculationSchema = { type: "array", maxItems: 4, items: {
   type: "object", additionalProperties: false, required: ["operation", "operands", "value", "unit"], properties: {
     operation: { type: "string", enum: ["sum", "difference", "ratio", "percent_change", "convert", "elapsed_days"] },
-    operands: { type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
+    operands: { description: "Ordered operands. difference computes operand 0 minus operand 1; ratio and percent_change compare operand 1 to baseline operand 0.", type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
       required: ["sourceId", "field", "literal"], properties: {
         sourceId: { type: "string", maxLength: 160 }, field: { type: "string", enum: ["text", "occurredAt"] },
         literal: { type: "string", minLength: 1, maxLength: 120 },
@@ -80,7 +80,7 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
       if (!target || target.dimension !== dimension || dimension === "instant") return null;
       if (p.operation === "convert" && values.length !== 1 || p.operation === "difference" && values.length !== 2) return null;
       computed = (p.operation === "sum" ? values.reduce((a, b) => a + b, 0)
-        : p.operation === "difference" ? values[1] - values[0] : values[0]) / target.scale;
+        : p.operation === "difference" ? values[0] - values[1] : values[0]) / target.scale;
     }
     // Exact arithmetic or explicit rounding to the proposal's decimal precision.
     const decimals = String(p.value).split(".")[1]?.length || 0;

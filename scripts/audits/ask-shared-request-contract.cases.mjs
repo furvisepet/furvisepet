@@ -7,6 +7,9 @@ import { emptyProposedSemanticFrame } from '../../app/lib/intelligence/semantic-
 import { requestReferenceContext } from '../../app/lib/intelligence/request-reference-context.ts';
 import { parseTaskHistoryReview } from '../../app/lib/intelligence/history-review-selection.ts';
 import { verifiedCalculationQuantities, parseHistoryCalculations } from '../../app/lib/intelligence/history-calculation.ts';
+import { historicalReadSchema } from '../../app/lib/intelligence/historical-read-response.ts';
+import { stripKnownHistoryCitations } from '../../app/lib/intelligence/public-history-text.ts';
+import { historyNarrativeAnchorsSupported } from '../../app/lib/intelligence/history-narrative-facts.ts';
 
 const fixturePets = pets.slice(0, 3).map((pet, index) => ({ ...pet, name: ['Aster', 'Bramble', 'Cedar'][index] }));
 const context = { owner: { userId: ownerId }, eligiblePets: fixturePets, pet: fixturePets[0],
@@ -15,6 +18,36 @@ const proposal = patch => ({ version: ASK_REQUEST_VERSION, mode: 'read', questio
   requirements: ['Answer the requested facts only'], referenceTurnIds: [], scope: 'named', petNames: ['Aster'],
   operation: 'recall', selection: 'summary', quantity: null, topic: 'observations', terms: [],
   from: null, to: null, episodeTopic: null, ordinal: null, frame: emptyProposedSemanticFrame(), ...patch });
+
+test('historical read schema excludes mutation and duplicate extraction fields', () => {
+  const schema = historicalReadSchema({ answer: {}, historyNarrative: {}, safetyLevel: {}, responseMode: {}, userIntent: {}, relevantContextIds: {}, careActions: {}, semanticFrame: {} });
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.careActions, undefined);
+  assert.equal(schema.properties.semanticFrame, undefined);
+  assert.equal(schema.required.length, 6);
+});
+test('read planner can omit extraction while writes still require a valid frame', () => {
+  assert.equal(validateAskRequest(proposal({ frame: null }), context).readOnly, true);
+  assert.throws(() => validateAskRequest(proposal({ mode: 'update', frame: null }), context));
+});
+test('validated query boundaries are scope anchors, unrelated invented dates remain unsupported', () => {
+  const source = [{ text: 'Aster travelled calmly.', occurredAt: '2026-06-15T12:00:00Z' }];
+  assert.equal(historyNarrativeAnchorsSupported('Before 2026-07-01, a report recorded calm travel.', source, '', [], false, ['2026-07-01']), true);
+  assert.equal(historyNarrativeAnchorsSupported('Travel happened on 2026-08-01.', source, '', [], false, ['2026-07-01']), false);
+});
+test('public citation projection removes only known source annotations', () => {
+  const ids = new Set(['care:a', 'care:b']);
+  assert.equal(stripKnownHistoryCitations('- Recorded fact. [care:a, care:b]', ids), '- Recorded fact.');
+  assert.equal(stripKnownHistoryCitations('[care:a, invented] [unknown words]', ids), '[care:a, invented] [unknown words]');
+});
+test('visible citation IDs are removed before review without losing format', async t => {
+  clock(t);
+  const r = await exercise('Summarize the saved rest observation in a bullet.', { fixturePets, messages: [], history: true,
+    rows: [care('rest', 'milo', '2026-06-04', 'general', 'Aster slept normally.')], interpretationProposal: proposal(),
+    providerOverrides: { answer: '- Aster slept normally. [care:rest]', historyNarrative: { sentences: [{ text: '- Aster slept normally. [care:rest]', sourceIds: ['care:rest'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.equal(r.result.reasoning.answer.summary, '- Aster slept normally.');
+});
 
 test('referenced assistant and repeated user turns retain their distinct IDs', () => {
   const turns = Array.from({ length: 12 }, (_, i) => ({ id: 'turn-' + i, role: i % 2 ? 'furvise' : 'user', text: 'Repeated wording' }));
@@ -39,7 +72,7 @@ test('generic arithmetic verifies literal operands and dimensions independently 
   const sources = [{ sourceId: 'a', text: 'Recorded amount 12 kg.', occurredAt: '2026-05-01T00:00:00.000Z' },
     { sourceId: 'b', text: 'Recorded amount 9 kg.', occurredAt: '2026-05-05T00:00:00.000Z' }];
   const operands = [{ sourceId: 'a', field: 'text', literal: '12 kg' }, { sourceId: 'b', field: 'text', literal: '9 kg' }];
-  for (const [operation, value, unit] of [['difference', -3, 'kg'], ['sum', 21, 'kg'], ['ratio', .75, ''], ['percent_change', -25, '%']]) {
+  for (const [operation, value, unit] of [['difference', 3, 'kg'], ['sum', 21, 'kg'], ['ratio', .75, ''], ['percent_change', -25, '%']]) {
     assert.ok(verifiedCalculationQuantities([{ operation, operands, value, unit }], sources));
     assert.equal(verifiedCalculationQuantities([{ operation, operands, value: 500, unit }], sources), null);
   }
@@ -56,7 +89,7 @@ test('derived quantity passes shared generation without question-pattern arithme
   const r = await exercise('Calculate the difference between those recorded amounts.', { fixturePets,
     rows: [care('a', 'milo', '2026-06-04', 'general', 'Aster had a recorded amount of 12 kg.'), care('b', 'milo', '2026-06-05', 'general', 'Aster had a recorded amount of 9 kg.')], messages: [], history: true,
     interpretationProposal: proposal({ quantity: 'measurement', operation: 'comparison' }), providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:a', 'care:b'], calculations: [{ operation: 'difference', operands: [
-      { sourceId: 'care:a', field: 'text', literal: '12 kg' }, { sourceId: 'care:b', field: 'text', literal: '9 kg' }], value: -3, unit: 'kg' }] }] } },
+      { sourceId: 'care:a', field: 'text', literal: '12 kg' }, { sourceId: 'care:b', field: 'text', literal: '9 kg' }], value: 3, unit: 'kg' }] }] } },
     reviewResponse: { approved: true }, expectedReviewCalls: 1 });
   assert.equal(r.result.reasoning.answer.summary, answer);
 });
@@ -149,6 +182,18 @@ test('conversation identity must match a complete owned name', () => {
   assert.throws(() => validateAskRequest(proposal({ scope: 'conversation', petNames: ['Bramble'] }), {
     ...context, conversationTurns: [{ id: 'x', role: 'user', text: 'The brambleberry bushes bloomed.' }],
   }), /conversation_subject/);
+});
+test('shared lexical retrieval reserves scoped context for different wording without growing query budgets', async t => {
+  clock(t);
+  const r = await exercise('Explain the saved rest history.', { fixturePets, messages: [], history: true,
+    rows: [care('contextual', 'milo', '2026-06-04', 'general', 'Aster slept through the night.'),
+      care('foreign', 'luna', '2026-06-04', 'general', 'Bramble rested.')],
+    interpretationProposal: proposal({ terms: ['rest'], topic: 'rest', selection: 'latest' }) });
+  assert.deepEqual(r.context.askHistory.entries.map(row => row.id), ['contextual']);
+  assert.ok(r.context.askHistory.coverage.queryCount <= 4);
+  assert.ok(r.context.askHistory.coverage.reasons.includes('bounded_period_context_not_semantic_completeness'));
+  const schema = r.prompt && r.serialized;
+  assert.ok(schema);
 });
 test('read premise produces no memory or care proposal through full pipeline', async t => {
   clock(t);

@@ -96,7 +96,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     continuation: [], reasons: ["lexical_or_period_matches_not_semantic_completeness", "no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
   const descending = context.askInterpretation?.selection === "latest";
   const endpointComparison = context.askInterpretation?.request
-    ? context.askInterpretation.selection === "comparison" || context.askInterpretation.readOperation === "comparison"
+    ? ["summary", "comparison"].includes(context.askInterpretation.selection || "") || ["comparison", "overview"].includes(context.askInterpretation.readOperation || "")
     : context.askInterpretation?.readOnly === true
     && /\bweights?\b/i.test(context.currentMessage)
     && /\b(?:earliest|first)\b/i.test(context.currentMessage) && /\b(?:latest|last)\b/i.test(context.currentMessage);
@@ -111,13 +111,18 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     let failed = false; let pages = 0; let exhausted = true;
     const collected: CareEntryRow[] = [];
     const directions = endpointComparison ? [false, true] : [descending];
+    // Reserve half of the same budget for period context: lexical candidates
+    // alone cannot expose synonyms, intervening reports or missing search terms.
+    const strategies = context.askInterpretation?.request && plan.terms.length
+      ? directions.flatMap(descending => [{ descending, lexical: true }, { descending, lexical: false }])
+      : directions.map(descending => ({ descending, lexical: !!plan.terms.length }));
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
-    for (const readDescending of directions) {
+    for (const { descending: readDescending, lexical } of strategies) {
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
-      const directionRows = Math.floor(rowsPerPet / directions.length);
-      const directionPages = Math.floor(HISTORY_BUDGET.pagesPerPet / directions.length);
+      const directionRows = Math.floor(rowsPerPet / strategies.length);
+      const directionPages = Math.floor(HISTORY_BUDGET.pagesPerPet / strategies.length);
       try {
         for (let attempt = 0; attempt < directionPages && !traversalExhausted && rows.length < directionRows; attempt++) {
           pages++;
@@ -125,7 +130,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           const pageLimit = Math.min(HISTORY_BUDGET.pageSize, directionRows - rows.length);
           const signal = readSignal(deadline);
           let result: { data: unknown; error: { code?: string } | null };
-          if (plan.terms.length) {
+          if (lexical) {
             // The RPC derives auth.uid(). Never pass an owner or fall back to a
             // different lexical authority when its migration/service is missing.
             result = await db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
@@ -188,6 +193,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     candidates.push(...rows);
   }
   if (ids.length > HISTORY_BUDGET.pets) coverage.reasons.push("pet_query_budget");
+  if (context.askInterpretation?.request && plan.terms.length) coverage.reasons.push("bounded_period_context_not_semantic_completeness");
   if (endpointComparison) coverage.reasons.push("bidirectional_endpoint_subset");
   coverage.retrieval = coverage.perPet.some(p => p.status === "unavailable") ? "unavailable" : coverage.continuation.length || ids.length > HISTORY_BUDGET.pets ? "partial" : "unknown";
   if (correctionReserve && coverage.retrieval !== "unavailable") {
@@ -196,11 +202,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
   if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") coverage.reasons.push("no_matching_candidates_not_absence");
-  const selection = context.askInterpretation?.selection;
+  const selection = context.askInterpretation?.request && endpointComparison ? "comparison" : context.askInterpretation?.selection;
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
     context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);
   const matchingEntries = entries.filter(entry => (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
-    && (!plan.terms.length || plan.terms.some(term =>
+    && (!!context.askInterpretation?.request || !plan.terms.length || plan.terms.some(term =>
     `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
   const relevantIds = new Set(relevant.map(entry => entry.id));
