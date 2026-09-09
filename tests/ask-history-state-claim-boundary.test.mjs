@@ -47,3 +47,16 @@ test('historical vocabulary cannot disguise a profile write or a mixed mutation'
   'We changed her to turkey food.'
  ]) assert.equal(containsUnverifiedStateClaim(claim),true,claim);
 });
+
+test('capability limitations and dated measurements are not offers or write receipts', () => {
+  for (const text of [
+    "I can't recover those records under the current history window.",
+    'I can establish only what the supplied notes record.',
+    'Aster was recorded to weigh 18.6 kg on April 12.',
+    'The return to the previous arrangement was recorded on April 9.',
+  ]) assert.equal(enforceVerifiedStateClaims(text, false), text);
+  for (const text of ['I can help you save that.', 'If you want, I can record that.', 'Would you like me to prepare a summary?'])
+    assert.equal(enforceVerifiedStateClaims(text, false), 'I can help with that.');
+  for (const text of ['Her profile was recorded on April 12.', 'Aster was recorded on April 12 by Furvise.', 'I recorded her weight on April 12.'])
+    assert.equal(containsUnverifiedStateClaim(text), true);
+});

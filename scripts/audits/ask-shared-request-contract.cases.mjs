@@ -557,3 +557,41 @@ test('measurement comparisons discard irrelevant episode ordinal hints', () => {
  assert.equal(r.readOperation, 'comparison');
  assert.equal(r.readOnly, true);
 });
+
+test('omitted read subject can use one explicitly named owned pet', () => {
+  const result = validateAskRequest(proposal({scope:'named',petNames:[]}), {...context,currentMessage:'What does Bramble’s earlier travel note say?'});
+  assert.deepEqual(result.petIds,[fixturePets[1].id]);
+  assert.equal(result.clarification,null);
+});
+test('empty conversational names recover only a unique user-established focus', () => {
+  const follow = {...context,currentMessage:'Put the same details in JSON.',conversationTurns:[
+    {id:'u',role:'user',text:'What did Cedar’s visit record?'},
+    {id:'a',role:'furvise',text:'Bramble had a visit.'},
+  ]};
+  const result = validateAskRequest(proposal({scope:'conversation',petNames:[],referenceTurnIds:['u','a']}), follow);
+  assert.deepEqual(result.petIds,[fixturePets[2].id]);
+  for(const turns of [[{id:'a',role:'furvise',text:'Cedar had a visit.'}], [{id:'u',role:'user',text:'Compare Aster and Cedar.'}]]) {
+    const ambiguous=validateAskRequest(proposal({scope:'conversation',petNames:[]}),{...follow,conversationTurns:turns});
+    assert.equal(ambiguous.clarification,'subject');
+    assert.deepEqual(ambiguous.petIds,[]);
+  }
+});
+test('formatted numeric anchors preserve full values and unit names', () => {
+  const sources=[{sourceId:'a',text:'The crate weighed 3 kg.',occurredAt:'2026-04-01T00:00:00Z'}];
+  const derived=verifiedCalculationQuantities([{operation:'convert',operands:[{sourceId:'a',field:'text',literal:'3 kg'}],value:3000,unit:'g'}],sources);
+  for(const text of ['The crate weighed 3,000 g.','The crate weighed 3,000 grams.'])
+    assert.equal(historyNarrativeAnchorsSupported(text,sources,'',derived,false),true,text);
+  for(const text of ['The crate weighed 4,000 grams.','The crate weighed 3,500 g.'])
+    assert.equal(historyNarrativeAnchorsSupported(text,sources,'',derived,false),false,text);
+});
+test('user claim quotation is distinguishable from invented source quotation', () => {
+  const sources=[{text:'No cause was recorded.',occurredAt:'2026-04-01T00:00:00Z'}];
+  assert.equal(historyNarrativeAnchorsSupported('The claim “confirmed cause” is not established.',sources,'Check the claim “confirmed cause”.',[],false),true);
+  assert.equal(historyNarrativeAnchorsSupported('The note says “confirmed cause”.',sources,'What did the note say?',[],false),false);
+});
+test('difference converts original operands directly; invented intermediate literals stay invalid', () => {
+  const sources=[{sourceId:'a',text:'Aster weighed 8.1 kg.'},{sourceId:'b',text:'Aster weighed 7.7 kg.'}];
+  const operands=sources.map((s,i)=>({sourceId:s.sourceId,field:'text',literal:i?'7.7 kg':'8.1 kg'}));
+  assert.deepEqual(verifiedCalculationQuantities([{operation:'difference',operands,value:400,unit:'g'}],sources),['400:g']);
+  assert.equal(verifiedCalculationQuantities([{operation:'convert',operands:[{sourceId:'a',field:'text',literal:'0.4 kg'}],value:400,unit:'g'}],sources),null);
+});
