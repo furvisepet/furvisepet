@@ -5,7 +5,7 @@ import { createIdempotencyAdminClient } from "./security/idempotency/admin-clien
 import { createCanonicalCareAuthorityClient } from "./intelligence/care-authority-client.ts";
 import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 import { getFurviseActionPolicy } from "./application-actions/policy.ts";
-import { enforceVerifiedStateClaims, preserveAttributedReportQuotes } from "./application-actions/state-claims.ts";
+import { enforceVerifiedStateClaims, preserveAttributedReportQuotes, isHistoricalRecordingAttribution } from "./application-actions/state-claims.ts";
 import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
 import { deduplicateLegacyRetriedMessages, type AskConversationDetail, type AskConversationSummary, type StoredAskMessage, type StoredAskSuggestion } from "./ask-conversations";
 
@@ -183,7 +183,8 @@ function scrubUntrustedMutationClaim(value: unknown, fallback: string) {
   if (typeof value !== "string") return fallback;
   const governed = enforceVerifiedStateClaims(value, false);
   const safe = preserveAttributedReportQuotes(governed, prose => prose.split(/(?<=[.!?])(?=\s)/)
-    .filter((sentence) => !untrustedTerminalMutationClaim.test(sentence)).join("").trim());
+    .filter((sentence) => (!untrustedTerminalMutationClaim.test(sentence) || isHistoricalRecordingAttribution(sentence)
+      && !/\b(?:profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(?:saved|deleted|removed|forgotten|changed|updated|archived|completed|marked)\b/i.test(sentence))).join("").trim());
   return safe || fallback;
 }
 

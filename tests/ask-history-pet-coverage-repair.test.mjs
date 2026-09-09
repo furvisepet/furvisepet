@@ -197,3 +197,23 @@ test('cleanup cannot leave only a disclaimer or restore a false save claim',asyn
  assert.ok(v.repairs.includes('replaced_disclaimer_only_history_with_sources'));
  assert.deepEqual(v.response.relevantContextIds,['care:a']);
 });
+
+test('dated observation attribution survives state governance and stored presentation', async () => {
+ const {enforceVerifiedStateClaims,containsUnverifiedStateClaim}=await import('../app/lib/application-actions/state-claims.ts');
+ const {presentationOnlyAskResponse}=await import('../app/lib/ask-conversation-server.ts');
+ for (const fact of [
+  'The newest observation was recorded on September 4: Cedar was comfortable.',
+  'As of September 7, the latest saved update was recorded on September 4: Cedar jumped comfortably.',
+  'The note says no cause was recorded.',
+  'As of September 7, the latest update was recorded on September 4, 2026: Cedar jumped comfortably.'
+ ]) {
+  assert.equal(enforceVerifiedStateClaims(fact, false), fact);
+  assert.equal(presentationOnlyAskResponse({title:'Furvise',summary:fact,sections:[]},[]).summary, fact);
+ }
+ for (const claim of [
+  'The note was recorded on September 4 by Furvise.',
+  'Her profile was recorded on September 4.',
+  'The observation was recorded on September 4, and her profile was deleted.',
+  'I recorded the observation on September 4.'
+ ]) assert.equal(containsUnverifiedStateClaim(claim), true, claim);
+});
