@@ -1,3 +1,4 @@
+import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
 import { explicitHistoryDays } from "./explicit-history-dates.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, orderHistoryEvidence } from "./history-synthesis.ts";
@@ -81,7 +82,8 @@ function isHistoricalRecall(message: string) {
  * generation callback. Recent safety context is retained separately. */
 export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
-  const plan = context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
+  const proposedPlan = context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
+  const plan = proposedPlan ? clipHistoryPlan(proposedPlan, context.historyAccess) : null;
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
   const asOf = Date.now();
@@ -94,6 +96,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();
   const coverage: HistoryCoverage = { plan, candidateIds: [], queryCount: 0, retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown",
     continuation: [], reasons: ["lexical_or_period_matches_not_semantic_completeness", "no_cross_query_snapshot"], consistency: "read_committed_no_snapshot", perPet: [], provenance: [], claimSources: [], excludedIds: [] };
+  if (context.historyAccess) coverage.reasons.push("subscription_history_window");
+  if (plan.from && plan.to && plan.from >= plan.to) {
+    coverage.reasons.push("requested_period_outside_subscription_window");
+    return { ...context, askHistory: { coverage, entries: [], originals: [] } };
+  }
   const descending = context.askInterpretation?.selection === "latest";
   const endpointComparison = context.askInterpretation?.request
     ? ["summary", "comparison"].includes(context.askInterpretation.selection || "") || ["comparison", "overview"].includes(context.askInterpretation.readOperation || "")
@@ -205,7 +212,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const selection = context.askInterpretation?.request && endpointComparison ? "comparison" : context.askInterpretation?.selection;
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
     context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);
-  const matchingEntries = entries.filter(entry => (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
+  const matchingEntries = entries.filter(entry => historyDateAccessible(entry.occurred_at, context.historyAccess) && (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
     && (!!context.askInterpretation?.request || !plan.terms.length || plan.terms.some(term =>
     `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;

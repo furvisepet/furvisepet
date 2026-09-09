@@ -25,7 +25,7 @@ test('historical read schema excludes mutation and duplicate extraction fields',
   assert.equal(schema.properties.careActions, undefined);
   assert.equal(schema.properties.semanticFrame, undefined);
   assert.equal(schema.properties.answer, undefined);
-  assert.equal(schema.required.length, 9);
+  assert.equal(schema.required.length, 10);
 });
 test('canonical read table renders once and rejects competing or malformed bodies', () => {
   const output = { readVersion: 'history-answer.v1', layout: 'table', limitation: null, historyNarrative: null,
@@ -346,11 +346,125 @@ test('typed format rejects prose posing as JSON or a table without reinterpretin
 test('a specified format with sources requires a canonical body in the provider schema', () => {
   const properties = { historyNarrative: { type: ['object', 'null'], properties: { sentences: {} } } };
   const json = historicalReadSchema(properties, 'json');
-  assert.equal(json.properties.historyNarrative.type, 'object');
+  assert.equal(json.properties.historyNarrative.type, 'null');
+  assert.equal(json.properties.json.type, 'object');
   assert.equal(json.properties.table.type, 'null');
   assert.equal(json.properties.limitation.type, 'null');
   assert.deepEqual(json.properties.layout.enum, ['json']);
   const table = historicalReadSchema(properties, 'table');
   assert.equal(table.properties.historyNarrative.type, 'null');
   assert.equal(table.properties.table.type, 'object');
+});
+
+test('typed JSON renders nested data, arrays, nulls and escaping without model-written JSON', async t => {
+  clock(t);
+  const expected = { observation: 'Aster rested near "the door".', measurements: [12, null, true], details: { source: 'owner' } };
+  const payload = { readVersion: 'history-answer.v1', layout: 'json', table: null, limitation: null, historyNarrative: null,
+    safetyLevel: 'normal', responseMode: 'practical_guidance', userIntent: 'history', relevantContextIds: ['care:rest'],
+    json: { value: { kind: 'object', entries: [
+      { key: 'observation', value: expected.observation },
+      { key: 'measurements', value: { kind: 'array', items: [12, null, true] } },
+      { key: 'details', value: { kind: 'object', entries: [{ key: 'source', value: 'owner' }] } },
+    ] }, sourceIds: ['care:rest'], calculations: [] } };
+  const r = await exercise('Return the recorded rest observation as JSON.', { fixturePets, messages: [], history: true,
+    rows: [care('rest', 'milo', '2026-06-04', 'general', 'The owner recorded: Aster rested near "the door". Measurement 12.')],
+    interpretationProposal: proposal({ outputFormat: 'json' }),
+    providerResponse: async () => ({ status: 'completed', output_text: JSON.stringify(payload), usage: { input_tokens: 800, output_tokens: 200 } }),
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  assert.deepEqual(JSON.parse(r.result.reasoning.answer.summary), expected);
+  assert.equal(r.result.acceptedCareActions.length, 0);
+  assert.deepEqual(JSON.parse(JSON.parse(r.reviewRequests[0].input).draft.sentences[0].text), expected);
+});
+
+test('typed JSON rejects duplicate keys, competing bodies, excessive depth and nonfinite values', async () => {
+  const { renderHistoricalJson } = await import('../../app/lib/intelligence/structured-history-json.ts');
+  const wrap = value => ({ value, sourceIds: ['care:a'], calculations: [] });
+  assert.throws(() => renderHistoricalJson(wrap({ kind: 'object', entries: [{ key: 'x', value: 1 }, { key: 'x', value: 2 }] })));
+  assert.throws(() => renderHistoricalJson(wrap({ kind: 'array', items: [Infinity] })));
+  let nested = null; for (let i = 0; i < 10; i++) nested = { kind: 'array', items: [nested] };
+  assert.throws(() => renderHistoricalJson(wrap(nested)));
+  assert.throws(() => renderHistoricalJson({ ...wrap({ kind: 'array', items: [] }), careActions: [] }));
+  const value = { kind: 'object', entries: [{ key: '__proto__', value: { kind: 'object', entries: [{ key: 'safe', value: true }] } }] };
+  assert.equal(JSON.parse(renderHistoricalJson(wrap(value)).sentences[0].text).__proto__.safe, true);
+  assert.equal({}.safe, undefined);
+});
+
+test('history access uses calendar months, clamps month ends and rejects unknown plans', async () => {
+  const { resolveAskHistoryAccess, historyDateAccessible } = await import('../../app/lib/intelligence/history-access.ts');
+  const free = resolveAskHistoryAccess('free', new Date('2026-05-31T12:00:00Z'));
+  assert.equal(free.from, '2026-02-28T00:00:00.000Z');
+  assert.equal(historyDateAccessible('2026-02-27T23:59:59.999Z', free), false);
+  assert.equal(historyDateAccessible(free.from, free), true);
+  assert.equal(historyDateAccessible(free.to, free), false);
+  assert.equal(resolveAskHistoryAccess('plus', new Date('2024-02-29T12:00:00Z')).from, '2019-02-28T00:00:00.000Z');
+  assert.throws(() => resolveAskHistoryAccess('pro'));
+});
+for (const plan of ['free', 'plus']) test(`shared retrieval and provider inputs respect ${plan} history access`, async t => {
+  clock(t);
+  const { resolveAskHistoryAccess } = await import('../../app/lib/intelligence/history-access.ts');
+  const access = resolveAskHistoryAccess(plan, new Date());
+  const rows = [care('too-old', 'milo', '2020-01-01', 'general', 'Aster had an excluded observation.'),
+    care('paid-only', 'milo', '2022-01-01', 'general', 'Aster had an older observation.'),
+    care('boundary', 'milo', '2026-06-04', 'general', 'Aster rested normally.')];
+  const r = await exercise('Summarize all saved observations for Aster.', { fixturePets, rows, messages: [], history: true,
+    prepareContext: context => { context.historyAccess = access; }, interpretationProposal: proposal({ terms: [] }),
+    providerOverrides: { historyNarrative: { sentences: [{ text: 'Aster rested normally.', sourceIds: ['care:boundary'] }] } },
+    reviewResponse: { approved: true }, expectedReviewCalls: 1 });
+  const careIds = r.prompt.contextRecords.filter(row => row.sourceType === 'care_update').map(row => row.id);
+  assert.ok(!careIds.includes('care:too-old'));
+  assert.equal(careIds.includes('care:paid-only'), plan === 'plus');
+  assert.ok(careIds.includes('care:boundary'));
+  assert.equal(r.context.askHistory.coverage.plan.from, access.from);
+  assert.deepEqual(r.prompt.evidenceContract.historyAccess, access);
+});
+test('an explicitly excluded period performs no historical query and explains access rather than absence', async t => {
+  clock(t);
+  const { resolveAskHistoryAccess } = await import('../../app/lib/intelligence/history-access.ts');
+  const r = await exercise('What happened in 2022?', { fixturePets, messages: [], history: true,
+    rows: [care('old', 'milo', '2022-06-04', 'general', 'Aster rested normally.')],
+    prepareContext: context => { context.historyAccess = resolveAskHistoryAccess('free', new Date()); },
+    interpretationProposal: proposal({ from: '2022-01-01', to: '2023-01-01' }), expectedReviewCalls: 0 });
+  assert.equal(r.context.askHistory.coverage.queryCount, 0);
+  assert.match(r.result.reasoning.answer.summary, /outside that window/);
+  assert.doesNotMatch(r.serialized, /Aster rested normally/);
+});
+test('old projections and prior conversation cannot reintroduce excluded history', async t => {
+  clock(t);
+  const { resolveAskHistoryAccess, enforceAskHistoryAccess } = await import('../../app/lib/intelligence/history-access.ts');
+  const r = await exercise('Hello', { fixturePets, messages: [], rows: [] });
+  const context = { ...r.context, historyAccess: resolveAskHistoryAccess('free', new Date()),
+    conversationTurns: [{ id: 'old', role: 'furvise', text: 'Excluded report', createdAt: '2022-01-01' }],
+    memories: [{ subject_type: 'pet', first_observed_at: '2022-01-01', fact_value: 'excluded' }],
+    legacyPetMemories: [{ created_at: '2022-01-01', text: 'excluded' }],
+    activeConcerns: [{ opened_at: '2022-01-01' }], activeEpisodes: [{ started_at: '2022-01-01' }],
+    currentState: { state: { energy: { lastObservedAt: '2022-01-01' }, semanticStates: {} } } };
+  const result = enforceAskHistoryAccess(context);
+  for (const field of ['conversationTurns', 'memories', 'legacyPetMemories', 'activeConcerns', 'activeEpisodes']) assert.equal(result[field].length, 0);
+  assert.equal(result.currentState.state.energy, undefined);
+});
+
+test('all provider phases share the Ask deadline and cannot start after it', async t => {
+  clock(t);
+  const { runAdmittedAiOperation } = await import('../../app/lib/ai/usage-guard/admission.ts');
+  const { MemoryAiGuardTestStore } = await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
+  const { OPENAI_ANALYSIS_MODEL } = await import('../../app/lib/ai/config.ts');
+  const { executeAdmittedProviderCall, boundedProviderTimeout } = await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
+  let invoked = false;
+  await runAdmittedAiOperation({ store: new MemoryAiGuardTestStore(), feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL,
+    env: { NODE_ENV: 'test' }, payload: {}, userId: ownerId, requestId: 'shared-deadline' }, async () => {
+    assert.equal(boundedProviderTimeout(12000), 12000);
+    t.mock.timers.setTime(Date.now() + 44000);
+    assert.equal(boundedProviderTimeout(12000), 1000);
+    t.mock.timers.setTime(Date.now() + 1001);
+    assert.throws(() => boundedProviderTimeout(12000));
+    await assert.rejects(executeAdmittedProviderCall({ model: OPENAI_ANALYSIS_MODEL, providerInput: '', maxOutputTokens: 10,
+      invoke: async () => { invoked = true; return { usage: { input_tokens: 1, output_tokens: 1 } }; } }));
+  });
+  assert.equal(invoked, false);
+});
+
+test('a redundant account label cannot widen an explicitly resolved owned-pet subset', () => {
+  const subset = validateAskRequest(proposal({ scope: 'account', petNames: ['Aster', 'Bramble'] }), context);
+  assert.deepEqual(subset.petIds, [fixturePets[0].id, fixturePets[1].id]);
+  assert.equal(validateAskRequest(proposal({ scope: 'account', petNames: [] }), context).petIds.length, 3);
 });

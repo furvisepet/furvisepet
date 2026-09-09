@@ -15,7 +15,7 @@ import { historyNarrativeAnchorsSupported } from "./history-narrative-facts.ts";
 import "server-only";
 import OpenAI from "openai";
 import { getAskModelConfiguration, assertNoInternalReasoningLeak, type AskReasoningResult, type AskProviderEvent } from "../ai/ask-reasoning.ts";
-import { executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { attributedHistoryAnswer, conversationalHistoryLimitation, type AskEvidenceContract } from "./ask-evidence.ts";
 import { matchesHistoryOutputFormat, canonicalHistoricalRead, historicalReadSchema, historicalReadInstructions } from "./historical-read-response.ts";
@@ -113,7 +113,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     today: new Date().toISOString(), question: evidence.scope.requestText,
     referenceQuestion: evidence.interpretation?.referenceQuestion || null,
     scope: evidence.scope, plan: evidence.interpretation, petNames: evidence.petNames,
-    request: sharedRequest || null, execution: { readOnly: evidence.scope.readOnlyRecall, mutationAuthority: false }, obligations: obligations.map((text, index) => ({ index, text })), coverage: evidence.history, losses: evidence.losses, sources, draft: { sentences: draft.sentences.map((sentence, index) => ({ ...sentence, index })) },
+    request: sharedRequest || null, historyAccess: evidence.historyAccess || null, execution: { readOnly: evidence.scope.readOnlyRecall, mutationAuthority: false }, obligations: obligations.map((text, index) => ({ index, text })), coverage: evidence.history, losses: evidence.losses, sources, draft: { sentences: draft.sentences.map((sentence, index) => ({ ...sentence, index })) },
   });
   if (requestInput.length > HISTORY_REVIEW_LIMITS.inputCharacters) return false;
   const key = client ? undefined : process.env.OPENAI_API_KEY?.trim();
@@ -122,7 +122,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const model = getAskModelConfiguration().primary;
   const started = Date.now(); const before = signature(result);
   let attempted = false;
-  const request = { model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}), instructions: instructions + (sharedRequest ? "\nThe request contract is the validated task, not evidence. An execution constraint such as no saving is satisfied by the server readOnly execution flag; it does not require a save-related sentence. Mark it answered with the retained answer indexes when that flag proves compliance. Check each requested obligation against all relevant supplied records, including facts omitted from the draft. A limitation is insufficient if the requested fact exists in the supplied records. Profile species, sex and pronouns support identity language only, never history, diagnosis or care claims. Query boundary dates describe the requested scope, never evidence that an event happened on that date. Reject any draft that presents a query date as an unsupported event date. Unlinked correction records support only what their text reports, not a verified reassignment. Scope uncertainty to the disputed claim, never unrelated facts or other pets. Include material missing-evidence limitations in the retained answer itself. A generic coverage footer is not required. Preserve requested language and format. Do not approve a disclaimer-only answer or unrelated source list. Return an obligations item for every supplied index, including the main question. answered means retained sentences fulfill it; limited means retained sentences explicitly explain unavailable evidence; missing means it is not answered. Approve only if every obligation has a non-missing status and supporting retained sentence indexes. Otherwise return approved false, no retained sentences, and missing obligations. Formatting and language requirements must hold for the whole retained answer. On rejection, give a concise rejectionReason identifying unsupported claims, omissions or format failures so a separate writer can repair them. The reason is guidance, not evidence. On approval rejectionReason is null." : ""), input: requestInput, max_output_tokens: HISTORY_REVIEW_LIMITS.outputTokens,
+  const request = { model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}), instructions: instructions + (sharedRequest ? "\nThe request contract is the validated task, not evidence. An execution constraint such as no saving is satisfied by the server readOnly execution flag; it does not require a save-related sentence. Mark it answered with the retained answer indexes when that flag proves compliance. Check each requested obligation against all relevant supplied records, including facts omitted from the draft. A limitation is insufficient if the requested fact exists in the supplied records. Profile species, sex and pronouns support identity language only, never history, diagnosis or care claims. A subscription historyAccess window limits accessible records, not their existence; do not approve an absence claim about excluded periods. Query boundary dates describe the requested scope, never evidence that an event happened on that date. Reject any draft that presents a query date as an unsupported event date. Unlinked correction records support only what their text reports, not a verified reassignment. Scope uncertainty to the disputed claim, never unrelated facts or other pets. Include material missing-evidence limitations in the retained answer itself. A generic coverage footer is not required. Preserve requested language and format. Do not approve a disclaimer-only answer or unrelated source list. Return an obligations item for every supplied index, including the main question. answered means retained sentences fulfill it; limited means retained sentences explicitly explain unavailable evidence; missing means it is not answered. Approve only if every obligation has a non-missing status and supporting retained sentence indexes. Otherwise return approved false, no retained sentences, and missing obligations. Formatting and language requirements must hold for the whole retained answer. On rejection, give a concise rejectionReason identifying unsupported claims, omissions or format failures so a separate writer can repair them. The reason is guidance, not evidence. On approval rejectionReason is null." : ""), input: requestInput, max_output_tokens: HISTORY_REVIEW_LIMITS.outputTokens,
     text: { format: { type: "json_schema", name: "furvise_history_review", strict: true,
       schema: sharedRequest ? repairableTaskHistoryReviewSchema : historyReviewSelectionSchema } } };
   try {
@@ -130,7 +130,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       maxOutputTokens: HISTORY_REVIEW_LIMITS.outputTokens, invoke: async () => {
         attempted = true;
         onProviderEvent?.({ stage: "verification", outcome: "started", model, elapsedMs: 0 });
-        return provider.responses.create(request, { signal: AbortSignal.timeout(HISTORY_REVIEW_LIMITS.timeoutMs) });
+        return provider.responses.create(request, { signal: AbortSignal.timeout(boundedProviderTimeout(HISTORY_REVIEW_LIMITS.timeoutMs)) });
       } });
     const parsed = interpretStructuredProviderResponse(output, raw =>
       sharedRequest ? parseRepairableTaskHistoryReview(JSON.parse(raw), draft.sentences.length, obligations.length) : parseHistoryReviewSelection(JSON.parse(raw), draft.sentences.length));
@@ -196,6 +196,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       : presentReviewedHistory(retained.map(sentence => sentence.text), evidence.scope.requestText);
     if (proposedDraft.sentences.some(sentence => isStructuredHistoryText(sentence.text))
       && (!isStructuredHistoryText(composed) || supplements.length)) return false;
+    if (!matchesHistoryOutputFormat([composed, ...supplements].join("\n\n"), sharedRequest?.outputFormat)) return false;
     recordHistoryReview(result, { signature: before,
       proseText: presentHistoryLimitation(composed, limitation, evidence.scope.requestText),
       sourceReports: supplements, sourceContent: supplementContent,
@@ -226,7 +227,7 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
     invoke: () => provider.responses.create({ model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "medium" } } : {}),
       instructions: repairInstructions, input, max_output_tokens: 2400,
       text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema } } },
-    { signal: AbortSignal.timeout(20_000) }) });
+    { signal: AbortSignal.timeout(boundedProviderTimeout(20_000)) }) });
   const parsed = interpretStructuredProviderResponse(output, raw => {
     const canonical = canonicalHistoricalRead(JSON.parse(raw)) as { historyNarrative?: unknown };
     const narrative = parseHistoryNarrative(canonical.historyNarrative);

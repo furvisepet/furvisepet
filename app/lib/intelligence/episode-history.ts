@@ -1,3 +1,4 @@
+import { clipHistoryPlan } from "./history-access.ts";
 import "server-only";
 import { parseEpisodeFollowUp as episodeFollowUp } from "./episode-reference-language.ts";
 import { createHash } from "node:crypto";
@@ -104,7 +105,8 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
         return done();
       }
       if (refs.petId !== context.pet.id || topic && topic !== refs.topic) return done();
-      result.topic=refs.topic; result.from=refs.from; result.to=refs.to;
+      const scope = clipHistoryPlan({ from: refs.from, to: refs.to }, context.historyAccess);
+      result.topic=refs.topic; result.from=scope.from; result.to=scope.to;
     } else if (!topic || !plan) { result.reasons.push("episode_count_scope_needed"); result.referenceStatus="clarify"; result.coverage="ambiguous"; return done(); }
     // Member-only revalidation cannot discharge uncertainty found by the preceding
     // historical read: a late correction may have no episode membership at all.
@@ -113,9 +115,12 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       || inherited.reasons.includes("unlinked_correction_uncertain"))) {
       throw new Error("historical_episode_correction_unavailable");
     }
+    const bounded = clipHistoryPlan({ from: result.from, to: result.to }, context.historyAccess);
+    result.from = bounded.from; result.to = bounded.to;
+    if (result.from && result.to && result.from >= result.to) { result.reasons.push("requested_period_outside_subscription_window"); return done(); }
     const episodeIds = refs?.items.filter(i => i.id.startsWith("episode:")).map(i => i.id.slice(8));
     const readArgs={p_pet_id:context.pet.id,p_keys:keys(result.topic),p_episode_ids:episodeIds?.length ? episodeIds : null,
-      p_from: refs ? null : result.from, p_to: refs ? null : result.to};
+      p_from: refs && !context.historyAccess ? null : result.from, p_to: refs && !context.historyAccess ? null : result.to};
     const read = await db.rpc("read_ask_episode_sources", readArgs).abortSignal(signal());
     const inventory = refs ? null : recordedInventory(read.data?.recorded_inventory, context.owner.userId, context.pet.id,
       keys(result.topic), result.from, result.to);

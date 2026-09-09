@@ -62,6 +62,8 @@ export async function admitAiOperation(input: {
 }
 
 export class AiOperationAdmission {
+  // Leave time for persistence/settlement within the 50-second Ask route.
+  readonly providerDeadlineAt: number;
   private callNumber = 0;
   private queued: AiCallReservation | null = null;
   private readonly config: ReturnType<typeof getAiGuardConfig>;
@@ -79,6 +81,7 @@ export class AiOperationAdmission {
 
   constructor(input: { config: ReturnType<typeof getAiGuardConfig>; env: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel: string; metrics: AiGuardMetrics; now: Date; operationId: string; operationKey: string; operationTtlSeconds: number; policy: ReturnType<typeof getAiFeaturePolicy>; requestId: string; store: AiGuardStore }) {
     Object.assign(this, input);
+    this.providerDeadlineAt = input.feature === "ask" ? Date.now() + 45_000 : Number.POSITIVE_INFINITY;
     this.config = input.config; this.env = input.env; this.feature = input.feature; this.intendedModel = input.intendedModel;
     this.metrics = input.metrics; this.now = input.now; this.operationId = input.operationId; this.operationKey = input.operationKey; this.operationTtlSeconds = input.operationTtlSeconds;
     this.policy = input.policy; this.requestId = input.requestId; this.store = input.store;
@@ -87,6 +90,7 @@ export class AiOperationAdmission {
   async run<T>(action: () => Promise<T>) { return runWithAiAdmission(this, action); }
 
   async beginProviderCall(input: { purpose?: "history_review" | "history_repair" | "history_rereview"; input: unknown; maxOutputTokens: number; model: string }) {
+    if (Date.now() >= this.providerDeadlineAt) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_deadline_exhausted");
     if (this.queued && (input.purpose === "history_repair" || input.purpose === "history_rereview"))
       throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_phase_out_of_order");
     const estimatedInputTokens = estimateInputTokens(input.input);

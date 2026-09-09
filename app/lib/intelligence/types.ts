@@ -141,6 +141,7 @@ export type IntelligenceConversationTurn = {
 };
 
 export type FurviseLiveContext = {
+  historyAccess?: import("./history-access.ts").AskHistoryAccess;
   askInterpretation?: import("./interpret-ask.ts").AskInterpretation;
   episodePresentation?: import("./episode-presentation.ts").EpisodePresentation;
   episodeResult?: import("./episode-history.ts").EpisodeResult;

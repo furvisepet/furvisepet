@@ -1,4 +1,5 @@
 import "server-only";
+import { enforceAskHistoryAccess, type AskHistoryAccess } from "./history-access.ts";
 import { episodePresentation } from "./episode-presentation.ts";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -30,6 +31,7 @@ export async function buildFurviseContext({
   conversationPetId = null,
   currentMessage,
   dateRange,
+  historyAccess,
   feature = "ask",
   locale = "en",
   petId,
@@ -40,6 +42,7 @@ export async function buildFurviseContext({
   conversationPetId?: string | null;
   currentMessage: string;
   dateRange?: { from: string; to: string };
+  historyAccess?: AskHistoryAccess;
   feature?: IntelligenceFeature;
   locale?: string;
   petId: string;
@@ -57,6 +60,7 @@ export async function buildFurviseContext({
   const profileQuery = supabase.from("dog_profiles").select("*").eq("id", petId).eq("user_id", userId).maybeSingle<DogProfileRow>();
   const eligiblePetsQuery = supabase.from("dog_profiles").select("*").eq("user_id", userId).returns<DogProfileRow[]>();
   let careQuery = supabase.from("pet_care_entries").select("*").eq("pet_profile_id", petId).eq("user_id", userId).is("deleted_at", null);
+  if (historyAccess) careQuery = careQuery.gte("occurred_at", historyAccess.from).lt("occurred_at", historyAccess.to);
   if (dateRange) careQuery = careQuery.gte("occurred_at", `${dateRange.from}T00:00:00.000Z`).lte("occurred_at", `${dateRange.to}T23:59:59.999Z`);
   const boundedCareQuery = careQuery.order("occurred_at", { ascending: false }).order("created_at", { ascending: false })
     .limit(mode.contextPolicy.careEntryLimit).returns<CareEntryRow[]>();
@@ -141,7 +145,8 @@ export async function buildFurviseContext({
   const longitudinalResolvedConcerns = resolvedConcerns.data.filter((concern) => !isKnownConversationalCareNoise(`${concern.title} ${concern.normalized_key}`));
   const longitudinalCurrentState = currentState.data && isKnownConversationalCareNoise(JSON.stringify(currentState.data.state)) ? null : currentState.data;
 
-  return finalizeFurviseContext({
+  return enforceAskHistoryAccess(finalizeFurviseContext({
+    historyAccess,
     evidenceLoading: {
       dateRange,
       losses: [
@@ -188,7 +193,7 @@ export async function buildFurviseContext({
     currentState: longitudinalCurrentState || null,
     memories: selectedMemories.memories,
     productFeedback: feedback.data, conversationTurns, contextRecovery: { unavailableSources },
-  });
+  }));
 }
 
 function responseText(value: Record<string, unknown> | null) {

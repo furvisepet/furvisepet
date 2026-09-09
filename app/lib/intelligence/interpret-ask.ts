@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";
-import { executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
 import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
 import { buildRecentSubjectState, resolveRecentPronoun } from "./entities/recent-subject-state.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -262,7 +262,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
       invoke: () => {
         attempted = true;
         onProviderEvent?.({ stage: "interpretation", outcome: "started", model, elapsedMs: 0, configuredOutputLimit: ASK_INTERPRETATION_LIMITS.outputTokens });
-        providerSignal = AbortSignal.timeout(ASK_INTERPRETATION_LIMITS.timeoutMs);
+        providerSignal = AbortSignal.timeout(boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs));
         return activeClient.responses.create(request as never, { signal: providerSignal });
       } });
     // Parse transport/JSON separately from server validation. Never surface or

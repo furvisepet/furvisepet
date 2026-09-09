@@ -29,6 +29,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  historyAccess?: import("./history-access.ts").AskHistoryAccess;
   answerSourceIds?: string[];
   /** Server-validated report renderings; never taken from provider JSON. */
   answerContent?: string[];
@@ -100,7 +101,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     }
   }
   const selected = new Set(context.selectedCareEntries.map(row => row.id));
-  const contract: AskEvidenceContract = { version: "ask-evidence.v1", scope: askEvidenceScope(context.currentMessage, ids), sources,
+  const contract: AskEvidenceContract = { ...(context.historyAccess ? { historyAccess: context.historyAccess } : {}), version: "ask-evidence.v1", scope: askEvidenceScope(context.currentMessage, ids), sources,
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
@@ -224,6 +225,10 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
   // The shared request path is composed and reviewed semantically. Its safe
   // fallback may quote source reports, but never runs wording-specific answers.
   if (contract.interpretation?.request) {
+    if (contract.historyAccess && contract.history?.reasons.includes("requested_period_outside_subscription_window")) {
+      contract.answerSourceIds = []; contract.answerContent = [];
+      return `Your plan lets Ask use saved pet history from ${contract.historyAccess.from.slice(0, 10)}. The requested period is outside that window; this does not mean those records do not exist.`;
+    }
     if (contract.scope.status === "ambiguous") return "I couldn't resolve the requested subject or reference reliably. Could you clarify what you mean?";
     if (contract.history && contract.scope.requestKind !== "count") return attributedHistoryAnswer(contract, false, synthesis);
     if (contract.scope.requestKind !== "count") return null;

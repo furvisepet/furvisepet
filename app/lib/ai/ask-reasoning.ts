@@ -9,7 +9,7 @@ import { estimateInputTokens } from "./usage-guard/cost-estimator.ts";
 import { historyNarrativeSchema, parseHistoryNarrative, type HistoryNarrative } from "../intelligence/history-narrative.ts";
 import OpenAI from "openai";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
-import { executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
+import { boundedProviderTimeout, executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow } from "../supabase.ts";
 import { FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import {
@@ -1273,6 +1273,7 @@ function isRepairableStructuredOutput(error: AskPipelineError) {
 }
 
 async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number, onAttempt?: () => void) {
+  timeoutMs = boundedProviderTimeout(timeoutMs);
   const controller = new AbortController();
   let timeoutTriggered = false;
   const timeout = setTimeout(() => {

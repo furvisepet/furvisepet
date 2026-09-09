@@ -37,3 +37,11 @@ export function readProviderUsage(value: unknown) {
 }
 
 function validTokens(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value >= 0; }
+
+/** All Ask phases share the operation deadline, including repair and re-review. */
+export function boundedProviderTimeout(maximumMs: number): number {
+  const deadline = getActiveAiAdmission()?.providerDeadlineAt;
+  const remaining = deadline === undefined ? maximumMs : Math.floor(deadline - Date.now());
+  if (remaining <= 0) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_deadline_exhausted");
+  return Math.min(maximumMs, remaining);
+}
