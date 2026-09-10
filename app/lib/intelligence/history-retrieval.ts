@@ -1,6 +1,7 @@
 import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups, historyEventRelevance } from "./history-query-relevance.ts";
 import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
+import { compileHistoryReadStrategies } from "./history-read-strategies.ts";
 import { explicitHistoryDays } from "./explicit-history-dates.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, orderHistoryEvidence } from "./history-synthesis.ts";
 import { createHash } from "node:crypto";
@@ -16,6 +17,7 @@ export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, candidateRows: 64,
 type Cursor = { petId: string; occurredAt: string; id: string };
 export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
+  targets?: Array<{ petId: string; day: string; candidateIds: string[]; retainedIds: string[]; exhausted: boolean; status: Completeness }>;
   chronology?: Array<{ petId: string; boundaryIds: string[]; blocked: boolean }>;
   plan: HistoryPlan; candidateIds: string[]; queryCount: number;
   retrieval: Completeness; corrections: Completeness; extraction: Completeness; grouping: Completeness;
@@ -118,7 +120,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // the candidate budget fairly so the first pet cannot consume every slot.
   // Reserve twelve of the existing roots for later correction notes on dated
   // lookups. Supplemental discovery must not expand the graph/input budgets.
-  const correctionReserve = plan.from ? 12 : 0;
+  const correctionReserve = plan.from || namedDays.length ? 12 : 0;
   const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let failed = false; let pages = 0; let exhausted = true;
@@ -133,14 +135,20 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     const diversify = context.askInterpretation?.request
       && (eventTerms.length > 0 || !endpointComparison && !["latest", "earliest", "earliest_occurrence"].includes(context.askInterpretation.selection || "") && searchTerms.length > 1);
     const termGroups = historySearchGroups(searchTerms, sharedRead ? context.currentMessage : "");
-    const strategies = diversify
+    const proposedStrategies = diversify
       ? [...termGroups.map(terms => ({ descending, lexical: true, terms })), { descending: endpointComparison || descending, lexical: false, terms: searchTerms }]
       : context.askInterpretation?.request && plan.terms.length
         ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
         : directions.map(descending => ({ descending, lexical: !!plan.terms.length, terms: searchTerms }));
+    const compiled = compileHistoryReadStrategies(context.currentMessage, new Date(asOf).getUTCFullYear(), plan,
+      proposedStrategies.map(strategy => ({ ...strategy, from: plan.from, to: plan.to })), HISTORY_BUDGET.pagesPerPet);
+    const strategies = compiled.strategies;
+    if (compiled.omittedTargets.length) coverage.reasons.push("explicit_date_target_budget");
+    coverage.targets ??= [];
+    coverage.targets.push(...compiled.omittedTargets.map(day => ({ petId, day, candidateIds: [], retainedIds: [], exhausted: false, status: "partial" as const })));
     // Split the existing candidate/page budget across both ends. Never scan a
     // decade sequentially just to compare the first and last recorded values.
-    for (const [strategyIndex, { descending: readDescending, lexical, terms }] of strategies.entries()) {
+    for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target }] of strategies.entries()) {
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
       const priorIds = new Set(collected.map(row => row.id));
@@ -162,8 +170,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
             // different lexical authority when its migration/service is missing.
             result = await db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
               p_pet_id: petId, p_terms: terms.length ? terms : plan.terms,
-              p_from: plan.from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
-              p_to: futureSourceRequested ? plan.to : new Date(Math.min(plan.to ? Date.parse(plan.to) : Infinity, asOf + 1)).toISOString(),
+              p_from: from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
+              p_to: futureSourceRequested ? to : new Date(Math.min(to ? Date.parse(to) : Infinity, asOf + 1)).toISOString(),
               p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
             }).abortSignal(signal);
             if (result.error) coverage.reasons.push(signal.aborted || result.error.code === "57014" ? "candidate_rpc_timeout"
@@ -171,8 +179,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           } else {
             let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
             if (!futureSourceRequested) query = query.lt("occurred_at", new Date(asOf + 1).toISOString());
-            if (plan.from) query = query.gte("occurred_at", plan.from);
-            if (plan.to) query = query.lt("occurred_at", plan.to);
+            if (from) query = query.gte("occurred_at", from);
+            if (to) query = query.lt("occurred_at", to);
             if (cursor) query = query.or(`occurred_at.${readDescending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${readDescending ? "lt" : "gt"}.${cursor.id})`);
             result = await query.order("occurred_at", { ascending: !readDescending }).order("id", { ascending: !readDescending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
           }
@@ -208,6 +216,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       }
       if (!traversalExhausted && cursor) coverage.continuation.push(cursor);
       exhausted = exhausted && traversalExhausted;
+      if (target) coverage.targets.push({ petId, day: target, candidateIds: rows.map(row => `care:${row.id}`), retainedIds: [],
+        exhausted: traversalExhausted, status: failed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
       collected.push(...rows);
     }
     const unique = new Map<string, CareEntryRow>();
@@ -278,11 +288,27 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       return { petId, boundaryIds: matching.filter(entry => compareHistoryTime(entry.occurred_at, boundary || "") === 0).map(entry => careEvidenceId(entry.id, coverage)), blocked };
     });
   }
+  // Reserve representation for each requested day before general ranking can
+  // fill the evidence budget. Round-robin keeps multiple dates/pets represented.
+  const targetGroups = (coverage.targets || []).map(target => ordered.filter(entry =>
+    entry.pet_profile_id === target.petId && entry.occurred_at?.slice(0, 10) === target.day));
+  const anchoredIds = new Set(targetGroups.flat().map(entry => entry.id));
+  const groups = [...targetGroups, ordered.filter(entry => !anchoredIds.has(entry.id))];
+  const prioritized: CareEntryRow[] = [];
+  for (let index = 0; groups.some(group => index < group.length); index++)
+    for (const group of groups) if (group[index]) prioritized.push(group[index]);
   const kept: CareEntryRow[] = []; let chars = 0; let budgetExcluded = false;
-  for (const entry of ordered) {
+  for (const entry of prioritized) {
     const size = JSON.stringify(entry).length;
     if (kept.length >= HISTORY_BUDGET.records || chars + size > HISTORY_BUDGET.chars) { coverage.excludedIds.push(careEvidenceId(entry.id, coverage)); budgetExcluded = true; continue; }
     kept.push(entry); chars += size;
+  }
+  for (const target of coverage.targets || []) {
+    target.retainedIds = kept.filter(entry => entry.pet_profile_id === target.petId && entry.occurred_at?.slice(0, 10) === target.day)
+      .map(entry => careEvidenceId(entry.id, coverage));
+    if (target.candidateIds.length && !target.retainedIds.length) {
+      target.status = "partial"; coverage.reasons.push("explicit_date_target_not_represented");
+    }
   }
   if (budgetExcluded) coverage.reasons.push("effective_evidence_budget");
   return { ...context, askHistory: { coverage, entries: kept, originals: candidates } };

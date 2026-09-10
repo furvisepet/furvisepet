@@ -1,12 +1,11 @@
 import "server-only";
-import { filterSentencesPreservingFacts } from "./ai/text-segmentation.ts";
+import { scrubUntrustedMutationClaim } from "./ask-publication.ts";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createIdempotencyAdminClient } from "./security/idempotency/admin-client.ts";
 import { createCanonicalCareAuthorityClient } from "./intelligence/care-authority-client.ts";
 import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 import { getFurviseActionPolicy } from "./application-actions/policy.ts";
-import { enforceVerifiedStateClaims, preserveAttributedReportQuotes, preserveFictionalDialogueQuotes, containsUntrustedTerminalMutationClaim } from "./application-actions/state-claims.ts";
 import { validateSensitiveRequestOriginResponse } from "./security/headers/origin-policy";
 import { deduplicateLegacyRetriedMessages, type AskConversationDetail, type AskConversationSummary, type StoredAskMessage, type StoredAskSuggestion } from "./ask-conversations";
 
@@ -160,6 +159,7 @@ export function presentationOnlyAskResponse(value: unknown, trustedActions: unkn
     title: scrubUntrustedMutationClaim(response.title, "Furvise"),
     summary,
     directAnswer: summary,
+    safetyNote: response.safetyNote == null ? null : scrubUntrustedMutationClaim(response.safetyNote, ""),
     // Tenant-owned response_data cannot carry Furvise-authored mutation-success
     // prose. Trusted terminal wording lives only in capability receipts/cards.
     supportingText: mutationCapable ? null : response.supportingText,
@@ -179,13 +179,6 @@ function scrubUntrustedSection(value: unknown) {
   return heading && items.length ? { ...section, heading, items } : null;
 }
 
-function scrubUntrustedMutationClaim(value: unknown, fallback: string) {
-  if (typeof value !== "string") return fallback;
-  const governed = enforceVerifiedStateClaims(value, false);
-  const safe = preserveFictionalDialogueQuotes(governed, text => preserveAttributedReportQuotes(text, prose =>
-    filterSentencesPreservingFacts(prose, sentence => !containsUntrustedTerminalMutationClaim(sentence))));
-  return safe || fallback;
-}
 
 export async function loadActionCapabilitiesForMessages(userId: string, messageIds: string[]) {
   const result = new Map<string, unknown[]>();

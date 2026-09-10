@@ -81,6 +81,9 @@ export function canonicalHistoricalRead(value: unknown): unknown {
   } else if (p.table !== null) throw new Error("DUPLICATE_READ_BODY");
   if (narrative && p.limitation !== null) throw new Error("DUPLICATE_READ_BODY");
   if (!narrative && (typeof p.limitation !== "string" || !p.limitation.trim() || p.limitation.length > 600)) throw new Error("MISSING_READ_BODY");
+  // A limitation is also public answer text and must obey the same container
+  // contract. It cannot be a second, unvalidated channel for serialized JSON.
+  if (!narrative && (p.layout !== "prose" || !matchesHistoryOutputFormat(String(p.limitation), "prose"))) throw new Error("INVALID_READ_LAYOUT");
   if (narrative && p.layout === "bullets") for (const chunk of narrative.sentences) {
     if (!/^[-*•]\s/.test(chunk.text)) chunk.text = "- " + chunk.text;
   }
