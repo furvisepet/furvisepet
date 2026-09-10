@@ -3,7 +3,7 @@ import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
-import { literalHistoryMonthWindow, literalHistoryReportDayWindow, requestsPastPresentComparison } from "./literal-history-window.ts";
+import { literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./literal-history-window.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -98,7 +98,15 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v && v >= "1900-01-01" && v <= "2100-01-01";
   if (!date(p.from) || !date(p.to) || p.from !== null && p.to !== null && p.from >= p.to) return fail("dates");
   const turnIds = new Set(context.conversationTurns.map(turn => turn.id));
-  if (p.referenceTurnIds.some(id => !turnIds.has(id))) return fail("reference");
+  const anchor = conversationReadAnchor(context);
+  const recoverableAnchor = anchor && ["read", "conversation", "clarify"].includes(String(p.mode))
+    && p.ordinal === null && p.frame === null && p.evidenceBasis !== "supplied_context";
+  if (p.referenceTurnIds.some(id => !turnIds.has(id))) {
+    // Unknown model IDs convey no authority. Recover only from independently
+    // reconstructed USER scope; never guess a reference or relax a write contract.
+    if (!recoverableAnchor) return fail("reference");
+    Object.assign(p, { referenceTurnIds: p.referenceTurnIds.filter(id => turnIds.has(id)) });
+  }
   if (p.premiseQuotes !== null) {
     const userPremises = [context.currentMessage, ...context.conversationTurns.filter(t => t.role === "user").map(t => t.text)];
     if ((p.premiseQuotes as string[]).some(quote => {
@@ -117,9 +125,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       /^(?:read|retrieve|look up|find|show|give|tell)\b/i.test(quote.trim()) && quote.trim() === context.currentMessage.trim())) return fail("missing_supplied_premise");
   }
   // Preserve a USER-authored dated referent across an elliptical follow-up.
-  const anchor = conversationReadAnchor(context);
-  if (anchor && ["read", "conversation", "clarify"].includes(String(p.mode))
-    && p.ordinal === null && p.frame === null && p.evidenceBasis !== "supplied_context") {
+  if (recoverableAnchor) {
     Object.assign(p, { mode: "read", scope: "named", petNames: anchor.petNames,
       evidenceBasis: "saved_history", operation: p.operation === "comparison" ? "comparison" : "recall",
       selection: "period", from: anchor.from, to: anchor.to, question: anchor.question,
@@ -238,7 +244,11 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (/\bas\s+of\b/i.test(context.currentMessage) && !/\b(?:since|from|between)\b/i.test(context.currentMessage)) p.from = null;
   // One report date in a comparison is an endpoint, not proof that all
   // comparison evidence belongs to that same day. Retain earlier context.
-  if (operation === "comparison" && typeof p.from === "string" && typeof p.to === "string" && Date.parse(p.to) - Date.parse(p.from) <= 86400000
+  const projectionDay = parseReadProjection(p.projection) && ["csv", "table"].includes(String(p.outputFormat))
+    && !/\b(?:before|after|since|until|between|from|as of|versus|vs|latest|earliest|current|previous|earlier|later|now|today|then)\b/i.test(context.currentMessage)
+    ? explicitHistoryDayWindow(context.currentMessage) : null;
+  const exactProjectionDay = projectionDay && projectionDay.from === p.from && projectionDay.to === p.to;
+  if (operation === "comparison" && !exactProjectionDay && typeof p.from === "string" && typeof p.to === "string" && Date.parse(p.to) - Date.parse(p.from) <= 86400000
     && !/\b(?:between|since|from|only on|on that day only)\b/i.test(context.currentMessage)) p.from = null;
   // Literal month/year constraints survive a planner omission. Avoid altering
   // existing ranges, conversation premises or open-ended temporal requests.

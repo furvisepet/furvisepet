@@ -60,3 +60,29 @@ test('deterministic generation can still enter one repair and independent re-rev
   await call('history_repair');await call('history_rereview');await assert.rejects(call('history_repair'));
  });
 });
+
+for (const mode of ['read','conversation','clarify']) test('trusted dated USER scope recovers unknown model reference: '+mode,()=>{
+ const c={owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],conversationTurns:turns,currentMessage:'Rank those two pets for that month.'};
+ const result=validateAskRequest(proposal({mode,referenceTurnIds:['invented','a1']}),c);
+ assert.deepEqual(result.petIds,[owned[0].id,owned[1].id]);
+ assert.deepEqual(result.request.referenceTurnIds,['a1','u1','u2']);
+ assert.equal(result.history.from,'2024-03-01T00:00:00.000Z');
+ assert.doesNotMatch(result.request.question,/900/);
+ for(const patch of [{mode:'update'},{mode:'mixed'},{evidenceBasis:'supplied_context'}]) assert.throws(()=>validateAskRequest(proposal({...patch,referenceTurnIds:['invented']}),c));
+ assert.throws(()=>validateAskRequest(proposal({referenceTurnIds:['invented']}),{...c,conversationTurns:[]}));
+});
+for(const format of ['csv','table']) test('exact-day typed projection survives redundant comparison operation: '+format,async t=>{
+ clock(t);
+ const cohort=owned.slice(0,2),rows=cohort.map((p,i)=>care('projection-day'+i,p.id,'2024-04-07','general',p.name+' body weight was '+(i+1)+' kg without equipment.'));
+ const r=await exercise('Compare all pets body weights on April 7 2024 as '+format+' in grams, alphabetically.',{
+ fixturePets:cohort,petId:cohort[0].id,rows,history:true,expectedProviderCalls:0,expectedReviewCalls:1,reviewResponse:{approved:true},
+ interpretationProposal:proposal({operation:'comparison',scope:'account',petNames:[],quantity:'measurement',topic:'weight',terms:['weight'],from:'2024-04-07',to:'2024-04-08',outputFormat:format,
+ projection:{nameHeader:'pet',valueHeader:'grams',quantity:'body_mass',unit:'g',order:'name_ascending'}})});
+ assert.equal(r.publication.failure,null);assert.equal(r.result.answerValidation.assessment.outcome,'complete');
+});
+for(const question of ['Compare weights on April 7 2024 versus April 8 2024.','Compare weights as of April 7 2024.','Compare weights on April 7 2024 with previous weights.']) test('projection metadata cannot erase another temporal obligation: '+question,()=>{
+ const result=validateAskRequest(proposal({operation:'comparison',quantity:'measurement',from:'2024-04-07',to:'2024-04-08',outputFormat:'csv',
+ projection:{nameHeader:'pet',valueHeader:'grams',quantity:'body_mass',unit:'g',order:'name_ascending'}}),
+ {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],conversationTurns:[],currentMessage:question});
+ assert.equal(result.history.from,null);
+});
