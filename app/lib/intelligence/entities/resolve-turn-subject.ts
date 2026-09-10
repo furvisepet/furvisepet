@@ -2,10 +2,10 @@ import type { ProposedSemanticFrame } from "../semantic-frame/types.ts";
 import { isEpisodeSubjectReference } from "../episode-reference-language.ts";
 import { groundSemanticFrameEvidence } from "../semantic-frame/ground-evidence.ts";
 import { validateSemanticFrameEvidence } from "../semantic-frame/validate-evidence.ts";
-import { buildRecentPetIds, type EligibleSemanticPet } from "./candidate-retrieval.ts";
-import { resolveShadowEntities, type ShadowEntityBinding } from "./resolve-entities.ts";
-import { resolveShadowReferences } from "./resolve-references.ts";
-import type { SemanticReasonCode } from "./policy.ts";
+import { buildRecentPetIds, type EligibleSemanticPet } from "../entity-matching.ts";
+import { resolveShadowEntities, type ShadowEntityBinding } from "../entity-matching.ts";
+import { resolveShadowReferences } from "../entity-matching.ts";
+import type { SemanticReasonCode } from "../entity-matching.ts";
 import {
   buildRecentSubjectState,
   hasExplicitPersonSurface,

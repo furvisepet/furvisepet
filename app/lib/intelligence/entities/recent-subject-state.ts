@@ -1,4 +1,4 @@
-import type { EligibleSemanticPet } from "./candidate-retrieval.ts";
+import type { EligibleSemanticPet } from "../entity-matching.ts";
 
 export type SubjectPronounClass = "feminine" | "masculine" | "neutral";
 

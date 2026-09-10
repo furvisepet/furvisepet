@@ -1,4 +1,4 @@
-import { normalizeConceptLabel } from "../../concepts/normalize-concept.ts";
+import { normalizeConceptLabel } from "../../concept-matching.ts";
 import type { GovernedClaimRelation, GovernedSemanticClaim } from "../types.ts";
 
 export type GovernedClaimDuplicate = {

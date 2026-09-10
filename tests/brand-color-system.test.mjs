@@ -163,7 +163,7 @@ test("focus authority stays forest or scoped sage without orange leakage", () =>
 });
 
 test("components consume semantic tokens and do not introduce ordinary colors", () => {
-  const files = walk("app").filter((file) => /\.(?:tsx|ts|css)$/.test(file) && file !== path.join("app", "globals.css") && file !== path.join("app", "layout.tsx") && file !== path.join("app", "lib", "vet-brief", "pdf-theme.ts"));
+  const files = walk("app").filter((file) => /\.(?:tsx|ts|css)$/.test(file) && file !== path.join("app", "globals.css") && file !== path.join("app", "layout.tsx"));
   const failures = files.filter((file) => /#[0-9a-f]{3,8}|(?:linear|radial)-gradient|\b(?:bg|text|border|ring)-(?:white|black|red|green|blue|orange|amber|stone|gray)-/i.test(read(file)));
   assert.deepEqual(failures, [], `Unexpected component colors: ${failures.join(", ")}`);
   assert.match(read("app/components/product-primitives.tsx"), /var\(--secondary-action\)[\s\S]*var\(--secondary-action-text\)/);
@@ -171,7 +171,7 @@ test("components consume semantic tokens and do not introduce ordinary colors", 
 });
 
 test("palette names cannot leak into user-facing application source", () => {
-  const visibleSources = walk("app").filter((file) => /\.(?:tsx|ts|mjs)$/.test(file) && file !== path.join("app", "lib", "vet-brief", "pdf-theme.ts"));
+  const visibleSources = walk("app").filter((file) => /\.(?:tsx|ts|mjs)$/.test(file));
   const leaked = visibleSources.filter((file) => /morning dew|overcast|early dusk|tan parchment|almond dust|coffee grounds/i.test(read(file)));
   assert.deepEqual(leaked, []);
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createBlankAddPetDraft } from "../app/lib/onboarding-drafts.ts";
-import { validatePetProfileSaveInput } from "../app/lib/pet-profile-save-validation.ts";
+import { validatePetProfileSaveInput } from "../app/lib/pet-profile-editing.ts";
 import { initialProfile } from "../app/lib/petwise.ts";
 import { buildOnboardingInitializationKey } from "../app/onboarding/initialization-key.ts";
 import { getWeightPlausibilityWarning } from "../app/onboarding/weight-warning.ts";

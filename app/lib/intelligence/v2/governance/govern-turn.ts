@@ -1,5 +1,5 @@
 import type { CareEpisode } from "../../episodes/types.ts";
-import { buildRecentPetIds, type EligibleSemanticPet } from "../../entities/candidate-retrieval.ts";
+import { buildRecentPetIds, type EligibleSemanticPet } from "../../entity-matching.ts";
 import { normalizeClaimKind, type ClaimKindNormalization } from "../../semantic-frame/normalize-claim-kind.ts";
 import type { ProposedSemanticClaim, ProposedSemanticFrame } from "../../semantic-frame/types.ts";
 import { resolveClaimConceptV2 } from "../concepts/normalize.ts";

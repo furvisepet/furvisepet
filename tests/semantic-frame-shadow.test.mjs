@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { askUnifiedJsonSchema } from "../app/lib/ai/ask-reasoning.ts";
-import { resolveShadowEntities } from "../app/lib/intelligence/entities/resolve-entities.ts";
+import { resolveShadowEntities } from "../app/lib/intelligence/entity-matching.ts";
 import { buildShadowSemanticAnalysis } from "../app/lib/intelligence/semantic-observability.ts";
 import { extractProposedSemanticFrame } from "../app/lib/intelligence/semantic-frame/extract-frame.ts";
 import { groundSemanticFrameEvidence } from "../app/lib/intelligence/semantic-frame/ground-evidence.ts";

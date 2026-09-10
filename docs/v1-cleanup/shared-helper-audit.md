@@ -3,7 +3,7 @@
 Base: presentation PR #278, commit `b6b1f0f532ab3f275beed953bea06660507988e5`.
 Branch: `codex/shared-helper-consolidation`.
 
-This change reduces file fragmentation without changing the Ask pipeline,
+The initial PR #279 pass described below reduces file fragmentation without changing the Ask pipeline,
 provider settings, database schema, prompts, output wording or authorization.
 
 ## Completed consolidation
@@ -103,3 +103,55 @@ their containing files. They remain unchanged in this file-ownership pass.
 No live model calls, database writes, deployment, or authenticated browser
 acceptance run is part of this consolidation. Offline passing checks do not
 establish improved live Ask accuracy.
+
+
+## Final consolidation pass after PR #279
+
+Base: `1cc47cebb3c68c11954a1dae27620011b0fb470a`.
+Branch: `codex/final-helper-consolidation`.
+
+The preceding sections describe the PR #279 snapshot. The inventory now maps
+all 322 original paths to their final owners after this additional pass.
+
+| Responsibility | Files combined | Owner | Files saved |
+| --- | --- | --- | ---: |
+| Pet-profile forms | `add-pet-validation.ts`, `edit-pet-profile.ts`, `pet-profile-draft.ts`, `pet-profile-save-validation.ts` | `app/lib/pet-profile-editing.ts` | 3 |
+| Lexical concept matching | `intelligence/concepts/normalize-concept.ts`, `retrieve-candidates.ts`, `provisional-concepts.ts` | `app/lib/intelligence/concept-matching.ts` | 2 |
+| Entity/reference candidate matching | `intelligence/entities/policy.ts`, `candidate-retrieval.ts`, `resolve-entities.ts`, `resolve-references.ts` | `app/lib/intelligence/entity-matching.ts` | 3 |
+| Vet Brief PDF layout/theme | `vet-brief/pdf-theme.ts`, `pdf.ts` | `app/lib/vet-brief/pdf.ts` | 1 |
+
+This pass reduces library code files from **311 to 302**, another **9 fewer**.
+Combined with PR #279, the reduction is **20 files**, from **322 to 302**, beyond
+the earlier voice/output consolidation.
+
+All selected modules were read in full. A declaration-level comparison verifies
+**66/66 original declarations** retain their exact bodies. The static import
+scan reports zero unresolved relative module paths. Imports now target the
+owners directly. The obsolete PDF-theme exclusions were removed from the brand
+color tests; the entire PDF source now receives the existing assertions.
+
+Preserved boundaries:
+
+- Onboarding validation, edit validation, draft reduction and server input
+  normalization remain separate functions. Their distinct rules and messages
+  are unchanged. Ownership/authentication and database writes remain in the
+  profile API server.
+- Lexical candidates and provisional concept resolution share one pure module.
+  The v2 governed registry resolver remains separate and confers its own
+  authority; matching does not silently promote a candidate into a governed fact.
+- Entity policy, scoring and reference matching share one pure module. The
+  authoritative turn-subject resolver, source evidence grounding, recent-subject
+  state, authorization and persistence remain separate. Type imports do not
+  introduce Supabase runtime access into candidate matching.
+- PDF styling stays with the PDF renderer. Deterministic brief construction,
+  schema validation, stored documents and client draft state stay separate.
+
+This completes the selected file-ownership consolidation. The retained
+candidates and duplicate utilities documented above still have distinct
+boundaries or do not yield a useful reduction in containing files. No additional
+merge is proposed solely because a file is small.
+
+Final-pass validation: **2,062 tests passed**, zero failures/skips; TypeScript
+and production build passed; ESLint has zero errors and the five existing
+warnings; `git diff --check` passed. No live provider benchmark or authenticated
+browser acceptance run was performed. No merge or deployment is included.
