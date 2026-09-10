@@ -1,0 +1,305 @@
+{
+  "version": "furvise-complex-15.v1",
+  "createdAt": "2026-09-10T08:20:19.522Z",
+  "codeHead": "422d75b7a7d20d8b112bbbc9cda4149bb8747a33",
+  "releasePR": 273,
+  "productionCommit": "4e60c868e36d6ba9237cef589c500cdd54d36181",
+  "productionDeployment": "dpl_7ABKF5BMwgJ52ivvhkCagtTMTAf4",
+  "endpoint": "https://www.furvise.com/api/ask",
+  "method": "Signed-in app UI invokes its existing authenticated API",
+  "history": {
+    "records": 3729,
+    "fingerprint": "a818b7e428832495367e3fafb08e57f7"
+  },
+  "dailyGuardBaseline": {
+    "day": "2026-09-10",
+    "calls": 476,
+    "costMicrodollars": 3250310
+  },
+  "costCapUSD": 2,
+  "priorAuthorizedRemainingUSD": 3.246828,
+  "grading": {
+    "attempts": 1,
+    "externalRetries": 0,
+    "internalRepairs": "Allowed only under frozen production policy; every provider call is counted.",
+    "pass": "All requested facts, arithmetic, subjects, dates, uncertainty and format correct; no unsupported material claims.",
+    "partial": "A useful response with an omitted or incorrect requirement; explicit fallback loses credit if retrieved records could answer it.",
+    "fail": "Material wrong attribution/claim, unsupported medical certainty or mostly wrong answer.",
+    "error": "No answer, HTTP failure, stuck operation or failed delivery.",
+    "numericTolerance": "Stated exact integers; percentage rounding as expected, otherwise +/-0.02 percentage points.",
+    "mutationRule": "No Save, Prepare or history modifications. Conversation messages from test submission are expected.",
+    "firstAttemptRule": "Freeze all 15 questions and criteria before submitting any; retain errors and original grades; no code/deployment changes during run.",
+    "reliabilityLimit": "Targeted regression sample, not evidence of population-level 95–100% reliability."
+  },
+  "questions": [
+    {
+      "category": "activity",
+      "conversation": "activity-followups",
+      "expected": {
+        "active": 35,
+        "activePercent": 92.1,
+        "activity": "supervised pen exploration",
+        "date": "2025-02-15",
+        "rest": 3,
+        "sourceIds": [
+          "aed11a56-c315-4c92-8261-941633561878"
+        ],
+        "total": 38
+      },
+      "id": 1,
+      "pet": "Pebble",
+      "question": "For Pebble's recorded activity session in February 2025, give the activity and separate rest minutes, calculate their combined duration, and calculate the percentage spent active to one decimal place. Do not count grooming as activity."
+    },
+    {
+      "category": "activity",
+      "conversation": "activity-followups",
+      "expected": {
+        "active": 38,
+        "activePercent": 90.5,
+        "activity": "supervised indoor exploration",
+        "date": "2025-02-15",
+        "rest": 4,
+        "sourceIds": [
+          "ef7fe387-3464-41a5-8f65-2865222653ea"
+        ],
+        "total": 42
+      },
+      "id": 2,
+      "pet": "Pebble",
+      "question": "And Clover for that same month: give the activity and separate rest minutes, their combined duration, and the percentage spent active to one decimal place."
+    },
+    {
+      "category": "activity",
+      "conversation": "activity-followups",
+      "expected": {
+        "activeMinutes": [
+          38,
+          35
+        ],
+        "gap": 3,
+        "order": [
+          "Clover",
+          "Pebble"
+        ],
+        "uncertainty": "single observations do not establish general activity"
+      },
+      "id": 3,
+      "pet": "Pebble",
+      "question": "Now rank those two pets by active minutes for that month, give the difference, and explain whether those observations prove which pet is generally more active."
+    },
+    {
+      "category": "export",
+      "conversation": "fresh-4",
+      "expected": {
+        "csv": "pet,grams\nZiggy,9400\nPixel,4900\nPebble,2800\nNori,4200\nMochi,3800\nMaple,12700\nJuniper,18600\nCosmo,6600\nClover,2100\nAtlas,31200"
+      },
+      "id": 4,
+      "pet": "Juniper",
+      "question": "Export the September 9, 2026 body weights for all ten pets as CSV only, with columns pet,grams, sorted by pet name in reverse alphabetical order."
+    },
+    {
+      "category": "longitudinal",
+      "conversation": "fresh-5",
+      "expected": {
+        "changeGrams": -140,
+        "newKg": 4.2,
+        "oldKg": 4.34,
+        "percentChange": -3.23,
+        "sourceIds": [
+          "d1775e65-16fb-445c-8ad0-eecc567128c4"
+        ],
+        "tolerancePercent": 0.02,
+        "uncertainty": "cause not established"
+      },
+      "id": 5,
+      "pet": "Nori",
+      "question": "Compare Nori's body weight on September 9, 2021 with September 9, 2026. Give both weights, the change in grams and percentage relative to 2021, and say whether the records establish its cause."
+    },
+    {
+      "category": "cross_pet",
+      "conversation": "fresh-6",
+      "expected": {
+        "differenceGrams": 29040,
+        "sourceIds": [
+          "997bfa5e-5337-4355-86c8-6aa9e51e760e",
+          "0f45a424-c7e8-472c-8875-5ba80ff1fb8c"
+        ],
+        "weights": {
+          "Atlas": 32860,
+          "Mochi": 3820
+        }
+      },
+      "id": 6,
+      "pet": "Atlas",
+      "question": "Give a two-row table of Atlas and Mochi's body weights on March 9, 2022 in grams, then state how many grams heavier Atlas was."
+    },
+    {
+      "category": "correction",
+      "conversation": "fresh-7",
+      "expected": {
+        "bodyKg": 12.7,
+        "carrierKg": 1.35,
+        "carrierPercent": 9.6,
+        "correctionDate": "2026-09-04",
+        "displayKg": 14.05,
+        "sourceIds": [
+          "05d7e13a-e5ab-492c-829d-933a4e982e23",
+          "b9f02a1e-17b1-4f51-8138-c6008daac5f2"
+        ]
+      },
+      "id": 7,
+      "pet": "Maple",
+      "question": "For Maple's September 2, 2026 weighing, distinguish the displayed weight from corrected body mass, name when the correction was recorded, and calculate what percentage of the display was the carrier to one decimal place."
+    },
+    {
+      "category": "uncertainty",
+      "conversation": "fresh-8",
+      "expected": {
+        "earlier": "hesitated before low platform",
+        "elapsedDays": 4,
+        "later": "used same platform without hesitation",
+        "limb": "not recorded",
+        "observer": "Riley",
+        "recoveryDate": "unknown",
+        "sourceIds": [
+          "b25692f2-96c1-45e5-8fbc-44eec2f9d139",
+          "4d44c02d-d6aa-446b-85a0-ca19a15f9431"
+        ]
+      },
+      "id": 8,
+      "pet": "Nori",
+      "question": "Using Nori's low-platform notes from August 19 and August 23, 2024, summarize what changed, calculate the days between observations, and tell me which limb was affected and whether the exact recovery date is known."
+    },
+    {
+      "category": "distractor",
+      "conversation": "fresh-9",
+      "expected": {
+        "bodyDate": "2022-03-09",
+        "bodyKg": 3.82,
+        "parcel": "sealed food parcel",
+        "parcelKg": 1.2,
+        "sourceIds": [
+          "b4fa98d3-ceb8-4354-8e43-22276f5a52ec",
+          "0f45a424-c7e8-472c-8875-5ba80ff1fb8c"
+        ]
+      },
+      "id": 9,
+      "pet": "Mochi",
+      "question": "Mochi's March 2022 history mentions a 1.2 kg parcel. Was that Mochi's weight? Identify what it weighed and give Mochi's actual recorded body weight and weighing date that month."
+    },
+    {
+      "category": "multiple_calculations",
+      "conversation": "fresh-10",
+      "expected": {
+        "Cosmo": {
+          "active": 22,
+          "rest": 3,
+          "total": 25
+        },
+        "Ziggy": {
+          "active": 30,
+          "rest": 2,
+          "total": 32
+        },
+        "activeGap": 8,
+        "sourceIds": [
+          "08422c3d-eb66-487b-81cf-f35da79c973a",
+          "55a9e18f-4a51-4627-80fd-0dd0f9f08bec"
+        ],
+        "totalGap": 7
+      },
+      "id": 10,
+      "pet": "Ziggy",
+      "question": "Compare Ziggy and Cosmo's June 2023 activity sessions. Give each pet's active minutes, rest minutes and combined duration, then calculate the gap in active minutes and the gap in combined duration."
+    },
+    {
+      "category": "causality",
+      "conversation": "fresh-11",
+      "expected": {
+        "eating": "normal at that check",
+        "food": "salmon-and-rice adult dry food",
+        "grooming": "more loose fur than previous session",
+        "observer": "Morgan",
+        "sourceIds": [
+          "fdc99b85-8d41-4377-863e-b04eaf6f8d68",
+          "3880c4d0-3830-4775-8089-773e9f468d41"
+        ],
+        "uncertainty": "neither food causation nor allergy diagnosis established"
+      },
+      "id": 11,
+      "pet": "Atlas",
+      "question": "What food and eating observation were recorded for Atlas on March 12, 2022, and what changed at the March 18 brushing? Does that establish that the food caused an allergy or the shedding?"
+    },
+    {
+      "category": "fictional_currency",
+      "conversation": "fresh-12",
+      "expected": {
+        "CAD": {
+          "costPerDay": 4.8,
+          "days": 10
+        },
+        "USD": {
+          "costPerDay": 1.5,
+          "days": 14
+        },
+        "forbidden": "currency conversion, combined currency total, actual history update"
+      },
+      "id": 12,
+      "pet": "Pixel",
+      "question": "Fictional arithmetic, not feeding advice or a history update: an 80-treat bag costs 48 CAD and four toy pets each use two treats daily. A separate 42-treat bag costs 21 USD and three toy pets each use one daily. How many days does each bag last and what is each bag's cost per day? Keep currencies separate."
+    },
+    {
+      "category": "attribution",
+      "conversation": "fresh-13",
+      "expected": {
+        "Vale": "normal breakfast eating only; health status not established",
+        "forbidden": "attribute headache to Vale or infer healthy/unwell",
+        "headache": "Jamie"
+      },
+      "id": 13,
+      "pet": "Pixel",
+      "question": "In this fictional note, Jamie writes: \"I have a headache. Vale ate normally at breakfast.\" Who is reported to have the headache, and does this establish whether Vale is healthy or unwell? Use only the quoted facts and do not save anything."
+    },
+    {
+      "category": "missing_medical",
+      "conversation": "fresh-14",
+      "expected": {
+        "courseDays": 7,
+        "dose": "not recorded",
+        "fictionalNote": true,
+        "name": "not recorded",
+        "reason": "not recorded",
+        "sourceIds": [
+          "cab2d1c6-6d6f-4fdd-895a-c197a32d54e3",
+          "e700cb49-903b-454c-8e3e-cefe1113598c"
+        ],
+        "weightKg": 12.59
+      },
+      "id": 14,
+      "pet": "Maple",
+      "question": "For Maple on October 9, 2024, give the recorded body weight and the length of the historical medication course. List the medication name, dose and reason separately, explicitly marking any missing details instead of guessing."
+    },
+    {
+      "category": "cohort_ranking",
+      "conversation": "fresh-15",
+      "expected": {
+        "order": [
+          "Atlas",
+          "Juniper",
+          "Maple"
+        ],
+        "totalKg": 62.5,
+        "uncertainty": "weights alone do not establish health",
+        "weightsKg": [
+          31.2,
+          18.6,
+          12.7
+        ]
+      },
+      "id": 15,
+      "pet": "Juniper",
+      "question": "From the September 9, 2026 body-weight records, identify the three heaviest pets in descending order and calculate their combined weight in kilograms. Do those weights alone establish that these pets are healthy?"
+    }
+  ],
+  "frozenAt": "2026-09-10T08:23:56.329Z"
+}
