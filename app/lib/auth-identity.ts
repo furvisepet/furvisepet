@@ -28,14 +28,6 @@ export function getConnectedAuthProviders(user: Pick<User, "app_metadata"> | nul
   return [...new Set(values.filter((value): value is string => typeof value === "string" && Boolean(value)))];
 }
 
-export function friendlyOAuthError(value: string | null | undefined) {
-  const normalized = value?.replace(/\+/g, " ").trim();
-  if (!normalized) return "Sign-in was cancelled or could not be completed. Please try again.";
-  if (/cancel|denied|closed/i.test(normalized)) return "Sign-in was cancelled. You can try again whenever you are ready.";
-  if (/identity.*already|linked.*another/i.test(normalized)) return "That sign-in method is already connected to another account. Sign in with that method first.";
-  return "That sign-in method could not be completed. Please try again.";
-}
-
 export async function ensureCanonicalApplicationUser(supabase: SupabaseClient, user: Pick<User, "id">) {
   const { error: profileError } = await supabase.from("user_profiles")
     .upsert({ user_id: user.id }, { ignoreDuplicates: true, onConflict: "user_id" });

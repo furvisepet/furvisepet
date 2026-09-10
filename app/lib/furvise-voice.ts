@@ -48,15 +48,6 @@ export const FURVISE_SHARED_PROMPT_RULES = [
   "Do not add a generic veterinary disclaimer to routine answers. Keep required safety language specific to the actual risk and action.",
 ] as const;
 
-export const FURVISE_RESULTS_PROMPT_RULES = [
-  ...FURVISE_CORE_PROMPT_RULES,
-  "Put the most useful care point first.",
-  "Explain how a relevant observation changes the interpretation or next step instead of merely listing profile facts.",
-  "Turn observations into practical things to watch, log, or discuss with a veterinarian, while keeping owner uncertainty intact.",
-  "State missing information naturally without describing records or implementation details.",
-  "Keep each structured summary concise, but include enough explanation to make it useful. Avoid report language that does not help the pet owner.",
-] as const;
-
 /** Shared by everyday answers, historical reads and repairs. Voice cannot
  * change evidence, uncertainty, requested formats or the safety boundary. */
 export const companionVoiceInstructions = [

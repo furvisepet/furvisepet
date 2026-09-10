@@ -1,5 +1,3 @@
-
-
 export type AgeUnit = "months" | "years";
 export type WeightUnit = "lb" | "kg";
 export type PetSpecies = "dog" | "cat";
@@ -12,24 +10,6 @@ export type MainConcern =
   | "General wellness"
   | "Grooming"
   | "Other";
-
-export type InternalConcernTag =
-  | "itchy_skin"
-  | "sensitive_stomach"
-  | "weight_management"
-  | "picky_eating"
-  | "general_wellness"
-  | "grooming"
-  | "paw_care"
-  | "sensitive_skin"
-  | "limited_ingredient"
-  | "ear_care"
-  | "dental_care"
-  | "flea_tick_reminder"
-  | "lick_prevention"
-  | "probiotic_caution";
-
-export type ProductCategory = "food" | "grooming" | "health_essentials";
 export type WellnessGoal =
   | "nutrition"
   | "dental_care"
@@ -38,19 +18,8 @@ export type WellnessGoal =
   | "preventive_care"
   | "reminders"
   | "something_else";
-export type RecommendationKind =
-  | "product"
-  | "care_action"
-  | "reminder"
-  | "vet_preparation"
-  | "education";
-
-export const PRODUCT_SOURCES = ["curated", "chewy_feed", "ca_retailer_feed"] as const;
-export type ProductSource = (typeof PRODUCT_SOURCES)[number];
 
 export type ProductCountry = "US" | "CA";
-export type ProductVerificationSource = "brand_page" | "retailer_page" | "manual_review" | "feed";
-export type ProductEnrichmentStatus = "none" | "partial" | "verified";
 
 export type PetProfile = {
   name: string;
@@ -77,58 +46,6 @@ export type PetProfile = {
 
 /** @deprecated Use PetProfile. Kept while the dog_profiles table remains the compatibility store. */
 export type DogProfile = PetProfile;
-
-export type MockProduct = {
-  id: string;
-  name: string;
-  brand?: string;
-  shortDescription?: string;
-  productTypeLabel?: string;
-  category: ProductCategory;
-  subcategory?: string;
-  species: PetSpecies[];
-  recommendationKind?: RecommendationKind;
-  imageUrl?: string;
-  affiliateUrl?: string;
-  productPageUrl?: string;
-  labelUrl?: string;
-  productUrl?: string;
-  retailerUrl?: string;
-  sourceUrl?: string;
-  verifiedProductPageUrl?: string;
-  verifiedDescription?: string;
-  verifiedIngredients?: string[];
-  verifiedDirections?: string;
-  verifiedWarnings?: string[];
-  verificationSource?: ProductVerificationSource;
-  enrichmentStatus?: ProductEnrichmentStatus;
-  retailer?: string;
-  price?: number;
-  availabilityStatus?: "in_stock" | "out_of_stock" | "preorder" | "unknown";
-  currency?: string;
-  active?: boolean;
-  source: ProductSource;
-  ingredientsVerified: boolean;
-  availableCountries: ProductCountry[];
-  protein: string;
-  tags?: string[];
-  concernTags: InternalConcernTag[];
-  excludedIngredients: string[];
-  lifeStage: "puppy" | "kitten" | "adult" | "senior" | "all";
-  bagPrice?: number;
-  estimatedMonthlyCost?: number;
-  evidenceType?: "demo" | "curated_static" | "catalog";
-  ingredientHighlights?: string[];
-  avoidIngredientKeywords?: string[];
-  safetyNotes?: string;
-  lastVerifiedAt?: string;
-  priceVerifiedAt?: string;
-  sourceNote?: string;
-  whyItFitsTemplate?: string;
-  whyItFits: string;
-  whyCategoryFits: string;
-  cautions: string;
-};
 
 export function normalizeWellnessGoal(value: string | null | undefined): WellnessGoal | "" {
   if (

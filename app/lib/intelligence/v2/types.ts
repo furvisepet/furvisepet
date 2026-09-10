@@ -148,19 +148,6 @@ export type GovernedSemanticTurn = {
   mode: "shadow_only";
 };
 
-/**
- * The model is allowed to produce only ProposedSemanticFrame/ProposedSemanticClaim.
- * Every field below is added by trusted deterministic application code.
- */
-export type ServerOwnedClaimAuthority = {
-  authenticatedUserId: string;
-  ownedEntityIds: ReadonlySet<string>;
-  canonicalConceptKey: string | null;
-  conceptResolutionStatus: ConceptResolutionStatus;
-  persistencePermission: "shadow_only";
-  serverEpisodeId: string | null;
-};
-
 export type GovernedConceptIdentity = {
   key: string;
   version: string;

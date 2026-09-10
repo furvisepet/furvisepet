@@ -102,13 +102,6 @@ export function classifyActiveConcernMessage(message: string, hasActiveConcern =
   return "unclear";
 }
 
-export function assertedRecoveryClauses(message: string) {
-  const analysis = analyzeOwnerAssertions(message);
-  return analysis.assertionSpans
-    .filter((clause) => clause.isCertain && Boolean(supportedRecoveryState(clause.text)))
-    .map((clause) => clause.text);
-}
-
 export type ConcernTransitionEvidence = {
   evidence: string;
   inheritedTopicEvidence?: string;
@@ -216,10 +209,4 @@ function explicitTerminalRecovery(message: string) {
   const noRecurrence = Boolean(noRecurrenceMatch && !/^(?:better|improved|recovered|resolved|stopped|normal)$/i.test(noRecurrenceMatch[1]));
   const boundedNoMore = /\bno\s+(?:more|further)\s+[\p{L}\p{N}'-]+(?:\s+(?:since|after|for)\b|[.!?]|$)/iu.test(message);
   return restoredBaselinePattern.test(message) || noRecurrence || boundedNoMore;
-}
-
-export function isDeterministicTurn(turn: ClassifiedTurn, hasActiveConcern: boolean) {
-  if (turn.intent === "resolution" && hasActiveConcern) return true;
-  if (turn.isLowValueAcknowledgement) return true;
-  return false;
 }
