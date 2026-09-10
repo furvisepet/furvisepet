@@ -11,7 +11,10 @@ export function explicitHistoryDays(question: string, year: number, maximumDays 
  });
  const labels=[...matches,...coordinated];
  if(!Number.isInteger(year)||year<1900||year>2099||labels.length<1||!Number.isInteger(maximumDays)||maximumDays<1||maximumDays>8||labels.length>maximumDays) return [];
- const days=labels.map(m=>`${m[3]||year}-${String(months.indexOf(m[1].slice(0,3).toLowerCase())+1).padStart(2,'0')}-${m[2].padStart(2,'0')}`);
+ // A single explicit year scopes coordinated named dates; conflicting years stay explicit.
+ const years=[...new Set(labels.map(m=>m[3]).filter(Boolean))];
+ const sharedYear=years.length===1?years[0]:year;
+ const days=labels.map(m=>`${m[3]||sharedYear}-${String(months.indexOf(m[1].slice(0,3).toLowerCase())+1).padStart(2,'0')}-${m[2].padStart(2,'0')}`);
  return days.every(d=>Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d&&d>='1900-01-01'&&d<'2100-01-01') ? days : [];
 }
 export function normalizeExplicitHistoryDates(p: Record<string,unknown>, question: string) {

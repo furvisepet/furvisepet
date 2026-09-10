@@ -1,3 +1,4 @@
+import { parseCsvRecords } from "../csv-records.ts";
 import { parsePlainTable } from "../plain-table.ts";
 import { isStructuredHistoryText } from "./structured-history-text.ts";
 import { historyCalculationSchema, parseHistoryCalculations, type HistoryCalculation } from "./history-calculation.ts";
@@ -22,8 +23,8 @@ export function parseHistoryNarrative(value: unknown): HistoryNarrative | undefi
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
     const sentence = raw as Record<string, unknown>;
     if (Object.keys(sentence).sort().join() !== ("calculations" in sentence ? "calculations,sourceIds,text" : "sourceIds,text") || typeof sentence.text !== "string"
-      || !sentence.text.trim() || sentence.text.length > (parsePlainTable(sentence.text) || isStructuredHistoryText(sentence.text) ? 3600 : 650)
-      || /[\r\n]/.test(sentence.text) && !parsePlainTable(sentence.text) && !isStructuredHistoryText(sentence.text) || !Array.isArray(sentence.sourceIds)
+      || !sentence.text.trim() || sentence.text.length > (parsePlainTable(sentence.text) || parseCsvRecords(sentence.text) || isStructuredHistoryText(sentence.text) ? 3600 : 650)
+      || /[\r\n]/.test(sentence.text) && !parsePlainTable(sentence.text) && !parseCsvRecords(sentence.text) && !isStructuredHistoryText(sentence.text) || !Array.isArray(sentence.sourceIds)
       || sentence.sourceIds.length < 1 || sentence.sourceIds.length > 12
       || sentence.sourceIds.some(id => typeof id !== "string" || !id || id.length > 160)) return;
     const calculations = parseHistoryCalculations(sentence.calculations);

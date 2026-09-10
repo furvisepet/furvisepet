@@ -1,3 +1,4 @@
+import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
 import { literalHistoryMonthWindow, literalHistoryReportDayWindow, requestsPastPresentComparison } from "./literal-history-window.ts";
@@ -110,6 +111,15 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     if (p.evidenceBasis === "supplied_context" && (p.premiseQuotes as string[]).every(quote =>
       /^(?:read|retrieve|look up|find|show|give|tell)\b/i.test(quote.trim()) && quote.trim() === context.currentMessage.trim())) return fail("missing_supplied_premise");
   }
+  // Preserve a USER-authored dated referent across an elliptical follow-up.
+  const anchor = conversationReadAnchor(context);
+  if (anchor && ["read", "conversation", "clarify"].includes(String(p.mode))
+    && p.ordinal === null && p.frame === null && p.evidenceBasis !== "supplied_context") {
+    Object.assign(p, { mode: "read", scope: "named", petNames: anchor.petNames,
+      evidenceBasis: "saved_history", operation: p.operation === "comparison" ? "comparison" : "recall",
+      selection: "period", from: anchor.from, to: anchor.to, question: anchor.question,
+      referenceTurnIds: [...new Set([...p.referenceTurnIds, ...anchor.referenceTurnIds])].slice(-8), terms: [] });
+  }
   // Non-record evidence can only narrow authority. A fictional name or date
   // does not grant access to the selected profile, and cannot become a write.
   if (p.evidenceBasis === "supplied_context" || p.evidenceBasis === "general") {
@@ -145,6 +155,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!petIds.length && ["read", "clarify"].includes(String(p.mode)) && explicitPets.length === 1 && p.scope !== "account") {
     petIds = [explicitPets[0].id]; p.scope = "named"; p.mode = "read";
     if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
+  }
+  if (p.mode === "clarify" && p.evidenceBasis === "saved_history" && explicitPets.length === 1
+    && petIds.length === 1 && petIds[0] === explicitPets[0].id && p.ordinal === null && p.terms.length) {
+    p.mode = "read"; p.operation = "recall";
   }
   // A redundant group label cannot widen an explicit, validated subject list.
   if (p.scope === "account" && !proposed.length) petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id);

@@ -91,6 +91,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
   const sharedRead = context.askInterpretation?.request?.mode === "read";
+  const retrievalQuestion = context.askInterpretation?.request?.referenceTurnIds.length
+    ? context.askInterpretation.referenceQuestion || context.currentMessage : context.currentMessage;
   const eventTerms = sharedRead ? historyEventTerms(context.currentMessage) : [];
   const searchTerms = context.askInterpretation?.request
     ? historyQueryTerms(plan.terms, context.eligiblePets.map(pet => pet.name || ""))
@@ -141,7 +143,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       : context.askInterpretation?.request && plan.terms.length
         ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
         : directions.map(descending => ({ descending, lexical: !!plan.terms.length, terms: searchTerms }));
-    const compiled = compileHistoryReadStrategies(context.currentMessage, new Date(asOf).getUTCFullYear(), plan,
+    const compiled = compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan,
       proposedStrategies.map(strategy => ({ ...strategy, from: plan.from, to: plan.to })), HISTORY_BUDGET.pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
     const strategies = compiled.strategies;
     coverage.needs ??= [];

@@ -1,5 +1,5 @@
 import { mapAskProse, askProseOnly } from "../../ask-text-blocks.ts";
-import { preserveFictionalDialogueQuotes } from "../../application-actions/state-claims.ts";
+import { preserveFictionalDialogueQuotes, stripOptionalAssistantOffers } from "../../application-actions/state-claims.ts";
 import { safetyTemporalScope } from "../../ai/safety-temporal-scope.ts";
 import { buildImmediateEmergencyGuidance, detectAskConcernTags, detectImmediateAskEmergency } from "../../ask-safety-context.ts";
 import { preserveReviewedLayout } from "../history-presentation.ts";
@@ -168,6 +168,14 @@ export function validateGeneratedAnswer(
   if (reviewedHistory) {
     const reviewedText = `${urgent ? "Contact an emergency veterinarian now. " : ""}${reviewedHistory.proseText || reviewedHistory.text}`;
     response.answer.summary = preserveReviewedLayout(reviewedText, response.answer.summary);
+  }
+  if (conversationOnly) {
+    // Remove optional offers before approving the canonical body. The final
+    // integrity gate still rejects lost facts, uncertainty and mutation claims.
+    response.answer.summary = stripOptionalAssistantOffers(response.answer.summary) || "I could not produce a substantive answer to that request. Please rephrase it.";
+    response.answer.sections = response.answer.sections.map(section => ({ ...section,
+      items: section.items.map(stripOptionalAssistantOffers).filter(Boolean) })).filter(section => section.items.length);
+    if (response.answer.safetyNote) response.answer.safetyNote = stripOptionalAssistantOffers(response.answer.safetyNote) || null;
   }
   const assistantProse = askProseOnly([response.answer.title, response.answer.summary, ...response.answer.sections.flatMap(s => [s.heading, ...s.items]), response.answer.safetyNote || ""].join("\n"));
   if (hasSourceQuote && sourceNote) {

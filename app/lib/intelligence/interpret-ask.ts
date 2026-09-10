@@ -217,6 +217,11 @@ export function recoverAskInterpretation(value: unknown, context: Interpretation
     try { return validateAskRequest(value, context); }
     catch (error) {
       const reason = error instanceof Error ? /^ASK_REQUEST_INVALID:([a-z_]+)$/.exec(error.message)?.[1] : null;
+      // Rejected advisory metadata grants no read/write authority. Use the
+      // existing explicit limitation path rather than failing publication.
+      if (["reference", "scope"].includes(reason || "") && !analyzeOwnerAssertions(context.currentMessage).hasOwnerAssertion
+        && "mode" in value && ["read", "conversation", "clarify"].includes(String(value.mode)))
+        return unavailableAskReadPlan("ASK_REQUEST_CONTRACT_" + reason!.toUpperCase());
       throw new AskInterpretationValidationError(reason ? `ASK_REQUEST_CONTRACT_${reason.toUpperCase()}` : "ASK_REQUEST_CONTRACT", "semantic");
     }
   }
