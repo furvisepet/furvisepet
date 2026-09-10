@@ -1,4 +1,5 @@
 // Local-only React DOM acceptance. No Next server, environment files, or services.
+// Local-only React DOM acceptance. No Next server, environment files, or services.
 import { readFileSync, existsSync, statSync, mkdtempSync, rmSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { createRequire } from 'node:module';

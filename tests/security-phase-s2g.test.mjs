@@ -185,7 +185,7 @@ test("Auth logs and client code do not log secrets or raw account identifiers", 
 
 test("Auth APIs expose no permissive CORS and CAPTCHA is not added to product features", () => {
   const routes = authRoutes.map(source).join("\n"); assert.doesNotMatch(routes, /Access-Control-Allow-Origin|\*.*credentials/i);
-  for (const path of ["app/api/ask/route.ts", "app/api/shop/interpret-query/route.ts", "app/api/care-entries/route.ts"]) assert.doesNotMatch(source(path), /TurnstileChallenge|captchaToken/);
+  for (const path of ["app/api/ask/route.ts", "app/api/care-entries/route.ts"]) assert.doesNotMatch(source(path), /TurnstileChallenge|captchaToken/);
 });
 
 test("Turnstile browser origins are exact and conditional in report-only CSP", () => {

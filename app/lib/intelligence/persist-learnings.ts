@@ -215,54 +215,6 @@ async function persistCanonicalSemanticEvents(input: {
   };
 }
 
-export async function persistFeatureIntelligenceLearnings({
-  careActions,
-  feature,
-  learnings,
-  petId,
-  payloadHash,
-  requestId,
-  operationOwnerToken,
-  sourceInput,
-  supabase,
-  userId,
-}: {
-  careActions: IntelligenceCareAction[];
-  feature: "product_question" | "product_query" | "safety_followup";
-  learnings: IntelligenceLearning[];
-  petId: string;
-  payloadHash: string;
-  requestId: string;
-  operationOwnerToken: string;
-  sourceInput: string;
-  supabase: SupabaseClient;
-  userId: string;
-}): Promise<IntelligencePersistenceSummary> {
-  const governedLearnings = await preparePersistableLearnings({ currentMessage: sourceInput, learnings, petId, supabase, userId });
-  const normalizedLearnings = governedLearnings.map((learning) => ({ ...learning, normalizedValue: normalizeMemoryValue(learning.factValue) }));
-  const operationType = feature === "product_question" ? "product.question"
-    : feature === "product_query" ? "product.interpret" : "safety.followup";
-  const { data, error } = await createOperationsAdminClient().rpc("persist_furvise_feature_intelligence", {
-    p_care_actions: careActions, p_learnings: normalizedLearnings,
-    p_operation_owner_token: operationOwnerToken, p_operation_type: operationType, p_payload_hash: payloadHash,
-    p_pet_id: petId, p_request_id: requestId,
-    p_source_input: sourceInput, p_source_type: feature, p_user_id: userId,
-  });
-  if (error) throw new IntelligencePersistenceError("Furvise could not persist feature learnings.", error);
-  const row = Array.isArray(data) ? data[0] : data;
-  return {
-    careEntriesCreated: numberValue(row?.care_entries_created), concernsResolved: numberValue(row?.concerns_resolved),
-    memoriesCreated: numberValue(row?.memories_created), memoriesSuperseded: numberValue(row?.memories_superseded), rejectedLearnings: 0,
-    memoryIds: [],
-    careActionPresent: numberValue(row?.care_entries_created) > 0,
-    persistedCareEntryId: null, persistedConcernId: null,
-    persistenceMode: numberValue(row?.care_entries_created) > 0 ? "automatic" : "none",
-    carePersistence: numberValue(row?.care_entries_created) > 0
-      ? { status: "persisted", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false }
-      : skippedCarePersistence(),
-  };
-}
-
 async function findConfirmedMemoryWrites({ learnings, supabase, userId, sourceMessageId }: {
   learnings: Array<IntelligenceLearning & { normalizedValue: string }>;
   supabase: SupabaseClient;

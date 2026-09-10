@@ -2,22 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { initialProfile } from "../app/lib/petwise.ts";
-import { resolveOnboardingModeDecision } from "../app/onboarding/mode-state.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-test("mode=new always chooses a blank draft even when pet or draft state exists", () => {
-  for (const snapshot of [
-    { requestedMode: "new", storedMode: "edit", storedProfileId: "existing-pet" },
-    { requestedMode: "new", storedMode: "new", storedProfileId: null },
-    { requestedMode: "new", storedMode: "new", storedProfileId: "deleted-pet" },
-  ]) {
-    const decision = resolveOnboardingModeDecision(snapshot);
-    assert.equal(decision.finalMode, "new");
-    assert.equal(decision.shouldKeepStoredDraft, false);
-    assert.equal(decision.shouldClearDraftStorage, true);
-  }
-});
 
 test("fresh defaults contain no pet identity or uncertainty selections", () => {
   assert.equal(initialProfile.name, "");

@@ -1,4 +1,5 @@
 // Synthetic benchmark ground truth. No production records.
+// Synthetic benchmark ground truth. No production records.
 import {care,pets,ownerId} from './ask-lifetime-history.mjs';
 export {ownerId};
 export const fixturePets=['Nori','Juniper','Pip','Taro'].map((name,i)=>({...pets[i],id:name.toLowerCase(),name}));

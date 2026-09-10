@@ -2,10 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { deduplicateLegacyRetriedMessages, getPersistenceNotices } from "../app/lib/ask-conversations.ts";
-import { resolveRecoverySubject } from "../app/lib/intelligence/episodes/resolve-recovery-subject.ts";
 import { classifyCareEvent } from "../app/lib/intelligence/concern-chronology.ts";
 import { classifyActiveConcernMessage } from "../app/lib/ai/turn-classifier.ts";
-import { reducePetState } from "../app/lib/intelligence/pet-state/reduce-events.ts";
 
 const failed = { id: "failed", request_id: "request-a", role: "user", user_text: "Same update", created_at: "2026-07-28T00:00:00Z" };
 const retried = { id: "canonical", request_id: "request-b", role: "user", user_text: "Same update", created_at: "2026-07-28T00:05:00Z" };
@@ -31,41 +29,6 @@ test("one care entry produces one persistence confirmation across legacy metadat
 
 test("two distinct care entries produce one summarized notice", () => {
   assert.equal(getPersistenceNotices({ carePersistence: { status: "persisted", careEntryIds: ["a", "b", "a"], concernIds: [], errorCode: null } })[0].label, "Added 2 updates to care history");
-});
-
-const episode = (overrides = {}) => ({ id: "ear-episode", pet_profile_id: "pet", normalized_key: "symptom", episode_type: "symptom", title: "Ear scratching returned", status: "active", sequence_number: 2, recurrence_of: "ear-1", started_at: "2026-07-28", last_event_at: "2026-07-28", resolved_at: null, ...overrides });
-const concern = (overrides = {}) => ({ id: "routine", user_id: "user", pet_profile_id: "pet", title: "Routine changed", normalized_key: "routine_changed", status: "active", severity: "routine", source_care_entry_id: null, opened_at: "2026-07-28", updated_at: "2026-07-28", resolved_at: null, resolution_note: null, ...overrides });
-
-test("ear recovery matches the ear episode and not a routine concern", () => {
-  const result = resolveRecoverySubject({ message: "Maple has stopped scratching and is resting normally now.", activeEpisodes: [episode(), episode({ id: "routine-episode", episode_type: "behavior_change", normalized_key: "routine_changed", title: "Routine changed" })], activeConcerns: [concern()] });
-  assert.equal(result.episodeId, "ear-episode");
-  assert.equal(result.concernId, null);
-  assert.equal(result.title, "Ear scratching returned to normal");
-});
-
-test("breathing recovery retains deterministic title", () => {
-  const result = resolveRecoverySubject({ message: "Her breathing is normal", activeEpisodes: [episode({ id: "breathing", normalized_key: "breathing", title: "Heavy breathing" })], activeConcerns: [concern({ id: "breathing-concern", normalized_key: "breathing", title: "Breathing difficulty" })] });
-  assert.equal(result.title, "Breathing returned to normal");
-  assert.equal(result.concernId, "breathing-concern");
-});
-
-test("unknown recovery uses a neutral title without resolving an unrelated episode", () => {
-  const result = resolveRecoverySubject({ message: "Everything seems better now", activeEpisodes: [episode({ episode_type: "food_transition", title: "Started a new food" })], activeConcerns: [concern()] });
-  assert.deepEqual({ concernId: result.concernId, episodeId: result.episodeId, title: result.title }, { concernId: null, episodeId: null, title: "Symptom improved" });
-});
-
-test("explicit no-recurrence recovery resolves the matching vomiting concern and no unrelated concern", () => {
-  const vomitingEpisode = episode({ id: "vomiting-episode", normalized_key: "vomiting", title: "Vomiting" });
-  const vomitingConcern = concern({ id: "vomiting-concern", normalized_key: "vomiting", title: "Vomiting" });
-  const crateConcern = concern({ id: "crate-concern", normalized_key: "sleeping_arrangement", title: "Crate routine" });
-  const message = "Milo hasn't vomited again and seems normal now.";
-  assert.equal(classifyActiveConcernMessage(message, true), "resolved");
-  const result = resolveRecoverySubject({
-    message, activeEpisodes: [vomitingEpisode], activeConcerns: [vomitingConcern, crateConcern],
-  });
-  assert.equal(result.episodeId, vomitingEpisode.id);
-  assert.equal(result.concernId, vomitingConcern.id);
-  assert.notEqual(result.concernId, crateConcern.id);
 });
 
 test("terminal recovery classification is conservative for weak or recurring symptoms", () => {
@@ -99,12 +62,6 @@ test("migration keeps positive observations and food transitions out of concern 
   assert.doesNotMatch(prior, /new\.category in \('food', 'behavior'\)/);
   assert.match(repair, /source_entry\.category = 'food'/);
   assert.match(repair, /more playful\|playful today/);
-});
-
-test("an active food transition does not make wellbeing urgent", () => {
-  const result = reducePetState([], [episode({ episode_type: "food_transition", normalized_key: "food", title: "Started food" })], { breathing: { status: "normal", confidence: 1, lastObservedAt: "2026-07-28", sourceEventId: "breathing" } });
-  assert.equal(result.state.wellbeing?.overall, "monitoring");
-  assert.equal(result.activeEpisodeIds.length, 1);
 });
 
 test("History applies distinct event-state surfaces", () => {

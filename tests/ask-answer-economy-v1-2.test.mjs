@@ -13,7 +13,6 @@ import {
   normalizePetVisibleProse,
 } from "../app/lib/ask-safety-context.ts";
 import { validateGeneratedAnswer } from "../app/lib/intelligence/validation/validate-answer.ts";
-import { runAskFailureInjection } from "../app/lib/ai/ask-reliability-harness.ts";
 
 const mani = { name: "Mani", sex: "female", species: "cat" };
 const forbiddenMani = /(?:Mani['’]s\s+(?:choose|initiate|in\s+place)|holding\s+Mani['’]s|give\s+Mani['’]s\s+space|pet\s+Mani['’]s|Mani['’]ll)/i;
@@ -264,15 +263,6 @@ test("quality defects degrade locally across answer modes without changing turn 
     assert.equal(metrics.petNameContractionCount, 0, item.label);
     assert.equal(metrics.bulletIntegrityViolationCount, 0, item.label);
   }
-
-  const turn = runAskFailureInjection("quality_normalization");
-  assert.equal(turn.success, true);
-  assert.equal(turn.publicError, null);
-  assert.equal(turn.providerCallCount, 1);
-  assert.equal(turn.userMessageCount, 1);
-  assert.equal(turn.assistantMessageCount, 1);
-  assert.equal(turn.creditState, "completed");
-  assert.equal(turn.finalStage, "COMPLETED");
 });
 
 test("quality normalization is degradable while core-invalid output still fails closed", () => {

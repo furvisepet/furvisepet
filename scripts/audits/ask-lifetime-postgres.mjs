@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import {openSync,writeFileSync,closeSync,unlinkSync} from 'node:fs';
 import { embeddedPostgres } from './helpers/embedded-postgres.mjs';
 import { exercise, resolveAskTurnSubject, ASK_PROMPT_CONTEXT_CHAR_BUDGET } from './helpers/lifetime-harness.mjs'; // installs offline provider hooks
+ // installs offline provider hooks
 console.info=()=>{}; // only synthetic semantic trace chatter
 const { governCanonicalEvents } = await import('../../app/lib/intelligence/semantic-events.ts');
 const { persistSemanticEventRpc } = await import('../../app/lib/intelligence/semantic-event-persistence.ts');

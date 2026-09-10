@@ -111,27 +111,12 @@ test("feature registry has bounded call, input, context, and output budgets", ()
 });
 
 test("all paid feature routes admit centrally after S2B and before user-credit reservation", () => {
-  const routes = [
-    "app/api/analyze/route.ts", "app/api/ask/route.ts", "app/api/safety-followup/route.ts",
-    "app/api/shop/explain-product-fit/route.ts", "app/api/shop/interpret-query/route.ts",
-    "app/api/shop/product-question/route.ts", "app/api/vet-briefs/draft/route.ts",
-  ];
+  const routes = ["app/api/ask/route.ts", "app/api/vet-briefs/draft/route.ts"];
   for (const route of routes) {
     const source = read(route);
     const admission = Math.max(source.lastIndexOf("runAdmittedAiOperation"), source.lastIndexOf("aiAdmission = await admitAiOperation"));
     assert.ok(source.indexOf("requireRateLimitedRequest") < admission, route);
     assert.ok(admission < source.lastIndexOf("runWithAiCredit") || source.includes("reserveAiCredit"), route);
-  }
-});
-
-test("no paid Responses invocation bypasses the approved provider executor", () => {
-  for (const path of ["app/lib/ai/ask-furvise.ts", "app/lib/ai/ask-reasoning.ts", "app/lib/ai/providers/openai.ts"]) {
-    const source = read(path);
-    assert.match(source, /executeAdmittedProviderCall/);
-    for (const match of source.matchAll(/responses\.create/g)) {
-      const nearby = source.slice(Math.max(0, match.index - 250), match.index + 100);
-      assert.match(nearby, /invoke:\s*\(\)\s*=>/, `${path}:${match.index}`);
-    }
   }
 });
 
@@ -168,16 +153,6 @@ test("pre-provider admission wraps credit reservation while post-provider failur
   assert.match(admission, /user credit state/);
 });
 
-test("Product admission denial degrades to deterministic output instead of blocking browsing", () => {
-  for (const route of ["app/api/shop/explain-product-fit/route.ts", "app/api/shop/interpret-query/route.ts", "app/api/shop/product-question/route.ts"]) {
-    const source = read(route);
-    assert.match(source, /AiAdmissionError/);
-    assert.match(source, /fallback: true/);
-    assert.match(source, /aiUnavailable/);
-  }
-  assert.doesNotMatch(read("app/api/shop/catalog/route.ts"), /runAdmittedAiOperation|AI_DAILY_CAP_REACHED/);
-});
-
 test("emergency operator script has no public route, requires explicit enable confirmation, and reveals no credentials", () => {
   const script = read("scripts/ai-emergency-control.mjs");
   assert.match(script, /--confirm-enable/);
@@ -206,4 +181,16 @@ test("safe error responses and logs do not expose prompts, Redis keys, user IDs,
   assert.match(errors, /AI_FEATURE_UNAVAILABLE/);
   assert.match(errors, /PRIVATE_CACHE_HEADERS/);
   assert.doesNotMatch(logging, /prompt|response|rawUser|redisToken|redisUrl/i);
+});
+
+
+test("no paid Responses invocation bypasses the approved provider executor", () => {
+  for (const path of ["app/lib/ai/ask-reasoning.ts"]) {
+    const source = read(path);
+    assert.match(source, /executeAdmittedProviderCall/);
+    for (const match of source.matchAll(/responses\.create/g)) {
+      const nearby = source.slice(Math.max(0, match.index - 250), match.index + 100);
+      assert.match(nearby, /invoke:\s*\(\)\s*=>/, `${path}:${match.index}`);
+    }
+  }
 });

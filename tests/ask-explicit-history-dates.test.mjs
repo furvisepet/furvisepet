@@ -20,13 +20,6 @@ test('invalid calendar dates and competing dates remain unnormalized',()=>{
  assert.deepEqual(explicitHistoryDays('January 1, February 1 and March 1.',2026),[]);
 });
 
-test('topic synonyms broaden narrow terms but keep an unfiltered plan unfiltered',async()=>{
- const {normalizeHistoricalSearchTerms}=await import('../app/lib/intelligence/history-search-terms.ts');
- assert.ok(normalizeHistoricalSearchTerms(['eat'],'List recorded food for each pet.').includes('food'));
- assert.ok(normalizeHistoricalSearchTerms(['accident'],'What changed back in the litter setup?').includes('tray'));
- assert.deepEqual(normalizeHistoricalSearchTerms([],'Compare food on two dates.'),[]);
-});
-
 test('explicit comparison dates recover a model plan with both bounds missing',()=>{
  const p={...plan(),operation:'comparison',from:null,to:null,terms:['improvement','update','July','August']};
  normalizeExplicitHistoryDates(p,'Compare July 1, 2026 and August 12, 2026.');

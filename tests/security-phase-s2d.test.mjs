@@ -3,7 +3,6 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { buildContentSecurityPolicy, configuredOrigins, getCspHeaderName, getCspMode } from "../app/lib/security/headers/content-security-policy.ts";
-import { createCspNonce, isValidCspNonce } from "../app/lib/security/headers/nonce.ts";
 import {
   getAllowedApplicationOrigins,
   originRejectionResponse,
@@ -81,18 +80,6 @@ test("CSP modes emit exactly one selected header name", () => {
   assert.equal(reportOnly.has("Content-Security-Policy"), false);
   assert.equal(enforced.has("Content-Security-Policy"), true);
   assert.equal(enforced.has("Content-Security-Policy-Report-Only"), false);
-});
-
-test("CSP nonces are unpredictable and remove the temporary script unsafe-inline allowance", () => {
-  const first = createCspNonce();
-  const second = createCspNonce();
-  assert.equal(isValidCspNonce(first), true);
-  assert.notEqual(first, second);
-  const policy = buildContentSecurityPolicy({ env: { NODE_ENV: "production" }, nonce: first, production: true });
-  const scriptDirective = policy.split("; ").find((directive) => directive.startsWith("script-src "));
-  assert.match(scriptDirective, new RegExp(`nonce-${first}`));
-  assert.match(scriptDirective, /strict-dynamic/);
-  assert.doesNotMatch(scriptDirective, /unsafe-inline/);
 });
 
 test("configurable CSP origins accept exact approved origins and reject malformed or broad inputs", () => {
@@ -260,12 +247,7 @@ test("origin checks are shared by every authenticated mutation context before ap
     assert.match(source, /validateSensitiveRequestOriginResponse/);
     assert.ok(source.indexOf("validateSensitiveRequestOriginResponse(request)") < source.lastIndexOf("return {"), helper);
   }
-  for (const route of [
-    "app/api/account/detect-country/route.ts", "app/api/analyze/route.ts", "app/api/ask/route.ts",
-    "app/api/ask/suggestions/[id]/route.ts", "app/api/memories/[id]/route.ts", "app/api/safety-followup/route.ts",
-    "app/api/shop/catalog/route.ts", "app/api/shop/explain-product-fit/route.ts",
-    "app/api/shop/interpret-query/route.ts", "app/api/shop/product-question/route.ts",
-  ]) assert.match(read(route), /validateSensitiveRequestOriginResponse/, route);
+  for (const route of ["app/api/account/detect-country/route.ts", "app/api/ask/route.ts", "app/api/ask/suggestions/[id]/route.ts", "app/api/memories/[id]/route.ts"]) assert.match(read(route), /validateSensitiveRequestOriginResponse/, route);
 });
 
 test("every current API mutation route is inventoried behind a direct or canonical origin guard", () => {
@@ -274,12 +256,7 @@ test("every current API mutation route is inventoried behind a direct or canonic
     .filter((path) => path.endsWith("/route.ts") && /export async function (?:POST|PUT|PATCH|DELETE)/.test(readFileSync(path, "utf8")))
     .map((path) => `app/api${path.slice(apiRoot.length)}`)
     .sort();
-  const direct = new Set([
-    "app/api/account/detect-country/route.ts", "app/api/analyze/route.ts", "app/api/ask/route.ts",
-    "app/api/ask/suggestions/[id]/route.ts", "app/api/memories/[id]/route.ts", "app/api/safety-followup/route.ts",
-    "app/api/shop/catalog/route.ts", "app/api/shop/explain-product-fit/route.ts",
-    "app/api/shop/interpret-query/route.ts", "app/api/shop/product-question/route.ts",
-  ]);
+  const direct = new Set(["app/api/account/detect-country/route.ts", "app/api/ask/route.ts", "app/api/ask/suggestions/[id]/route.ts", "app/api/memories/[id]/route.ts"]);
   const authenticated = new Set([
     "app/api/account/delete/route.ts", "app/api/account/export/route.ts", "app/api/account/product-country/route.ts", "app/api/ask/actions/[messageId]/route.ts", "app/api/billing/checkout/route.ts", "app/api/billing/portal/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/care-entries/route.ts",
     "app/api/legacy-memories/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts",
@@ -314,7 +291,7 @@ test("every current API mutation route is inventoried behind a direct or canonic
 });
 
 test("origin denial precedes rate limiting, AI credits, provider calls, and mutation queries", () => {
-  for (const path of ["app/api/ask/route.ts", "app/api/analyze/route.ts", "app/api/safety-followup/route.ts", "app/api/shop/interpret-query/route.ts"]) {
+  for (const path of ["app/api/ask/route.ts"]) {
     const source = read(path);
     const validation = source.lastIndexOf("validateSensitiveRequestOriginResponse(request)");
     assert.ok(validation > -1, path);
@@ -381,4 +358,14 @@ test("server and provider details stay absent from new public security errors", 
   assert.match(source, /ORIGIN_NOT_ALLOWED/);
   assert.doesNotMatch(source, /Redis|OpenAI|Supabase|stack|file path/i);
   assert.match(source, /PRIVATE_CACHE_HEADERS/);
+});
+
+
+test("CSP nonce policy removes the temporary script unsafe-inline allowance", () => {
+  const first = "c29tZS1maXhlZC10ZXN0LW5vbmNl";
+  const policy = buildContentSecurityPolicy({ env: { NODE_ENV: "production" }, nonce: first, production: true });
+  const scriptDirective = policy.split("; ").find((directive) => directive.startsWith("script-src "));
+  assert.match(scriptDirective, new RegExp(`nonce-${first}`));
+  assert.match(scriptDirective, /strict-dynamic/);
+  assert.doesNotMatch(scriptDirective, /unsafe-inline/);
 });

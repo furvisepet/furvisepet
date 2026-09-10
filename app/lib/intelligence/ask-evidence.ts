@@ -1,18 +1,13 @@
+import { correctionReportAnswer } from "./correction-report.ts";
 import { buildEvidenceNeedCoverage, type NeedCoverage } from "./evidence-need-coverage.ts";
 import { historyEventTerms, historyEventRelevance } from "./history-query-relevance.ts";
-import { directHistoryExplanation } from "./direct-history-explanation.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import type { AskContextRecord } from "../ai/ask-reasoning.ts";
-import { requestedHistoryTimelineDays } from "./requested-history-timeline.ts";
-import { withinNoteCountAnswer } from "./within-note-count.ts";
-import { calendarIntervalAnswer } from "./calendar-interval.ts";
-import { buildWeightComparison, weightComparisonAnswer } from "./weight-comparison.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import type { FurviseLiveContext } from "./types.ts";
 import { buildSourceNoteRecall, sourceNoteAnswer, type SourceNoteRecall } from "./source-note-recall.ts";
 
-import { correctionReportAnswer } from "./correction-report.ts";
 
 export type Completeness = "complete" | "partial" | "unknown" | "unavailable" | "ambiguous";
 export type EvidenceCompleteness = { retrieval: Completeness; corrections: Completeness; extraction: Completeness; grouping: Completeness };
@@ -38,7 +33,6 @@ export type AskEvidenceContract = {
   answerContent?: string[];
   petNames?: Record<string, string>;
   interpretation?: Omit<import("./interpret-ask.ts").AskInterpretation, "frame">;
-  weightComparison?: import("./weight-comparison.ts").WeightComparisonEvidence;
   episodes?: import("./episode-history.ts").EpisodeResult;
   historyFallback?: string;
   history?: import("./history-retrieval.ts").HistoryCoverage;
@@ -152,8 +146,6 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     const changedSources = new Set(history.coverage.provenance.filter(source => source.status === "deleted_or_changed").map(source => source.sourceId));
     contract.losses.push(...history.coverage.excludedIds.map(sourceId => ({ sourceId, reason: changedSources.has(sourceId) ? "source_deleted_or_changed" : "historical_evidence_budget" })));
   }
-  const weightComparison = contract.interpretation?.request ? null : buildWeightComparison(context, contract);
-  if (weightComparison) contract.weightComparison = weightComparison;
   const sourceNoteRecall = contract.interpretation?.request ? null : buildSourceNoteRecall(context.askHistory ? { ...context, careEntries: context.askHistory.entries } : context, contract);
   if (sourceNoteRecall) contract.sourceNoteRecall = sourceNoteRecall;
   return refreshEvidenceCoverage(contract);
@@ -181,7 +173,7 @@ export function refreshEvidenceCoverage(contract: AskEvidenceContract): AskEvide
 export function representEvidence(contract: AskEvidenceContract, records: AskContextRecord[]) {
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
-    ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || contract.weightComparison ? { occurredAt: record.occurredAt } : {}) }));
+    ...(contract.interpretation || contract.scope.requestKind === "resolution_status" ? { occurredAt: record.occurredAt } : {}) }));
   return refreshEvidenceCoverage(contract);
 }
 
@@ -195,36 +187,11 @@ export function resolutionStatusAnswer(contract: AskEvidenceContract, synthesis:
   if (contract.scope.requestKind !== "resolution_status") return null;
   if (contract.interpretation) {
     if (contract.scope.status === "ambiguous" || !contract.scope.requestedTopic.trim()) return "Which issue do you mean?";
-    return directHistoryExplanation(contract) || attributedHistoryAnswer(contract, true, synthesis);
+    return attributedHistoryAnswer(contract, true, synthesis);
   }
-  const uncertainty = "I can't establish whether the hiding has ended now from the available dated evidence.";
-  if (contract.scope.status !== "resolved" || contract.scope.authorizedPetIds.length !== 1 || contract.scope.requestedTopic !== "hiding") {
-    return "I can't establish whether the condition has ended. Please identify one pet and a specific condition with a dated note.";
-  }
-  const petId = contract.scope.authorizedPetIds[0];
-  if (contract.sources.some(source => source.petId === petId && source.source === "care_entries" && ["unavailable", "not_loaded"].includes(source.status))
-    || contract.history && (contract.history.corrections === "unavailable" || contract.history.retrieval === "unavailable"
-      || contract.history.reasons.includes("unlinked_correction_uncertain"))) return uncertainty;
-  const subject = contract.scope.resolutionSubject!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const partial = new RegExp(`^${subject} (?:is hiding less but still hides sometimes; it has not fully resolved|still hides sometimes)\\.$`, "i");
-  const terminal = new RegExp(`^(?:${subject} stopped hiding|${subject}['’]s hiding has (?:fully )?resolved)\\.$`, "i");
-  const notes = contract.represented.filter(span => span.petId === petId && span.sourceType === "care_update" && /\bhid(?:ing|es?)\b/i.test(span.text));
-  if (notes.length !== 1) return uncertainty;
-  const note = notes[0];
-  if (!note.occurredAt || !/^\d{4}-\d{2}-\d{2}T/.test(note.occurredAt) || !Number.isFinite(Date.parse(note.occurredAt))
-    || new Date(note.occurredAt).toISOString().slice(0, 10) !== note.occurredAt.slice(0, 10) || Date.parse(note.occurredAt) > Date.now()
-    || contract.losses.some(loss => loss.sourceId === note.sourceId)
-    || !contract.sources.some(source => source.petId === petId && source.loadedIds.includes(note.sourceId))
-    || contract.history?.provenance.some(source => source.sourceId === note.sourceId && !["effective_linked", "unverified_legacy"].includes(source.status))) return uncertainty;
-  const report = partial.test(note.text) ? (/hiding less/i.test(note.text) ? "hiding had decreased but still happened sometimes" : "hiding still happened sometimes")
-    : terminal.test(note.text) ? "the owner reported that hiding had ended at that time" : null;
-  if (!report) return uncertainty;
-  const date = new Date(note.occurredAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
-  return `The ${date} note reports that ${report}. ${uncertainty}`;
+  return "I can't establish the current status from these records alone.";
 }
 
-/** Deliberately bounded policy, not general factual entailment. Recognized
- * evidence requests receive server authority; ordinary answers stay intact. */
 export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: HistorySynthesisProposal[] = []): string | null {
   // The shared request path is composed and reviewed semantically. Its safe
   // fallback may quote source reports, but never runs wording-specific answers.
@@ -248,7 +215,7 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
     }
     // Arbitrary narrative is not an evidence claim. Only complete source reports
     // and independently computed episode results have factual authority.
-    if (kind !== "count" && contract.history) return withinNoteCountAnswer(contract) || calendarIntervalAnswer(contract) || correctionReportAnswer(contract) || weightComparisonAnswer(contract) || directHistoryExplanation(contract) || attributedHistoryAnswer(contract, false, synthesis);
+    if (kind !== "count" && contract.history) return attributedHistoryAnswer(contract, false, synthesis);
     if (kind !== "count") return null;
   }
   if (contract.historyFallback && contract.scope.status !== "ambiguous") return "I couldn't resolve a supported historical topic or period for this lookup. Only limited recent context is available on this path. Please specify a topic and a single year or month; I can't establish a complete historical answer from recent notes.";
@@ -273,8 +240,6 @@ export function evidenceAnswerPolicy(contract: AskEvidenceContract, synthesis: H
   const fact = certified && contract.verifiedFacts.find(fact => fact.kind === kind && fact.scopeKey === evidenceScopeKey(contract.scope)
     && fact.sourceIds.every(id => represented.has(id)) && fact.text.length <= 1800);
   if (fact) return fact.text;
-  const comparison = weightComparisonAnswer(contract);
-  if (comparison) return comparison;
   const failed = contract.sources.some(source => source.status === "unavailable" || source.status === "not_loaded");
   const lead = failed ? "I couldn't verify all the requested records." : "The available records are limited, and their completeness and corrections are not verified.";
   const task = kind === "count" ? "an exact total" : kind === "absence" ? "whether something is absent from the full record"
@@ -348,10 +313,8 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
   const unresolvedCorrection = !sharedRequest && !!contract.history?.reasons.includes("unlinked_correction_uncertain");
   const period = contract.interpretation?.history;
   const terms = period?.terms || [];
-  const timelineDays = sharedRequest ? null : requestedHistoryTimelineDays(contract.scope.requestText, new Date().getUTCFullYear());
   const notes = contract.represented.filter(span => span.sourceType === "care_update"
     && contract.scope.authorizedPetIds.includes(span.petId)
-    && (!timelineDays || !!span.occurredAt && timelineDays.includes(span.occurredAt.slice(0,10)))
     && (!period?.from || !!span.occurredAt && span.occurredAt >= period.from)
     && (!period?.to || !!span.occurredAt && span.occurredAt < period.to)
     && span.start === 0 && span.end === span.text.length && span.text.trim()
@@ -423,7 +386,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
         : occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `
         : selection.startsWith("earliest") ? `The earliest matching report I could check for ${petName} is from ${date}. `
         : selection === "latest" ? `The latest matching update I could check for ${petName} is dated ${date}. ` : `${petName}'s recorded history: `;
-      reports.push(timelineDays ? sentences.join("\n\n") : lead + sentences.join(sharedRequest ? "\n\n" : " "));
+      reports.push(lead + sentences.join(sharedRequest ? "\n\n" : " "));
     } else {
       reports.push(missingHistoryPetLimitation(contract, petId));
     }

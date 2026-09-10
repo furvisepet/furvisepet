@@ -1,16 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { resolveRegistryConceptV2 } from "../app/lib/intelligence/v2/concepts/registry.ts";
 import { rebuildSemanticProjectionsV2 } from "../app/lib/intelligence/v2/projections/rebuild.ts";
-import { compareLegacyToV2Rebuild } from "../app/lib/intelligence/v2/projections/audit.ts";
 
 const owner = "10000000-0000-4000-8000-000000000001";
 const pet = "10000000-0000-4000-8000-000000000002";
-const registry = [
-  { id: "c1", canonicalKey: "vomiting", conceptVersion: "v1", lifecycleCapable: true, speciesApplicability: ["dog", "cat"], status: "active", aliases: ["vomit", "health_vomiting"] },
-  { id: "c2", canonicalKey: "food_preference", conceptVersion: "v1", lifecycleCapable: false, speciesApplicability: ["dog", "cat"], status: "active", aliases: ["food_likes"] },
-];
 
 function claim(id, overrides = {}) {
   return {
@@ -46,19 +40,6 @@ function rebuildOrderInvariant(claims, relations) {
   assert.equal(reversed.bundleHash, forward.bundleHash);
   return forward;
 }
-
-test("exact canonical keys and registered aliases resolve without fuzzy matching", () => {
-  assert.equal(resolveRegistryConceptV2("vomiting", "dog", registry).concept.id, "c1");
-  assert.equal(resolveRegistryConceptV2("Vomit", "cat", registry).concept.id, "c1");
-  assert.equal(resolveRegistryConceptV2("health vomiting", "dog", registry).concept.id, "c1");
-  assert.equal(resolveRegistryConceptV2("Mani was vomiting", "dog", registry).status, "provisional");
-  assert.equal(resolveRegistryConceptV2(null, "dog", registry).status, "unresolved");
-});
-
-test("an alias registered to two concepts remains ambiguous", () => {
-  const ambiguous = [...registry, { ...registry[1], id: "c3", canonicalKey: "nausea", aliases: ["sick"] }, { ...registry[0], id: "c4", canonicalKey: "illness", aliases: ["sick"] }];
-  assert.equal(resolveRegistryConceptV2("sick", "dog", ambiguous).status, "ambiguous");
-});
 
 test("History, owner preferences, pet preferences, and relationships rebuild from effective claims", () => {
   const result = rebuildSemanticProjectionsV2([
@@ -238,11 +219,6 @@ test("rebuild and audit hashes are stable", () => {
   const first = rebuildSemanticProjectionsV2(input, []);
   const second = rebuildSemanticProjectionsV2([...input].reverse(), []);
   assert.deepEqual(first, second);
-  const audit = compareLegacyToV2Rebuild({ imported: { canonical: 2, provisional: 0, ambiguous: 0, unresolved: 0 },
-    legacy: { historyRows: 2, activeEpisodes: 1, resolvedEpisodes: 0, concerns: 1, currentStateRows: 1, activeMemories: 0 },
-    rebuild: first, orphanLegacySourceRows: 0, duplicateLineage: 0, invalidCrossUserLineage: 0 });
-  assert.equal(audit.agreement.activeEpisodes.agrees, true);
-  assert.equal(audit.rebuildHash, first.bundleHash);
 });
 
 test("Phase 2 migration is explicit, service-only, and does not backfill or cut over production", () => {

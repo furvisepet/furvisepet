@@ -4,7 +4,7 @@ Furvise is a Next.js App Router application for pet profiles, care history,
 contextual Ask conversations and printable Vet Briefs. Supabase owns identity
 and persisted data; Stripe owns subscription events; Redis supports abuse,
 concurrency and AI spending controls. Products currently shows a coming-soon
-screen, with catalogue APIs and ingestion tooling retained.
+screen. Dormant catalogue APIs and ingestion tooling have been retired.
 
 ## Development
 
@@ -32,8 +32,6 @@ not an operating-system network sandbox. Do not load live credentials.
 Scripts named `*.live.mjs` are separately invoked provider benchmarks, not the
 default offline suite.
 
-The optional local runner has nine Python unit tests:
-`python -m unittest test_runner.py -q` from `scripts/local-runner`.
 SQL and isolated browser checks have requirements beyond the Node test suite.
 
 ## Database and operations
@@ -46,9 +44,8 @@ validation, never production data.
 See [deployment and rollback](docs/deployment-and-rollback.md),
 [production operations](docs/production-operations.md),
 [scheduled maintenance](docs/scheduled-maintenance.md),
-[billing sandbox](docs/billing-sandbox-e2e.md), and
-[catalogue ingestion](docs/product-ingestion.md).
-No scheduler is configured in the repository. Maintenance and ingestion
+[billing sandbox](docs/billing-sandbox-e2e.md).
+No scheduler is configured in the repository. Maintenance
 commands are operator entry points and may mutate external systems when applied.
 
 ## V1 cleanup audit
@@ -56,4 +53,5 @@ commands are operator entry points and may mutate external systems when applied.
 [Feature inventory](docs/v1-cleanup/feature-inventory.md),
 [audit and validation](docs/v1-cleanup/README.md), and the
 [complete file manifest](docs/v1-cleanup/file-classification.csv) record the
-cleanup scope, evidence, preserved features and outstanding decisions.
+initial cleanup scope. [Active architecture cleanup](docs/v1-cleanup/active-architecture.md)
+records the subsequent removals and current validation.

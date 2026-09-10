@@ -1,3 +1,4 @@
+import { requestProposal } from "./request-proposal.mjs";
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { existsSync } from 'node:fs';
@@ -165,7 +166,7 @@ async function exercise(question, { historyAccess, fixturePets = pets, onProvide
     const { interpretAskQuestion, readInterpretationSubject } = await import('../../../app/lib/intelligence/interpret-ask.ts');
     const interpretation = await interpretAskQuestion({ context, onProviderEvent, model: interpretationModel, client: { responses: { async create(request, options) {
       interpretationRequests.push(request);
-      return interpretationResponse ? await interpretationResponse(request, options) : { status: 'completed', output_text: JSON.stringify(interpretationProposal), usage: { input_tokens: 500, output_tokens: 200, total_tokens: 700 } };
+      return interpretationResponse ? await interpretationResponse(request, options) : { status: 'completed', output_text: JSON.stringify(requestProposal(interpretationProposal, question)), usage: { input_tokens: 500, output_tokens: 200, total_tokens: 700 } };
     } } } });
     if (interpretation.readOnly) {
       const subject = readInterpretationSubject(interpretation, context.pet.id).resolution;

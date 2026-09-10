@@ -303,21 +303,7 @@ test("all application memory writers cross the shared semantic boundary", () => 
   assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /prepareMemorySuggestion\(suggestion\)/);
   assert.match(read("app/lib/intelligence/memory-suggestion.ts"), /prepareTypedMemoryCandidate/);
   assert.match(read("app/api/ask/route.ts"), /currentMessage: sourceMessage/);
-  const featurePersistence = read("app/lib/intelligence/persist-learnings.ts");
-  assert.match(featurePersistence, /createOperationsAdminClient\(\)\.rpc\("persist_furvise_feature_intelligence"/);
-  assert.match(featurePersistence, /p_source_input: sourceInput/);
-  assert.match(featurePersistence, /p_user_id: userId/);
-  assert.match(featurePersistence, /p_payload_hash: payloadHash/);
-  assert.match(featurePersistence, /p_operation_owner_token: operationOwnerToken/);
-  for (const path of [
-    "app/api/shop/product-question/route.ts",
-    "app/api/shop/interpret-query/route.ts",
-    "app/api/safety-followup/route.ts",
-  ]) {
-    const source = read(path);
-    assert.match(source, /sourceInput:/, path);
-    assert.match(source, /userId:/, path);
-  }
+
 });
 
 test("the approval-gated cleanup is dry-run by default and narrowly rejects only provable garbage", () => {

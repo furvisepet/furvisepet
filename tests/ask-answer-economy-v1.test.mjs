@@ -7,10 +7,6 @@ import {
   measureAskAnswerEconomy,
   planAskAnswerDepth,
 } from "../app/lib/ai/ask-answer-economy.ts";
-import {
-  buildAskAnswerEconomyReviewSet,
-  measureAskAnswerEconomyBenchmark,
-} from "../app/lib/ai/ask-answer-economy-benchmark.ts";
 import { classifyUserTurn } from "../app/lib/ai/turn-classifier.ts";
 import { deriveConversationTitle } from "../app/lib/ask-conversations.ts";
 import { evaluateCareHistorySaveWorthiness } from "../app/lib/intelligence/care-history-policy.ts";
@@ -101,25 +97,6 @@ test("new conversation titles are standalone topics for long messages", () => {
     "Managing Mani's biting",
   );
   assert.equal(deriveConversationTitle("She has been hiding under the bed for three days.", "Mani"), "Mani hiding more");
-});
-
-test("the executable 75-case review improves density without provider-call or safety regression", () => {
-  const review = buildAskAnswerEconomyReviewSet();
-  const result = measureAskAnswerEconomyBenchmark(review);
-  assert.equal(review.length, 75);
-  assert.ok(review.every((item) => item.previousUser && item.previousAssistant));
-  assert.equal(result.providerCallsAfter, result.providerCallsBefore);
-  assert.ok(result.after.averageWords < result.before.averageWords);
-  assert.ok(result.after.averageHeadings < result.before.averageHeadings);
-  assert.ok(result.after.averageBullets < result.before.averageBullets);
-  assert.ok(result.after.careHistorySuggestionRate < result.before.careHistorySuggestionRate);
-  assert.ok(result.after.zeroHeadingPercentage > result.before.zeroHeadingPercentage);
-  assert.equal(result.dangerouslyShort, 0);
-  assert.equal(result.qualityPassed, 75);
-  assert.equal(result.after.malformedPersonalizationCount, 0);
-  assert.equal(result.after.petNameContractionCount, 0);
-  assert.equal(result.after.pseudoListCount, 0);
-  assert.equal(result.after.bulletIntegrityViolationCount, 0);
 });
 
 test("generation, orchestration, and UI share economy policy without touching reliability identities", () => {

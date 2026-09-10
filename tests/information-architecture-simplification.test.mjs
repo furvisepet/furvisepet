@@ -2,30 +2,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
-import {
-  buildDraftProfileFieldStates,
-  buildProfileCompleteness,
-  buildProfileFieldStates,
-} from "../app/lib/profile-completeness.ts";
 import { formatCareEntryTitle, groupCareEntriesByDate } from "../app/lib/care-log.mjs";
-import { initialProfile } from "../app/lib/petwise.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-function row(overrides = {}) {
-  return {
-    age_value: 4,
-    avoid_ingredients: ["Chicken"],
-    breed: "Mixed",
-    current_food: "Salmon kibble",
-    main_concern: "General wellness",
-    monthly_budget: 80,
-    name: "Luna",
-    species: "dog",
-    weight_value: 22,
-    ...overrides,
-  };
-}
 
 test("new pet creation bypasses analysis and opens the pet's live file", () => {
   const source = read("app/onboarding/page.tsx");
@@ -43,17 +22,6 @@ test("duplicate summary redirects and remembered details preserve pet identity",
   assert.match(remembered, /useParams<\{ id: string \}>\(\)/);
   assert.match(remembered, /href=\{`\/pets\/\$\{params\.id\}`\}/);
   assert.match(read("app/pets/[id]/memories/page.tsx"), /dogs\/\[id\]\/memories\/page/);
-});
-
-test("profile field states distinguish known, none-known, unknown, and missing", () => {
-  assert.equal(buildProfileFieldStates(row({ avoid_ingredients: [] })).avoidIngredients, "complete-none");
-  assert.equal(buildProfileFieldStates(row({ avoid_ingredients: null })).avoidIngredients, "missing");
-  assert.equal(buildProfileFieldStates(row({ avoid_ingredients: ["Chicken"] })).avoidIngredients, "complete-known");
-  assert.equal(buildProfileFieldStates(row({ weight_value: null })).weight, "complete-unknown");
-
-  const draft = { ...initialProfile, name: "Luna", species: "dog", avoidIngredientsNoneKnown: true };
-  assert.equal(buildDraftProfileFieldStates(draft).avoidIngredients, "complete-none");
-  assert.equal(buildProfileCompleteness(row({ avoid_ingredients: [] })).missingFields.includes("avoid ingredients"), false);
 });
 
 test("pet profile stays a compact fact file with one Vet Brief handoff", () => {

@@ -5,14 +5,8 @@ import { readPublicationFailure } from "../ask-publication.ts";
 import { withProviderDeadline } from "../ai/provider-deadline.ts";
 import { isStructuredHistoryText } from "./structured-history-text.ts";
 import { verifiedCalculationQuantities } from "./history-calculation.ts";
-import { directHistoryExplanation } from "./direct-history-explanation.ts";
-import { requestedHistoryTimelineDays } from "./requested-history-timeline.ts";
-import { withinNoteCountAnswer } from "./within-note-count.ts";
 import { hasUndatedHistoricalCareState } from "./historical-care-state.ts";
-import { calendarIntervalAnswer } from "./calendar-interval.ts";
 import { parsePlainTable } from "../plain-table.ts";
-import { weightComparisonAnswer } from "./weight-comparison.ts";
-import { correctionReportAnswer } from "./correction-report.ts";
 import { presentReviewedHistory, presentHistoryLimitation, stripHistoryBullet } from "./history-presentation.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { historyReviewSelectionSchema, parseHistoryReviewSelection, repairableTaskHistoryReviewSchema, parseRepairableTaskHistoryReview } from "./history-review-selection.ts";
@@ -93,8 +87,6 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   if (evidence.history.corrections === "unavailable") return decline("correction_evidence_unavailable");
   if (!sharedRequest && /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)) return decline("server_quotation_path");
   if (result.safetyLevel === "urgent" || result.responseMode === "grief_support") return decline("safety_response_path");
-  if (!sharedRequest && requestedHistoryTimelineDays(evidence.scope.requestText, new Date().getUTCFullYear())) return decline("server_timeline_path");
-  if (!sharedRequest && (directHistoryExplanation(evidence) || withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence))) return decline("server_derived_answer_path");
   const sources = usableSources(evidence);
   // A missing diagnosis record cannot answer whether a diagnosis was established.
   // Preserve the attributed note instead of approving a misleading yes/no preface.

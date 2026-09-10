@@ -1,3 +1,5 @@
+> Historical implementation reference. Catalogue ingestion and product APIs were retired from v1 by the active architecture cleanup. Commands below are no longer available.
+
 # Product provider 001: Purina Canada official-page review
 
 ## Decision

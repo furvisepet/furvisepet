@@ -11,20 +11,17 @@ test("critical AI routes authenticate and enforce owner-scoped identifiers", () 
   const memory = read("app/api/memories/[id]/route.ts");
   const suggestion = read("app/api/ask/suggestions/[id]/route.ts");
   const vet = read("app/api/vet-briefs/draft/route.ts");
-  const product = read("app/api/shop/product-question/route.ts");
   assert.match(ask, /if \(!token\).*AUTH_REQUIRED/);
   assert.match(ask, /\.eq\("user_id", userId\)/);
   assert.match(conversations, /\.eq\("id", id\)[\s\S]*\.eq\("user_id", context\.userId\)/);
   assert.match(memory, /auth\.supabase\.rpc\("manage_furvise_memory"/);
   assert.match(suggestion, /\.eq\("id", id\)[\s\S]*\.eq\("user_id", auth\.userId\)/);
   assert.match(vet, /petId, supabase: auth\.supabase, userId: auth\.userId/);
-  assert.match(product, /petId, supabase: context\.supabase, userId: context\.userId/);
 });
 
 test("critical request bodies, UUIDs, arrays, dates, and text are bounded", () => {
   const boundary = read("app/lib/security/request.ts");
   const ask = read("app/api/ask/route.ts");
-  const product = read("app/api/shop/product-question/route.ts");
   const vetDraft = read("app/api/vet-briefs/draft/route.ts");
   const vetSave = read("app/api/vet-briefs/route.ts");
   assert.match(boundary, /ask: 64 \* 1024/);
@@ -32,17 +29,10 @@ test("critical request bodies, UUIDs, arrays, dates, and text are bounded", () =
   assert.match(boundary, /bytesRead > maxBytes/);
   assert.match(ask, /question\.length > 1200/);
   assert.match(ask, /hasOnlyKeys\(rawBody/);
-  assert.match(product, /maxProductQuestionLength = 320/);
-  assert.match(product, /isSecurityUuid\(petId\)/);
   assert.match(vetDraft, /MAX_VET_BRIEF_RANGE_DAYS = 730/);
   assert.match(vetDraft, /MAX_REASON_FOR_VISIT_LENGTH = 1_200/);
   assert.match(vetSave, /filter\(isUuid\)\.slice\(0, 300\)/);
-  for (const path of [
-    "app/api/ask/conversations/route.ts",
-    "app/api/ask/conversations/[id]/route.ts",
-    "app/api/ask/conversations/[id]/messages/route.ts",
-    "app/api/shop/catalog/route.ts",
-  ]) {
+  for (const path of ["app/api/ask/conversations/route.ts", "app/api/ask/conversations/[id]/route.ts", "app/api/ask/conversations/[id]/messages/route.ts"]) {
     const source = read(path);
     assert.match(source, /readBoundedJson\(/);
     assert.match(source, /hasOnlyKeys\(/);
@@ -58,12 +48,8 @@ test("critical request bodies, UUIDs, arrays, dates, and text are bounded", () =
 
 test("provider calls have canonical output and execution limits", () => {
   const config = read("app/lib/ai/config.ts");
-  const provider = read("app/lib/ai/providers/openai.ts");
   const askReasoning = read("app/lib/ai/ask-reasoning.ts");
   assert.match(config, /OPENAI_PROVIDER_TIMEOUT_MS = 25_000/);
-  assert.equal((provider.match(/max_output_tokens:\s*OPENAI_OUTPUT_LIMITS\./g) || []).length, 5);
-  assert.equal((provider.match(/this\.client\.responses\.create/g) || []).length, 1);
-  assert.equal((provider.match(/AbortSignal\.timeout\(OPENAI_PROVIDER_TIMEOUT_MS\)/g) || []).length, 1);
   assert.match(askReasoning, /timeoutMs: 25_000/);
   assert.match(askReasoning, /max_output_tokens:/);
 });
@@ -84,8 +70,6 @@ test("logs centralize credential and private-content redaction", () => {
   assert.match(intelligence, /safeErrorForLog/);
   assert.doesNotMatch(suggestion, /databaseDetails:|databaseHint:|databaseMessage:/);
   assert.doesNotMatch(read("app/lib/intelligence/persist-learnings.ts"), /databaseMessage:|databaseDetails:/);
-  assert.doesNotMatch(read("app/lib/ai/providers/openai.ts"), /rawStructuredResponse:\s*raw/);
-  assert.match(read("app/api/analyze/route.ts"), /safeErrorForLog\(error\)/);
 });
 
 test("client bundles have no direct provider or service-role secret reference", () => {
@@ -93,7 +77,6 @@ test("client bundles have no direct provider or service-role secret reference", 
     const source = read(path);
     assert.doesNotMatch(source, /process\.env\.(OPENAI_API_KEY|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY)/);
   }
-  assert.match(read("app/lib/ai/providers/openai.ts"), /import "server-only"/);
 });
 
 test("database migrations bind RPC identity and revoke repair execution", () => {

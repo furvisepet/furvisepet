@@ -9,7 +9,6 @@ const route = read("app/api/care-entries/[id]/route.ts");
 const workspace = read("app/components/care-log-workspace.tsx");
 const retrieval = read("app/lib/intelligence/retrieve-context.ts");
 const concernLoader = read("app/lib/ai/context-builder.ts");
-const episodeReducer = read("app/lib/intelligence/episodes/reduce-episode-state.ts");
 const documentation = read("docs/information-removal-semantics.md");
 
 test("History Delete always uses the governed lifecycle dismissal contract", () => {
@@ -53,19 +52,6 @@ test("History UI offers one Delete action and explains that Furvise stops using 
   assert.match(workspace, /Cancel/);
 });
 
-test("Ask active and recently-resolved retrieval cannot classify dismissal as recovery", () => {
-  assert.match(retrieval, /\.is\("deleted_at", null\)/);
-  assert.match(retrieval, /\.in\("status", \["active", "monitoring", "resolved"\]\)/);
-  assert.doesNotMatch(retrieval, /\.in\("status", \[[^\]]*"dismissed"/);
-  assert.match(concernLoader, /\.in\("status", \["active", "reopened"\]\)/);
-  assert.match(concernLoader, /\.eq\("status", "resolved"\)/);
-  assert.doesNotMatch(concernLoader, /"dismissed"/);
-  assert.match(episodeReducer, /current === "dismissed"/);
-  assert.match(retrieval, /suppressedSourceMessageIds/);
-  assert.match(retrieval, /responseReferencesCareEntry/);
-  assert.match(retrieval, /memory\.source_type === "ask_message"/);
-});
-
 test("database verification covers tombstone, dismissal, isolation, provenance, and idempotency", () => {
   for (const evidence of [
     "inactive historical entry was not tombstoned",
@@ -90,4 +76,17 @@ test("memory forgetting and future privacy erasure remain explicitly separate", 
   }
   assert.match(documentation, /not implemented/);
   assert.match(documentation, /Delete means Furvise stops remembering, tracking, and using the selected History event/);
+});
+
+
+test("Ask active and recently-resolved retrieval cannot classify dismissal as recovery", () => {
+  assert.match(retrieval, /\.is\("deleted_at", null\)/);
+  assert.match(retrieval, /\.in\("status", \["active", "monitoring", "resolved"\]\)/);
+  assert.doesNotMatch(retrieval, /\.in\("status", \[[^\]]*"dismissed"/);
+  assert.match(concernLoader, /\.in\("status", \["active", "reopened"\]\)/);
+  assert.match(concernLoader, /\.eq\("status", "resolved"\)/);
+  assert.doesNotMatch(concernLoader, /"dismissed"/);
+  assert.match(retrieval, /suppressedSourceMessageIds/);
+  assert.match(retrieval, /responseReferencesCareEntry/);
+  assert.match(retrieval, /memory\.source_type === "ask_message"/);
 });

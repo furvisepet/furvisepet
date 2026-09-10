@@ -91,15 +91,7 @@ test("internal QA does not alter infrastructure or provider-cost policies", () =
 });
 
 test("all current paid-feature server contexts use centralized entitlements", () => {
-  const files = [
-    "app/api/ask/route.ts",
-    "app/api/analyze/route.ts",
-    "app/api/safety-followup/route.ts",
-    "app/api/shop/interpret-query/route.ts",
-    "app/api/shop/product-question/route.ts",
-    "app/api/shop/explain-product-fit/route.ts",
-    "app/lib/vet-brief/server.ts",
-  ];
+  const files = ["app/api/ask/route.ts", "app/lib/vet-brief/server.ts"];
   for (const file of files) {
     const source = read(file);
     assert.match(source, /resolveEffectiveEntitlements/);

@@ -1,3 +1,5 @@
+> Historical implementation reference. Catalogue ingestion and product APIs were retired from v1 by the active architecture cleanup. Commands below are no longer available.
+
 # Product ingestion
 
 Product ingestion is a trusted, server-only workflow that keeps source rows in staging until a person explicitly approves publication. It writes to the unified catalog from Step 2 and does not create a second live catalog.

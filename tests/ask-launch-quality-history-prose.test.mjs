@@ -8,10 +8,6 @@ import {
 } from "../app/lib/ai/ask-answer-economy.ts";
 import { orchestrateAskTurn } from "../app/lib/ai/ask-orchestrator.ts";
 import {
-  buildBehavioralHistoryReviewSet,
-  measureBehavioralHistoryReview,
-} from "../app/lib/ai/ask-answer-economy-benchmark.ts";
-import {
   evaluateCareHistorySaveWorthiness,
   resolveAutomaticCareHistoryPresentation,
 } from "../app/lib/intelligence/care-history-policy.ts";
@@ -149,18 +145,6 @@ test("visible prose sanity remains quality-degradable and never requests provide
   assert.match(validator, /qualityWarnings\.push\("visible_prose_sanity_remaining"\)/);
   assert.doesNotMatch(validator, /errors\.push\("visible_prose/);
   assert.doesNotMatch(reasoningSource, /visible_prose_sanity|repaired_visible_prose_syntax/);
-});
-
-test("targeted behavioral-history review has no routine false positives", () => {
-  const cases = buildBehavioralHistoryReviewSet();
-  const result = measureBehavioralHistoryReview(cases);
-  assert.ok(cases.length >= 20);
-  assert.equal(result.passed, result.cases);
-  assert.equal(result.routineBehaviorFalsePositiveRate, 0);
-  assert.equal(result.lowValueSuggestionRate, 0);
-  assert.equal(result.trueMeaningfulSuggestionRate, 1);
-  assert.ok(result.beforeRoutineBehaviorFalsePositiveRate > result.routineBehaviorFalsePositiveRate);
-  assert.ok(result.afterSuggestionRate < result.beforeSuggestionRate);
 });
 
 test("route keeps optional care failures out of the public failed-card state", () => {

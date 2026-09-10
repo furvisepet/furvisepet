@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
-import { getLifeStage, initialProfile } from "../app/lib/petwise.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -17,26 +16,12 @@ test("legacy profile storage supports cats without introducing duplicate core ta
 test("application profile model and onboarding are species-ready", () => {
   const model = read("app/lib/petwise.ts");
   const onboarding = read("app/onboarding/page.tsx");
-  const providerPrompt = read("app/lib/ai/providers/openai.ts");
 
   assert.match(model, /export type PetProfile =/);
   assert.match(model, /export type DogProfile = PetProfile/);
   assert.match(onboarding, /Who are we setting up\?/);
   assert.match(onboarding, /\["dog", "cat"\] as const/);
   assert.doesNotMatch(onboarding, /e\.g\. Rocky/);
-  assert.match(providerPrompt, /suitable for display to a pet owner/);
-  assert.doesNotMatch(providerPrompt, /suitable for display to a dog owner/);
-});
-
-test("young dog and cat profiles use species-aware life stages", () => {
-  assert.equal(
-    getLifeStage({ ...initialProfile, age: "6", ageUnit: "months", species: "dog" }),
-    "puppy",
-  );
-  assert.equal(
-    getLifeStage({ ...initialProfile, age: "6", ageUnit: "months", species: "cat" }),
-    "kitten",
-  );
 });
 
 test("generic pet routes reuse compatibility implementations", () => {
@@ -53,11 +38,6 @@ test("generic pet routes reuse compatibility implementations", () => {
 });
 
 test("user-facing cat-ready changes contain no em dash", () => {
-  const sources = [
-    "app/onboarding/page.tsx",
-    "app/shop/page.tsx",
-    "app/lib/ai/providers/openai.ts",
-    "app/lib/shop/product-question.ts",
-  ].map(read).join("\n");
+  const sources = ["app/onboarding/page.tsx", "app/shop/page.tsx"].map(read).join("\n");
   assert.doesNotMatch(sources, /\u2014/);
 });

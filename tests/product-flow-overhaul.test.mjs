@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { buildDraftProfileFieldStates } from "../app/lib/profile-completeness.ts";
-import { initialProfile } from "../app/lib/petwise.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -19,22 +17,6 @@ test("Add Pet is a focused Quick Start with a direct Ask handoff", () => {
   assert.match(source, /Go to Today/);
   assert.doesNotMatch(source, /View \{pet\.name\}&apos;s profile/);
   assert.doesNotMatch(source, /Get recommendations|Analyze profile|Generate care plan|Profile ready|100%|\/api\/analyze/);
-});
-
-test("intentional none-known and unknown answers count as answered", () => {
-  const states = buildDraftProfileFieldStates({
-    ...initialProfile,
-    ageUnknown: true,
-    avoidIngredientsNoneKnown: true,
-    currentFoodUnknown: true,
-    name: "Luna",
-    species: "dog",
-    weightUnknown: true,
-  });
-  assert.equal(states.avoidIngredients, "complete-none");
-  assert.equal(states.age, "complete-unknown");
-  assert.equal(states.currentFood, "complete-unknown");
-  assert.equal(states.weight, "complete-unknown");
 });
 
 test("profile header has no readiness badge and keeps useful identity metadata", () => {

@@ -8,8 +8,6 @@ const VET_BRIEF_LEASE_TTL_MS = 90_000;
 
 const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   ASK_AI: aiPolicy("ASK_AI", 10, 30, AI_LEASE_TTL_MS),
-  PRODUCT_GUIDANCE_AI: aiPolicy("PRODUCT_GUIDANCE_AI", 10, 30, AI_LEASE_TTL_MS),
-  SAFETY_FOLLOWUP_AI: aiPolicy("SAFETY_FOLLOWUP_AI", 10, 30, AI_LEASE_TTL_MS),
   VET_BRIEF_AI: aiPolicy("VET_BRIEF_AI", 4, 12, VET_BRIEF_LEASE_TTL_MS),
   MEMORY_WRITE: writePolicy("MEMORY_WRITE", 30, 60),
   PROFILE_WRITE: writePolicy("PROFILE_WRITE", 30, 60),
@@ -21,13 +19,6 @@ const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
     modelBacked: false,
     name: "DESTRUCTIVE_WRITE",
     user: { limit: 10, windowMs: MINUTE },
-  },
-  CATALOG_READ: {
-    failurePolicy: "fail_open",
-    ip: { limit: 240, windowMs: MINUTE },
-    modelBacked: false,
-    name: "CATALOG_READ",
-    user: { limit: 120, windowMs: MINUTE },
   },
   DATA_EXPORT: {
     failurePolicy: "fail_closed",
