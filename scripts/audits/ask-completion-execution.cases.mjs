@@ -86,3 +86,42 @@ for(const question of ['Compare weights on April 7 2024 versus April 8 2024.','C
  {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],conversationTurns:[],currentMessage:question});
  assert.equal(result.history.from,null);
 });
+test('companion punctuation preserves quotations and code before factual review',async()=>{
+ const {normalizeCompanionProse}=await import('../../app/lib/ai/companion-voice.ts');
+ assert.equal(normalizeCompanionProse('Aster ate normally — the notes do not say why.'),'Aster ate normally, the notes do not say why.');
+ for(const text of ['The note says "ate — then rested".', 'The note says “ate — then rested”.', '```json\n{"note":"ate — then rested"}\n```']) assert.equal(normalizeCompanionProse(text),text);
+});
+test('history voice is normalized before review and retained through publication',async t=>{
+ clock(t);
+ const r=await exercise('Summarize Aster history.',{fixturePets:owned,history:true,rows:[care('voice',owned[0].id,'2024-04-07','general','Aster ate normally. The cause of the earlier appetite change was not recorded.')],
+ interpretationProposal:proposal({quantity:'records',topic:'history',terms:[]}),expectedReviewCalls:1,reviewResponse:{approved:true},
+ providerOverrides:{historyNarrative:{sentences:[{text:'Aster ate normally on April 7, 2024 — the notes do not say why the earlier appetite change happened.',sourceIds:['care:voice'],calculations:[]}]}}});
+ assert.equal(r.publication.failure,null);assert.equal(r.result.answerValidation.assessment.outcome,'complete');
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/—/);assert.match(r.result.reasoning.answer.summary,/do not say why/);
+});
+test('declined summary has one plain limitation and preserves exact notes separately',async t=>{
+ clock(t);
+ const note='Aster did not eat breakfast — the reason was not recorded.';
+ const r=await exercise('Summarize Aster history.',{fixturePets:owned,history:true,rows:[care('limited-voice',owned[0].id,'2024-04-07','general',note)],
+ interpretationProposal:proposal({quantity:'records',topic:'history',terms:[]}),expectedReviewCalls:1,reviewResponse:{approved:false},
+ providerOverrides:{historyNarrative:{sentences:[{text:'Aster ate normally.',sourceIds:['care:limited-voice'],calculations:[]}]}}});
+ const answer=r.result.reasoning.answer;
+ assert.equal(r.publication.failure,null);assert.equal(r.result.answerValidation.assessment.outcome,'limited');
+ assert.doesNotMatch(answer.summary,/calculat|verif|excerpt|clinical|—/i);
+ assert.equal(answer.sections[0].heading,'Saved notes');assert.ok(answer.sections[0].items[0].includes(note));
+ assert.doesNotMatch(JSON.stringify(answer),/Aster ate normally/);
+});
+test('a timed-out repair is not mislabeled as a review timeout',async t=>{
+ clock(t);const events=[];
+ const r=await exercise('Summarize Aster history.',{fixturePets:owned,history:true,rows:[care('timeout-voice',owned[0].id,'2024-04-07','general','Aster rested normally.')],
+ interpretationProposal:proposal({quantity:'records',terms:[]}),onProviderEvent:event=>events.push(event),expectedReviewCalls:2,
+ providerOverrides:{historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:timeout-voice'],calculations:[]}]}},
+ reviewProviderResponse:async request=>{
+  if(request.text.format.name==='furvise_history_repair') throw Object.assign(new Error('Repair timed out'),{name:'TimeoutError'});
+  const input=JSON.parse(request.input);
+  return {status:'completed',output_text:JSON.stringify({approved:false,retainedSentenceIndexes:[],rejectionReason:'The requested summary is incomplete.',obligations:input.obligations.map(({index})=>({index,status:'missing',sentenceIndexes:[]}))}),usage:{input_tokens:500,output_tokens:100}};
+ }});
+ assert.ok(r.result.answerValidation.assessment.reasons.includes('repair_timeout'));
+ assert.ok(events.some(event=>event.stage==='repair'&&event.outcome==='failed'));
+ assert.equal(r.publication.failure,null);
+});

@@ -1035,11 +1035,14 @@ test('rejected event answers retain relevant source excerpts instead of the late
   providerOverrides:{answer:'The switch happened yesterday.',historyNarrative:{sentences:[{text:'The switch happened yesterday.',sourceIds:['care:start'],calculations:[]}]}},
   reviewResponse:{approved:false},expectedReviewCalls:1});
  assert.ok(r.prompt.evidenceContract.represented.some(e=>e.sourceId==='care:start'));
- assert.match(r.result.reasoning.answer.summary,/2023-03-06/);
- assert.match(r.result.reasoning.answer.summary,/2023-03-13/);
- assert.match(r.result.reasoning.answer.summary,/not an allergy diagnosis/);
- assert.doesNotMatch(r.result.reasoning.answer.summary,/happened yesterday/);
- assert.match(r.result.reasoning.answer.summary,/couldn't verify a complete answer/);
+ const answer=r.result.reasoning.answer, notes=answer.sections.flatMap(section=>section.items).join('\n');
+ assert.match(notes,/2023-03-06/);
+ assert.match(notes,/2023-03-13/);
+ assert.match(notes,/not an allergy diagnosis/);
+ assert.doesNotMatch(JSON.stringify(answer),/happened yesterday/);
+ assert.match(answer.summary,/couldn't finish answering/);
+ assert.equal(answer.sections[0].heading,'Saved notes');
+ assert.equal(r.publication.failure,null);
 });
 
 
