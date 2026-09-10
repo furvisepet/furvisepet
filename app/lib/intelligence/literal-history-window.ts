@@ -36,3 +36,13 @@ export function literalHistoryMonthWindow(text: string): {from: string; to: stri
   const first=unique[0],last=unique.at(-1)!;
   return {from:new Date(Date.UTC(first.year,first.month,1)).toISOString().slice(0,10),to:new Date(Date.UTC(last.year,last.month+1,1)).toISOString().slice(0,10)};
 }
+
+/** The present endpoint must survive a planner's single historical interval.
+ * This recovers read coverage only; the ordinary access filter still applies. */
+export function requestsPastPresentComparison(text: string): boolean {
+  if (/\b(?:as of|until|before today|only|excluding|exclude)\b/i.test(text)) return false;
+  const present = /\b(?:now|today|current|currently|latest|present)\b/i.test(text);
+  const past = /\b(?:19\d{2}|20\d{2}|2100|then|previous|previously|earlier|used to)\b/i.test(text);
+  const comparison = /\b(?:same|different|compar\w*|versus|vs|than|chang\w*)\b/i.test(text);
+  return present && past && comparison;
+}

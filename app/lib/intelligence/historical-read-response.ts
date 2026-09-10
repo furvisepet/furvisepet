@@ -26,6 +26,13 @@ export function historicalReadSchema(properties: Record<string, unknown>, requir
           } } },
       } },
     } };
+  // No explicit container means human-readable prose, not model-chosen JSON.
+  // Keep a limitation available when no supported narrative can be composed.
+  if (!requiredLayout) {
+    schema.properties.layout.enum = ["prose"];
+    const fields = schema.properties as Record<string, unknown>;
+    fields.json = { type: "null" }; fields.table = { type: "null" };
+  }
   if (requiredLayout && ["prose", "bullets", "table", "json"].includes(requiredLayout)) {
     schema.properties.layout.enum = [requiredLayout];
     const fields = schema.properties as Record<string, unknown>;
@@ -93,6 +100,10 @@ export const historicalReadInstructions = [
 /** Validate a semantic format field, never infer user intent with phrase matching. */
 export function matchesHistoryOutputFormat(text: string, format?: string | null): boolean {
   if (format === "json") return isStructuredHistoryText(text);
+  if (!format || format === "prose") {
+    const body = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, "$1");
+    return !isStructuredHistoryText(body);
+  }
   if (format === "table") return !!parsePlainTable(text);
   if (format === "bullets") return text.trim().split(/\r?\n/).every(line => /^\s*[-*•]\s+\S/.test(line));
   return true;

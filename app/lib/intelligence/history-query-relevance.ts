@@ -14,8 +14,10 @@ export function historyQueryRelevance(text: string, terms: string[]): number {
 /** Event verbs are a separate retrieval facet. Mixing them into one OR search
  * with a frequent topic lets routine observations starve the decisive event.
  * These aliases cover changes across care domains, not particular pets/dates. */
+// Moving to a different routine/item is also a transition search hint. This
+// never establishes that a transition happened or why; source review does that.
 const eventFacets: Array<[RegExp, string[]]> = [
-  [/\b(?:switch\w*|chang(?:e|ed|ing)|transition\w*)\b/i, ["switc", "chang", "trans"]],
+  [/\b(?:switch\w*|chang(?:e|ed|ing)|transition\w*)\b|\bmov(?:e|ed|ing)\b[^.!?]{0,100}\bto\b/i, ["switc", "chang", "trans"]],
   [/\b(?:stop\w*|discontinu\w*|ceas\w*)\b/i, ["stop", "disco", "cease"]],
   [/\b(?:start\w*|began|begin\w*)\b/i, ["start", "began", "begin"]],
   [/\b(?:increas\w*|rais\w*)\b/i, ["incre", "raise"]],

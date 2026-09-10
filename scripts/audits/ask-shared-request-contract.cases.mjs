@@ -329,9 +329,10 @@ test('read premise produces no memory or care proposal through full pipeline', a
 for (const answer of ['{\n  "observation": "slept normally"\n}', '- Aster slept normally.', '| Pet | Observation |\n| --- | --- |\n| Aster | slept normally |']) {
   test('reviewed output structure survives shared pipeline: ' + answer.slice(0, 20), async t => {
     clock(t);
-    const r = await exercise('Present the saved observation in the requested format.', { fixturePets,
+    const outputFormat = answer.startsWith('{') ? 'json' : answer.startsWith('|') ? 'table' : 'bullets';
+    const r = await exercise(`Present the saved observation as ${outputFormat}.`, { fixturePets,
       rows: [care('format', 'milo', '2026-06-04', 'general', 'Aster slept normally.')], messages: [], history: true,
-      interpretationProposal: proposal({ requirements: ['Preserve the requested output structure'] }),
+      interpretationProposal: proposal({ outputFormat, requirements: ['Preserve the requested output structure'] }),
       providerOverrides: { historyNarrative: { sentences: [{ text: answer, sourceIds: ['care:format'] }] } },
       reviewResponse: { approved: true }, expectedReviewCalls: 1 });
     assert.equal(r.result.reasoning.answer.summary, answer);
@@ -1051,4 +1052,63 @@ test('review receives correction uncertainty attached to its own source', async 
  assert.deepEqual(review.sources.find(s=>s.sourceId==='care:uncertain-link').provenanceStatuses,['unlinked_correction_uncertain']);
  assert.match(review.correctionAuthority,/do not assign that uncertainty to every source/);
  assert.deepEqual(r.result.acceptedSemanticEvents,[]);
+});
+
+
+test('past versus present retrieval preserves both periods despite a narrowed planner range', async t => {
+ clock(t);
+ const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,
+  rows:[care('old','milo','2023-05-03','general','Aster used a fleece mat.'),care('now','milo','2026-06-04','general','Aster currently uses a cotton mat.')],
+  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['bedding','mat'],from:'2023-01-01',to:'2024-01-01'})});
+ assert.ok(r.context.askHistory.entries.some(row=>row.id==='old'));
+ assert.ok(r.context.askHistory.entries.some(row=>row.id==='now'));
+ assert.ok(r.prompt.evidenceContract.represented.some(row=>row.sourceId==='care:now'));
+});
+
+test('event reason retrieval is independent of a summary or comparison planner label', async t => {
+ clock(t);
+ const rows=Array.from({length:100},(_,i)=>care('routine'+i,'milo',new Date(Date.UTC(2020+Math.floor(i/12),i%12,1)).toISOString().slice(0,10),'general','Aster used the same bedding. The reason for any change was not established.'));
+ rows.push(care('decisive','milo','2023-05-03','general','Aster started a transition to a cotton mat. The owner recorded a preference change, not a diagnosis.'));
+ for(const selection of ['summary','comparison','latest']) {
+  const r=await exercise('Why did we move Aster to a cotton mat?',{fixturePets,messages:[],history:true,rows,
+   interpretationProposal:proposal({operation:selection==='comparison'?'comparison':'recall',selection,terms:['bedding','mat']})});
+  assert.ok(r.context.askHistory.entries.some(row=>row.id==='decisive'),selection);
+  assert.ok(r.prompt.evidenceContract.represented.some(row=>row.sourceId==='care:decisive'),selection);
+ }
+});
+
+test('ordinary read layouts reject unsolicited JSON while explicit JSON remains supported', () => {
+ assert.deepEqual(historicalReadSchema({}).properties.layout.enum,['prose']);
+ for(const format of [null,'prose']) assert.equal(matchesHistoryOutputFormat('{"measurement":{"value":7.25,"unit":"kg"}}',format),false);
+ assert.equal(matchesHistoryOutputFormat('{"measurement":{"value":7.25,"unit":"kg"}}','json'),true);
+});
+
+
+test('past-present recovery never bypasses plan access or explicit as-of bounds', async t => {
+ clock(t);
+ const historyAccess={months:3,from:'2026-03-05T00:00:00.000Z',to:'2026-06-06T00:00:00.000Z'};
+ const r=await exercise('Was Aster using the same bedding in 2023 as now?',{fixturePets,messages:[],history:true,historyAccess,
+  rows:[care('old','milo','2023-05-03','general','Aster used a fleece mat.'),care('now','milo','2026-06-04','general','Aster currently uses a cotton mat.')],
+  interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['mat'],from:'2023-01-01',to:'2024-01-01'})});
+ assert.ok(!r.context.askHistory.entries.some(row=>row.id==='old'));
+ assert.ok(r.context.askHistory.entries.some(row=>row.id==='now'));
+ const p=validateAskRequest(proposal({operation:'comparison',from:null,to:'2024-01-01'}),{...context,currentMessage:'As of December 2023, was Aster using the same mat as earlier?'});
+ assert.equal(p.history.to,'2024-01-01T00:00:00.000Z');
+ assert.equal(p.history.from,null);
+});
+
+test('unsolicited JSON is repaired once and independently re-reviewed as prose', async t => {
+ clock(t);
+ const r=await exercise('What does the latest rest note say?',{fixturePets,messages:[],history:true,
+  rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],interpretationProposal:proposal(),
+  providerOverrides:{historyNarrative:{sentences:[{text:'{"observation":"Aster rested normally."}',sourceIds:['care:rest'],calculations:[]}]}},
+  expectedReviewCalls:3,reviewProviderResponse:async request=>{
+   const input=JSON.parse(request.input);
+   const payload=request.text.format.name==='furvise_history_repair' ? {readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
+    safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:rest'],
+    historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:rest'],calculations:[]}]}} :
+    {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null};
+   return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
+  }});
+ assert.equal(r.result.reasoning.answer.summary,'Aster rested normally.');
 });

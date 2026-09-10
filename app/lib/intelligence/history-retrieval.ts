@@ -128,11 +128,13 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // alone cannot expose synonyms, intervening reports or missing search terms.
     // Reserve separate candidate slots for distinct hints so common terms
     // cannot consume every slot before a rare, decisive middle-history record.
-    const diversify = context.askInterpretation?.request && !endpointComparison
-      && (eventTerms.length > 0 || !["latest", "earliest", "earliest_occurrence"].includes(context.askInterpretation.selection || "") && searchTerms.length > 1);
+    // Event facets and temporal presentation are independent. A generic summary
+    // label must not suppress searches for a decisive middle-history event.
+    const diversify = context.askInterpretation?.request
+      && (eventTerms.length > 0 || !endpointComparison && !["latest", "earliest", "earliest_occurrence"].includes(context.askInterpretation.selection || "") && searchTerms.length > 1);
     const termGroups = historySearchGroups(searchTerms, sharedRead ? context.currentMessage : "");
     const strategies = diversify
-      ? [...termGroups.map(terms => ({ descending, lexical: true, terms })), { descending, lexical: false, terms: searchTerms }]
+      ? [...termGroups.map(terms => ({ descending, lexical: true, terms })), { descending: endpointComparison || descending, lexical: false, terms: searchTerms }]
       : context.askInterpretation?.request && plan.terms.length
         ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
         : directions.map(descending => ({ descending, lexical: !!plan.terms.length, terms: searchTerms }));
@@ -243,7 +245,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
   const relevantIds = new Set(relevant.map(entry => entry.id));
   const eventRelevance = historyEventRelevance(matchingEntries.map(entry => `${entry.title || ""} ${entry.note}`),
-    endpointComparison ? [] : eventTerms);
+    eventTerms);
   const ordered = orderHistoryEvidence(matchingEntries, selection, entry => entry.occurred_at, entry => entry.id, entry => entry.pet_profile_id,
     selection === "earliest_occurrence" ? entry => relevantIds.has(entry.id) ? 0 : 1
       : context.askInterpretation?.request && (searchTerms.length || eventTerms.length) ? entry => {
