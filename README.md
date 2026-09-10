@@ -1,42 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Furvise
 
-## Getting Started
+Furvise is a Next.js App Router application for pet profiles, care history,
+contextual Ask conversations and printable Vet Briefs. Supabase owns identity
+and persisted data; Stripe owns subscription events; Redis supports abuse,
+concurrency and AI spending controls. Products currently shows a coming-soon
+screen, with catalogue APIs and ingestion tooling retained.
 
-First, run the development server:
+## Development
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Use Node 24 (`.nvmrc`) and npm with the committed `package-lock.json`.
+Install with `npm ci`. Configure a separate development environment using
+`.env.example`; keep real secrets out of Git. Read `AGENTS.md` and the installed
+Next.js guides under `node_modules/next/dist/docs/` before changing framework code.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm run dev` starts development. `npm run build` and `npm start` build and run
+production output locally. Ordinary builds do not upload Sentry artifacts
+unless explicitly enabled.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Verification
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The CI contract is `npm run lint`, `npm run typecheck`, `npm run test:security`,
+`npm test`, `npm audit --omit=dev --audit-level=high` and `npm run build`.
+`npm ls --all` also checks installation consistency. Follow the placeholder
+public environment setup in `.github/workflows/ci.yml` for isolated builds.
 
-## Regional Shop catalogue
+For offline tests, preload `scripts/audits/offline-network-guard.mjs` through
+`NODE_OPTIONS=--import=<absolute file URL to the guard>`. Use an absolute URL:
+some tests run child processes from temporary directories. The guard permits
+loopback fetches for mocked HTTP providers and rejects external fetches; it is
+not an operating-system network sandbox. Do not load live credentials.
+Scripts named `*.live.mjs` are separately invoked provider benchmarks, not the
+default offline suite.
 
-Shop searches use the authenticated `POST /api/shop/catalog` route and prefer published Supabase catalogue products. Results stay isolated to the account-selected CA or US market; offers from the other market are never substituted. If the catalogue request has a network/server failure or returns no usable products for that market, the existing country-eligible `static_real` catalogue is used as an explicit fallback. Mock products remain development-only and can never be selected in production.
+The optional local runner has nine Python unit tests:
+`python -m unittest test_runner.py -q` from `scripts/local-runner`.
+SQL and isolated browser checks have requirements beyond the Node test suite.
 
-Retailer feed synchronization, credentials, and automated offer refresh are separate Phase 2 work. Phase 1 displays price or availability only when an active, same-country published offer provides those values.
+## Database and operations
 
-## Learn More
+Apply the complete ordered `supabase/migrations/` history. `supabase/schema.sql`
+is a historical partial schema, not a fresh-install substitute. Keep existing
+data and migration-ledger parity when upgrading. Use isolated fixtures for
+validation, never production data.
 
-To learn more about Next.js, take a look at the following resources:
+See [deployment and rollback](docs/deployment-and-rollback.md),
+[production operations](docs/production-operations.md),
+[scheduled maintenance](docs/scheduled-maintenance.md),
+[billing sandbox](docs/billing-sandbox-e2e.md), and
+[catalogue ingestion](docs/product-ingestion.md).
+No scheduler is configured in the repository. Maintenance and ingestion
+commands are operator entry points and may mutate external systems when applied.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## V1 cleanup audit
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[Feature inventory](docs/v1-cleanup/feature-inventory.md),
+[audit and validation](docs/v1-cleanup/README.md), and the
+[complete file manifest](docs/v1-cleanup/file-classification.csv) record the
+cleanup scope, evidence, preserved features and outstanding decisions.
