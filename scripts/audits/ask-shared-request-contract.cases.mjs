@@ -220,7 +220,7 @@ for (const [from, to] of [[null, '2026-07-01'], ['2026-07-01', null], [null, nul
 });
 for (const patch of [{ from: '2026-02-30' }, { from: '2026-07-02', to: '2026-07-01' },
   { petNames: ['Foreign animal'] }, { terms: ['x; DROP TABLE'] }, { referenceTurnIds: ['invented'] },
-  { extra: 'untrusted' }, { operation: 'episode', ordinal: null }, { operation: 'recall', ordinal: 'second' },
+  { extra: 'untrusted' },
   { scope: 'none', petNames: ['Aster'] }, { scope: 'selected', petNames: ['Bramble'] }]) {
   test('reject invalid authority or metadata: ' + JSON.stringify(patch), () => assert.throws(() => validateAskRequest(proposal(patch), context)));
 }
@@ -887,7 +887,9 @@ test('measurement and duration quantities override a stale episode operation',()
  }
 });
 test('genuine episode requests still require a valid episode referent',()=>{
- assert.throws(()=>validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:null}),context),/episode_reference/);
+ const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:null}),{...context,currentMessage:'Tell me about that episode.'});
+ assert.equal(missing.readOperation,'clarify'); assert.equal(missing.ordinal,null);
+ assert.throws(()=>validateAskRequest(proposal({operation:'recall',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'}),/episode_reference/);
  const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),context);
  assert.equal(r.readOperation,'episode');assert.equal(r.ordinal,'second');
 });
@@ -1232,4 +1234,58 @@ test('need coverage records actual query hits without reinterpreting database ma
  assert.ok(run.context.askHistory.coverage.needs[0].candidateIds.includes('care:matched'));
  assert.ok(run.prompt.evidenceContract.needCoverage[0].pets[0].representedSourceIds.includes('care:matched'));
  assert.equal(run.prompt.evidenceContract.needCoverage[0].semanticSupport,'unverified');
+});
+
+test('ordinary history reads recover irrelevant episode routing without granting references', () => {
+ for (const question of ['What happened during Aster’s grooming in April 2022?', 'Does Aster’s January 2025 noise note establish how often that happens?']) {
+  for (const patch of [
+   {operation:'episode',quantity:null,selection:'period'},
+   {operation:'count',quantity:'episodes'},
+   {operation:'recall',ordinal:'that'},
+  ]) {
+   const parsed=validateAskRequest(proposal(patch),{...context,currentMessage:question});
+   assert.equal(parsed.operation,'recall');
+   assert.equal(parsed.ordinal,null);
+   assert.equal(parsed.episodeTopic,null);
+   assert.equal(parsed.readOnly,true);
+   assert.deepEqual(parsed.petIds,[fixturePets[0].id]);
+  }
+ }
+ const count=validateAskRequest(proposal({operation:'count',quantity:'episodes',episodeTopic:'vomiting'}),{...context,currentMessage:'How many vomiting episodes has Aster had?'});
+ assert.equal(count.operation,'count');
+ const unspecified=validateAskRequest(proposal({operation:'count',quantity:'episodes'}),{...context,currentMessage:'How many separate episodes has Aster had?'});
+ assert.equal(unspecified.operation,'count'); assert.equal(unspecified.episodeTopic,null);
+ const follow=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second',episodeTopic:'vomiting'}),{...context,currentMessage:'What happened in the second episode?'});
+ assert.equal(follow.operation,'episode'); assert.equal(follow.ordinal,'second');
+ const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes'}),{...context,currentMessage:'What happened in that episode?'});
+ assert.equal(missing.operation,'clarify');
+ assert.throws(()=>validateAskRequest(proposal({operation:'episode',petNames:['Foreign']}),context),/ownership/);
+});
+
+test('a middle-history month survives comparison retrieval among dense unrelated years', async t => {
+
+ clock(t);
+ const question='Was there more loose fur at Aster’s February 2023 brushing than the time before?';
+ const rows=Array.from({length:120},(_,i)=>care('noise-'+i,'milo',new Date(Date.UTC(2025,0,i+1)).toISOString().slice(0,10),'general','Aster had brushing and loose fur.'));
+ rows.push(care('anchor','milo','2023-02-18','general','Aster had a 6-minute brushing session. Morgan noted more loose fur than the previous session.'));
+ const p=proposal({operation:'comparison',selection:'comparison',terms:['brushing','loose fur'],evidenceNeeds:[
+  {quote:'Aster’s February 2023 brushing',sourceTurnId:null,terms:['brushing','loose fur'],petNames:['Aster'],order:'latest'},
+  {quote:'the time before',sourceTurnId:null,terms:['brushing','previous'],petNames:['Aster'],order:'earliest'},
+ ]});
+ const r=await exercise(question,{fixturePets,rows,messages:[],history:true,interpretationProposal:p});
+ assert.ok(r.context.askHistory.entries.some(e=>e.id==='anchor'));
+ assert.ok(r.context.askHistory.coverage.targets.some(target=>target.day==='2023-02'&&target.retainedIds.includes('care:anchor')));
+ assert.ok(r.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+});
+
+test('a note-frequency question reaches ordinary evidence rather than an unrelated episode clarification', async t => {
+ clock(t);
+ const question='Does Aster’s January 2025 noise note establish how often that happens?';
+ const r=await exercise(question,{fixturePets,messages:[],history:true,
+  rows:[care('noise-note','milo','2025-01-21','general','Aster rested in a quieter room. Frequency outside this observation was not established.')],
+  interpretationProposal:proposal({operation:'count',quantity:'episodes',episodeTopic:null,terms:['noise']}),
+ });
+ assert.equal(r.context.askInterpretation.operation,'recall');
+ assert.equal(r.context.episodeResult,undefined);
+ assert.ok(r.context.askHistory.entries.some(e=>e.id==='noise-note'));
 });
