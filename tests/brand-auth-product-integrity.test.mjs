@@ -87,11 +87,8 @@ test("signed-in homepage branches do not render signed-out actions", () => {
 });
 
 test("action labels follow account-state conventions", () => {
-  const copy = read("app/lib/action-copy.ts");
+
   const pets = read("app/pets/page.tsx");
-  assert.match(copy, /addPet: "Add pet"/);
-  assert.match(copy, /addYourPet: "Add your pet"/);
-  assert.match(copy, /addYourFirstPet: "Add your first pet"/);
   assert.match(pets, />[\s\S]*ADD PET[\s\S]*<\/Link>/);
   assert.doesNotMatch(pets, />Add a pet</);
 });

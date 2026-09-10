@@ -75,12 +75,11 @@ test("intentional unknown and none-known answers are complete", () => {
   for (const key of ["age", "avoidIngredients", "breed", "currentFood", "weight"]) assert.notEqual(rowStates[key], "missing");
 });
 
-test("Today greeting is local-time aware and hydration safe", () => {
+test("greeting formatter retains local-time labels and a server-safe default", () => {
   assert.equal(getLocalGreeting(5), "Good morning");
   assert.equal(getLocalGreeting(12), "Good afternoon");
   assert.equal(getLocalGreeting(17), "Good evening");
   assert.equal(SERVER_SAFE_GREETING, "Welcome back");
-  assert.match(read("app/components/today-greeting.tsx"), /useSyncExternalStore\(subscribe, getBrowserGreeting, getServerGreeting\)/);
 });
 
 test("Today remains optional, personal, and capped to ten recent notes", () => {

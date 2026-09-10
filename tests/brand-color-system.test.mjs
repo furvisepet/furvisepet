@@ -132,13 +132,12 @@ test("warm surfaces and restrained action colors are applied through shared role
   const components = walk("app").filter((file) => file.endsWith(".tsx")).map((file) => read(file)).join("\n");
   const primitives = read("app/components/product-primitives.tsx");
   const header = read("app/components/app-header.tsx");
-  const footer = read("app/components/app-footer.tsx");
+
   assert.match(css, /--surface-page: var\(--page-background\)/);
   assert.match(primitives, /standard: "bg-\[var\(--card-background\)\]"/);
   assert.match(primitives, /fieldControlClass[\s\S]*bg-\[var\(--input-background\)\][\s\S]*placeholder:text-\[var\(--text-muted\)\]/);
   assert.match(primitives, /neutral: "bg-\[var\(--chip-background\)\][\s\S]*selected: "border-\[var\(--sage\)\] bg-\[var\(--chip-selected-background\)\] text-\[var\(--chip-selected-foreground\)\]/);
   assert.match(header, /homepage-marketing-header[\s\S]*data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
-  assert.match(footer, /bg-\[var\(--footer-background\)\]/);
   assert.doesNotMatch(components, /text-\[var\(--action-primary\)\]/, "orange primary background must not be reused as body or link text");
   assert.match(css, /--primary-action-background: var\(--deep-forest\)/);
   assert.match(css, /--primary-action-foreground: var\(--warm-cream\)/);

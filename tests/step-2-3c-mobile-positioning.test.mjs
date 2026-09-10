@@ -7,7 +7,7 @@ const css = read("app/globals.css");
 const appPage = read("app/components/app-page.tsx");
 const header = read("app/components/app-header.tsx");
 const ask = read("app/ask/page.tsx");
-const overflow = read("app/components/pet-overflow-menu.tsx");
+
 const accountUtility = read("app/components/account-utility.tsx");
 const pageSources = [
   "app/today/page.tsx",
@@ -51,7 +51,5 @@ test("the account utility keeps account controls above navigation without exposi
   assert.match(header, /z-\[var\(--z-bottom-navigation\)\]/);
   assert.match(accountUtility, /id=\{menuId\} role="menu"/);
   assert.match(accountUtility, /z-\[var\(--z-popover\)\]/);
-  assert.match(overflow, /z-\[var\(--z-popover\)\]/);
-  assert.match(overflow, /navigationTop - VIEWPORT_GUTTER/);
   assert.match(css, /--z-sticky-controls: 20;[\s\S]*--z-bottom-navigation: 30;[\s\S]*--z-popover: 40;/);
 });

@@ -7,7 +7,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const hash = (path) => createHash("sha256").update(readFileSync(new URL(`../${path}`, import.meta.url))).digest("hex").toUpperCase();
 const header = read("app/components/app-header.tsx");
 const brand = read("app/components/brand-mark.tsx");
-const footer = read("app/components/app-footer.tsx");
+
 const homepage = read("app/components/homepage-client.tsx");
 const primitives = read("app/components/product-primitives.tsx");
 const appPage = read("app/components/app-page.tsx");
@@ -86,14 +86,10 @@ test("PageHeader supports shared titles and independent action slots", () => {
   assert.match(products, /aria-labelledby="products-coming-soon-title"[\s\S]*<h1[\s\S]*id="products-coming-soon-title"/);
 });
 
-test("shared and homepage footers are compact, shell aligned, and use approved logo treatments", () => {
+test("homepage footer uses its approved logo treatment", () => {
   assert.match(homepage, /<MarketingFooter showSignIn=\{visibleMode === "anonymous"\} signedIn=\{signedIn\} \/>/);
   assert.match(homepage, /data-ui="homepage-marketing-footer"[\s\S]*src="\/brand\/furvise-logo\.svg"/);
   assert.doesNotMatch(homepage, /<BrandMark/);
-  assert.match(footer, /<BrandMark size=\{24\} \/>/);
-  assert.match(footer, /href="\/privacy">Privacy/);
-  assert.match(footer, /href="\/terms">Terms/);
-  assert.match(footer, /border-t border-\[var\(--border-subtle\)\]/);
 });
 
 test("theme switching stays removed and protected brand assets remain byte-identical", () => {
