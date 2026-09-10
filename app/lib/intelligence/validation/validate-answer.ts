@@ -1,4 +1,6 @@
-import type { ObligationCompletion } from "../history-obligations.ts";
+import { buildHistoryObligations, type ObligationCompletion } from "../history-obligations.ts";
+import { createAnswerAssessment, type AnswerAssessment } from "../answer-assessment.ts";
+import { readHistoryReviewDiagnostic } from "../history-review-diagnostic.ts";
 import { mapAskProse, askProseOnly } from "../../ask-text-blocks.ts";
 import { preserveFictionalDialogueQuotes, stripOptionalAssistantOffers } from "../../application-actions/state-claims.ts";
 import { safetyTemporalScope } from "../../ai/safety-temporal-scope.ts";
@@ -22,6 +24,8 @@ export type AnswerValidationResult = {
   errors: string[];
   qualityWarnings: string[];
   completion?: ObligationCompletion[];
+  /** valid means safe to deliver; assessment establishes completeness. */
+  assessment: AnswerAssessment;
 };
 export function validateGeneratedAnswer(
   result: AskReasoningResult,
@@ -203,7 +207,7 @@ export function validateGeneratedAnswer(
   if (!reviewedHistory && !resolution && !context.episodeResult && scopedAnswer && response.evidenceContract?.interpretation) {
     // Restore complete attributed source text after prose rewriting, retaining
     // the independent safety directive. Never reuse rejected model prose.
-    response.answer = { title: "Furvise", summary: scopedAnswer, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
+    response.answer = { title: "Furvise", summary: (response.evidenceContract.interpretation.request ? "I could not verify a complete answer to your question. Any requested calculations remain unverified. Here are the relevant saved excerpts:\n\n" : "") + scopedAnswer, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
     repairs.push("grounded_history_in_source_reports");
   }
   if (reviewedHistory?.sourceReports?.length) {
@@ -253,12 +257,33 @@ export function validateGeneratedAnswer(
     if (/\b(?:I saved|I added|stack trace|requestId|Supabase|context id|internal classifier)\b/i.test(prose)) errors.push("unsafe_content_remaining");
     return prose;
   });
+  const finalReviewMatches = Boolean(reviewedHistory && response.answer.summary === (reviewedHistory.proseText || reviewedHistory.text)
+    && response.answer.sections.length === 0 && !response.answer.safetyNote && !reviewedHistory.sourceReports?.length);
+  const obligationChecks = finalReviewMatches ? reviewedHistory?.completion : undefined;
+  const historyTask = Boolean(response.evidenceContract?.interpretation?.request && response.evidenceContract.history && !currentEmergency);
+  const fallbackUsed = historyTask && repairs.includes("grounded_history_in_source_reports") && !finalReviewMatches;
+  const diagnostic = readHistoryReviewDiagnostic(result);
+  const assessment = createAnswerAssessment({
+    body: response.answer, evidence: response.evidenceContract || null, unsafe: errors.length > 0,
+    reasons: [...errors, ...(diagnostic ? [diagnostic.reason] : []),
+      ...(fallbackUsed ? ["source_fallback_does_not_certify_task_completion"] : []),
+      ...(reviewedHistory && !finalReviewMatches ? ["reviewed_body_changed"] : [])],
+    checks: {
+      structuralValidity: response.answer.summary ? "passed" : "failed",
+      evidenceSupport: finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
+      subjectDateCorrectness: unauthorizedPetNamed ? "failed" : finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
+      calculationCorrectness: finalReviewMatches ? "passed" : "not_evaluated",
+      taskCompletion: obligationChecks?.length && obligationChecks.every(c => c.status !== "missing") ? "passed"
+        : fallbackUsed ? "failed" : "not_evaluated",
+    },
+  });
+  const completion = obligationChecks || (fallbackUsed && response.evidenceContract
+    ? buildHistoryObligations(response.evidenceContract).map(o => ({ index: o.index, ...(o.petId ? {petId:o.petId} : {}),
+      status: "missing" as const, sentenceIndexes: [], sourceIds: [] })) : undefined);
   return {
-    response,
-    ...(errors.length === 0 && reviewedHistory?.completion
-      && response.answer.summary === (reviewedHistory.proseText || reviewedHistory.text)
-      ? { completion: structuredClone(reviewedHistory.completion) } : {}),
-    valid: errors.length === 0,
+    response, assessment,
+    ...(completion ? {completion: structuredClone(completion)} : {}),
+    valid: errors.length === 0 && assessment.outcome !== "failed",
     repairs: [...new Set(repairs)],
     errors,
     qualityWarnings: [...new Set(qualityWarnings)],

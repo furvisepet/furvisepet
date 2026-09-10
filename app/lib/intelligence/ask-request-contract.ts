@@ -1,3 +1,4 @@
+import { readProjectionSchema, parseReadProjection, type ReadProjection } from "./read-projection.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
@@ -25,6 +26,7 @@ export type AskRequestContract = {
   mode: typeof modes[number];
   question: string;
   requirements: string[];
+  projection?: ReadProjection | null;
   evidenceNeeds?: EvidenceNeed[];
   evidenceNeedIssues?: string[];
   evidenceBasis?: "saved_history" | "supplied_context" | "general" | null;
@@ -35,8 +37,9 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object) {
   return { type: "object", additionalProperties: false,
-    required: ["version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
+      projection: readProjectionSchema,
       evidenceNeeds: evidenceNeedsSchema,
       version: { type: "string", enum: [ASK_REQUEST_VERSION] }, mode: { type: "string", enum: modes },
       question: { type: "string", minLength: 1, maxLength: 1600 }, requirements: strings(8, 240), referenceTurnIds: strings(8, 160),
@@ -53,6 +56,7 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "projection is an optional typed execution proposal, never evidence. For a table/CSV consisting ONLY of pet names and recorded body mass, set projection with exact requested nameHeader/valueHeader, quantity body_mass, canonical requested unit kg/g/mg/lb and requested order. Otherwise set null. It supplies no measurements and authorizes no facts; the server can compute conversions, sort and render verified records. Additional narrative, medical conclusions, arithmetic across pets, ambiguous fields or additional columns require null. Independent review still checks the original whole question.",
   "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. Include the local date or period in each exact quote when it belongs to that requested fact; do not collapse differently dated facts into an undated keyword. petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
   "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
   "premiseQuotes contains verbatim factual premises from current or prior USER text only when evidenceBasis is supplied_context. Questions, output labels, requested column names and formatting instructions are NOT supplied facts. If the required values were not supplied and belong to an owned pet, choose saved_history and retrieve them, even for a one-line or structured answer. Use [] for saved_history/general. Never quote an instruction or question as if it supplied a missing value.",
@@ -74,7 +78,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
+  const p = { projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -145,7 +149,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // A selected conversation container is not a cohort-search constraint. Resolve
   // explicit scope language before allocating bounded evidence across profiles.
   const cohortRequested = /\b(?:all|each|every|other|both|three|two|across|among)\b[^.!?]{0,35}\b(?:pets?|dogs?|cats?|animals?)\b|\b(?:which|whose)\s+(?:(?:of|the|my|our)\s+)*(?:pets?|dogs?|cats?|animals?)\b|\bname\s+the\s+(?:pet|dog|cat|animal)\b/i.test(context.currentMessage);
-  if (["read", "clarify"].includes(String(p.mode)) && cohortRequested && !explicitPets.length) {
+  if (["read", "clarify"].includes(String(p.mode)) && cohortRequested && !explicitPets.length && !anchor) {
     p.scope = "account"; p.mode = "read"; petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id);
     if (p.operation === "clarify") p.operation = "recall";
   } else if (p.mode === "read" && p.scope === "account" && explicitPets.length && !cohortRequested) {
@@ -267,6 +271,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     ? validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns, p.referenceTurnIds, owned.filter(pet => petIds.includes(pet.id)))
     : { needs: [], issues: [] };
   const request: AskRequestContract = {
+    projection: historical && readOnly ? parseReadProjection(p.projection) : null,
     ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs } : {}),
     ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}), version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
     evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question as string, requirements: p.requirements as string[], referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };

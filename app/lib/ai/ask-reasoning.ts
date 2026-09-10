@@ -2,6 +2,7 @@ import { evidenceRemovalCost } from "../intelligence/evidence-need-coverage.ts";
 import { withProviderDeadline } from "./provider-deadline.ts";
 import { stripKnownHistoryCitations } from "../intelligence/public-history-text.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
+import { deterministicReadProjection } from "../intelligence/read-projection.ts";
 import { directHistoryTimelineAnswer } from "../intelligence/direct-history-timeline.ts";
 import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
@@ -625,15 +626,17 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   const context = buildAskContext(input);
   const directTimeline = context.minimumSafetyLevel === "normal"
     ? directHistoryTimelineAnswer(context.promptContext.evidenceContract) : null;
-  if (directTimeline) {
+  const projection = context.minimumSafetyLevel === "normal" ? deterministicReadProjection(context.promptContext.evidenceContract) : null;
+  if (directTimeline || projection) {
     const evidence = context.promptContext.evidenceContract;
-    const ids = evidence.answerSourceIds || [];
+    const ids = projection ? [...new Set(projection.sentences.flatMap(s=>s.sourceIds))] : evidence.answerSourceIds || [];
     return {
-      answer: {title:"Furvise",summary:directTimeline,sections:[],safetyNote:null}, evidenceContract:evidence,
+      answer: {title:"Furvise",summary:projection ? projection.sentences.map(s=>s.text).join("\n") : directTimeline!,sections:[],safetyNote:null}, evidenceContract:evidence,
+      ...(projection ? {historyNarrative:projection,historyNarrativeDeclined:false} : {}),
       userIntent:"history recall",relevantContextIds:ids,referencedRecords:context.records.filter(record=>ids.includes(record.id)),
       safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
       answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
-      responseMode:"practical_guidance",model:"server-history-timeline",
+      responseMode:"practical_guidance",model:projection ? "server-read-projection" : "server-history-timeline",
       messageUnderstanding:{...defaultMessageUnderstanding(input.question),primaryIntent:"question",userIsAskingQuestion:true},
       intelligenceSafety:{...defaultIntelligenceSafety("normal"),shoppingSuppressed:true},
       learnings:[],careActions:[],semanticEvents:[],semanticFrame:emptyProposedSemanticFrame(),semanticFrameValid:true,
@@ -1314,8 +1317,11 @@ function isRepairableStructuredOutput(error: AskPipelineError) {
 }
 
 async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number, onAttempt?: () => void) {
+  const format = request.text as { format?: { schema?: { properties?: Record<string, unknown> } } } | undefined;
+  const reserveMs = format?.format?.schema?.properties?.readVersion ? 8_000 : 0;
   return executeAdmittedProviderCall({
-    invoke: () => withProviderDeadline(signal => { onAttempt?.(); return client.responses.create(request, { signal }); }, boundedProviderTimeout(timeoutMs)),
+    reserveMs,
+    invoke: () => withProviderDeadline(signal => { onAttempt?.(); return client.responses.create(request, { signal }); }, boundedProviderTimeout(timeoutMs, reserveMs)),
     maxOutputTokens: typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0,
     model: typeof request.model === "string" ? request.model : "",
     providerInput: { input: request.input, instructions: request.instructions },
@@ -1332,7 +1338,7 @@ function providerDiagnostics(error: unknown) {
     providerStatus: typeof value?.status === "number" ? value.status : null,
     providerErrorType: typeof value?.type === "string" ? value.type : errorName,
     providerErrorCode: typeof value?.code === "string" ? value.code : "",
-    timedOut: /Abort|Timeout/i.test(errorName) || value?.code === "ABORT_ERR",
+    timedOut: /Abort|Timeout|StageDeadline/i.test(errorName) || value?.code === "ABORT_ERR",
     ...(Number.isFinite(parsedRetryAfterMs) ? { retryAfterMs: parsedRetryAfterMs } : {}),
   };
 }
