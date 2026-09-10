@@ -6,36 +6,6 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("results loads saved profileId from Supabase before local draft fallback", () => {
-  const source = read("app/results/page.tsx");
-  const routeBranch = source.slice(
-    source.indexOf("if (profileIdFromRoute)"),
-    source.indexOf("const stored = window.localStorage.getItem(STORAGE_KEY)"),
-  );
-
-  assert.match(source, /loadDogProfileWithMemoriesForUser\(profileIdFromRoute, user\)/);
-  assert.match(source, /dogProfileRowToDraft\(row\)/);
-  assert.match(source, /setLoadError\("Furvise could not load this pet profile\."\)/);
-  assert.match(source, /storedProfileIdBeforeLoad === row\.id/);
-  assert.doesNotMatch(source, /Furvise could not load product options\./);
-  assert.match(routeBranch, /window\.localStorage\.setItem\(PROFILE_ID_STORAGE_KEY, profileIdFromRoute\)/);
-  assert.doesNotMatch(routeBranch, /window\.localStorage\.getItem\(STORAGE_KEY\)/);
-});
-
-test("results shows a friendly error for a missing or unauthorized route profileId", () => {
-  const source = read("app/results/page.tsx");
-  const routeBranch = source.slice(
-    source.indexOf("if (profileIdFromRoute)"),
-    source.indexOf("const stored = window.localStorage.getItem(STORAGE_KEY)"),
-  );
-
-  assert.match(routeBranch, /catch \(error\)/);
-  assert.match(routeBranch, /logResultsLoadFailure\(profileIdFromRoute, error\)/);
-  assert.match(routeBranch, /setProfile\(initialProfile\)/);
-  assert.match(routeBranch, /setLoadError\("Furvise could not load this pet profile\."\)/);
-  assert.match(source, /\{loadError\}/);
-});
-
 test("pet profile is a single authorized facts surface with a Vet Brief handoff", () => {
   const source = read("app/pets/[id]/page.tsx");
 

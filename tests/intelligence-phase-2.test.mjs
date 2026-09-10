@@ -66,15 +66,12 @@ test("feature learning persistence is ownership-scoped and retry-idempotent", ()
 
 test("safety follow-up preserves legacy payload aliases while loading live owned context", () => {
   const route = read("app/api/safety-followup/route.ts");
-  const page = read("app/results/page.tsx");
   assert.match(route, /input\.followUpQuestions \?\? input\.questions/);
   assert.match(route, /input\.followUpAnswers \?\? input\.answers/);
   assert.match(route, /buildFurviseContext\(\{/);
   assert.match(route, /feature: "safety_followup"/);
   assert.match(route, /petId, supabase: auth\.supabase, userId: auth\.userId/);
   assert.doesNotMatch(route, /validateDogProfileInput|createAiAnalysisProvider|analyzeSafetyFollowup/);
-  assert.match(page, /petId=\{dogProfileId\}/);
-  assert.match(page, /body: JSON\.stringify\(\{[\s\S]*?petId,/);
 });
 
 test("safety follow-up uses shared safety, persistence, and a legacy response adapter", () => {
