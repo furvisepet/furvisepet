@@ -1223,3 +1223,13 @@ test('need candidates survive verbose routine evidence without exceeding the pro
  assert.ok(run.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
  assert.ok(run.context.askHistory.coverage.candidateIds.length<=64);
 });
+
+test('need coverage records actual query hits without reinterpreting database matching',async t=>{
+ clock(t);
+ const row=care('matched','milo','2024-04-17','general','The owner reported a dietary transition.');
+ const run=await exercise('Explain Aster’s food change.',{fixturePets,messages:[],history:true,rows:[row],candidateRowsOverride:[row],
+  interpretationProposal:proposal({terms:['food'],evidenceNeeds:[{quote:'food change',sourceTurnId:null,terms:['food']}]})});
+ assert.ok(run.context.askHistory.coverage.needs[0].candidateIds.includes('care:matched'));
+ assert.ok(run.prompt.evidenceContract.needCoverage[0].pets[0].representedSourceIds.includes('care:matched'));
+ assert.equal(run.prompt.evidenceContract.needCoverage[0].semanticSupport,'unverified');
+});

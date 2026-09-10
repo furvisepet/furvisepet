@@ -155,6 +155,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     for (const [strategyIndex, { descending: readDescending, lexical, terms, from, to, target, needId }] of strategies.entries()) {
       let cursor: Cursor | null = null; let traversalExhausted = false;
       const rows: CareEntryRow[] = [];
+      const matchedIds = new Set<string>();
       const priorIds = new Set(collected.map(row => row.id));
       // Empty and overlapping strategies return unused capacity to the remaining
       // searches. Total distinct candidates and page limits stay unchanged.
@@ -201,6 +202,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
             const advance = cursor ? compareHistoryTime(next.occurredAt, cursor.occurredAt) || next.id.localeCompare(cursor.id) : 0;
             if (cursor && (readDescending ? advance >= 0 : advance <= 0)) throw new Error("non_advancing_history_cursor");
             cursor = next;
+            if (needId) matchedIds.add(`care:${row.id}`);
             if (!priorIds.has(row.id)) rows.push(row);
             else {
               // A duplicate must still match the earlier source version.
@@ -221,7 +223,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       if (!traversalExhausted && cursor) coverage.continuation.push(cursor);
       exhausted = exhausted && traversalExhausted;
       if (needId) coverage.needs.push({ petId, needId,
-        candidateIds: [...collected, ...rows].filter(row => terms.some(term => `${row.title || ""} ${row.note}`.toLowerCase().includes(term.toLowerCase()))).map(row => `care:${row.id}`),
+        candidateIds: [...matchedIds],
         exhausted: traversalExhausted, status: failed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
       if (target) coverage.targets.push({ petId, day: target, candidateIds: rows.map(row => `care:${row.id}`), retainedIds: [],
         exhausted: traversalExhausted, status: failed ? "unavailable" : traversalExhausted ? "unknown" : "partial" });
@@ -300,8 +302,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const targetGroups = (coverage.targets || []).map(target => ordered.filter(entry =>
     entry.pet_profile_id === target.petId && entry.occurred_at?.slice(0, 10) === target.day));
   const needGroups = (context.askInterpretation?.request?.evidenceNeeds || []).flatMap(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId =>
-    ordered.filter(entry => entry.pet_profile_id === petId && need.terms.some(term =>
-      `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase()))).sort((a, b) =>
+    ordered.filter(entry => entry.pet_profile_id === petId && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
+      `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))).sort((a, b) =>
       need.order === "earliest" ? compareHistoryTime(a.occurred_at, b.occurred_at)
         : need.order === "latest" ? compareHistoryTime(b.occurred_at, a.occurred_at) : 0)));
   const priorityGroups = [...targetGroups, ...needGroups];
