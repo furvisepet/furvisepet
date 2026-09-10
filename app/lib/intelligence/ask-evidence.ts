@@ -417,7 +417,7 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     });
     if (sentences.length) {
       const date = selected[0].occurredAt?.slice(0, 10) || "an unknown date";
-      const lead = sharedRequest ? `I couldn't verify a complete answer to the request. Here are ${omittedFallbackReports ? "three sample source excerpts" : "the source excerpts"} for ${petName}${omittedFallbackReports ? "; additional matching records are not displayed" : ""}: `
+      const lead = sharedRequest ? `A few saved notes for ${petName}${omittedFallbackReports ? " (there are other notes too)" : ""}:\n\n`
         : unresolvedCorrection ? `${petName} has these saved reports, with correction uncertainty noted below. `
         : boundaryBlocked ? `I could verify this dated history for ${petName}, but could not establish the ${selection === "latest" ? "latest" : "earliest"} matching report because some candidates could not be checked. `
         : occurrenceUncertain ? `I found matching reports for ${petName}, but could not identify a supported first occurrence from them. `

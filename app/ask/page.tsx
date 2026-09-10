@@ -743,6 +743,15 @@ function shouldShowAnswerHeading(title: string) {
 
 function AdaptiveSections({ answerType, sections }: { answerType: AnswerType; sections: StructuredResponse["sections"] }) {
   if (!sections.length) return null;
+  const savedNotes = sections.filter(section => section.heading === "Saved notes");
+  if (savedNotes.length) return <>
+    <AdaptiveSections answerType={answerType} sections={sections.filter(section => section.heading !== "Saved notes")} />
+    <details className="mt-4 border-t border-[var(--assistant-response-border)] pt-3" data-ui="saved-note-details">
+      <summary className="cursor-pointer text-sm font-semibold text-[var(--assistant-response-accent)] focus-visible:outline-2 focus-visible:outline-offset-4">View saved notes</summary>
+      <p className="mt-2 text-sm text-[var(--text-secondary)]">Original wording from the notes, not a complete answer.</p>
+      <div className="mt-3 space-y-3">{savedNotes.flatMap(section => section.items).map((item, index) => <AskAnswerText key={index} text={item} />)}</div>
+    </details>
+  </>;
   if (answerType === "care_plan") return <div className="mt-3 divide-y divide-[var(--assistant-response-border)] border-t border-[var(--assistant-response-border)]">{sections.map((section) => <section className="py-2.5 sm:py-3 last:pb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ol className="mt-1.5 list-decimal space-y-1.5 pl-6 leading-7 text-[var(--pw-text)] sm:space-y-2">{section.items.map((item, index) => <li className="pl-1" key={`${index}-${item}`}>{item}</li>)}</ol></section>)}</div>;
   if (answerType === "history_summary") return <div className="mt-5 border-l-2 border-[var(--assistant-response-accent)] pl-5">{sections.map((section) => <section className="mb-5 last:mb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-2 space-y-2 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li key={item}>{item}</li>)}</ul></section>)}</div>;
   return <div className="mt-3 divide-y divide-[var(--assistant-response-border)] border-t border-[var(--assistant-response-border)]">{sections.map((section) => <section className="min-w-0 py-2.5 sm:py-3 last:pb-0" key={section.heading}><h3 className={sectionHeading}>{section.heading}</h3><ul className="mt-1.5 space-y-1.5 leading-7 text-[var(--pw-text)]">{section.items.map((item) => <li className="flex gap-2.5" key={item}><span aria-hidden="true" className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--assistant-response-accent)]" /><span className="min-w-0 [overflow-wrap:anywhere]">{item}</span></li>)}</ul></section>)}</div>;

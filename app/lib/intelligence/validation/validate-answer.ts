@@ -1,3 +1,4 @@
+import { historyFallbackPresentation } from "../history-fallback-presentation.ts";
 import { buildHistoryObligations, type ObligationCompletion } from "../history-obligations.ts";
 import { createAnswerAssessment, type AnswerAssessment } from "../answer-assessment.ts";
 import { readHistoryReviewDiagnostic } from "../history-review-diagnostic.ts";
@@ -207,7 +208,7 @@ export function validateGeneratedAnswer(
   if (!reviewedHistory && !resolution && !context.episodeResult && scopedAnswer && response.evidenceContract?.interpretation) {
     // Restore complete attributed source text after prose rewriting, retaining
     // the independent safety directive. Never reuse rejected model prose.
-    response.answer = { title: "Furvise", summary: (response.evidenceContract.interpretation.request ? "I could not verify a complete answer to your question. Any requested calculations remain unverified. Here are the relevant saved excerpts:\n\n" : "") + scopedAnswer, sections: [], safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
+    response.answer = { title: "Furvise", ...historyFallbackPresentation(response.evidenceContract, scopedAnswer), safetyNote: urgent ? "Contact an emergency veterinarian now." : null };
     repairs.push("grounded_history_in_source_reports");
   }
   if (reviewedHistory?.sourceReports?.length) {
