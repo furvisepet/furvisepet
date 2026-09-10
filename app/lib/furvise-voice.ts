@@ -1,3 +1,6 @@
+/** Furvise voice, language and response-depth instructions. */
+import { mapAskProse } from "./furvise-output.ts";
+
 export const FURVISE_WRITING_PRINCIPLES = [
   "Direct first: answer the actual question in the first sentence.",
   "Efficient, not merely short: use the shortest answer that fully helps the owner make a decision.",
@@ -54,83 +57,26 @@ export const FURVISE_RESULTS_PROMPT_RULES = [
   "Keep each structured summary concise, but include enough explanation to make it useful. Avoid report language that does not help the pet owner.",
 ] as const;
 
-export const FURVISE_PRODUCT_USAGE_CAP_MESSAGE =
-  "You have used this month's AI credits. Product browsing and matching are still available.";
+/** Shared by everyday answers, historical reads and repairs. Voice cannot
+ * change evidence, uncertainty, requested formats or the safety boundary. */
+export const companionVoiceInstructions = [
+  "Speak as Furvise, a warm, attentive companion helping someone care for their pet. Use everyday words, contractions and short connected paragraphs. Be natural and direct, without pet puns, forced cheerfulness or repetitive apologies.",
+  "Answer the question first. For a history summary, tell the supported story: meaningful changes, care and relevant recent information. Do not substitute a chronological dump of notes. A broad summary needs useful highlights, not every entry. If coverage is partial, say that briefly without implying there are no other records.",
+  "Keep internal language out of your own prose: do not discuss source excerpts, verification, evidence budgets, retrieval, validators or clinical interpretation. Prefer 'the notes don't say why' to 'causation was not established'. Mention a missing detail only when it matters to this question. Never mention calculations unless the user asked for them.",
+  "Do not copy record titles, import labels or test scaffolding into a summary. Preserve material facts and uncertainty, including fictional or synthetic status when relevant. Never turn a record into a health judgment or imply a current condition from an old note.",
+  "Use no em dashes in your own prose. Prefer short sentences and ordinary punctuation. Preserve exact quotations, names, dates, units, negations and requested CSV/JSON/table content. Calm, brief safety guidance takes priority when needed."
+].join("\n");
 
-export const FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE =
-  "Product guidance is temporarily unavailable, but you can still search the catalog.";
-
-export const FURVISE_ANSWER_UNAVAILABLE_MESSAGE =
-  "Furvise couldn't answer just now. Your question has not been lost.";
-
-export const FURVISE_ASK_UNAVAILABLE_MESSAGE =
-  "Ask Furvise is temporarily unavailable. Please try again.";
-
-export const FURVISE_MISSING_PRODUCT_DETAILS_MESSAGE =
-  "The full product details are not available yet, so check the label before buying or using it.";
-
-export const FURVISE_MISSING_INGREDIENTS_MESSAGE =
-  "The full ingredient list is not available yet, so check the package before buying.";
-
-export const FURVISE_MISSING_PRICE_MESSAGE =
-  "Check the retailer for the latest price.";
-
-export const FURVISE_MISSING_AVAILABILITY_MESSAGE =
-  "Check the retailer for current availability.";
-
-export const FURVISE_MISSING_RETAILER_LINK_MESSAGE =
-  "A current retailer link is not available yet.";
-
-export const FURVISE_SEARCH_FALLBACK_MESSAGE =
-  "I could not fully understand that search, so I looked through the catalog using the words you typed.";
-
-export const FURVISE_URGENT_SAFETY_MESSAGE =
-  "This sounds more important than choosing a product. Contact a veterinarian or emergency clinic now.";
-
-export function buildFurviseSafetyLine(petName = "your pet") {
-  const subject = cleanPetName(petName) || "your pet";
-  return `Based on what you've saved about ${subject}. Not a substitute for veterinary or professional advice.`;
-}
-
-export function buildMissingSavedInformationMessage(petName = "your pet", subject = "that") {
-  const name = cleanPetName(petName) || "your pet";
-  const detail = String(subject || "that").trim() || "that";
-  return `You have not saved anything about ${detail} for ${name} yet.`;
-}
-
-export function buildNoSafeProductMatchMessage(petName = "your pet") {
-  const name = cleanPetName(petName) || "your pet";
-  const details = name === "your pet" ? "your pet's details" : `${name}'s details`;
-  return `I could not find a product that fits this search, ${details}, and your product country.`;
-}
-
-export function buildFurviseClarification(candidateNames: string[]) {
-  const names = [...new Set(candidateNames.map(cleanPetName).filter(Boolean))].slice(0, 4);
-  if (names.length < 2) return "I want to make sure I follow the right pet or animal. Who do you mean?";
-  if (names.length === 2) return `Do you mean ${names[0]} or ${names[1]}?`;
-  return `Do you mean ${names.slice(0, -1).join(", ")}, or ${names.at(-1)}?`;
-}
-
-export function buildFurviseCorrectionConfirmation(detail: string) {
-  return `Thanks for correcting that. ${String(detail || "I'll use the corrected detail from here.").trim()}`;
-}
-
-export function buildFurvisePreferenceConfirmation(detail: string) {
-  return `Got it. ${String(detail || "I'll use that preference from here.").trim()}`;
-}
-
-export function buildFurviseActionConfirmation(detail: string) {
-  return `${String(detail || "That change is ready for your confirmation.").trim()} Nothing changes until you confirm it.`;
-}
-
-export function buildFurviseQuotaMessage() {
-  return "You've reached your Ask allowance for now. Your pet profiles and saved care history are still available.";
-}
-
-export function buildFurviseUnavailableMessage() {
-  return "Furvise couldn't finish that answer just now. Your question is still here, so you can try again safely.";
-}
-
-function cleanPetName(value: string) {
-  return String(value || "").replace(/\s+/g, " ").trim();
+/** Punctuation is normalized BEFORE factual review, never after its receipt.
+ * Quoted words and fenced blocks remain unchanged. No semantic rewriting. */
+export function normalizeCompanionProse(value: string): string {
+  return mapAskProse(value, prose => {
+    const quote = /"(?:\\.|[^"\\])*"|“[^”]*”|(?<!\w)'[^'\n]+'(?!\w)|‘[^’]*’/g;
+    let end = 0, result = "";
+    for (const match of prose.matchAll(quote)) {
+      result += prose.slice(end, match.index).replace(/\s*\u2014\s*/g, ", ") + match[0];
+      end = match.index! + match[0].length;
+    }
+    return result + prose.slice(end).replace(/\s*\u2014\s*/g, ", ");
+  });
 }

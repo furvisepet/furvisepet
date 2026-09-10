@@ -1,3 +1,4 @@
+import { serializeHistoricalJson } from "../furvise-output.ts";
 import { historyCalculationSchema } from "./history-calculation.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
 
@@ -28,27 +29,7 @@ export function renderHistoricalJson(value: unknown) {
   const exact = (value: unknown, keys: string): value is Record<string, unknown> => !!value && typeof value === "object"
     && !Array.isArray(value) && Object.keys(value).sort().join() === keys;
   if (!exact(value, "calculations,sourceIds,value")) return fail();
-  let count = 0;
-  const decode = (input: unknown, depth: number): unknown => {
-    if (++count > 128 || depth > 8) return fail();
-    if (input === null || typeof input === "boolean") return input;
-    if (typeof input === "number") return Number.isFinite(input) ? input : fail();
-    if (typeof input === "string") return input.length <= 600 ? input : fail();
-    if (exact(input, "items,kind") && input.kind === "array") {
-      if (!Array.isArray(input.items) || input.items.length > 24) return fail();
-      return input.items.map(item => decode(item, depth + 1));
-    }
-    if (!exact(input, "entries,kind") || input.kind !== "object" || !Array.isArray(input.entries) || input.entries.length > 24) return fail();
-    const keys = new Set<string>();
-    return Object.fromEntries(input.entries.map(entry => {
-      if (!exact(entry, "key,value") || typeof entry.key !== "string" || !entry.key.length || entry.key.length > 100 || keys.has(entry.key)) return fail();
-      keys.add(entry.key);
-      return [entry.key, decode(entry.value, depth + 1)];
-    }));
-  };
-  if (!value.value || typeof value.value !== "object") return fail();
-  const text = JSON.stringify(decode(value.value, 0));
-  if (text.length > 3600) return fail();
+  const text = serializeHistoricalJson(value.value);
   const narrative = parseHistoryNarrative({ sentences: [{ text, sourceIds: value.sourceIds, calculations: value.calculations }] });
   if (!narrative) return fail();
   return narrative;

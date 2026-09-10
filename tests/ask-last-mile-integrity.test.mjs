@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {answerIntegrityFailure} from '../app/lib/answer-integrity.ts';
 import {enforceVerifiedStateClaims} from '../app/lib/application-actions/state-claims.ts';
 import {buildAskConversationResponse} from '../app/lib/ask.mjs';
-import {unwrapProseEnvelope} from '../app/lib/intelligence/prose-envelope.ts';
+import { unwrapProseEnvelope } from "../app/lib/furvise-output.ts";
 import {recoverTransientClaim} from '../app/lib/security/idempotency/claim-recovery.ts';
 const answer = summary => ({title:'Furvise',summary,sections:[],safetyNote:null});
 test('retrieved relative-clause measurements survive all ordinary answer transforms',()=>{

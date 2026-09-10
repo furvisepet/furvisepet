@@ -7,7 +7,7 @@ import { clearAskClientState } from "../app/lib/ask-conversations.ts";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const page = read("app/ask/page.tsx");
 const route = read("app/api/ask/route.ts");
-const errorUx = read("app/lib/ask-errors.ts");
+const errorUx = read("app/lib/furvise-output.ts");
 const conversationRoute = read("app/api/ask/conversations/[id]/route.ts");
 const conversationListRoute = read("app/api/ask/conversations/route.ts");
 const migration = read("supabase/migrations/20260727010000_add_ask_request_idempotency.sql");

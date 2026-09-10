@@ -87,7 +87,7 @@ for(const question of ['Compare weights on April 7 2024 versus April 8 2024.','C
  assert.equal(result.history.from,null);
 });
 test('companion punctuation preserves quotations and code before factual review',async()=>{
- const {normalizeCompanionProse}=await import('../../app/lib/ai/companion-voice.ts');
+ const {normalizeCompanionProse}=await import('../../app/lib/furvise-voice.ts');
  assert.equal(normalizeCompanionProse('Aster ate normally — the notes do not say why.'),'Aster ate normally, the notes do not say why.');
  for(const text of ['The note says "ate — then rested".', 'The note says “ate — then rested”.', '```json\n{"note":"ate — then rested"}\n```']) assert.equal(normalizeCompanionProse(text),text);
 });

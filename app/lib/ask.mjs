@@ -1,8 +1,4 @@
-import { mapAskProse } from "./ask-text-blocks.ts";
-import {
-  FURVISE_URGENT_SAFETY_MESSAGE,
-  buildFurviseSafetyLine,
-} from "./furvise-voice.ts";
+import { mapAskProse, FURVISE_URGENT_SAFETY_MESSAGE, buildFurviseSafetyLine } from "./furvise-output.ts";
 import { parseStoredFurviseActionKind } from "./application-actions/types.ts";
 
 const URGENT_CONTEXT_PATTERN =

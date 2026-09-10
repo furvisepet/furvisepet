@@ -61,7 +61,7 @@ import {
   FURVISE_ANSWER_UNAVAILABLE_MESSAGE,
   FURVISE_ASK_UNAVAILABLE_MESSAGE,
   buildFurviseClarification,
-} from "../../lib/furvise-voice";
+} from "../../lib/furvise-output";
 import {
   getPaidGateMessage,
   type PlanId,
@@ -132,7 +132,7 @@ import {
   updateAskAssistantResponse,
 } from "../../lib/ask-conversation-authority.ts";
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
-import { publicAskFailureCode, type AskInternalFailure } from "../../lib/ask-errors.ts";
+import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise-output.ts";
 import { readAskProfiles } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;

@@ -35,7 +35,7 @@ test("core Supabase migration enforces ownership RLS for profiles, care, memorie
 test("Ask Furvise uses required friendly failure messages", () => {
   const page = read("app/ask/page.tsx");
   const route = read("app/api/ask/route.ts");
-  const voice = read("app/lib/furvise-voice.ts");
+  const voice = read("app/lib/furvise-output.ts");
 
   assert.match(page, /getAskErrorPresentation/);
   assert.match(voice, /Furvise couldn't answer just now\. Your question has not been lost\./);

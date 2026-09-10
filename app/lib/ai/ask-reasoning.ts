@@ -1,7 +1,7 @@
 import { evidenceRemovalCost } from "../intelligence/evidence-need-coverage.ts";
 import { withProviderDeadline } from "./provider-deadline.ts";
-import { stripKnownHistoryCitations } from "../intelligence/public-history-text.ts";
-import { companionVoiceInstructions } from "./companion-voice.ts";
+import { stripKnownHistoryCitations } from "../furvise-output.ts";
+import { companionVoiceInstructions, FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
 import { deterministicReadProjection } from "../intelligence/read-projection.ts";
 import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
@@ -14,7 +14,6 @@ import OpenAI from "openai";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow } from "../supabase.ts";
-import { FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import {
   evaluateAskSafetyContext,
   concernKeyToAskTags,

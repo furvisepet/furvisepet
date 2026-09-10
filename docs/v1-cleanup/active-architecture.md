@@ -49,3 +49,38 @@ The production-repair audit keeps correction/scope/no-write checks and actual pr
 - `git diff --check`: passed.
 
 The reduced test count reflects retired implementation coverage; it is not a reliability improvement metric. No paid provider benchmark ran, and no account or database data was changed. Authenticated browser smoke checks and SQL execution were not run in this environment. The PR remains a draft for review of those limits and the deliberate endpoint retirements.
+
+## Response presentation consolidation
+
+The follow-up on `codex/response-presentation-consolidation` starts from cleanup
+commit `cea8b761f6ab2868131919d8b414694d662c6bde`. The earlier file counts and
+removal manifest above describe that cleanup snapshot.
+
+Shared response presentation now has two implementation owners:
+
+- `app/lib/furvise-voice.ts`: writing principles, language and response-depth
+  instructions, companion instructions, and pre-review punctuation normalization.
+- `app/lib/furvise-output.ts`: public messages and error presentation, prose/code
+  blocks, CSV/table parsing, reviewed history layout, fallback sections, transport
+  envelope decoding, citation display cleanup, and bounded JSON serialization.
+
+Ten helper modules are removed and their callers import the owners directly.
+The JSON evidence adapter in `intelligence/structured-history-json.ts` retains
+its source/calculation schema and narrative validation, calling the output
+owner only for serialization. Output has no runtime imports; its evidence
+contract import is type-only, so browser rendering does not import the server
+validation graph.
+
+Conversation persistence, episode navigation context, factual validation,
+review receipts, safety enforcement, and write authorization remain separate.
+Feature-specific request schemas and factual instructions still belong to their
+features. Shared presentation ownership does not mean every product string or
+prompt is in these two files.
+
+Validation: all 2,062 offline tests pass, including rendering, layout, saved
+conversation and review-integrity coverage. TypeScript and the production build
+pass. ESLint has zero errors and the five existing warnings. A declaration-level
+comparison verifies all 55 declarations moved from the original voice and ten
+helpers retain their exact source bodies and wording. The rendering harness and
+source-inspection tests use the new paths without dropping behavior assertions.
+Authenticated live browser testing and paid model benchmarks were not run.

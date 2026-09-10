@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {requestedHistoryLayout,presentReviewedHistory} from '../app/lib/intelligence/history-presentation.ts';
+import { requestedHistoryLayout, presentReviewedHistory } from "../app/lib/furvise-output.ts";
 test('exactly and precisely preserve requested bullet counts',()=>{
  for(const q of ['Give the June history in exactly three bullets.','Summarize in precisely 3 bullet points.']) {
  assert.deepEqual(requestedHistoryLayout(q),{style:'bullets',count:3});
@@ -15,7 +15,7 @@ test('a reviewed table remains a separate block beside explanatory prose',()=>{
 });
 
 test('bullet layout survives safe pronoun substitution without restoring changed facts',async()=>{
- const {preserveReviewedLayout}=await import('../app/lib/intelligence/history-presentation.ts');
+ const {preserveReviewedLayout}=await import('../app/lib/furvise-output.ts');
  assert.equal(preserveReviewedLayout('- Pip ate.\n- Pip played.','- He ate. - He played.'),'- He ate.\n- He played.');
  assert.equal(preserveReviewedLayout('- Pip ate.\n- Pip played.','- He did not eat. - He played.'),'- He did not eat.\n- He played.');
  assert.equal(preserveReviewedLayout('- Pip ate.\n- Pip played.','He did not eat.'),'He did not eat.');
@@ -47,7 +47,7 @@ test('inline list layout leaves quotes, negative quantities and plain prose inta
 });
 
 test('just two measurements omits only the generic coverage footer',async()=>{
- const {presentHistoryLimitation}=await import('../app/lib/intelligence/history-presentation.ts');
+ const {presentHistoryLimitation}=await import('../app/lib/furvise-output.ts');
  const prose='27.8 kg and 28.4 kg.';
  const generic='This covers the matching saved notes I could verify, not necessarily every event in their life.';
  const q='Give just the two weight measurements behind the 0.6 kg decrease.';

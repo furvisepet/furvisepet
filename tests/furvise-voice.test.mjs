@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { buildUrgentAskResponse } from "../app/lib/ask.mjs";
 import {
+  FURVISE_CORE_PROMPT_RULES,
+  FURVISE_RESPONSE_DEPTH_RULES,
+  FURVISE_SHARED_PROMPT_RULES,
+  FURVISE_WRITING_PRINCIPLES,
+} from "../app/lib/furvise-voice.ts";
+import {
   buildFurviseSafetyLine,
   buildMissingSavedInformationMessage,
   buildNoSafeProductMatchMessage,
@@ -16,12 +22,8 @@ import {
   FURVISE_PRODUCT_GUIDANCE_UNAVAILABLE_MESSAGE,
   FURVISE_PRODUCT_USAGE_CAP_MESSAGE,
   FURVISE_SEARCH_FALLBACK_MESSAGE,
-  FURVISE_CORE_PROMPT_RULES,
-  FURVISE_RESPONSE_DEPTH_RULES,
-  FURVISE_SHARED_PROMPT_RULES,
   FURVISE_URGENT_SAFETY_MESSAGE,
-  FURVISE_WRITING_PRINCIPLES,
-} from "../app/lib/furvise-voice.ts";
+} from "../app/lib/furvise-output.ts";
 
 test("central voice module defines and shares the Furvise writing principles", () => {
   for (const principle of ["Direct first", "Efficient, not merely short", "Pet-aware", "Context-aware", "Uncertainty-preserving", "Practical", "Relevance-aware", "Calm", "Human", "Structure when useful", "No internal machinery", "No empty follow-up offers", "No generic safety footer spam", "No em dashes"]) {

@@ -1,7 +1,4 @@
-import {
-  buildFurviseSafetyLine,
-  FURVISE_URGENT_SAFETY_MESSAGE,
-} from "./furvise-voice.ts";
+import { buildFurviseSafetyLine, FURVISE_URGENT_SAFETY_MESSAGE } from "./furvise-output.ts";
 
 export const FURVISE_SAFETY_LINE = buildFurviseSafetyLine();
 

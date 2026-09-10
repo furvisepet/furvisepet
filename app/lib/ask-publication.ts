@@ -1,4 +1,4 @@
-import { mapAskProse } from "./ask-text-blocks.ts";
+import { mapAskProse } from "./furvise-output.ts";
 import { buildAskConversationResponse } from "./ask.mjs";
 import { enforceVerifiedStateClaims, preserveAttributedReportQuotes, preserveFictionalDialogueQuotes, containsUntrustedTerminalMutationClaim } from "./application-actions/state-claims.ts";
 import { filterSentencesPreservingFacts } from "./ai/text-segmentation.ts";

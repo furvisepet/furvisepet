@@ -1,4 +1,4 @@
-import { FURVISE_PRODUCT_USAGE_CAP_MESSAGE } from "../furvise-voice.ts";
+import { FURVISE_PRODUCT_USAGE_CAP_MESSAGE } from "../furvise-output.ts";
 
 export type PlanId = "free" | "plus";
 

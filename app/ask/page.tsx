@@ -43,7 +43,7 @@ import {
 import { formatPetDisplayName, formatSpecies } from "../lib/petwise";
 import { markAppDataChanged } from "../lib/navigation/app-data-freshness";
 import { setAskRequestActive } from "../lib/navigation/ask-request-activity";
-import { getAskErrorPresentation, type AskFailureCode } from "../lib/ask-errors";
+import { getAskErrorPresentation, type AskFailureCode } from "../lib/furvise-output";
 import { getAskCareHistoryState } from "../lib/ask-care-history-state";
 import { applySuggestedQuestionDraft, getAskMessageVariant, shouldShowSuggestedQuestions } from "../lib/ask-experience";
 import { ASK_ONBOARDING_SOURCE, buildOnboardingAskStarters, shouldShowOnboardingAskStarters } from "../lib/ask-onboarding-entry";

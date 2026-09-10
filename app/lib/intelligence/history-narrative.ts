@@ -1,6 +1,4 @@
-import { parseCsvRecords } from "../csv-records.ts";
-import { parsePlainTable } from "../plain-table.ts";
-import { isStructuredHistoryText } from "./structured-history-text.ts";
+import { parseCsvRecords, parsePlainTable, isStructuredHistoryText } from "../furvise-output.ts";
 import { historyCalculationSchema, parseHistoryCalculations, type HistoryCalculation } from "./history-calculation.ts";
 
 /** Draft prose is a model proposal, never persistence or source authority. */

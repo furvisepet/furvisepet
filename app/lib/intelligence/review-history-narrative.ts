@@ -1,13 +1,17 @@
 import { recordHistoryReviewDiagnostic } from "./history-review-diagnostic.ts";
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
-import { normalizeCompanionProse } from "../ai/companion-voice.ts";
+import { normalizeCompanionProse } from "../furvise-voice.ts";
 import { readPublicationFailure } from "../ask-publication.ts";
 import { withProviderDeadline } from "../ai/provider-deadline.ts";
-import { isStructuredHistoryText } from "./structured-history-text.ts";
+import {
+  isStructuredHistoryText,
+  parsePlainTable,
+  presentReviewedHistory,
+  presentHistoryLimitation,
+  stripHistoryBullet,
+} from "../furvise-output.ts";
 import { verifiedCalculationQuantities } from "./history-calculation.ts";
 import { hasUndatedHistoricalCareState } from "./historical-care-state.ts";
-import { parsePlainTable } from "../plain-table.ts";
-import { presentReviewedHistory, presentHistoryLimitation, stripHistoryBullet } from "./history-presentation.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { historyReviewSelectionSchema, parseHistoryReviewSelection, repairableTaskHistoryReviewSchema, parseRepairableTaskHistoryReview } from "./history-review-selection.ts";
 import { historyNarrativeAnchorsSupported } from "./history-narrative-facts.ts";

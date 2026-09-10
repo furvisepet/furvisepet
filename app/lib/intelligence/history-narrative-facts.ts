@@ -1,5 +1,5 @@
 import {compoundUnit} from "./history-units.ts";
-import { isStructuredHistoryText } from "./structured-history-text.ts";
+import { isStructuredHistoryText } from "../furvise-output.ts";
 type Source = { text: string; occurredAt?: string | null; petId?: string };
 const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 const words: Record<string, number> = {one:1,single:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
