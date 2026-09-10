@@ -1,0 +1,3916 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "repair5-diagnosis",
+  "turns": [
+    {
+      "id": 3,
+      "question": "Order Milo’s July food-transition start and completion, giving the date of each.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "Order Milo’s July food-transition start and completion, giving the date of each.",
+          "requirements": [
+            "Answer in the requested ordered format.",
+            "Give the start date and the completion date for Milo’s July food transition.",
+            "Use only retrieved evidence; do not invent dates."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "records"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "food-transition start and completion",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Order Milo’s July food-transition start and completion, giving the date of each.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2026-07-01T00:00:00.000Z",
+          "to": "2026-08-01T00:00:00.000Z",
+          "terms": [
+            "food transition",
+            "started",
+            "completed",
+            "July"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I can help with that.",
+      "beforeFinalGuard": "Milo’s July food transition started on July 3, 2026, and it was completed on July 10, 2026.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Milo’s July food transition started on July 3, 2026, and it was completed on July 10, 2026.",
+            "sourceIds": [
+              "care:diag-23",
+              "care:diag-24"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Order Milo’s July food-transition start and completion, giving the date of each.",
+          "referenceQuestion": "Order Milo’s July food-transition start and completion, giving the date of each.",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "food-transition start and completion",
+            "requestText": "Order Milo’s July food-transition start and completion, giving the date of each.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2026-07-01T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Order Milo’s July food-transition start and completion, giving the date of each.",
+              "requirements": [
+                "Answer in the requested ordered format.",
+                "Give the start date and the completion date for Milo’s July food transition.",
+                "Use only retrieved evidence; do not invent dates."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "records"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "food-transition start and completion",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Order Milo’s July food-transition start and completion, giving the date of each.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2026-07-01T00:00:00.000Z",
+              "to": "2026-08-01T00:00:00.000Z",
+              "terms": [
+                "food transition",
+                "started",
+                "completed",
+                "July"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Order Milo’s July food-transition start and completion, giving the date of each.",
+            "requirements": [
+              "Answer in the requested ordered format.",
+              "Give the start date and the completion date for Milo’s July food transition.",
+              "Use only retrieved evidence; do not invent dates."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "records"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Order Milo’s July food-transition start and completion, giving the date of each."
+            },
+            {
+              "index": 1,
+              "text": "Answer in the requested ordered format."
+            },
+            {
+              "index": 2,
+              "text": "Give the start date and the completion date for Milo’s July food transition."
+            },
+            {
+              "index": 3,
+              "text": "Use only retrieved evidence; do not invent dates."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-23",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started gradually changing Milo's main food to salmon-and-rice adult dry food. The change is our choice; no chicken allergy has been diagnosed.",
+              "occurredAt": "2026-07-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-24",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has finished the food transition. He now eats only the salmon-and-rice adult dry food for meals. His stools are normal.",
+              "occurredAt": "2026-07-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Milo’s July food transition started on July 3, 2026, and it was completed on July 10, 2026.",
+                "sourceIds": [
+                  "care:diag-23",
+                  "care:diag-24"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 15,
+      "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+          "requirements": [
+            "Answer the difference in grams.",
+            "Use a comparative lookup based on Milo’s records.",
+            "Do not assume any value not supported by evidence."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "period",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "carrier weight comparison",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-09-10T00:00:00.000Z",
+          "terms": [
+            "carrier",
+            "empty",
+            "heavier",
+            "grams",
+            "later",
+            "earlier"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Milo: Milo's 2021-10-05 report: \"Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.\" Milo's 2023-04-11 report: \"Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.\" Milo's 2026-05-20 report: \"Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.\" Milo's 2026-06-04 report: \"Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.\" Milo's 2026-06-12 report: \"Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.\" Milo's 2026-06-15 report: \"Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.\" Milo's 2026-06-16 report: \"Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.\" Milo's 2026-06-20 report: \"Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.\" Milo's 2026-07-03 report: \"Note: We started gradually changing Milo's main food to salmon-and-rice adult dry food. The change is our choice; no chicken allergy has been diagnosed.\" Milo's 2026-07-10 report: \"Note: Milo has finished the food transition. He now eats only the salmon-and-rice adult dry food for meals. His stools are normal.\" Milo's 2026-07-24 report: \"Note: Milo weighed 27.9 kg today. His appetite and activity are normal.\" Milo's 2026-08-08 report: \"Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.\" Milo's 2026-08-10 report: \"Note: Milo's stools are normal again. There have been no more soft stools since August 8.\" Milo's 2026-09-03 report: \"Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "beforeFinalGuard": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Milo: Milo's 2021-10-05 report: \"Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.\" Milo's 2023-04-11 report: \"Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.\" Milo's 2026-05-20 report: \"Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.\" Milo's 2026-06-04 report: \"Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.\" Milo's 2026-06-12 report: \"Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.\" Milo's 2026-06-15 report: \"Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.\" Milo's 2026-06-16 report: \"Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.\" Milo's 2026-06-20 report: \"Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.\" Milo's 2026-07-03 report: \"Note: We started gradually changing Milo's main food to salmon-and-rice adult dry food. The change is our choice; no chicken allergy has been diagnosed.\" Milo's 2026-07-10 report: \"Note: Milo has finished the food transition. He now eats only the salmon-and-rice adult dry food for meals. His stools are normal.\" Milo's 2026-07-24 report: \"Note: Milo weighed 27.9 kg today. His appetite and activity are normal.\" Milo's 2026-08-08 report: \"Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.\" Milo's 2026-08-10 report: \"Note: Milo's stools are normal again. There have been no more soft stools since August 8.\" Milo's 2026-09-03 report: \"Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Milo’s later empty carrier was 500 grams heavier than the earlier one.",
+            "sourceIds": [
+              "care:diag-16",
+              "care:diag-15"
+            ],
+            "calculations": [
+              {
+                "operation": "difference",
+                "operands": [
+                  {
+                    "sourceId": "care:diag-16",
+                    "field": "text",
+                    "literal": "2.5 kg"
+                  },
+                  {
+                    "sourceId": "care:diag-15",
+                    "field": "text",
+                    "literal": "2 kg"
+                  }
+                ],
+                "value": 500,
+                "unit": "grams"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [
+            0
+          ],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+          "referenceQuestion": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "carrier weight comparison",
+            "requestText": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+              "requirements": [
+                "Answer the difference in grams.",
+                "Use a comparative lookup based on Milo’s records.",
+                "Do not assume any value not supported by evidence."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "period",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "carrier weight comparison",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "carrier",
+                "empty",
+                "heavier",
+                "grams",
+                "later",
+                "earlier"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+            "requirements": [
+              "Answer the difference in grams.",
+              "Use a comparative lookup based on Milo’s records.",
+              "Do not assume any value not supported by evidence."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?"
+            },
+            {
+              "index": 1,
+              "text": "Answer the difference in grams."
+            },
+            {
+              "index": 2,
+              "text": "Use a comparative lookup based on Milo’s records."
+            },
+            {
+              "index": 3,
+              "text": "Do not assume any value not supported by evidence."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-19",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.",
+              "occurredAt": "2026-06-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-24",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has finished the food transition. He now eats only the salmon-and-rice adult dry food for meals. His stools are normal.",
+              "occurredAt": "2026-07-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-20",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.",
+              "occurredAt": "2026-06-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-23",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started gradually changing Milo's main food to salmon-and-rice adult dry food. The change is our choice; no chicken allergy has been diagnosed.",
+              "occurredAt": "2026-07-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-21",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.",
+              "occurredAt": "2026-06-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-22",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+              "occurredAt": "2026-06-20T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Milo’s later empty carrier was 500 grams heavier than the earlier one.",
+                "sourceIds": [
+                  "care:diag-16",
+                  "care:diag-15"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:diag-16",
+                        "field": "text",
+                        "literal": "2.5 kg"
+                      },
+                      {
+                        "sourceId": "care:diag-15",
+                        "field": "text",
+                        "literal": "2 kg"
+                      }
+                    ],
+                    "value": 500,
+                    "unit": "grams"
+                  }
+                ],
+                "index": 0
+              }
+            ]
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [
+            0
+          ],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+          "referenceQuestion": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "carrier weight comparison",
+            "requestText": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+              "requirements": [
+                "Answer the difference in grams.",
+                "Use a comparative lookup based on Milo’s records.",
+                "Do not assume any value not supported by evidence."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "period",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "carrier weight comparison",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "carrier",
+                "empty",
+                "heavier",
+                "grams",
+                "later",
+                "earlier"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+            "requirements": [
+              "Answer the difference in grams.",
+              "Use a comparative lookup based on Milo’s records.",
+              "Do not assume any value not supported by evidence."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?"
+            },
+            {
+              "index": 1,
+              "text": "Answer the difference in grams."
+            },
+            {
+              "index": 2,
+              "text": "Use a comparative lookup based on Milo’s records."
+            },
+            {
+              "index": 3,
+              "text": "Do not assume any value not supported by evidence."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Milo’s later empty carrier was 500 grams heavier than the earlier one.",
+                "sourceIds": [
+                  "care:diag-16",
+                  "care:diag-15"
+                ],
+                "calculations": [
+                  {
+                    "operation": "difference",
+                    "operands": [
+                      {
+                        "sourceId": "care:diag-16",
+                        "field": "text",
+                        "literal": "2.5 kg"
+                      },
+                      {
+                        "sourceId": "care:diag-15",
+                        "field": "text",
+                        "literal": "2 kg"
+                      }
+                    ],
+                    "value": 500,
+                    "unit": "grams"
+                  }
+                ],
+                "index": 0
+              }
+            ]
+          },
+          "rejectionReason": "Reject for repair because the only draft sentence is marked deterministically invalid by the task and cannot be approved, even though the gram difference is arithmetically supported.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:milo:sex"
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:milo:species"
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z",
+              "id": "care:diag-15"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z",
+              "id": "care:diag-28"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z",
+              "id": "care:diag-16"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z",
+              "id": "care:diag-27"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z",
+              "id": "care:diag-17"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z",
+              "id": "care:diag-26"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z",
+              "id": "care:diag-18"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z",
+              "id": "care:diag-25"
+            },
+            {
+              "sourceId": "care:diag-19",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.",
+              "occurredAt": "2026-06-12T12:00:00Z",
+              "id": "care:diag-19"
+            },
+            {
+              "sourceId": "care:diag-24",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has finished the food transition. He now eats only the salmon-and-rice adult dry food for meals. His stools are normal.",
+              "occurredAt": "2026-07-10T12:00:00Z",
+              "id": "care:diag-24"
+            },
+            {
+              "sourceId": "care:diag-20",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.",
+              "occurredAt": "2026-06-15T12:00:00Z",
+              "id": "care:diag-20"
+            },
+            {
+              "sourceId": "care:diag-23",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started gradually changing Milo's main food to salmon-and-rice adult dry food. The change is our choice; no chicken allergy has been diagnosed.",
+              "occurredAt": "2026-07-03T12:00:00Z",
+              "id": "care:diag-23"
+            },
+            {
+              "sourceId": "care:diag-21",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.",
+              "occurredAt": "2026-06-16T12:00:00Z",
+              "id": "care:diag-21"
+            },
+            {
+              "sourceId": "care:diag-22",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+              "occurredAt": "2026-06-20T12:00:00Z",
+              "id": "care:diag-22"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "outputFormat": "prose",
+                "question": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+                "requirements": [
+                  "Answer the difference in grams.",
+                  "Use a comparative lookup based on Milo’s records.",
+                  "Do not assume any value not supported by evidence."
+                ],
+                "referenceTurnIds": [],
+                "quantity": "measurement"
+              },
+              "operation": "comparison",
+              "readOperation": "comparison",
+              "selection": "period",
+              "petIds": [
+                "milo"
+              ],
+              "topic": "carrier weight comparison",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "How much heavier was Milo’s later empty carrier, in grams, than the earlier carrier?",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": "2021-09-09T00:00:00.000Z",
+                "to": "2026-09-10T00:00:00.000Z",
+                "terms": [
+                  "carrier",
+                  "empty",
+                  "heavier",
+                  "grams",
+                  "later",
+                  "earlier"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        }
+      ],
+      "providerCalls": 4,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 25,
+      "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+          "requirements": [
+            "Answer whether Milo’s carrier-weight records explain the heavier empty carrier.",
+            "Use a concise natural-language response.",
+            "Compare the relevant carrier-weight records and note any plausible explanation or lack of explanation."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "overview",
+        "readOperation": "overview",
+        "selection": "comparison",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "carrier weight",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-09-10T00:00:00.000Z",
+          "terms": [
+            "carrier weight",
+            "empty carrier",
+            "heavier",
+            "Milo"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The records show the empty carrier weighed 2 kg in 2021 and 2.5 kg in 2023, so it did get heavier.",
+      "beforeFinalGuard": "The records show the empty carrier weighed 2 kg in 2021 and 2.5 kg in 2023, so it did get heavier.\nBut the later record says no reason for the weight difference was recorded, so the records do not explain why.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "The records show the empty carrier weighed 2 kg in 2021 and 2.5 kg in 2023, so it did get heavier.",
+            "sourceIds": [
+              "care:diag-15",
+              "care:diag-16"
+            ]
+          },
+          {
+            "text": "But the later record says no reason for the weight difference was recorded, so the records do not explain why.",
+            "sourceIds": [
+              "care:diag-16"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+          "referenceQuestion": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "carrier weight",
+            "requestText": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "overview",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+              "requirements": [
+                "Answer whether Milo’s carrier-weight records explain the heavier empty carrier.",
+                "Use a concise natural-language response.",
+                "Compare the relevant carrier-weight records and note any plausible explanation or lack of explanation."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "overview",
+            "readOperation": "overview",
+            "selection": "comparison",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "carrier weight",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "carrier weight",
+                "empty carrier",
+                "heavier",
+                "Milo"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?",
+            "requirements": [
+              "Answer whether Milo’s carrier-weight records explain the heavier empty carrier.",
+              "Use a concise natural-language response.",
+              "Compare the relevant carrier-weight records and note any plausible explanation or lack of explanation."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Do Milo’s carrier-weight records explain why the empty carrier got heavier?"
+            },
+            {
+              "index": 1,
+              "text": "Answer whether Milo’s carrier-weight records explain the heavier empty carrier."
+            },
+            {
+              "index": 2,
+              "text": "Use a concise natural-language response."
+            },
+            {
+              "index": 3,
+              "text": "Compare the relevant carrier-weight records and note any plausible explanation or lack of explanation."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-21",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We stopped the new chicken training treats today. We kept his regular chicken-and-rice food the same.",
+              "occurredAt": "2026-06-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-19",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started giving Milo new chicken training treats yesterday. His regular food has not changed.",
+              "occurredAt": "2026-06-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-20",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had two soft stools today. He is still eating and playing normally. I wonder whether the new treats are involved, but I do not know.",
+              "occurredAt": "2026-06-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-24",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has finished the food transition. He now eats only the salmon-and-rice adult dry food for meals. His stools are normal.",
+              "occurredAt": "2026-07-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-22",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo has had normal stools for three days and his energy is normal. The soft stools seem to have ended.",
+              "occurredAt": "2026-06-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-23",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: We started gradually changing Milo's main food to salmon-and-rice adult dry food. The change is our choice; no chicken allergy has been diagnosed.",
+              "occurredAt": "2026-07-03T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "The records show the empty carrier weighed 2 kg in 2021 and 2.5 kg in 2023, so it did get heavier.",
+                "sourceIds": [
+                  "care:diag-15",
+                  "care:diag-16"
+                ],
+                "index": 0
+              },
+              {
+                "text": "But the later record says no reason for the weight difference was recorded, so the records do not explain why.",
+                "sourceIds": [
+                  "care:diag-16"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 38,
+      "question": "Which pet had the July litter-arrangement advice, and which pet had the June seven-day course?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+          "requirements": [
+            "Identify the pet associated with the July litter-arrangement advice.",
+            "Identify the pet associated with the June seven-day course.",
+            "Compare the two records and state the corresponding pet for each.",
+            "Use the answer in a concise natural-language format."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "summary",
+        "petIds": [
+          "milo",
+          "luna",
+          "oscar"
+        ],
+        "topic": "July litter-arrangement advice and June seven-day course",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-09-10T00:00:00.000Z",
+          "terms": [
+            "July litter arrangement advice",
+            "June seven day course",
+            "litter arrangement",
+            "seven day course"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Milo: Milo's 2021-10-05 report: \"Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.\" Milo's 2023-04-11 report: \"Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.\" Milo's 2026-05-20 report: \"Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.\" Milo's 2026-06-04 report: \"Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.\" Milo's 2026-07-24 report: \"Note: Milo weighed 27.9 kg today. His appetite and activity are normal.\" Milo's 2026-08-08 report: \"Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.\" Milo's 2026-08-10 report: \"Note: Milo's stools are normal again. There have been no more soft stools since August 8.\" Milo's 2026-09-03 report: \"Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Luna: Luna's 2021-10-06 report: \"Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.\" Luna's 2023-03-12 report: \"Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.\" Luna's 2026-05-21 report: \"Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.\" Luna's 2026-06-04 report: \"Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.\" Luna's 2026-07-09 report: \"Note: We took Luna to the vet about the two accidents. The vet asked us to restore her previous litter arrangement and monitor her. I have not entered any test results or diagnosis into Furvise.\" Luna's 2026-08-02 report: \"Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.\" Luna's 2026-08-15 report: \"Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.\" Luna's 2026-08-22 report: \"Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.\" Luna's 2026-09-02 report: \"Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Oscar: Oscar's 2021-10-07 report: \"Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.\" Oscar's 2023-03-13 report: \"Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.\" Oscar's 2026-05-22 report: \"Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.\" Oscar's 2026-06-04 report: \"Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.\" Oscar's 2026-08-18 report: \"Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.\" Oscar's 2026-08-27 report: \"Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.\" Oscar's 2026-09-03 report: \"Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.\" Oscar's 2026-09-04 report: \"Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "beforeFinalGuard": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Milo: Milo's 2021-10-05 report: \"Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.\" Milo's 2023-04-11 report: \"Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.\" Milo's 2026-05-20 report: \"Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.\" Milo's 2026-06-04 report: \"Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.\" Milo's 2026-07-24 report: \"Note: Milo weighed 27.9 kg today. His appetite and activity are normal.\" Milo's 2026-08-08 report: \"Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.\" Milo's 2026-08-10 report: \"Note: Milo's stools are normal again. There have been no more soft stools since August 8.\" Milo's 2026-09-03 report: \"Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Luna: Luna's 2021-10-06 report: \"Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.\" Luna's 2023-03-12 report: \"Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.\" Luna's 2026-05-21 report: \"Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.\" Luna's 2026-06-04 report: \"Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.\" Luna's 2026-07-09 report: \"Note: We took Luna to the vet about the two accidents. The vet asked us to restore her previous litter arrangement and monitor her. I have not entered any test results or diagnosis into Furvise.\" Luna's 2026-08-02 report: \"Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.\" Luna's 2026-08-15 report: \"Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.\" Luna's 2026-08-22 report: \"Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.\" Luna's 2026-09-02 report: \"Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Oscar: Oscar's 2021-10-07 report: \"Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.\" Oscar's 2023-03-13 report: \"Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.\" Oscar's 2026-05-22 report: \"Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.\" Oscar's 2026-06-04 report: \"Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.\" Oscar's 2026-08-18 report: \"Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.\" Oscar's 2026-08-27 report: \"Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.\" Oscar's 2026-09-03 report: \"Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.\" Oscar's 2026-09-04 report: \"Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Luna had the July litter-arrangement advice.",
+            "sourceIds": [
+              "care:diag-8"
+            ]
+          },
+          {
+            "text": "I can’t identify the pet with the June seven-day course from the accessible records here.",
+            "sourceIds": [
+              "care:diag-8",
+              "care:diag-3",
+              "care:diag-18",
+              "care:diag-32"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [
+            1
+          ],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Which pet had the July litter-arrangement advice, and which pet had the June seven-day course?",
+          "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "requestedTopic": "July litter-arrangement advice and June seven-day course",
+            "requestText": "Which pet had the July litter-arrangement advice, and which pet had the June seven-day course?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+              "requirements": [
+                "Identify the pet associated with the July litter-arrangement advice.",
+                "Identify the pet associated with the June seven-day course.",
+                "Compare the two records and state the corresponding pet for each.",
+                "Use the answer in a concise natural-language format."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "summary",
+            "petIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "topic": "July litter-arrangement advice and June seven-day course",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "July litter arrangement advice",
+                "June seven day course",
+                "litter arrangement",
+                "seven day course"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo",
+            "luna": "Luna",
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+            "requirements": [
+              "Identify the pet associated with the July litter-arrangement advice.",
+              "Identify the pet associated with the June seven-day course.",
+              "Compare the two records and state the corresponding pet for each.",
+              "Use the answer in a concise natural-language format."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?"
+            },
+            {
+              "index": 1,
+              "text": "Identify the pet associated with the July litter-arrangement advice."
+            },
+            {
+              "index": 2,
+              "text": "Identify the pet associated with the June seven-day course."
+            },
+            {
+              "index": 3,
+              "text": "Compare the two records and state the corresponding pet for each."
+            },
+            {
+              "index": 4,
+              "text": "Use the answer in a concise natural-language format."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-8",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We took Luna to the vet about the two accidents. The vet asked us to restore her previous litter arrangement and monitor her. I have not entered any test results or diagnosis into Furvise.",
+              "occurredAt": "2026-07-09T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-14",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.",
+              "occurredAt": "2026-09-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-0",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.",
+              "occurredAt": "2021-10-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-13",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.",
+              "occurredAt": "2026-08-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-1",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.",
+              "occurredAt": "2023-03-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-12",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.",
+              "occurredAt": "2026-08-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-2",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.",
+              "occurredAt": "2026-05-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-11",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.",
+              "occurredAt": "2026-08-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-3",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Luna had the July litter-arrangement advice.",
+                "sourceIds": [
+                  "care:diag-8"
+                ],
+                "index": 0
+              },
+              {
+                "text": "I can’t identify the pet with the June seven-day course from the accessible records here.",
+                "sourceIds": [
+                  "care:diag-8",
+                  "care:diag-3",
+                  "care:diag-18",
+                  "care:diag-32"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [
+            1
+          ],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Which pet had the July litter-arrangement advice, and which pet had the June seven-day course?",
+          "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "requestedTopic": "July litter-arrangement advice and June seven-day course",
+            "requestText": "Which pet had the July litter-arrangement advice, and which pet had the June seven-day course?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+              "requirements": [
+                "Identify the pet associated with the July litter-arrangement advice.",
+                "Identify the pet associated with the June seven-day course.",
+                "Compare the two records and state the corresponding pet for each.",
+                "Use the answer in a concise natural-language format."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "summary",
+            "petIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "topic": "July litter-arrangement advice and June seven-day course",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "July litter arrangement advice",
+                "June seven day course",
+                "litter arrangement",
+                "seven day course"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo",
+            "luna": "Luna",
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+            "requirements": [
+              "Identify the pet associated with the July litter-arrangement advice.",
+              "Identify the pet associated with the June seven-day course.",
+              "Compare the two records and state the corresponding pet for each.",
+              "Use the answer in a concise natural-language format."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?"
+            },
+            {
+              "index": 1,
+              "text": "Identify the pet associated with the July litter-arrangement advice."
+            },
+            {
+              "index": 2,
+              "text": "Identify the pet associated with the June seven-day course."
+            },
+            {
+              "index": 3,
+              "text": "Compare the two records and state the corresponding pet for each."
+            },
+            {
+              "index": 4,
+              "text": "Use the answer in a concise natural-language format."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Luna had the July litter-arrangement advice.",
+                "sourceIds": [
+                  "care:diag-8"
+                ],
+                "index": 0
+              },
+              {
+                "text": "I can’t identify the pet with the June seven-day course from the accessible records here.",
+                "sourceIds": [
+                  "care:diag-8",
+                  "care:diag-3",
+                  "care:diag-18",
+                  "care:diag-32"
+                ],
+                "index": 1
+              }
+            ]
+          },
+          "rejectionReason": "The draft correctly identifies Luna for the July litter-arrangement advice, but the June seven-day course is not supported by the supplied records. Sentence 1 is also a deterministic invalid index, so the answer cannot be approved as written.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null,
+              "id": "profile:luna:sex"
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null,
+              "id": "profile:luna:species"
+            },
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:milo:sex"
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:milo:species"
+            },
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:oscar:sex"
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:oscar:species"
+            },
+            {
+              "sourceId": "care:diag-8",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We took Luna to the vet about the two accidents. The vet asked us to restore her previous litter arrangement and monitor her. I have not entered any test results or diagnosis into Furvise.",
+              "occurredAt": "2026-07-09T12:00:00Z",
+              "id": "care:diag-8"
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z",
+              "id": "care:diag-15"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z",
+              "id": "care:diag-29"
+            },
+            {
+              "sourceId": "care:diag-14",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.",
+              "occurredAt": "2026-09-02T12:00:00Z",
+              "id": "care:diag-14"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z",
+              "id": "care:diag-28"
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z",
+              "id": "care:diag-42"
+            },
+            {
+              "sourceId": "care:diag-0",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.",
+              "occurredAt": "2021-10-06T12:00:00Z",
+              "id": "care:diag-0"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z",
+              "id": "care:diag-16"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z",
+              "id": "care:diag-30"
+            },
+            {
+              "sourceId": "care:diag-13",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.",
+              "occurredAt": "2026-08-22T12:00:00Z",
+              "id": "care:diag-13"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z",
+              "id": "care:diag-27"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z",
+              "id": "care:diag-41"
+            },
+            {
+              "sourceId": "care:diag-1",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.",
+              "occurredAt": "2023-03-12T12:00:00Z",
+              "id": "care:diag-1"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z",
+              "id": "care:diag-17"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z",
+              "id": "care:diag-31"
+            },
+            {
+              "sourceId": "care:diag-12",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.",
+              "occurredAt": "2026-08-15T12:00:00Z",
+              "id": "care:diag-12"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z",
+              "id": "care:diag-26"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z",
+              "id": "care:diag-40"
+            },
+            {
+              "sourceId": "care:diag-2",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.",
+              "occurredAt": "2026-05-21T12:00:00Z",
+              "id": "care:diag-2"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z",
+              "id": "care:diag-18"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z",
+              "id": "care:diag-32"
+            },
+            {
+              "sourceId": "care:diag-11",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.",
+              "occurredAt": "2026-08-02T12:00:00Z",
+              "id": "care:diag-11"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z",
+              "id": "care:diag-25"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z",
+              "id": "care:diag-39"
+            },
+            {
+              "sourceId": "care:diag-3",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.",
+              "occurredAt": "2026-06-04T12:00:00Z",
+              "id": "care:diag-3"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "outputFormat": "prose",
+                "question": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+                "requirements": [
+                  "Identify the pet associated with the July litter-arrangement advice.",
+                  "Identify the pet associated with the June seven-day course.",
+                  "Compare the two records and state the corresponding pet for each.",
+                  "Use the answer in a concise natural-language format."
+                ],
+                "referenceTurnIds": [],
+                "quantity": null
+              },
+              "operation": "comparison",
+              "readOperation": "comparison",
+              "selection": "summary",
+              "petIds": [
+                "milo",
+                "luna",
+                "oscar"
+              ],
+              "topic": "July litter-arrangement advice and June seven-day course",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "Which owned pet had the July litter-arrangement advice, and which owned pet had the June seven-day course?",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": "2021-09-09T00:00:00.000Z",
+                "to": "2026-09-10T00:00:00.000Z",
+                "terms": [
+                  "July litter arrangement advice",
+                  "June seven day course",
+                  "litter arrangement",
+                  "seven day course"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        }
+      ],
+      "providerCalls": 4,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 58,
+      "question": "Name the dog whose travel bag weighed 6 lb and distinguish that from his latest body weight.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "Which owned dog has a travel bag weighing 6 lb, and what is that dog's latest body weight? Distinguish the travel bag weight from the latest body weight.",
+          "requirements": [
+            "Answer with the dog's name and the latest body weight.",
+            "Distinguish the travel bag weight from the dog's body weight.",
+            "Use the requested comparison structure clearly."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "latest",
+        "petIds": [
+          "milo",
+          "luna",
+          "oscar"
+        ],
+        "topic": "dog travel bag weight versus latest body weight",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Which owned dog has a travel bag weighing 6 lb, and what is that dog's latest body weight? Distinguish the travel bag weight from the latest body weight.",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-09-10T00:00:00.000Z",
+          "terms": [
+            "travel bag",
+            "weighed  ices",
+            "body weight",
+            "latest weight"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Oscar is the dog whose travel bag weighed 6 lb, and that 6 lb figure was his bag, not his body weight.\nHis latest recorded body weight was 7.1 kg.",
+      "beforeFinalGuard": "Oscar is the dog whose travel bag weighed 6 lb, and that 6 lb figure was his bag, not his body weight.\nHis latest recorded body weight was 7.1 kg.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Oscar is the dog whose travel bag weighed 6 lb, and that 6 lb figure was his bag, not his body weight.",
+            "sourceIds": [
+              "care:diag-31"
+            ]
+          },
+          {
+            "text": "His latest recorded body weight was 7.1 kg.",
+            "sourceIds": [
+              "care:diag-41"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Name the dog whose travel bag weighed 6 lb and distinguish that from his latest body weight.",
+          "referenceQuestion": "Which owned dog has a travel bag weighing 6 lb, and what is that dog's latest body weight? Distinguish the travel bag weight from the latest body weight.",
+          "scope": {
+            "authorizedPetIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "requestedTopic": "dog travel bag weight versus latest body weight",
+            "requestText": "Name the dog whose travel bag weighed 6 lb and distinguish that from his latest body weight.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Which owned dog has a travel bag weighing 6 lb, and what is that dog's latest body weight? Distinguish the travel bag weight from the latest body weight.",
+              "requirements": [
+                "Answer with the dog's name and the latest body weight.",
+                "Distinguish the travel bag weight from the dog's body weight.",
+                "Use the requested comparison structure clearly."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "latest",
+            "petIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "topic": "dog travel bag weight versus latest body weight",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Which owned dog has a travel bag weighing 6 lb, and what is that dog's latest body weight? Distinguish the travel bag weight from the latest body weight.",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "travel bag",
+                "weighed  ices",
+                "body weight",
+                "latest weight"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo",
+            "luna": "Luna",
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Which owned dog has a travel bag weighing 6 lb, and what is that dog's latest body weight? Distinguish the travel bag weight from the latest body weight.",
+            "requirements": [
+              "Answer with the dog's name and the latest body weight.",
+              "Distinguish the travel bag weight from the dog's body weight.",
+              "Use the requested comparison structure clearly."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Which owned dog has a travel bag weighing 6 lb, and what is that dog's latest body weight? Distinguish the travel bag weight from the latest body weight."
+            },
+            {
+              "index": 1,
+              "text": "Answer with the dog's name and the latest body weight."
+            },
+            {
+              "index": 2,
+              "text": "Distinguish the travel bag weight from the dog's body weight."
+            },
+            {
+              "index": 3,
+              "text": "Use the requested comparison structure clearly."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ],
+            "chronology": [
+              {
+                "petId": "luna",
+                "boundaryIds": [
+                  "care:diag-0"
+                ],
+                "blocked": true
+              },
+              {
+                "petId": "milo",
+                "boundaryIds": [
+                  "care:diag-15"
+                ],
+                "blocked": true
+              },
+              {
+                "petId": "oscar",
+                "boundaryIds": [
+                  "care:diag-31"
+                ],
+                "blocked": true
+              }
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-0",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.",
+              "occurredAt": "2021-10-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-14",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.",
+              "occurredAt": "2026-09-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-1",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.",
+              "occurredAt": "2023-03-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-13",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.",
+              "occurredAt": "2026-08-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-2",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.",
+              "occurredAt": "2026-05-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-12",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.",
+              "occurredAt": "2026-08-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-3",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-11",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.",
+              "occurredAt": "2026-08-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-33",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar hesitated before jumping onto the sofa twice this week. He is still willing to walk. I do not know why he hesitated.",
+              "occurredAt": "2026-06-11T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Oscar is the dog whose travel bag weighed 6 lb, and that 6 lb figure was his bag, not his body weight.",
+                "sourceIds": [
+                  "care:diag-31"
+                ],
+                "index": 0
+              },
+              {
+                "text": "His latest recorded body weight was 7.1 kg.",
+                "sourceIds": [
+                  "care:diag-41"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 65,
+      "question": "Can the amount left in Luna’s bowl establish drinking volume if spilled water was never measured?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "outputFormat": "prose",
+          "question": "Can the amount left in Luna’s bowl establish drinking volume if spilled water was never measured?",
+          "requirements": [
+            "Answer as a general reasoning question about whether drinking volume can be established from the water left in the bowl when spilled water was not measured.",
+            "Do not treat this as a lookup or as requiring saved pet history.",
+            "Respond in a concise explanatory form.",
+            "Use the same language as the user.",
+            "Do not answer as if it were specific evidence about Milo or any owned pet record."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "whether remaining bowl water can establish drinking volume without measuring spills",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Can the amount left in Luna’s bowl establish drinking volume if spilled water was never measured?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "Not reliably. If spilled water wasn’t measured, the amount left in the bowl can only give you a rough estimate of what might have been drunk, not an actual drinking volume. The bowl could also be missing water from evaporation, splashing, refilling, or the pet nudging it around, so the leftover amount by itself doesn’t prove intake. If you need a real number, you’d need to measure the starting amount, the remaining amount, and any spills or messes separately.",
+      "beforeFinalGuard": "Not reliably. If spilled water wasn’t measured, the amount left in the bowl can only give you a rough estimate of what might have been drunk, not an actual drinking volume. The bowl could also be missing water from evaporation, splashing, refilling, or the pet nudging it around, so the leftover amount by itself doesn’t prove intake. If you need a real number, you’d need to measure the starting amount, the remaining amount, and any spills or messes separately.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 78,
+      "question": "Of the two dogs, which has the saved seven-day medication course and which has the training-treat change?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "outputFormat": "prose",
+          "question": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+          "requirements": [
+            "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change.",
+            "Use a concise comparison.",
+            "Respond in prose."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "comparison",
+        "petIds": [
+          "milo",
+          "luna",
+          "oscar"
+        ],
+        "topic": "assignment of two saved records between the two owned dogs",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-09-10T00:00:00.000Z",
+          "terms": [
+            "seven-day medication course",
+            "training-treat change",
+            "dogs"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Milo: Milo's 2021-10-05 report: \"Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.\" Milo's 2023-04-11 report: \"Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.\" Milo's 2026-05-20 report: \"Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.\" Milo's 2026-06-04 report: \"Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.\" Milo's 2026-07-24 report: \"Note: Milo weighed 27.9 kg today. His appetite and activity are normal.\" Milo's 2026-08-08 report: \"Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.\" Milo's 2026-08-10 report: \"Note: Milo's stools are normal again. There have been no more soft stools since August 8.\" Milo's 2026-09-03 report: \"Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Luna: Luna's 2021-10-06 report: \"Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.\" Luna's 2023-03-12 report: \"Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.\" Luna's 2026-05-21 report: \"Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.\" Luna's 2026-06-04 report: \"Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.\" Luna's 2026-08-02 report: \"Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.\" Luna's 2026-08-15 report: \"Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.\" Luna's 2026-08-22 report: \"Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.\" Luna's 2026-09-02 report: \"Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Oscar: Oscar's 2021-10-07 report: \"Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.\" Oscar's 2023-03-13 report: \"Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.\" Oscar's 2026-05-22 report: \"Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.\" Oscar's 2026-06-04 report: \"Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.\" Oscar's 2026-06-17 report: \"Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.\" Oscar's 2026-06-24 report: \"Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.\" Oscar's 2026-08-18 report: \"Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.\" Oscar's 2026-08-27 report: \"Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.\" Oscar's 2026-09-03 report: \"Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.\" Oscar's 2026-09-04 report: \"Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "beforeFinalGuard": "I couldn't verify a complete answer to the request. These are the saved reports I could check for Milo: Milo's 2021-10-05 report: \"Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.\" Milo's 2023-04-11 report: \"Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.\" Milo's 2026-05-20 report: \"Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.\" Milo's 2026-06-04 report: \"Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.\" Milo's 2026-07-24 report: \"Note: Milo weighed 27.9 kg today. His appetite and activity are normal.\" Milo's 2026-08-08 report: \"Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.\" Milo's 2026-08-10 report: \"Note: Milo's stools are normal again. There have been no more soft stools since August 8.\" Milo's 2026-09-03 report: \"Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Luna: Luna's 2021-10-06 report: \"Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.\" Luna's 2023-03-12 report: \"Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.\" Luna's 2026-05-21 report: \"Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.\" Luna's 2026-06-04 report: \"Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.\" Luna's 2026-08-02 report: \"Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.\" Luna's 2026-08-15 report: \"Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.\" Luna's 2026-08-22 report: \"Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.\" Luna's 2026-09-02 report: \"Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.\"\n\nI couldn't verify a complete answer to the request. These are the saved reports I could check for Oscar: Oscar's 2021-10-07 report: \"Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.\" Oscar's 2023-03-13 report: \"Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.\" Oscar's 2026-05-22 report: \"Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.\" Oscar's 2026-06-04 report: \"Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.\" Oscar's 2026-06-17 report: \"Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.\" Oscar's 2026-06-24 report: \"Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.\" Oscar's 2026-08-18 report: \"Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.\" Oscar's 2026-08-27 report: \"Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.\" Oscar's 2026-09-03 report: \"Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.\" Oscar's 2026-09-04 report: \"Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.\"\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Oscar has the saved seven-day medication course.",
+            "sourceIds": [
+              "care:diag-34",
+              "care:diag-35"
+            ]
+          },
+          {
+            "text": "Milo has the saved training-treat change.",
+            "sourceIds": [
+              "evidenceContract"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [
+            1
+          ],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Of the two dogs, which has the saved seven-day medication course and which has the training-treat change?",
+          "referenceQuestion": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "requestedTopic": "assignment of two saved records between the two owned dogs",
+            "requestText": "Of the two dogs, which has the saved seven-day medication course and which has the training-treat change?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+              "requirements": [
+                "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change.",
+                "Use a concise comparison.",
+                "Respond in prose."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "comparison",
+            "petIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "topic": "assignment of two saved records between the two owned dogs",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "seven-day medication course",
+                "training-treat change",
+                "dogs"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo",
+            "luna": "Luna",
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+            "requirements": [
+              "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change.",
+              "Use a concise comparison.",
+              "Respond in prose."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?"
+            },
+            {
+              "index": 1,
+              "text": "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change."
+            },
+            {
+              "index": 2,
+              "text": "Use a concise comparison."
+            },
+            {
+              "index": 3,
+              "text": "Respond in prose."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-0",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.",
+              "occurredAt": "2021-10-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-34",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-14",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.",
+              "occurredAt": "2026-09-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-1",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.",
+              "occurredAt": "2023-03-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-35",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+              "occurredAt": "2026-06-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-13",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.",
+              "occurredAt": "2026-08-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-2",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.",
+              "occurredAt": "2026-05-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-12",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.",
+              "occurredAt": "2026-08-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-3",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-11",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.",
+              "occurredAt": "2026-08-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Oscar has the saved seven-day medication course.",
+                "sourceIds": [
+                  "care:diag-34",
+                  "care:diag-35"
+                ],
+                "index": 0
+              },
+              {
+                "text": "Milo has the saved training-treat change.",
+                "sourceIds": [
+                  "evidenceContract"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [
+            1
+          ],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Of the two dogs, which has the saved seven-day medication course and which has the training-treat change?",
+          "referenceQuestion": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "requestedTopic": "assignment of two saved records between the two owned dogs",
+            "requestText": "Of the two dogs, which has the saved seven-day medication course and which has the training-treat change?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+              "requirements": [
+                "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change.",
+                "Use a concise comparison.",
+                "Respond in prose."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "comparison",
+            "petIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "topic": "assignment of two saved records between the two owned dogs",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "seven-day medication course",
+                "training-treat change",
+                "dogs"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo",
+            "luna": "Luna",
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+            "requirements": [
+              "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change.",
+              "Use a concise comparison.",
+              "Respond in prose."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?"
+            },
+            {
+              "index": 1,
+              "text": "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change."
+            },
+            {
+              "index": 2,
+              "text": "Use a concise comparison."
+            },
+            {
+              "index": 3,
+              "text": "Respond in prose."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Oscar has the saved seven-day medication course.",
+                "sourceIds": [
+                  "care:diag-34",
+                  "care:diag-35"
+                ],
+                "index": 0
+              },
+              {
+                "text": "Milo has the saved training-treat change.",
+                "sourceIds": [
+                  "evidenceContract"
+                ],
+                "index": 1
+              }
+            ]
+          },
+          "rejectionReason": "The draft contains an unsupported claim: Milo is assigned the training-treat change without any supporting source. Because the comparison is incomplete and one sentence is deterministically invalid, the answer must be repaired.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null,
+              "id": "profile:luna:sex"
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null,
+              "id": "profile:luna:species"
+            },
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:milo:sex"
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:milo:species"
+            },
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:oscar:sex"
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:oscar:species"
+            },
+            {
+              "sourceId": "care:diag-0",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.",
+              "occurredAt": "2021-10-06T12:00:00Z",
+              "id": "care:diag-0"
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z",
+              "id": "care:diag-15"
+            },
+            {
+              "sourceId": "care:diag-34",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+              "occurredAt": "2026-06-17T12:00:00Z",
+              "id": "care:diag-34"
+            },
+            {
+              "sourceId": "care:diag-14",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.",
+              "occurredAt": "2026-09-02T12:00:00Z",
+              "id": "care:diag-14"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z",
+              "id": "care:diag-28"
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z",
+              "id": "care:diag-42"
+            },
+            {
+              "sourceId": "care:diag-1",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.",
+              "occurredAt": "2023-03-12T12:00:00Z",
+              "id": "care:diag-1"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z",
+              "id": "care:diag-16"
+            },
+            {
+              "sourceId": "care:diag-35",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+              "occurredAt": "2026-06-24T12:00:00Z",
+              "id": "care:diag-35"
+            },
+            {
+              "sourceId": "care:diag-13",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.",
+              "occurredAt": "2026-08-22T12:00:00Z",
+              "id": "care:diag-13"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z",
+              "id": "care:diag-27"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z",
+              "id": "care:diag-41"
+            },
+            {
+              "sourceId": "care:diag-2",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.",
+              "occurredAt": "2026-05-21T12:00:00Z",
+              "id": "care:diag-2"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z",
+              "id": "care:diag-17"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z",
+              "id": "care:diag-29"
+            },
+            {
+              "sourceId": "care:diag-12",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.",
+              "occurredAt": "2026-08-15T12:00:00Z",
+              "id": "care:diag-12"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z",
+              "id": "care:diag-26"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z",
+              "id": "care:diag-40"
+            },
+            {
+              "sourceId": "care:diag-3",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.",
+              "occurredAt": "2026-06-04T12:00:00Z",
+              "id": "care:diag-3"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z",
+              "id": "care:diag-18"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z",
+              "id": "care:diag-30"
+            },
+            {
+              "sourceId": "care:diag-11",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.",
+              "occurredAt": "2026-08-02T12:00:00Z",
+              "id": "care:diag-11"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z",
+              "id": "care:diag-25"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z",
+              "id": "care:diag-39"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z",
+              "id": "care:diag-31"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z",
+              "id": "care:diag-32"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "outputFormat": "prose",
+                "question": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+                "requirements": [
+                  "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change.",
+                  "Use a concise comparison.",
+                  "Respond in prose."
+                ],
+                "referenceTurnIds": [],
+                "quantity": null
+              },
+              "operation": "comparison",
+              "readOperation": "comparison",
+              "selection": "comparison",
+              "petIds": [
+                "milo",
+                "luna",
+                "oscar"
+              ],
+              "topic": "assignment of two saved records between the two owned dogs",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": "2021-09-09T00:00:00.000Z",
+                "to": "2026-09-10T00:00:00.000Z",
+                "terms": [
+                  "seven-day medication course",
+                  "training-treat change",
+                  "dogs"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Of the two dogs, which has the saved seven-day medication course and which has the training-treat change?",
+          "referenceQuestion": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "requestedTopic": "assignment of two saved records between the two owned dogs",
+            "requestText": "Of the two dogs, which has the saved seven-day medication course and which has the training-treat change?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "outputFormat": "prose",
+              "question": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+              "requirements": [
+                "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change.",
+                "Use a concise comparison.",
+                "Respond in prose."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "comparison",
+            "petIds": [
+              "milo",
+              "luna",
+              "oscar"
+            ],
+            "topic": "assignment of two saved records between the two owned dogs",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "seven-day medication course",
+                "training-treat change",
+                "dogs"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo",
+            "luna": "Luna",
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "outputFormat": "prose",
+            "question": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?",
+            "requirements": [
+              "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change.",
+              "Use a concise comparison.",
+              "Respond in prose."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Of the two owned dogs, which one has the saved seven-day medication course and which one has the saved training-treat change?"
+            },
+            {
+              "index": 1,
+              "text": "Answer which of the two owned dogs has the seven-day medication course and which has the training-treat change."
+            },
+            {
+              "index": 2,
+              "text": "Use a concise comparison."
+            },
+            {
+              "index": 3,
+              "text": "Respond in prose."
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-0",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-filled: Luna’s bowl was filled with 250 mL of water. The amount Luna drank was not measured.",
+              "occurredAt": "2021-10-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-15",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-old: Milo tolerated a 10-minute car ride calmly. The empty carrier weighed 2 kg. This was the carrier weight, not Milo’s weight.",
+              "occurredAt": "2021-10-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-34",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-14",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna still hides during loud drilling. Her appetite and litter tray use are normal. Her weight today was 4.2 kg.",
+              "occurredAt": "2026-09-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-28",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.8 kg today. He is still eating salmon-and-rice food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-1",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 water-remaining: There were 100 mL of water remaining in Luna’s bowl. The amount spilled was unknown. Water intake was not measured.",
+              "occurredAt": "2023-03-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-16",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 carrier-later: Milo tolerated a 20-minute car ride calmly. The empty carrier weighed 2.5 kg. No reason for the weight difference was recorded.",
+              "occurredAt": "2023-04-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-35",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+              "occurredAt": "2026-06-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-13",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna is coming out more often even when there is some noise. She still hides during the loud drilling. This has improved but has not completely stopped.",
+              "occurredAt": "2026-08-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-27",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo's stools are normal again. There have been no more soft stools since August 8.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-2",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Synthetic benchmark 2026-09-09 brushing: Luna tolerated 6 minutes of brushing calmly.",
+              "occurredAt": "2026-05-21T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-17",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Synthetic benchmark 2026-09-09 nail-trim: During a nail trim Milo withdrew his right forepaw once. No injury or diagnosis was recorded.",
+              "occurredAt": "2026-05-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-12",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Building work started next door. Luna is hiding more during the noisy periods, but she comes out later and eats her meals.",
+              "occurredAt": "2026-08-15T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-26",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo had one soft stool after staying with my sister for the weekend. She says he may have eaten some table scraps, but nobody saw exactly what he ate.",
+              "occurredAt": "2026-08-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-3",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: Luna weighed 4.2 kg today. She eats chicken complete adult wet food. She normally uses her uncovered litter tray in the quiet spare room.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-18",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 28.4 kg today. He is eating chicken-and-rice adult dry food. His appetite, energy and stools are normal.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-11",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Note: We gradually changed Luna from chicken wet food to turkey complete adult wet food because she seemed to prefer it. No food allergy has been diagnosed.",
+              "occurredAt": "2026-08-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-25",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Note: Milo weighed 27.9 kg today. His appetite and activity are normal.",
+              "occurredAt": "2026-07-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Oscar has the saved seven-day medication course.",
+                "sourceIds": [
+                  "care:diag-34",
+                  "care:diag-35"
+                ],
+                "index": 0
+              },
+              {
+                "text": "The supplied records do not show a saved training-treat change for either dog, so that assignment cannot be determined from this evidence.",
+                "sourceIds": [
+                  "profile:milo:species",
+                  "profile:oscar:species",
+                  "care:diag-34",
+                  "care:diag-35",
+                  "care:diag-15",
+                  "care:diag-16",
+                  "care:diag-17",
+                  "care:diag-18",
+                  "care:diag-25",
+                  "care:diag-26",
+                  "care:diag-27",
+                  "care:diag-28"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 5,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 79,
+      "question": "Does the May travel-bag mass tell us Oscar’s body weight at that time?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "outputFormat": "prose",
+          "question": "Does the May travel-bag mass tell us Oscar’s body weight at that time?",
+          "requirements": [
+            "Answer whether a travel-bag mass measurement is enough to determine Oscar’s body weight at that time.",
+            "If not enough, explain briefly why in clear plain English.",
+            "Keep the response concise."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "whether a travel-bag mass measurement determines a pet’s body weight",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Does the May travel-bag mass tell us Oscar’s body weight at that time?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "No. A travel-bag mass by itself doesn’t tell you Oscar’s body weight, because it includes the bag and anything else inside it. To estimate his weight from that number, you’d need the bag’s empty weight, or a tare reading, so you can subtract it out.",
+      "beforeFinalGuard": "No. A travel-bag mass by itself doesn’t tell you Oscar’s body weight, because it includes the bag and anything else inside it. To estimate his weight from that number, you’d need the bag’s empty weight, or a tare reading, so you can subtract it out.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

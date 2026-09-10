@@ -6,7 +6,7 @@ import type { FurviseMemoryRow } from "./types";
 import type { InactiveMemoryMarker } from "./memory-lifecycle/filter-conversation";
 import { recoverOptionalQuery } from "./context-recovery.ts";
 import { isEligibleLegacyMemory, isEligibleStoredMemory } from "./memory-integrity.ts";
-import { selectFreshRelevantMemories } from "./memory-freshness/select-fresh-memories.ts";
+import { selectFreshRelevantMemories } from "./memory-freshness.ts";
 
 type ScopedInactiveMemory = InactiveMemoryMarker & Pick<FurviseMemoryRow, "category" | "pet_id" | "source_excerpt" | "subject_type">;
 

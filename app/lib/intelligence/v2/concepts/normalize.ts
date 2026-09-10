@@ -1,4 +1,4 @@
-import { normalizeConceptLabel } from "../../concepts/normalize-concept.ts";
+import { normalizeConceptLabel } from "../../concept-matching.ts";
 import type { GroundedSemanticEvidence, ProposedSemanticFrame } from "../../semantic-frame/types.ts";
 import type { GovernedConceptIdentity, ProposedSemanticClaim } from "../types.ts";
 

@@ -16,8 +16,6 @@ import {
 import { buildRecentAskUpdates } from "../app/lib/ask-safety-context.ts";
 import { ensureConfirmedLossAction } from "../app/lib/ai/pet-loss.ts";
 import { prepareFurviseApplicationActions } from "../app/lib/application-actions/index.ts";
-import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts/registry-policy.ts";
-import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
 const now = new Date("2026-07-27T20:00:00Z");
 const maniProductionQuestion = "Mani has been acting restless since the male cat started coming to our door three days ago. She keeps meowing at the door and seems more interested in getting outside. Yesterday I think she drank some water I had left outside, but I’m not completely sure. Today she ate normally and is acting mostly like herself. Based on what you already know about Mani and what I’ve told you recently, what do you think is relevant here, what should I do today, what should I keep an eye on, and is there anything from her history that changes your advice?";
@@ -168,48 +166,6 @@ test("long Ask context is ranked and truncated deterministically", () => {
   assert.ok(JSON.stringify(first.promptContext).length <= ASK_PROMPT_CONTEXT_CHAR_BUDGET);
   assert.deepEqual(first.records.map((record) => record.id), second.records.map((record) => record.id));
   assert.ok(first.records.length < careEntries.length);
-});
-
-test("the unified parser applies only authorized owner-preference frame recovery", async () => {
-  const question = "I prefer shopping at Chewy.";
-  const concerns = [{
-    id: "concern-vomiting", user_id: "user-1", pet_profile_id: "pet-mani", title: "Vomiting",
-    normalized_key: "vomiting", status: "active", severity: "urgent", source_care_entry_id: "vomiting",
-    opened_at: "2026-07-27T18:00:00Z", updated_at: "2026-07-27T18:00:00Z", resolved_at: null, resolution_note: null,
-  }];
-  const semanticFrame = {
-    schemaVersion: SEMANTIC_FRAME_SCHEMA_VERSION, frameLocalId: "frame_1",
-    discourseActs: [{ kind: "statement", confidence: 0.99 }],
-    mentions: [{
-      localId: "organization_1", surface: "Chewy", coarseType: "organization",
-      attributes: { species: null, lifeStage: null, ownership: "unknown" },
-      evidence: [{ surfaceText: "Chewy" }], confidence: 0.98,
-    }],
-    references: [],
-    claims: [{
-      localId: "claim_1", kind: "preference", subjectRef: "owner_1",
-      predicate: { label: "shopping preference", definition: null, aliases: [], parentLabels: [], relatedLabels: [] },
-      polarity: "affirmed", modality: "asserted",
-      temporal: { occurredAt: null, validFrom: null, validTo: null, surfaceText: null, precision: "unknown" },
-      uncertainty: { confidence: 0.97, reasons: [] }, evidence: [{ surfaceText: question }], persistenceHint: "owner_memory",
-      preference: "prefer",
-      object: { concept: { label: "retailer", definition: null, aliases: [], parentLabels: [], relatedLabels: [] }, value: "Chewy" },
-      constraints: [],
-    }],
-    uncertainty: { needsClarification: false, clarificationQuestion: null, reasons: [] },
-  };
-  const preferredRetailer = attachRegistryConceptPolicy({
-    key: "preferred_retailer", version: "furvise.core.v1", conceptKind: "preference", lifecycleCapable: false,
-  });
-  const result = await generateContextAwareAskResponse({
-    ...input({ question, concerns }), client: mockClient([unified({ semanticFrame })]),
-    semanticFrameRecovery: { ownerIdentityVerified: true, canonicalConcepts: [preferredRetailer] },
-  });
-  assert.equal(result.semanticFrameValid, true);
-  assert.deepEqual(result.semanticFrameRecovery, {
-    applied: true, reason: "RECOVERED_OWNER_PREFERENCE", validationReason: "CLAIM_SUBJECT_REF_UNKNOWN",
-  });
-  assert.equal(result.semanticFrame.claims[0].subjectRef, null);
 });
 
 test("one primary and optional fallback model replace planner and responder configuration", () => {

@@ -1,0 +1,1258 @@
+path,category,layer,classification_basis
+.env.example,Platform and operations,Configuration and infrastructure,Root configuration
+.gitattributes,Platform and operations,Configuration and infrastructure,Root configuration
+.github/dependabot.yml,Platform and operations,Configuration and infrastructure,Filename topic; supporting artifact
+.github/workflows/ci.yml,Platform and operations,Configuration and infrastructure,Filename topic; supporting artifact
+.gitignore,Platform and operations,Configuration and infrastructure,Root configuration
+.nvmrc,Platform and operations,Configuration and infrastructure,Root configuration
+.vercelignore,Platform and operations,Configuration and infrastructure,Root configuration
+AGENTS.md,Platform and operations,Configuration and infrastructure,Root configuration
+CLAUDE.md,Platform and operations,Configuration and infrastructure,Root configuration
+README.md,Platform and operations,Configuration and infrastructure,Root configuration
+app/account/layout.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/account/page.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/api/account/change-password/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/account/delete/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/account/detect-country/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/account/entitlements/route.ts,Billing and membership,API routes,Application path and responsibility
+app/api/account/export/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/account/product-country/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/ask/actions/[messageId]/route.ts,Ask Furvise,API routes,Application path and responsibility
+app/api/ask/conversations/[id]/messages/route.ts,Ask Furvise,API routes,Application path and responsibility
+app/api/ask/conversations/[id]/route.ts,Ask Furvise,API routes,Application path and responsibility
+app/api/ask/conversations/route.ts,Ask Furvise,API routes,Application path and responsibility
+app/api/ask/route.ts,Ask Furvise,API routes,Application path and responsibility
+app/api/ask/suggestions/[id]/route.ts,Ask Furvise,API routes,Application path and responsibility
+app/api/auth/account-route/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/login-otp/start/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/login/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/oauth/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/recovery/continue/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/recovery/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/resend/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/signup/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/update-password/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/auth/verify-email-otp/route.ts,Authentication and account,API routes,Application path and responsibility
+app/api/billing/checkout/route.ts,Billing and membership,API routes,Application path and responsibility
+app/api/billing/portal/route.ts,Billing and membership,API routes,Application path and responsibility
+app/api/billing/webhook/route.ts,Billing and membership,API routes,Application path and responsibility
+app/api/care-entries/[id]/route.ts,History and saved memories,API routes,Application path and responsibility
+app/api/care-entries/route.ts,History and saved memories,API routes,Application path and responsibility
+app/api/health/route.ts,Platform and operations,API routes,Application path and responsibility
+app/api/legacy-memories/route.ts,History and saved memories,API routes,Application path and responsibility
+app/api/memories/[id]/route.ts,History and saved memories,API routes,Application path and responsibility
+app/api/pets/[id]/route.ts,Pet profiles and onboarding,API routes,Application path and responsibility
+app/api/pets/route.ts,Pet profiles and onboarding,API routes,Application path and responsibility
+app/api/product-feedback/route.ts,Products and compatibility,API routes,Application path and responsibility
+app/api/readiness/route.ts,Platform and operations,API routes,Application path and responsibility
+app/api/vet-briefs/[id]/pdf/route.ts,Vet Brief,API routes,Application path and responsibility
+app/api/vet-briefs/[id]/route.ts,Vet Brief,API routes,Application path and responsibility
+app/api/vet-briefs/draft/route.ts,Vet Brief,API routes,Application path and responsibility
+app/api/vet-briefs/route.ts,Vet Brief,API routes,Application path and responsibility
+app/ask/layout.tsx,Ask Furvise,"Pages, components and styling",Application path and responsibility
+app/ask/page.tsx,Ask Furvise,"Pages, components and styling",Application path and responsibility
+app/auth/callback/route.ts,Authentication and account,API routes,Application path and responsibility
+app/care-log/layout.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/care-log/page.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/components/account-access.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/components/account-settings-shell.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/components/account-utility.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/components/action-visual-audit.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/app-header.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/app-page.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/ask-answer-text.tsx,Ask Furvise,"Pages, components and styling",Application path and responsibility
+app/components/ask-usage-notice.tsx,Ask Furvise,"Pages, components and styling",Application path and responsibility
+app/components/authenticated-app-chrome.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/brand-mark.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/care-entry-form.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/components/care-entry-metadata.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/components/care-log-workspace.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/components/care-timeline.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/components/history-archive.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/components/homepage-client.tsx,Marketing and legal,"Pages, components and styling",Application path and responsibility
+app/components/legal-page-shell.tsx,Marketing and legal,"Pages, components and styling",Application path and responsibility
+app/components/local-photo.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/components/overflow-menu.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/pet-limit-screen.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/components/private-route-layout.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/product-primitives.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/signed-in-header.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/components/simple-pet-profile-form.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/components/turnstile-challenge.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/components/vet-brief-document.tsx,Vet Brief,"Pages, components and styling",Application path and responsibility
+app/components/workflow-primitives.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/dashboard/layout.tsx,Today,"Pages, components and styling",Application path and responsibility
+app/dashboard/page.tsx,Today,"Pages, components and styling",Application path and responsibility
+app/dogs/[id]/care/page.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/dogs/[id]/edit/page.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/dogs/[id]/feedback/page.tsx,Products and compatibility,"Pages, components and styling",Application path and responsibility
+app/dogs/[id]/memories/page.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/dogs/layout.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/favicon.ico,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/forgot-password/layout.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/forgot-password/page.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/forgot-password/password-email-form.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/global-error.tsx,Platform and operations,"Pages, components and styling",Application path and responsibility
+app/globals.css,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/history/layout.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/history/page.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/layout.tsx,Shared UI and navigation,"Pages, components and styling",Application path and responsibility
+app/lib/account-country,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/account-country.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/active-pet.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-admission-settlement.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-answer-economy.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-command-router.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-error-diagnostic.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-internal-product-policy.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-orchestrator.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-provider.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-reasoning.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/ask-turn-model.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/concern-engine.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ai/concern-event-order.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ai/concern-symptoms.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ai/config.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/context-builder.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/conversation-intent.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/execution-deadline.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/history-source-transport.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/owner-assertion.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ai/pending-lifecycle.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ai/pet-loss.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ai/recovery-subject.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/response-planner.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/safety-temporal-scope.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ai/text-segmentation.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ai/turn-classifier.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/admission.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/classification.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/config.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/context.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/cost-estimator.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/daily-usage-store.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/errors.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/features.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/logging.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/memory-test-store.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/operation-identity.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/provider-call-budget.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-guard/types.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-ledger-admin.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/ai/usage-ledger.ts,AI usage and cost controls,Libraries and vendor support,Application path and responsibility
+app/lib/answer-integrity.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/capabilities.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/contracts.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/executor.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/index.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/memory-scopes.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/planner.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/policy.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/state-claims.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/application-actions/types.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/ask-analytics.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-care-history-state.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-conversation-authority.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-conversation-server.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-conversations.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-draft.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-experience.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-onboarding-entry.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-pet-selection.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-profile-read.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-publication.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-request-contract.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-safety-context.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask-session-request.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/ask.mjs,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/auth-email-otp.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/auth-identity.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/auth-routing.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/auth-session.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/authenticated-api-core.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/authenticated-api-server.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/billing/account-deletion.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/billing-admin.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/billing-market.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/billing-presentation.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/entitlement-types.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/entitlements.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/launch-plans.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/plan-limits.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/stripe-projection.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/billing/stripe-server.ts,Billing and membership,Libraries and vendor support,Application path and responsibility
+app/lib/care-entry-api-server.ts,History and saved memories,Libraries and vendor support,Application path and responsibility
+app/lib/care-log.mjs,History and saved memories,Libraries and vendor support,Application path and responsibility
+app/lib/effective-history.ts,History and saved memories,Libraries and vendor support,Application path and responsibility
+app/lib/furvise-output.ts,Shared voice and output,Libraries and vendor support,Application path and responsibility
+app/lib/furvise-voice.ts,Shared voice and output,Libraries and vendor support,Application path and responsibility
+app/lib/google-auth-client.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/history-archive.ts,History and saved memories,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/answer-assessment.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/ask-evidence-presentation.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/ask-evidence.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/ask-request-contract.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/build-context.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/care-authority-client.ts,Database and data access,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/care-history-policy.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/classify-message.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/concept-matching.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/concern-chronology.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/context-recovery.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/conversation-read-anchor.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/conversation-scope.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/correction-report.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/dated-correction-notes.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/entities/recent-subject-state.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/entities/resolve-turn-subject.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/entity-matching.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/episode-contract.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/episode-history.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/episode-membership.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/episode-presentation.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/episode-reference-language.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/episodes/types.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/evidence-need-coverage.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/evidence-needs.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/feature-failure.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/feature-modes.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/generate-ask-history.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/governance/authorize-actions.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/governance/index.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/governance/types.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/historical-care-state.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/historical-read-response.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-access.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-calculation.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-dates.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-limits.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-narrative-facts.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-narrative.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-obligations.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-query-relevance.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-read-strategies.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-retrieval.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-review-selection.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-review-state.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/history-synthesis.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/index.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/inspect-ask-publication.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/interpret-ask.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/logging.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/memory-freshness.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/memory-integrity.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/memory-lifecycle/filter-conversation.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/memory-policy.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/memory-sources.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/memory-suggestion.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/persist-learnings.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/persist-pending-suggestion.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/persistence-destination.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/persistence-partition.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/pet-identity-persistence-policy.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/pet-state/types.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/preference-semantics.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/product-safety.ts,Products and compatibility,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/read-projection.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/recorded-inventory.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/recorded-provenance.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/recovery-governance.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/request-reference-context.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/response-rendering.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/retrieve-context.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/review-history-narrative.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/run-feature-intelligence.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/run-intelligence.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/safety-state.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/schemas.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-event-persistence.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-events.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-frame/extract-frame.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-frame/extract-turn-subject.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-frame/ground-evidence.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-frame/normalize-claim-kind.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-frame/recover-owner-preference.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-frame/schema.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-frame/types.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-frame/validate-evidence.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/semantic-observability.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/source-note-recall.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/structured-history-json.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/types.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/concepts/normalize.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/governance/deduplicate.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/governance/entities.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/governance/evidence.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/governance/govern-turn.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/governance/persistence.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/governance/temporal.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/lifecycle/compatibility.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/observability.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/projections/legacy-memory.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/projections/rebuild.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/v2/types.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/validation/index.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/validation/validate-answer.ts,Shared pet intelligence and governance,Libraries and vendor support,Application path and responsibility
+app/lib/intelligence/vet-brief.ts,Vet Brief,Libraries and vendor support,Application path and responsibility
+app/lib/local-pet-media.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/navigation/app-data-freshness.ts,Shared UI and navigation,Libraries and vendor support,Application path and responsibility
+app/lib/navigation/ask-composer-focus.tsx,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/navigation/ask-request-activity.ts,Ask Furvise,Libraries and vendor support,Application path and responsibility
+app/lib/navigation/mobile-navigation.ts,Shared UI and navigation,Libraries and vendor support,Application path and responsibility
+app/lib/navigation/use-mobile-liquid-glass.ts,Shared UI and navigation,Libraries and vendor support,Application path and responsibility
+app/lib/onboarding-drafts.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/operations/admin-client.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/events/index.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/events/logger.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/events/redaction.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/events/types.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/production-config.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/readiness.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/sentry-privacy.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/support-reference.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/operations/user-data-export.ts,Platform and operations,Libraries and vendor support,Application path and responsibility
+app/lib/password-capability.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/pet-delete-client-state.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/pet-lifecycle.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/pet-limit.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/pet-memory.ts,History and saved memories,Libraries and vendor support,Application path and responsibility
+app/lib/pet-profile-api-server.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/pet-profile-editing.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/pet-profile-file.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/pets-directory.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/petwise,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/petwise.ts,Pet profiles and onboarding,Libraries and vendor support,Application path and responsibility
+app/lib/remembered-details.ts,History and saved memories,Libraries and vendor support,Application path and responsibility
+app/lib/security/account-password-change.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/captcha.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/config.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/email.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/index.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/keys.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/limiter.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/logging.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/login-captcha.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/memory-recovery-authorization-store.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/memory-recovery-handoff-store.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/memory-test-store.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/origin.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/password.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-authorization-types.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-authorization.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-callback.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-completion.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-confirmation.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-continuation.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-fragment.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-handoff-core.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-handoff-types.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-handoff.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-secrets.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/recovery-session-cleanup.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/redis-store.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/responses.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/turnstile-siteverify.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/auth-abuse/types.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/bounded-raw-body.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/headers/content-security-policy.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/headers/origin-policy.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/headers/security-headers.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/admin-client.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/claim-recovery.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/client.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/errors.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/index.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/logging.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/operation.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/payload-hash.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/request-key.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/store.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/idempotency/types.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/logging.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/password-capability-admin.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/private-routes.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/concurrency.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/config.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/errors.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/index.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/keys.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/logging.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/memory-test-adapter.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/rate-limit.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/redis-adapter.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/rate-limit/types.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/recent-auth.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/recent-interactive-auth.mjs,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/security/request.ts,Security and request protection,Libraries and vendor support,Application path and responsibility
+app/lib/seo.ts,Marketing and legal,Libraries and vendor support,Application path and responsibility
+app/lib/sign-out.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/supabase.ts,Database and data access,Libraries and vendor support,Application path and responsibility
+app/lib/supabase/account-route-admin.ts,Database and data access,Libraries and vendor support,Application path and responsibility
+app/lib/supabase/proxy.ts,Database and data access,Libraries and vendor support,Application path and responsibility
+app/lib/supabase/server.ts,Database and data access,Libraries and vendor support,Application path and responsibility
+app/lib/today.ts,Today,Libraries and vendor support,Application path and responsibility
+app/lib/turnstile-explicit-execution.ts,Authentication and account,Libraries and vendor support,Application path and responsibility
+app/lib/vendor/liquidglass/README.md,Shared UI and navigation,Libraries and vendor support,Application path and responsibility
+app/lib/vendor/liquidglass/index.d.ts,Shared UI and navigation,Libraries and vendor support,Application path and responsibility
+app/lib/vendor/liquidglass/index.js,Shared UI and navigation,Libraries and vendor support,Application path and responsibility
+app/lib/vet-brief/builder.ts,Vet Brief,Libraries and vendor support,Application path and responsibility
+app/lib/vet-brief/client-drafts.ts,Vet Brief,Libraries and vendor support,Application path and responsibility
+app/lib/vet-brief/pdf.ts,Vet Brief,Libraries and vendor support,Application path and responsibility
+app/lib/vet-brief/schema.ts,Vet Brief,Libraries and vendor support,Application path and responsibility
+app/lib/vet-brief/server.ts,Vet Brief,Libraries and vendor support,Application path and responsibility
+app/lib/vet-brief/types.ts,Vet Brief,Libraries and vendor support,Application path and responsibility
+app/lib/visual-system.ts,Shared UI and navigation,Libraries and vendor support,Application path and responsibility
+app/login/layout.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/login/page.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/membership/layout.tsx,Billing and membership,"Pages, components and styling",Application path and responsibility
+app/membership/page.tsx,Billing and membership,"Pages, components and styling",Application path and responsibility
+app/onboarding/initialization-key.ts,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/onboarding/layout.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/onboarding/onboarding-surface.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/onboarding/page.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/onboarding/weight-warning.ts,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/page.tsx,Marketing and legal,"Pages, components and styling",Application path and responsibility
+app/pets/[id]/care/page.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/pets/[id]/edit/page.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/pets/[id]/feedback/page.tsx,Products and compatibility,"Pages, components and styling",Application path and responsibility
+app/pets/[id]/loading.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/pets/[id]/memories/page.tsx,History and saved memories,"Pages, components and styling",Application path and responsibility
+app/pets/[id]/page.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/pets/layout.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/pets/page.tsx,Pet profiles and onboarding,"Pages, components and styling",Application path and responsibility
+app/privacy/page.tsx,Marketing and legal,"Pages, components and styling",Application path and responsibility
+app/reset-password/confirm/layout.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/reset-password/confirm/page.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/results/layout.tsx,Products and compatibility,"Pages, components and styling",Application path and responsibility
+app/results/page.tsx,Products and compatibility,"Pages, components and styling",Application path and responsibility
+app/robots.ts,Marketing and legal,"Pages, components and styling",Application path and responsibility
+app/settings/data-privacy/page.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/settings/layout.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/settings/security/page.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/shop/layout.tsx,Products and compatibility,"Pages, components and styling",Application path and responsibility
+app/shop/page.tsx,Products and compatibility,"Pages, components and styling",Application path and responsibility
+app/sitemap.ts,Marketing and legal,"Pages, components and styling",Application path and responsibility
+app/terms/page.tsx,Marketing and legal,"Pages, components and styling",Application path and responsibility
+app/today/layout.tsx,Today,"Pages, components and styling",Application path and responsibility
+app/today/page.tsx,Today,"Pages, components and styling",Application path and responsibility
+app/today/today.module.css,Today,"Pages, components and styling",Application path and responsibility
+app/update-password/layout.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/update-password/page.tsx,Authentication and account,"Pages, components and styling",Application path and responsibility
+app/vet-brief/layout.tsx,Vet Brief,"Pages, components and styling",Application path and responsibility
+app/vet-brief/page.tsx,Vet Brief,"Pages, components and styling",Application path and responsibility
+app/vet-briefs/[id]/print/page.tsx,Vet Brief,"Pages, components and styling",Application path and responsibility
+app/vet-briefs/layout.tsx,Vet Brief,"Pages, components and styling",Application path and responsibility
+docs/account-identity-policy.md,Authentication and account,Documentation and reports,Filename topic; supporting artifact
+docs/ai-admission-and-spending-controls.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/README.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/build-result.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/current-462-output.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/current-names.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/final-test-output.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/lint-result.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/prior-495-0.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/prior-495-1.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/prior-495-output.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/prior-known-names.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/reset-test-calls.json,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/served-favicon.ico,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/archive/pre-v1-cleanup/test-result.txt,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/ask-addressed-history-repair.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/all-questions.csv,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/benchmark.html,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/budget.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/findings.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/initial-199/budget.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/initial-199/results.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/metrics.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/protocol.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/questions.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/report.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/results.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/reviewed-results.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/reviews.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/setup-failure/budget.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-benchmark-200/setup-failure/results.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-broader-stress-100-frozen-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-broader-stress-100-observations-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-broader-stress-100-report-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-broader-stress-100-results-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-broader-stress-20-frozen-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-candidate-rpc-experiment.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-candidate-rpc-integration.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-candidate-rpc-plans.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-companion-presentation-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-comparison-reason-integrity-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-completion-complex-15-frozen-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-completion-complex-15-report-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-completion-complex-15-results-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-completion-execution-architecture-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-complex-ten-frozen-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-complex-ten-report-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-complex-ten-results-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-composition-live-budget.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-composition-live-conversations.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-composition-live-final-pass.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-composition-live-initial.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-context-authority-variants-frozen.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-conversation-intelligence-audit.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-conversational-v1-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-database-lifetime-readiness-results.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-database-lifetime-readiness.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-end-to-end-reliability-2026-09-09.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-episode-count-references.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-episode-membership-contract.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-episode-review-repair.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-episode-source-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-episode-stage-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-episode-wording-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-event-evidence-retention-2026-09-09.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-event-fallback-integrity-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-evidence-contract-stage-1.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-evidence-needs-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-fact-obligations.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-five-year-200-frozen.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-five-year-fixture.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-general-blockers-2026-09-09.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-general-blockers-budget.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-general-blockers-production-smoke.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-general-reliability-next-2026-09-09.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-generalization-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-generalization-live-conversation-followup.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-generalization-live-conversations.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-generalization-live-initial.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-generalization-partial-review-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-generalization-plain-review-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-generalization-report.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-generation-consolidation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-governed-freeform-baseline-audit.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-governed-freeform-episodes.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-governed-freeform-focused.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-governed-freeform-legacy-contract.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-governed-freeform-lint.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-governed-freeform-remaining-audit.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-governed-freeform-suite.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-governed-freeform-typecheck.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-history-linked-source-consistency-report.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-late-correction-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-latest-reader-postgres-results.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-latest-reader-postgres-validation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-launch-batch-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-lifetime-completion.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-lifetime-history-audit.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-lifetime-history-stage-2-report.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-contract-recovery-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-before.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-focused.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-full.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-lifetime-after.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-lifetime-before.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-lint.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-management-review.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-management.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-optional-before.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-review-before.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-review-focused.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-review-full.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-review-lifetime-after.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-review-lifetime-before.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-review-lint.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-review-typecheck.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-live-memory-typecheck.txt,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-membership-postgres-validation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-memory-authority-cleanup.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-memory-browser-acceptance.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-memory-browser-direct-validation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-memory-receipts.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-offline-architecture-2026-09-09.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-overnight-repair-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-pipeline-contract-audit-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-presentation-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-presentation-report.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-production-correction-recovery-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-readiness-compatibility.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-recorded-completeness-implementation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-recorded-postgres-validation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-recoverable-planning-report.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-release-preparation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-reliability-repair-1-predicate-intervals.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-reliability-repair-1-source-recovery.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-reliability-repair-1-symptom-vocabulary.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-remaining-lifetime-evidence.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-remaining-reliability-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-repair-calibration.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-resolution-status-grounding.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-review-calibration.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-review-handoff-audit.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-reviewed-composition-report.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-runner-gap-classification.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-runner-gap-review.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-session-cohort-repair.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-canonical-check-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-confirmation-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-diagnostic-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-final-check-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-fresh-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-holdout-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-json-diagnostic-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-live-budget.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-reasoning-check-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-recheck-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-regression-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-repair-check-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-request-contract.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-schema-check-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-unseen-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-unseen-recheck-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-shared-validation-results.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-source-note-recall-revision.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-source-quote-integrity-revision.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-stage2-lexical-plans.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-stage2-lexical-query-investigation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-stage2-local-postgres-validation.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-stage2-postgres-plans.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-stress-architecture-repair.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-strong-review-calibration.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-subject-continuity-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-subject-continuity-repair.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-ten-year-stress.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-typed-general-blockers-duration-check-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-typed-general-blockers-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-typed-general-blockers-verification-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-typed-schema-check-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-typed-v1-acceptance-live.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-unseen-activity-15-frozen-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-unseen-activity-15-report-2026-09-10.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-unseen-activity-15-results-2026-09-10.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v1-benchmark3-frozen.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v1-benchmark3-grades.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v1-benchmark3-raw.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v1-benchmark3-results.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v1-launch-budget.json,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v1-stabilization-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v1-typed-release.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v2-phase-1-trust-boundary.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-v2-phase-2.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/ask-weight-comparison-checkpoint.md,Ask Furvise,Documentation and reports,Filename topic; supporting artifact
+docs/auth-abuse-protection.md,Authentication and account,Documentation and reports,Filename topic; supporting artifact
+docs/auth-email-and-password-policy.md,Authentication and account,Documentation and reports,Filename topic; supporting artifact
+docs/authorized-catalog-ingestion.md,Authentication and account,Documentation and reports,Filename topic; supporting artifact
+docs/backup-and-restore.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/billing-sandbox-e2e.md,Billing and membership,Documentation and reports,Filename topic; supporting artifact
+docs/brand-assets.md,Marketing and legal,Documentation and reports,Filename topic; supporting artifact
+docs/browser-security-policy.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/canonical-http-recovery.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/canonical-memory-suggestion-save.md,History and saved memories,Documentation and reports,Filename topic; supporting artifact
+docs/canonical-memory-suggestion-sql-validation.md,History and saved memories,Documentation and reports,Filename topic; supporting artifact
+docs/canonical-save-concurrency.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/canonical-save-http-validation.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/captcha-setup.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/catalog-architecture.md,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/ci-security-checks.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/csrf-and-origin-protection.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/data-deletion-and-export.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/dependency-audit-baseline.json,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/dependency-audit-final.json,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/dependency-audit-production-baseline.json,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/dependency-audit-production-final.json,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/dependency-security-review.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/dependency-update-policy.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/deployment-and-rollback.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/docker-startup-investigation.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/final-global-ui-polish-qa.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/furvise-intelligence-architecture.md,Shared pet intelligence and governance,Documentation and reports,Filename topic; supporting artifact
+docs/idempotency-and-replay-safety.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/idempotency-operations-runbook.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/incident-response.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/information-removal-semantics.md,Shared pet intelligence and governance,Documentation and reports,Filename topic; supporting artifact
+docs/manual-qa.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/memory-reader-consolidation.md,History and saved memories,Documentation and reports,Filename topic; supporting artifact
+docs/monitoring-and-alerting.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/organic-curated-catalog.md,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/product-ingestion.md,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/product-provider-001.md,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/production-environment-checklist.md,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/production-operations.md,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/production-operator-checklist.md,Products and compatibility,Documentation and reports,Filename topic; supporting artifact
+docs/products-navigation.md,Shared UI and navigation,Documentation and reports,Filename topic; supporting artifact
+docs/provider-onboarding-checklist.md,Pet profiles and onboarding,Documentation and reports,Filename topic; supporting artifact
+docs/rate-limiting-and-concurrency.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/request-retry-behavior.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/scheduled-maintenance.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/schema-proposals/furvise-pet-lifecycle-v1.sql,Shared pet intelligence and governance,Documentation and reports,Filename topic; supporting artifact
+docs/secret-rotation.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/security-advisor-review.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/security-headers-rollout.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/security-phase-s2-plan.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/security-resource-inventory.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/security-threat-model.md,Security and request protection,Documentation and reports,Filename topic; supporting artifact
+docs/seo-content-strategy-v1.md,Marketing and legal,Documentation and reports,Filename topic; supporting artifact
+docs/seo-launch-checklist.md,Marketing and legal,Documentation and reports,Filename topic; supporting artifact
+docs/seo-v1-search-console-checklist.md,Marketing and legal,Documentation and reports,Filename topic; supporting artifact
+docs/signup-email-otp-rollout.md,Authentication and account,Documentation and reports,Filename topic; supporting artifact
+docs/supabase-auth-production-checklist.md,Authentication and account,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/README.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/active-architecture.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/active-removals.csv,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/dependency-map.json,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/feature-inventory.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/file-classification.csv,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/metrics.json,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/shared-helper-audit.md,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/shared-helper-inventory.csv,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/v1-cleanup/validation.json,Cross-feature QA and architecture,Documentation and reports,Filename topic; supporting artifact
+docs/visual-qa-checklist.md,Shared UI and navigation,Documentation and reports,Filename topic; supporting artifact
+eslint.config.mjs,Platform and operations,Configuration and infrastructure,Root configuration
+instrumentation-client.ts,Platform and operations,Configuration and infrastructure,Root configuration
+instrumentation.ts,Platform and operations,Configuration and infrastructure,Root configuration
+next.config.ts,Platform and operations,Configuration and infrastructure,Root configuration
+output/pdf/furvise-vet-brief-bailey-food-change-concern-2026-07-24.pdf,Vet Brief,Documentation and reports,Filename topic; supporting artifact
+output/pdf/furvise-vet-brief-cooper-routine-wellness-2026-07-24.pdf,Vet Brief,Documentation and reports,Filename topic; supporting artifact
+output/pdf/furvise-vet-brief-luna-multi-week-timeline-2026-07-24.pdf,Vet Brief,Documentation and reports,Filename topic; supporting artifact
+output/pdf/furvise-vet-brief-milo-sparse-profile-2026-07-24.pdf,Vet Brief,Documentation and reports,Filename topic; supporting artifact
+output/pdf/furvise-vet-brief-rocky-complete-profile-2026-07-24.pdf,Vet Brief,Documentation and reports,Filename topic; supporting artifact
+package-lock.json,Platform and operations,Configuration and infrastructure,Root configuration
+package.json,Platform and operations,Configuration and infrastructure,Root configuration
+postcss.config.mjs,Platform and operations,Configuration and infrastructure,Root configuration
+proxy.ts,Platform and operations,Configuration and infrastructure,Root configuration
+public/App icon.png,Shared UI and navigation,Public assets,Public asset directory
+public/android-192.png,Shared UI and navigation,Public assets,Public asset directory
+public/android-512.png,Shared UI and navigation,Public assets,Public asset directory
+public/apple-touch-icon.png,Shared UI and navigation,Public assets,Public asset directory
+public/brand/furvise-heron.svg,Shared UI and navigation,Public assets,Public asset directory
+public/brand/furvise-logo.svg,Shared UI and navigation,Public assets,Public asset directory
+public/brand/furvise-social.png,Shared UI and navigation,Public assets,Public asset directory
+public/brand/furvise-wordmark.svg,Shared UI and navigation,Public assets,Public asset directory
+public/favicon-16.png,Shared UI and navigation,Public assets,Public asset directory
+public/favicon-32.png,Shared UI and navigation,Public assets,Public asset directory
+public/favicon.ico,Shared UI and navigation,Public assets,Public asset directory
+public/furvise.ico,Shared UI and navigation,Public assets,Public asset directory
+public/icons/google-g.svg,Shared UI and navigation,Public assets,Public asset directory
+public/images/ask_chat.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/birds.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/cat.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/deer.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/dog.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/flamingo.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/goat.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/heron.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/history_clock.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/hummingbird.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/more_dots.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/nav-ask-v1.webp,Shared UI and navigation,Public assets,Public asset directory
+public/images/nav-history-v1.webp,Shared UI and navigation,Public assets,Public asset directory
+public/images/nav-more-v1.webp,Shared UI and navigation,Public assets,Public asset directory
+public/images/nav-pets-v1.webp,Shared UI and navigation,Public assets,Public asset directory
+public/images/nav-products-v1.webp,Shared UI and navigation,Public assets,Public asset directory
+public/images/nav-today-v1.webp,Shared UI and navigation,Public assets,Public asset directory
+public/images/ostrich.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/paywall_free.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/paywall_paid.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/pet_products.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/pets_paw.png,Shared UI and navigation,Public assets,Public asset directory
+public/images/products_page/comingsoon_bg.jpg,Products and compatibility,Public assets,Public asset directory
+public/images/products_page/products_desktop.png,Products and compatibility,Public assets,Public asset directory
+public/images/products_page/products_mobile.jpg,Products and compatibility,Public assets,Public asset directory
+public/images/products_page/products_mobile.png,Products and compatibility,Public assets,Public asset directory
+public/images/today_house.png,Shared UI and navigation,Public assets,Public asset directory
+public/manifest.webmanifest,Shared UI and navigation,Public assets,Public asset directory
+public/maskable-icon-512.png,Shared UI and navigation,Public assets,Public asset directory
+scripts/ai-emergency-control.mjs,AI usage and cost controls,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-active-contract.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-benchmark-preflight.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-candidate-integration.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-completion-execution.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-digestive-recall.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-embedded-postgres-validation.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-episode-history.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-episode-membership-contract.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-episode-review-regressions.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-evidence-contract.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-governed-freeform.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-history-stage-2.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-known-failures-unit.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-known-failures.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-late-corrections.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-lifetime-completion.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-lifetime-history.audit.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-lifetime-postgres.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-memory-browser.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-production-repair.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-recorded-completeness.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-remaining-lifetime-evidence.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-remaining-reliability.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-resolution-status.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-shared-request-contract.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-stress-architecture.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-subject-continuity.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/ask-v1-stabilization.cases.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/feature-provider-compatibility.cases.mjs,Cross-feature QA and architecture,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/fixtures/ask-benchmark-200.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/fixtures/ask-lifetime-history.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/fixtures/ask-ten-year-history.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/helpers/ask-settlement-ledger.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/helpers/deny-external-fetch.mjs,Cross-feature QA and architecture,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/helpers/embedded-postgres.mjs,Database and data access,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/helpers/lifetime-harness.mjs,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/helpers/request-proposal.mjs,Cross-feature QA and architecture,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/offline-network-guard.mjs,Cross-feature QA and architecture,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/report-ask-benchmark-200.py,Ask Furvise,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/repository-inventory.mjs,Cross-feature QA and architecture,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/audits/verify-candidate-database-timeout.mjs,Database and data access,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/cleanup-idempotency-operations.mjs,Security and request protection,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/cleanup-invalid-furvise-memories.mjs,History and saved memories,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/cleanup-operational-records.mjs,Platform and operations,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/diagnose-furvise-integrity.mjs,Platform and operations,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/generate-brand-icons.mjs,Marketing and legal,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/generate-vet-brief-samples.mjs,Vet Brief,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/load-test/README.md,Platform and operations,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/load-test/safe-local-load.mjs,Platform and operations,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/reconcile-account-deletions.mjs,Authentication and account,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/repair-resolved-concerns.mjs,Shared pet intelligence and governance,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/run-integrity-diagnostics.mjs,Platform and operations,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/start-billing-sandbox-dev.mjs,Billing and membership,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/test-canonical-save-http.py,Platform and operations,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/test-canonical-save-races.py,Platform and operations,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/validate-production-environment.mjs,Products and compatibility,Scripts and audit tooling,Filename topic; supporting artifact
+scripts/verify-billing-sandbox-config.mjs,Billing and membership,Scripts and audit tooling,Filename topic; supporting artifact
+sentry.edge.config.ts,Platform and operations,Configuration and infrastructure,Root configuration
+sentry.server.config.ts,Platform and operations,Configuration and infrastructure,Root configuration
+supabase/drafts/ask_episode_membership_contract.rollback.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/drafts/ask_episode_membership_contract.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/drafts/ask_governed_freeform.rollback.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/drafts/ask_governed_freeform.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/drafts/ask_historical_event_time.rollback.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/drafts/ask_historical_event_time.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/drafts/ask_recorded_completeness.rollback.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/drafts/ask_recorded_completeness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/experiments/candidate_rpc/capture-plans.mjs,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/experiments/candidate_rpc/cleanup.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/experiments/candidate_rpc/function.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/experiments/candidate_rpc/setup.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/experiments/candidate_rpc/tests.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260622000000_create_pet_profile_baseline.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260623000000_create_pet_care_entries.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260626000000_add_species_to_dog_profiles.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260626001500_add_wellness_goal_to_dog_profiles.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260712000000_core_loop_schema_rls.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260713000000_add_ask_furvise_usage.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260717000000_add_user_profiles_country.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260718000000_ensure_user_profiles_schema.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260722000000_add_shop_search_usage_and_query_cache.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260722001000_ensure_shop_search_usage_and_query_cache.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260722002000_add_product_question_usage.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260723000000_add_product_ai_usage.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260723010000_add_unified_product_catalog.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260723020000_add_product_ingestion_pipeline.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260723021000_reconcile_application_role_grants.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260723030000_add_provider_quality_review_gate.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260724010000_add_authorized_offer_freshness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260724020000_add_vet_visit_briefs.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260724021000_restrict_vet_brief_trigger_function.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260724030000_add_ask_conversations.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260726010000_enforce_pet_plan_limit.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260727010000_add_ask_request_idempotency.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260727020000_add_unified_ai_credits_and_care_state.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728020000_fix_ai_credit_rpc_ambiguity.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728030000_fix_concern_resolution_and_safety_state.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728040000_add_furvise_intelligence_memory.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728050000_add_feature_intelligence_persistence.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728060000_idempotent_state_suggestions.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728070000_canonical_care_event_chronology.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728075000_reconcile_chronology_repair_results.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728080000_add_pet_care_episodes.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728081000_fix_episode_backfill_qualification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728090000_add_pet_current_state.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728100000_add_memory_freshness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728110000_add_intelligence_governance.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728111000_harden_chronology_repair_function.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728120000_fix_ask_retry_episode_consistency.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728121000_harden_resolution_concern_policy.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728122000_make_pet_state_episode_safety_proportional.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728123000_fix_persistence_destinations_and_medication_state.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728124000_add_memory_lifecycle_controls.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260728125000_add_pet_onboarding_optional_details.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260729010000_harden_memory_lifecycle_retrieval.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260729011000_fix_service_memory_repair_authorization.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260730010000_add_canonical_idempotency_operations.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260730020000_require_confirmed_users_for_ai_credits.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260730030000_add_operational_readiness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260730031000_block_writes_for_deleting_accounts.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260730032000_expand_operational_integrity_checks.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260804000000_harden_tenant_pet_link_ownership.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260805010000_add_organic_product_destination_resolver.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260807010000_add_generic_semantic_event_persistence.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260808010000_repair_care_state_sources_and_ask_reconciliation.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260808020000_reconcile_semantic_episode_topics_and_titles.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260808030000_rank_semantic_episode_reconciliation.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260810010000_add_centralized_account_entitlements.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260810170000_allow_owned_cross_pet_ask_persistence.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260810230000_add_lifecycle_integrity_foundation.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260811120000_add_history_lifecycle_dismissal.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260811150000_add_ask_v2_semantic_claims_foundation.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260812044302_ask_v2_phase_2_legacy_import_rebuild.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260813010000_allow_one_ask_care_event_per_pet.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260814084000_grant_service_role_pet_care_episode_event_reads.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260814085052_add_launch_billing_and_ask_allowances.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260815075551_safe_account_deletion_billing_reconciliation.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260816044940_allow_opaque_secret_billing_deletion_tombstones.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260818084249_add_pet_profile_lifecycle_v1.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260818194748_secure_ai_credit_state_machine.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260819033443_enforce_ai_credit_settlement_disposition.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260820010000_enforce_furvise_memory_semantic_integrity.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260820070956_server_authored_ask_action_capabilities.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260821021825_harden_entitlement_and_pet_data_boundaries.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260821050646_repair_permanent_pet_delete_admin_role.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260821062935_increase_free_ask_allowance_to_15.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260823062212_authorize_ask_memory_persistence.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260823120000_harden_ask_action_capability_targets_freshness_expiry.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260823120001_add_controlled_care_entry_update_boundary.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260823120002_restrict_authenticated_care_entry_writes.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260823120003_add_security_schema_compatibility_readiness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260823232620_prepare_canonical_care_state_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260823234226_enforce_canonical_care_state_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260824002000_security_compatibility_contract_v2.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260824014500_harden_security_compatibility_contract_v2.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260824023000_harden_security_compatibility_protected_authority_families.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260824025000_reconcile_ai_usage_event_service_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260824060000_add_billing_checkout_single_flight.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260824062000_harden_billing_checkout_single_flight_readiness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260824074000_align_billing_checkout_currency_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260824101500_add_billing_payment_recovery_grace.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260825002500_harden_postgrest_service_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260825004500_correct_postgrest_service_authority_volatility.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260902094438_password_auth_capability_state.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260903203626_add_ask_conversation_service_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260903204432_restrict_ask_conversation_mutation_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260905045120_ask_history_scoped_read.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260905080008_ask_history_candidate_read.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260905091508_ask_episode_references.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260905095022_ask_episode_period_scope.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260905204750_save_ask_suggestion_canonical_memory.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260906054006_ask_writer_backed_lifetime_history.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260906064339_ask_readiness_compatibility.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/migrations/20260906103706_ask_history_latest_candidates.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/rollbacks/20260905080008_ask_history_candidate_read.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/rollbacks/20260905091508_ask_episode_references.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/rollbacks/20260905095022_ask_episode_period_scope.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/rollbacks/20260906054006_ask_writer_backed_lifetime_history.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/rollbacks/20260906103706_ask_history_latest_candidates.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/rollbacks/save_ask_suggestion_canonical_memory.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/schema.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/account_entitlements_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ai_credit_rpc_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_action_capability_target_freshness_expiry.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_century_census.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_century_scale.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_conversation_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_conversation_authority_phase_a.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_episode_membership_contract.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_episode_membership_reversal.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_episode_references.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_governed_freeform.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_governed_freeform_reversal.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_history_candidate_read.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_history_latest_candidates.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_history_latest_readiness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_history_lexical_plan_probe.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_history_scoped_read.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_history_scoped_scale.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_lifetime_census.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_lifetime_time_and_privileges.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_memory_authority_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_readiness_compatibility.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_recorded_completeness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_recorded_completeness_reversal.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_suggestion_canonical_memory.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_v2_phase_2.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_v2_phase_2_linked_audit.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/ask_v2_semantic_claims.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/auth_abuse_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/billing_checkout_currency_alignment.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/billing_checkout_currency_readiness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/billing_checkout_single_flight.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/billing_launch_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/billing_payment_recovery_grace.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/canonical_care_state_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/canonical_care_state_rollout_compatibility.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/care_entry_write_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/entitlement_pet_boundary_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/history_lifecycle_dismissal.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/idempotency_operations_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/operational_readiness_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/password_auth_capability.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/permanent_delete_admin_role_repair_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/pet_profile_lifecycle_v1.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/postgrest_service_authority.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/security_phase_s1_authorization.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/security_schema_compatibility_readiness.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/service_role_lifecycle_event_access_verification.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+supabase/tests/tenant_link_ownership_integrity.sql,Database and data access,Database schema and SQL checks,Database directory; shared across features
+test/petwise-format-pet-display-name.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/account-country-ui.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/account-country.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/account-deletion-billing-safety.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/account-entitlements.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/account-security-password-change.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/account-system-final-v1.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/add-pet-quick-start.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/ai-credit-security-regression.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/app-page-container-consistency.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/application-depth-continuity.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-action-capability-security-regressions.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-action-capability-target-freshness-expiry.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-action-capability-v1.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-active-contract.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-addressed-history.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-answer-economy-v1-1.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-answer-economy-v1-2.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-answer-economy-v1.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-calendar-quantity-anchors.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-candidate-rpc-integration.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-care-chronology.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-code-rendering.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-command-router.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-completion-execution.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-completion-integration.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-context-layout-authority.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-context-reasoning.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-conversation-authority-foundation.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-conversation-authority-lock.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-conversation-subject-continuity-p0.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-conversation-workspace.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-core-invariants.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-core-turn-model.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-correction-projection.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-credit-settlement-integrity.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-cross-pet-persistence-and-retry.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-digestive-recall.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-emergency-preflight.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-episode-history.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-episode-membership-contract.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-error-ux.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-evidence-contract.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-evidence-needs.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-experience-v2.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-explicit-history-dates.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-fact-obligations.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-furvise.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-governed-freeform.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-grief-lifecycle-regression.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-history-duration-facts.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-history-pet-coverage-repair.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-history-preface.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-history-stage-2.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-history-state-claim-boundary.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-history-window-intersection.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-inflight-navigation.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-known-failures-integration.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-last-mile-integrity.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-late-corrections.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-latest-candidate-boundary.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-launch-quality-history-prose.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-layout-exact.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-lifetime-completion.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-literal-history-window.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-long-form-subject-contract-p0.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-maple-consistency.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-memory-authority-p0.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-memory-integrity-p0.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-memory-single-authority.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-mobile-nav-compact.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-model-intent-authority.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-nutrition-multi-pet-regression.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-p0-auxiliary-regressions.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-pet-possessive-gerund-p0.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-pet-selection.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-pre-provider-retry.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-product-persistence-integration.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-production-issues-v2.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-production-repair.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-profile-read.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-provider-deadline.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-publication-contract.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-quality-evaluation.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-question-variants.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-recorded-completeness.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-referent-product-leak-p0.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-reliability-repair-1.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-reliability-signout.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-remaining-lifetime-evidence.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-remaining-reliability.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-request-contract.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-safety-context.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-session-request.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-shared-request-contract.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-state-suggestion-persistence.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-stress-architecture.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-structured-output-degradation.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-structured-output-reliability.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-subject-continuity.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-turn-subject-resolution.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-usage-experience.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-v1-copy-polish.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-v1-stabilization.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-v2-canonical-claims.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-v2-persistence-hardening.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-v2-phase-2.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/ask-vet-workflow-redesign.test.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/auth-account-routing-hotfix.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/auth-email-otp-signin.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/auth-routing.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/auth-simplicity-v2.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/auth-visual-refinement-v2.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-checkout-currency-readiness.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-checkout-single-flight.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-launch.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-payment-recovery.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-plan.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-recovery-ux.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-sandbox-e2e-gate.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-scheduled-cancellation.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/billing-webhook-ordering.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/brand-auth-product-integrity.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/brand-color-system.test.mjs,Marketing and legal,Tests and fixtures,Filename topic; supporting artifact
+tests/canonical-care-deployment-compatibility.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/canonical-memory-suggestion.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/care-entry-route-auth.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/care-entry-write-authority.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/care-log.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/care-persistence-state-repair.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/cat-readiness.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/cleanup-scripts-environment.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/concern-recovery-source.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/core-loop-stability.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/design-system-step-1.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/edit-pet-v1-simple.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/effective-history-projection.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/entitlement-boundary-p0.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/episode-presentation.test.mjs,Shared voice and output,Tests and fixtures,Filename topic; supporting artifact
+tests/feature-failure.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/feature-provider-compatibility.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/final-global-ui-polish.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/final-visible-finishing.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/final-visual-direction-reset.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/ask-conversation-browser.js,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/ask-conversation-evaluations.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/ask-memory-browser.js,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/ask-presentation-browser.js,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/ask-presentation-snapshots.js,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/authorized-catalog-step-5a.json,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/catalog-ingestion/duplicate-candidates.json,Products and compatibility,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/catalog-ingestion/example-products.csv,Products and compatibility,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/catalog-ingestion/example-products.json,Products and compatibility,Tests and fixtures,Filename topic; supporting artifact
+tests/fixtures/furvise-voice-v2-benchmarks.mjs,Ask Furvise,Tests and fixtures,Filename topic; supporting artifact
+tests/furvise-conversational-architecture-v1.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/furvise-intelligence-engine.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/furvise-voice.test.mjs,Shared voice and output,Tests and fixtures,Filename topic; supporting artifact
+tests/google-auth.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/header-logo-glass-polish.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/history-deletion-semantics.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/history-v1-archive.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/information-architecture-simplification.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/intelligence-phase-2.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/intelligence-phase-3a-episodes.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/intelligence-phase-3b-pet-state.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/intelligence-phase-3c-memory-freshness.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/intelligence-phase-3d-governance-validation.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/launch-account-memory-product-consistency.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/launch-hardening-p1.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/legal-pages-v1.test.mjs,Marketing and legal,Tests and fixtures,Filename topic; supporting artifact
+tests/lifecycle-integrity-foundation.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/liquidglass-runtime-integration.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/live-memory-management.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/login-captcha-regression.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/marketing-homepage-v2.test.mjs,Marketing and legal,Tests and fixtures,Filename topic; supporting artifact
+tests/membership-page.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/membership-truthful-copy.test.mjs,Billing and membership,Tests and fixtures,Filename topic; supporting artifact
+tests/memory-sources.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/mobile-bottom-navigation.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/mobile-navigation-interaction.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/mobile-performance-optimization.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/navigation-data-freshness.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/navigation-icon-assets.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-activation-v2.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-current-food.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-final-activation.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-mode-state.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-navigation-layout.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-numeric-field.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-profile-legal-consistency.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-stable-shell.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/onboarding-stale-draft.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/password-capability-state.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/password-recovery-completion-journey.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/password-recovery-hardening.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/password-recovery-prefetch.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/password-setup-mode.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/pending-recovery-persistence.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/permanent-delete-admin-role-repair.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/permanent-delete-recent-auth.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-history-delete-controls.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-home-quality-pass.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-lifecycle-migration-v1.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-limit-onboarding-ux.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-memory.test.mjs,History and saved memories,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-profile-history-ux.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-profile-overview.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-profile-save-regression.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/pet-profile-v2-file.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/pets-v2-directory.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/petwise-runtime.test.mjs,Pet profiles and onboarding,Tests and fixtures,Filename topic; supporting artifact
+tests/postgrest-service-authority.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/product-flow-overhaul.test.mjs,Products and compatibility,Tests and fixtures,Filename topic; supporting artifact
+tests/product-reset-regression.test.mjs,Products and compatibility,Tests and fixtures,Filename topic; supporting artifact
+tests/progressive-signup-ux.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/readiness-postgres-privilege-syntax.test.mjs,Database and data access,Tests and fixtures,Filename topic; supporting artifact
+tests/readiness-schema-compatibility.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/remembered-details-canonical.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/results-redirect.test.mjs,Products and compatibility,Tests and fixtures,Filename topic; supporting artifact
+tests/run-integrity-diagnostics.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s1.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s2a.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s2b.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s2c.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s2d.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s2e.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s2f.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s2g.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/security-phase-s2h.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/semantic-event-intelligence.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/semantic-event-migration.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/semantic-event-resolution-migration.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/semantic-frame-owner-preference-recovery.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/semantic-frame-recovery-integration.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/semantic-frame-reliability.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/semantic-frame-shadow.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/sentry-integration.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/seo-branding.test.mjs,Marketing and legal,Tests and fixtures,Filename topic; supporting artifact
+tests/seo-v1-category-positioning.test.mjs,Marketing and legal,Tests and fixtures,Filename topic; supporting artifact
+tests/signup-email-otp.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/signup-otp-ux-v2.test.mjs,Authentication and account,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-1-visual-noise.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-1a-action-visibility-audit.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-3-shared-shell.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-3a-mobile-responsive.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-3b-action-clearance.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-3c-mobile-positioning.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-4-navigation.test.mjs,Shared UI and navigation,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-4-smarter-today.test.mjs,Today,Tests and fixtures,Filename topic; supporting artifact
+tests/step-2-4-today-refinement.test.mjs,Today,Tests and fixtures,Filename topic; supporting artifact
+tests/supabase-browser-client.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/supabase-migration-baseline.test.mjs,Database and data access,Tests and fixtures,Filename topic; supporting artifact
+tests/tenant-link-ownership-integrity.test.mjs,Security and request protection,Tests and fixtures,Filename topic; supporting artifact
+tests/today-page-polish.test.mjs,Today,Tests and fixtures,Filename topic; supporting artifact
+tests/today-recent-stability.test.mjs,Today,Tests and fixtures,Filename topic; supporting artifact
+tests/today-v4-final-polish.test.mjs,Today,Tests and fixtures,Filename topic; supporting artifact
+tests/turnstile-progressive-rendering.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/turnstile-token-lifecycle.test.mjs,Shared pet intelligence and governance,Tests and fixtures,Filename topic; supporting artifact
+tests/unified-ai-credits-care-state.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/usability-refinement.test.mjs,Cross-feature QA and architecture,Tests and fixtures,Filename topic; supporting artifact
+tests/validate-production-environment.test.mjs,Products and compatibility,Tests and fixtures,Filename topic; supporting artifact
+tests/vet-brief-discoverability.test.mjs,Vet Brief,Tests and fixtures,Filename topic; supporting artifact
+tests/vet-brief-draft-isolation.test.mjs,Vet Brief,Tests and fixtures,Filename topic; supporting artifact
+tests/vet-visit-brief.test.mjs,Vet Brief,Tests and fixtures,Filename topic; supporting artifact
+tsconfig.json,Platform and operations,Configuration and infrastructure,Root configuration
+types/react-meta-value.d.ts,Platform and operations,Configuration and infrastructure,Filename topic; supporting artifact
+vercel.json,Platform and operations,Configuration and infrastructure,Root configuration

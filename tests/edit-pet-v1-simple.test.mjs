@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { buildSimplePetProfileUpdate, validateSimplePetProfile } from "../app/lib/edit-pet-profile.ts";
+import { buildSimplePetProfileUpdate, validateSimplePetProfile } from "../app/lib/pet-profile-editing.ts";
 import { initialProfile } from "../app/lib/petwise.ts";
 
 const route = readFileSync(new URL("../app/dogs/[id]/edit/page.tsx", import.meta.url), "utf8");

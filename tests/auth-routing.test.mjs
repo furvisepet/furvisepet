@@ -168,18 +168,6 @@ test("redirect guards fire once to prevent login onboarding ping-pong", () => {
   assert.match(onboarding, /redirectRef\.current[\s\S]*redirectRef\.current = true;[\s\S]*router\.replace\(buildLoginHref/);
 });
 
-test("Results does not show unsigned local draft results", () => {
-  const source = read("app/results/page.tsx");
-  const noProfileBranch = source.slice(
-    source.indexOf("const user = await getCurrentUser();"),
-    source.indexOf("const stored = window.localStorage.getItem(STORAGE_KEY);"),
-  );
-
-  assert.match(noProfileBranch, /if \(!user\) \{/);
-  assert.match(noProfileBranch, /router\.replace\(NEW_PET_LOGIN_PATH\);/);
-  assert.match(noProfileBranch, /return;/);
-});
-
 test("signed-out Shop redirects preserve current path and safe query string", () => {
   const shop = read("app/shop/page.tsx");
   const authSession = read("app/lib/auth-session.ts");

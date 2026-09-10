@@ -8,7 +8,7 @@ import { requestReferenceContext } from '../../app/lib/intelligence/request-refe
 import { parseTaskHistoryReview } from '../../app/lib/intelligence/history-review-selection.ts';
 import { verifiedCalculationQuantities, parseHistoryCalculations } from '../../app/lib/intelligence/history-calculation.ts';
 import { matchesHistoryOutputFormat, historicalReadSchema, canonicalHistoricalRead } from '../../app/lib/intelligence/historical-read-response.ts';
-import { stripKnownHistoryCitations } from '../../app/lib/intelligence/public-history-text.ts';
+import { stripKnownHistoryCitations } from "../../app/lib/furvise-output.ts";
 import { historyNarrativeAnchorsSupported } from '../../app/lib/intelligence/history-narrative-facts.ts';
 
 const fixturePets = pets.slice(0, 3).map((pet, index) => ({ ...pet, name: ['Aster', 'Bramble', 'Cedar'][index] }));

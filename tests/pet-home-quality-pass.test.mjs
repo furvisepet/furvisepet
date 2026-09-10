@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-
-import { buildDraftProfileFieldStates, buildProfileFieldStates } from "../app/lib/profile-completeness.ts";
 import { buildTodayRecentEntries, getLocalGreeting, SERVER_SAFE_GREETING } from "../app/lib/today.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -35,52 +33,11 @@ test("shared focused widths constrain onboarding and Today without touching wide
   assert.doesNotMatch(read("app/pets/[id]/page.tsx"), /todayPrimaryLayout|focusedFormLayout/);
 });
 
-test("intentional unknown and none-known answers are complete", () => {
-  const draftStates = buildDraftProfileFieldStates({
-    age: "",
-    ageUnit: "years",
-    ageUnknown: true,
-    avoidIngredients: [],
-    avoidIngredientsNoneKnown: true,
-    breed: "Mixed / unknown",
-    currentFood: "",
-    currentFoodUnknown: true,
-    customAvoidIngredient: "",
-    mainConcern: "General wellness",
-    monthlyBudget: "50",
-    name: "Sam",
-    otherConcern: "",
-    species: "dog",
-    weight: "",
-    weightUnit: "lb",
-    weightUnknown: true,
-  });
-  assert.equal(draftStates.breed, "complete-unknown");
-  assert.equal(draftStates.age, "complete-unknown");
-  assert.equal(draftStates.weight, "complete-unknown");
-  assert.equal(draftStates.currentFood, "complete-unknown");
-  assert.equal(draftStates.avoidIngredients, "complete-none");
-
-  const rowStates = buildProfileFieldStates({
-    age_value: null,
-    avoid_ingredients: [],
-    breed: "I'm not sure",
-    current_food: null,
-    main_concern: "General wellness",
-    monthly_budget: 50,
-    name: "Sam",
-    species: "dog",
-    weight_value: null,
-  });
-  for (const key of ["age", "avoidIngredients", "breed", "currentFood", "weight"]) assert.notEqual(rowStates[key], "missing");
-});
-
-test("Today greeting is local-time aware and hydration safe", () => {
+test("greeting formatter retains local-time labels and a server-safe default", () => {
   assert.equal(getLocalGreeting(5), "Good morning");
   assert.equal(getLocalGreeting(12), "Good afternoon");
   assert.equal(getLocalGreeting(17), "Good evening");
   assert.equal(SERVER_SAFE_GREETING, "Welcome back");
-  assert.match(read("app/components/today-greeting.tsx"), /useSyncExternalStore\(subscribe, getBrowserGreeting, getServerGreeting\)/);
 });
 
 test("Today remains optional, personal, and capped to ten recent notes", () => {

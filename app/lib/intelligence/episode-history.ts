@@ -21,9 +21,6 @@ type Source = EpisodeSource;
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const keys = (topic: string) => topic === "vomiting" ? ["vomiting", "vomit"] : topic === "soft stool" ? ["soft_stool", "stool", "diarrhea"] : ["breathing"];
 const sourceVersion = (s: Source) => hash([s.id,s.user_id,s.pet_profile_id,s.title,s.note,s.occurred_at,s.updated_at,s.deleted_at]);
-export function isEpisodeFollowUp(message: string) {
-  return episodeFollowUp(message) !== null;
-}
 /** Counting/listing is a distinct intent; mentioning episodes is not enough. */
 export function isEpisodeListRequest(message: string) {
   return /\bepisodes?\b/i.test(message) && (

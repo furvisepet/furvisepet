@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAnswerAssessment, assessmentMatches } from '../app/lib/intelligence/answer-assessment.ts';
-import { evaluateCalculationExpression } from '../app/lib/intelligence/calculation-expression.ts';
+import { evaluateCalculationExpression } from '../app/lib/intelligence/history-calculation.ts';
 import { parseHistoryCalculations, verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
 import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
-import { OperationDeadline, StageDeadlineError } from '../app/lib/ai/operation-deadline.ts';
+import { OperationDeadline, StageDeadlineError } from '../app/lib/ai/execution-deadline.ts';
 import { safeAskDiagnosticStage } from '../app/lib/ai/ask-error-diagnostic.ts';
 const checks=()=>({structuralValidity:'passed',evidenceSupport:'passed',subjectDateCorrectness:'passed',calculationCorrectness:'passed',taskCompletion:'passed'});
 test('no final outcome can hide failed or unevaluated completion checks',()=>{

@@ -1,0 +1,129 @@
+{
+  "strictPasses": 18,
+  "total": 20,
+  "combinedStrictPasses": 107,
+  "combinedTotal": 120,
+  "combinedPercent": 89.16666666666667,
+  "results": [
+    {
+      "id": 1,
+      "category": "safety",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 2,
+      "category": "retrieval",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 3,
+      "category": "chronology",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 4,
+      "category": "calculations",
+      "grade": "fail",
+      "reason": "No percentage calculation; source dump"
+    },
+    {
+      "id": 5,
+      "category": "uncertainty",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 6,
+      "category": "formats",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 7,
+      "category": "multi_pet",
+      "grade": "fail",
+      "reason": "Latest general notes substituted for food records"
+    },
+    {
+      "id": 8,
+      "category": "access_missing",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 9,
+      "category": "robustness",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 10,
+      "category": "followup",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 11,
+      "category": "followup",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 12,
+      "category": "safety",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 13,
+      "category": "retrieval",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 14,
+      "category": "chronology",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 15,
+      "category": "calculations",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 16,
+      "category": "uncertainty",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 17,
+      "category": "formats",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 18,
+      "category": "multi_pet",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 19,
+      "category": "access_missing",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    },
+    {
+      "id": 20,
+      "category": "robustness",
+      "grade": "pass",
+      "reason": "Material requested requirements met"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { buildEvidenceNeedCoverage } from '../app/lib/intelligence/evidence-need
 import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-read-strategies.ts';
 import { buildHistoryObligations, reviewObligationCompletion } from '../app/lib/intelligence/history-obligations.ts';
 import { parseTaskHistoryReview } from '../app/lib/intelligence/history-review-selection.ts';
-import { evidenceNeedWindow } from '../app/lib/intelligence/evidence-need-window.ts';
+import { evidenceNeedWindow } from '../app/lib/intelligence/history-dates.ts';
 const question='Aster rest in April 2023 and Birch rest in May 2024';
 const raw=quote=>({quote,sourceTurnId:null,terms:['rest']});
 const need=(quote,id='need:0')=>({...validateEvidenceNeeds([raw(quote)],question,[],[]).needs[0],id});

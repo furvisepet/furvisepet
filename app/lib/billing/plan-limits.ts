@@ -1,4 +1,4 @@
-import { FURVISE_PRODUCT_USAGE_CAP_MESSAGE } from "../furvise-voice.ts";
+import { FURVISE_PRODUCT_USAGE_CAP_MESSAGE } from "../furvise-output.ts";
 
 export type PlanId = "free" | "plus";
 
@@ -174,8 +174,6 @@ export function evaluateShopSearchUsageLimit({
 
   return { allowed: false, hardBlocked: true, limit: plan.productsAiMonthlyLimit, message, remaining: 0, softNotice: null };
 }
-
-export const evaluateProductsAiUsageLimit = evaluateShopSearchUsageLimit;
 
 export function getPaidGateMessage(capability: "liveProductResearch" | "longHistoryPatternDetection" | "vetPrepExports") {
   if (capability === "longHistoryPatternDetection") {

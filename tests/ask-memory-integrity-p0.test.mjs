@@ -13,7 +13,7 @@ import {
   supportedPreferenceDecision,
 } from "../app/lib/intelligence/memory-integrity.ts";
 import { evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
-import { selectFreshRelevantMemories } from "../app/lib/intelligence/memory-freshness/select-fresh-memories.ts";
+import { selectFreshRelevantMemories } from "../app/lib/intelligence/memory-freshness.ts";
 import { buildRememberedDetails } from "../app/lib/remembered-details.ts";
 
 const petId = "380211f7-4b9a-4690-ad68-35b141ec14a6";
@@ -282,9 +282,10 @@ test("all live memory consumers use the shared integrity boundary", () => {
     "app/lib/intelligence/memory-sources.ts",
     "app/lib/remembered-details.ts",
     "app/lib/pet-memory.ts",
-    "app/lib/ai/context-builder.ts",
     "app/api/vet-briefs/route.ts",
   ]) assert.match(read(path), /isEligible(?:Stored|Legacy)Memory/, path);
+  // The concern loader no longer reads legacy memories.
+  assert.doesNotMatch(read("app/lib/ai/context-builder.ts"), /\.from\("dog_memories"\)/);
   assert.match(read("app/lib/intelligence/retrieve-context.ts"), /selectMemorySources\(memorySources/);
   assert.match(read("app/lib/intelligence/memory-sources.ts"), /inactiveMemories\.data\.filter\(isEligibleStoredMemory\)/);
 });
@@ -303,21 +304,7 @@ test("all application memory writers cross the shared semantic boundary", () => 
   assert.match(read("app/api/ask/suggestions/[id]/route.ts"), /prepareMemorySuggestion\(suggestion\)/);
   assert.match(read("app/lib/intelligence/memory-suggestion.ts"), /prepareTypedMemoryCandidate/);
   assert.match(read("app/api/ask/route.ts"), /currentMessage: sourceMessage/);
-  const featurePersistence = read("app/lib/intelligence/persist-learnings.ts");
-  assert.match(featurePersistence, /createOperationsAdminClient\(\)\.rpc\("persist_furvise_feature_intelligence"/);
-  assert.match(featurePersistence, /p_source_input: sourceInput/);
-  assert.match(featurePersistence, /p_user_id: userId/);
-  assert.match(featurePersistence, /p_payload_hash: payloadHash/);
-  assert.match(featurePersistence, /p_operation_owner_token: operationOwnerToken/);
-  for (const path of [
-    "app/api/shop/product-question/route.ts",
-    "app/api/shop/interpret-query/route.ts",
-    "app/api/safety-followup/route.ts",
-  ]) {
-    const source = read(path);
-    assert.match(source, /sourceInput:/, path);
-    assert.match(source, /userId:/, path);
-  }
+
 });
 
 test("the approval-gated cleanup is dry-run by default and narrowly rejects only provable garbage", () => {

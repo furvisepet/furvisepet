@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getAskErrorPresentation, publicAskFailureCode } from "../app/lib/ask-errors.ts";
+import { getAskErrorPresentation, publicAskFailureCode } from "../app/lib/furvise-output.ts";
 
 test("public failures have one truthful canonical taxonomy", () => {
   assert.equal(publicAskFailureCode("provider_failure"), "TEMPORARY_PROVIDER_FAILURE");

@@ -1,5 +1,4 @@
-import { splitAskTextBlocks, type AskTextBlock } from "../lib/ask-text-blocks";
-import { parsePlainTable } from "../lib/plain-table";
+import { splitAskTextBlocks, type AskTextBlock, parsePlainTable } from "../lib/furvise-output";
 
 /** Preserve source punctuation. Table cells are escaped text, not HTML/Markdown. */
 export function AskAnswerText({ text, afterHeading = false }: { text: string; afterHeading?: boolean }) {

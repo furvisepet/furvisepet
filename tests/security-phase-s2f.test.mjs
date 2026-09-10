@@ -5,16 +5,7 @@ import test from "node:test";
 const clientKeys = await import("../app/lib/security/idempotency/client.ts");
 
 const source = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const routes = [
-  "app/api/account/detect-country/route.ts", "app/api/account/product-country/route.ts", "app/api/analyze/route.ts",
-  "app/api/ask/route.ts", "app/api/ask/conversations/route.ts", "app/api/ask/conversations/[id]/route.ts",
-  "app/api/ask/conversations/[id]/messages/route.ts", "app/api/ask/suggestions/[id]/route.ts",
-  "app/api/care-entries/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/legacy-memories/route.ts",
-  "app/api/memories/[id]/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts",
-  "app/api/safety-followup/route.ts", "app/api/shop/interpret-query/route.ts",
-  "app/api/shop/explain-product-fit/route.ts", "app/api/shop/product-question/route.ts",
-  "app/api/vet-briefs/draft/route.ts", "app/api/vet-briefs/route.ts",
-];
+const routes = ["app/api/account/detect-country/route.ts", "app/api/account/product-country/route.ts", "app/api/ask/route.ts", "app/api/ask/conversations/route.ts", "app/api/ask/conversations/[id]/route.ts", "app/api/ask/conversations/[id]/messages/route.ts", "app/api/ask/suggestions/[id]/route.ts", "app/api/care-entries/route.ts", "app/api/care-entries/[id]/route.ts", "app/api/legacy-memories/route.ts", "app/api/memories/[id]/route.ts", "app/api/pets/[id]/route.ts", "app/api/product-feedback/route.ts", "app/api/vet-briefs/draft/route.ts", "app/api/vet-briefs/route.ts"];
 
 test("canonical key transport requires UUID v4/v7 and rejects header/body disagreement", () => {
   const requestKey = source("app/lib/security/idempotency/request-key.ts");
@@ -87,7 +78,7 @@ test("all browser state-changing routes use the central framework", () => {
 });
 
 test("all paid provider entry routes claim before the provider call", () => {
-  for (const route of ["app/api/ask/route.ts", "app/api/analyze/route.ts", "app/api/safety-followup/route.ts", "app/api/shop/interpret-query/route.ts", "app/api/shop/explain-product-fit/route.ts", "app/api/shop/product-question/route.ts", "app/api/vet-briefs/draft/route.ts"]) {
+  for (const route of ["app/api/ask/route.ts", "app/api/vet-briefs/draft/route.ts"]) {
     const body = source(route);
     const admission = route === "app/api/ask/route.ts"
       ? body.indexOf("aiAdmission = await admitAiOperation")
@@ -159,10 +150,4 @@ test("identical intentional actions are not deduplicated by message text", () =>
   assert.match(askClient, /retry\?\.logicalTurnId \|\| crypto\.randomUUID\(\)/);
   assert.match(askClient, /logicalTurnId/);
   assert.doesNotMatch(source("app/lib/security/idempotency/payload-hash.ts"), /message text alone/);
-});
-
-test("deterministic product catalog reads remain outside mutation idempotency", () => {
-  const catalog = source("app/api/shop/catalog/route.ts");
-  assert.doesNotMatch(catalog, /claimIdempotentOperation|beginIdempotentRateLimitedOperation/);
-  assert.match(catalog, /mode|products|catalog/i);
 });

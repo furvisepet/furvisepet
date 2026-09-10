@@ -1,10 +1,9 @@
 import { evidenceRemovalCost } from "../intelligence/evidence-need-coverage.ts";
-import { withProviderDeadline } from "./provider-deadline.ts";
-import { stripKnownHistoryCitations } from "../intelligence/public-history-text.ts";
-import { companionVoiceInstructions } from "./companion-voice.ts";
+import { withProviderDeadline } from "./execution-deadline.ts";
+import { stripKnownHistoryCitations } from "../furvise-output.ts";
+import { companionVoiceInstructions, FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
 import { deterministicReadProjection } from "../intelligence/read-projection.ts";
-import { directHistoryTimelineAnswer } from "../intelligence/direct-history-timeline.ts";
 import { requestReferenceContext } from "../intelligence/request-reference-context.ts";
 import { safetyTemporalScope } from "./safety-temporal-scope.ts";
 import { compactHistorySourceCoverage } from "./history-source-transport.ts";
@@ -15,7 +14,6 @@ import OpenAI from "openai";
 import { AiAdmissionError } from "./usage-guard/errors.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "./usage-guard/provider-call-budget.ts";
 import type { CareEntryRow, DogMemoryRow, DogProductFeedbackRow, DogProfileRow } from "../supabase.ts";
-import { FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import {
   evaluateAskSafetyContext,
   concernKeyToAskTags,
@@ -625,19 +623,17 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     throw new AskPipelineError("configuration_failed", "OPENAI_API_KEY is not configured.", { elapsedMs: 0, model: models.primary });
   }
   const context = buildAskContext(input);
-  const directTimeline = context.minimumSafetyLevel === "normal"
-    ? directHistoryTimelineAnswer(context.promptContext.evidenceContract) : null;
   const projection = context.minimumSafetyLevel === "normal" ? deterministicReadProjection(context.promptContext.evidenceContract) : null;
-  if (directTimeline || projection) {
+  if (projection) {
     const evidence = context.promptContext.evidenceContract;
-    const ids = projection ? [...new Set(projection.sentences.flatMap(s=>s.sourceIds))] : evidence.answerSourceIds || [];
+    const ids = [...new Set(projection.sentences.flatMap(s=>s.sourceIds))];
     return {
-      answer: {title:"Furvise",summary:projection ? projection.sentences.map(s=>s.text).join("\n") : directTimeline!,sections:[],safetyNote:null}, evidenceContract:evidence,
-      ...(projection ? {historyNarrative:projection,historyNarrativeDeclined:false} : {}),
+      answer: {title:"Furvise",summary:projection.sentences.map(s=>s.text).join("\n"),sections:[],safetyNote:null}, evidenceContract:evidence,
+      historyNarrative:projection,historyNarrativeDeclined:false,
       userIntent:"history recall",relevantContextIds:ids,referencedRecords:context.records.filter(record=>ids.includes(record.id)),
       safetyLevel:"normal",shoppingSuppressed:true,suggestedFollowUps:[],applicationActions:[],proposedHistoryUpdate:emptyHistoryUpdate(),
       answerDepth:planAskAnswerDepth({message:input.question,minimumSafetyLevel:"normal",responseMode:"practical_guidance",recentConversation:input.conversationTurns}),
-      responseMode:"practical_guidance",model:projection ? "server-read-projection" : "server-history-timeline",
+      responseMode:"practical_guidance",model:"server-read-projection",
       messageUnderstanding:{...defaultMessageUnderstanding(input.question),primaryIntent:"question",userIsAskingQuestion:true},
       intelligenceSafety:{...defaultIntelligenceSafety("normal"),shoppingSuppressed:true},
       learnings:[],careActions:[],semanticEvents:[],semanticFrame:emptyProposedSemanticFrame(),semanticFrameValid:true,

@@ -1,7 +1,7 @@
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
-import { explicitHistoryDays } from "./explicit-history-dates.ts";
-import { explicitHistoryMonths } from "./literal-history-window.ts";
+import { explicitHistoryDays } from "./history-dates.ts";
+import { explicitHistoryMonths } from "./history-dates.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import type { FurviseLiveContext } from "./types.ts";
 type Context = Pick<FurviseLiveContext, "owner" | "eligiblePets" | "pet" | "currentMessage" | "conversationTurns">;

@@ -27,10 +27,6 @@ export function buildSecurityHeaders(input: {
   return headers;
 }
 
-export function applySecurityHeaders(headers: Headers, input: Parameters<typeof buildSecurityHeaders>[0] = {}) {
-  for (const header of buildSecurityHeaders(input)) headers.set(header.key, header.value);
-}
-
 export function getSecurityHeadersForNextConfig(env: Record<string, string | undefined> = process.env) {
   return buildSecurityHeaders({ env, https: true, production: env.NODE_ENV === "production" });
 }

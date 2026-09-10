@@ -83,7 +83,7 @@ test('safe conversational answer remains publishable: '+text,async t=>{
  assert.match(r.result.reasoning.answer.summary,/No\.|cannot disclose/);
 });
 
-import { explicitHistoryDays } from '../../app/lib/intelligence/explicit-history-dates.ts';
+import { explicitHistoryDays } from '../../app/lib/intelligence/history-dates.ts';
 import { care, irrelevant } from './fixtures/ask-lifetime-history.mjs';
 test('coordinated dates inherit one explicit year in either direction',()=>{
  assert.deepEqual(explicitHistoryDays('July 19, 2023 and July 23',2026),['2023-07-19','2023-07-23']);
@@ -152,7 +152,7 @@ test('typed CSV survives retrieval, grounding, approval and reload intact',async
  assert.equal(r.publication.failure,null);
 });
 
-import { readReviewedHistoryAnswer } from '../../app/lib/intelligence/history-review-receipt.ts';
+import { readReviewedHistoryAnswer } from '../../app/lib/intelligence/history-review-state.ts';
 test('two differently dated facts retain separate retrieval coverage and completion receipts',async t=>{
  clock(t);const question='Give Aster rest in April 2023 and Birch rest in May 2024.';
  const r=await exercise(question,{fixturePets:owned,messages:[],history:true,

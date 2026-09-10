@@ -1,7 +1,7 @@
 import type { GroundedSemanticEvidence, ProposedEntityMention, ProposedSemanticClaim, ProposedSemanticFrame } from "../../semantic-frame/types.ts";
-import type { EligibleSemanticPet } from "../../entities/candidate-retrieval.ts";
-import { resolveShadowEntities } from "../../entities/resolve-entities.ts";
-import { resolveShadowReferences } from "../../entities/resolve-references.ts";
+import type { EligibleSemanticPet } from "../../entity-matching.ts";
+import { resolveShadowEntities } from "../../entity-matching.ts";
+import { resolveShadowReferences } from "../../entity-matching.ts";
 import type { CanonicalSubjectType, ResolvedEntity, ResolvedSubject, V2RejectionReason } from "../types.ts";
 
 export type V2EntityResolution = {

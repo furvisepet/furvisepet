@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { normalizeConceptLabel } from "../app/lib/intelligence/concepts/normalize-concept.ts";
-import { resolveProvisionalConcept } from "../app/lib/intelligence/concepts/provisional-concepts.ts";
+import { normalizeConceptLabel } from "../app/lib/intelligence/concept-matching.ts";
+import { resolveProvisionalConcept } from "../app/lib/intelligence/concept-matching.ts";
 import { buildShadowSemanticAnalysis } from "../app/lib/intelligence/semantic-observability.ts";
 import { alignEvidenceFragments } from "../app/lib/intelligence/semantic-frame/ground-evidence.ts";
 import { normalizeClaimKind } from "../app/lib/intelligence/semantic-frame/normalize-claim-kind.ts";

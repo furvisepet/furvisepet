@@ -45,7 +45,7 @@ export async function runFeatureIntelligence<T>({
     safetyLevel: safety.level,
   });
   const schema = withIntelligenceLearningsSchema(mode.responseSchema);
-  const voiceRules = feature === "product_query_interpretation" || feature === "vet_brief"
+  const voiceRules = feature === "vet_brief"
     ? FURVISE_CORE_PROMPT_RULES
     : FURVISE_SHARED_PROMPT_RULES;
   const raw = await generateStructuredFeatureResponse<Record<string, unknown>>({

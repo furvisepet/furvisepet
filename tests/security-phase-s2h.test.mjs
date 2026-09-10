@@ -18,7 +18,7 @@ test("operational metadata is explicitly allowlisted and secret-like fields are 
 });
 
 test("event adapter failures cannot crash requests and critical events use the interface", () => {
-  const logger = source("app/lib/operations/events/logger.ts"); const metrics = source("app/lib/operations/events/metrics.ts");
+  const logger = source("app/lib/operations/events/logger.ts"); const metrics = source("app/lib/operations/events/types.ts");
   assert.match(logger, /Promise\.resolve\(adapter\.emit\(event\)\)\.catch/); assert.match(logger, /catch \{ \/\* Observability never breaks/);
   assert.match(metrics, /OperationalMetrics/); assert.match(logger, /metrics\.record\(\{ eventType: input\.eventType, severity: input\.severity \}\)/); assert.match(logger, /severity === "critical"/);
 });

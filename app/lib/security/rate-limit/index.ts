@@ -43,7 +43,7 @@ export async function beginRateLimitedRequest(input: {
   });
   if (!rate.allowed) return { allowed: false, response: rateLimitResponse({ code: rate.code, requestId: input.requestId, retryAfterSeconds: rate.retryAfterSeconds }) };
 
-  const modelBacked = input.policy === "ASK_AI" || input.policy === "PRODUCT_GUIDANCE_AI" || input.policy === "SAFETY_FOLLOWUP_AI" || input.policy === "VET_BRIEF_AI";
+  const modelBacked = input.policy === "ASK_AI" || input.policy === "VET_BRIEF_AI";
   if (!modelBacked) return { allowed: true, idempotencyReused: rate.idempotencyReused, lease: null, release: async () => true };
 
   const concurrency = await acquireConcurrencyLease({ adapter: input.adapter, enabled: input.enabled, feature: input.policy, requestId: input.requestId, route: input.route, userId: input.userId });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { initialProfile } from "../app/lib/petwise.ts";
-import { petProfileDraftsEqual, reducePetProfileDraft, setUnknownWithoutDiscarding } from "../app/lib/pet-profile-draft.ts";
+import { petProfileDraftsEqual, reducePetProfileDraft, setUnknownWithoutDiscarding } from "../app/lib/pet-profile-editing.ts";
 import { beginAddPetDraft, createBlankAddPetDraft, readAddPetDraft, saveAddPetDraft } from "../app/lib/onboarding-drafts.ts";
 
 class Storage {

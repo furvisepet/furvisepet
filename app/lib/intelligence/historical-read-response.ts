@@ -1,13 +1,15 @@
 /** Read composition has no extraction or mutation proposal fields. The existing
  * parser supplies empty actions and downstream authorization remains mandatory. */
-import { companionVoiceInstructions, normalizeCompanionProse } from "../ai/companion-voice.ts";
+import { companionVoiceInstructions, normalizeCompanionProse } from "../furvise-voice.ts";
 import { historyJsonDefinitions, historyJsonSchema, renderHistoricalJson } from "./structured-history-json.ts";
 import { historyCalculationSchema } from "./history-calculation.ts";
-import { isStructuredHistoryText } from "./structured-history-text.ts";
-import { unwrapProseEnvelope } from "./prose-envelope.ts";
+import {
+  isStructuredHistoryText,
+  unwrapProseEnvelope,
+  parseCsvRecords,
+  parsePlainTable,
+} from "../furvise-output.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
-import { parseCsvRecords } from "../csv-records.ts";
-import { parsePlainTable } from "../plain-table.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
 const tableCell = { type: "string", maxLength: 300, pattern: "^[^|\\r\\n]*$" };
 export function historicalReadSchema(properties: Record<string, unknown>, requiredLayout?: string | null) {

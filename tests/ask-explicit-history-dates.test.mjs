@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {explicitHistoryDays,normalizeExplicitHistoryDates} from '../app/lib/intelligence/explicit-history-dates.ts';
+import {explicitHistoryDays,normalizeExplicitHistoryDates} from '../app/lib/intelligence/history-dates.ts';
 const plan=()=>({operation:'recall',ordinal:null,terms:['improvement'],from:null,to:'2026-07-17'});
 test('by a named day is inclusive and completes only compatible bounds',()=>{
  const p=plan();normalizeExplicitHistoryDates(p,"By July 17, what did Fern's notes say?");
@@ -18,13 +18,6 @@ test('comparison includes both explicit dates without a synonym filter',()=>{
 test('invalid calendar dates and competing dates remain unnormalized',()=>{
  assert.deepEqual(explicitHistoryDays('Compare February 30 and March 1.',2026),[]);
  assert.deepEqual(explicitHistoryDays('January 1, February 1 and March 1.',2026),[]);
-});
-
-test('topic synonyms broaden narrow terms but keep an unfiltered plan unfiltered',async()=>{
- const {normalizeHistoricalSearchTerms}=await import('../app/lib/intelligence/history-search-terms.ts');
- assert.ok(normalizeHistoricalSearchTerms(['eat'],'List recorded food for each pet.').includes('food'));
- assert.ok(normalizeHistoricalSearchTerms(['accident'],'What changed back in the litter setup?').includes('tray'));
- assert.deepEqual(normalizeHistoricalSearchTerms([],'Compare food on two dates.'),[]);
 });
 
 test('explicit comparison dates recover a model plan with both bounds missing',()=>{

@@ -1,5 +1,5 @@
 import type { ModelApplicationAction } from "../application-actions/types.ts";
-import { buildFurvisePreferenceConfirmation } from "../furvise-voice.ts";
+import { buildFurvisePreferenceConfirmation } from "../furvise-output.ts";
 import type { AskOrchestratorResult } from "./ask-orchestrator.ts";
 
 export type DeterministicAskCommand = {

@@ -17,10 +17,10 @@ async function checkDimension(adapter, { dedupeKey, fingerprint, key, limit, now
   return adapter.check({ dedupeKey, fingerprint, key, limit, member: `${nowMs}:${suffix}`, nowMs, windowMs });
 }
 
-test("central policy registry contains the S2B defaults and bounded browsing policy", () => {
+test("central policy registry contains the S2B defaults for the active routes", () => {
   const expected = {
-    ASK_AI: [10, 30], PRODUCT_GUIDANCE_AI: [10, 30], SAFETY_FOLLOWUP_AI: [10, 30], VET_BRIEF_AI: [4, 12],
-    MEMORY_WRITE: [30, 60], PROFILE_WRITE: [30, 60], CARE_WRITE: [30, 60], CONVERSATION_WRITE: [30, 60], CATALOG_READ: [120, 240],
+    ASK_AI: [10, 30], VET_BRIEF_AI: [4, 12],
+    MEMORY_WRITE: [30, 60], PROFILE_WRITE: [30, 60], CARE_WRITE: [30, 60], CONVERSATION_WRITE: [30, 60],
   };
   for (const [name, [user, ip]] of Object.entries(expected)) {
     const policy = getRateLimitPolicy(name);
@@ -105,15 +105,15 @@ test("new idempotency keys remain subject to the normal bucket limit", async () 
   assert.equal((await checkDimension(adapter, { dedupeKey: next.userDedupeKey, fingerprint: "same", key: next.userKey, limit: 10 })).allowed, false);
 });
 
-test("shared AI lease rejects Ask plus Product for one user but not another", async () => {
+test("shared AI lease rejects Ask plus Vet Brief for one user but not another", async () => {
   const adapter = new MemoryRateLimitTestAdapter();
   const ask = keys("ASK_AI", "user-a", null);
-  const product = keys("PRODUCT_GUIDANCE_AI", "user-a", null);
+  const brief = keys("VET_BRIEF_AI", "user-a", null);
   const other = keys("ASK_AI", "user-b", null);
-  assert.equal(ask.leaseKey, product.leaseKey);
+  assert.equal(ask.leaseKey, brief.leaseKey);
   assert.notEqual(ask.leaseKey, other.leaseKey);
   assert.equal((await adapter.acquireLease({ key: ask.leaseKey, ownerToken: "holder-a", ttlMs: 65_000 })).acquired, true);
-  assert.equal((await adapter.acquireLease({ key: product.leaseKey, ownerToken: "holder-product", ttlMs: 65_000 })).acquired, false);
+  assert.equal((await adapter.acquireLease({ key: brief.leaseKey, ownerToken: "holder-brief", ttlMs: 65_000 })).acquired, false);
   assert.equal((await adapter.acquireLease({ key: other.leaseKey, ownerToken: "holder-b", ttlMs: 65_000 })).acquired, true);
 });
 
@@ -146,8 +146,8 @@ test("Redis adapter uses atomic admission, holder-only release, bounded timeout,
 });
 
 test("backend failure policy is fail-closed for AI and destructive writes but fail-open for ordinary writes", () => {
-  for (const name of ["ASK_AI", "PRODUCT_GUIDANCE_AI", "SAFETY_FOLLOWUP_AI", "VET_BRIEF_AI", "DESTRUCTIVE_WRITE"]) assert.equal(getRateLimitPolicy(name).failurePolicy, "fail_closed", name);
-  for (const name of ["PROFILE_WRITE", "MEMORY_WRITE", "CARE_WRITE", "CONVERSATION_WRITE", "CATALOG_READ"]) assert.equal(getRateLimitPolicy(name).failurePolicy, "fail_open", name);
+  for (const name of ["ASK_AI", "VET_BRIEF_AI", "DESTRUCTIVE_WRITE"]) assert.equal(getRateLimitPolicy(name).failurePolicy, "fail_closed", name);
+  for (const name of ["PROFILE_WRITE", "MEMORY_WRITE", "CARE_WRITE", "CONVERSATION_WRITE"]) assert.equal(getRateLimitPolicy(name).failurePolicy, "fail_open", name);
   const source = read("app/lib/security/rate-limit/rate-limit.ts");
   assert.match(source, /failurePolicy === "fail_open"/);
   assert.match(source, /RATE_LIMIT_UNAVAILABLE/);
@@ -165,15 +165,7 @@ test("HTTP contracts are stable, private, and do not expose limiter internals", 
 });
 
 test("all model-backed routes use central policy and release a shared lease in finally", () => {
-  const routes = {
-    "app/api/ask/route.ts": "ASK_AI",
-    "app/api/analyze/route.ts": "PRODUCT_GUIDANCE_AI",
-    "app/api/safety-followup/route.ts": "SAFETY_FOLLOWUP_AI",
-    "app/api/shop/interpret-query/route.ts": "PRODUCT_GUIDANCE_AI",
-    "app/api/shop/explain-product-fit/route.ts": "PRODUCT_GUIDANCE_AI",
-    "app/api/shop/product-question/route.ts": "PRODUCT_GUIDANCE_AI",
-    "app/api/vet-briefs/draft/route.ts": "VET_BRIEF_AI",
-  };
+  const routes = {"app/api/ask/route.ts": "ASK_AI", "app/api/vet-briefs/draft/route.ts": "VET_BRIEF_AI"};
   for (const [path, policy] of Object.entries(routes)) {
     const source = read(path);
     assert.match(source, new RegExp(`policy: "${policy}"`), path);
@@ -185,8 +177,6 @@ test("all model-backed routes use central policy and release a shared lease in f
 test("AI admission precedes credit reservation and provider execution", () => {
   const ask = read("app/api/ask/route.ts");
   assert.ok(ask.indexOf("requireRateLimitedRequest({") < ask.indexOf("reserveAiCredit({"));
-  const product = read("app/api/shop/product-question/route.ts");
-  assert.ok(product.indexOf("requireRateLimitedRequest({") < product.indexOf("runWithAiCredit<"));
   const vet = read("app/api/vet-briefs/draft/route.ts");
   assert.ok(vet.indexOf("requireRateLimitedRequest({") < vet.indexOf("runWithAiCredit<"));
 });
@@ -212,16 +202,11 @@ test("browser profile, memory, and care writes cross authenticated API gateways"
   const source = read("app/lib/supabase.ts");
   assert.match(source, /authenticatedApiFetch\(existingProfileId \? `\/api\/pets/);
   assert.match(source, /authenticatedApiFetch\("\/api\/care-entries"/);
-  assert.match(source, /authenticatedApiFetch\("\/api\/legacy-memories"/);
+  const memoryPage = read("app/dogs/[id]/memories/page.tsx");
+  assert.match(memoryPage, /idempotentClientFetch\(memory\.source === "legacy" \? "\/api\/legacy-memories"/);
+  assert.match(memoryPage, /Authorization: `Bearer \$\{token\}`/);
+  assert.match(memoryPage, /!token \|\| data\.session\?\.user\?\.id !== user\.id/);
   assert.match(source, /headers\.set\("authorization", `Bearer \$\{token\}`\)/);
-});
-
-test("deterministic product paths remain before AI gating and catalog has a high bounded policy", () => {
-  const interpret = read("app/api/shop/interpret-query/route.ts");
-  assert.ok(interpret.indexOf("cached") < interpret.indexOf("requireRateLimitedRequest({"));
-  const question = read("app/api/shop/product-question/route.ts");
-  assert.ok(question.indexOf("offTopic") < question.indexOf("requireRateLimitedRequest({"));
-  assert.match(read("app/api/shop/catalog/route.ts"), /policy: "CATALOG_READ"/);
 });
 
 test("configuration examples keep Redis credentials server-only", () => {

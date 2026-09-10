@@ -1,4 +1,5 @@
 // SYNTHETIC ONLY: ten calendar years, never an account's care records.
+// SYNTHETIC ONLY: ten calendar years, never an account's care records.
 import {care,pets,ownerId} from './ask-lifetime-history.mjs';
 export const stressPets=pets.slice(0,3);
 export const start='2016-09-04', end='2026-09-03';

@@ -1,5 +1,5 @@
 import type { FurviseMemoryRow } from "./intelligence/types.ts";
-import { calculateMemoryFreshness, type FreshnessStatus } from "./intelligence/memory-freshness/calculate-memory-freshness.ts";
+import { calculateMemoryFreshness, type FreshnessStatus } from "./intelligence/memory-freshness.ts";
 import type { DogMemoryRow } from "./supabase.ts";
 import { historicalPreferenceTargetIdentity, normalizeKnownPreferenceMemory, preferenceTargetIdentity } from "./intelligence/preference-semantics.ts";
 import { isEligibleLegacyMemory, isEligibleStoredMemory, memoryDisplayContent } from "./intelligence/memory-integrity.ts";

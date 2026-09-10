@@ -31,8 +31,6 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
-!.env.example
 
 # Authorized provider exports and private onboarding metadata
 /private/catalog-imports/
@@ -41,29 +39,16 @@ yarn-error.log*
 !.env.local.example
 
 # vercel
-.vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
 # Local Codex / browser state
-.chrome-codex/
-.codex/
 
 # Local env files
-.env.local
-.env*.local
-node_modules/
-.next/
 
 # Local secrets and generated files
-.env.local
-.env*.local
-node_modules/
-.next/
-.chrome-codex/
-.codex/
 
 # Logs
 *.log
@@ -108,3 +93,8 @@ supabase/.temp/
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Disposable local QA and Python bytecode
+/tmp/
+__pycache__/
+*.pyc

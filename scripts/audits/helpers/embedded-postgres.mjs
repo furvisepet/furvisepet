@@ -1,6 +1,9 @@
 // Opt-in local SQL transport for environments without a Docker daemon.
 // PGlite runs PostgreSQL/WASM, not mocked SQL. It has a single connection;
 // this transport cannot validate native server concurrency or PostgREST.
+// Opt-in local SQL transport for environments without a Docker daemon.
+// PGlite runs PostgreSQL/WASM, not mocked SQL. It has a single connection;
+// this transport cannot validate native server concurrency or PostgREST.
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { pathToFileURL } from 'node:url';
 

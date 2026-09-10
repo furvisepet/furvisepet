@@ -5,13 +5,13 @@ import test from "node:test";
 import ts from "typescript";
 import { recoverOptionalQuery } from "../app/lib/intelligence/context-recovery.ts";
 import { isEligibleLegacyMemory, isEligibleStoredMemory } from "../app/lib/intelligence/memory-integrity.ts";
-import { selectFreshRelevantMemories } from "../app/lib/intelligence/memory-freshness/select-fresh-memories.ts";
+import { selectFreshRelevantMemories } from "../app/lib/intelligence/memory-freshness.ts";
 
 const source = readFileSync(new URL("../app/lib/intelligence/memory-sources.ts", import.meta.url), "utf8");
 const exports = {};
 const mocks = { "server-only": {}, "./context-recovery.ts": { recoverOptionalQuery },
   "./memory-integrity.ts": { isEligibleLegacyMemory, isEligibleStoredMemory },
-  "./memory-freshness/select-fresh-memories.ts": { selectFreshRelevantMemories } };
+  "./memory-freshness.ts": { selectFreshRelevantMemories } };
 vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
   { exports, require(name) { assert.ok(name in mocks, name); return mocks[name]; } });
 const now = new Date("2026-09-05T00:00:00Z");

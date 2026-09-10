@@ -39,12 +39,6 @@ export function fingerprintRateLimitPayload(value: unknown) {
   return createHash("sha256").update(stableSerialize(value)).digest("hex");
 }
 
-export function getRateLimitRequestId(request: Request, candidate?: unknown) {
-  if (typeof candidate === "string" && isUuid(candidate)) return candidate;
-  const header = request.headers.get("x-request-id");
-  return header && isUuid(header) ? header : randomUUID();
-}
-
 export function createRateLimitKeys(input: {
   hashSecret: string;
   idempotencyKey?: string;
@@ -73,8 +67,4 @@ function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
   const record = value as Record<string, unknown>;
   return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`).join(",")}}`;
-}
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

@@ -1,19 +1,17 @@
-import { recordHistoryReviewDiagnostic } from "./history-review-diagnostic.ts";
+import { recordHistoryReviewDiagnostic } from "./history-review-state.ts";
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
-import { normalizeCompanionProse } from "../ai/companion-voice.ts";
+import { normalizeCompanionProse } from "../furvise-voice.ts";
 import { readPublicationFailure } from "../ask-publication.ts";
-import { withProviderDeadline } from "../ai/provider-deadline.ts";
-import { isStructuredHistoryText } from "./structured-history-text.ts";
+import { withProviderDeadline } from "../ai/execution-deadline.ts";
+import {
+  isStructuredHistoryText,
+  parsePlainTable,
+  presentReviewedHistory,
+  presentHistoryLimitation,
+  stripHistoryBullet,
+} from "../furvise-output.ts";
 import { verifiedCalculationQuantities } from "./history-calculation.ts";
-import { directHistoryExplanation } from "./direct-history-explanation.ts";
-import { requestedHistoryTimelineDays } from "./requested-history-timeline.ts";
-import { withinNoteCountAnswer } from "./within-note-count.ts";
 import { hasUndatedHistoricalCareState } from "./historical-care-state.ts";
-import { calendarIntervalAnswer } from "./calendar-interval.ts";
-import { parsePlainTable } from "../plain-table.ts";
-import { weightComparisonAnswer } from "./weight-comparison.ts";
-import { correctionReportAnswer } from "./correction-report.ts";
-import { presentReviewedHistory, presentHistoryLimitation, stripHistoryBullet } from "./history-presentation.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { historyReviewSelectionSchema, parseHistoryReviewSelection, repairableTaskHistoryReviewSchema, parseRepairableTaskHistoryReview } from "./history-review-selection.ts";
 import { historyNarrativeAnchorsSupported } from "./history-narrative-facts.ts";
@@ -27,8 +25,8 @@ import { matchesHistoryOutputFormat, canonicalHistoricalRead, historicalReadSche
 import { historyNarrativeSchema } from "./history-narrative.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
 
-import { readReviewedHistoryAnswer, clearHistoryReview, recordHistoryReview, historyReviewSignature as signature } from "./history-review-receipt.ts";
-export { readReviewedHistoryAnswer } from "./history-review-receipt.ts";
+import { readReviewedHistoryAnswer, clearHistoryReview, recordHistoryReview, historyReviewSignature as signature } from "./history-review-state.ts";
+export { readReviewedHistoryAnswer } from "./history-review-state.ts";
 export const HISTORY_REVIEW_LIMITS = { inputCharacters: 32_000, outputTokens: 2600, timeoutMs: 18_000 } as const;
 const instructions = [
   "Review a proposed pet-history answer against the supplied server-scoped records. Select the supported sentences that together form a coherent answer. Return approved and retainedSentenceIndexes using the explicit zero-based sentence indexes. Do not rewrite, insert or reorder prose.",
@@ -93,8 +91,6 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   if (evidence.history.corrections === "unavailable") return decline("correction_evidence_unavailable");
   if (!sharedRequest && /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)) return decline("server_quotation_path");
   if (result.safetyLevel === "urgent" || result.responseMode === "grief_support") return decline("safety_response_path");
-  if (!sharedRequest && requestedHistoryTimelineDays(evidence.scope.requestText, new Date().getUTCFullYear())) return decline("server_timeline_path");
-  if (!sharedRequest && (directHistoryExplanation(evidence) || withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence))) return decline("server_derived_answer_path");
   const sources = usableSources(evidence);
   // A missing diagnosis record cannot answer whether a diagnosis was established.
   // Preserve the attributed note instead of approving a misleading yes/no preface.

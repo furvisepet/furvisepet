@@ -41,7 +41,3 @@ function hasExactlyOnce(parameters, expectedKeys) {
     && expectedKeys.every((key) => parameters.getAll(key).length === 1)
     && keys.every((key) => expectedKeys.includes(key));
 }
-
-export const RECOVERY_FRAGMENT_LIMITS = {
-  maxLength: MAX_RECOVERY_FRAGMENT_LENGTH,
-};

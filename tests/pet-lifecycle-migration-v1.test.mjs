@@ -134,7 +134,6 @@ test("routine product and care-plan features require an active pet while Ask and
   const context = read("app/lib/intelligence/retrieve-context.ts");
   assert.match(context, /featureRequiresActivePet\(feature\)/);
   assert.match(context, /pet\.id === selectedProfile\.id \|\| getPetLifecycleStatus\(pet\) === "active"/);
-  assert.match(read("app/api/shop/catalog/route.ts"), /!isActivePet\(memory\.pet\)/);
 });
 
 test("Today, homepage, History, profile, Vet Brief, and export honor retained lifecycle state", () => {

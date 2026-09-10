@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const primitives = read("app/components/product-primitives.tsx");
-const overflow = read("app/components/pet-overflow-menu.tsx");
+
 const pets = read("app/pets/page.tsx");
 const ask = read("app/ask/page.tsx");
 const history = read("app/components/care-log-workspace.tsx");
@@ -57,22 +57,9 @@ test("meaningless decorative dots and empty marker containers are removed", () =
   assert.doesNotMatch(homepage, /mb-5 block h-2\.5 w-10 rounded-full/);
 });
 
-test("pet directory omits management while the reusable overflow menu keeps its interaction contract", () => {
+test("pet directory omits retired management controls", () => {
   assert.doesNotMatch(pets, /PetOverflowMenu/);
   assert.doesNotMatch(pets, />More<span|<summary/);
-  assert.match(overflow, /aria-label=\{`More actions for \$\{name\}`\}/);
-  assert.match(overflow, /aria-controls=\{open \? menuId : undefined\}/);
-  assert.match(overflow, /className="inline-flex h-11 w-11/);
-  assert.match(overflow, /<OverflowMenuIcon \/>/);
-  assert.match(overflow, /role="menu"/);
-  assert.match(overflow, /Edit profile[\s\S]*Remembered details[\s\S]*role="separator"[\s\S]*Delete profile/);
-  assert.match(overflow, /text-\[var\(--danger-text\)\]/);
-  assert.match(overflow, /event\.key !== "Escape"[\s\S]*closeMenu\(true\)/);
-  assert.match(overflow, /document\.addEventListener\("pointerdown", handlePointerDown\)/);
-  assert.match(overflow, /onClick=\{\(\) => closeMenu\(\)\}/);
-  assert.match(overflow, /ArrowDown[\s\S]*ArrowUp[\s\S]*Home[\s\S]*End/);
-  assert.match(overflow, /window\.innerWidth[\s\S]*window\.innerHeight/);
-  assert.match(overflow, /createPortal\(menu, document\.body\)/);
 });
 
 test("fixed mobile navigation has safe-area-aware content clearance", () => {
@@ -89,7 +76,7 @@ test("fixed mobile navigation has safe-area-aware content clearance", () => {
 test("the bottom-left N is the disabled Next development indicator, not Furvise UI", () => {
   assert.match(config, /devIndicators: false/);
   assert.match(visualQa, /development route indicator[\s\S]*devIndicators: false[\s\S]*screenshot QA/);
-  const furviseSources = [primitives, overflow, pets, ask, history, homepage, appPage].join("\n");
+  const furviseSources = [primitives, pets, ask, history, homepage, appPage].join("\n");
   assert.doesNotMatch(furviseSources, /fixed[^\n]*(?:bottom[^\n]*left|left[^\n]*bottom)/);
 });
 

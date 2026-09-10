@@ -132,13 +132,12 @@ test("warm surfaces and restrained action colors are applied through shared role
   const components = walk("app").filter((file) => file.endsWith(".tsx")).map((file) => read(file)).join("\n");
   const primitives = read("app/components/product-primitives.tsx");
   const header = read("app/components/app-header.tsx");
-  const footer = read("app/components/app-footer.tsx");
+
   assert.match(css, /--surface-page: var\(--page-background\)/);
   assert.match(primitives, /standard: "bg-\[var\(--card-background\)\]"/);
   assert.match(primitives, /fieldControlClass[\s\S]*bg-\[var\(--input-background\)\][\s\S]*placeholder:text-\[var\(--text-muted\)\]/);
   assert.match(primitives, /neutral: "bg-\[var\(--chip-background\)\][\s\S]*selected: "border-\[var\(--sage\)\] bg-\[var\(--chip-selected-background\)\] text-\[var\(--chip-selected-foreground\)\]/);
   assert.match(header, /homepage-marketing-header[\s\S]*data-active-indicator=\{isActive\(item\.href\) \? "underline"/);
-  assert.match(footer, /bg-\[var\(--footer-background\)\]/);
   assert.doesNotMatch(components, /text-\[var\(--action-primary\)\]/, "orange primary background must not be reused as body or link text");
   assert.match(css, /--primary-action-background: var\(--deep-forest\)/);
   assert.match(css, /--primary-action-foreground: var\(--warm-cream\)/);
@@ -164,7 +163,7 @@ test("focus authority stays forest or scoped sage without orange leakage", () =>
 });
 
 test("components consume semantic tokens and do not introduce ordinary colors", () => {
-  const files = walk("app").filter((file) => /\.(?:tsx|ts|css)$/.test(file) && file !== path.join("app", "globals.css") && file !== path.join("app", "layout.tsx") && file !== path.join("app", "lib", "vet-brief", "pdf-theme.ts"));
+  const files = walk("app").filter((file) => /\.(?:tsx|ts|css)$/.test(file) && file !== path.join("app", "globals.css") && file !== path.join("app", "layout.tsx"));
   const failures = files.filter((file) => /#[0-9a-f]{3,8}|(?:linear|radial)-gradient|\b(?:bg|text|border|ring)-(?:white|black|red|green|blue|orange|amber|stone|gray)-/i.test(read(file)));
   assert.deepEqual(failures, [], `Unexpected component colors: ${failures.join(", ")}`);
   assert.match(read("app/components/product-primitives.tsx"), /var\(--secondary-action\)[\s\S]*var\(--secondary-action-text\)/);
@@ -172,7 +171,7 @@ test("components consume semantic tokens and do not introduce ordinary colors", 
 });
 
 test("palette names cannot leak into user-facing application source", () => {
-  const visibleSources = walk("app").filter((file) => /\.(?:tsx|ts|mjs)$/.test(file) && file !== path.join("app", "lib", "vet-brief", "pdf-theme.ts"));
+  const visibleSources = walk("app").filter((file) => /\.(?:tsx|ts|mjs)$/.test(file));
   const leaked = visibleSources.filter((file) => /morning dew|overcast|early dusk|tan parchment|almond dust|coffee grounds/i.test(read(file)));
   assert.deepEqual(leaked, []);
 });

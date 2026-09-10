@@ -1,0 +1,21 @@
+{
+  "kind": "real-provider core-pipeline diagnostic benchmark",
+  "applicationCommit": "a8c04bd0f6b8a7c1afdd45cfd5e6fb8e18eae828",
+  "appTree": "2076f87dfeadf55120be4d40b5c8380c4ab3a609",
+  "questionSets": [
+    "ask-v1-benchmark7-frozen.json",
+    "ask-v1-benchmark9-frozen.json"
+  ],
+  "phases": [
+    "core-full60",
+    "core-repeat20"
+  ],
+  "provider": "gpt-5.4-mini",
+  "database": "In-memory synthetic fixture; 43 care rows and three synthetic pet identifiers",
+  "uiExercised": false,
+  "productionRouteExercised": false,
+  "method": "Same previously frozen questions; all first attempts retained. No application code changes during the run. This is a repeated core evaluation, not unseen or production UI accuracy. Command routing and React rendering are covered separately by deterministic tests.",
+  "reasonForCoreOnly": "The cloud workspace and authenticated browser disconnected; remote execution remained available.",
+  "diagnosticLedgerBeforeRunUsd": 0.909186,
+  "productionLedgerBeforeAndDuringCoreUsd": 11.3624
+}

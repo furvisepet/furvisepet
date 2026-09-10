@@ -98,7 +98,7 @@ test("robots and page metadata protect every current private or utility route fa
     assert.match(robots, new RegExp(`\"${route}\"`));
   }
   assert.match(seo, /PRIVATE_PAGE_ROBOTS[\s\S]*index: false[\s\S]*follow: false[\s\S]*nocache: true/);
-  for (const route of ["catalog", "vet-brief", "vet-briefs"]) {
+  for (const route of ["vet-brief", "vet-briefs"]) {
     assert.match(read(`app/${route}/layout.tsx`), /createPrivatePageMetadata/);
   }
   assert.doesNotMatch(robots, /_next|\.css|\.js|static/);

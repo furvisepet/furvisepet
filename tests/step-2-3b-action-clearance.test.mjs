@@ -16,7 +16,7 @@ const ask = read("app/ask/page.tsx");
 const products = read("app/shop/page.tsx");
 const account = read("app/account/page.tsx");
 const homepage = read("app/components/homepage-client.tsx");
-const overflow = read("app/components/pet-overflow-menu.tsx");
+
 const accountShell = read("app/components/account-settings-shell.tsx");
 const accountUtility = read("app/components/account-utility.tsx");
 
@@ -54,12 +54,10 @@ test("one shared mobile clearance covers every requested app surface", () => {
   assert.doesNotMatch(homepage, /app-mobile-nav-clearance/);
 });
 
-test("Pets actions, Ask composer, and overflow all clear the bottom navigation", () => {
+test("Pets actions and Ask composer clear the bottom navigation", () => {
   assert.match(pets, /<AppPage layout="workspace" shell="standard">/);
   assert.match(ask, /app-sticky-composer sticky/);
   assert.match(css, /\.app-sticky-composer[\s\S]*var\(--mobile-nav-height\)[\s\S]*var\(--mobile-nav-safe-area\)/);
-  assert.match(overflow, /data-ui='mobile-bottom-navigation'/);
-  assert.match(overflow, /navigationTop - VIEWPORT_GUTTER/);
 });
 
 test("the account utility contains account controls and complete dismissal behavior", () => {

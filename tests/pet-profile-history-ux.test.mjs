@@ -1,35 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { formatPetProfileSubtitle } from "../app/lib/pet-profile.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-function profile(overrides = {}) {
-  return {
-    age_unit: "years",
-    age_value: 4,
-    breed: null,
-    species: "dog",
-    weight_unit: "lb",
-    weight_value: null,
-    ...overrides,
-  };
-}
 
 test("pet header removes readiness and updated-date status while keeping durable identity", () => {
   const page = read("app/pets/[id]/page.tsx");
   assert.match(page, /formatPetDirectoryMetadata\(profile\)/);
   assert.doesNotMatch(page, /Updated \$\{|formatShortDate|formatProfileStatusDisplay|Getting to know|Profile ready|StatusPill label=\{model\.completeness/);
-});
-
-test("pet subtitle omits unknown values and keeps separators correct", () => {
-  assert.equal(formatPetProfileSubtitle(profile()), "Dog · 4 years");
-  assert.equal(formatPetProfileSubtitle(profile({ breed: "German Shepherd" })), "Dog · German Shepherd · 4 years");
-  assert.equal(formatPetProfileSubtitle(profile({ breed: "German Shepherd", weight_value: 70 })), "Dog · German Shepherd · 4 years · 70 lb");
-  assert.equal(formatPetProfileSubtitle(profile({ breed: "Mixed / unknown", weight_value: null })), "Dog · 4 years");
-  assert.equal(formatPetProfileSubtitle(profile({ age_value: null, breed: null, species: null, weight_value: 70 })), "70 lb");
-  assert.equal(formatPetProfileSubtitle(profile({ age_value: null, breed: null, species: null, weight_value: null })), "");
 });
 
 test("pet profile uses the canonical Pets page orientation and shared accessible actions", () => {

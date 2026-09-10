@@ -4,7 +4,6 @@ import test from "node:test";
 import { getPersistenceNotices } from "../app/lib/ask-conversations.ts";
 import { routePersistenceDestinations } from "../app/lib/intelligence/persistence-destination.ts";
 import { groupLearningsByPersistencePet } from "../app/lib/intelligence/persistence-partition.ts";
-import { reducePetState } from "../app/lib/intelligence/pet-state/reduce-events.ts";
 import { resolveProductSafety } from "../app/lib/intelligence/product-safety.ts";
 
 const petId = "75db72b1-64fe-476d-a62a-70f4f6aee7cd";
@@ -117,20 +116,6 @@ test("unnamed medication creates no durable action or invented medication", () =
   assert.deepEqual(result.learnings, []);
 });
 
-test("named medication start and completion create one medication episode lifecycle", () => {
-  const start = routePersistenceDestinations({ message: "Maple started Apoquel today. It was prescribed by her veterinarian.", petId, learnings: [], careActions: [] });
-  const finish = routePersistenceDestinations({ message: "Maple finished Apoquel today.", petId, learnings: [], careActions: [] });
-  assert.deepEqual([start.careActions[0].episodeOperation, finish.careActions[0].episodeOperation], ["start", "complete"]);
-  assert.equal(start.careActions[0].normalizedEpisodeKey, finish.careActions[0].normalizedEpisodeKey);
-  assert.equal(start.careActions[0].title, "Started Apoquel");
-  assert.equal(finish.careActions[0].title, "Stopped Apoquel");
-  const event = (id, title, date, stateAction = "create_entry") => ({ id, title, note: title, category: "medication", occurred_at: date, created_at: date, state_action_type: stateAction, severity: null, intelligence_confidence: 0.99 });
-  const afterStart = reducePetState([event("start", "Started Apoquel", "2026-07-28T01:00:00Z")], [], {}).state;
-  assert.equal(afterStart.currentMedications?.[0].name, "Apoquel");
-  const afterFinish = reducePetState([event("start", "Started Apoquel", "2026-07-28T01:00:00Z"), event("finish", "Finished Apoquel", "2026-07-28T02:00:00Z", "resolve_concern")], [], {}).state;
-  assert.deepEqual(afterFinish.currentMedications, []);
-});
-
 test("unnamed medication lifecycle stays generic instead of inventing an administration verb", () => {
   const start = routePersistenceDestinations({ message: "I started giving Luna her medication today", petId, learnings: [], careActions: [] });
   const stop = routePersistenceDestinations({ message: "I stopped giving Luna her medication today", petId, learnings: [], careActions: [] });
@@ -181,4 +166,14 @@ test("repair is service-only, scoped, and preserves Apoquel chronology", () => {
   assert.match(sql, /SERVICE_ROLE_REQUIRED/);
   assert.match(sql, /retainedApoquelCareEntryIds/);
   assert.match(sql, /75db72b1-64fe-476d-a62a-70f4f6aee7cd/);
+});
+
+
+test("named medication start and completion create one medication episode lifecycle", () => {
+  const start = routePersistenceDestinations({ message: "Maple started Apoquel today. It was prescribed by her veterinarian.", petId, learnings: [], careActions: [] });
+  const finish = routePersistenceDestinations({ message: "Maple finished Apoquel today.", petId, learnings: [], careActions: [] });
+  assert.deepEqual([start.careActions[0].episodeOperation, finish.careActions[0].episodeOperation], ["start", "complete"]);
+  assert.equal(start.careActions[0].normalizedEpisodeKey, finish.careActions[0].normalizedEpisodeKey);
+  assert.equal(start.careActions[0].title, "Started Apoquel");
+  assert.equal(finish.careActions[0].title, "Stopped Apoquel");
 });

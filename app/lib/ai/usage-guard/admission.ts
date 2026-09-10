@@ -10,8 +10,8 @@ import { getConfiguredAiGuardStore, secondsUntilUtcBucketExpiry, utcDay } from "
 import { AiAdmissionError } from "./errors";
 import { getAiFeaturePolicy } from "./features";
 import { logAiGuardEvent } from "./logging";
-import { noopAiGuardMetrics } from "./metrics";
-import { OperationDeadline } from "../operation-deadline.ts";
+import { noopAiGuardMetrics } from "./types";
+import { OperationDeadline } from "../execution-deadline.ts";
 import { deriveAiGuardOperationId } from "./operation-identity";
 import type { AiCallReservation, AiGuardFeature, AiGuardMetrics, AiGuardStore, ProviderUsage } from "./types";
 import { runWithAiAdmission } from "./context";

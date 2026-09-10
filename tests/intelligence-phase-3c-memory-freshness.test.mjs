@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { calculateMemoryFreshness } from "../app/lib/intelligence/memory-freshness/calculate-memory-freshness.ts";
-import { selectFreshRelevantMemories } from "../app/lib/intelligence/memory-freshness/select-fresh-memories.ts";
+import { calculateMemoryFreshness } from "../app/lib/intelligence/memory-freshness.ts";
+import { selectFreshRelevantMemories } from "../app/lib/intelligence/memory-freshness.ts";
 
 const now = new Date("2026-07-28T12:00:00Z");
 const memory = (freshness_class, confirmed, overrides = {}) => ({ id: "m", user_id: "u", pet_id: "p", subject_type: "pet", category: "preference", fact_key: "current_food", fact_value: "Kirkland", normalized_value: "kirkland", confidence: 0.95, importance: "medium", durability: "ongoing", status: "active", source_type: "user_confirmed", source_id: null, source_excerpt: null, first_observed_at: confirmed, last_confirmed_at: confirmed, superseded_by: null, created_at: confirmed, updated_at: confirmed, freshness_class, base_confidence: 0.95, ...overrides });
@@ -29,7 +29,7 @@ test("confirmed allergy does not decay", () => assert.equal(calculateMemoryFresh
 test("episode-bound memory expires with its short policy", () => assert.equal(calculateMemoryFreshness(memory("episode_bound", daysAgo(8)), now).freshnessStatus, "expired"));
 test("freshness durations and database indexes are centralized", () => {
   const sql = readFileSync(new URL("../supabase/migrations/20260728100000_add_memory_freshness.sql", import.meta.url), "utf8");
-  const policy = readFileSync(new URL("../app/lib/intelligence/memory-freshness/policy.ts", import.meta.url), "utf8");
+  const policy = readFileSync(new URL("../app/lib/intelligence/memory-freshness.ts", import.meta.url), "utf8");
   assert.match(sql, /furvise_memories_freshness_idx/); assert.match(sql, /furvise_memories_subject_fact_idx/);
   assert.match(policy, /medium_lived/); assert.match(policy, /episode_bound/);
 });

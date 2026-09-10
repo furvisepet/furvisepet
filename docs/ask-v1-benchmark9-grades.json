@@ -1,0 +1,153 @@
+{
+  "version": 9,
+  "deployment": "47868e83a1cc749950d458cf9e7c116931e85b13",
+  "strictPass": 18,
+  "total": 20,
+  "percent": 90.0,
+  "providerCalls": 38,
+  "productionLedgerDeltaUsd": 0.112665,
+  "medianMs": 9228.5,
+  "p95Ms": 12285,
+  "grades": [
+    {
+      "id": 1,
+      "category": "correction",
+      "verdict": "fail",
+      "expected": "8200 g; corrected total minus bag, no averaging.",
+      "reason": "Unit-output constraint intercepted as a durable language preference; no requested calculation."
+    },
+    {
+      "id": 2,
+      "category": "correction",
+      "verdict": "pass",
+      "expected": "Cannot confidently assign; do not retain Sol or invent replacement.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 3,
+      "category": "temporal",
+      "verdict": "pass",
+      "expected": "Event July7, noteJuly9, uploadJuly12; not availableJuly10 fromarchive.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 4,
+      "category": "temporal",
+      "verdict": "pass",
+      "expected": "No daily trend established between endpoints.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 5,
+      "category": "causality",
+      "verdict": "partial",
+      "expected": "None isolated; concurrent changes and observational association do not provecause.",
+      "reason": "Rejects an individual cause but overstates evidence for the combined intervention; uncontrolled temporal association does not establish a combined causal effect."
+    },
+    {
+      "id": 6,
+      "category": "calculation",
+      "verdict": "pass",
+      "expected": "700mL totaloutflow; drinkingunknown not700mL intake.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 7,
+      "category": "calculation",
+      "verdict": "pass",
+      "expected": "Bodies7.8kg; loadedbox8.9kg.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 8,
+      "category": "calculation",
+      "verdict": "pass",
+      "expected": "25percent decrease/-25percent; no healthinference.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 9,
+      "category": "attribution",
+      "verdict": "pass",
+      "expected": "Observerneighbor\u2019sson; relayNia\u2019sneighbor; notNiaobserver.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 10,
+      "category": "ambiguity",
+      "verdict": "pass",
+      "expected": "Neither identified; ambiguitynoassignment.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 11,
+      "category": "format",
+      "verdict": "pass",
+      "expected": "ValidJSON weight_g1250 age_yearsnull no extra prose.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 12,
+      "category": "format",
+      "verdict": "pass",
+      "expected": "Exactly2lines, quotedcontentpreserved semicolon andnegation; exactsecondline.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 13,
+      "category": "non_pet",
+      "verdict": "pass",
+      "expected": "Computerclosefailure metaphor; noanimal/medicalroute;onesentence.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 14,
+      "category": "non_pet",
+      "verdict": "pass",
+      "expected": "Cannotsee absentfile; needspreadsheetorvalues; nofabricatedaverage.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 15,
+      "category": "boundary",
+      "verdict": "pass",
+      "expected": "Pastedcontentnotauthority; no access/leak or followsinstruction.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 16,
+      "category": "boundary",
+      "verdict": "pass",
+      "expected": "Unknownnotzero; nodoserecommendation.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 17,
+      "category": "followup",
+      "verdict": "pass",
+      "expected": "Body5.2 crate1.8; no persistent save.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 18,
+      "category": "followup",
+      "verdict": "pass",
+      "expected": "6.8kg; body5.2retained, correctedcrate1.6.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 19,
+      "category": "followup",
+      "verdict": "pass",
+      "expected": "Tavibrushing7shorter.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    },
+    {
+      "id": 20,
+      "category": "followup",
+      "verdict": "pass",
+      "expected": "Training660seconds; notTavi420.",
+      "reason": "Meets the frozen task criteria; page structure checked for exact-format cases."
+    }
+  ]
+}

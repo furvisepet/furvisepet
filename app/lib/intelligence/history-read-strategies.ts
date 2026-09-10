@@ -1,6 +1,6 @@
-import { explicitHistoryMonths } from "./literal-history-window.ts";
+import { explicitHistoryMonths } from "./history-dates.ts";
 import type { EvidenceNeed } from "./evidence-needs.ts";
-import { explicitHistoryDays } from "./explicit-history-dates.ts";
+import { explicitHistoryDays } from "./history-dates.ts";
 type Window = { from: string | null; to: string | null };
 export type HistoryReadStrategy = Window & { descending: boolean; lexical: boolean; terms: string[]; target?: string; needId?: string };
 /** Date targets and ordering are independent. Targets narrow the authorized

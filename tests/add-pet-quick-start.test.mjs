@@ -15,7 +15,7 @@ import {
   isValidAddPetName,
   normalizeAddPetName,
   validateApproximatePetAge,
-} from "../app/lib/add-pet-validation.ts";
+} from "../app/lib/pet-profile-editing.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 

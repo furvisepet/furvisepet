@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getAuthenticatedApiContext } from "./authenticated-api-server";
-import { validatePetProfileSaveInput } from "./pet-profile-save-validation";
+import { validatePetProfileSaveInput } from "./pet-profile-editing";
 import { normalizeAvoidIngredientValues, normalizeSpecies, normalizeWellnessGoal, parsePositiveNumber, type DogProfile } from "./petwise";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, readBoundedJson } from "./security/request";
 import { beginIdempotentRateLimitedOperation } from "./security/idempotency";

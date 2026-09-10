@@ -1,20 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  buildDashboardCareSectionState,
-  getSevereSymptomCautionMessage,
-  formatCareNotePreview,
-  resolveCareLogInitialPetId,
-  sortCareEntriesNewestFirst,
-  validateCareEntryDraft,
-} from "../app/lib/care-log.mjs";
-import {
-  buildDashboardCareEntries,
-  buildNextSteps,
-  buildProfileStatus,
-  buildRecentActivity,
-  getPetCareLogHref,
-} from "../app/lib/dashboard.ts";
+import { getSevereSymptomCautionMessage, resolveCareLogInitialPetId, validateCareEntryDraft } from "../app/lib/care-log.mjs";
 import { formatPetDisplayName } from "../app/lib/petwise.ts";
 import {
   createCareEntry,
@@ -301,61 +287,6 @@ test("care log pet preselect chooses only filtered, scoped, or single-pet defaul
   assert.equal(resolveCareLogInitialPetId({ profiles: [profiles[0]], selectedPet: "all" }), "pet-1");
 });
 
-test("care history-created entries reload for dashboard and Ask Furvise memory", async () => {
-  const profile = {
-    id: "pet-rocky",
-    user_id: "user-1",
-    name: "Rocky",
-    species: "dog",
-    breed: "Mixed / unknown",
-    age_value: 4,
-    age_unit: "years",
-    weight_value: 42,
-    weight_unit: "lb",
-    current_food: "Salmon kibble",
-    main_concern: "General wellness",
-    avoid_ingredients: [],
-    monthly_budget: 80,
-    created_at: "2026-07-14T08:00:00Z",
-    updated_at: "2026-07-14T08:00:00Z",
-  };
-  const { client, deps } = createDeps("user-1", {
-    dogProfiles: [profile],
-    petCareEntries: [],
-  });
-
-  const created = await createCareEntry(
-    {
-      petProfileId: "pet-rocky",
-      category: "general",
-      note: "Added from Care history page.",
-      occurredAt: "2026-07-14T09:30",
-      severity: null,
-      title: "Test care log button",
-    },
-    deps,
-  );
-
-  assert.equal(client.store.pet_care_entries.length, 1);
-  const reloaded = await listRecentCareEntries(10, deps);
-  assert.equal(reloaded.filter((entry) => entry.id === created.id).length, 1);
-  assert.equal(reloaded[0].title, "Test care log button");
-  assert.equal(reloaded[0].pet_name, "Rocky");
-
-  const dashboardRows = buildDashboardCareEntries(reloaded);
-  assert.equal(dashboardRows[0].title, "Test care log button");
-
-  const memory = buildPetMemoryContext({
-    careEntries: reloaded,
-    now: new Date("2026-07-14T12:00:00Z"),
-    profile,
-  });
-  const recent = summarizeRecentChanges(memory);
-  const recentItems = recent.sections.flatMap((section) => section.items).join("\n");
-  assert.match(recentItems, /Test care log button/);
-  assert.match(recentItems, /Added from Care history page/);
-});
-
 test("Ask Furvise care-history saves skip duplicate generated notes within 24 hours", async () => {
   const now = new Date().toISOString();
   const profile = { id: "pet-rocky", user_id: "user-1", name: "Rocky" };
@@ -622,177 +553,6 @@ test("display helpers preserve intentional casing and show severe caution", () =
   );
 });
 
-test("dashboard helpers render real care activity and keep no-update messaging", () => {
-  const createdAt = "2026-06-23T08:00:00Z";
-  const addedAt = "2026-06-23T09:00:00Z";
-  const editedAt = "2026-06-23T10:00:00Z";
-
-  const activity = buildRecentActivity(
-    [
-      {
-        id: "pet-1",
-        user_id: "user-1",
-        name: "rocky",
-        species: "dog",
-        breed: "Mixed / unknown",
-        age_value: null,
-        age_unit: null,
-        weight_value: null,
-        weight_unit: null,
-        current_food: null,
-        main_concern: null,
-        avoid_ingredients: [],
-        monthly_budget: null,
-        created_at: createdAt,
-        updated_at: editedAt,
-        dog_memories: [],
-        dog_product_feedback: [],
-      },
-    ],
-    [
-      {
-        id: "care-1",
-        user_id: "user-1",
-        pet_profile_id: "pet-1",
-        pet_name: "rocky",
-        category: "symptom",
-        title: "Morning cough",
-        note: "Coughing lightly after the walk.",
-        severity: null,
-        occurred_at: addedAt,
-        created_at: addedAt,
-        updated_at: addedAt,
-      },
-      {
-        id: "care-1",
-        user_id: "user-1",
-        pet_profile_id: "pet-1",
-        pet_name: "rocky",
-        category: "symptom",
-        title: "Morning cough",
-        note: "Coughing lightly after the walk.",
-        severity: null,
-        occurred_at: addedAt,
-        created_at: addedAt,
-        updated_at: editedAt,
-      },
-    ],
-  );
-
-  assert.equal(activity.some((item) => item.title.includes("Profile updated")), false);
-  assert.equal(activity[0].title, "Care update edited for Rocky");
-  assert.equal(activity[1].title, "Care update added for Rocky");
-
-  const nextSteps = buildNextSteps(
-    [
-      {
-        id: "pet-1",
-        user_id: "user-1",
-        name: "rocky",
-        species: "dog",
-        breed: "Mixed / unknown",
-        age_value: 4,
-        age_unit: "years",
-        weight_value: 18,
-        weight_unit: "lb",
-        current_food: "Kibble",
-        main_concern: "General wellness",
-        avoid_ingredients: [],
-        monthly_budget: 60,
-        created_at: addedAt,
-        updated_at: editedAt,
-        dog_memories: [],
-        dog_product_feedback: [],
-      },
-    ],
-    [
-      {
-        id: "care-1",
-        user_id: "user-1",
-        pet_profile_id: "pet-1",
-        pet_name: "rocky",
-        category: "symptom",
-        title: "Morning cough",
-        note: "Coughing lightly after the walk.",
-        severity: null,
-        occurred_at: addedAt,
-        created_at: addedAt,
-        updated_at: editedAt,
-      },
-    ],
-    null,
-    "",
-  );
-
-  assert.equal(nextSteps.length, 0);
-  assert.equal(
-    buildProfileStatus(
-      {
-        id: "pet-1",
-        user_id: "user-1",
-        name: "rocky",
-        species: "dog",
-        breed: "Mixed / unknown",
-        age_value: 4,
-        age_unit: "years",
-        weight_value: 18,
-        weight_unit: "lb",
-        current_food: "Kibble",
-        main_concern: "General wellness",
-        avoid_ingredients: [],
-        monthly_budget: 60,
-        created_at: addedAt,
-        updated_at: editedAt,
-        dog_memories: [],
-        dog_product_feedback: [],
-      },
-      [
-        {
-          id: "care-1",
-          user_id: "user-1",
-          pet_profile_id: "pet-1",
-          pet_name: "rocky",
-          category: "symptom",
-          title: "Morning cough",
-          note: "Coughing lightly after the walk.",
-          severity: null,
-          occurred_at: addedAt,
-          created_at: addedAt,
-          updated_at: editedAt,
-        },
-      ],
-    ),
-    "Profile details saved.",
-  );
-
-  const previewRows = buildDashboardCareEntries([
-    {
-      id: "care-2",
-      user_id: "user-1",
-      pet_profile_id: "pet-1",
-      pet_name: "rocky",
-      category: "symptom",
-      title: "Morning cough",
-      note: "A longer note that should be trimmed for the dashboard preview because it is too long to fit cleanly.",
-      severity: "mild",
-      occurred_at: addedAt,
-      created_at: addedAt,
-      updated_at: addedAt,
-    },
-  ]);
-
-  assert.equal(previewRows[0].pet_name, "Rocky");
-  assert.equal(previewRows[0].note_preview, formatCareNotePreview(previewRows[0].note, 96));
-
-  const noCare = buildDashboardCareSectionState({
-    hasPets: true,
-    entries: [],
-    petNameById: new Map(),
-  });
-  assert.equal(noCare.emptyMessage, "No care updates have been logged yet.");
-  assert.equal(getPetCareLogHref("pet-1"), "/history?pet=pet-1");
-});
-
 test("validateCareEntryDraft enforces required fields", () => {
   const result = validateCareEntryDraft({
     petProfileId: "",
@@ -810,79 +570,55 @@ test("validateCareEntryDraft enforces required fields", () => {
   assert.equal(Boolean(result.errors.occurredAt), true);
 });
 
-test("dashboard care state renders a real preview and no-pet fallback", () => {
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-  const todayIso = today.toISOString();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  const yesterdayIso = yesterday.toISOString();
 
-  const preview = buildDashboardCareEntries(
-    [
-      {
-        id: "entry-1",
-        user_id: "user-1",
-        pet_profile_id: "pet-1",
-        category: "activity",
-        title: "Morning walk",
-        note: "Walked 20 minutes.",
-        severity: null,
-        occurred_at: todayIso,
-        created_at: todayIso,
-        updated_at: todayIso,
-      },
-      {
-        id: "entry-2",
-        user_id: "user-1",
-        pet_profile_id: "pet-2",
-        category: "food",
-        title: "Dinner",
-        note: "Ate normally.",
-        severity: null,
-        occurred_at: yesterdayIso,
-        created_at: yesterdayIso,
-        updated_at: yesterdayIso,
-      },
-    ],
-    new Map([
-      ["pet-1", "Milo"],
-      ["pet-2", "Otis"],
-    ]),
+test("care history-created entries reload for dashboard and Ask Furvise memory", async () => {
+  const profile = {
+    id: "pet-rocky",
+    user_id: "user-1",
+    name: "Rocky",
+    species: "dog",
+    breed: "Mixed / unknown",
+    age_value: 4,
+    age_unit: "years",
+    weight_value: 42,
+    weight_unit: "lb",
+    current_food: "Salmon kibble",
+    main_concern: "General wellness",
+    avoid_ingredients: [],
+    monthly_budget: 80,
+    created_at: "2026-07-14T08:00:00Z",
+    updated_at: "2026-07-14T08:00:00Z",
+  };
+  const { client, deps } = createDeps("user-1", {
+    dogProfiles: [profile],
+    petCareEntries: [],
+  });
+
+  const created = await createCareEntry(
+    {
+      petProfileId: "pet-rocky",
+      category: "general",
+      note: "Added from Care history page.",
+      occurredAt: "2026-07-14T09:30",
+      severity: null,
+      title: "Test care log button",
+    },
+    deps,
   );
 
-  assert.equal(preview.length, 2);
-  assert.equal(preview[0].pet_name, "Milo");
+  assert.equal(client.store.pet_care_entries.length, 1);
+  const reloaded = await listRecentCareEntries(10, deps);
+  assert.equal(reloaded.filter((entry) => entry.id === created.id).length, 1);
+  assert.equal(reloaded[0].title, "Test care log button");
+  assert.equal(reloaded[0].pet_name, "Rocky");
 
-  const noPet = buildDashboardCareSectionState({ hasPets: false, entries: [], petNameById: new Map() });
-  assert.equal(noPet.actionHref, null);
-  assert.match(noPet.emptyMessage, /add a pet first/i);
-
-  const sorted = sortCareEntriesNewestFirst([
-    {
-      id: "entry-1",
-      user_id: "user-1",
-      pet_profile_id: "pet-1",
-      category: "activity",
-      title: "Morning walk",
-      note: "Walked 20 minutes.",
-      severity: null,
-      occurred_at: todayIso,
-      created_at: todayIso,
-      updated_at: todayIso,
-    },
-    {
-      id: "entry-2",
-      user_id: "user-1",
-      pet_profile_id: "pet-1",
-      category: "food",
-      title: "Dinner",
-      note: "Ate normally.",
-      severity: null,
-      occurred_at: yesterdayIso,
-      created_at: yesterdayIso,
-      updated_at: yesterdayIso,
-    },
-  ]);
-  assert.deepEqual(sorted.map((entry) => entry.id), ["entry-1", "entry-2"]);
+  const memory = buildPetMemoryContext({
+    careEntries: reloaded,
+    now: new Date("2026-07-14T12:00:00Z"),
+    profile,
+  });
+  const recent = summarizeRecentChanges(memory);
+  const recentItems = recent.sections.flatMap((section) => section.items).join("\n");
+  assert.match(recentItems, /Test care log button/);
+  assert.match(recentItems, /Added from Care history page/);
 });

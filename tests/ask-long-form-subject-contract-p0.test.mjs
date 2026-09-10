@@ -9,7 +9,7 @@ import {
 } from "../app/lib/ask.mjs";
 import { enforceVerifiedStateClaims } from "../app/lib/application-actions/state-claims.ts";
 import { prepareFurviseApplicationActions } from "../app/lib/application-actions/planner.ts";
-import { buildFurviseClarification } from "../app/lib/furvise-voice.ts";
+import { buildFurviseClarification } from "../app/lib/furvise-output.ts";
 import {
   resolveAskTurnSubject,
   resolveAuthoritativeTurnSubject,

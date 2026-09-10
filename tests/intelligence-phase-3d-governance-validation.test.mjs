@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { authorizeProposedActions } from "../app/lib/intelligence/governance/authorize-actions.ts";
 import { validateGeneratedAnswer } from "../app/lib/intelligence/validation/validate-answer.ts";
-import { recordHistoryReview, historyReviewSignature } from "../app/lib/intelligence/history-review-receipt.ts";
+import { recordHistoryReview, historyReviewSignature } from "../app/lib/intelligence/history-review-state.ts";
 
 const care = (overrides = {}) => ({ action: "resolve_concern", category: "symptom", title: "Breathing returned to normal", details: "Owner reports Mani breathing is normal", severity: "routine", confidence: 0.99, relatedRecordId: "c", ...overrides });
 const memory = (overrides = {}) => ({ subjectType: "pet", subjectId: "pet", category: "preference", factKey: "grooming", factValue: "brush", confidence: 0.95, importance: "medium", durability: "ongoing", action: "create", sourceExcerpt: "likes the brush", ...overrides });

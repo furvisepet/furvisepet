@@ -6,7 +6,7 @@ import { AppPage } from "../../../components/app-page";
 import { PageHeader } from "../../../components/product-primitives";
 import { SimplePetProfileForm } from "../../../components/simple-pet-profile-form";
 import { useRequireConfirmedSupabaseAuth } from "../../../lib/auth-session";
-import { buildSimplePetProfileUpdate, validateSimplePetProfile } from "../../../lib/edit-pet-profile";
+import { buildSimplePetProfileUpdate, validateSimplePetProfile } from "../../../lib/pet-profile-editing";
 import { markAppDataChanged } from "../../../lib/navigation/app-data-freshness";
 import { clearDeletedPetClientState } from "../../../lib/pet-delete-client-state";
 import { DogProfile, formatPetDisplayName, initialProfile } from "../../../lib/petwise";
@@ -19,7 +19,7 @@ import {
   loadDogProfileForUser,
   saveDogProfileForUser,
 } from "../../../lib/supabase";
-import { petProfileDraftsEqual, reducePetProfileDraft } from "../../../lib/pet-profile-draft";
+import { petProfileDraftsEqual, reducePetProfileDraft } from "../../../lib/pet-profile-editing";
 
 export default function EditDogProfilePage() {
   const router = useRouter();

@@ -1,4 +1,5 @@
-import { ANALYSIS_STORAGE_KEY } from "./ai-analysis";
+// Also clear historical browser cache when deleting a pet.
+const ANALYSIS_STORAGE_KEY = "petwise:ai-analysis";
 import { clearActivePetId } from "./active-pet";
 import { removeAskDraft } from "./ask-draft";
 import { removeLocalPhoto } from "./local-pet-media";

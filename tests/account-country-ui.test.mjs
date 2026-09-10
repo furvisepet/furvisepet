@@ -54,24 +54,13 @@ test("Results ignores product country and does not render a region product empty
   assert.doesNotMatch(resultsPage, /You can change your product country in/);
 });
 
-test("urgent safety continues to render care-first Results UI without product copy", () => {
-  const resultsPage = readFileSync("app/results/page.tsx", "utf8");
-
-  assert.match(resultsPage, /const urgentVetAttention =/);
-  assert.match(resultsPage, /UrgentCarePanel/);
-  assert.match(resultsPage, /Safety first/);
-  assert.doesNotMatch(resultsPage, /showProductRecommendations/);
-  assert.doesNotMatch(resultsPage, /Products paused/);
-});
-
 test("privacy page limits approximate region or country to platform or network metadata", () => {
   const privacyPage = readFileSync("app/privacy/page.tsx", "utf8");
-  const footer = readFileSync("app/components/app-footer.tsx", "utf8");
+
 
   assert.match(
     privacyPage,
     /approximate region or country when a platform or network provides it/,
   );
   assert.doesNotMatch(privacyPage, /coordinates|postal|city|IP address|product suggestions|product country/i);
-  assert.match(footer, /href="\/privacy">Privacy<\/Link>/);
 });

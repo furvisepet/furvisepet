@@ -2,14 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { governSemanticTurnV2 } from "../app/lib/intelligence/v2/governance/govern-turn.ts";
-import { serializeGovernedSemanticTurnV2 } from "../app/lib/intelligence/v2/persistence/serialize.ts";
-import { persistGovernedSemanticTurnV2Shadow } from "../app/lib/intelligence/v2/persistence/persist.ts";
-import { verifyV2PersistenceUser } from "../app/lib/intelligence/v2/persistence/server-identity-core.ts";
-import { selectPhase3LowRiskTurn } from "../app/lib/intelligence/v2/phase3/cutover-policy.ts";
-import { planV2ProjectionRebuild, V2_PROJECTION_VERSIONS } from "../app/lib/intelligence/v2/projections/contracts.ts";
-import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts/registry-policy.ts";
 import { buildShadowSemanticAnalysis } from "../app/lib/intelligence/semantic-observability.ts";
-import { projectGovernedPreferencesToLegacyMemories } from "../app/lib/intelligence/v2/projections/legacy-memory.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
 
 const ownerId = "10000000-0000-4000-8000-000000000001";
@@ -51,9 +44,6 @@ const govern = (message, semanticFrame, options = {}) => governSemanticTurnV2({
   frame: semanticFrame, sourceMessage: message, sourceMessageId: "20000000-0000-4000-8000-000000000001",
   ownerId, pets, activeEpisodes: [], ...options,
 });
-const registryConcept = (key, conceptKind, lifecycleCapable = false) => attachRegistryConceptPolicy({
-  key, version: "furvise.core.v1", conceptKind, lifecycleCapable,
-});
 
 test("v2 governs a multi-claim turn without legacy intelligence outputs", () => {
   const message = "Luna likes salmon and I prefer local stores";
@@ -80,57 +70,6 @@ test("v2 resolves independent claims in a multi-pet turn", () => {
   ]));
   assert.equal(result.acceptedClaims.length, 2);
   assert.deepEqual(result.acceptedClaims.map((claim) => claim.subject.id), [pets[0].id, pets[1].id]);
-});
-
-test("multi-pet food preferences remain claim-local through governance and legacy projection", () => {
-  const message = "Milo likes salmon and Luna likes chicken.";
-  const result = govern(message, frame([
-    mention("milo", "Milo", "animal"), mention("luna", "Luna", "animal"),
-  ], [
-    preference("claim_milo", "milo", "food preference", "Milo likes salmon", "salmon", "pet_memory"),
-    preference("claim_luna", "luna", "food preference", "Luna likes chicken", "chicken", "pet_memory"),
-  ]), {
-    canonicalConcepts: [registryConcept("food_preference", "preference")],
-  });
-  const projected = projectGovernedPreferencesToLegacyMemories(result);
-  assert.equal(result.rejectedClaims.length, 0);
-  assert.deepEqual(result.acceptedClaims.map((claim) => claim.subject.id), [pets[1].id, pets[0].id]);
-  assert.deepEqual(result.acceptedClaims.map((claim) => claim.groundedEvidence[0].quote), ["Milo likes salmon", "Luna likes chicken"]);
-  assert.deepEqual(projected.map((learning) => learning.subjectId), [pets[1].id, pets[0].id]);
-  assert.equal(projected.some((learning) => learning.subjectId === pets[2].id), false);
-  assert.deepEqual(projected.map((learning) => learning.canonicalConceptKey), ["food_preference", "food_preference"]);
-});
-
-test("preference deduplication never merges distinct pet subjects or distinct food objects", () => {
-  const sameFood = govern("Milo likes salmon and Luna likes salmon.", frame([
-    mention("milo", "Milo", "animal"), mention("luna", "Luna", "animal"),
-  ], [
-    preference("milo_salmon", "milo", "food preference", "Milo likes salmon", "salmon", "pet_memory"),
-    preference("luna_salmon", "luna", "food preference", "Luna likes salmon", "salmon", "pet_memory"),
-  ]), { canonicalConcepts: [registryConcept("food_preference", "preference")] });
-  const twoFoods = govern("Milo likes salmon and chicken.", frame([mention("milo", "Milo", "animal")], [
-    preference("milo_salmon", "milo", "food preference", "Milo likes salmon", "salmon", "pet_memory"),
-    preference("milo_chicken", "milo", "food preference", "chicken", "chicken", "pet_memory"),
-  ]), { canonicalConcepts: [registryConcept("food_preference", "preference")] });
-  assert.equal(projectGovernedPreferencesToLegacyMemories(sameFood).length, 2);
-  assert.equal(projectGovernedPreferencesToLegacyMemories(twoFoods).length, 2);
-  assert.notEqual(
-    projectGovernedPreferencesToLegacyMemories(twoFoods)[0].factKey,
-    projectGovernedPreferencesToLegacyMemories(twoFoods)[1].factKey,
-  );
-});
-
-test("an unresolved named pet claim is rejected and never rebound to a selected pet", () => {
-  const message = "Milo likes salmon and Mani likes chicken.";
-  const result = govern(message, frame([
-    mention("milo", "Milo", "animal"), mention("mani", "Mani", "animal"),
-  ], [
-    preference("milo_food", "milo", "food preference", "Milo likes salmon", "salmon", "pet_memory"),
-    preference("mani_food", "mani", "food preference", "Mani likes chicken", "chicken", "pet_memory"),
-  ]), { canonicalConcepts: [registryConcept("food_preference", "preference")] });
-  assert.deepEqual(result.acceptedClaims.map((claim) => claim.subject.id), [pets[1].id]);
-  assert.equal(result.rejectedClaims.length, 1);
-  assert.equal(projectGovernedPreferencesToLegacyMemories(result).some((learning) => learning.subjectId === pets[0].id), false);
 });
 
 test("v2 supports owner preferences, pet preferences, and external relationships", () => {
@@ -170,16 +109,6 @@ test("first-person preference roles bind the verified owner while arbitrary stor
     assert.equal(result.acceptedClaims[0].structuredValue.object.value, store);
     assert.equal(result.acceptedClaims[0].groundedEvidence[0].quote, message);
     assert.equal(result.acceptedClaims[0].persistenceDestination, "owner_memory");
-    const cutover = selectPhase3LowRiskTurn({
-      turn: result,
-      conceptPolicies: new Map([["preferred_retailer", { conceptKind: "preference", lifecycleCapable: false }]]),
-      legacyLearnings: [{
-        subjectType: "owner", subjectId: null, category: "preference", factKey: "preferred_retailer", factValue: store,
-        confidence: 0.96, importance: "medium", durability: "durable", action: "create", sourceExcerpt: message,
-      }],
-      selectedPetId: pets[0].id,
-    });
-    assert.equal(cutover.accepted[0].claimClass, "owner_preference");
   }
 });
 
@@ -219,102 +148,6 @@ test("governed preference concepts normalize model assertions before subject gov
   assert.equal(petResult.acceptedClaims[0].structuredValue.object.value, "bison");
   assert.equal(petResult.acceptedClaims[0].persistenceDestination, "pet_memory");
 
-  const cutover = selectPhase3LowRiskTurn({
-    turn: ownerResult,
-    conceptPolicies: new Map([["preferred_retailer", { conceptKind: "preference", lifecycleCapable: false }]]),
-    legacyLearnings: [{
-      subjectType: "owner", subjectId: null, category: "preference", factKey: "preferred_retailer", factValue: "Market Moon",
-      confidence: 0.96, importance: "medium", durability: "durable", action: "create", sourceExcerpt: ownerMessage,
-    }],
-    selectedPetId: pets[2].id,
-  });
-  assert.equal(cutover.accepted[0].claimClass, "owner_preference");
-  assert.equal(cutover.accepted[0].claim.subject.id, ownerId);
-});
-
-test("registry semantic signatures canonicalize retailer wording independently of model labels", () => {
-  const variations = [
-    ["I prefer shopping at Chewy.", "Chewy", "prefer shopping at"],
-    ["I normally buy from PetSmart.", "PetSmart", "normal purchase source"],
-    ["My go-to store is ExampleStore.", "ExampleStore", "go to place"],
-    ["I usually order from ExampleMerchant.", "ExampleMerchant", "ordering source"],
-  ];
-  for (const [message, merchant, proposedLabel] of variations) {
-    const result = govern(message, frame([mention("merchant", merchant, "organization")], [
-      assertion("claim_retailer", "merchant", proposedLabel, message, merchant),
-    ]), {
-      canonicalConcepts: [
-        registryConcept("preferred_retailer", "preference"),
-        registryConcept("food_preference", "preference"),
-        registryConcept("weight", "profile"),
-      ],
-    });
-    assert.equal(result.rejectedClaims.length, 0, message);
-    const claim = result.acceptedClaims[0];
-    assert.equal(claim.conceptKey, proposedLabel.replaceAll(" ", "_"), message);
-    assert.equal(claim.canonicalConceptKey, "preferred_retailer", message);
-    assert.equal(claim.conceptResolutionStatus, "canonical", message);
-    assert.equal(claim.governanceMetadata.conceptResolutionMethod, "semantic_signature", message);
-    assert.equal(claim.subject.type, "owner", message);
-    assert.equal(claim.subject.id, ownerId, message);
-    assert.equal(claim.claimKind, "preference", message);
-    assert.equal(claim.structuredValue.object.value, merchant, message);
-    assert.equal(claim.persistenceDestination, "owner_memory", message);
-    const cutover = selectPhase3LowRiskTurn({
-      turn: result,
-      conceptPolicies: new Map([["preferred_retailer", { conceptKind: "preference", lifecycleCapable: false }]]),
-      legacyLearnings: [{
-        subjectType: "owner", subjectId: null, category: "preference", factKey: "preferred_retailer", factValue: merchant,
-        confidence: 0.96, importance: "medium", durability: "durable", action: "create", sourceExcerpt: message,
-      }],
-      selectedPetId: pets[2].id,
-    });
-    assert.equal(cutover.accepted[0].claimClass, "owner_preference", message);
-  }
-});
-
-test("registry signatures canonicalize pet food preferences and weight without crossing classes", () => {
-  const foodMessage = "Luna prefers chicken food.";
-  const food = govern(foodMessage, frame([mention("luna", "Luna", "animal")], [
-    preference("claim_food", "luna", "favorite meals", foodMessage, "chicken", "pet_memory"),
-  ]), { canonicalConcepts: [registryConcept("preferred_retailer", "preference"), registryConcept("food_preference", "preference")] });
-  assert.equal(food.acceptedClaims[0].canonicalConceptKey, "food_preference");
-  assert.equal(food.acceptedClaims[0].claimKind, "preference");
-  assert.equal(food.acceptedClaims[0].subject.id, pets[0].id);
-
-  const weightMessage = "Luna weighs 22 pounds.";
-  const weightClaim = assertion("claim_weight", "luna", "body measurement", weightMessage, 22, "profile");
-  weightClaim.unit = "pounds";
-  const weight = govern(weightMessage, frame([mention("luna", "Luna", "animal")], [weightClaim]), {
-    canonicalConcepts: [registryConcept("food_preference", "preference"), registryConcept("weight", "profile")],
-  });
-  assert.equal(weight.acceptedClaims[0].canonicalConceptKey, "weight");
-  assert.equal(weight.acceptedClaims[0].claimKind, "assertion");
-});
-
-test("ambiguous registry signatures fail closed and medical concepts remain exact-only", () => {
-  const message = "I usually order from Market Moon.";
-  const ambiguous = govern(message, frame([mention("merchant", "Market Moon", "organization")], [
-    assertion("claim_ambiguous", "merchant", "purchase habit", message, "Market Moon"),
-  ]), {
-    canonicalConcepts: [
-      registryConcept("preferred_retailer", "preference"),
-      {
-        key: "preferred_marketplace", version: "test.v1", conceptKind: "preference", lifecycleCapable: false,
-        semanticRole: "retailer_preference", selectionAuthority: "semantic_signature",
-      },
-    ],
-  });
-  assert.equal(ambiguous.acceptedClaims.length, 0);
-  assert.equal(ambiguous.rejectedClaims[0].reason, "CONCEPT_AMBIGUOUS");
-
-  const symptomMessage = "Luna is throwing up.";
-  const symptom = govern(symptomMessage, frame([mention("luna", "Luna", "animal")], [
-    assertion("claim_symptom", "luna", "throwing up", symptomMessage, true, "current_state"),
-  ]), { canonicalConcepts: [registryConcept("vomiting", "symptom", true)] });
-  assert.equal(symptom.acceptedClaims[0].canonicalConceptKey, null);
-  assert.equal(symptom.acceptedClaims[0].conceptResolutionStatus, "provisional");
-  assert.equal(symptom.acceptedClaims[0].claimKind, "assertion");
 });
 
 test("concept normalization does not turn organization facts or symptoms into preferences", () => {
@@ -443,27 +276,6 @@ test("deterministic persistence ignores model hints and reports disagreements", 
   assert.deepEqual(result.acceptedClaims.map((claim) => claim.proposedPersistenceHint), ["none", "history"]);
 });
 
-test("server identity verification and service RPC invocation use distinct authority", async () => {
-  const calls = [];
-  const verifier = { auth: { getUser: async (token) => {
-    calls.push(["verify", token]);
-    return { data: { user: token === "valid-access-token" ? { id: ownerId } : null }, error: null };
-  } } };
-  const verifiedUserId = await verifyV2PersistenceUser("valid-access-token", verifier);
-  const governed = govern("Luna likes salmon", frame([mention("luna", "Luna", "animal")], [
-    preference("claim_1", "luna", "salmon", "Luna likes salmon", "salmon", "none"),
-  ]));
-  const serviceClient = { rpc: async (name, args) => { calls.push([name, args]); return { data: { ok: true }, error: null }; } };
-  await persistGovernedSemanticTurnV2Shadow({
-    serviceClient, verifiedUserId, turn: governed, sourceMessage: "Luna likes salmon",
-    idempotencyKey: "40000000-0000-4000-8000-000000000001",
-  });
-  assert.equal(calls[1][0], "persist_governed_semantic_turn_v2");
-  assert.equal(calls[1][1].p_verified_user_id, ownerId);
-  assert.equal("user_id" in calls[1][1].p_governed_turn, false);
-  await assert.rejects(() => verifyV2PersistenceUser("bad-token", verifier), /V2_AUTH_INVALID/);
-});
-
 test("v2 fails closed for ambiguous pets even when one is selected elsewhere", () => {
   const message = "My dog is tired";
   const result = govern(message, frame([
@@ -483,7 +295,7 @@ test("v2 cannot bind a claim to a pet outside the owned candidate set", () => {
   assert.equal(result.rejectedClaims[0].reason, "ENTITY_UNRESOLVED");
 });
 
-test("v2 rejects evidence tampering and serializes trusted fields only", () => {
+test("v2 rejects tampered excerpts and accepts exact source evidence", () => {
   const message = "Luna likes salmon";
   const semanticFrame = frame([mention("luna", "Luna", "animal")], [
     preference("claim_1", "luna", "salmon", "invented excerpt", "salmon", "pet_memory"),
@@ -493,31 +305,8 @@ test("v2 rejects evidence tampering and serializes trusted fields only", () => {
 
   semanticFrame.claims[0].evidence = evidence(message);
   const accepted = govern(message, semanticFrame);
-  const payload = serializeGovernedSemanticTurnV2(accepted, message);
-  assert.equal(payload.claims[0].subject_id, pets[0].id);
-  assert.equal("user_id" in payload.claims[0], false);
-  assert.deepEqual(payload.claims[0].grounded_evidence[0], { start: 0, end: message.length, excerpt: message, alignment: "exact" });
-});
-
-test("persistence evidence offsets use Unicode scalar positions", () => {
-  const message = "🐾 Luna likes salmon";
-  const governed = govern(message, frame([mention("luna", "Luna", "animal")], [
-    preference("claim_1", "luna", "salmon", "Luna likes salmon", "salmon", "pet_memory"),
-  ]));
-  const payload = serializeGovernedSemanticTurnV2(governed, message);
-  assert.deepEqual(payload.claims[0].grounded_evidence[0], {
-    start: 2, end: 19, excerpt: "Luna likes salmon", alignment: "exact",
-  });
-});
-
-test("projection plans are deterministic and explicitly versioned", () => {
-  const message = "Luna started limping";
-  const governed = govern(message, frame([mention("luna", "Luna", "animal")], [event("claim_open", "luna", "limping", message)]));
-  const first = planV2ProjectionRebuild(governed.acceptedClaims);
-  const second = planV2ProjectionRebuild([...governed.acceptedClaims].reverse());
-  assert.deepEqual(first, second);
-  assert.equal(first.bundleVersion, V2_PROJECTION_VERSIONS.bundle);
-  assert.deepEqual(first.records.map((record) => record.projection), ["history", "episodes", "concerns", "currentState"]);
+  assert.equal(accepted.acceptedClaims.length, 1);
+  assert.deepEqual(accepted.rejectedClaims, []);
 });
 
 test("shadow observability compares legacy and v2 without retaining message reasoning", () => {

@@ -4,7 +4,7 @@ import type { CareEpisode } from "./episodes/types";
 import type { PetCurrentStateRow } from "./pet-state/types";
 import type { EffectiveRecoveryAssessment } from "./recovery-governance";
 
-export type IntelligenceFeature = "ask" | "product_question" | "product_query_interpretation" | "product_explanation" | "safety_followup" | "vet_brief" | "care_plan";
+export type IntelligenceFeature = "ask" | "vet_brief";
 export type IntelligenceSafetyLevel = "routine" | "monitor" | "urgent" | "emergency" | "recently_resolved";
 export type SemanticEventDomain = "health" | "behavior" | "nutrition" | "medication" | "safety" | "routine" | "preference" | "profile" | "shopping" | "care" | "other";
 export type SemanticEventTransition = "observed" | "started" | "continued" | "changed" | "improved" | "worsened" | "resolved" | "corrected" | "confirmed" | "preference_set";

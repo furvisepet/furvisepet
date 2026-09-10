@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { normalizeAuthEmail, buildOAuthCallbackUrl } from "../app/lib/auth-identity.ts";
 import { removeInactiveMemoryClaimsFromConversation } from "../app/lib/intelligence/memory-lifecycle/filter-conversation.ts";
-import { classifyShopQueryCapability } from "../app/lib/shop-query.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -52,12 +51,6 @@ test("all shared memory context paths start from active lifecycle rows", () => {
   assert.match(context, /from\("dog_memories"\)[\s\S]*?eq\("status", "active"\)/);
   assert.match(vetBrief, /furvise_memories[\s\S]*?eq\("status", "active"\)/);
   assert.match(profileLoader, /loadDogProfileWithMemoriesForUser[\s\S]*?dog_memories[\s\S]*?eq\("status", "active"\)/);
-});
-
-test("Product requests split deterministic browsing from guided AI", () => {
-  assert.equal(classifyShopQueryCapability("dental"), "deterministic");
-  assert.equal(classifyShopQueryCapability("soft dental chew under $25 without chicken"), "deterministic");
-  assert.equal(classifyShopQueryCapability("Find the best thing for Luna because she hates hard chews and I want something affordable but premium"), "guided_ai");
 });
 
 test("memory migration enforces one active identity and service-only repair", () => {

@@ -3,14 +3,14 @@ import test from "node:test";
 
 import { parseUnifiedResponse } from "../app/lib/ai/ask-reasoning.ts";
 import { SEMANTIC_FRAME_SCHEMA_VERSION } from "../app/lib/intelligence/semantic-frame/types.ts";
-import { attachRegistryConceptPolicy } from "../app/lib/intelligence/v2/concepts/registry-policy.ts";
 import { governSemanticTurnV2 } from "../app/lib/intelligence/v2/governance/govern-turn.ts";
 
 const ownerId = "10000000-0000-4000-8000-000000000001";
 const sourceMessageId = "20000000-0000-4000-8000-000000000001";
-const preferredRetailer = attachRegistryConceptPolicy({
+const preferredRetailer = {
+  semanticRole: "retailer_preference", selectionAuthority: "semantic_signature",
   key: "preferred_retailer", version: "furvise.core.v1", conceptKind: "preference", lifecycleCapable: false,
-});
+};
 const concept = (label) => ({ label, definition: null, aliases: [], parentLabels: [], relatedLabels: [] });
 const temporal = { occurredAt: null, validFrom: null, validTo: null, surfaceText: null, precision: "unknown" };
 

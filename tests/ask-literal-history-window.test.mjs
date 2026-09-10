@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {literalHistoryMonthWindow as window, literalHistoryReportDayWindow as dayWindow} from '../app/lib/intelligence/literal-history-window.ts';
+import {literalHistoryMonthWindow as window, literalHistoryReportDayWindow as dayWindow} from '../app/lib/intelligence/history-dates.ts';
 test('literal calendar months retain their full leap-year and year-boundary range',()=>{
  assert.deepEqual(window('Explain the February 2024 observations.'),{from:'2024-02-01',to:'2024-03-01'});
  assert.deepEqual(window('Read December 2023.'),{from:'2023-12-01',to:'2024-01-01'});

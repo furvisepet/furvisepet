@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { PetLimitScreen } from "../components/pet-limit-screen";
 import { Notice, PrimaryButton, SecondaryButton, TextButton } from "../components/product-primitives";
-import { normalizeAddPetName, isValidAddPetName, validateApproximatePetAge } from "../lib/add-pet-validation";
+import { normalizeAddPetName, isValidAddPetName, validateApproximatePetAge } from "../lib/pet-profile-editing";
 import { setActivePetId } from "../lib/active-pet";
 import { useConfirmedSupabaseAuth } from "../lib/auth-session";
 import { NEW_PET_ONBOARDING_PATH, buildLoginHref } from "../lib/auth-routing";

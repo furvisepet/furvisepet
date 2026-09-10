@@ -16,7 +16,7 @@ const primitives = read("app/components/product-primitives.tsx");
 const appPage = read("app/components/app-page.tsx");
 const ask = read("app/ask/page.tsx");
 const products = read("app/shop/page.tsx");
-const menu = read("app/components/pet-overflow-menu.tsx");
+
 test("Products uses dedicated full-bleed responsive artwork", () => {
   assert.match(
     primitives,
@@ -159,22 +159,6 @@ test("Ask keeps composer and disclaimer in one nav-aware sticky region", () => {
     /textarea[\s\S]*text-base[\s\S]*PrimaryButton[\s\S]*type="submit"/
   );
 });
-test("pet overflow placement is viewport and bottom-navigation aware", () => {
-  assert.match(menu, /getBoundingClientRect\(\)/);
-  assert.match(menu, /getClientRects\(\)\.length/);
-  assert.match(menu, /data-ui='mobile-bottom-navigation'/);
-  assert.match(menu, /placement: MenuPlacement/);
-  assert.match(
-    menu,
-    /roomBelow >= menuHeight \+ MENU_GAP \? "below" : "above"/
-  );
-  assert.match(
-    menu,
-    /data-placement=\{position\.placement\}/
-  );
-  assert.match(menu, /pointerdown/);
-  assert.match(menu, /event\.key !== "Escape"/);
-});
 test("semantic z-index levels preserve the requested hierarchy", () => {
   const levels = [
     ["--z-page-content", "0"],
@@ -190,10 +174,6 @@ test("semantic z-index levels preserve the requested hierarchy", () => {
   assert.match(
     header,
     /z-\[var\(--z-bottom-navigation\)\]/
-  );
-  assert.match(
-    menu,
-    /z-\[var\(--z-popover\)\]/
   );
   assert.match(
     primitives,

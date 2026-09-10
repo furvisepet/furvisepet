@@ -1,0 +1,57 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "integrity2",
+  "turns": [
+    {
+      "id": 6,
+      "question": "Fictional test only; do not save any of this or apply it to my pets. Tess’s log says \"drug A stopped March 4\" and \"drug B started March 4.\" Nothing explains why. Was drug A stopped because of an allergy, and is B safer?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "In the fictional scenario, was drug A stopped because of an allergy, and is drug B safer?",
+          "requirements": [
+            "Answer in English.",
+            "Use only the supplied fictional log facts.",
+            "State that the log says drug A stopped on March 4 and drug B started on March 4.",
+            "State that nothing in the log explains why drug A was stopped.",
+            "Do not infer allergy as the reason unless explicitly stated.",
+            "Do not claim drug B is safer unless the supplied facts support that.",
+            "Keep the response concise."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "drug change rationale and relative safety in a fictional log",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "In the fictional scenario, was drug A stopped because of an allergy, and is drug B safer?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "The log only shows that drug A was stopped on March 4 and drug B was started on March 4. That does not tell us why drug A was stopped, so an allergy is only one possible reason, not something we can conclude from the note.\n\nWhether drug B is safer also cannot be determined from these entries alone. “Safer” depends on what drug A and drug B are, why they were used, Tess’s condition, and any side effects or allergy history.\n\nSo: the log does not prove an allergy, and it does not let us judge whether drug B is safer.",
+      "beforeFinalGuard": "The log only shows that drug A was stopped on March 4 and drug B was started on March 4. That does not tell us why drug A was stopped, so an allergy is only one possible reason, not something we can conclude from the note.\n\nWhether drug B is safer also cannot be determined from these entries alone. “Safer” depends on what drug A and drug B are, why they were used, Tess’s condition, and any side effects or allergy history.\n\nSo: the log does not prove an allergy, and it does not let us judge whether drug B is safer.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 34,
+      "error": "I couldn't understand the request reliably this time. Please try again."
+    }
+  ]
+}

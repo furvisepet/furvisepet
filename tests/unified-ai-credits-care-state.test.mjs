@@ -375,8 +375,5 @@ test("user-facing paths do not expose raw diagnostics", () => {
 
 test("product browsing remains available when generation credits are exhausted", () => {
   const page = read("app/shop/page.tsx");
-  const interpretRoute = read("app/api/shop/interpret-query/route.ts");
   assert.doesNotMatch(page, /canSearch[\s\S]{0,180}usage\.allowed/);
-  assert.match(interpretRoute, /const fallback = \(\) => \{[\s\S]*buildFallbackShopQueryInterpretation/);
-  assert.match(interpretRoute, /if \(!usage\.allowed\)[\s\S]*interpretation: fallback\(\)[\s\S]*limitReached: true/);
 });

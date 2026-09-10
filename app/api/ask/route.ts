@@ -56,12 +56,12 @@ import type {
   DogMemoryRow,
   DogProfileRow,
 } from "../../lib/supabase";
-import { FURVISE_SAFETY_LINE } from "../../lib/safety-copy";
+import { FURVISE_SAFETY_LINE } from "../../lib/furvise-output";
 import {
   FURVISE_ANSWER_UNAVAILABLE_MESSAGE,
   FURVISE_ASK_UNAVAILABLE_MESSAGE,
   buildFurviseClarification,
-} from "../../lib/furvise-voice";
+} from "../../lib/furvise-output";
 import {
   getPaidGateMessage,
   type PlanId,
@@ -100,11 +100,6 @@ import {
   resolveAskTurnSubject,
 } from "../../lib/intelligence/entities/resolve-turn-subject";
 import {
-  persistAskV2Phase3LowRisk,
-  prepareAskV2Phase3,
-  type AskV2Phase3Runtime,
-} from "../../lib/intelligence/v2/phase3/runtime";
-import {
   enforceVerifiedStateClaims,
   parseStoredApplicationActions,
   prepareFurviseApplicationActions,
@@ -137,7 +132,7 @@ import {
   updateAskAssistantResponse,
 } from "../../lib/ask-conversation-authority.ts";
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
-import { publicAskFailureCode, type AskInternalFailure } from "../../lib/ask-errors.ts";
+import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise-output.ts";
 import { readAskProfiles } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
@@ -189,7 +184,7 @@ export async function POST(request: Request) {
     return askFailure("UNKNOWN_ERROR", "Furvise could not start that answer. Please try again.", 500, {}, "authentication");
   }
   if ("response" in authentication) return authentication.response;
-  const { accessToken, supabase, userId } = authentication;
+  const { supabase, userId } = authentication;
 
   let rawBody: unknown;
   try {
@@ -382,8 +377,6 @@ export async function POST(request: Request) {
   reportOptionalContextRecovery(liveContext, requestId);
   recordContextRecoveryOnTurn(liveContext, turnLifecycle);
   turnLifecycle.transition("CONTEXT_READY");
-
-  let phase3Runtime: AskV2Phase3Runtime | null = null;
 
   const pendingLifecycle = derivePendingLifecycleAssertion({
     turns: liveContext.conversationTurns,
@@ -616,15 +609,6 @@ export async function POST(request: Request) {
       orchestration = providerIndependent;
     } else {
     turnLifecycle.route("pet_care", "ai");
-    phase3Runtime = await runOptionalAskSubsystem({
-      component: "context_semantic_state",
-      fallback: null,
-      operation: () => prepareAskV2Phase3({ accessToken, context: liveContext, requestId, verifiedUserId: userId }),
-      onFailure: (component, error) => {
-        turnLifecycle.optionalFailure(component);
-        logAskServerError("optional_phase3_context", error, { conversationId: preparedRequest.conversationId, petId, requestId }, 200);
-      },
-    });
     rateGateRef.current = await requireRateLimitedRequest({
       idempotencyKey: requestId,
       payload: { conversationId: preparedRequest.conversationId, petId, question },
@@ -744,15 +728,6 @@ export async function POST(request: Request) {
         });
         reportOptionalContextRecovery(liveContext, requestId);
         recordContextRecoveryOnTurn(liveContext, turnLifecycle);
-        phase3Runtime = await runOptionalAskSubsystem({
-          component: "context_semantic_state",
-          fallback: null,
-          operation: () => prepareAskV2Phase3({ accessToken, context: liveContext, requestId, verifiedUserId: userId }),
-          onFailure: (component, error) => {
-            turnLifecycle.optionalFailure(component);
-            logAskServerError("optional_phase3_context", error, { conversationId: preparedRequest.conversationId, petId: turnPetId, requestId }, 200);
-          },
-        });
       }
       liveContext = { ...liveContext, askInterpretation: interpretation };
       turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
@@ -790,7 +765,7 @@ export async function POST(request: Request) {
             authoritativePetIds: subjectResolution.petIds,
             authoritativeSemanticFrame: subjectFrame,
             discourseFocus: subjectResolution.discourseFocus,
-            canonicalConcepts: phase3Runtime?.canonicalConcepts || [],
+            canonicalConcepts: [],
           });
           liveContext = generated.context;
           intelligenceResult = generated.intelligenceResult;
@@ -935,7 +910,7 @@ export async function POST(request: Request) {
         contextUsed,
         handledWithoutAi: false,
         intelligenceResult,
-        phase3Runtime,
+
         payloadHash: aiCreditPayloadHash,
         operationPayloadHash: idempotency.operation.payloadHash,
         operationOwnerToken: idempotency.operation.ownerToken,
@@ -1071,7 +1046,7 @@ export async function POST(request: Request) {
         && classifyCurrentPetLoss(question) !== "confirmed_current"
         && !isExplicitCareHistorySaveRequest(question),
       intelligenceResult,
-      phase3Runtime,
+
       payloadHash: aiCreditPayloadHash,
       operationPayloadHash: idempotency.operation.payloadHash,
       operationOwnerToken: idempotency.operation.ownerToken,
@@ -1523,7 +1498,7 @@ async function persistAssistantAnswer({
   intelligenceResult = null,
   operationPayloadHash,
   operationOwnerToken,
-  phase3Runtime,
+
   payloadHash,
   preconfirmedCarePersistence = null,
   petId,
@@ -1555,7 +1530,7 @@ async function persistAssistantAnswer({
   intelligenceResult?: FurviseIntelligenceResult | null;
   operationPayloadHash: string;
   operationOwnerToken: string;
-  phase3Runtime: AskV2Phase3Runtime | null;
+
   payloadHash: string;
   preconfirmedCarePersistence?: CarePersistenceResult | null;
   petId: string;
@@ -1805,19 +1780,6 @@ async function persistAssistantAnswer({
       });
     }
     applicationActions = executed;
-  }
-
-  if (!deferHighImpactLifecyclePersistence && phase3Runtime) {
-    await runOptionalAskSubsystem({
-      component: "semantic_persistence",
-      fallback: undefined,
-      operation: () => persistAskV2Phase3LowRisk({
-        runtime: phase3Runtime!, turn: intelligenceResult?.v2GovernedTurn || null,
-        memoryPersistence: intelligencePersistence,
-        requestId, selectedPetId: petId, sourceMessage, verifiedUserId: userId,
-      }),
-      onFailure: optionalFailure,
-    });
   }
 
   const confirmedCarePersistence = preconfirmedCarePersistence || intelligencePersistence?.carePersistence || null;

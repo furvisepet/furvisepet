@@ -22,7 +22,3 @@ export function authUnavailableResponse(requestId: string) {
 export function captchaRequiredResponse(requestId: string) {
   return authJson({ code: "CAPTCHA_REQUIRED", error: "Complete the security check and try again.", requestId }, 403);
 }
-
-export function idempotencyConflictResponse(requestId: string) {
-  return authJson({ code: "IDEMPOTENCY_CONFLICT", error: "This request could not be reused because its details changed.", requestId }, 409);
-}
