@@ -16,7 +16,7 @@ test('complete thanks variation avoids subject clarification without swallowing 
 });
 
 test('shared month dates retain both literal days and the trailing year',async()=>{
- const {explicitHistoryDays}=await import('../app/lib/intelligence/explicit-history-dates.ts');
+ const {explicitHistoryDays}=await import('../app/lib/intelligence/history-dates.ts');
  assert.deepEqual(explicitHistoryDays('September 13 and 14 entries',2026),['2026-09-13','2026-09-14']);
  assert.deepEqual(explicitHistoryDays('September 13 and 14, 2023 notes',2026),['2023-09-13','2023-09-14']);
  assert.deepEqual(explicitHistoryDays('February 28 and 30 entries',2026),[]);

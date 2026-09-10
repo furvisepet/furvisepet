@@ -12,7 +12,7 @@ import { classifyMessageDeterministically } from "./classify-message";
 import { evaluateCareActionPolicy, evaluateLearningPolicy } from "./memory-policy";
 import { allowsAcceptedRecoverySafetyReconciliation, allowsProposedRecoveryPresentation, applySafetyFloor, resolveSafetyState } from "./safety-state";
 import type { FurviseLiveContext } from "./types";
-import { calculateMemoryFreshness } from "./memory-freshness/calculate-memory-freshness.ts";
+import { calculateMemoryFreshness } from "./memory-freshness.ts";
 import { authorizeProposedActions, type GovernanceResult } from "./governance/index.ts";
 import { validateGeneratedAnswer, type AnswerValidationResult } from "./validation/index.ts";
 import { routePersistenceDestinations } from "./persistence-destination.ts";

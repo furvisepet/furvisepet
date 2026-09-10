@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {explicitHistoryDays,normalizeExplicitHistoryDates} from '../app/lib/intelligence/explicit-history-dates.ts';
+import {explicitHistoryDays,normalizeExplicitHistoryDates} from '../app/lib/intelligence/history-dates.ts';
 const plan=()=>({operation:'recall',ordinal:null,terms:['improvement'],from:null,to:'2026-07-17'});
 test('by a named day is inclusive and completes only compatible bounds',()=>{
  const p=plan();normalizeExplicitHistoryDates(p,"By July 17, what did Fern's notes say?");

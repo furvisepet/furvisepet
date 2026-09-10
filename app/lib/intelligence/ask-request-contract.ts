@@ -3,7 +3,7 @@ import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
-import { literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./literal-history-window.ts";
+import { literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./history-dates.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";

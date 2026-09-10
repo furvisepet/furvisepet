@@ -1,5 +1,6 @@
-/** Shared response formats and public messages. No persistence or factual authority. */
 import type { AskEvidenceContract } from "./intelligence/ask-evidence.ts";
+
+/** Shared response formats and public messages. No persistence or factual authority. */
 
 export const FURVISE_PRODUCT_USAGE_CAP_MESSAGE =
   "You have used this month's AI credits. Product browsing and matching are still available.";
@@ -430,3 +431,5 @@ export function serializeHistoricalJson(value: unknown): string {
   if (text.length > 3600) return fail();
   return text;
 }
+
+export const FURVISE_SAFETY_LINE = buildFurviseSafetyLine();

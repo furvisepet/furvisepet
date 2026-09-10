@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {withProviderDeadline} from '../app/lib/ai/provider-deadline.ts';
+import {withProviderDeadline} from '../app/lib/ai/execution-deadline.ts';
 test('uncooperative provider settles locally and receives cancellation', async()=>{
  let signal;
  await assert.rejects(withProviderDeadline(s=>{signal=s;return new Promise(()=>{});},10),e=>e.name==='TimeoutError'&&e.code==='ABORT_ERR');

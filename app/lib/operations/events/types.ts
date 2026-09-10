@@ -1,3 +1,5 @@
+
+
 export type OperationalEventType =
   | "application_error" | "authorization_denied" | "origin_denied" | "rate_limited"
   | "concurrency_denied" | "rate_store_unavailable" | "ai_admission_denied"
@@ -20,3 +22,6 @@ export type OperationalEvent = {
 };
 
 export interface OperationalEventAdapter { emit(event: Record<string, unknown>): void | Promise<void> }
+
+export interface OperationalMetrics { record(input: { eventType: OperationalEventType; severity: OperationalSeverity }): void | Promise<void> }
+export const noopOperationalMetrics: OperationalMetrics = { record() {} };

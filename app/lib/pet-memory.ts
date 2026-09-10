@@ -5,7 +5,7 @@ import type {
   DogProductFeedbackRow,
   DogProfileRow,
 } from "./supabase";
-import { FURVISE_SAFETY_LINE, FURVISE_URGENT_SAFETY_MESSAGE } from "./safety-copy.ts";
+import { FURVISE_SAFETY_LINE, FURVISE_URGENT_SAFETY_MESSAGE } from "./furvise-output.ts";
 import { isEligibleLegacyMemory } from "./intelligence/memory-integrity.ts";
 
 export type PetMemorySource = "owner" | "furvise" | "system";

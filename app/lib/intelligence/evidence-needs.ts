@@ -1,4 +1,4 @@
-import { evidenceNeedWindow, type EvidenceNeedWindow } from "./evidence-need-window.ts";
+import { evidenceNeedWindow, type EvidenceNeedWindow } from "./history-dates.ts";
 /** Advisory retrieval needs, grounded in USER text. They never authorize a
  * subject, date range, mutation or an assertion that a requested fact exists. */
 export type EvidenceNeed = { id: string; quote: string; sourceTurnId: string | null; terms: string[]; order?: "earliest" | "latest" | "context"; petIds?: string[]; window?: EvidenceNeedWindow };

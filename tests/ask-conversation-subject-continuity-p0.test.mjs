@@ -157,7 +157,7 @@ test("a released Ask attempt receives a new ledger UUID without changing message
 });
 
 test("provider aborts at the configured deadline are classified as timeouts", async () => {
-  const {withProviderDeadline}=await import('../app/lib/ai/provider-deadline.ts');
+  const {withProviderDeadline}=await import('../app/lib/ai/execution-deadline.ts');
   await assert.rejects(withProviderDeadline(()=>new Promise(()=>{}),5), error=>error.name==='TimeoutError'&&error.code==='ABORT_ERR');
 });
 

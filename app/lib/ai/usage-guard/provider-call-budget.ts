@@ -1,4 +1,4 @@
-import type { PipelineStage } from "../operation-deadline.ts";
+import type { PipelineStage } from "../execution-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
 

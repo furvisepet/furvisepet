@@ -1,5 +1,74 @@
-import { parseCalculationExpression, evaluateCalculationExpression, type CalculationToken } from "./calculation-expression.ts";
-import {units, compoundUnit} from "./history-units.ts";
+
+
+export const units: Record<string, { dimension: string; scale: number; canonical: string }> = {
+  kg: { dimension: "mass", scale: 1000, canonical: "kg" }, g: { dimension: "mass", scale: 1, canonical: "g" },
+  mg: { dimension: "mass", scale: .001, canonical: "mg" }, lb: { dimension: "mass", scale: 453.59237, canonical: "lb" },
+  lbs: { dimension: "mass", scale: 453.59237, canonical: "lb" },
+  ml: { dimension: "volume", scale: 1, canonical: "ml" }, l: { dimension: "volume", scale: 1000, canonical: "l" },
+  hour: { dimension: "time", scale: 1, canonical: "hour" }, hours: { dimension: "time", scale: 1, canonical: "hour" },
+  minute: { dimension: "time", scale: 1 / 60, canonical: "minute" }, minutes: { dimension: "time", scale: 1 / 60, canonical: "minute" },
+  second: { dimension: "time", scale: 1 / 3600, canonical: "second" }, seconds: { dimension: "time", scale: 1 / 3600, canonical: "second" },
+  day: { dimension: "time", scale: 24, canonical: "day" }, days: { dimension: "time", scale: 24, canonical: "day" },
+  week: { dimension: "time", scale: 168, canonical: "week" }, weeks: { dimension: "time", scale: 168, canonical: "week" },
+};
+// Explicit currency codes are independent dimensions. No exchange rate or
+// ambiguous dollar-symbol interpretation may be inferred from a price.
+for (const currency of ["cad", "usd", "eur", "gbp", "aud", "nzd", "jpy", "chf", "cny"]) {
+  units[currency] = { dimension: `currency:${currency}`, scale: 1, canonical: currency };
+}
+// Provider and source spelling share one dimensional registry; spelling is not
+// a different unit, and must not cause a correct calculation to fail review.
+for (const [alias, canonical] of Object.entries({ kilogram: "kg", kilograms: "kg", gram: "g", grams: "g",
+  milligram: "mg", milligrams: "mg", pound: "lb", pounds: "lb", milliliter: "ml", milliliters: "ml",
+  millilitre: "ml", millilitres: "ml", liter: "l", liters: "l", litre: "l", litres: "l" })) units[alias] = units[canonical];
+
+for (const [name, scale] of Object.entries({km:1000,m:1,cm:.01,mm:.001})) units[name]={dimension:"length",scale,canonical:name};
+for (const [alias, canonical] of Object.entries({h:"hour",hr:"hour",min:"minute",sec:"second",s:"second",kilometer:"km",kilometers:"km",kilometre:"km",kilometres:"km",meter:"m",meters:"m",metre:"m",metres:"m"})) units[alias]=units[canonical];
+export function compoundUnit(value: string) {
+ const parts=value.toLowerCase().split("/").map(p=>p.trim());
+ if(parts.length!==2 || !units[parts[0]] || !units[parts[1]]) return null;
+ const numerator=units[parts[0]],denominator=units[parts[1]];
+ return {numerator,denominator,scale:numerator.scale/denominator.scale,canonical:numerator.canonical+"/"+denominator.canonical};
+}
+
+/** Bounded reverse-Polish program. Numbers are operand indexes, never invented
+ * constants. Every leaf has already been grounded in an original source. */
+export type CalculationToken = number | "add" | "subtract" | "multiply" | "divide";
+export function parseCalculationExpression(value: unknown): CalculationToken[] | null {
+  if (!Array.isArray(value) || !value.length || value.length > 31
+    || value.some(t => typeof t === "number" ? !Number.isInteger(t) || t < 0 || t > 3
+      : !["add", "subtract", "multiply", "divide"].includes(t))) return null;
+  return [...value];
+}
+export function evaluateCalculationExpression(tokens: readonly CalculationToken[], operands: readonly { value: number; dimension: string; scale: number }[]) {
+  const stack: Array<{ value: number; dimension: string }> = [];
+  if (!parseCalculationExpression(tokens)) return null;
+  for (const token of tokens) {
+    if (typeof token === "number") {
+      const operand = operands[token]; if (!operand || operand.dimension === "instant") return null;
+      stack.push({ value: operand.value * operand.scale, dimension: operand.dimension }); continue;
+    }
+    const b = stack.pop(), a = stack.pop(); if (!a || !b) return null;
+    let value: number, dimension: string;
+    if (token === "add" || token === "subtract") {
+      if (a.dimension !== b.dimension) return null;
+      value = token === "add" ? a.value + b.value : a.value - b.value; dimension = a.dimension;
+    } else if (token === "divide") {
+      if (!b.value) return null;
+      if (a.dimension === b.dimension) dimension = "scalar";
+      else if (b.dimension === "scalar") dimension = a.dimension;
+      else return null;
+      value = a.value / b.value;
+    } else {
+      if (a.dimension !== "scalar" && b.dimension !== "scalar") return null;
+      dimension = a.dimension === "scalar" ? b.dimension : a.dimension; value = a.value * b.value;
+    }
+    if (!Number.isFinite(value) || Math.abs(value) > 1e12) return null;
+    stack.push({ value, dimension });
+  }
+  return stack.length === 1 ? stack[0] : null;
+}
+
 /** Arithmetic proposals cite literal operands. The server computes the value;
  * semantic review checks whether that calculation answers the actual question.
  * This validates arithmetic, not clinical recommendations or causal inference. */

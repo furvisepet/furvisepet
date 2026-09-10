@@ -1,3 +1,45 @@
+
+
+/** Explicit calendar labels constrain retrieval; they never establish an event. */
+export function explicitHistoryDays(question: string, year: number, maximumDays = 2): string[] {
+ const months=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+ const matches=[...question.matchAll(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:,?\s+(\d{4}))?\b/gi)];
+ // A shared month in "September 13 and 14 entries" is still two explicit days.
+ const coordinated=matches.flatMap(m=>{
+  const tail=question.slice(m.index!+m[0].length);
+  const next=/^\s+and\s+(\d{1,2})(?:,?\s+(\d{4}))?(?=\s+(?:notes?|entries|reports?)\b|\s*[?.!,]|\s*$)/i.exec(tail);
+  if(next?.[2] && !m[3])m[3]=next[2];
+  return next ? [[next[0],m[1],next[1],next[2]||m[3]]] : [];
+ });
+ const labels=[...matches,...coordinated];
+ if(!Number.isInteger(year)||year<1900||year>2099||labels.length<1||!Number.isInteger(maximumDays)||maximumDays<1||maximumDays>8||labels.length>maximumDays) return [];
+ // A single explicit year scopes coordinated named dates; conflicting years stay explicit.
+ const years=[...new Set(labels.map(m=>m[3]).filter(Boolean))];
+ const sharedYear=years.length===1?years[0]:year;
+ const days=labels.map(m=>`${m[3]||sharedYear}-${String(months.indexOf(m[1].slice(0,3).toLowerCase())+1).padStart(2,'0')}-${m[2].padStart(2,'0')}`);
+ return days.every(d=>Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d&&d>='1900-01-01'&&d<'2100-01-01') ? days : [];
+}
+export function normalizeExplicitHistoryDates(p: Record<string,unknown>, question: string) {
+ if(!['recall','comparison','status','overview'].includes(String(p.operation))||p.ordinal!==null) return;
+ const valid=(v:unknown):v is string=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;
+ if(p.from!==null&&!valid(p.from)||p.to!==null&&!valid(p.to)) return;
+ const anchor=valid(p.from)?p.from:valid(p.to)?p.to:null;
+ const days=explicitHistoryDays(question,anchor?Number(anchor.slice(0,4)):new Date().getUTCFullYear());
+ const after=(d:string)=>new Date(Date.parse(d)+86400000).toISOString().slice(0,10);
+ if(days.length===1&&/\bby\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}\b/i.test(question)
+   && !/\b(?:after|before|since|from|between|until|last year|previous year|ago)\b/i.test(question)
+   && [null,'1900-01-01',days[0]].includes(p.from as string|null)
+   && [null,days[0],after(days[0])].includes(p.to as string|null)) {
+   p.from='1900-01-01';p.to=after(days[0]);p.selection='period';
+ }
+ if(days.length===2&&/\b(?:compare|comparison|versus|vs)\b/i.test(question)
+   && days[0]<days[1]&&((p.from===null&&p.to===null)
+     || p.from===days[0]&&[days[1],after(days[1]),after(days[0])].includes(String(p.to)))
+   && Array.isArray(p.terms)&&p.terms.length<=6&&p.terms.every(t=>typeof t==='string'&&t.length>=3&&t.length<=32&&/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(t))) {
+   p.from=days[0];p.to=after(days[1]);p.selection='period';p.terms=[];
+ }
+}
+
 /** Recover unambiguous literal calendar windows independently of model hints.
  * This narrows a validated history read; it grants no subject or write authority. */
 export function literalHistoryReportDayWindow(text: string): {from: string; to: string} | null {
@@ -62,4 +104,27 @@ export function requestsPastPresentComparison(text: string): boolean {
   const past = /\b(?:19\d{2}|20\d{2}|2100|then|previous|previously|earlier|used to)\b/i.test(text);
   const comparison = /\b(?:same|different|compar\w*|versus|vs|than|chang\w*|heavier|lighter|higher|lower|greater|less|more|increase\w*|decrease\w*|difference)\b/i.test(text);
   return present && past && comparison;
+}
+
+export type EvidenceNeedWindow = { from: string; to: string };
+/** Only a single explicit calendar label in a validated USER quote supplies a
+ * local interval. Ambiguous/open comparisons retain the planner's wider scope. */
+export function evidenceNeedWindow(quote: string): EvidenceNeedWindow | undefined {
+  if (!/\b(?:19|20)\d{2}\b/.test(quote)
+    || /\b(?:before|after|since|until|between|as of|earlier|later|this year|last year|next year)\b/i.test(quote)
+    || requestsPastPresentComparison(quote)) return;
+  const days = [...new Set([...explicitHistoryDays(quote, new Date().getUTCFullYear(), 8),
+    ...(quote.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])])];
+  const labels = [...days, ...explicitHistoryMonths(quote)];
+  if (labels.length !== 1) return;
+  const label = labels[0], start = label.length === 7 ? label + "-01" : label;
+  if (!Number.isFinite(Date.parse(start)) || new Date(start).toISOString().slice(0,10) !== start) return;
+  return { from: new Date(start).toISOString(), to: label.length === 7
+    ? new Date(Date.UTC(Number(label.slice(0,4)),Number(label.slice(5,7)),1)).toISOString()
+    : new Date(Date.parse(start)+86400000).toISOString() };
+}
+export function withinEvidenceNeedWindow(occurredAt: string | null | undefined, window?: EvidenceNeedWindow) {
+  if (!window) return true;
+  const time = occurredAt ? Date.parse(occurredAt) : NaN;
+  return Number.isFinite(time) && time >= Date.parse(window.from) && time < Date.parse(window.to);
 }

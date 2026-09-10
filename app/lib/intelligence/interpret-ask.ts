@@ -1,6 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
-import { withProviderDeadline } from "../ai/provider-deadline.ts";
+import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
 import { AskPipelineError, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { AiAdmissionError } from "../ai/usage-guard/errors.ts";

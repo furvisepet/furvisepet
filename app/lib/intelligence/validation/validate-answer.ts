@@ -6,11 +6,11 @@ import {
 } from "../../furvise-output.ts";
 import { buildHistoryObligations, type ObligationCompletion } from "../history-obligations.ts";
 import { createAnswerAssessment, type AnswerAssessment } from "../answer-assessment.ts";
-import { readHistoryReviewDiagnostic } from "../history-review-diagnostic.ts";
+import { readHistoryReviewDiagnostic } from "../history-review-state.ts";
 import { preserveFictionalDialogueQuotes, stripOptionalAssistantOffers } from "../../application-actions/state-claims.ts";
 import { safetyTemporalScope } from "../../ai/safety-temporal-scope.ts";
 import { buildImmediateEmergencyGuidance, detectAskConcernTags, detectImmediateAskEmergency } from "../../ask-safety-context.ts";
-import { readReviewedHistoryAnswer } from "../history-review-receipt.ts";
+import { readReviewedHistoryAnswer } from "../history-review-state.ts";
 import type { AskReasoningResult } from "../../ai/ask-reasoning.ts";
 import { countAskVisibleProseSanityDefects, measureAskAnswerEconomy, normalizeAskListIntegrity, normalizeAskVisibleProseSanity } from "../../ai/ask-answer-economy.ts";
 import { sanitizeInternalProductMetadataFromCareAnswer } from "../../ai/ask-internal-product-policy.ts";

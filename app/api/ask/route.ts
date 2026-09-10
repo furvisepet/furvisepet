@@ -56,7 +56,7 @@ import type {
   DogMemoryRow,
   DogProfileRow,
 } from "../../lib/supabase";
-import { FURVISE_SAFETY_LINE } from "../../lib/safety-copy";
+import { FURVISE_SAFETY_LINE } from "../../lib/furvise-output";
 import {
   FURVISE_ANSWER_UNAVAILABLE_MESSAGE,
   FURVISE_ASK_UNAVAILABLE_MESSAGE,

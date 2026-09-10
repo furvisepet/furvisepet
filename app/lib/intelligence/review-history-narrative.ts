@@ -1,8 +1,8 @@
-import { recordHistoryReviewDiagnostic } from "./history-review-diagnostic.ts";
+import { recordHistoryReviewDiagnostic } from "./history-review-state.ts";
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
 import { normalizeCompanionProse } from "../furvise-voice.ts";
 import { readPublicationFailure } from "../ask-publication.ts";
-import { withProviderDeadline } from "../ai/provider-deadline.ts";
+import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import {
   isStructuredHistoryText,
   parsePlainTable,
@@ -25,8 +25,8 @@ import { matchesHistoryOutputFormat, canonicalHistoricalRead, historicalReadSche
 import { historyNarrativeSchema } from "./history-narrative.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
 
-import { readReviewedHistoryAnswer, clearHistoryReview, recordHistoryReview, historyReviewSignature as signature } from "./history-review-receipt.ts";
-export { readReviewedHistoryAnswer } from "./history-review-receipt.ts";
+import { readReviewedHistoryAnswer, clearHistoryReview, recordHistoryReview, historyReviewSignature as signature } from "./history-review-state.ts";
+export { readReviewedHistoryAnswer } from "./history-review-state.ts";
 export const HISTORY_REVIEW_LIMITS = { inputCharacters: 32_000, outputTokens: 2600, timeoutMs: 18_000 } as const;
 const instructions = [
   "Review a proposed pet-history answer against the supplied server-scoped records. Select the supported sentences that together form a coherent answer. Return approved and retainedSentenceIndexes using the explicit zero-based sentence indexes. Do not rewrite, insert or reorder prose.",

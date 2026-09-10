@@ -1,4 +1,4 @@
-import {compoundUnit} from "./history-units.ts";
+import {compoundUnit} from "./history-calculation.ts";
 import { isStructuredHistoryText } from "../furvise-output.ts";
 type Source = { text: string; occurredAt?: string | null; petId?: string };
 const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];

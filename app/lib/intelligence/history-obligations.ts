@@ -1,7 +1,7 @@
 import type { AskEvidenceContract } from "./ask-evidence.ts";
 import { buildEvidenceNeedCoverage } from "./evidence-need-coverage.ts";
 import type { TaskObligationReview } from "./history-review-selection.ts";
-import { withinEvidenceNeedWindow, type EvidenceNeedWindow } from "./evidence-need-window.ts";
+import { withinEvidenceNeedWindow, type EvidenceNeedWindow } from "./history-dates.ts";
 export type HistoryObligation = { index: number; text: string; needId?: string; petId?: string;
   window?: EvidenceNeedWindow; availability?: string; representedSourceIds?: string[] };
 export type ObligationCompletion = { index: number; needId?: string; petId?: string; window?: EvidenceNeedWindow;

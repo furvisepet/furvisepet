@@ -1,5 +1,5 @@
 import { evidenceRemovalCost } from "../intelligence/evidence-need-coverage.ts";
-import { withProviderDeadline } from "./provider-deadline.ts";
+import { withProviderDeadline } from "./execution-deadline.ts";
 import { stripKnownHistoryCitations } from "../furvise-output.ts";
 import { companionVoiceInstructions, FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";

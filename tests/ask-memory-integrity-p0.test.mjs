@@ -13,7 +13,7 @@ import {
   supportedPreferenceDecision,
 } from "../app/lib/intelligence/memory-integrity.ts";
 import { evaluateLearningPolicy } from "../app/lib/intelligence/memory-policy.ts";
-import { selectFreshRelevantMemories } from "../app/lib/intelligence/memory-freshness/select-fresh-memories.ts";
+import { selectFreshRelevantMemories } from "../app/lib/intelligence/memory-freshness.ts";
 import { buildRememberedDetails } from "../app/lib/remembered-details.ts";
 
 const petId = "380211f7-4b9a-4690-ad68-35b141ec14a6";

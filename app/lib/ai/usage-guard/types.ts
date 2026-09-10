@@ -1,3 +1,5 @@
+
+
 export type AiGuardFeature = "ask" | "care_plan" | "product_explanation" | "product_query" | "product_question" | "safety_followup" | "vet_brief";
 
 export type AiFeaturePolicy = {
@@ -47,3 +49,5 @@ export type AiGuardStore = {
 
 export type AiGuardMetric = { allowed: boolean; feature: AiGuardFeature; reason: string; durationMs: number };
 export type AiGuardMetrics = { record(metric: AiGuardMetric): void | Promise<void> };
+
+export const noopAiGuardMetrics: AiGuardMetrics = { record() {} };

@@ -1,7 +1,7 @@
 import "server-only";
 import * as Sentry from "@sentry/nextjs";
 import { allowlistedMetadata, safeOperationalIdentifier } from "./redaction";
-import { noopOperationalMetrics, type OperationalMetrics } from "./metrics";
+import { noopOperationalMetrics, type OperationalMetrics } from "./types";
 import type { OperationalEvent, OperationalEventAdapter } from "./types";
 
 export const localOperationalLogger: OperationalEventAdapter = {
