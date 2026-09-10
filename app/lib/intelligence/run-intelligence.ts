@@ -350,6 +350,7 @@ export async function runFurviseIntelligence({
     governance,
     answerValidation: {
       valid: answerValidation.valid,
+      assessment: answerValidation.assessment,
       repairs: answerValidation.repairs,
       errors: answerValidation.errors,
       qualityWarnings: answerValidation.qualityWarnings,

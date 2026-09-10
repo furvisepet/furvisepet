@@ -1,21 +1,25 @@
+import { parseCalculationExpression, evaluateCalculationExpression, type CalculationToken } from "./calculation-expression.ts";
 import {units, compoundUnit} from "./history-units.ts";
 /** Arithmetic proposals cite literal operands. The server computes the value;
  * semantic review checks whether that calculation answers the actual question.
  * This validates arithmetic, not clinical recommendations or causal inference. */
 export type HistoryCalculation = {
-  operation: "sum" | "difference" | "ratio" | "percent_change" | "convert" | "elapsed_days";
+  operation: "sum" | "difference" | "ratio" | "percent_change" | "convert" | "elapsed_days" | "expression";
+  expression?: CalculationToken[] | null;
   operands: Array<{ sourceId: string; field: "text" | "occurredAt"; literal: string }>;
   value: number;
   unit: string;
 };
-export const historyCalculationSchema = { type: "array", maxItems: 4, items: {
-  type: "object", additionalProperties: false, required: ["operation", "operands", "value", "unit"], properties: {
-    operation: { type: "string", enum: ["sum", "difference", "ratio", "percent_change", "convert", "elapsed_days"] },
+export const MAX_HISTORY_CALCULATIONS = 40;
+export const historyCalculationSchema = { type: "array", maxItems: MAX_HISTORY_CALCULATIONS, items: {
+  type: "object", additionalProperties: false, required: ["operation", "operands", "value", "unit", "expression"], properties: {
+    operation: { type: "string", enum: ["sum", "difference", "ratio", "percent_change", "convert", "elapsed_days", "expression"] },
     operands: { description: "Ordered operands. difference computes operand 0 minus operand 1; ratio and percent_change compare operand 1 to baseline operand 0.", type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
       required: ["sourceId", "field", "literal"], properties: {
         sourceId: { type: "string", maxLength: 160 }, field: { type: "string", enum: ["text", "occurredAt"] },
         literal: { type: "string", minLength: 1, maxLength: 120 },
       } } },
+    expression: { type: ["array", "null"], maxItems: 31, items: { anyOf: [{type:"integer",minimum:0,maximum:3},{type:"string",enum:["add","subtract","multiply","divide"]}] } },
     value: { type: "number" }, unit: { type: "string", maxLength: 20 },
   },
 } };
@@ -23,10 +27,11 @@ type Source = { sourceId: string; text: string; occurredAt?: string | null };
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= 1e12;
 export function parseHistoryCalculations(value: unknown): HistoryCalculation[] | null {
   if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > 4) return null;
+  if (!Array.isArray(value) || value.length > MAX_HISTORY_CALCULATIONS) return null;
   for (const p of value) {
-    if (!p || typeof p !== "object" || Object.keys(p).sort().join() !== "operands,operation,unit,value"
+    if (!p || typeof p !== "object" || Object.keys(p).sort().join() !== ("expression" in p ? "expression,operands,operation,unit,value" : "operands,operation,unit,value")
       || !historyCalculationSchema.items.properties.operation.enum.includes(p.operation)
+      || (p.operation === "expression" ? !parseCalculationExpression(p.expression) : p.expression != null)
       || !finite(p.value) || typeof p.unit !== "string" || p.unit.length > 20
       || !Array.isArray(p.operands) || p.operands.length < 1 || p.operands.length > 4
       || p.operands.some((o: Record<string, unknown>) => !o || typeof o !== "object" || Object.keys(o).sort().join() !== "field,literal,sourceId"
@@ -70,11 +75,17 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
     }
     const dimension = operands[0].dimension;
     const rate = p.operation === "ratio" ? compoundUnit(p.unit) : null;
-    if (!rate && operands.some(operand => operand.dimension !== dimension)) return null;
+    if (p.operation !== "expression" && !rate && operands.some(operand => operand.dimension !== dimension)) return null;
     const values = operands.map(operand => operand.value * operand.scale);
     const target = units[p.unit.toLowerCase()];
     let computed: number;
-    if (rate) {
+    if (p.operation === "expression") {
+      const expression = p.expression && evaluateCalculationExpression(p.expression, operands);
+      if (!expression) return null;
+      if (expression.dimension === "scalar" && (p.unit === "%" || p.unit === "")) computed = expression.value * (p.unit === "%" ? 100 : 1);
+      else if (target && target.dimension === expression.dimension) computed = expression.value / target.scale;
+      else return null;
+    } else if (rate) {
       if (values.length !== 2 || values[0] === 0
         || operands[0].dimension !== rate.denominator.dimension || operands[1].dimension !== rate.numerator.dimension
         || operands.some(operand => operand.dimension.startsWith("currency:"))) return null;

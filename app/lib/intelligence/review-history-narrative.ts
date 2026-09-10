@@ -1,3 +1,4 @@
+import { recordHistoryReviewDiagnostic } from "./history-review-diagnostic.ts";
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
 import { readPublicationFailure } from "../ask-publication.ts";
 import { withProviderDeadline } from "../ai/provider-deadline.ts";
@@ -74,22 +75,25 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   onProviderEvent?: (event: AskProviderEvent) => void;
 }): Promise<boolean> {
   clearHistoryReview(result);
+  const decline = (reason: string) => { recordHistoryReviewDiagnostic(result, "declined", reason); return false; };
+  recordHistoryReviewDiagnostic(result, "declined", "review_not_completed");
   const evidence = result.evidenceContract;
   const sharedRequest = evidence?.interpretation?.request;
   // An inaccessible interval is a server capability boundary. Model approval
   // cannot replace its authoritative limitation with an empty-history claim.
-  if (evidence?.historyAccess && evidence.history?.reasons.includes("requested_period_outside_subscription_window")) return false;
+  if (evidence?.historyAccess && evidence.history?.reasons.includes("requested_period_outside_subscription_window")) return decline("subscription_scope_unavailable");
   // Only the original user task defines completeness. Planner paraphrases and
   // requirements remain advisory; they cannot omit or invent obligations.
   const obligations = sharedRequest ? buildHistoryObligations(evidence!) : [];
   let proposedDraft = parseHistoryNarrative(result.historyNarrative);
-  if (!evidence?.interpretation || !evidence.history || evidence.scope.status !== "resolved"
-    || evidence.scope.requestKind === "count" || evidence.episodes
-    || evidence.history.corrections === "unavailable"
-    || !sharedRequest && /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)
-    || result.safetyLevel === "urgent" || result.responseMode === "grief_support") return false;
-  if (!sharedRequest && requestedHistoryTimelineDays(evidence.scope.requestText, new Date().getUTCFullYear())) return false;
-  if (!sharedRequest && (directHistoryExplanation(evidence) || withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence))) return false;
+  if (!evidence?.interpretation || !evidence.history) return decline("history_evidence_unavailable");
+  if (evidence.scope.status !== "resolved") return decline("subject_scope_unresolved");
+  if (evidence.scope.requestKind === "count" || evidence.episodes) return decline("server_episode_path");
+  if (evidence.history.corrections === "unavailable") return decline("correction_evidence_unavailable");
+  if (!sharedRequest && /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)) return decline("server_quotation_path");
+  if (result.safetyLevel === "urgent" || result.responseMode === "grief_support") return decline("safety_response_path");
+  if (!sharedRequest && requestedHistoryTimelineDays(evidence.scope.requestText, new Date().getUTCFullYear())) return decline("server_timeline_path");
+  if (!sharedRequest && (directHistoryExplanation(evidence) || withinNoteCountAnswer(evidence) || calendarIntervalAnswer(evidence) || correctionReportAnswer(evidence) || weightComparisonAnswer(evidence))) return decline("server_derived_answer_path");
   const sources = usableSources(evidence);
   // A missing diagnosis record cannot answer whether a diagnosis was established.
   // Preserve the attributed note instead of approving a misleading yes/no preface.
@@ -104,10 +108,10 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     proposedDraft = parseHistoryNarrative({ sentences: splitSentencesPreservingFacts(result.answer.summary)
       .map(text => ({ text, sourceIds })) });
   }
-  if (!proposedDraft) return false;
+  if (!proposedDraft) return decline("narrative_unavailable");
   try { if (sharedRequest) for (const chunk of proposedDraft.sentences) assertNoInternalReasoningLeak(chunk.text,
     evidence.represented.map(span => ({ id: span.sourceId }))); }
-  catch { return false; }
+  catch { return decline("draft_publication_rejected"); }
   const anchorHints = new Map<string, string[]>();
   const calculationHints = new Map<string, Array<{ operation: string; expectedValue: number; unit: string }>>();
   const supported = (sentence: typeof proposedDraft.sentences[number]) => {
@@ -137,7 +141,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence)
     && !publicationFailures.some(failure => failure.index === index) ? [] : [index]);
   if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
-  if (!draft.sentences.length || repairAttempted && invalidIndexes.length) return false;
+  if (!draft.sentences.length || repairAttempted && invalidIndexes.length) return decline("draft_anchors_invalid");
   const reviewSources = sharedRequest ? sources.map(({ sourceId, sourceType, petId, text, occurredAt }) => ({
     sourceId, sourceType, petId, text, occurredAt,
     provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
@@ -157,9 +161,9 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     scope: evidence.scope, plan: evidence.interpretation, petNames: evidence.petNames,
     request: sharedRequest || null, historyAccess: evidence.historyAccess || null, execution: { readOnly: evidence.scope.readOnlyRecall, mutationAuthority: false }, obligations, coverage: reviewCoverage, losses: evidence.losses, sources: reviewSources, draft: { sentences: draft.sentences.map((sentence, index) => ({ ...sentence, index })) },
   });
-  if (requestInput.length > HISTORY_REVIEW_LIMITS.inputCharacters) return false;
+  if (requestInput.length > HISTORY_REVIEW_LIMITS.inputCharacters) return decline("review_input_budget");
   const key = client ? undefined : process.env.OPENAI_API_KEY?.trim();
-  if (!client && !key) return false;
+  if (!client && !key) return decline("review_provider_unconfigured");
   const provider = client || new OpenAI({ apiKey: key, maxRetries: 0 }) as unknown as NonNullable<typeof client>;
   const model = getAskModelConfiguration().primary;
   const started = Date.now(); const before = signature(result);
@@ -172,14 +176,15 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       maxOutputTokens: HISTORY_REVIEW_LIMITS.outputTokens, invoke: async () => {
         attempted = true;
         onProviderEvent?.({ stage: "verification", outcome: "started", model, elapsedMs: 0 });
-        return withProviderDeadline(signal => provider.responses.create(request, { signal }), boundedProviderTimeout(HISTORY_REVIEW_LIMITS.timeoutMs));
+        return withProviderDeadline(signal => provider.responses.create(request, { signal }), boundedProviderTimeout(HISTORY_REVIEW_LIMITS.timeoutMs, 0, "verification"));
       } });
     const parsed = interpretStructuredProviderResponse(output, raw =>
       sharedRequest ? parseRepairableTaskHistoryReview(JSON.parse(raw), draft.sentences.length, obligations.length) : parseHistoryReviewSelection(JSON.parse(raw), draft.sentences.length));
     onProviderEvent?.({ stage: "verification", outcome: parsed.status === "completed" ? "succeeded" : "failed", model,
       elapsedMs: Date.now() - started, inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens,
       providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REVIEW_INVALID" });
-    if (parsed.status !== "completed" || !parsed.parsed || before !== signature(result)) return false;
+    if (parsed.status !== "completed" || !parsed.parsed) return decline("review_output_invalid");
+    if (before !== signature(result)) return decline("review_input_changed");
     const completionCheck = sharedRequest && parsed.parsed.approved && "obligations" in parsed.parsed
       ? reviewObligationCompletion(obligations, (parsed.parsed as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations, draft.sentences, sources)
       : { failures: [], completion: [] };
@@ -191,25 +196,26 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     if (!parsed.parsed.approved || !formatValid) {
       const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Publication failures: ${JSON.stringify(publicationFailures)}. Per-fact evidence failures: ${JSON.stringify(completionCheck.failures)}. An answered obligation must cite the assigned pet and interval. If evidence is unavailable, explicitly explain the limitation for that fact instead of using another pet or period. Use plain readable wording that survives serialization and reload; describe historical reports with explicit attribution, and never claim the app performed an action. Preserve all supported facts and uncertainty. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Server-computed corrections for grounded calculation operands: ${JSON.stringify([...calculationHints.values()].flat())}. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
         : "rejectionReason" in parsed.parsed ? parsed.parsed.rejectionReason : null;
-      if (repairAttempted || !sharedRequest || !evidence.scope.readOnlyRecall || typeof reason !== "string" || !reason) return false;
+      if (repairAttempted || !sharedRequest || !evidence.scope.readOnlyRecall || typeof reason !== "string" || !reason) return decline("review_rejected_without_eligible_repair");
       const repaired = await repairRejectedRead(provider, model, requestInput, reason, onProviderEvent);
-      if (!repaired || before !== signature(result)) return false;
+      if (!repaired || before !== signature(result)) return decline("repair_output_invalid_or_changed");
       const candidate = { ...result, historyNarrative: repaired, historyNarrativeDeclined: false };
       if (!await reviewHistoricalAnswer({ result: candidate, client: provider, onProviderEvent, repairAttempted: true })
-        || before !== signature(result)) return false;
+        || before !== signature(result)) return decline("repair_independent_review_failed");
       const receipt = readReviewedHistoryAnswer(candidate);
-      if (!receipt) return false;
+      if (!receipt) return decline("repair_receipt_unavailable");
       // Only prose crosses this boundary. Repairs cannot change evidence, actions,
       // safety routing, pet ownership or any persistence proposal.
       result.historyNarrative = repaired;
       result.historyNarrativeDeclined = false;
       recordHistoryReview(result, { ...receipt, signature: signature(result) });
+      recordHistoryReviewDiagnostic(result, "approved", "repaired_and_reviewed");
       return true;
     }
     const retained = parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]);
     // A table needs its header and at least one supported data row.
     if (parsePlainTable(proposedDraft.sentences.map(sentence => sentence.text).join("\n"))
-      && !parsePlainTable(retained.map(sentence => sentence.text).join("\n"))) return false;
+      && !parsePlainTable(retained.map(sentence => sentence.text).join("\n"))) return decline("retained_table_invalid");
     // Names plus relevant citations are required even after semantic review.
     // A reviewed comparison may name multiple pets in one sentence; require
     // every cited pet to be explicitly named before accepting that coverage.
@@ -243,8 +249,8 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const composed = sharedRequest ? retained.map(sentence => sentence.text).join("\n")
       : presentReviewedHistory(retained.map(sentence => sentence.text), evidence.scope.requestText);
     if (proposedDraft.sentences.some(sentence => isStructuredHistoryText(sentence.text))
-      && (!isStructuredHistoryText(composed) || supplements.length)) return false;
-    if (!matchesHistoryOutputFormat([composed, ...supplements].join("\n\n"), sharedRequest?.outputFormat)) return false;
+      && (!isStructuredHistoryText(composed) || supplements.length)) return decline("composed_structure_changed");
+    if (!matchesHistoryOutputFormat([composed, ...supplements].join("\n\n"), sharedRequest?.outputFormat)) return decline("composed_format_invalid");
     if (sharedRequest) assertNoInternalReasoningLeak(composed, evidence.represented.map(span => ({ id: span.sourceId })));
     recordHistoryReview(result, { signature: before,
       ...(sharedRequest ? { completion: completionCheck.completion } : {}),
@@ -252,11 +258,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       sourceReports: supplements, sourceContent: supplementContent,
       text: [composed, ...supplements, limitation].filter(Boolean).join("\n\n"),
       sourceIds: [...new Set([...retained.flatMap(sentence => sentence.sourceIds), ...supplementIds])] });
+    recordHistoryReviewDiagnostic(result, "approved", "reviewed");
     return true;
-  } catch {
+  } catch (error) {
     if (attempted) onProviderEvent?.({ stage: "verification", outcome: "failed", model,
       elapsedMs: Date.now() - started, providerErrorCode: "ASK_HISTORY_REVIEW_UNAVAILABLE" });
-    return false;
+    return decline(error instanceof Error && error.name === "TimeoutError" ? "review_timeout"
+      : error instanceof Error && error.name === "StageDeadlineError" ? "review_deadline_exhausted" : "review_provider_or_contract_failure");
   }
 }
 
@@ -278,7 +286,7 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
       return withProviderDeadline(signal => provider.responses.create({ model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "medium" } } : {}),
       instructions: repairInstructions, input, max_output_tokens: 2400,
       text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema } } },
-    { signal }), boundedProviderTimeout(20_000)); } });
+    { signal }), boundedProviderTimeout(20_000, 8_000, "repair")); } });
   const parsed = interpretStructuredProviderResponse(output, raw => {
     const canonical = canonicalHistoricalRead(JSON.parse(raw)) as { historyNarrative?: unknown };
     const narrative = parseHistoryNarrative(canonical.historyNarrative);

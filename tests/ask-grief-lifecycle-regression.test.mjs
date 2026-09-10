@@ -371,7 +371,7 @@ test("provider completion, credits, and idempotent replay are tied to durable as
   assert.match(route, /user message reused/);
   assert.match(route, /const persistedResponse = await persistAssistantAnswer/);
   assert.match(route, /finalizeAiAdmissionAfterPersistence/);
-  assert.match(route, /if \(!response\.ok\)[\s\S]*failAiAdmission\([\s\S]*ASK_ANSWER_NOT_PERSISTED/);
+  assert.match(readFileSync(new URL("../app/lib/ai/ask-admission-settlement.ts", import.meta.url), "utf8"), /if \(!response\.ok\)[\s\S]*failAiAdmission\([\s\S]*ASK_ANSWER_NOT_PERSISTED/);
   assert.match(route, /if \(creditReserved\) \{[\s\S]{0,260}safeReleaseAiCredit/);
   assert.match(route, /completeAskConversationTurn\(\{[\s\S]{0,500}requestId,/);
 });

@@ -1,3 +1,4 @@
+import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
@@ -31,6 +32,7 @@ import { AskTurnLifecycle, deriveAskAttemptId, runOptionalAskSubsystem, type Ask
 import { orchestrateAskTurn, planProviderIndependentAskTurn } from "../../lib/ai/ask-orchestrator";
 import { planDeterministicAskCommand } from "../../lib/ai/ask-command-router";
 import { classifyFurviseCapabilityQuestion, type FurviseCapabilityIntent } from "../../lib/ai/ask-internal-product-policy";
+import { safeAskDiagnosticStage } from "../../lib/ai/ask-error-diagnostic.ts";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../lib/ai/usage-guard/errors";
 import { buildSemanticEventReviewSuggestion, type PendingUpdateSuggestion, type PetConcern } from "../../lib/ai/concern-engine";
@@ -879,7 +881,7 @@ export async function POST(request: Request) {
       requestId,
     });
     turnLifecycle.fail(internalStage, true); emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
-    return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503);
+    return askFailure("AI_UNAVAILABLE", friendlyAnswerFailure, 503, { requestId }, internalStage);
   }
 
   const reasoning = orchestration.aiResult;
@@ -2236,9 +2238,10 @@ function validAssistantCompletionRow(value: unknown): { assistant_message_id: st
 }
 
 function askFailure(code: InternalAskFailureCode, message: string, status: number, extra: Record<string, unknown> = {}, debugStage = "") {
-  void debugStage;
+  const diagnosticCode = safeAskDiagnosticStage(debugStage);
   return Response.json({
     code: publicAskFailureCode(internalFailureClass(code)),
+    ...(diagnosticCode ? { diagnosticCode } : {}),
     message,
     success: false,
     ...extra,
@@ -2295,43 +2298,7 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-async function failAiAdmission(
-  admission: AiOperationAdmission | null,
-  error: unknown,
-  alreadyFinalized: boolean,
-  requestId: string,
-) {
-  if (!admission || alreadyFinalized) return;
-  try {
-    await admission.fail(error);
-  } catch (admissionError) {
-    logAskServerError("ai_operation_failure_recording", admissionError, { requestId }, 200);
-  }
-}
-
-async function finalizeAiAdmissionAfterPersistence({
-  admission,
-  alreadyFinalized,
-  requestId,
-  response,
-}: {
-  admission: AiOperationAdmission | null;
-  alreadyFinalized: boolean;
-  requestId: string;
-  response: Response;
-}) {
-  if (!admission || alreadyFinalized) return;
-  if (!response.ok) {
-    await failAiAdmission(admission, new Error("ASK_ANSWER_NOT_PERSISTED"), false, requestId);
-    return;
-  }
-  try {
-    await admission.complete();
-  } catch (error) {
-    // The answer is already durable. A guard bookkeeping failure must not replace it.
-    logAskServerError("ai_operation_completion", error, { requestId }, 200);
-  }
-}
+const { failAiAdmission, finalizeAiAdmissionAfterPersistence } = createAskAdmissionSettlement(logAskServerError);
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;

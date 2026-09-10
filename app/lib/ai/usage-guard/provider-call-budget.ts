@@ -1,9 +1,12 @@
+import type { PipelineStage } from "../operation-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
 
 export async function executeAdmittedProviderCall<T>(input: {
   purpose?: "interpretation_repair" | "history_review" | "history_repair" | "history_rereview";
   invoke: () => Promise<T>;
+  reserveMs?: number;
+  stage?: PipelineStage;
   maxOutputTokens: number;
   model: string;
   providerInput: unknown;
@@ -15,6 +18,7 @@ export async function executeAdmittedProviderCall<T>(input: {
     if (testRuntime || explicitDevelopmentOverride) return input.invoke();
     throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "provider_call_without_admission");
   }
+  if (admission.deadline) admission.deadline.allocate(input.stage || (input.purpose === "history_repair" ? "repair" : input.purpose === "history_review" || input.purpose === "history_rereview" ? "verification" : "answer_generation"), 1_000, input.reserveMs ?? (input.purpose === "history_repair" ? 8_000 : 0), 250);
   const call = await admission.beginProviderCall({ purpose: input.purpose, input: input.providerInput, maxOutputTokens: input.maxOutputTokens, model: input.model });
   try {
     const response = await input.invoke();
@@ -39,9 +43,11 @@ export function readProviderUsage(value: unknown) {
 function validTokens(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value >= 0; }
 
 /** All Ask phases share the operation deadline, including repair and re-review. */
-export function boundedProviderTimeout(maximumMs: number): number {
+export function boundedProviderTimeout(maximumMs: number, reserveMs = 0, stage: PipelineStage = "answer_generation"): number {
+  const budget = getActiveAiAdmission()?.deadline;
+  if (budget) return budget.allocate(stage, maximumMs, reserveMs, 250);
   const deadline = getActiveAiAdmission()?.providerDeadlineAt;
-  const remaining = deadline === undefined ? maximumMs : Math.floor(deadline - Date.now());
+  const remaining = deadline === undefined ? maximumMs : Math.floor(deadline - Date.now()) - reserveMs;
   if (remaining <= 0) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_deadline_exhausted");
   return Math.min(maximumMs, remaining);
 }
