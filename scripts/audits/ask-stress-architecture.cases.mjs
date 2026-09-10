@@ -62,7 +62,7 @@ test('invalid advisory reference degrades without granting record or write acces
 });
 test('oversized owned cohort yields a scoped limitation instead of throwing',()=>{
  const p=recoverAskInterpretation(proposal({scope:'account',petNames:[]}),{...context,
- eligiblePets:Array.from({length:10},(_,i)=>({...owned[0],id:'owned-'+i,name:'Pet'+i})),
+ eligiblePets:Array.from({length:11},(_,i)=>({...owned[0],id:'owned-'+i,name:'Pet'+i})),
  currentMessage:'What can you establish from all my pets records?'});
  assert.equal(p.readOnly,true);assert.deepEqual(p.petIds,[]);assert.match(p.planningRecovery,/SCOPE/);
 });
@@ -192,4 +192,27 @@ test('review approval cannot use one pet as evidence for another requested pet',
  usage:{input_tokens:500,output_tokens:100}};
  }});
  assert.equal(readReviewedHistoryAnswer(r.result.reasoning),null);
+});
+
+test('ten-pet read keeps every pet represented and batches correction seeds within database limits',async t=>{
+ clock(t);
+ const cohort=Array.from({length:10},(_,i)=>({...owned[0],id:'cohort-'+i,name:'Companion'+i}));
+ const rows=cohort.flatMap(p=>[care('rest-'+p.id,p.id,'2024-04-07','general',p.name+' rested on a mat.'),...irrelevant(p.id,12)]);
+ const question='Give all my pets rest observations in April 2024 as a table.';
+ const r=await exercise(question,{fixturePets:cohort,petId:cohort[0].id,conversationPetId:cohort[0].id,messages:[],rows,history:true,
+ interpretationProposal:proposal({scope:'account',petNames:[],from:'2024-04-01',to:'2024-05-01',terms:['rest'],outputFormat:'table',
+ evidenceNeeds:[{quote:'rest observations in April 2024',sourceTurnId:null,terms:['rest'],petNames:[],order:'context'}]}),
+ providerResponse:async()=>({status:'completed',output_text:JSON.stringify({readVersion:'history-answer.v1',layout:'table',json:null,historyNarrative:null,limitation:null,
+ safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:cohort.map(p=>'care:rest-'+p.id),
+ table:{headers:['Pet','Observation'],rows:cohort.map(p=>({cells:[p.name,'Rested on a mat.'],sourceIds:['care:rest-'+p.id],calculations:[]}))}}),
+ usage:{input_tokens:1000,output_tokens:500}}),reviewResponse:{approved:true},expectedReviewCalls:null});
+ assert.equal(r.reviewRequests.length,1,JSON.stringify(r.reviewRequests.map(q=>({name:q.text.format.name,hints:JSON.parse(q.input).deterministicAnchorHints,failures:JSON.parse(q.input).deterministicPublicationFailures,rejection:JSON.parse(q.input).rejectionReason}))));
+ assert.equal(r.context.askHistory.coverage.perPet.length,10);
+ assert.ok(r.context.askHistory.coverage.perPet.reduce((n,p)=>n+p.pages,0)<=20);
+ assert.ok(r.context.askHistory.entries.length<=32);assert.ok(r.context.askHistory.originals.length<=64);
+ const seeds=r.queries.filter(q=>q.table==='read_ask_history_correction_page').map(q=>q.args.p_seed_pet_ids);
+ assert.ok(seeds.every(ids=>ids.length<=3));assert.deepEqual([...new Set(seeds.flat())].sort(),cohort.map(p=>p.id).sort());
+ assert.deepEqual(new Set(r.prompt.contextRecords.filter(s=>s.id.startsWith('care:rest-')).map(s=>s.petId)),new Set(cohort.map(p=>p.id)));
+ assert.equal(r.result.answerValidation.completion.length,11);
+ assert.equal(r.publication.failure,null);
 });

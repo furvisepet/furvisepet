@@ -1,3 +1,4 @@
+import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
@@ -42,7 +43,7 @@ export function askRequestSchema(frame: object) {
       evidenceBasis: { type: ["string", "null"], enum: ["saved_history", "supplied_context", "general", null] },
       outputFormat: { type: ["string", "null"], enum: ["prose", "bullets", "table", "json", "csv", null] },
       premiseQuotes: strings(6, 400), excludedPetNames: strings(3, 100),
-      scope: { type: "string", enum: scopes }, petNames: strings(3, 100), operation: { type: "string", enum: operations },
+      scope: { type: "string", enum: scopes }, petNames: strings(ASK_HISTORY_MAX_PETS, 100), operation: { type: "string", enum: operations },
       selection: { type: "string", enum: selections }, quantity: { type: ["string", "null"], enum: quantities },
       topic: { type: "string", maxLength: 160 }, terms: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } },
       from: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }, to: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
@@ -86,7 +87,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || typeof p.question !== "string" || !p.question.trim() || p.question.length > 1600
     || typeof p.topic !== "string" || p.topic.length > 160
     || p.premiseQuotes !== null && !list(p.premiseQuotes, 6, 400) || !list(p.excludedPetNames, 3, 100)
-    || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, 3, 100)
+    || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, ASK_HISTORY_MAX_PETS, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
   const date = (v: unknown): v is string | null => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
@@ -166,7 +167,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     if (proposed.some(id => id !== context.pet.id)) return fail("selected_subject");
     petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
   }
-  if (p.scope === "none" && petIds.length || petIds.length > 3) return fail("scope");
+  const petLimit = p.mode === "read" && p.ordinal === null && p.episodeTopic === null && p.frame === null ? ASK_HISTORY_MAX_PETS : 3;
+  if (p.scope === "none" && petIds.length || petIds.length > petLimit) return fail("scope");
   // Conversational referents may choose only identities established by a user,
   // never an assistant's guessed profile or a model-proposed database ID.
   if (p.scope === "conversation") {

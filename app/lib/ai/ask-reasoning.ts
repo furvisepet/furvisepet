@@ -585,6 +585,15 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
       const optionalProfile = contextRecords.findLastIndex(record => record.sourceType === "profile"
         && ["care_goal", "monthly_budget", "pronouns", "breed", "age", "current_food", "weight", "main_concern"].includes(record.kind));
       if (optionalProfile >= 0) index = optionalProfile;
+      else if (budgeted.evidenceContract.scope.authorizedPetIds.length > 3
+        && contextRecords[index]?.sourceType === "care_update" && (counts.get(contextRecords[index].petId) || 0) <= 1) {
+        // Preserve one historical source per cohort member before redundant
+        // identity details. Species and the separate safety context stay intact;
+        // omitted profile fields are recorded as unavailable evidence.
+        const identityDetail = contextRecords.findLastIndex(record => record.sourceType === "profile"
+          && ["sex", "lifecycle_status"].includes(record.kind));
+        if (identityDetail >= 0) index = identityDetail;
+      }
     }
     const [removed] = contextRecords.splice(index, 1);
     budgeted.evidenceContract.losses.push({ sourceId: removed.id, reason: "prompt_budget" });

@@ -18,6 +18,14 @@ export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryO
         representedSourceIds: pet.representedSourceIds });
     }
   }
+  // Larger cohorts still need per-pet completion when decomposition is absent
+  // or covers only part of the requested group.
+  if (evidence.scope.authorizedPetIds.length > 3) for (const petId of evidence.scope.authorizedPetIds) {
+    if (obligations.some(item => item.petId === petId)) continue;
+    obligations.push({ index: obligations.length, text: evidence.scope.requestText, petId,
+      representedSourceIds: evidence.represented.filter(span => span.petId === petId && span.sourceType === "care_update")
+        .map(span => span.sourceId) });
+  }
   return obligations;
 }
 /** Semantic review remains model-assisted. This verifies its completion claims

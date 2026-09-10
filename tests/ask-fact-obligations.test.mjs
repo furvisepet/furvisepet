@@ -66,3 +66,13 @@ test('review parser retains all thirteen completion records and rejects an omitt
  p.obligations[0].status='missing';assert.equal(parsed.obligations[0].status,'answered');
  assert.throws(()=>parseTaskHistoryReview({...p,obligations:obligations.slice(1)},1,13));
 });
+
+test('undecomposed larger cohorts still require an answer or limitation for each pet',()=>{
+ const e=evidence();e.scope.authorizedPetIds=Array.from({length:10},(_,i)=>'pet-'+i);
+ e.interpretation.request.evidenceNeeds=[];
+ const obligations=buildHistoryObligations(e);
+ assert.equal(obligations.length,11);assert.deepEqual(obligations.slice(1).map(o=>o.petId),e.scope.authorizedPetIds);
+ const reviews=obligations.map(o=>({index:o.index,status:'answered',sentenceIndexes:[0]}));
+ const result=reviewObligationCompletion(obligations,reviews,[{sourceIds:['one']}],[{sourceId:'one',petId:'pet-0'}]);
+ assert.equal(result.failures.length,9);
+});

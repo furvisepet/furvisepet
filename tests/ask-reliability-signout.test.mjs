@@ -31,7 +31,9 @@ test("Ask sends selected pet context and one idempotent request", () => {
   assert.equal((askFunction.match(/idempotentClientFetch\("\/api\/ask"/g) || []).length, 1);
   assert.match(askFunction, /petId: selectedPet/);
   assert.match(askFunction, /logicalTurnId/);
-  assert.match(askFunction, /signal: AbortSignal\.timeout\(55_000\)/);
+  assert.match(askFunction, /const signal = AbortSignal\.timeout\(55_000\)/);
+  assert.match(askFunction, /requestAskWithSession/);
+  assert.match(askFunction, /\}, scope, logicalTurnId\), signal\)/);
   assert.doesNotMatch(askFunction, /\/api\/ask\/conversations\/.*\/messages/);
 });
 

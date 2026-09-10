@@ -31,6 +31,7 @@ import { getActivePetId, setActivePetId } from "../lib/active-pet";
 import { trackAskEvent } from "../lib/ask-analytics";
 import { formatConversationDate, getPersistenceNotices, type AskConversationDetail, type AskConversationSummary } from "../lib/ask-conversations";
 import { toLocalDateTimeInputValue } from "../lib/care-log.mjs";
+import { requestAskWithSession, AskSessionExpiredError } from "../lib/ask-session-request";
 import { idempotentClientFetch } from "../lib/security/idempotency/client";
 import {
   createCareEntryUnlessDuplicate,
@@ -357,14 +358,13 @@ function AskPageContent() {
     if (!retry) setThread((current) => [...current, { id: userMessageId, role: "user", text: prompt }]);
     trackAskEvent(conversationIdAtSubmit ? "follow_up_submitted" : "question_submitted", { source });
     try {
-      const token = await getAskAuthToken();
-      if (!token) throw new AskRequestError("AUTH_REQUIRED");
-      const request = idempotentClientFetch("/api/ask", {
+      const signal = AbortSignal.timeout(55_000);
+      const request = requestAskWithSession(getBrowserSupabase()?.auth || null, token => idempotentClientFetch("/api/ask", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(requestPayload),
-        signal: AbortSignal.timeout(55_000),
-      }, scope, logicalTurnId);
+        signal,
+      }, scope, logicalTurnId), signal);
       setQuestion("");
       const result = await request;
       setRequestPhase("receiving");
@@ -397,6 +397,10 @@ function AskPageContent() {
       if (parsed.saveSuggestions?.length) trackAskEvent("memory_save_suggested", { answerType: parsed.answerType });
     } catch (askError) {
       const failure = getAskFailure(askError);
+      if (failure.code === "AUTH_REQUIRED") {
+        setQuestion(requestPayload.message);
+        persistAskDraft(window.localStorage, conversationIdAtSubmit, selectedPet, requestPayload.message);
+      }
       setFailedRequest({ code: failure.code, payload: requestPayload, logicalTurnId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId });
       setRequestPhase("failed");
       trackAskEvent("answer_failed", { source });
@@ -853,7 +857,7 @@ function persistActivePetId(petId: string) { try { if (typeof window !== "undefi
 function createMessageId(role: string) { return `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 class AskRequestError extends Error { constructor(public code: AskFailureCode, message = "", public retryAfterSeconds?: number) { super(message); } }
 class SuggestionApplyError extends Error { constructor(public code: string, message = "") { super(message); this.name = "SuggestionApplyError"; } }
-function getAskFailure(error: unknown): { code: AskFailureCode; retryAfterSeconds?: number } { if (error instanceof AskRequestError) return { code: error.code, retryAfterSeconds: error.retryAfterSeconds }; return { code: "ANSWER_RETRYABLE" }; }
+function getAskFailure(error: unknown): { code: AskFailureCode; retryAfterSeconds?: number } { if (error instanceof AskSessionExpiredError) return { code: "AUTH_REQUIRED" }; if (error instanceof AskRequestError) return { code: error.code, retryAfterSeconds: error.retryAfterSeconds }; return { code: "ANSWER_RETRYABLE" }; }
 function logAskCareSaveFailure(error: unknown) { if (process.env.NODE_ENV === "production") return; const databaseError = error as { code?: string; message?: string }; console.warn("[Furvise ask] care entry save failed", { errorCode: databaseError?.code || "", errorMessage: databaseError?.message || "" }); }
 async function getAskAuthToken() { const client = getBrowserSupabase(); const { data } = client ? await client.auth.getSession() : { data: { session: null } }; return data.session?.access_token || ""; }
 async function suggestionJson(url: string, init: RequestInit = {}) {

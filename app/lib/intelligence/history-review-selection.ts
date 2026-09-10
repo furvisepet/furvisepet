@@ -1,3 +1,4 @@
+import { ASK_HISTORY_MAX_OBLIGATIONS } from "./history-limits.ts";
 /** A review may select existing sentences, never inject or reorder prose. */
 export type HistoryReviewSelection = { approved: boolean; retainedSentenceIndexes: number[] };
 export const historyReviewSelectionSchema = {
@@ -28,9 +29,9 @@ export const taskHistoryReviewSchema = {
   ...historyReviewSelectionSchema,
   required: [...historyReviewSelectionSchema.required, "obligations"],
   properties: { ...historyReviewSelectionSchema.properties,
-    obligations: { type: "array", maxItems: 13, items: { type: "object", additionalProperties: false,
+    obligations: { type: "array", maxItems: ASK_HISTORY_MAX_OBLIGATIONS, items: { type: "object", additionalProperties: false,
       required: ["index", "status", "sentenceIndexes"], properties: {
-        index: { type: "integer", minimum: 0, maximum: 12 },
+        index: { type: "integer", minimum: 0, maximum: ASK_HISTORY_MAX_OBLIGATIONS - 1 },
         status: { type: "string", enum: ["answered", "limited", "missing"] },
         sentenceIndexes: historyReviewSelectionSchema.properties.retainedSentenceIndexes,
       } } },
@@ -40,7 +41,7 @@ export function parseTaskHistoryReview(value: unknown, sentenceCount: number, ob
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_TASK_REVIEW");
   const p = value as Record<string, unknown>;
   if (Object.keys(p).sort().join() !== "approved,obligations,retainedSentenceIndexes"
-    || !Array.isArray(p.obligations) || p.obligations.length !== obligationCount || obligationCount < 1 || obligationCount > 13) throw new Error("INVALID_TASK_REVIEW");
+    || !Array.isArray(p.obligations) || p.obligations.length !== obligationCount || obligationCount < 1 || obligationCount > ASK_HISTORY_MAX_OBLIGATIONS) throw new Error("INVALID_TASK_REVIEW");
   const result = parseHistoryReviewSelection({ approved: p.approved, retainedSentenceIndexes: p.retainedSentenceIndexes }, sentenceCount);
   const seen = new Set<number>();
   for (const raw of p.obligations) {

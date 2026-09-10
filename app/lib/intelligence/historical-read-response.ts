@@ -4,6 +4,7 @@ import { historyJsonDefinitions, historyJsonSchema, renderHistoricalJson } from 
 import { historyCalculationSchema } from "./history-calculation.ts";
 import { isStructuredHistoryText } from "./structured-history-text.ts";
 import { unwrapProseEnvelope } from "./prose-envelope.ts";
+import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { parseCsvRecords } from "../csv-records.ts";
 import { parsePlainTable } from "../plain-table.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
@@ -19,7 +20,7 @@ export function historicalReadSchema(properties: Record<string, unknown>, requir
       limitation: { type: ["string", "null"], maxLength: 600 },
       table: { type: ["object", "null"], additionalProperties: false, required: ["headers", "rows"], properties: {
         headers: { type: "array", minItems: 2, maxItems: 6, items: tableCell },
-        rows: { type: "array", minItems: 1, maxItems: 8, items: { type: "object", additionalProperties: false,
+        rows: { type: "array", minItems: 1, maxItems: ASK_HISTORY_MAX_PETS, items: { type: "object", additionalProperties: false,
           required: ["cells", "sourceIds", "calculations"], properties: {
             cells: { type: "array", minItems: 2, maxItems: 6, items: tableCell },
             sourceIds: { type: "array", minItems: 1, maxItems: 12, items: { type: "string", minLength: 1, maxLength: 160 } },
@@ -67,7 +68,7 @@ export function canonicalHistoricalRead(value: unknown): unknown {
     const cells = (v: unknown): v is string[] => Array.isArray(v) && v.length >= 2 && v.length <= 6
       && v.every(cell => typeof cell === "string" && cell.length <= 300 && !/[|\r\n]/.test(cell));
     if (!cells(table.headers) || !table.headers.every(cell => cell.trim()) || !Array.isArray(table.rows)
-      || !table.rows.length || table.rows.length > 8) throw new Error("INVALID_READ_TABLE");
+      || !table.rows.length || table.rows.length > ASK_HISTORY_MAX_PETS) throw new Error("INVALID_READ_TABLE");
     const headers = table.headers;
     const lines = p.layout === "csv" ? [headers] : [headers, headers.map(() => "---")];
     const sourceIds: unknown[] = []; const calculations: unknown[] = [];
