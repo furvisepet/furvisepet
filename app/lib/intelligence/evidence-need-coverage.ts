@@ -1,16 +1,18 @@
+import { withinEvidenceNeedWindow, type EvidenceNeedWindow } from "./evidence-need-window.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
-export type NeedCoverage = { needId: string; semanticSupport: "unverified";
+export type NeedCoverage = { needId: string; window?: EvidenceNeedWindow; semanticSupport: "unverified";
   pets: Array<{ petId: string; candidateSourceIds: string[]; representedSourceIds: string[];
     state: "candidates_available" | "query_unavailable" | "not_represented" | "not_queried" | "no_candidate_match"; reasons: string[] }> };
 /** Rebuilt from the final represented sources after EVERY prompt-budget change.
  * A lexical hit is a candidate, never proof that an obligation was answered. */
 export function buildEvidenceNeedCoverage(evidence: AskEvidenceContract): NeedCoverage[] {
   return (evidence.interpretation?.request?.evidenceNeeds || []).map(need => ({
-    needId: need.id, semanticSupport: "unverified",
+    needId: need.id, ...(need.window ? { window: need.window } : {}), semanticSupport: "unverified",
     pets: evidence.scope.authorizedPetIds.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId => {
       const queries = (evidence.history?.needs || []).filter(query => query.petId === petId && query.needId === need.id);
       const candidateSourceIds = [...new Set(queries.flatMap(query => query.candidateIds))];
       const matching = evidence.represented.filter(span => span.petId === petId && span.sourceType === "care_update"
+        && withinEvidenceNeedWindow(span.occurredAt, need.window)
         && span.start === 0 && span.end === span.text.length && span.text.trim()
         && (candidateSourceIds.includes(span.sourceId) || need.terms.some(term => span.text.toLowerCase().includes(term.toLowerCase())))
         && !evidence.losses.some(loss => loss.sourceId === span.sourceId)

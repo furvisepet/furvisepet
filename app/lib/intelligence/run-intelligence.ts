@@ -353,6 +353,7 @@ export async function runFurviseIntelligence({
       repairs: answerValidation.repairs,
       errors: answerValidation.errors,
       qualityWarnings: answerValidation.qualityWarnings,
+      ...(answerValidation.completion ? { completion: answerValidation.completion } : {}),
     },
     semanticTrace: shadow.trace,
     v2GovernedTurn: shadow.v2Turn,

@@ -1,3 +1,4 @@
+import type { ObligationCompletion } from "../history-obligations.ts";
 import { mapAskProse, askProseOnly } from "../../ask-text-blocks.ts";
 import { preserveFictionalDialogueQuotes, stripOptionalAssistantOffers } from "../../application-actions/state-claims.ts";
 import { safetyTemporalScope } from "../../ai/safety-temporal-scope.ts";
@@ -20,6 +21,7 @@ export type AnswerValidationResult = {
   repairs: string[];
   errors: string[];
   qualityWarnings: string[];
+  completion?: ObligationCompletion[];
 };
 export function validateGeneratedAnswer(
   result: AskReasoningResult,
@@ -253,6 +255,9 @@ export function validateGeneratedAnswer(
   });
   return {
     response,
+    ...(errors.length === 0 && reviewedHistory?.completion
+      && response.answer.summary === (reviewedHistory.proseText || reviewedHistory.text)
+      ? { completion: structuredClone(reviewedHistory.completion) } : {}),
     valid: errors.length === 0,
     repairs: [...new Set(repairs)],
     errors,

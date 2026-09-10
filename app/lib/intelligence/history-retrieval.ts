@@ -147,6 +147,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       proposedStrategies.map(strategy => ({ ...strategy, from: plan.from, to: plan.to })), HISTORY_BUDGET.pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
     const strategies = compiled.strategies;
     coverage.needs ??= [];
+    coverage.needs.push(...compiled.outsideNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "unavailable" as const, reason: "need_window_outside_scope" })));
+    if (compiled.outsideNeeds.length) coverage.reasons.push("need_window_outside_scope");
     coverage.needs.push(...compiled.omittedNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "partial" as const, reason: "need_query_budget" })));
     if (compiled.omittedNeeds.length) coverage.reasons.push("need_query_budget");
     if (compiled.omittedTargets.length) coverage.reasons.push("explicit_date_target_budget");

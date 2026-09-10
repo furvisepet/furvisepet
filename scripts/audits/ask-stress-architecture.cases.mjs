@@ -151,3 +151,45 @@ test('typed CSV survives retrieval, grounding, approval and reload intact',async
  assert.equal(r.result.reasoning.answer.summary,'pet,food\nAster,"wet, ""complete"""');
  assert.equal(r.publication.failure,null);
 });
+
+import { readReviewedHistoryAnswer } from '../../app/lib/intelligence/history-review-receipt.ts';
+test('two differently dated facts retain separate retrieval coverage and completion receipts',async t=>{
+ clock(t);const question='Give Aster rest in April 2023 and Birch rest in May 2024.';
+ const r=await exercise(question,{fixturePets:owned,messages:[],history:true,
+ rows:[care('aster-rest','milo','2023-04-07','general','Aster rested on a blue mat.'),
+ care('birch-rest','luna','2024-05-08','general','Birch rested in a wicker bed.'),
+ ...irrelevant('milo',80),...irrelevant('luna',80)],
+ interpretationProposal:proposal({scope:'named',petNames:['Aster','Birch'],operation:'comparison',selection:'comparison',
+ evidenceNeeds:[{quote:'Aster rest in April 2023',sourceTurnId:null,terms:['rest'],petNames:['Aster'],order:'context'},
+ {quote:'Birch rest in May 2024',sourceTurnId:null,terms:['rest'],petNames:['Birch'],order:'context'}]}),
+ providerOverrides:{historyNarrative:{sentences:[
+ {text:'Aster rested on a blue mat.',sourceIds:['care:aster-rest'],calculations:[]},
+ {text:'Birch rested in a wicker bed.',sourceIds:['care:birch-rest'],calculations:[]}]}},
+ expectedReviewCalls:1,reviewResponse:{approved:true}});
+ assert.deepEqual(r.prompt.evidenceContract.needCoverage.map(n=>n.pets[0].representedSourceIds),[['care:aster-rest'],['care:birch-rest']]);
+ const completion=r.result.answerValidation.completion;
+ assert.ok(completion);assert.deepEqual(completion.slice(1).map(c=>[c.petId,c.status,c.sourceIds]),
+ [['milo','answered',['care:aster-rest']],['luna','answered',['care:birch-rest']]]);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/need:|completion|representedSourceIds/);
+ assert.equal(r.publication.failure,null);
+});
+
+test('review approval cannot use one pet as evidence for another requested pet',async t=>{
+ clock(t);const question='Give Aster and Birch rest observations.';
+ const r=await exercise(question,{fixturePets:owned,messages:[],history:true,
+ rows:[care('only-aster','milo','2026-06-04','general','Aster rested normally.')],
+ interpretationProposal:proposal({petNames:['Aster','Birch'],
+ evidenceNeeds:[{quote:question,sourceTurnId:null,terms:['rest'],petNames:[],order:'context'}]}),
+ providerOverrides:{historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:only-aster'],calculations:[]}]}},
+ expectedReviewCalls:2,reviewProviderResponse:async request=>{
+ if(request.text.format.name==='furvise_history_repair'){
+  assert.match(JSON.parse(request.input).rejectionReason,/obligation_evidence_scope/);
+  return {status:'completed',output_text:'{}',usage:{input_tokens:500,output_tokens:10}};
+ }
+ const input=JSON.parse(request.input);
+ return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],
+ obligations:input.obligations.map(o=>({index:o.index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null}),
+ usage:{input_tokens:500,output_tokens:100}};
+ }});
+ assert.equal(readReviewedHistoryAnswer(r.result.reasoning),null);
+});
