@@ -1,3 +1,4 @@
+import { ASK_HISTORY_MAX_OBLIGATIONS } from "./history-limits.ts";
 /** A review may select existing sentences, never inject or reorder prose. */
 export type HistoryReviewSelection = { approved: boolean; retainedSentenceIndexes: number[] };
 export const historyReviewSelectionSchema = {
@@ -23,23 +24,24 @@ export function parseHistoryReviewSelection(value: unknown, sentenceCount: numbe
 
 /** A task-level receipt cannot approve a subset that silently drops a requested
  * obligation. Limited evidence is a valid answer only with retained explanation. */
+export type TaskObligationReview = { index: number; status: "answered" | "limited" | "missing"; sentenceIndexes: number[] };
 export const taskHistoryReviewSchema = {
   ...historyReviewSelectionSchema,
   required: [...historyReviewSelectionSchema.required, "obligations"],
   properties: { ...historyReviewSelectionSchema.properties,
-    obligations: { type: "array", maxItems: 9, items: { type: "object", additionalProperties: false,
+    obligations: { type: "array", maxItems: ASK_HISTORY_MAX_OBLIGATIONS, items: { type: "object", additionalProperties: false,
       required: ["index", "status", "sentenceIndexes"], properties: {
-        index: { type: "integer", minimum: 0, maximum: 8 },
+        index: { type: "integer", minimum: 0, maximum: ASK_HISTORY_MAX_OBLIGATIONS - 1 },
         status: { type: "string", enum: ["answered", "limited", "missing"] },
         sentenceIndexes: historyReviewSelectionSchema.properties.retainedSentenceIndexes,
       } } },
   },
 };
-export function parseTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number): HistoryReviewSelection {
+export function parseTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number): HistoryReviewSelection & { obligations: TaskObligationReview[] } {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_TASK_REVIEW");
   const p = value as Record<string, unknown>;
   if (Object.keys(p).sort().join() !== "approved,obligations,retainedSentenceIndexes"
-    || !Array.isArray(p.obligations) || p.obligations.length !== obligationCount || obligationCount < 1 || obligationCount > 9) throw new Error("INVALID_TASK_REVIEW");
+    || !Array.isArray(p.obligations) || p.obligations.length !== obligationCount || obligationCount < 1 || obligationCount > ASK_HISTORY_MAX_OBLIGATIONS) throw new Error("INVALID_TASK_REVIEW");
   const result = parseHistoryReviewSelection({ approved: p.approved, retainedSentenceIndexes: p.retainedSentenceIndexes }, sentenceCount);
   const seen = new Set<number>();
   for (const raw of p.obligations) {
@@ -55,7 +57,7 @@ export function parseTaskHistoryReview(value: unknown, sentenceCount: number, ob
       || item.status === "missing" && item.sentenceIndexes.length) throw new Error("INVALID_TASK_REVIEW");
     seen.add(item.index as number);
   }
-  return result;
+  return { ...result, obligations: structuredClone(p.obligations) as TaskObligationReview[] };
 }
 
 /** Feedback is untrusted repair guidance, never approval or new evidence. */
@@ -73,12 +75,12 @@ export function parseRepairableTaskHistoryReview(value: unknown, sentenceCount: 
     && (typeof rejectionReason !== "string" || !rejectionReason.trim() || rejectionReason.length > 800)) throw new Error("INVALID_TASK_REVIEW");
   // A malformed denial still grants no approval. Its bounded feedback can guide
   // one repair; the repaired body must obtain a fully valid independent receipt.
-  let parsed: HistoryReviewSelection;
+  let parsed: HistoryReviewSelection & { obligations: TaskObligationReview[] };
   try { parsed = parseTaskHistoryReview(selection, sentenceCount, obligationCount); }
   catch (error) {
     if (selection.approved !== false || typeof rejectionReason !== "string"
       || Object.keys(selection).sort().join() !== "approved,obligations,retainedSentenceIndexes") throw error;
-    parsed = { approved: false, retainedSentenceIndexes: [] };
+    parsed = { approved: false, retainedSentenceIndexes: [], obligations: [] };
   }
   return { ...parsed, rejectionReason: !parsed.approved && typeof rejectionReason === "string" ? rejectionReason : null };
 }

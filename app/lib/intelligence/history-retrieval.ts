@@ -1,3 +1,5 @@
+import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
+import { withinEvidenceNeedWindow } from "./evidence-need-window.ts";
 import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups, historyEventRelevance } from "./history-query-relevance.ts";
 import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
@@ -13,7 +15,7 @@ import { askEvidenceScope, careEvidenceId, type Completeness } from "./ask-evide
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { resolveEffectiveClaimGraph, type RebuildClaim, type RebuildRelation } from "./v2/projections/rebuild.ts";
 
-export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, candidateRows: 64, pets: 3, graphCalls: 6, graphRows: 128, records: 32, chars: 18000, timeMs: 5000 } as const;
+export const HISTORY_BUDGET = { pageSize: 25, pagesPerPet: 4, totalPages: 20, candidateRows: 64, pets: ASK_HISTORY_MAX_PETS, graphCalls: 6, graphRows: 128, records: 32, chars: 18000, timeMs: 5000 } as const;
 type Cursor = { petId: string; occurredAt: string; id: string };
 export type HistoryPlan = { from: string | null; to: string | null; terms: string[]; interpretation: "period" | "lexical" | "broad_comparison" };
 export type HistoryCoverage = {
@@ -91,6 +93,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
   const sharedRead = context.askInterpretation?.request?.mode === "read";
+  const retrievalQuestion = context.askInterpretation?.request?.referenceTurnIds.length
+    ? context.askInterpretation.referenceQuestion || context.currentMessage : context.currentMessage;
   const eventTerms = sharedRead ? historyEventTerms(context.currentMessage) : [];
   const searchTerms = context.askInterpretation?.request
     ? historyQueryTerms(plan.terms, context.eligiblePets.map(pet => pet.name || ""))
@@ -123,6 +127,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // lookups. Supplemental discovery must not expand the graph/input budgets.
   const correctionReserve = plan.from || namedDays.length ? 12 : 0;
   const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
+  const pagesPerPet = Math.min(HISTORY_BUDGET.pagesPerPet, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let failed = false; let pages = 0; let exhausted = true;
     const collected: CareEntryRow[] = [];
@@ -141,10 +146,12 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       : context.askInterpretation?.request && plan.terms.length
         ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
         : directions.map(descending => ({ descending, lexical: !!plan.terms.length, terms: searchTerms }));
-    const compiled = compileHistoryReadStrategies(context.currentMessage, new Date(asOf).getUTCFullYear(), plan,
-      proposedStrategies.map(strategy => ({ ...strategy, from: plan.from, to: plan.to })), HISTORY_BUDGET.pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
+    const compiled = compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan,
+      proposedStrategies.map(strategy => ({ ...strategy, from: plan.from, to: plan.to })), pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
     const strategies = compiled.strategies;
     coverage.needs ??= [];
+    coverage.needs.push(...compiled.outsideNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "unavailable" as const, reason: "need_window_outside_scope" })));
+    if (compiled.outsideNeeds.length) coverage.reasons.push("need_window_outside_scope");
     coverage.needs.push(...compiled.omittedNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "partial" as const, reason: "need_query_budget" })));
     if (compiled.omittedNeeds.length) coverage.reasons.push("need_query_budget");
     if (compiled.omittedTargets.length) coverage.reasons.push("explicit_date_target_budget");
@@ -160,7 +167,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       // Empty and overlapping strategies return unused capacity to the remaining
       // searches. Total distinct candidates and page limits stay unchanged.
       const directionRows = Math.floor((rowsPerPet - priorIds.size) / (strategies.length - strategyIndex));
-      const directionPages = Math.floor(HISTORY_BUDGET.pagesPerPet / strategies.length);
+      const directionPages = Math.floor(pagesPerPet / strategies.length);
       try {
         for (let attempt = 0; attempt < directionPages && !traversalExhausted && rows.length < directionRows; attempt++) {
           pages++;
@@ -302,11 +309,13 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const targetGroups = (coverage.targets || []).map(target => ordered.filter(entry =>
     entry.pet_profile_id === target.petId && entry.occurred_at?.startsWith(target.day)));
   const needGroups = (context.askInterpretation?.request?.evidenceNeeds || []).flatMap(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId =>
-    ordered.filter(entry => entry.pet_profile_id === petId && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
+    ordered.filter(entry => entry.pet_profile_id === petId && withinEvidenceNeedWindow(entry.occurred_at, need.window) && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
       `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))).sort((a, b) =>
       need.order === "earliest" ? compareHistoryTime(a.occurred_at, b.occurred_at)
         : need.order === "latest" ? compareHistoryTime(b.occurred_at, a.occurred_at) : 0)));
-  const priorityGroups = [...targetGroups, ...needGroups];
+  // Larger cohorts receive one evidence slot per pet before any pet gets more.
+  const petGroups = ids.length > 3 ? ids.map(petId => ordered.filter(entry => entry.pet_profile_id === petId)) : [];
+  const priorityGroups = [...petGroups, ...targetGroups, ...needGroups];
   const anchoredIds = new Set(priorityGroups.flat().map(entry => entry.id));
   const groups = [...priorityGroups, ordered.filter(entry => !anchoredIds.has(entry.id))];
   const prioritized: CareEntryRow[] = [];
@@ -355,8 +364,9 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
     // Batch the candidate roots so no request or graph frontier grows unbounded.
     const batches = Array.from({ length: Math.ceil(candidates.length / 64) }, (_, i) => candidates.slice(i * 64, (i + 1) * 64).map(row => row.id));
     const visitedCare = new Set(candidates.map(c => c.id));
+    const seedBatches = Array.from({ length: Math.ceil(requestedPets.length / 3) }, (_, i) => requestedPets.slice(i * 3, (i + 1) * 3));
     if (!batches.length) batches.push([]);
-    for (let call = 0; batches.length || frontier.length; call++) {
+    for (let call = 0; batches.length || frontier.length || seedBatches.length; call++) {
       if (call >= HISTORY_BUDGET.graphCalls) throw new Error("correction_budget");
       const rootIds = batches.shift() || [];
       const claimIds = frontier.splice(0, 64); claimIds.forEach(id => visited.add(id));
@@ -365,7 +375,7 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
         p_care_ids: rootIds, p_claim_ids: claimIds,
         // A reassigned event may have no legacy row under its corrected pet.
         // Seed only stored correction authors, never arbitrary shadow claims.
-        p_seed_pet_ids: call === 0 ? requestedPets.slice(0, HISTORY_BUDGET.pets) : [],
+        p_seed_pet_ids: seedBatches.shift() || [],
         p_event_from: coverage.plan.from, p_event_to: coverage.plan.to, p_terms: coverage.plan.terms,
       }).abortSignal(readSignal(deadline));
       if (result.error || !result.data || result.data.truncated) throw new Error("correction_read_incomplete");

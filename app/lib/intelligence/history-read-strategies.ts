@@ -18,13 +18,18 @@ export function compileHistoryReadStrategies(question: string, year: number, win
   }).filter(target => target.from < target.to && (target.from !== window.from || target.to !== window.to));
   // Retain a global strategy even with many anchors. Excess targets are an
   // explicit coverage loss, never silently treated as an absent record.
-  const facets: HistoryReadStrategy[] = needs.filter(need => need.terms.length).map(need => ({
-    ...window, needId: need.id, descending: need.order === "earliest" ? false : need.order === "latest" ? true : proposed.some(strategy => strategy.descending), lexical: true, terms: need.terms,
+  const facets: HistoryReadStrategy[] = needs.filter(need => need.terms.length || need.window).map(need => ({
+    from: need.window ? window.from && window.from > need.window.from ? window.from : need.window.from : window.from,
+    to: need.window ? window.to && window.to < need.window.to ? window.to : need.window.to : window.to,
+    needId: need.id, descending: need.order === "earliest" ? false : need.order === "latest" ? true : proposed.some(strategy => strategy.descending),
+    lexical: !!need.terms.length, terms: need.terms,
   }));
+  const outsideNeeds = facets.filter(facet => facet.from && facet.to && facet.from >= facet.to).map(facet => facet.needId!);
+  const accessibleFacets = facets.filter(facet => !outsideNeeds.includes(facet.needId!));
   const specialized: HistoryReadStrategy[] = [];
-  for (let index = 0; index < Math.max(targets.length, facets.length); index++) {
+  for (let index = 0; index < Math.max(targets.length, accessibleFacets.length); index++) {
     if (targets[index]) specialized.push(targets[index]);
-    if (facets[index]) specialized.push(facets[index]);
+    if (accessibleFacets[index]) specialized.push(accessibleFacets[index]);
   }
   const reserved = specialized.slice(0, Math.max(0, pageBudget - 1));
   const omitted = specialized.slice(reserved.length);
@@ -35,6 +40,6 @@ export function compileHistoryReadStrategies(question: string, year: number, win
     const periodContext = proposed.find(strategy => !strategy.lexical && strategy.descending) || proposed.find(strategy => !strategy.lexical);
     if (periodContext) broad[broad.length - 1] = periodContext;
   }
-  return { strategies: [...reserved, ...broad], omittedTargets: omitted.flatMap(t => t.target ? [t.target] : []),
+  return { strategies: [...reserved, ...broad], outsideNeeds, omittedTargets: omitted.flatMap(t => t.target ? [t.target] : []),
     omittedNeeds: omitted.flatMap(t => t.needId ? [t.needId] : []) };
 }

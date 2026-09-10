@@ -1,6 +1,7 @@
+import { evidenceNeedWindow, type EvidenceNeedWindow } from "./evidence-need-window.ts";
 /** Advisory retrieval needs, grounded in USER text. They never authorize a
  * subject, date range, mutation or an assertion that a requested fact exists. */
-export type EvidenceNeed = { id: string; quote: string; sourceTurnId: string | null; terms: string[]; order?: "earliest" | "latest" | "context"; petIds?: string[] };
+export type EvidenceNeed = { id: string; quote: string; sourceTurnId: string | null; terms: string[]; order?: "earliest" | "latest" | "context"; petIds?: string[]; window?: EvidenceNeedWindow };
 export const evidenceNeedsSchema = { type: "array", maxItems: 4, items: { type: "object", additionalProperties: false,
   required: ["quote", "sourceTurnId", "terms", "petNames", "order"], properties: {
     order: { type: "string", enum: ["earliest", "latest", "context"] },
@@ -34,7 +35,8 @@ export function validateEvidenceNeeds(raw: unknown, question: string, turns: rea
     const key = JSON.stringify([value.sourceTurnId, value.quote, petIds, value.order]);
     if (seen.has(key)) continue;
     seen.add(key);
-    needs.push({ order: value.order, ...(petIds.length ? { petIds } : {}), id: "need:" + needs.length, quote: value.quote, sourceTurnId: value.sourceTurnId,
+    const window = evidenceNeedWindow(value.quote);
+    needs.push({ ...(window ? { window } : {}), order: value.order, ...(petIds.length ? { petIds } : {}), id: "need:" + needs.length, quote: value.quote, sourceTurnId: value.sourceTurnId,
       terms: [...new Set<string>(value.terms.map((term: string) => term.toLowerCase()))] });
   }
   return { needs, issues: [...new Set(issues)] };

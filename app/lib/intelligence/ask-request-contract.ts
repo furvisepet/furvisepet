@@ -1,3 +1,5 @@
+import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
+import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
 import { literalHistoryMonthWindow, literalHistoryReportDayWindow, requestsPastPresentComparison } from "./literal-history-window.ts";
@@ -41,7 +43,7 @@ export function askRequestSchema(frame: object) {
       evidenceBasis: { type: ["string", "null"], enum: ["saved_history", "supplied_context", "general", null] },
       outputFormat: { type: ["string", "null"], enum: ["prose", "bullets", "table", "json", "csv", null] },
       premiseQuotes: strings(6, 400), excludedPetNames: strings(3, 100),
-      scope: { type: "string", enum: scopes }, petNames: strings(3, 100), operation: { type: "string", enum: operations },
+      scope: { type: "string", enum: scopes }, petNames: strings(ASK_HISTORY_MAX_PETS, 100), operation: { type: "string", enum: operations },
       selection: { type: "string", enum: selections }, quantity: { type: ["string", "null"], enum: quantities },
       topic: { type: "string", maxLength: 160 }, terms: { type: "array", maxItems: 6, items: { type: "string", minLength: 3, maxLength: 32, pattern: "^[A-Za-z][A-Za-z -]*[A-Za-z]$" } },
       from: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }, to: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
@@ -51,7 +53,7 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
-  "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
+  "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. Include the local date or period in each exact quote when it belongs to that requested fact; do not collapse differently dated facts into an undated keyword. petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
   "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
   "premiseQuotes contains verbatim factual premises from current or prior USER text only when evidenceBasis is supplied_context. Questions, output labels, requested column names and formatting instructions are NOT supplied facts. If the required values were not supplied and belong to an owned pet, choose saved_history and retrieve them, even for a one-line or structured answer. Use [] for saved_history/general. Never quote an instruction or question as if it supplied a missing value.",
   "excludedPetNames lists owned pets explicitly excluded from this read; petNames lists only the requested subjects. Use canonical supplied owned names, resolving obvious unique spelling abbreviations from the whole request. An excluded name is not the subject. A clear subject, topic and ordering request needs retrieval, not reference clarification.",
@@ -85,7 +87,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || typeof p.question !== "string" || !p.question.trim() || p.question.length > 1600
     || typeof p.topic !== "string" || p.topic.length > 160
     || p.premiseQuotes !== null && !list(p.premiseQuotes, 6, 400) || !list(p.excludedPetNames, 3, 100)
-    || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, 3, 100)
+    || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, ASK_HISTORY_MAX_PETS, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
   const date = (v: unknown): v is string | null => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
@@ -109,6 +111,15 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     // A quoted retrieval instruction supplies no stored values.
     if (p.evidenceBasis === "supplied_context" && (p.premiseQuotes as string[]).every(quote =>
       /^(?:read|retrieve|look up|find|show|give|tell)\b/i.test(quote.trim()) && quote.trim() === context.currentMessage.trim())) return fail("missing_supplied_premise");
+  }
+  // Preserve a USER-authored dated referent across an elliptical follow-up.
+  const anchor = conversationReadAnchor(context);
+  if (anchor && ["read", "conversation", "clarify"].includes(String(p.mode))
+    && p.ordinal === null && p.frame === null && p.evidenceBasis !== "supplied_context") {
+    Object.assign(p, { mode: "read", scope: "named", petNames: anchor.petNames,
+      evidenceBasis: "saved_history", operation: p.operation === "comparison" ? "comparison" : "recall",
+      selection: "period", from: anchor.from, to: anchor.to, question: anchor.question,
+      referenceTurnIds: [...new Set([...p.referenceTurnIds, ...anchor.referenceTurnIds])].slice(-8), terms: [] });
   }
   // Non-record evidence can only narrow authority. A fictional name or date
   // does not grant access to the selected profile, and cannot become a write.
@@ -146,13 +157,18 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     petIds = [explicitPets[0].id]; p.scope = "named"; p.mode = "read";
     if (p.operation === "clarify" || p.operation === "general") p.operation = "recall";
   }
+  if (p.mode === "clarify" && p.evidenceBasis === "saved_history" && explicitPets.length === 1
+    && petIds.length === 1 && petIds[0] === explicitPets[0].id && p.ordinal === null && p.terms.length) {
+    p.mode = "read"; p.operation = "recall";
+  }
   // A redundant group label cannot widen an explicit, validated subject list.
   if (p.scope === "account" && !proposed.length) petIds = owned.filter(pet => !excluded.has(pet.id)).map(pet => pet.id);
   if (p.scope === "selected") {
     if (proposed.some(id => id !== context.pet.id)) return fail("selected_subject");
     petIds = owned.some(pet => pet.id === context.pet.id) ? [context.pet.id] : [];
   }
-  if (p.scope === "none" && petIds.length || petIds.length > 3) return fail("scope");
+  const petLimit = p.mode === "read" && p.ordinal === null && p.episodeTopic === null && p.frame === null ? ASK_HISTORY_MAX_PETS : 3;
+  if (p.scope === "none" && petIds.length || petIds.length > petLimit) return fail("scope");
   // Conversational referents may choose only identities established by a user,
   // never an assistant's guessed profile or a model-proposed database ID.
   if (p.scope === "conversation") {

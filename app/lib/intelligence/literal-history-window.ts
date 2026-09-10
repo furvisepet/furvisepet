@@ -54,6 +54,6 @@ export function requestsPastPresentComparison(text: string): boolean {
   if (/\b(?:as of|until|before today|only|excluding|exclude)\b/i.test(text)) return false;
   const present = /\b(?:now|today|current|currently|latest|present)\b/i.test(text);
   const past = /\b(?:19\d{2}|20\d{2}|2100|then|previous|previously|earlier|used to)\b/i.test(text);
-  const comparison = /\b(?:same|different|compar\w*|versus|vs|than|chang\w*)\b/i.test(text);
+  const comparison = /\b(?:same|different|compar\w*|versus|vs|than|chang\w*|heavier|lighter|higher|lower|greater|less|more|increase\w*|decrease\w*|difference)\b/i.test(text);
   return present && past && comparison;
 }

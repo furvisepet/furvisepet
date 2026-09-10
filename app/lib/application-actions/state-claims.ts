@@ -123,8 +123,17 @@ export function preserveAttributedReportQuotes(value: string, transform: (prose:
   return result;
 }
 
+/** Optional offers are presentation copy, not the answer's factual body.
+ * Apply this before approval as well as reload, using exactly one policy. */
+export function stripOptionalAssistantOffers(value: string) {
+  return mapAskProse(value, prose => preserveFictionalDialogueQuotes(prose, text =>
+    preserveAttributedReportQuotes(text, unquoted => unquoted.replace(assistantOffer,
+      offer => /\b(?:but|however|cannot|unable)\b|can[’'\x27]t|won[’'\x27]t/i.test(offer) ? offer : " ")
+      .replace(/[^\S\r\n]+/g, " ").trim())));
+}
+
 function enforceUnquotedStateClaims(value: string, verifiedSuccess: boolean) {
-  const clean = value.replace(assistantOffer, (offer) => /\b(?:but|however|cannot|unable)\b|can[’'\x27]t|won[’'\x27]t/i.test(offer) ? offer : " ").replace(/[^\S\r\n]+/g, " ").trim();
+  const clean = stripOptionalAssistantOffers(value).trim();
   if (!clean) return "I can help with that.";
   if (verifiedSuccess || !containsUnverifiedStateClaim(clean)) return clean;
   const safe = splitSentencesPreservingFacts(clean).filter((sentence) => !containsUnverifiedStateClaim(sentence)).join(" ").trim();
