@@ -1,4 +1,4 @@
-import { literalHistoryMonthWindow, literalHistoryReportDayWindow } from "./literal-history-window.ts";
+import { literalHistoryMonthWindow, literalHistoryReportDayWindow, requestsPastPresentComparison } from "./literal-history-window.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -216,6 +216,12 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (historical) {
     const report = literalHistoryReportDayWindow(context.currentMessage);
     if (report && p.to === report.from) p.to = report.to;
+  }
+  // A past-versus-present question has two temporal obligations. A planner's
+  // single period cannot remove either endpoint. Access clipping remains server-owned.
+  if (historical && p.mode === "read" && requestsPastPresentComparison(context.currentMessage)) {
+    p.from = null; p.to = null; p.selection = "comparison";
+    operation = "comparison";
   }
   // Standalone reads need no model rewrite. Keep the user task authoritative
   // across every writer/reviewer input, not merely in an instruction footer.
