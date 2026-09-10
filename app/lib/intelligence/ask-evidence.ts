@@ -1,3 +1,4 @@
+import { historyEventTerms, historyEventRelevance } from "./history-query-relevance.ts";
 import { directHistoryExplanation } from "./direct-history-explanation.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
@@ -366,13 +367,18 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
     const candidates = notes.filter(note => note.petId === petId);
     const occurrence = (note: typeof candidates[number]) => classifyOccurrenceReport(note.text, petName, terms);
     const eligible = selection === "earliest_occurrence" ? occurrenceCandidates(candidates, occurrence, note => note.occurredAt || "") : candidates;
-    const ordered = orderHistoryEvidence(eligible, selection, note => note.occurredAt || "", note => note.sourceId);
+    const eventTerms = sharedRequest?.mode === "read" && selection !== "earliest_occurrence"
+      ? historyEventTerms(contract.scope.requestText) : [];
+    const eventRelevance = historyEventRelevance(eligible.map(note => note.text), eventTerms);
+    const eventFallback = eventTerms.length > 0;
+    const ordered = orderHistoryEvidence(eligible, selection, note => note.occurredAt || "", note => note.sourceId,
+      undefined, eventFallback ? note => -eventRelevance(note.text) : undefined);
     const boundary = contract.history?.chronology?.find(item => item.petId === petId);
     const boundaryBlocked = unresolvedCorrection || boundary?.blocked || boundary?.boundaryIds.some(id => !candidates.some(note => note.sourceId === id));
     const occurrenceUncertain = selection === "earliest_occurrence" && ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0).some(note => occurrence(note) !== "affirmative");
     // Earliest/latest answers retain their decisive report. Include the other
     // dated reports for status so a resolution cannot hide a later recurrence.
-    const selected = selection.startsWith("earliest") || selection === "latest" && !status
+    const selected = !eventFallback && (selection.startsWith("earliest") || selection === "latest" && !status)
       ? ordered.filter(note => compareHistoryTime(note.occurredAt || "", ordered[0]?.occurredAt || "") === 0) : ordered;
     // An unresolved early report remains first. A later affirmative report can
     // still answer the supported portion, without taking first-occurrence authority.
@@ -380,10 +386,12 @@ export function attributedHistoryAnswer(contract: AskEvidenceContract, status = 
       const later = ordered.find(note => occurrence(note) === "affirmative" && !selected.includes(note));
       if (later) selected.push(...ordered.filter(note => compareHistoryTime(note.occurredAt || "", later.occurredAt || "") === 0 && !selected.includes(note)));
     }
-    if (!selection.startsWith("earliest") && selection !== "latest") selected.sort((a, b) => (a.occurredAt || "").localeCompare(b.occurredAt || ""));
+    // Select the bounded sample before presentation sorting; otherwise chronology
+    // can discard the same decisive event that retrieval deliberately retained.
     // Failed shared reads show a bounded sample, never pages of unreviewed prose.
     const omittedFallbackReports = sharedRequest ? Math.max(0, selected.length - 3) : 0;
     if (omittedFallbackReports) selected.splice(3);
+    if (eventFallback || !selection.startsWith("earliest") && selection !== "latest") selected.sort((a, b) => (a.occurredAt || "").localeCompare(b.occurredAt || ""));
     const groups = new Map<string, typeof selected>();
     for (const note of selected) groups.set(note.text, [...(groups.get(note.text) || []), note]);
     const sentences = [...groups.values()].map(group => {

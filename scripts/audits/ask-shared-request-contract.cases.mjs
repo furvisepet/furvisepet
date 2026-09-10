@@ -1018,3 +1018,37 @@ test('event evidence survives both budgets among verbose routine observations', 
   assert.ok(r.context.askHistory.coverage.candidateIds.length<=64);
  }
 });
+
+
+test('rejected event answers retain relevant source excerpts instead of the latest profile', async t => {
+ clock(t);
+ const rows=[care('start','milo','2023-03-06','food','Aster started a transition from food A to food B. The reason was preference, not an allergy diagnosis.'),
+  care('end','milo','2023-03-13','food','Aster completed the transition to food B.'),
+  care('profile','milo','2026-06-04','food','Aster currently eats food B and weighs 18 kg.')];
+ const r=await exercise('When did Aster switch to the current food?',{fixturePets,messages:[],history:true,rows,
+  interpretationProposal:proposal({terms:['food'],selection:'latest'}),
+  providerOverrides:{answer:'The switch happened yesterday.',historyNarrative:{sentences:[{text:'The switch happened yesterday.',sourceIds:['care:start'],calculations:[]}]}},
+  reviewResponse:{approved:false},expectedReviewCalls:1});
+ assert.ok(r.prompt.evidenceContract.represented.some(e=>e.sourceId==='care:start'));
+ assert.match(r.result.reasoning.answer.summary,/2023-03-06/);
+ assert.match(r.result.reasoning.answer.summary,/2023-03-13/);
+ assert.match(r.result.reasoning.answer.summary,/not an allergy diagnosis/);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/happened yesterday/);
+ assert.match(r.result.reasoning.answer.summary,/couldn't verify a complete answer/);
+});
+
+
+test('review receives correction uncertainty attached to its own source', async t => {
+ clock(t);
+ const r=await exercise('Summarize the saved observations.',{fixturePets,messages:[],history:true,
+  rows:[care('ordinary','milo','2025-03-06','general','Aster rested normally.'),
+   care('uncertain-link','milo','2025-03-07','general','Correction: the earlier observation described another animal.')],
+  interpretationProposal:proposal({selection:'period'}),
+  providerOverrides:{historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:ordinary'],calculations:[]}]}},
+  reviewResponse:{approved:false},expectedReviewCalls:1});
+ const review=JSON.parse(r.reviewRequests[0].input);
+ assert.deepEqual(review.sources.find(s=>s.sourceId==='care:ordinary').provenanceStatuses,['unverified_legacy']);
+ assert.deepEqual(review.sources.find(s=>s.sourceId==='care:uncertain-link').provenanceStatuses,['unlinked_correction_uncertain']);
+ assert.match(review.correctionAuthority,/do not assign that uncertainty to every source/);
+ assert.deepEqual(r.result.acceptedSemanticEvents,[]);
+});
