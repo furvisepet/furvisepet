@@ -131,13 +131,17 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence) ? [] : [index]);
   if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
   if (!draft.sentences.length || repairAttempted && invalidIndexes.length) return false;
-  const reviewSources = sharedRequest ? sources.map(({ sourceId, sourceType, petId, text, occurredAt }) => ({ sourceId, sourceType, petId, text, occurredAt })) : sources;
+  const reviewSources = sharedRequest ? sources.map(({ sourceId, sourceType, petId, text, occurredAt }) => ({
+    sourceId, sourceType, petId, text, occurredAt,
+    provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
+  })) : sources;
   const reviewCoverage = sharedRequest ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, chronology: evidence.history.chronology } : evidence.history;
   const requestInput = JSON.stringify({
     deterministicInvalidSentenceIndexes: invalidIndexes,
     deterministicAnchorHints: draft.sentences.flatMap((sentence,index) => anchorHints.get(sentence.text)?.length ? [{index, reasons: anchorHints.get(sentence.text)}] : []),
     deterministicCalculationHints: draft.sentences.flatMap((sentence,index)=>calculationHints.has(sentence.text) ? [{index, corrections: calculationHints.get(sentence.text)}] : []),
     requestAuthority: "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+    correctionAuthority: "Source provenanceStatuses identify which records have unresolved correction links. Global coverage reasons do not assign that uncertainty to every source. An unverified_legacy record supports its attributed report, not a verified correction edge. Empty statuses supply no extra verification.",
     today: new Date().toISOString(), question: evidence.scope.requestText,
     referenceQuestion: evidence.interpretation?.referenceQuestion || null,
     scope: evidence.scope, plan: evidence.interpretation, petNames: evidence.petNames,
