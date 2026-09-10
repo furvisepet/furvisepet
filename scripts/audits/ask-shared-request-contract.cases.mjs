@@ -1162,3 +1162,74 @@ test('schema-shaped generation repairs an unpublishable draft before API and rel
  assert.deepEqual(run.result.acceptedCareActions,[]);
  assert.deepEqual(run.result.acceptedLearnings,[]);
 });
+
+test('separate user-grounded needs retrieve rare evidence and reach review and publication',async t=>{
+ clock(t);
+ const question='Explain Aster’s bedding change and the reason for stopping the supplement.';
+ const rawNeeds=[{quote:'bedding change',sourceTurnId:null,terms:['bedding','mat']},
+  {quote:'reason for stopping the supplement',sourceTurnId:null,terms:['supplement','stopped']}];
+ const rows=Array.from({length:60},(_,i)=>care('routine-'+i,'milo',new Date(Date.UTC(2021+Math.floor(i/12),i%12,12)).toISOString().slice(0,10),'general','Aster rested on a mat.'));
+ rows.push(care('bedding','milo','2026-06-04','general','Aster moved from fleece to cotton bedding.'));
+ rows.push(care('supplement','milo','2023-04-17','general','The owner stopped the supplement after reporting loose stool. A causal link was not established.'));
+ const answer='Aster moved from fleece to cotton bedding. The owner stopped the supplement after reporting loose stool; a causal link was not established.';
+ const run=await exercise(question,{fixturePets,messages:[],history:true,rows,
+  interpretationProposal:proposal({evidenceNeeds:rawNeeds,terms:['mat','bedding']}),
+  providerResponse:async()=>({status:'completed',output_text:JSON.stringify({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
+   safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:bedding','care:supplement'],
+   historyNarrative:{sentences:[{text:answer,sourceIds:['care:bedding','care:supplement'],calculations:[]}]}}),usage:{input_tokens:500,output_tokens:100}}),
+  reviewResponse:{approved:true},expectedReviewCalls:1});
+ for(const id of ['care:bedding','care:supplement']) assert.ok(run.prompt.contextRecords.some(r=>r.id===id),id);
+ const need=run.prompt.evidenceContract.needCoverage.find(n=>n.needId==='need:1');
+ assert.ok(need.pets[0].representedSourceIds.includes('care:supplement'));
+ assert.equal(need.semanticSupport,'unverified');
+ assert.equal(JSON.parse(run.reviewRequests[0].input).obligations.length,3);
+ assert.equal(run.publication.failure,null);
+ assert.equal(run.publication.displayed.summary,answer);
+ assert.ok(run.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+});
+test('unsupported planner need is discarded without replacing the original task',()=>{
+ const result=validateAskRequest(proposal({evidenceNeeds:[{quote:'invented diagnosis',sourceTurnId:null,terms:['diagnosis']}]}),
+  {...context,currentMessage:'What bedding does Aster use?'});
+ assert.equal(result.request.question,'What bedding does Aster use?');
+ assert.equal(result.request.evidenceNeeds,undefined);
+ assert.deepEqual(result.request.evidenceNeedIssues,['ungrounded_evidence_need']);
+ assert.deepEqual(result.petIds,['milo']);
+});
+
+test('different needs stay attached to their own pets through retrieval and evidence',async t=>{
+ clock(t);
+ const question='Summarize Aster’s bedding and Bramble’s sleep.';
+ const run=await exercise(question,{fixturePets,messages:[],history:true,
+  rows:[care('mat','milo','2024-04-17','general','Aster uses cotton bedding.'),care('rest','luna','2024-04-17','general','Bramble slept normally.')],
+  interpretationProposal:proposal({petNames:['Aster','Bramble'],terms:['bedding','sleep'],evidenceNeeds:[
+   {quote:'Aster’s bedding',sourceTurnId:null,petNames:['Aster'],terms:['bedding']},
+   {quote:'Bramble’s sleep',sourceTurnId:null,petNames:['Bramble'],terms:['sleep','slept']}]})});
+ assert.deepEqual(run.context.askHistory.coverage.needs.map(n=>[n.petId,n.needId]).sort(),[['luna','need:1'],['milo','need:0']]);
+ assert.deepEqual(run.prompt.evidenceContract.needCoverage.map(n=>n.pets.map(p=>p.petId)),[['milo'],['luna']]);
+});
+test('need candidates survive verbose routine evidence without exceeding the prompt budget',async t=>{
+ clock(t);
+ const question='Describe Aster’s bedding and the supplement reaction.';
+ const rows=Array.from({length:120},(_,i)=>care('pressure-'+i,'milo',new Date(Date.UTC(2020,0,i+1)).toISOString().slice(0,10),'general',
+  'Aster rested on bedding. '+ 'This was an ordinary observation with no further conclusion about other days. '.repeat(7)));
+ rows.push(care('rare','milo','2024-04-17','general','The supplement reaction was loose stool. The cause remains uncertain.'));
+ const run=await exercise(question,{fixturePets,messages:[],history:true,rows,
+  interpretationProposal:proposal({terms:['bedding'],evidenceNeeds:[
+   {quote:'bedding',sourceTurnId:null,terms:['bedding']},
+   {quote:'supplement reaction',sourceTurnId:null,terms:['supplement','reaction']}]})});
+ assert.ok(run.prompt.contextRecords.some(r=>r.id==='care:rare'));
+ assert.ok(run.prompt.evidenceContract.needCoverage[1].pets[0].representedSourceIds.includes('care:rare'));
+ assert.ok(run.context.askHistory.coverage.reasons.includes('effective_evidence_budget'));
+ assert.ok(run.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+ assert.ok(run.context.askHistory.coverage.candidateIds.length<=64);
+});
+
+test('need coverage records actual query hits without reinterpreting database matching',async t=>{
+ clock(t);
+ const row=care('matched','milo','2024-04-17','general','The owner reported a dietary transition.');
+ const run=await exercise('Explain Aster’s food change.',{fixturePets,messages:[],history:true,rows:[row],candidateRowsOverride:[row],
+  interpretationProposal:proposal({terms:['food'],evidenceNeeds:[{quote:'food change',sourceTurnId:null,terms:['food']}]})});
+ assert.ok(run.context.askHistory.coverage.needs[0].candidateIds.includes('care:matched'));
+ assert.ok(run.prompt.evidenceContract.needCoverage[0].pets[0].representedSourceIds.includes('care:matched'));
+ assert.equal(run.prompt.evidenceContract.needCoverage[0].semanticSupport,'unverified');
+});

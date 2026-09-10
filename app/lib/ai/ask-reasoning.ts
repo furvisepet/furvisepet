@@ -1,3 +1,4 @@
+import { evidenceRemovalCost } from "../intelligence/evidence-need-coverage.ts";
 import { withProviderDeadline } from "./provider-deadline.ts";
 import { stripKnownHistoryCitations } from "../intelligence/public-history-text.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
@@ -569,6 +570,12 @@ function enforceAskPromptContextBudget<T extends { contextRecords: AskContextRec
     const largest = Math.max(0, ...counts.values());
     let index = contextRecords.length - 1;
     if (largest > 1) index = contextRecords.findLastIndex(record => record.sourceType === "care_update" && counts.get(record.petId) === largest);
+    if (budgeted.evidenceContract.needCoverage?.length && contextRecords[index]?.sourceType === "care_update") {
+      const candidates = contextRecords.flatMap((record, recordIndex) => record.sourceType === "care_update"
+        ? [{ recordIndex, cost: evidenceRemovalCost(budgeted.evidenceContract, record.id), petCount: counts.get(record.petId) || 0 }] : []);
+      candidates.sort((a, b) => a.cost - b.cost || b.petCount - a.petCount || b.recordIndex - a.recordIndex);
+      if (candidates.length) index = candidates[0].recordIndex;
+    }
     // For a historical read, optional profile details must not crowd out the
     // dated records that answer it. Keep species, ingredient exclusions and
     // lifecycle facts on their existing safety path. Preserve normal advice

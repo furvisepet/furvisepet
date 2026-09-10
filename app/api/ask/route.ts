@@ -2,6 +2,8 @@ import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.t
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
 import { interpretAskQuestion, readInterpretationSubject } from "../../lib/intelligence/interpret-ask.ts";
+import type { NeedCoverage } from "../../lib/intelligence/evidence-need-coverage.ts";
+import type { EvidenceNeed } from "../../lib/intelligence/evidence-needs.ts";
 import { inspectAskPublication } from "../../lib/intelligence/inspect-ask-publication.ts";
 import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
 import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
@@ -399,7 +401,7 @@ export async function POST(request: Request) {
   let turnPetId = petId;
   let turnAuthoritativePetIds = [petId];
   let turnView = deriveAskTurnView({ currentSourceMessageId: preparedRequest.userMessageId, liveContext, question, requestId });
-  let contextUsed: typeof turnView.contextUsed & { historyCoverage?: Pick<HistoryCoverage, "retrieval" | "corrections" | "continuation" | "reasons" | "consistency" | "perPet"> } = turnView.contextUsed;
+  let contextUsed: typeof turnView.contextUsed & { evidenceNeeds?: EvidenceNeed[]; needCoverage?: NeedCoverage[]; historyCoverage?: Pick<HistoryCoverage, "retrieval" | "corrections" | "continuation" | "reasons" | "consistency" | "perPet"> } = turnView.contextUsed;
 
   let orchestration;
   let creditReserved = false;
@@ -885,6 +887,10 @@ export async function POST(request: Request) {
   if (historyCoverage) {
     const { retrieval, corrections, continuation, reasons, consistency, perPet } = historyCoverage;
     contextUsed.historyCoverage = { retrieval, corrections, continuation, reasons, consistency, perPet };
+  }
+  if (reasoning?.evidenceContract?.needCoverage?.length) {
+    contextUsed.evidenceNeeds = reasoning.evidenceContract.interpretation?.request?.evidenceNeeds;
+    contextUsed.needCoverage = reasoning.evidenceContract.needCoverage;
   }
   if (reasoning) contextUsed.usedSources = [...new Set(reasoning.referencedRecords.map(formatContextSourceLabel))].slice(0, 4);
   const safetyLevel = orchestration.safetyLevel;

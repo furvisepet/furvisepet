@@ -80,7 +80,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   if (evidence?.historyAccess && evidence.history?.reasons.includes("requested_period_outside_subscription_window")) return false;
   // Only the original user task defines completeness. Planner paraphrases and
   // requirements remain advisory; they cannot omit or invent obligations.
-  const obligations = sharedRequest ? [evidence!.scope.requestText] : [];
+  const obligations = sharedRequest ? [...new Set([evidence!.scope.requestText, ...(sharedRequest.evidenceNeeds || []).map(need => need.quote)])] : [];
   let proposedDraft = parseHistoryNarrative(result.historyNarrative);
   if (!evidence?.interpretation || !evidence.history || evidence.scope.status !== "resolved"
     || evidence.scope.requestKind === "count" || evidence.episodes
@@ -145,8 +145,10 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const requestInput = JSON.stringify({
     deterministicInvalidSentenceIndexes: invalidIndexes,
     deterministicPublicationFailures: publicationFailures,
+    evidenceNeedCoverage: evidence.needCoverage || [],
     deterministicAnchorHints: draft.sentences.flatMap((sentence,index) => anchorHints.get(sentence.text)?.length ? [{index, reasons: anchorHints.get(sentence.text)}] : []),
     deterministicCalculationHints: draft.sentences.flatMap((sentence,index)=>calculationHints.has(sentence.text) ? [{index, corrections: calculationHints.get(sentence.text)}] : []),
+    evidenceNeedAuthority: "Evidence needs quote USER request clauses. They do not supply facts or prove entailment. Verify every clause against the entire original question and supplied sources. candidates_available is only lexical availability; no_candidate_match, not_represented, not_queried and query_unavailable never prove absence. Explicitly acknowledge a material unresolved fact, but do not invent a limitation when supplied records answer it.",
     requestAuthority: "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
     correctionAuthority: "Source provenanceStatuses identify which records have unresolved correction links. Global coverage reasons do not assign that uncertainty to every source. An unverified_legacy record supports its attributed report, not a verified correction edge. Empty statuses supply no extra verification.",
     today: new Date().toISOString(), question: evidence.scope.requestText,
