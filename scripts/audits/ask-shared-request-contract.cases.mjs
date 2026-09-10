@@ -1112,3 +1112,53 @@ test('unsolicited JSON is repaired once and independently re-reviewed as prose',
   }});
  assert.equal(r.result.reasoning.answer.summary,'Aster rested normally.');
 });
+
+test('canonical read limitation cannot smuggle an unrequested output container', () => {
+ const read={readVersion:'history-answer.v1',layout:'prose',historyNarrative:null,table:null,json:null,
+  limitation:'The requested observation is not available.',safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history recall',relevantContextIds:[]};
+ assert.equal(canonicalHistoricalRead(read).answer,read.limitation);
+ assert.throws(()=>canonicalHistoricalRead({...read,limitation:'{"answer":"Unavailable","value":null}'}),/INVALID_READ_LAYOUT/);
+});
+test('middle date survives retrieval and representation among five years of routine records', async t => {
+ clock(t);
+ const rows=Array.from({length:60},(_,i)=>care('routine-'+i,'milo',new Date(Date.UTC(2021+Math.floor(i/12),i%12,12)).toISOString().slice(0,10),'weight','Aster weighed 20 kg.'));
+ rows.push(care('middle-anchor','milo','2023-04-17','weight','Aster weighed 19.4 kg.'));
+ rows.push(care('newest-anchor','milo','2026-09-03','weight','Aster weighed 18.6 kg.'));
+ const text='Aster weighed 19.4 kg on April 17, 2023 and 18.6 kg on September 3, 2026.';
+ const run=await exercise('Compare Aster’s weight on April 17, 2023 with the latest weight.',{
+  fixturePets,messages:[],history:true,rows,interpretationProposal:proposal({operation:'comparison',selection:'comparison',terms:['weight','weighed']}),
+  providerOverrides:{answer:text,historyNarrative:{sentences:[{text,sourceIds:['care:middle-anchor','care:newest-anchor']}]}},
+  reviewResponse:{approved:true},expectedReviewCalls:1,
+ });
+ for(const id of ['care:middle-anchor','care:newest-anchor']) assert.ok(run.prompt.contextRecords.some(r=>r.id===id),id);
+ assert.ok(run.context.askHistory.coverage.perPet.every(p=>p.pages<=4));
+ assert.ok(run.context.askHistory.coverage.targets.some(t=>t.day==='2023-04-17'&&t.retainedIds.includes('care:middle-anchor')));
+ assert.equal(run.result.reasoning.answer.summary,text);
+});
+
+test('schema-shaped generation repairs an unpublishable draft before API and reload', async t => {
+ clock(t);
+ const good='The owner reported a transition to the new food because of itching. The underlying cause remains unknown.';
+ const bad='I recorded a transition to the new food because of itching. The underlying cause remains unknown.';
+ const read=text=>({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
+  safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:reason'],
+  historyNarrative:{sentences:[{text,sourceIds:['care:reason'],calculations:[]}]}});
+ let sawPublicationFailure=false;
+ const run=await exercise('What reason was reported for the food transition?',{
+  fixturePets,messages:[],history:true,rows:[care('reason','milo','2024-04-17','general',good)],
+  interpretationProposal:proposal({terms:['food','transition']}),
+  providerResponse:async()=>({status:'completed',output_text:JSON.stringify(read(bad)),usage:{input_tokens:500,output_tokens:100}}),
+  expectedReviewCalls:3,reviewProviderResponse:async request=>{
+   const input=JSON.parse(request.input);
+   if(input.deterministicPublicationFailures?.length)sawPublicationFailure=true;
+   const payload=request.text.format.name==='furvise_history_repair'?read(good):
+    {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null};
+   return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
+  },
+ });
+ assert.equal(sawPublicationFailure,true);
+ assert.equal(run.publication.failure,null);
+ assert.equal(run.publication.displayed.summary,good);
+ assert.deepEqual(run.result.acceptedCareActions,[]);
+ assert.deepEqual(run.result.acceptedLearnings,[]);
+});

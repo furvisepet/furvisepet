@@ -23,6 +23,8 @@ test('last-mile rejection catches numeric and uncertainty deletion, not layout',
  assert.equal(answerIntegrityFailure(a,answer('Cause unknown.')),'lost_numeric_fact');
  assert.equal(answerIntegrityFailure(a,answer('Weight 7.21 kg.')),'lost_uncertainty');
  assert.equal(answerIntegrityFailure(a,answer('- Weight 7.21 kg.\n- Cause unknown.')),null);
+ assert.equal(answerIntegrityFailure(answer('The owner reported itching. Cause unknown.'),answer('Cause unknown.')),'changed_answer_content');
+ assert.equal(answerIntegrityFailure(answer('Rowan weighed 7 kg and Birch weighed 8 kg.'),answer('Birch weighed 7 kg and Rowan weighed 8 kg.')),'changed_answer_content');
 });
 test('prose envelope decoding preserves limitations and rejects unknown metadata',()=>{
  assert.equal(unwrapProseEnvelope('{"answer":"Food A was offered.","note":"Other meals are unknown."}'),'Food A was offered.\nOther meals are unknown.');

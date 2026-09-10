@@ -1,3 +1,4 @@
+import { readPublicationFailure } from "../ask-publication.ts";
 import { withProviderDeadline } from "../ai/provider-deadline.ts";
 import { isStructuredHistoryText } from "./structured-history-text.ts";
 import { verifiedCalculationQuantities } from "./history-calculation.ts";
@@ -128,16 +129,22 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence,
     text: sharedRequest ? sentence.text : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
     .filter(sentence => sharedRequest || supported(sentence)) };
-  const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence) ? [] : [index]);
+  const publicationFailures = sharedRequest ? draft.sentences.flatMap((sentence, index) => {
+    const reason = readPublicationFailure(sentence.text);
+    return reason ? [{ index, reason }] : [];
+  }) : [];
+  const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence)
+    && !publicationFailures.some(failure => failure.index === index) ? [] : [index]);
   if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
   if (!draft.sentences.length || repairAttempted && invalidIndexes.length) return false;
   const reviewSources = sharedRequest ? sources.map(({ sourceId, sourceType, petId, text, occurredAt }) => ({
     sourceId, sourceType, petId, text, occurredAt,
     provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
   })) : sources;
-  const reviewCoverage = sharedRequest ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, chronology: evidence.history.chronology } : evidence.history;
+  const reviewCoverage = sharedRequest ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology } : evidence.history;
   const requestInput = JSON.stringify({
     deterministicInvalidSentenceIndexes: invalidIndexes,
+    deterministicPublicationFailures: publicationFailures,
     deterministicAnchorHints: draft.sentences.flatMap((sentence,index) => anchorHints.get(sentence.text)?.length ? [{index, reasons: anchorHints.get(sentence.text)}] : []),
     deterministicCalculationHints: draft.sentences.flatMap((sentence,index)=>calculationHints.has(sentence.text) ? [{index, corrections: calculationHints.get(sentence.text)}] : []),
     requestAuthority: "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
@@ -173,9 +180,10 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const selectedText = (parsed.parsed.approved ? parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]) : draft.sentences).map(chunk => chunk.text).join("\n");
     const completeSelection = !parsed.parsed.approved || !sharedRequest || parsed.parsed.retainedSentenceIndexes.length === draft.sentences.length;
     const anchorsValid = !parsed.parsed.approved || parsed.parsed.retainedSentenceIndexes.every(index => !invalidIndexes.includes(index));
-    const formatValid = matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid;
+    const formatValid = matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid
+      && (!sharedRequest || !readPublicationFailure(selectedText));
     if (!parsed.parsed.approved || !formatValid) {
-      const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Server-computed corrections for grounded calculation operands: ${JSON.stringify([...calculationHints.values()].flat())}. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
+      const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Publication failures: ${JSON.stringify(publicationFailures)}. Use plain readable wording that survives serialization and reload; describe historical reports with explicit attribution, and never claim the app performed an action. Preserve all supported facts and uncertainty. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Server-computed corrections for grounded calculation operands: ${JSON.stringify([...calculationHints.values()].flat())}. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
         : "rejectionReason" in parsed.parsed ? parsed.parsed.rejectionReason : null;
       if (repairAttempted || !sharedRequest || !evidence.scope.readOnlyRecall || typeof reason !== "string" || !reason) return false;
       const repaired = await repairRejectedRead(provider, model, requestInput, reason);

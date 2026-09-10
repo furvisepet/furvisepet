@@ -214,7 +214,11 @@ async function exercise(question, { historyAccess, fixturePets = pets, onProvide
   }
   if (expectedProviderCalls !== null) assert.equal(requests.length, expectedProviderCalls, expectedProviderCalls === 1 ? 'exactly one mocked answer-provider call' : 'explicit bounded mocked provider call count');
   if (expectedReviewCalls !== null) assert.equal(reviewRequests.length, expectedReviewCalls, 'bounded history-review call count');
-  return { reviewRequests, context, result, prompt: requests[0] ? JSON.parse(requests[0].input) : null, serialized: requests[0]?.input || '', queries: supabase.queries, interpretationRequests };
+  const { buildAskConversationResponse } = await import('../../../app/lib/ask.mjs');
+  const { inspectAskPublication } = await import('../../../app/lib/intelligence/inspect-ask-publication.ts');
+  const publication = inspectAskPublication(result.reasoning.answer, buildAskConversationResponse(result.reasoning.answer),
+    context.askInterpretation?.readOnly === true, result.reasoning.evidenceContract, context.episodeResult);
+  return { publication, reviewRequests, context, result, prompt: requests[0] ? JSON.parse(requests[0].input) : null, serialized: requests[0]?.input || '', queries: supabase.queries, interpretationRequests };
 }
 const promptHas = (run, id) => run.prompt.contextRecords.some(record => record.id === `care:${id}`);
 const clock = t => {

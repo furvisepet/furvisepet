@@ -2,7 +2,7 @@ import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.t
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
 import { generateAskHistoryAnswer } from "../../lib/intelligence/generate-ask-history.ts";
 import { interpretAskQuestion, readInterpretationSubject } from "../../lib/intelligence/interpret-ask.ts";
-import { restoreAskEvidencePresentation } from "../../lib/intelligence/ask-evidence-presentation.ts";
+import { inspectAskPublication } from "../../lib/intelligence/inspect-ask-publication.ts";
 import { attachEpisodeReferences } from "../../lib/intelligence/episode-history.ts";
 import type { HistoryCoverage } from "../../lib/intelligence/history-retrieval.ts";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -87,8 +87,6 @@ import {
   type CarePersistenceResult,
   type IntelligencePersistenceSummary,
 } from "../../lib/intelligence";
-import { answerIntegrityFailure } from "../../lib/answer-integrity.ts";
-import { presentationOnlyAskResponse } from "../../lib/ask-conversation-server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid as isSecurityUuid, readBoundedJson } from "../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../lib/security/rate-limit";
 import { claimIdempotentOperation } from "../../lib/security/idempotency";
@@ -1022,12 +1020,10 @@ export async function POST(request: Request) {
     urgent: safetyLevel === "urgent",
     usedContextSummary: contextUsed.usedSources,
   });
-  if (conversationResponse) Object.assign(conversationResponse, restoreAskEvidencePresentation(conversationResponse, reasoning?.evidenceContract, liveContext.episodeResult));
-  // Include the sanitizer used after a conversation reload in the admission gate.
-  const displayedResponse = conversationResponse && liveContext.askInterpretation?.readOnly
-    ? presentationOnlyAskResponse(conversationResponse, []) as typeof conversationResponse : conversationResponse;
-  const integrityFailure = displayedResponse && liveContext.askInterpretation?.readOnly
-    ? answerIntegrityFailure(orchestration.answer, displayedResponse) : null;
+  const publication = inspectAskPublication(orchestration.answer, conversationResponse, liveContext.askInterpretation?.readOnly === true,
+    reasoning?.evidenceContract, liveContext.episodeResult);
+  if (conversationResponse && publication.response) Object.assign(conversationResponse, publication.response);
+  const integrityFailure = publication.failure;
   if (!conversationResponse || integrityFailure) {
     await failAiAdmission(aiAdmission, new Error(integrityFailure ? "ASK_ANSWER_INTEGRITY_FAILED" : "ASK_RESPONSE_SERIALIZATION_FAILED"), aiAdmissionFinalized, requestId);
     aiAdmissionFinalized = Boolean(aiAdmission);
