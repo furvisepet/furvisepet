@@ -1,0 +1,3075 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "productionRoute": false,
+  "productionBrowser": false,
+  "fixtureFile": "ask-five-year-fixture.json",
+  "fixtureRows": 1169,
+  "phase": "postfix-confirmation",
+  "turns": [
+    {
+      "id": 5,
+      "elapsedMs": 9553,
+      "planTier": "plus",
+      "question": "Is Luna's latest construction-related hiding fully resolved, according to the saved notes?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "According to the saved notes, is Luna's latest construction-related hiding fully resolved?",
+          "requirements": [
+            "Answer whether Luna's latest construction-related hiding is fully resolved according to the saved notes."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "latest",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "construction-related hiding",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "According to the saved notes, is Luna's latest construction-related hiding fully resolved?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-09-09T00:00:00.000Z",
+          "to": "2026-09-10T00:00:00.000Z",
+          "terms": [
+            "construction",
+            "hiding",
+            "resolved"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "No—according to the saved notes, Luna’s latest construction-related hiding was not fully resolved, because the most recent note says she still hid during loud construction while her appetite was normal.\nThe saved history is bounded and partial, so this only shows what the notes record, not a guarantee that it later resolved.",
+      "beforeFinalGuard": "No—according to the saved notes, Luna’s latest construction-related hiding was not fully resolved, because the most recent note says she still hid during loud construction while her appetite was normal.\nThe saved history is bounded and partial, so this only shows what the notes record, not a guarantee that it later resolved.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "No—according to the saved notes, Luna’s latest construction-related hiding was not fully resolved, because the most recent note says she still hid during loud construction while her appetite was normal.",
+            "sourceIds": [
+              "care:fy-1167"
+            ]
+          },
+          {
+            "text": "The saved history is bounded and partial, so this only shows what the notes record, not a guarantee that it later resolved.",
+            "sourceIds": [
+              "care:fy-1167",
+              "care:fy-1163"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Is Luna's latest construction-related hiding fully resolved, according to the saved notes?",
+          "referenceQuestion": "According to the saved notes, is Luna's latest construction-related hiding fully resolved?",
+          "scope": {
+            "authorizedPetIds": [
+              "luna"
+            ],
+            "requestedTopic": "construction-related hiding",
+            "requestText": "Is Luna's latest construction-related hiding fully resolved, according to the saved notes?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-09-09T00:00:00.000Z"
+            },
+            "requestKind": "resolution_status",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Luna"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "According to the saved notes, is Luna's latest construction-related hiding fully resolved?",
+              "requirements": [
+                "Answer whether Luna's latest construction-related hiding is fully resolved according to the saved notes."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "status",
+            "readOperation": "status",
+            "selection": "latest",
+            "petIds": [
+              "luna"
+            ],
+            "topic": "construction-related hiding",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "According to the saved notes, is Luna's latest construction-related hiding fully resolved?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-09-09T00:00:00.000Z",
+              "to": "2026-09-10T00:00:00.000Z",
+              "terms": [
+                "construction",
+                "hiding",
+                "resolved"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "luna": "Luna"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "According to the saved notes, is Luna's latest construction-related hiding fully resolved?",
+            "requirements": [
+              "Answer whether Luna's latest construction-related hiding is fully resolved according to the saved notes."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Is Luna's latest construction-related hiding fully resolved, according to the saved notes?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete",
+              "effective_evidence_budget"
+            ],
+            "chronology": [
+              {
+                "petId": "luna",
+                "boundaryIds": [
+                  "care:fy-1167"
+                ],
+                "blocked": false
+              }
+            ]
+          },
+          "losses": [
+            {
+              "sourceId": "care:fy-0999",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0998",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0997",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0984",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0983",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0982",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0981",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0980",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0979",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0966",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0965",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0964",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0963",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0962",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0961",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-1150",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0948",
+              "reason": "historical_evidence_budget"
+            },
+            {
+              "sourceId": "care:fy-0947",
+              "reason": "historical_evidence_budget"
+            }
+          ],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1167",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1167: Latest clinic check: Luna's body weight was 4.7 kg. Her main food remained rabbit complete adult wet food. She still hid during loud construction but appetite was normal. No food allergy had been diagnosed.",
+              "occurredAt": "2026-09-08T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1163",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1163: Luna still hides during loud construction but eats normally after the noisy periods.",
+              "occurredAt": "2026-08-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1074",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1074: Luna's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2026-08-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1073",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1073: Luna tolerated 7 minutes of brushing. The brush weighed 100 g; this was equipment mass.",
+              "occurredAt": "2026-08-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1072",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1072: Luna rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2026-08-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1071",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1071: Luna played with a ribbon-free wand toy for 12 minutes; the session ended normally.",
+              "occurredAt": "2026-08-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1070",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1070: Luna's regular main food this month was rabbit complete adult wet food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2026-08-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1069",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1069: Luna's body weight was 4.49 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2026-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1056",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1056: Luna's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2026-07-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1055",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1055: Luna tolerated 6 minutes of brushing. The brush weighed 100 g; this was equipment mass.",
+              "occurredAt": "2026-07-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1054",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1054: Luna rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2026-07-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1053",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1053: Luna played with a ribbon-free wand toy for 11 minutes; the session ended normally.",
+              "occurredAt": "2026-07-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1052",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1052: Luna's regular main food this month was rabbit complete adult wet food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2026-07-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1051",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1051: Luna's body weight was 4.48 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2026-07-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1160",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1160: Luna's sitter Iris saw Luna hide. Iris told Maya's brother Noah, who relayed it to Maya.",
+              "occurredAt": "2026-07-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1038",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1038: Luna's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2026-06-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1037",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1037: Luna tolerated 5 minutes of brushing. The brush weighed 100 g; this was equipment mass.",
+              "occurredAt": "2026-06-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1036",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1036: Luna rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2026-06-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1035",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1035: Luna played with a ribbon-free wand toy for 10 minutes; the session ended normally.",
+              "occurredAt": "2026-06-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1034",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1034: Luna's regular main food this month was rabbit complete adult wet food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2026-06-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1157",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1157: Luna ate rabbit complete adult wet food; no food allergy had been diagnosed.",
+              "occurredAt": "2026-06-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1033",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1033: Luna's body weight was 4.47 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2026-06-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1020",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1020: Luna's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2026-05-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1019",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1019: Luna tolerated 7 minutes of brushing. The brush weighed 100 g; this was equipment mass.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1018",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1018: Luna rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2026-05-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1017",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1017: Luna played with a ribbon-free wand toy for 9 minutes; the session ended normally.",
+              "occurredAt": "2026-05-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1016",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1016: Luna's regular main food this month was rabbit complete adult wet food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2026-05-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1015",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1015: Luna's body weight was 4.46 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2026-05-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1154",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1154: A delivery bell startled Luna, who hid for 4 minutes, then returned to the room.",
+              "occurredAt": "2026-05-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1002",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1002: Luna's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2026-04-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1001",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1001: Luna tolerated 6 minutes of brushing. The brush weighed 100 g; this was equipment mass.",
+              "occurredAt": "2026-04-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1000",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1000: Luna rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2026-04-19T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No—according to the saved notes, Luna’s latest construction-related hiding was not fully resolved, because the most recent note says she still hid during loud construction while her appetite was normal.",
+                "sourceIds": [
+                  "care:fy-1167"
+                ],
+                "index": 0
+              },
+              {
+                "text": "The saved history is bounded and partial, so this only shows what the notes record, not a guarantee that it later resolved.",
+                "sourceIds": [
+                  "care:fy-1167",
+                  "care:fy-1163"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 13,
+      "elapsedMs": 10681,
+      "planTier": "plus",
+      "question": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": null,
+          "question": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+          "requirements": [
+            "Answer about Luna only.",
+            "Identify the trigger for the hiding event.",
+            "State how long the noise lasted.",
+            "Use the available stored records to answer."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "duration"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "Luna hiding trigger and noise duration on 2021-12-03",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2021-12-03T00:00:00.000Z",
+          "to": "2021-12-04T00:00:00.000Z",
+          "terms": [
+            "hide",
+            "noise",
+            "trigger",
+            "duration"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Luna hid while a vacuum cleaner was running on December 3, 2021, and the noise lasted 9 minutes.",
+      "beforeFinalGuard": "Luna hid while a vacuum cleaner was running on December 3, 2021, and the noise lasted 9 minutes.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Luna hid while a vacuum cleaner was running on December 3, 2021, and the noise lasted 9 minutes.",
+            "sourceIds": [
+              "care:fy-1084"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+          "referenceQuestion": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+          "scope": {
+            "authorizedPetIds": [
+              "luna"
+            ],
+            "requestedTopic": "Luna hiding trigger and noise duration on 2021-12-03",
+            "requestText": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2021-12-03T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Luna"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": null,
+              "question": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+              "requirements": [
+                "Answer about Luna only.",
+                "Identify the trigger for the hiding event.",
+                "State how long the noise lasted.",
+                "Use the available stored records to answer."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "duration"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "luna"
+            ],
+            "topic": "Luna hiding trigger and noise duration on 2021-12-03",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2021-12-03T00:00:00.000Z",
+              "to": "2021-12-04T00:00:00.000Z",
+              "terms": [
+                "hide",
+                "noise",
+                "trigger",
+                "duration"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "luna": "Luna"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": null,
+            "question": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?",
+            "requirements": [
+              "Answer about Luna only.",
+              "Identify the trigger for the hiding event.",
+              "State how long the noise lasted.",
+              "Use the available stored records to answer."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "duration"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What triggered Luna's hiding on December 3, 2021, and how long did the noise last?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1084",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1084: Luna hid while a vacuum cleaner ran for 9 minutes, then came out. No loss of appetite was reported.",
+              "occurredAt": "2021-12-03T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Luna hid while a vacuum cleaner was running on December 3, 2021, and the noise lasted 9 minutes.",
+                "sourceIds": [
+                  "care:fy-1084"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 26,
+      "elapsedMs": 11377,
+      "planTier": "plus",
+      "question": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+          "requirements": [
+            "Answer whether the evidence shows Milo definitely ate cheese before the August 2022 soft stool.",
+            "Preserve any uncertainty if the history does not support a definite yes.",
+            "Use a concise prose answer."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "comparison",
+        "readOperation": "comparison",
+        "selection": "reference",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "whether Milo ate cheese before the August 2022 soft stool",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2022-08-01T00:00:00.000Z",
+          "to": "2022-09-01T00:00:00.000Z",
+          "terms": [
+            "cheese",
+            "soft stool",
+            "August  igh  ersonal"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "No—available records do not show that Milo definitely ate cheese before the August 2022 soft stool.\nA neighbor said he may have eaten cheese, but nobody saw it happen, and the soft-stool note says whether cheese was eaten and any cause of the stool change remained unknown.",
+      "beforeFinalGuard": "No—available records do not show that Milo definitely ate cheese before the August 2022 soft stool.\nA neighbor said he may have eaten cheese, but nobody saw it happen, and the soft-stool note says whether cheese was eaten and any cause of the stool change remained unknown.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "No—available records do not show that Milo definitely ate cheese before the August 2022 soft stool.",
+            "sourceIds": [
+              "care:fy-1100",
+              "care:fy-1101"
+            ]
+          },
+          {
+            "text": "A neighbor said he may have eaten cheese, but nobody saw it happen, and the soft-stool note says whether cheese was eaten and any cause of the stool change remained unknown.",
+            "sourceIds": [
+              "care:fy-1100",
+              "care:fy-1101"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+          "referenceQuestion": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "whether Milo ate cheese before the August 2022 soft stool",
+            "requestText": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2022-08-01T00:00:00.000Z"
+            },
+            "requestKind": "comparison",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+              "requirements": [
+                "Answer whether the evidence shows Milo definitely ate cheese before the August 2022 soft stool.",
+                "Preserve any uncertainty if the history does not support a definite yes.",
+                "Use a concise prose answer."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "comparison",
+            "readOperation": "comparison",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "whether Milo ate cheese before the August 2022 soft stool",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2022-08-01T00:00:00.000Z",
+              "to": "2022-09-01T00:00:00.000Z",
+              "terms": [
+                "cheese",
+                "soft stool",
+                "August  igh  ersonal"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "Did Milo definitely eat cheese before the August 2022 soft stool?",
+            "requirements": [
+              "Answer whether the evidence shows Milo definitely ate cheese before the August 2022 soft stool.",
+              "Preserve any uncertainty if the history does not support a definite yes.",
+              "Use a concise prose answer."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Did Milo definitely eat cheese before the August 2022 soft stool?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "partial",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "bidirectional_endpoint_subset",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1100",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1100: A neighbor said Milo may have eaten cheese, but nobody saw it happen.",
+              "occurredAt": "2022-08-05T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1101",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1101: Milo had one soft stool. Whether cheese was eaten, and any cause of the stool change, remained unknown.",
+              "occurredAt": "2022-08-06T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0199",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0199: Milo's body weight was 25.55 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2022-08-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0204",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0204: Milo's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2022-08-25T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0200",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0200: Milo's regular main food this month was lamb-and-rice adult dry food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2022-08-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0203",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0203: Milo tolerated 6 minutes of brushing. The brush weighed 80 g; this was equipment mass.",
+              "occurredAt": "2022-08-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0201",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0201: Milo completed a 29-minute walk. The note describes this single walk, not daily activity or fitness.",
+              "occurredAt": "2022-08-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0202",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0202: Milo rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2022-08-19T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No—available records do not show that Milo definitely ate cheese before the August 2022 soft stool.",
+                "sourceIds": [
+                  "care:fy-1100",
+                  "care:fy-1101"
+                ],
+                "index": 0
+              },
+              {
+                "text": "A neighbor said he may have eaten cheese, but nobody saw it happen, and the soft-stool note says whether cheese was eaten and any cause of the stool change remained unknown.",
+                "sourceIds": [
+                  "care:fy-1100",
+                  "care:fy-1101"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 34,
+      "elapsedMs": 12978,
+      "planTier": "plus",
+      "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": null,
+          "question": "What were Oscar's training duration and grooming duration on May 5, 2023, and how did the two activities differ?",
+          "requirements": [
+            "Return the durations for both training and grooming.",
+            "Distinguish the training activity from the grooming activity.",
+            "Use the requested date, May 5, 2023."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "duration"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "training and grooming durations",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What were Oscar's training duration and grooming duration on May 5, 2023, and how did the two activities differ?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2023-05-05T00:00:00.000Z",
+          "to": "2023-05-06T00:00:00.000Z",
+          "terms": [
+            "training",
+            "grooming",
+            "duration"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "On May 5, 2023, Oscar's training session lasted 12 minutes, and his grooming session lasted 8 minutes.",
+      "beforeFinalGuard": "On May 5, 2023, Oscar's training session lasted 12 minutes, and his grooming session lasted 8 minutes.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "On May 5, 2023, Oscar's training session lasted 12 minutes, and his grooming session lasted 8 minutes.",
+            "sourceIds": [
+              "care:fy-1112"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+          "referenceQuestion": "What were Oscar's training duration and grooming duration on May 5, 2023, and how did the two activities differ?",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "training and grooming durations",
+            "requestText": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities.",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2023-05-05T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": null,
+              "question": "What were Oscar's training duration and grooming duration on May 5, 2023, and how did the two activities differ?",
+              "requirements": [
+                "Return the durations for both training and grooming.",
+                "Distinguish the training activity from the grooming activity.",
+                "Use the requested date, May 5, 2023."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "duration"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "training and grooming durations",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What were Oscar's training duration and grooming duration on May 5, 2023, and how did the two activities differ?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2023-05-05T00:00:00.000Z",
+              "to": "2023-05-06T00:00:00.000Z",
+              "terms": [
+                "training",
+                "grooming",
+                "duration"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": null,
+            "question": "What were Oscar's training duration and grooming duration on May 5, 2023, and how did the two activities differ?",
+            "requirements": [
+              "Return the durations for both training and grooming.",
+              "Distinguish the training activity from the grooming activity.",
+              "Use the requested date, May 5, 2023."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "duration"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Add Oscar's May 5, 2023 training and grooming durations; distinguish the activities."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1112",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-1112: Oscar's training session lasted 12 minutes; his grooming session lasted 8 minutes.",
+              "occurredAt": "2023-05-05T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "On May 5, 2023, Oscar's training session lasted 12 minutes, and his grooming session lasted 8 minutes.",
+                "sourceIds": [
+                  "care:fy-1112"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 40,
+      "elapsedMs": 10358,
+      "planTier": "plus",
+      "question": "Can you name Oscar's medication or dose from the November 2023 course-completion note?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "What medication or dose is recorded for Oscar in the November 2023 course-completion note?",
+          "requirements": [
+            "Answer with the medication name or dose recorded in the November 2023 course-completion note.",
+            "If both medication and dose are recorded, include both."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "reference",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "medication or dose in the course-completion note",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What medication or dose is recorded for Oscar in the November 2023 course-completion note?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2023-11-01T00:00:00.000Z",
+          "to": "2023-12-01T00:00:00.000Z",
+          "terms": [
+            "Oscar",
+            "medication",
+            "dose",
+            "course completion note",
+            "November  igned"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "The November 2023 course-completion note does not name Oscar's medication or dose; it says the medicine name, dose, and reason were not recorded.",
+      "beforeFinalGuard": "The November 2023 course-completion note does not name Oscar's medication or dose; it says the medicine name, dose, and reason were not recorded.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "The November 2023 course-completion note does not name Oscar's medication or dose; it says the medicine name, dose, and reason were not recorded.",
+            "sourceIds": [
+              "care:fy-1121"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Can you name Oscar's medication or dose from the November 2023 course-completion note?",
+          "referenceQuestion": "What medication or dose is recorded for Oscar in the November 2023 course-completion note?",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "medication or dose in the course-completion note",
+            "requestText": "Can you name Oscar's medication or dose from the November 2023 course-completion note?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2023-11-01T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "What medication or dose is recorded for Oscar in the November 2023 course-completion note?",
+              "requirements": [
+                "Answer with the medication name or dose recorded in the November 2023 course-completion note.",
+                "If both medication and dose are recorded, include both."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "reference",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "medication or dose in the course-completion note",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What medication or dose is recorded for Oscar in the November 2023 course-completion note?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2023-11-01T00:00:00.000Z",
+              "to": "2023-12-01T00:00:00.000Z",
+              "terms": [
+                "Oscar",
+                "medication",
+                "dose",
+                "course completion note",
+                "November  igned"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "What medication or dose is recorded for Oscar in the November 2023 course-completion note?",
+            "requirements": [
+              "Answer with the medication name or dose recorded in the November 2023 course-completion note.",
+              "If both medication and dose are recorded, include both."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Can you name Oscar's medication or dose from the November 2023 course-completion note?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1121",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-1121: Oscar's recalled medication course ended. The medicine name, dose and reason were not recorded.",
+              "occurredAt": "2023-11-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0483",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-0483: Oscar completed a 16-minute walk. The note describes this single walk, not daily activity or fitness.",
+              "occurredAt": "2023-11-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0481",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-0481: Oscar's body weight was 8.49 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2023-11-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0482",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-0482: Oscar's regular main food this month was duck senior dry food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2023-11-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0484",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-0484: Oscar rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2023-11-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0485",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-0485: Oscar tolerated 8 minutes of brushing. The brush weighed 120 g; this was equipment mass.",
+              "occurredAt": "2023-11-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0486",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Five-year test fy-0486: Oscar's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2023-11-25T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "The November 2023 course-completion note does not name Oscar's medication or dose; it says the medicine name, dose, and reason were not recorded.",
+                "sourceIds": [
+                  "care:fy-1121"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 42,
+      "elapsedMs": 17364,
+      "planTier": "plus",
+      "question": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+          "requirements": [
+            "Answer in prose.",
+            "Explain the inference from the March 2024 food transition and why it does or does not establish a fish allergy.",
+            "Keep the response focused on Luna."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "fish allergy",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2024-03-01T00:00:00.000Z",
+          "to": "2024-04-01T00:00:00.000Z",
+          "terms": [
+            "fish allergy",
+            "food transition",
+            "March  ount",
+            "March  ounty"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Luna’s March 2024 transition does not establish a fish allergy because the record says she switched from whitefish wet food to rabbit complete adult wet food because she preferred the taste, not because of a fish-related reaction.\nThe same record also says no allergy diagnosis was recorded, so the notes document a diet change but do not document a confirmed allergy.\nLater March updates only confirm that she completed the rabbit-food transition and continued rabbit complete adult wet food, which still does not prove or disprove a fish allergy by itself.",
+      "beforeFinalGuard": "Luna’s March 2024 transition does not establish a fish allergy because the record says she switched from whitefish wet food to rabbit complete adult wet food because she preferred the taste, not because of a fish-related reaction.\nThe same record also says no allergy diagnosis was recorded, so the notes document a diet change but do not document a confirmed allergy.\nLater March updates only confirm that she completed the rabbit-food transition and continued rabbit complete adult wet food, which still does not prove or disprove a fish allergy by itself.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Luna’s March 2024 transition does not establish a fish allergy because the record says she switched from whitefish wet food to rabbit complete adult wet food because she preferred the taste, not because of a fish-related reaction.",
+            "sourceIds": [
+              "care:fy-1122"
+            ]
+          },
+          {
+            "text": "The same record also says no allergy diagnosis was recorded, so the notes document a diet change but do not document a confirmed allergy.",
+            "sourceIds": [
+              "care:fy-1122"
+            ]
+          },
+          {
+            "text": "Later March updates only confirm that she completed the rabbit-food transition and continued rabbit complete adult wet food, which still does not prove or disprove a fish allergy by itself.",
+            "sourceIds": [
+              "care:fy-1123",
+              "care:fy-0548"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+          "referenceQuestion": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+          "scope": {
+            "authorizedPetIds": [
+              "luna"
+            ],
+            "requestedTopic": "fish allergy",
+            "requestText": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2024-03-01T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Luna"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+              "requirements": [
+                "Answer in prose.",
+                "Explain the inference from the March 2024 food transition and why it does or does not establish a fish allergy.",
+                "Keep the response focused on Luna."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "luna"
+            ],
+            "topic": "fish allergy",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2024-03-01T00:00:00.000Z",
+              "to": "2024-04-01T00:00:00.000Z",
+              "terms": [
+                "fish allergy",
+                "food transition",
+                "March  ount",
+                "March  ounty"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "luna": "Luna"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "Why does Luna's March 2024 food transition not establish a fish allergy?",
+            "requirements": [
+              "Answer in prose.",
+              "Explain the inference from the March 2024 food transition and why it does or does not establish a fish allergy.",
+              "Keep the response focused on Luna."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Why does Luna's March 2024 food transition not establish a fish allergy?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1122",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1122: Luna began switching from whitefish wet food to rabbit complete adult wet food because she preferred the taste. No allergy diagnosis was recorded.",
+              "occurredAt": "2024-03-01T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-1123",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1123: Luna completed the rabbit-food transition. Main meals now use rabbit complete adult wet food.",
+              "occurredAt": "2024-03-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0548",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0548: Luna's regular main food this month was rabbit complete adult wet food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2024-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0547",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0547: Luna's body weight was 4.2 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2024-03-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0549",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0549: Luna played with a ribbon-free wand toy for 8 minutes; the session ended normally.",
+              "occurredAt": "2024-03-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0550",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0550: Luna rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2024-03-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0551",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0551: Luna tolerated 5 minutes of brushing. The brush weighed 100 g; this was equipment mass.",
+              "occurredAt": "2024-03-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0552",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0552: Luna's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2024-03-25T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Luna’s March 2024 transition does not establish a fish allergy because the record says she switched from whitefish wet food to rabbit complete adult wet food because she preferred the taste, not because of a fish-related reaction.",
+                "sourceIds": [
+                  "care:fy-1122"
+                ],
+                "index": 0
+              },
+              {
+                "text": "The same record also says no allergy diagnosis was recorded, so the notes document a diet change but do not document a confirmed allergy.",
+                "sourceIds": [
+                  "care:fy-1122"
+                ],
+                "index": 1
+              },
+              {
+                "text": "Later March updates only confirm that she completed the rabbit-food transition and continued rabbit complete adult wet food, which still does not prove or disprove a fish allergy by itself.",
+                "sourceIds": [
+                  "care:fy-1123",
+                  "care:fy-0548"
+                ],
+                "index": 2
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 52,
+      "elapsedMs": 9693,
+      "planTier": "plus",
+      "question": "Luna has a December 2024 two-pound entry. What was weighed?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "In Luna’s December 2024 two-pound entry, what was weighed?",
+          "requirements": [
+            "Answer only what was weighed in that entry.",
+            "Keep the answer concise.",
+            "Use the requested language and format if any are implied by the user."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "records"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "period",
+        "petIds": [
+          "luna"
+        ],
+        "topic": "December 2024 two-pound entry",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "In Luna’s December 2024 two-pound entry, what was weighed?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2024-12-01T00:00:00.000Z",
+          "to": "2025-01-01T00:00:00.000Z",
+          "terms": [
+            "December  iving  urrence",
+            "two-pound",
+            "weighed",
+            "entry"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "It was Luna’s food parcel that weighed 2 lb, not her body.",
+      "beforeFinalGuard": "It was Luna’s food parcel that weighed 2 lb, not her body.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "It was Luna’s food parcel that weighed 2 lb, not her body.",
+            "sourceIds": [
+              "care:fy-1134"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Luna has a December 2024 two-pound entry. What was weighed?",
+          "referenceQuestion": "In Luna’s December 2024 two-pound entry, what was weighed?",
+          "scope": {
+            "authorizedPetIds": [
+              "luna"
+            ],
+            "requestedTopic": "December 2024 two-pound entry",
+            "requestText": "Luna has a December 2024 two-pound entry. What was weighed?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2024-12-01T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Luna"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "In Luna’s December 2024 two-pound entry, what was weighed?",
+              "requirements": [
+                "Answer only what was weighed in that entry.",
+                "Keep the answer concise.",
+                "Use the requested language and format if any are implied by the user."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "records"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "period",
+            "petIds": [
+              "luna"
+            ],
+            "topic": "December 2024 two-pound entry",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "In Luna’s December 2024 two-pound entry, what was weighed?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2024-12-01T00:00:00.000Z",
+              "to": "2025-01-01T00:00:00.000Z",
+              "terms": [
+                "December  iving  urrence",
+                "two-pound",
+                "weighed",
+                "entry"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "luna": "Luna"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "In Luna’s December 2024 two-pound entry, what was weighed?",
+            "requirements": [
+              "Answer only what was weighed in that entry.",
+              "Keep the answer concise.",
+              "Use the requested language and format if any are implied by the user."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "records"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Luna has a December 2024 two-pound entry. What was weighed?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:luna:sex",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "female",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:luna:species",
+              "sourceType": "profile",
+              "petId": "luna",
+              "text": "cat",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1134",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-1134: Luna's food parcel weighed 2 lb. This is parcel mass, not a body reading.",
+              "occurredAt": "2024-12-02T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0709",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0709: Luna's body weight was 4.29 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2024-12-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0713",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0713: Luna tolerated 5 minutes of brushing. The brush weighed 100 g; this was equipment mass.",
+              "occurredAt": "2024-12-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0710",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0710: Luna's regular main food this month was rabbit complete adult wet food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2024-12-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0711",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0711: Luna played with a ribbon-free wand toy for 12 minutes; the session ended normally.",
+              "occurredAt": "2024-12-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0712",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0712: Luna rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2024-12-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0714",
+              "sourceType": "care_update",
+              "petId": "luna",
+              "text": "Five-year test fy-0714: Luna's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2024-12-25T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "It was Luna’s food parcel that weighed 2 lb, not her body.",
+                "sourceIds": [
+                  "care:fy-1134"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 56,
+      "elapsedMs": 12084,
+      "planTier": "plus",
+      "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+          "requirements": [
+            "Answer whether the 300 mL bowl drop in April 2025 is verified as a drinking amount for Milo."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "measurement"
+        },
+        "operation": "status",
+        "readOperation": "status",
+        "selection": "reference",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "verified drinking amount",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2025-04-01T00:00:00.000Z",
+          "to": "2025-05-01T00:00:00.000Z",
+          "terms": [
+            "drink",
+            "bowl drop",
+            "verified",
+            "April  ells",
+            "mL drop"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. Here are three sample source excerpts for Milo; additional matching records are not displayed: Milo's 2025-04-04 report: \"Five-year test fy-1138: Milo's water bowl fell from 500 mL to 200 mL while alone. A spill was possible and not measured.\"\n\nMilo's 2025-04-10 report: \"Five-year test fy-0775: Milo's body weight was 27.15 kg on the clinic scale. No equipment was included.\"\n\nMilo's 2025-04-13 report: \"Five-year test fy-0776: Milo's regular main food this month was beef-and-barley adult dry food. No reason for any earlier diet choice was documented.\"",
+      "beforeFinalGuard": "I couldn't verify a complete answer to the request. Here are three sample source excerpts for Milo; additional matching records are not displayed: Milo's 2025-04-04 report: \"Five-year test fy-1138: Milo's water bowl fell from 500 mL to 200 mL while alone. A spill was possible and not measured.\"\n\nMilo's 2025-04-10 report: \"Five-year test fy-0775: Milo's body weight was 27.15 kg on the clinic scale. No equipment was included.\"\n\nMilo's 2025-04-13 report: \"Five-year test fy-0776: Milo's regular main food this month was beef-and-barley adult dry food. No reason for any earlier diet choice was documented.\"",
+      "draft": {
+        "sentences": [
+          {
+            "text": "No. In the available April 2025 record, Milo’s water bowl fell from 500 mL to 200 mL while he was alone, and the note explicitly says a spill was possible and not measured, so the 300 mL drop is not a verified drinking amount.",
+            "sourceIds": [
+              "care:fy-1138"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [
+            0
+          ],
+          "deterministicAnchorHints": [
+            {
+              "index": 0,
+              "reasons": [
+                "Unsupported quantity anchor: 300:ml. A derived value requires valid calculations metadata grounded in original source operands; otherwise qualify or remove it."
+              ]
+            }
+          ],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "referenceQuestion": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "verified drinking amount",
+            "requestText": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2025-04-01T00:00:00.000Z"
+            },
+            "requestKind": "resolution_status",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+              "requirements": [
+                "Answer whether the 300 mL bowl drop in April 2025 is verified as a drinking amount for Milo."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "status",
+            "readOperation": "status",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "verified drinking amount",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2025-04-01T00:00:00.000Z",
+              "to": "2025-05-01T00:00:00.000Z",
+              "terms": [
+                "drink",
+                "bowl drop",
+                "verified",
+                "April  ells",
+                "mL drop"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+            "requirements": [
+              "Answer whether the 300 mL bowl drop in April 2025 is verified as a drinking amount for Milo."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1138",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1138: Milo's water bowl fell from 500 mL to 200 mL while alone. A spill was possible and not measured.",
+              "occurredAt": "2025-04-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0775",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0775: Milo's body weight was 27.15 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2025-04-10T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0776",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0776: Milo's regular main food this month was beef-and-barley adult dry food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2025-04-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0777",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0777: Milo completed a 26-minute walk. The note describes this single walk, not daily activity or fitness.",
+              "occurredAt": "2025-04-16T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0778",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0778: Milo rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2025-04-19T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0779",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0779: Milo tolerated 5 minutes of brushing. The brush weighed 80 g; this was equipment mass.",
+              "occurredAt": "2025-04-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:fy-0780",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0780: Milo's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2025-04-25T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No. In the available April 2025 record, Milo’s water bowl fell from 500 mL to 200 mL while he was alone, and the note explicitly says a spill was possible and not measured, so the 300 mL drop is not a verified drinking amount.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [
+            0
+          ],
+          "deterministicAnchorHints": [
+            {
+              "index": 0,
+              "reasons": [
+                "Unsupported quantity anchor: 300:ml. A derived value requires valid calculations metadata grounded in original source operands; otherwise qualify or remove it."
+              ]
+            }
+          ],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+          "referenceQuestion": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "verified drinking amount",
+            "requestText": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2025-04-01T00:00:00.000Z"
+            },
+            "requestKind": "resolution_status",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+              "requirements": [
+                "Answer whether the 300 mL bowl drop in April 2025 is verified as a drinking amount for Milo."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "measurement"
+            },
+            "operation": "status",
+            "readOperation": "status",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "verified drinking amount",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2025-04-01T00:00:00.000Z",
+              "to": "2025-05-01T00:00:00.000Z",
+              "terms": [
+                "drink",
+                "bowl drop",
+                "verified",
+                "April  ells",
+                "mL drop"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+            "requirements": [
+              "Answer whether the 300 mL bowl drop in April 2025 is verified as a drinking amount for Milo."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "measurement"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "Is Milo's April 2025 300 mL bowl drop a verified drinking amount?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "No. In the available April 2025 record, Milo’s water bowl fell from 500 mL to 200 mL while he was alone, and the note explicitly says a spill was possible and not measured, so the 300 mL drop is not a verified drinking amount.",
+                "sourceIds": [
+                  "care:fy-1138"
+                ],
+                "index": 0
+              }
+            ]
+          },
+          "rejectionReason": "The draft’s 300 mL drop claim is not approved as written because the quantity anchor is flagged invalid and the answer needs repair to avoid unsupported derived measurement wording.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:milo:sex"
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:milo:species"
+            },
+            {
+              "sourceId": "care:fy-1138",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1138: Milo's water bowl fell from 500 mL to 200 mL while alone. A spill was possible and not measured.",
+              "occurredAt": "2025-04-04T12:00:00Z",
+              "id": "care:fy-1138"
+            },
+            {
+              "sourceId": "care:fy-0775",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0775: Milo's body weight was 27.15 kg on the clinic scale. No equipment was included.",
+              "occurredAt": "2025-04-10T12:00:00Z",
+              "id": "care:fy-0775"
+            },
+            {
+              "sourceId": "care:fy-0776",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0776: Milo's regular main food this month was beef-and-barley adult dry food. No reason for any earlier diet choice was documented.",
+              "occurredAt": "2025-04-13T12:00:00Z",
+              "id": "care:fy-0776"
+            },
+            {
+              "sourceId": "care:fy-0777",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0777: Milo completed a 26-minute walk. The note describes this single walk, not daily activity or fitness.",
+              "occurredAt": "2025-04-16T12:00:00Z",
+              "id": "care:fy-0777"
+            },
+            {
+              "sourceId": "care:fy-0778",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0778: Milo rested on the bedroom mat during a delivery visit. The observer did not record behavior outside that visit.",
+              "occurredAt": "2025-04-19T12:00:00Z",
+              "id": "care:fy-0778"
+            },
+            {
+              "sourceId": "care:fy-0779",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0779: Milo tolerated 5 minutes of brushing. The brush weighed 80 g; this was equipment mass.",
+              "occurredAt": "2025-04-22T12:00:00Z",
+              "id": "care:fy-0779"
+            },
+            {
+              "sourceId": "care:fy-0780",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-0780: Milo's owner checked the travel bag zip and washed the feeding mat. No health observation was recorded.",
+              "occurredAt": "2025-04-25T12:00:00Z",
+              "id": "care:fy-0780"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "evidenceBasis": "saved_history",
+                "outputFormat": "prose",
+                "question": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+                "requirements": [
+                  "Answer whether the 300 mL bowl drop in April 2025 is verified as a drinking amount for Milo."
+                ],
+                "referenceTurnIds": [],
+                "quantity": "measurement"
+              },
+              "operation": "status",
+              "readOperation": "status",
+              "selection": "reference",
+              "petIds": [
+                "milo"
+              ],
+              "topic": "verified drinking amount",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "For Milo, is the April 2025 300 mL bowl drop a verified drinking amount?",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": "2025-04-01T00:00:00.000Z",
+                "to": "2025-05-01T00:00:00.000Z",
+                "terms": [
+                  "drink",
+                  "bowl drop",
+                  "verified",
+                  "April  ells",
+                  "mL drop"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        }
+      ],
+      "providerCalls": 4,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 59,
+      "elapsedMs": 17905,
+      "planTier": "plus",
+      "question": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": "prose",
+          "question": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+          "requirements": [
+            "Answer using the stored history for Milo.",
+            "Explain what the count of “one” refers to in that entry."
+          ],
+          "referenceTurnIds": [],
+          "quantity": "episodes"
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "reference",
+        "petIds": [
+          "milo"
+        ],
+        "topic": "sneeze entry",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": "2025-07-07T00:00:00.000Z",
+          "to": "2025-07-08T00:00:00.000Z",
+          "terms": [
+            "sneeze",
+            "July  ick  ical"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "I couldn't verify a complete answer to the request. Here are the source excerpts for Milo: Milo's 2025-07-07 report: \"Five-year test fy-1141: Milo had one sneeze at 08:00. The word 'one' describes an event in this note.\"\n\nThis covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "beforeFinalGuard": "I couldn't verify a complete answer to the request. Here are the source excerpts for Milo: Milo's 2025-07-07 report: \"Five-year test fy-1141: Milo had one sneeze at 08:00. The word 'one' describes an event in this note.\"\n\nThis covers the matching saved notes I could verify, not necessarily every event in their life.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "In that entry, “one” counts a single sneeze event Milo had at 08:00.",
+            "sourceIds": [
+              "care:fy-1141"
+            ]
+          },
+          {
+            "text": "It does not describe a duration or a separate measurement; it is just the number of sneezes recorded in that note.",
+            "sourceIds": [
+              "care:fy-1141"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+          "referenceQuestion": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "sneeze entry",
+            "requestText": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2025-07-07T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+              "requirements": [
+                "Answer using the stored history for Milo.",
+                "Explain what the count of “one” refers to in that entry."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "episodes"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "sneeze entry",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2025-07-07T00:00:00.000Z",
+              "to": "2025-07-08T00:00:00.000Z",
+              "terms": [
+                "sneeze",
+                "July  ick  ical"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+            "requirements": [
+              "Answer using the stored history for Milo.",
+              "Explain what the count of “one” refers to in that entry."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "episodes"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:fy-1141",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1141: Milo had one sneeze at 08:00. The word 'one' describes an event in this note.",
+              "occurredAt": "2025-07-07T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "In that entry, “one” counts a single sneeze event Milo had at 08:00.",
+                "sourceIds": [
+                  "care:fy-1141"
+                ],
+                "index": 0
+              },
+              {
+                "text": "It does not describe a duration or a separate measurement; it is just the number of sneezes recorded in that note.",
+                "sourceIds": [
+                  "care:fy-1141"
+                ],
+                "index": 1
+              }
+            ]
+          }
+        },
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicAnchorHints": [],
+          "deterministicCalculationHints": [],
+          "requestAuthority": "The original question is authoritative for intent. Reject a planner-induced topic substitution even when the draft answers its paraphrase. A planner supplies no facts.",
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+          "referenceQuestion": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+          "scope": {
+            "authorizedPetIds": [
+              "milo"
+            ],
+            "requestedTopic": "sneeze entry",
+            "requestText": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?",
+            "requestedPeriod": {
+              "kind": "requested",
+              "surface": "2025-07-07T00:00:00.000Z"
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Milo"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": "prose",
+              "question": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+              "requirements": [
+                "Answer using the stored history for Milo.",
+                "Explain what the count of “one” refers to in that entry."
+              ],
+              "referenceTurnIds": [],
+              "quantity": "episodes"
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "reference",
+            "petIds": [
+              "milo"
+            ],
+            "topic": "sneeze entry",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": "2025-07-07T00:00:00.000Z",
+              "to": "2025-07-08T00:00:00.000Z",
+              "terms": [
+                "sneeze",
+                "July  ick  ical"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "milo": "Milo"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": "prose",
+            "question": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+            "requirements": [
+              "Answer using the stored history for Milo.",
+              "Explain what the count of “one” refers to in that entry."
+            ],
+            "referenceTurnIds": [],
+            "quantity": "episodes"
+          },
+          "historyAccess": {
+            "months": 60,
+            "from": "2021-09-09T00:00:00.000Z",
+            "to": "2026-09-10T00:00:00.000Z"
+          },
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What exactly is counted by 'one' in Milo's July 7, 2025 sneeze entry?"
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "subscription_history_window",
+              "bounded_period_context_not_semantic_completeness",
+              "unlinked_correction_discovery_bounded_not_complete"
+            ]
+          },
+          "losses": [],
+          "draft": {
+            "sentences": [
+              {
+                "text": "In that entry, “one” counts a single sneeze event Milo had at 08:00.",
+                "sourceIds": [
+                  "care:fy-1141"
+                ],
+                "index": 0
+              },
+              {
+                "text": "It does not describe a duration or a separate measurement; it is just the number of sneezes recorded in that note.",
+                "sourceIds": [
+                  "care:fy-1141"
+                ],
+                "index": 1
+              }
+            ]
+          },
+          "rejectionReason": "Sentence 1 adds unsupported negation about duration/separate measurement. The draft’s answer should be limited to what the source states about “one” counting a single sneeze event.",
+          "contextRecords": [
+            {
+              "sourceId": "profile:milo:sex",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "male",
+              "occurredAt": null,
+              "id": "profile:milo:sex"
+            },
+            {
+              "sourceId": "profile:milo:species",
+              "sourceType": "profile",
+              "petId": "milo",
+              "text": "dog",
+              "occurredAt": null,
+              "id": "profile:milo:species"
+            },
+            {
+              "sourceId": "care:fy-1141",
+              "sourceType": "care_update",
+              "petId": "milo",
+              "text": "Five-year test fy-1141: Milo had one sneeze at 08:00. The word 'one' describes an event in this note.",
+              "occurredAt": "2025-07-07T12:00:00Z",
+              "id": "care:fy-1141"
+            }
+          ],
+          "evidenceContract": {
+            "interpretation": {
+              "version": "ask-interpretation.v1",
+              "request": {
+                "version": "ask-request.v2",
+                "mode": "read",
+                "evidenceBasis": "saved_history",
+                "outputFormat": "prose",
+                "question": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+                "requirements": [
+                  "Answer using the stored history for Milo.",
+                  "Explain what the count of “one” refers to in that entry."
+                ],
+                "referenceTurnIds": [],
+                "quantity": "episodes"
+              },
+              "operation": "recall",
+              "readOperation": "recall",
+              "selection": "reference",
+              "petIds": [
+                "milo"
+              ],
+              "topic": "sneeze entry",
+              "readOnly": true,
+              "clarification": null,
+              "referenceQuestion": "What exactly is counted by “one” in Milo’s July 7, 2025 sneeze entry?",
+              "episodeTopic": null,
+              "ordinal": null,
+              "history": {
+                "from": "2025-07-07T00:00:00.000Z",
+                "to": "2025-07-08T00:00:00.000Z",
+                "terms": [
+                  "sneeze",
+                  "July  ick  ical"
+                ],
+                "interpretation": "lexical"
+              }
+            }
+          }
+        }
+      ],
+      "providerCalls": 4,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 142,
+      "elapsedMs": 5855,
+      "planTier": "plus",
+      "question": "Fictional exercise only; do not save or apply this to my pets. The names are 'Dot, II' and 'Reed', with masses 1 and 2 kg. Return CSV only, header pet,kg.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "csv",
+          "question": "Return CSV only with header pet,kg for the fictional names Dot, II and Reed and their masses 1 and 2 kg.",
+          "requirements": [
+            "Return CSV only.",
+            "Include the header pet,kg.",
+            "Use the fictional names Dot, II and Reed with masses 1 and 2 kg.",
+            "Do not save or apply this to the user's pets."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "fictional pet mass CSV",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Return CSV only with header pet,kg for the fictional names Dot, II and Reed and their masses 1 and 2 kg.",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "pet,kg\n\"Dot, II\",1\nReed,2",
+      "beforeFinalGuard": "pet,kg\n\"Dot, II\",1\nReed,2",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 188,
+      "elapsedMs": 5812,
+      "planTier": "plus",
+      "question": "Without changing anything, explain what information you'd need before correcting one saved history entry.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "general",
+          "outputFormat": "prose",
+          "question": "What information would be needed before correcting one saved history entry, without changing anything?",
+          "requirements": [
+            "Explain what information is needed before a correction can be made.",
+            "Do not change any saved history entry.",
+            "Use a prose answer."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "saved history entry correction",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What information would be needed before correcting one saved history entry, without changing anything?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "I wouldn’t change anything yet. To correct one saved history entry, I’d need:\n1. Which entry you want corrected (date, pet, or a unique description of the entry).\n2. The exact field that needs correction and the exact replacement text or value.\n3. Whether only that one field should change, or if any other linked details should stay the same.\n4. Any supporting context that helps identify the right entry if there are similar notes.\n\nIf you want, send the entry and the single correction you want made, and I can help you format it clearly.",
+      "beforeFinalGuard": "I wouldn’t change anything yet. To correct one saved history entry, I’d need:\n1. Which entry you want corrected (date, pet, or a unique description of the entry).\n2. The exact field that needs correction and the exact replacement text or value.\n3. Whether only that one field should change, or if any other linked details should stay the same.\n4. Any supporting context that helps identify the right entry if there are similar notes.\n\nIf you want, send the entry and the single correction you want made, and I can help you format it clearly.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 190,
+      "elapsedMs": 5562,
+      "planTier": "plus",
+      "question": "A novel mentions a cat named Milo who owns a spaceship. Should that become a fact about my saved Milo?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "general",
+          "outputFormat": "prose",
+          "question": "Should a fictional mention in a novel about a cat named Milo who owns a spaceship be treated as a saved fact about the user's stored pet Milo?",
+          "requirements": [
+            "Answer the policy question directly",
+            "Distinguish fictional text from saved pet facts",
+            "Do not treat the novel's mention as an owned-pet fact"
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "whether fictional novel content should become a saved fact about Milo",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Should a fictional mention in a novel about a cat named Milo who owns a spaceship be treated as a saved fact about the user's stored pet Milo?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "No. A cat named Milo in a novel should be treated as fiction, not as a fact about your saved Milo, unless you explicitly confirm that it applies to your pet",
+      "beforeFinalGuard": "No. A cat named Milo in a novel should be treated as fiction, not as a fact about your saved Milo, unless you explicitly confirm that it applies to your pet. If you want, I can help separate fictional details from real pet history.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 200,
+      "elapsedMs": 5330,
+      "planTier": "plus",
+      "question": "Give a concise explanation of what your answers can and cannot establish from incomplete pet history.",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "general",
+          "outputFormat": "prose",
+          "question": "Give a concise explanation of what answers can and cannot establish from incomplete pet history.",
+          "requirements": [
+            "Be concise.",
+            "Explain both what can be established and what cannot be established from incomplete pet history.",
+            "Use plain language."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "what answers can and cannot establish from incomplete pet history",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "Give a concise explanation of what answers can and cannot establish from incomplete pet history.",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "From incomplete pet history, my answers can establish only what the available records, observations, or dates actually show. They can summarize documented events, compare known timestamps, and point out what is missing or uncertain.\n\nThey cannot establish things that were never observed or recorded, such as exact onset, duration, recovery date, total intake/output, absence of a symptom, or a causal explanation from timing alone. A gap in history is still an unknown gap, not proof that nothing happened",
+      "beforeFinalGuard": "From incomplete pet history, my answers can establish only what the available records, observations, or dates actually show. They can summarize documented events, compare known timestamps, and point out what is missing or uncertain.\n\nThey cannot establish things that were never observed or recorded, such as exact onset, duration, recovery date, total intake/output, absence of a symptom, or a causal explanation from timing alone. A gap in history is still an unknown gap, not proof that nothing happened.\n\nIf you want, I can help you separate “known,” “unknown,” and “not supported by the record” for a specific pet timeline.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

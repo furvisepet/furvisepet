@@ -1,0 +1,17 @@
+{
+  "frozenAt": "2026-09-09T20:22:51.605Z",
+  "applicationHead": "e33f5dab66b8ec6e517395ef83148538e8505543",
+  "applicationTree": "d5986c48f52da76c9b62a6ecf5a26712c5d499dc",
+  "runnerCommit": "272e8ff42e43faa12626577e603a1c1de2ba6065",
+  "cases": 200,
+  "fixtureRows": 1169,
+  "questionsSha256": "6866de4804b8e5e390425118449d65385136277effe4fc702370b8590cb30c2f",
+  "fixtureSha256": "8cb1b8d26b8e6be8086a59f71ce2d68f5e98aac91db0bc243b1400d5069fed7b",
+  "syntheticDate": "2026-09-09T12:00:00Z",
+  "budgetCapUsd": 4.6,
+  "priorAdditionalSpendUsd": 0.385623,
+  "execution": "Same real-model/core pipeline with synthetic database; not production route/browser. Wait for production READY on same application tree. Existing project API credential stays on original computer.",
+  "admission": "Actual production admission with an in-memory accounting store. A monotonic getter preserves the provider deadline while the evidence date is frozen. Original benchmark used a hand-written admission adapter; report this stronger admission coverage as a protocol difference.",
+  "grading": "All first attempts against original frozen expected criteria. No manual retries or post-hoc changes. Retain original score163/200 and all original artifacts. Count any error/partial as non-pass; report unrun questions if spending/access/transport stops the run.",
+  "safety": "No production history changes. Synthetic persistence only; record accepted action counts. Restrict provider network to api.openai.com; no tools. Reserve a conservative full-input/no-cache upper bound before each call; preserve unreconciled failures."
+}

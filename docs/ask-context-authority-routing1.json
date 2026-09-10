@@ -1,0 +1,355 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "routing1",
+  "turns": [
+    {
+      "id": 30,
+      "question": "For Luna’s latest recorded food, return exactly one line with this format: Pet | Food | Allergy diagnosed in record?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "What is Luna’s latest recorded food, and is an allergy diagnosed in that record?",
+          "requirements": [
+            "Return exactly one line.",
+            "Use the format: Pet | Food | Allergy diagnosed in record?",
+            "Do not add any extra text."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "latest",
+        "petIds": [],
+        "topic": "Luna latest recorded food",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What is Luna’s latest recorded food, and is an allergy diagnosed in that record?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "Luna | unavailable | unavailable",
+      "beforeFinalGuard": "Luna | unavailable | unavailable",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    },
+    {
+      "id": 34,
+      "question": "oscr sofa latest pls; dont give milo stuff, just oscr",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "read",
+          "evidenceBasis": "saved_history",
+          "outputFormat": null,
+          "question": "What is Oscar's latest record about sofa?",
+          "requirements": [
+            "Focus on Oscar only.",
+            "Exclude any Milo records.",
+            "Return the latest matching record."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "recall",
+        "readOperation": "recall",
+        "selection": "latest",
+        "petIds": [
+          "oscar"
+        ],
+        "topic": "sofa",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "What is Oscar's latest record about sofa?",
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": {
+          "from": null,
+          "to": null,
+          "terms": [
+            "Oscar",
+            "sofa"
+          ],
+          "interpretation": "lexical"
+        }
+      },
+      "answer": "Oscar’s latest sofa record says he is now getting onto the sofa without hesitating and has looked comfortable for the last three days, recorded on 2026-09-04.",
+      "beforeFinalGuard": "Oscar’s latest sofa record says he is now getting onto the sofa without hesitating and has looked comfortable for the last three days, recorded on 2026-09-04.",
+      "draft": {
+        "sentences": [
+          {
+            "text": "Oscar’s latest sofa record says he is now getting onto the sofa without hesitating and has looked comfortable for the last three days, recorded on 2026-09-04.",
+            "sourceIds": [
+              "care:diag-42"
+            ]
+          }
+        ]
+      },
+      "reviewInputs": [
+        {
+          "deterministicInvalidSentenceIndexes": [],
+          "deterministicCalculationHints": [],
+          "today": "2026-09-09T12:00:00.000Z",
+          "question": "oscr sofa latest pls; dont give milo stuff, just oscr",
+          "referenceQuestion": "What is Oscar's latest record about sofa?",
+          "scope": {
+            "authorizedPetIds": [
+              "oscar"
+            ],
+            "requestedTopic": "sofa",
+            "requestText": "oscr sofa latest pls; dont give milo stuff, just oscr",
+            "requestedPeriod": {
+              "kind": "unspecified",
+              "surface": null
+            },
+            "requestKind": "ordinary",
+            "readOnlyRecall": true,
+            "status": "resolved",
+            "resolutionSubject": "Oscar"
+          },
+          "plan": {
+            "version": "ask-interpretation.v1",
+            "request": {
+              "version": "ask-request.v2",
+              "mode": "read",
+              "evidenceBasis": "saved_history",
+              "outputFormat": null,
+              "question": "What is Oscar's latest record about sofa?",
+              "requirements": [
+                "Focus on Oscar only.",
+                "Exclude any Milo records.",
+                "Return the latest matching record."
+              ],
+              "referenceTurnIds": [],
+              "quantity": null
+            },
+            "operation": "recall",
+            "readOperation": "recall",
+            "selection": "latest",
+            "petIds": [
+              "oscar"
+            ],
+            "topic": "sofa",
+            "readOnly": true,
+            "clarification": null,
+            "referenceQuestion": "What is Oscar's latest record about sofa?",
+            "episodeTopic": null,
+            "ordinal": null,
+            "history": {
+              "from": null,
+              "to": null,
+              "terms": [
+                "Oscar",
+                "sofa"
+              ],
+              "interpretation": "lexical"
+            }
+          },
+          "petNames": {
+            "oscar": "Oscar"
+          },
+          "request": {
+            "version": "ask-request.v2",
+            "mode": "read",
+            "evidenceBasis": "saved_history",
+            "outputFormat": null,
+            "question": "What is Oscar's latest record about sofa?",
+            "requirements": [
+              "Focus on Oscar only.",
+              "Exclude any Milo records.",
+              "Return the latest matching record."
+            ],
+            "referenceTurnIds": [],
+            "quantity": null
+          },
+          "historyAccess": null,
+          "execution": {
+            "readOnly": true,
+            "mutationAuthority": false
+          },
+          "obligations": [
+            {
+              "index": 0,
+              "text": "What is Oscar's latest record about sofa?"
+            },
+            {
+              "index": 1,
+              "text": "Focus on Oscar only."
+            },
+            {
+              "index": 2,
+              "text": "Exclude any Milo records."
+            },
+            {
+              "index": 3,
+              "text": "Return the latest matching record."
+            }
+          ],
+          "coverage": {
+            "retrieval": "unknown",
+            "corrections": "unknown",
+            "reasons": [
+              "lexical_or_period_matches_not_semantic_completeness",
+              "no_cross_query_snapshot",
+              "bounded_period_context_not_semantic_completeness"
+            ],
+            "chronology": [
+              {
+                "petId": "oscar",
+                "boundaryIds": [
+                  "care:diag-42"
+                ],
+                "blocked": false
+              }
+            ]
+          },
+          "losses": [],
+          "sources": [
+            {
+              "sourceId": "profile:oscar:sex",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "male",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "profile:oscar:species",
+              "sourceType": "profile",
+              "petId": "oscar",
+              "text": "dog",
+              "occurredAt": null
+            },
+            {
+              "sourceId": "care:diag-42",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is now getting onto the sofa without hesitating and has looked comfortable for the last three days.",
+              "occurredAt": "2026-09-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-41",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar still enjoys two shorter walks each day. He occasionally hesitates at the sofa. His appetite is normal and he weighs 7.1 kg.",
+              "occurredAt": "2026-09-03T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-39",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is moving more comfortably on the shorter walks, but he still hesitates before jumping onto the sofa.",
+              "occurredAt": "2026-08-18T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-33",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar hesitated before jumping onto the sofa twice this week. He is still willing to walk. I do not know why he hesitated.",
+              "occurredAt": "2026-06-11T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-40",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: We had a follow-up vet visit for Oscar's recurring stiffness. The vet asked us to keep observing his comfort and activity. I have not recorded a diagnosis or any new medication instructions here.",
+              "occurredAt": "2026-08-27T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-38",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar seemed stiff again after a much longer walk than usual yesterday. This is the first stiffness I have noticed since late June.",
+              "occurredAt": "2026-08-12T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-37",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.1 kg today. His appetite is normal and he is still eating chicken-and-rice senior food.",
+              "occurredAt": "2026-07-20T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-36",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar is getting up comfortably again and is willing to take his normal walks. I have not noticed stiffness this week.",
+              "occurredAt": "2026-07-01T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-35",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar finished the seven-day medication course today. He has seemed more comfortable over the last few days.",
+              "occurredAt": "2026-06-24T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-34",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: The vet examined Oscar because of the stiffness. We were given a seven-day medication course and told to return if the problem continued. I have not recorded the medication name, dose or a diagnosis here.",
+              "occurredAt": "2026-06-17T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-32",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Note: Oscar weighed 7.2 kg today. He eats chicken-and-rice senior dry food and usually enjoys two 20-minute walks.",
+              "occurredAt": "2026-06-04T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-31",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 travel-bag: Oscar’s travel bag weighed 6 lb. This was not Oscar’s body weight.",
+              "occurredAt": "2026-05-22T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-30",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-later: Oscar completed an 18-minute walk with two sniffing pauses. No cause for the difference in walk length was recorded.",
+              "occurredAt": "2023-03-13T12:00:00Z"
+            },
+            {
+              "sourceId": "care:diag-29",
+              "sourceType": "care_update",
+              "petId": "oscar",
+              "text": "Synthetic benchmark 2026-09-09 walk-old: Oscar completed a 12-minute walk with one sniffing pause and no observed limp.",
+              "occurredAt": "2021-10-07T12:00:00Z"
+            }
+          ],
+          "draft": {
+            "sentences": [
+              {
+                "text": "Oscar’s latest sofa record says he is now getting onto the sofa without hesitating and has looked comfortable for the last three days, recorded on 2026-09-04.",
+                "sourceIds": [
+                  "care:diag-42"
+                ],
+                "index": 0
+              }
+            ]
+          }
+        }
+      ],
+      "providerCalls": 3,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}

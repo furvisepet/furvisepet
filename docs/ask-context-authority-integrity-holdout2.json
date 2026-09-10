@@ -1,0 +1,50 @@
+{
+  "syntheticDatabase": true,
+  "realProviders": true,
+  "phase": "integrity-holdout2",
+  "turns": [
+    {
+      "id": 5,
+      "question": "Fictional study: one household changed food, feeding time, and bowl location together. Appetite improved afterward. Which individual change has been proven responsible?",
+      "plan": {
+        "version": "ask-interpretation.v1",
+        "request": {
+          "version": "ask-request.v2",
+          "mode": "conversation",
+          "evidenceBasis": "supplied_context",
+          "outputFormat": "prose",
+          "question": "In the fictional study, one household changed food, feeding time, and bowl location together; appetite improved afterward. Which individual change has been proven responsible?",
+          "requirements": [
+            "Answer in prose.",
+            "State whether any single change has been proven responsible.",
+            "If not, say that the evidence only supports the combined change and does not isolate one factor.",
+            "Use English."
+          ],
+          "referenceTurnIds": [],
+          "quantity": null
+        },
+        "operation": "general",
+        "readOperation": "general",
+        "selection": "summary",
+        "petIds": [],
+        "topic": "causal attribution for combined household changes",
+        "readOnly": true,
+        "clarification": null,
+        "referenceQuestion": "In the fictional study, one household changed food, feeding time, and bowl location together; appetite improved afterward. Which individual change has been proven responsible?",
+        "conversationOnly": true,
+        "episodeTopic": null,
+        "ordinal": null,
+        "history": null
+      },
+      "answer": "No single change has been proven responsible. Because the household changed food, feeding time, and bowl location at the same time, the later improvement in appetite only shows an association with the combined changes-not which individual change caused it, or whether all three contributed.",
+      "beforeFinalGuard": "No single change has been proven responsible. Because the household changed food, feeding time, and bowl location at the same time, the later improvement in appetite only shows an association with the combined changes-not which individual change caused it, or whether all three contributed.",
+      "reviewInputs": [],
+      "providerCalls": 2,
+      "writeCounts": {
+        "care": 0,
+        "memory": 0,
+        "events": 0
+      }
+    }
+  ]
+}
