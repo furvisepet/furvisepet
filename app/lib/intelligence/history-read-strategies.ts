@@ -1,9 +1,10 @@
+import type { EvidenceNeed } from "./evidence-needs.ts";
 import { explicitHistoryDays } from "./explicit-history-dates.ts";
 type Window = { from: string | null; to: string | null };
-export type HistoryReadStrategy = Window & { descending: boolean; lexical: boolean; terms: string[]; target?: string };
+export type HistoryReadStrategy = Window & { descending: boolean; lexical: boolean; terms: string[]; target?: string; needId?: string };
 /** Date targets and ordering are independent. Targets narrow the authorized
  * window; they never expand access, synthesize facts or change query budgets. */
-export function compileHistoryReadStrategies(question: string, year: number, window: Window, proposed: HistoryReadStrategy[], pageBudget: number) {
+export function compileHistoryReadStrategies(question: string, year: number, window: Window, proposed: HistoryReadStrategy[], pageBudget: number, needs: readonly EvidenceNeed[] = []) {
   const days = [...new Set([...explicitHistoryDays(question, year, 8), ...(question.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])])]
     .filter(day => Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0, 10) === day).sort();
   const targets = days.map(day => {
@@ -13,9 +14,23 @@ export function compileHistoryReadStrategies(question: string, year: number, win
   }).filter(target => target.from < target.to && (target.from !== window.from || target.to !== window.to));
   // Retain a global strategy even with many anchors. Excess targets are an
   // explicit coverage loss, never silently treated as an absent record.
-  const reserved = targets.slice(0, Math.max(0, pageBudget - 1));
+  const facets: HistoryReadStrategy[] = needs.filter(need => need.terms.length).map(need => ({
+    ...window, needId: need.id, descending: need.order === "earliest" ? false : need.order === "latest" ? true : proposed.some(strategy => strategy.descending), lexical: true, terms: need.terms,
+  }));
+  const specialized: HistoryReadStrategy[] = [];
+  for (let index = 0; index < Math.max(targets.length, facets.length); index++) {
+    if (targets[index]) specialized.push(targets[index]);
+    if (facets[index]) specialized.push(facets[index]);
+  }
+  const reserved = specialized.slice(0, Math.max(0, pageBudget - 1));
+  const omitted = specialized.slice(reserved.length);
   const remaining = pageBudget - reserved.length;
-  const broad = proposed.length <= remaining ? proposed
+  const broad = proposed.length <= remaining ? [...proposed]
     : [...proposed].sort((a, b) => Number(b.descending) - Number(a.descending) || Number(b.lexical) - Number(a.lexical)).slice(0, remaining);
-  return { strategies: [...reserved, ...broad], omittedTargets: targets.slice(reserved.length).map(t => t.target) };
+  if (needs.length && broad.length && broad.every(strategy => strategy.lexical)) {
+    const periodContext = proposed.find(strategy => !strategy.lexical && strategy.descending) || proposed.find(strategy => !strategy.lexical);
+    if (periodContext) broad[broad.length - 1] = periodContext;
+  }
+  return { strategies: [...reserved, ...broad], omittedTargets: omitted.flatMap(t => t.target ? [t.target] : []),
+    omittedNeeds: omitted.flatMap(t => t.needId ? [t.needId] : []) };
 }

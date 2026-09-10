@@ -1,3 +1,4 @@
+import { buildEvidenceNeedCoverage, type NeedCoverage } from "./evidence-need-coverage.ts";
 import { historyEventTerms, historyEventRelevance } from "./history-query-relevance.ts";
 import { directHistoryExplanation } from "./direct-history-explanation.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
@@ -30,6 +31,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  needCoverage?: NeedCoverage[];
   historyAccess?: import("./history-access.ts").AskHistoryAccess;
   answerSourceIds?: string[];
   /** Server-validated report renderings; never taken from provider JSON. */
@@ -172,6 +174,7 @@ export function refreshEvidenceCoverage(contract: AskEvidenceContract): AskEvide
   };
   contract.completeness = { retrieval: combine("retrieval"), corrections: combine("corrections"), extraction: combine("extraction"), grouping: combine("grouping") };
   contract.representation = contract.losses.length ? "partial" : "complete";
+  if (contract.interpretation?.request?.evidenceNeeds?.length) contract.needCoverage = buildEvidenceNeedCoverage(contract);
   return contract;
 }
 
