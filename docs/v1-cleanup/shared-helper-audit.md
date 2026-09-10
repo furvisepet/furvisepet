@@ -155,3 +155,71 @@ Final-pass validation: **2,062 tests passed**, zero failures/skips; TypeScript
 and production build passed; ESLint has zero errors and the five existing
 warnings; `git diff --check` passed. No live provider benchmark or authenticated
 browser acceptance run was performed. No merge or deployment is included.
+
+
+## Unused internal code cleanup
+
+This pass removes 87 unreferenced declarations from 26 active modules, plus
+orphaned imports. Application source shrinks by 716 net lines; no application
+file, route, migration, dependency, or framework entry point is deleted. The file
+category inventory remains valid. Factual validation, write authorization,
+idempotency, billing settlement, and evidence receipts retain their own owners.
+
+Candidates were checked against references across application code, tests and
+audit scripts, including named, namespace and dynamic imports. References were
+rechecked after removing callers to identify orphaned helper chains. TypeScript's
+additional `--noUnusedLocals` diagnostic and ESLint caught remaining local
+imports and label maps. AST comparison confirms that all 443 retained top-level
+non-import statements in the edited modules have identical source text.
+
+The major removals are the unused Today focus/suggestion engine and its helpers,
+retired mock-product types, obsolete navigation-collapse logic, unused AI context
+loaders, and compatibility aliases/browser wrappers that have no callers.
+Legacy memory API routes remain: the active memory-management page still uses
+the authenticated, idempotent gateway. Types used internally or by tests remain;
+absence of a framework import alone is not sufficient evidence for deletion.
+
+Three existing source-contract tests were updated to follow the active readers
+and memory-management gateway. They continue checking memory eligibility,
+soft-deletion filters, bearer authentication and API writes. The concern-only
+loader is now explicitly checked to avoid legacy-memory and care-entry reads.
+
+Removed declarations (paths relative to the repository root):
+
+| File | Removed declarations |
+| --- | --- |
+| `app/lib/ai/config.ts` | `AiProviderName`, `getAiProviderName`, `getAiRuntimeDiagnostics` |
+| `app/lib/ai/context-builder.ts` | `loadPetContext`, `loadRecentCareEvents`, `loadRememberedDetails` |
+| `app/lib/ai/turn-classifier.ts` | `assertedRecoveryClauses`, `isDeterministicTurn` |
+| `app/lib/ai/usage-ledger.ts` | `getAiCreditEventState` |
+| `app/lib/ask.mjs` | `askResponseJsonSchema` |
+| `app/lib/auth-identity.ts` | `friendlyOAuthError` |
+| `app/lib/billing/plan-limits.ts` | `evaluateProductsAiUsageLimit` |
+| `app/lib/care-log.mjs` | `CARE_ENTRY_SEVERITY_LABELS`, `buildDashboardCareEntries`, `buildDashboardCareSectionState`, `formatCareEntrySeverity` |
+| `app/lib/furvise-output.ts` | `buildFurviseActionConfirmation`, `buildFurviseCorrectionConfirmation` |
+| `app/lib/furvise-voice.ts` | `FURVISE_RESULTS_PROMPT_RULES` |
+| `app/lib/intelligence/episode-history.ts` | `isEpisodeFollowUp` |
+| `app/lib/intelligence/episodes/types.ts` | `EpisodeAssignment`, `EpisodeEvent`, `EpisodeRelation` |
+| `app/lib/intelligence/pet-state/types.ts` | `StateEpisode`, `StateReduction` |
+| `app/lib/intelligence/v2/governance/evidence.ts` | `evidenceForPersistence` |
+| `app/lib/intelligence/v2/types.ts` | `ServerOwnedClaimAuthority` |
+| `app/lib/navigation/mobile-navigation.ts` | `MOBILE_NAVIGATION_IDLE_EXPAND_MS`, `MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX`, `MobileNavigationState`, `resolveMobileNavigationState` |
+| `app/lib/pet-profile-file.ts` | `ProfileAboutSource`, `buildPetProfileAboutDetails` |
+| `app/lib/petwise.ts` | `InternalConcernTag`, `MockProduct`, `PRODUCT_SOURCES`, `ProductCategory`, `ProductEnrichmentStatus`, `ProductSource`, `ProductVerificationSource`, `RecommendationKind` |
+| `app/lib/security/auth-abuse/recovery-fragment.mjs` | `RECOVERY_FRAGMENT_LIMITS` |
+| `app/lib/security/auth-abuse/responses.ts` | `idempotencyConflictResponse` |
+| `app/lib/security/headers/security-headers.ts` | `applySecurityHeaders` |
+| `app/lib/security/idempotency/request-key.ts` | `createIdempotencyKey` |
+| `app/lib/security/rate-limit/keys.ts` | `getRateLimitRequestId`, `isUuid` |
+| `app/lib/supabase.ts` | `MemoryInput`, `PetMemoryRow`, `PetProductFeedbackRow`, `PetProfileRow`, `PetProfileWithMemories`, `ProductFeedbackInput`, `SaveDogMemoriesResult`, `ToggleProductFeedbackResult`, `countDogProfilesForUser`, `countPetProfilesForUser`, `deleteDogMemoriesForUser`, `deleteDogMemoryForUser`, `deletePetProfileForUser`, `isRecentAuthenticationRequiredError`, `loadPetProductFeedbackForUser`, `loadPetProfileForUser`, `loadPetProfileWithMemoriesForUser`, `loadPetProfilesWithMemories`, `petProfileRowToDraft`, `saveDogMemories`, `savePetMemories`, `toggleProductFeedbackForUser` |
+| `app/lib/today.ts` | `REPEATED_CONCERNS`, `TODAY_EVERYTHING_NORMAL_ACTION`, `TodayFocus`, `TodayFocusInput`, `buildDefaultTodayFocus`, `buildFallbackTodayFocus`, `buildTodayCareNote`, `buildTodayFocus`, `findRepeatedConcern`, `findUpcomingVetVisit`, `formatVisitTiming`, `hasMeaningfulMissingProfileContext`, `hasRecentFoodChange`, `hasRecentMeaningfulActivity`, `isPastWithinDays`, `toggleTodayQuickAction` |
+| `app/lib/visual-system.ts` | `CARE_CATEGORY_SURFACES`, `getCareCategoryVisual` |
+
+Validation: **2,062 tests passed**, zero failures/skips; normal TypeScript check
+and production build passed; zero unresolved relative imports. ESLint's only
+new warning (the orphaned severity-label map) was removed; a focused rerun is
+clean, leaving the same five pre-existing warnings elsewhere. The additional
+`--noUnusedLocals` probe reports one pre-existing private `metrics` field in
+`ai/usage-guard/admission.ts`; that class and its constructor assignment are
+unchanged. No test, safeguard or validation gate was disabled. `git diff --check`
+passes. No live-provider, database or authenticated-browser test was performed.

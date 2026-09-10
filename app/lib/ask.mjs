@@ -7,36 +7,6 @@ const URGENT_CONTEXT_PATTERN =
 const PRODUCT_CONTEXT_PATTERN =
   /\b(product|food|brand|recommend|worked|tried|expensive)\b/i;
 
-export const askResponseJsonSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["title", "summary", "sections", "safetyNote"],
-  properties: {
-    title: { type: "string", maxLength: 120 },
-    summary: { type: "string", maxLength: 800 },
-    sections: {
-      type: "array",
-      maxItems: 6,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["heading", "items"],
-        properties: {
-          heading: { type: "string", maxLength: 100 },
-          items: {
-            type: "array",
-            maxItems: 8,
-            items: { type: "string", maxLength: 500 },
-          },
-        },
-      },
-    },
-    safetyNote: {
-      anyOf: [{ type: "string", maxLength: 500 }, { type: "null" }],
-    },
-  },
-};
-
 export const ASK_ANSWER_TYPES = [
   "direct_answer",
   "care_plan",

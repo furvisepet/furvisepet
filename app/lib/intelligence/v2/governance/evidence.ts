@@ -29,13 +29,3 @@ export function groundV2Evidence(frame: ProposedSemanticFrame, sourceMessage: st
   return { frame: result.frame, groundedByClaim, rejectedByClaim };
 }
 
-/** SQL persistence uses zero-based Unicode scalar offsets, not JavaScript UTF-16 offsets. */
-export function evidenceForPersistence(sourceMessage: string, evidence: GroundedSemanticEvidence[]) {
-  return evidence.map((item) => ({
-    start: Array.from(sourceMessage.slice(0, item.start)).length,
-    end: Array.from(sourceMessage.slice(0, item.end)).length,
-    excerpt: item.quote,
-    alignment: item.alignment,
-  }));
-}
-

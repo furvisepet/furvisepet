@@ -1,7 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 export const IDEMPOTENCY_HEADER = "idempotency-key";
 
 export function resolveIdempotencyKey(request: Request, candidate?: unknown):
@@ -15,10 +13,6 @@ export function resolveIdempotencyKey(request: Request, candidate?: unknown):
   if (rawHeader) return { key: rawHeader.toLowerCase(), source: "header" as const };
   if (candidateKey) return { key: candidateKey.toLowerCase(), source: "legacy_body" as const };
   return { error: "required" as const };
-}
-
-export function createIdempotencyKey() {
-  return randomUUID();
 }
 
 export function isIdempotencyKey(value: string) {

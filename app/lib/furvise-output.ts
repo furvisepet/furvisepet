@@ -59,16 +59,8 @@ export function buildFurviseClarification(candidateNames: string[]) {
   return `Do you mean ${names.slice(0, -1).join(", ")}, or ${names.at(-1)}?`;
 }
 
-export function buildFurviseCorrectionConfirmation(detail: string) {
-  return `Thanks for correcting that. ${String(detail || "I'll use the corrected detail from here.").trim()}`;
-}
-
 export function buildFurvisePreferenceConfirmation(detail: string) {
   return `Got it. ${String(detail || "I'll use that preference from here.").trim()}`;
-}
-
-export function buildFurviseActionConfirmation(detail: string) {
-  return `${String(detail || "That change is ready for your confirmation.").trim()} Nothing changes until you confirm it.`;
 }
 
 export function buildFurviseQuotaMessage() {
@@ -159,7 +151,6 @@ export function parseCsvRecords(text: string): string[][] | null {
   if (rows.length < 2 || rows[0].length < 2 || rows.some(r => r.length !== rows[0].length)) return null;
   return rows;
 }
-
 
 /** Layout changes only: no factual paraphrase, truncation, duplication or reordering. */
 type Layout = { style: "paragraph" | "bullets" | "numbered" | "lines"; count?: number };
@@ -270,7 +261,6 @@ export function presentHistoryLimitation(prose: string, limitation: string, ques
   return [prose, limitation].filter(Boolean).join('\n\n');
 }
 
-
 export const SAVED_NOTES_HEADING = "Saved notes";
 
 /** Keep a declined answer honest without making raw records the companion's
@@ -318,7 +308,6 @@ export function stripKnownHistoryCitations(text: string, ids: Set<string>): stri
     return tokens.length && tokens.every(token => ids.has(token)) ? "" : match;
   });
 }
-
 
 export type AskFailureCode =
   | "INVALID_CURRENT_INPUT"

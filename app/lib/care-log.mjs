@@ -22,12 +22,6 @@ const CARE_ENTRY_CATEGORY_LABELS = {
   general: "General",
 };
 
-const CARE_ENTRY_SEVERITY_LABELS = {
-  mild: "Mild",
-  moderate: "Moderate",
-  severe: "Severe",
-};
-
 export function normalizeCareEntryDraft(input) {
   return {
     petProfileId: typeof input.petProfileId === "string" ? input.petProfileId.trim() : "",
@@ -84,11 +78,6 @@ export function getSevereSymptomCautionMessage(entry) {
 
 export function formatCareEntryCategory(category) {
   return CARE_ENTRY_CATEGORY_LABELS[category] || humanizeValue(category);
-}
-
-export function formatCareEntrySeverity(severity) {
-  if (!severity) return "";
-  return CARE_ENTRY_SEVERITY_LABELS[severity] || humanizeValue(severity);
 }
 
 /**
@@ -183,38 +172,6 @@ export function prepareCareEntryInputForTransport(input) {
 
 export function sortCareEntriesNewestFirst(entries) {
   return [...entries].sort(compareCareEntriesNewestFirst);
-}
-
-export function buildDashboardCareEntries(entries, petNameById = new Map()) {
-  return [...entries]
-    .sort(compareCareEntriesNewestFirst)
-    .slice(0, 5)
-    .map((entry) => ({
-      ...entry,
-      petName: petNameById.get(entry.pet_profile_id) || "Unknown pet",
-    }));
-}
-
-export function buildDashboardCareSectionState({
-  hasPets,
-  entries,
-  petNameById,
-}) {
-  if (!hasPets) {
-    return {
-      actionHref: null,
-      entries: [],
-      emptyMessage: "Add a pet first to start logging real care updates.",
-      hasPets: false,
-    };
-  }
-
-  return {
-    actionHref: "/history",
-    entries: buildDashboardCareEntries(entries, petNameById),
-    emptyMessage: "No care updates have been logged yet.",
-    hasPets: true,
-  };
 }
 
 /**

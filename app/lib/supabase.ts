@@ -59,8 +59,6 @@ export type DogProfileRow = {
   updated_at: string;
 };
 
-export type PetProfileRow = DogProfileRow;
-
 export type DogMemoryRow = {
   id: string;
   user_id: string;
@@ -73,8 +71,6 @@ export type DogMemoryRow = {
   status?: "active" | "superseded" | "rejected";
   superseded_by?: string | null;
 };
-
-export type PetMemoryRow = DogMemoryRow;
 
 export type ProductFeedbackType =
   | "saved"
@@ -94,8 +90,6 @@ export type DogProductFeedbackRow = {
   note: string | null;
   created_at: string;
 };
-
-export type PetProductFeedbackRow = DogProductFeedbackRow;
 
 export type UserProfileRow = {
   user_id: string;
@@ -186,36 +180,10 @@ export type DogProfileWithMemories = DogProfileRow & {
   dog_product_feedback?: DogProductFeedbackRow[];
 };
 
-export type PetProfileWithMemories = DogProfileWithMemories;
-
 export type CanonicalRememberedDetailsRows = {
   canonical: FurviseMemoryRow[];
   legacy: DogMemoryRow[];
 };
-
-export type MemoryInput = {
-  type: string;
-  text: string;
-  confidence: string;
-  source?: string;
-};
-
-export type SaveDogMemoriesResult = {
-  saved: DogMemoryRow[];
-  skippedDuplicates: number;
-};
-
-export type ProductFeedbackInput = {
-  dogProfileId: string;
-  productId: string;
-  productName: string;
-  feedbackType: ProductFeedbackType;
-  note?: string;
-};
-
-export type ToggleProductFeedbackResult =
-  | { action: "added"; feedback: DogProductFeedbackRow }
-  | { action: "removed"; feedback: DogProductFeedbackRow };
 
 let browserClient: SupabaseClient | null | undefined;
 type BrowserAuthPersistence = "persistent" | "session";
@@ -431,19 +399,6 @@ export async function loadDogProfilesWithMemories(user: User) {
     dog_memories: memoriesByProfile.get(profile.id) || [],
     dog_product_feedback: feedbackByProfile.get(profile.id) || [],
   }));
-}
-
-export async function countDogProfilesForUser(user: User) {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { count, error } = await supabase
-    .from("dog_profiles")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  if (error) throw friendlyDatabaseError(error, "saved pet profiles");
-  return count || 0;
 }
 
 export async function loadDogProfileForUser(profileId: string, user: User) {
@@ -879,33 +834,6 @@ export async function deleteDogProfileForUser(profileId: string, _user: User) {
   }
 }
 
-export function isRecentAuthenticationRequiredError(error: unknown) {
-  return error instanceof Error
-    && (error as Error & { code?: unknown }).code === "RECENT_AUTH_REQUIRED";
-}
-
-export async function deleteDogMemoryForUser(memoryId: string, dogProfileId: string, user: User) {
-  await deleteDogMemoriesForUser([memoryId], dogProfileId, user);
-}
-
-export async function deleteDogMemoriesForUser(
-  memoryIds: string[],
-  dogProfileId: string,
-  _user: User,
-) {
-  void _user;
-  if (memoryIds.length === 0) return;
-  const response = await authenticatedApiFetch("/api/legacy-memories", {
-    body: JSON.stringify({ memoryIds, petId: dogProfileId }),
-    headers: { "content-type": "application/json" },
-    method: "DELETE",
-  });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
-    throw new Error(payload?.error || "Remembered details could not be removed.");
-  }
-}
-
 export async function loadDogProductFeedbackForUser(dogProfileId: string, user: User) {
   const supabase = getBrowserSupabase();
   if (!supabase) throw new Error("Supabase is not configured.");
@@ -922,36 +850,6 @@ export async function loadDogProductFeedbackForUser(dogProfileId: string, user: 
   return data;
 }
 
-export async function toggleProductFeedbackForUser(
-  input: ProductFeedbackInput,
-  user: User,
-): Promise<ToggleProductFeedbackResult> {
-  const supabase = getBrowserSupabase();
-  if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { data: existing, error: existingError } = await supabase
-    .from("dog_product_feedback")
-    .select()
-    .eq("dog_profile_id", input.dogProfileId)
-    .eq("user_id", user.id)
-    .eq("product_id", input.productId)
-    .eq("feedback_type", input.feedbackType)
-    .maybeSingle<DogProductFeedbackRow>();
-
-  if (existingError) throw friendlyDatabaseError(existingError, "product feedback");
-  if (existing) {
-    await deleteProductFeedbackForUser(existing.id, input.dogProfileId, user);
-    return { action: "removed", feedback: existing };
-  }
-
-  const response = await authenticatedApiFetch("/api/product-feedback", {
-    body: JSON.stringify(input), headers: { "content-type": "application/json" }, method: "POST",
-  });
-  const payload = await response.json().catch(() => null) as { error?: string; feedback?: DogProductFeedbackRow } | null;
-  if (!response.ok || !payload?.feedback) throw new Error(payload?.error || "Product feedback could not be saved.");
-  return { action: "added", feedback: payload.feedback };
-}
-
 export async function deleteProductFeedbackForUser(
   feedbackId: string,
   dogProfileId: string,
@@ -962,22 +860,6 @@ export async function deleteProductFeedbackForUser(
     body: JSON.stringify({ dogProfileId, feedbackId }), headers: { "content-type": "application/json" }, method: "DELETE",
   });
   if (!response.ok) { const payload = await response.json().catch(() => null) as { error?: string } | null; throw new Error(payload?.error || "Product feedback could not be removed."); }
-}
-
-export async function saveDogMemories(
-  dogProfileId: string,
-  _user: User,
-  memories: MemoryInput[],
-): Promise<SaveDogMemoriesResult> {
-  if (memories.length === 0) return { saved: [], skippedDuplicates: 0 };
-  const response = await authenticatedApiFetch("/api/legacy-memories", {
-    body: JSON.stringify({ memories, petId: dogProfileId }),
-    headers: { "content-type": "application/json" },
-    method: "POST",
-  });
-  const payload = await response.json().catch(() => null) as (SaveDogMemoriesResult & { error?: string }) | null;
-  if (!response.ok || !payload?.saved) throw new Error(payload?.error || "Remembered details could not be saved.");
-  return payload;
 }
 
 export function dogProfileRowToDraft(row: DogProfileRow): DogProfile {
@@ -1008,16 +890,6 @@ export function dogProfileRowToDraft(row: DogProfileRow): DogProfile {
     routineNote: row.routine_note || "",
   });
 }
-
-// Generic application aliases keep the current tables compatible while callers migrate away from dog-only names.
-export const countPetProfilesForUser = countDogProfilesForUser;
-export const deletePetProfileForUser = deleteDogProfileForUser;
-export const loadPetProductFeedbackForUser = loadDogProductFeedbackForUser;
-export const loadPetProfileForUser = loadDogProfileForUser;
-export const loadPetProfilesWithMemories = loadDogProfilesWithMemories;
-export const loadPetProfileWithMemoriesForUser = loadDogProfileWithMemoriesForUser;
-export const petProfileRowToDraft = dogProfileRowToDraft;
-export const savePetMemories = saveDogMemories;
 export const savePetProfileForUser = saveDogProfileForUser;
 
 export function buildDogProfilePayload(profile: DogProfile, userId: string) {

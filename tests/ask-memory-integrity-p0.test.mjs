@@ -282,9 +282,10 @@ test("all live memory consumers use the shared integrity boundary", () => {
     "app/lib/intelligence/memory-sources.ts",
     "app/lib/remembered-details.ts",
     "app/lib/pet-memory.ts",
-    "app/lib/ai/context-builder.ts",
     "app/api/vet-briefs/route.ts",
   ]) assert.match(read(path), /isEligible(?:Stored|Legacy)Memory/, path);
+  // The concern loader no longer reads legacy memories.
+  assert.doesNotMatch(read("app/lib/ai/context-builder.ts"), /\.from\("dog_memories"\)/);
   assert.match(read("app/lib/intelligence/retrieve-context.ts"), /selectMemorySources\(memorySources/);
   assert.match(read("app/lib/intelligence/memory-sources.ts"), /inactiveMemories\.data\.filter\(isEligibleStoredMemory\)/);
 });

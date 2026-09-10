@@ -5,7 +5,6 @@ import test from "node:test";
 const migration = readFileSync(new URL("../supabase/migrations/20260810230000_add_lifecycle_integrity_foundation.sql", import.meta.url), "utf8");
 const careRoute = readFileSync(new URL("../app/api/care-entries/[id]/route.ts", import.meta.url), "utf8");
 const contextSources = [
-  "../app/lib/ai/context-builder.ts",
   "../app/lib/intelligence/retrieve-context.ts",
   "../app/lib/pet-memory.ts",
 ].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -34,6 +33,8 @@ test("ordinary History deletion is an idempotent owner-scoped tombstone", () => 
   assert.match(migration, /revoke delete on public\.pet_care_entries from authenticated/);
   assert.match(careRoute, /rpc\("remove_my_care_entry"/);
   assert.doesNotMatch(careRoute, /from\("pet_care_entries"\)\.delete\(\)/);
+  // Care context now comes only from the retained history loaders.
+  assert.doesNotMatch(readFileSync(new URL("../app/lib/ai/context-builder.ts", import.meta.url), "utf8"), /\.from\("pet_care_entries"\)/);
   for (const source of contextSources) assert.match(source, /\.is\("deleted_at", null\)/);
 });
 

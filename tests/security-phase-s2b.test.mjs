@@ -202,7 +202,10 @@ test("browser profile, memory, and care writes cross authenticated API gateways"
   const source = read("app/lib/supabase.ts");
   assert.match(source, /authenticatedApiFetch\(existingProfileId \? `\/api\/pets/);
   assert.match(source, /authenticatedApiFetch\("\/api\/care-entries"/);
-  assert.match(source, /authenticatedApiFetch\("\/api\/legacy-memories"/);
+  const memoryPage = read("app/dogs/[id]/memories/page.tsx");
+  assert.match(memoryPage, /idempotentClientFetch\(memory\.source === "legacy" \? "\/api\/legacy-memories"/);
+  assert.match(memoryPage, /Authorization: `Bearer \$\{token\}`/);
+  assert.match(memoryPage, /!token \|\| data\.session\?\.user\?\.id !== user\.id/);
   assert.match(source, /headers\.set\("authorization", `Bearer \$\{token\}`\)/);
 });
 

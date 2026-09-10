@@ -1,33 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CareEntryRow, DogMemoryRow, DogProfileRow } from "../supabase";
 import type { PetConcern } from "./concern-engine";
-import { isEligibleLegacyMemory } from "../intelligence/memory-integrity.ts";
-
-export async function loadPetContext(supabase: SupabaseClient, userId: string, petId: string) {
-  const { data, error } = await supabase
-    .from("dog_profiles")
-    .select("*")
-    .eq("id", petId)
-    .eq("user_id", userId)
-    .single<DogProfileRow>();
-  if (error || !data) throw new Error("PET_NOT_FOUND");
-  return data;
-}
-
-export async function loadRecentCareEvents(supabase: SupabaseClient, userId: string, petId: string, limit = 200) {
-  const { data, error } = await supabase
-    .from("pet_care_entries")
-    .select("*")
-    .eq("pet_profile_id", petId)
-    .eq("user_id", userId)
-    .is("deleted_at", null)
-    .order("occurred_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(limit)
-    .returns<CareEntryRow[]>();
-  if (error) throw new Error("CARE_CONTEXT_UNAVAILABLE");
-  return data || [];
-}
 
 export async function loadActiveConcerns(supabase: SupabaseClient, userId: string, petId: string) {
   const { data, error } = await supabase
@@ -62,18 +34,4 @@ export async function loadRecentlyResolvedConcerns(
     .returns<PetConcern[]>();
   if (error) throw new Error("CONCERN_CONTEXT_UNAVAILABLE");
   return data || [];
-}
-
-export async function loadRememberedDetails(supabase: SupabaseClient, userId: string, petId: string) {
-  const { data, error } = await supabase
-    .from("dog_memories")
-    .select("*")
-    .eq("dog_profile_id", petId)
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(100)
-    .returns<DogMemoryRow[]>();
-  if (error) throw new Error("MEMORY_CONTEXT_UNAVAILABLE");
-  return (data || []).filter(isEligibleLegacyMemory);
 }

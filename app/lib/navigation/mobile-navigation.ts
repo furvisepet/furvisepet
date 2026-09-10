@@ -1,8 +1,5 @@
-export type MobileNavigationState = "compact" | "expanded";
-export type MobileNavigationTab = "ask" | "history" | "more" | "pets" | "today";
 
-export const MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX = 14;
-export const MOBILE_NAVIGATION_IDLE_EXPAND_MS = 300;
+export type MobileNavigationTab = "ask" | "history" | "more" | "pets" | "today";
 
 export const NAVIGATION_ICON_ASSETS = {
   ask: "/images/nav-ask-v1.webp",
@@ -55,21 +52,4 @@ export function isAuthenticatedAppNavigationRoute(pathname: string) {
 
 export function shouldShowMobileNavigation(pathname: string, authenticated: boolean) {
   return authenticated && isAuthenticatedAppNavigationRoute(pathname);
-}
-
-export function resolveMobileNavigationState({
-  accumulatedDelta,
-  currentState,
-  reducedMotion,
-  scrollY,
-}: {
-  accumulatedDelta: number;
-  currentState: MobileNavigationState;
-  reducedMotion: boolean;
-  scrollY: number;
-}): MobileNavigationState {
-  if (reducedMotion || scrollY <= MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX) return "expanded";
-  if (accumulatedDelta >= MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX) return "compact";
-  if (accumulatedDelta <= -MOBILE_NAVIGATION_SCROLL_THRESHOLD_PX) return "expanded";
-  return currentState;
 }

@@ -333,48 +333,6 @@ export async function reconcileAiCredit({
   };
 }
 
-export async function getAiCreditEventState({
-  feature,
-  payloadHash,
-  requestId,
-  logicalRequestId = requestId,
-  supabase,
-  userId,
-}: {
-  feature: AiFeature;
-  logicalRequestId?: string;
-  payloadHash: string;
-  requestId: string;
-  supabase: SupabaseClient;
-  userId: string;
-}): Promise<AiCreditEventState | null> {
-  const { data, error } = await supabase
-    .from(AI_USAGE_EVENTS_TABLE)
-    .select("request_id, logical_request_id, status, settlement_disposition, payload_hash")
-    .eq("user_id", userId)
-    .eq("feature", feature)
-    .eq("request_id", requestId)
-    .maybeSingle<{ logical_request_id: string; payload_hash: string | null; request_id: string; settlement_disposition: string | null; status: string }>();
-  if (error) throw new AiCreditLedgerError("usage_read_failed", error, AI_USAGE_EVENTS_TABLE, "select");
-  if (!data) return null;
-  if (data.payload_hash && data.payload_hash !== payloadHash) {
-    throw new AiCreditLedgerError("usage_read_failed", new Error("AI_REQUEST_IDENTITY_CONFLICT"), AI_USAGE_EVENTS_TABLE, "select");
-  }
-  if (data.logical_request_id !== logicalRequestId) {
-    throw new AiCreditLedgerError("usage_read_failed", new Error("AI_REQUEST_IDENTITY_CONFLICT"), AI_USAGE_EVENTS_TABLE, "select");
-  }
-  if (data.status !== "reserved" && data.status !== "completed" && data.status !== "released") {
-    throw new AiCreditLedgerError("usage_read_failed", new Error("INVALID_AI_CREDIT_STATUS"), AI_USAGE_EVENTS_TABLE, "select");
-  }
-  return {
-    disposition: nullableDisposition(data.settlement_disposition),
-    logicalRequestId: data.logical_request_id,
-    payloadHash: data.payload_hash,
-    requestId: data.request_id,
-    status: data.status,
-  };
-}
-
 export async function getAiCreditEventsForLogicalRequest({
   feature,
   logicalRequestId,
