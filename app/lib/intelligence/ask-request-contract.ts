@@ -205,7 +205,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // The episode register covers specific symptom groups, not all quantities
   // or questions about whether a note establishes frequency. Unsupported
   // topics go through ordinary evidence retrieval and answer review.
-  if (operation === "count" && p.episodeTopic === null && !/\\bepisodes?\\b/i.test(context.currentMessage)) operation = "recall";
+  if (operation === "count" && p.episodeTopic === null && !/\bepisodes?\b/i.test(context.currentMessage)) operation = "recall";
   if (operation === "episode" && p.ordinal === null || operation !== "episode" && p.ordinal !== null) return fail("episode_reference");
   const conversationOnly = p.scope === "none" && (p.mode === "conversation" || p.mode === "clarify" || p.mode === "read" && operation === "general");
   if (p.mode === "conversation" && !conversationOnly) return fail("conversation_scope");

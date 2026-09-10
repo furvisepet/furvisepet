@@ -1253,6 +1253,8 @@ test('ordinary history reads recover irrelevant episode routing without granting
  }
  const count=validateAskRequest(proposal({operation:'count',quantity:'episodes',episodeTopic:'vomiting'}),{...context,currentMessage:'How many vomiting episodes has Aster had?'});
  assert.equal(count.operation,'count');
+ const unspecified=validateAskRequest(proposal({operation:'count',quantity:'episodes'}),{...context,currentMessage:'How many separate episodes has Aster had?'});
+ assert.equal(unspecified.operation,'count'); assert.equal(unspecified.episodeTopic,null);
  const follow=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second',episodeTopic:'vomiting'}),{...context,currentMessage:'What happened in the second episode?'});
  assert.equal(follow.operation,'episode'); assert.equal(follow.ordinal,'second');
  const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes'}),{...context,currentMessage:'What happened in that episode?'});
