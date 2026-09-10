@@ -5,6 +5,12 @@ export function literalHistoryReportDayWindow(text: string): {from: string; to: 
   // date, cutoff or relative endpoint may require other records as well.
   if (!/\b(?:note|entry|report|record)\b/i.test(text)
     || /\b(?:before|after|since|until|between|from|as of|compar\w*|versus|vs|latest|earliest|current|previous|earlier|later)\b/i.test(text)) return null;
+  return explicitHistoryDayWindow(text);
+}
+
+/** Parse one literal date without assigning retrieval semantics. Callers must
+ * independently establish whether that date bounds the entire requested task. */
+export function explicitHistoryDayWindow(text: string): {from: string; to: string} | null {
   const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
   const found: Array<{year: number; month: number; day: number}> = [];
   for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) {
