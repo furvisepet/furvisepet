@@ -41,7 +41,7 @@ export function buildEvidenceNeedCoverage(evidence: AskEvidenceContract): NeedCo
 export function evidenceRemovalCost(evidence: AskEvidenceContract, sourceId: string): number {
   const needs = (evidence.needCoverage || []).flatMap(need => need.pets.map(pet => pet.representedSourceIds));
   const dates = (evidence.history?.targets || []).map(target => evidence.represented
-    .filter(span => span.sourceType === "care_update" && span.petId === target.petId && span.occurredAt?.slice(0, 10) === target.day)
+    .filter(span => span.sourceType === "care_update" && span.petId === target.petId && span.occurredAt?.startsWith(target.day))
     .map(span => span.sourceId));
   return [...needs, ...dates].filter(ids => ids.length === 1 && ids[0] === sourceId).length;
 }

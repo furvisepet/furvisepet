@@ -21,6 +21,17 @@ export function literalHistoryReportDayWindow(text: string): {from: string; to: 
   return {from: start.toISOString().slice(0, 10), to: new Date(start.getTime() + 86400000).toISOString().slice(0, 10)};
 }
 
+/** Literal anchors are separate reads, not global bounds. A comparison or
+ * open-ended request still needs the named month plus its other context. */
+export function explicitHistoryMonths(text: string): string[] {
+  const names = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+  const found: string[] = [];
+  const pattern = new RegExp("\\b(" + names.map(name => name.slice(0,3) + "(?:" + name.slice(3) + ")?").join("|") + ")\\.?\\s+(19\\d{2}|20\\d{2}|2100)\\b", "gi");
+  for (const match of text.matchAll(pattern)) found.push(match[2] + "-" + String(names.findIndex(name => name.startsWith(match[1].slice(0,3).toLowerCase())) + 1).padStart(2,"0"));
+  for (const match of text.matchAll(/\b(19\d{2}|20\d{2}|2100)-(0[1-9]|1[0-2])(?!-\d{2})\b/g)) found.push(match[0]);
+  return [...new Set(found)].sort();
+}
+
 export function literalHistoryMonthWindow(text: string): {from: string; to: string} | null {
   // Relative/open bounds and comparisons against an unspecified endpoint need
   // the semantic planner; do not silently narrow them to one named month.

@@ -300,7 +300,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // Reserve representation for each requested day before general ranking can
   // fill the evidence budget. Round-robin keeps multiple dates/pets represented.
   const targetGroups = (coverage.targets || []).map(target => ordered.filter(entry =>
-    entry.pet_profile_id === target.petId && entry.occurred_at?.slice(0, 10) === target.day));
+    entry.pet_profile_id === target.petId && entry.occurred_at?.startsWith(target.day)));
   const needGroups = (context.askInterpretation?.request?.evidenceNeeds || []).flatMap(need => ids.filter(petId => !need.petIds || need.petIds.includes(petId)).map(petId =>
     ordered.filter(entry => entry.pet_profile_id === petId && ((coverage.needs || []).some(query => query.petId === petId && query.needId === need.id && query.candidateIds.includes(`care:${entry.id}`)) || need.terms.some(term =>
       `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))).sort((a, b) =>
@@ -319,7 +319,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     kept.push(entry); chars += size;
   }
   for (const target of coverage.targets || []) {
-    target.retainedIds = kept.filter(entry => entry.pet_profile_id === target.petId && entry.occurred_at?.slice(0, 10) === target.day)
+    target.retainedIds = kept.filter(entry => entry.pet_profile_id === target.petId && entry.occurred_at?.startsWith(target.day))
       .map(entry => careEvidenceId(entry.id, coverage));
     if (target.candidateIds.length && !target.retainedIds.length) {
       target.status = "partial"; coverage.reasons.push("explicit_date_target_not_represented");

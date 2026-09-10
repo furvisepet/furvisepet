@@ -1,3 +1,4 @@
+import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
 import { literalHistoryMonthWindow, literalHistoryReportDayWindow, requestsPastPresentComparison } from "./literal-history-window.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
@@ -195,6 +196,16 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // An episode ordinal cannot change a measurement comparison. Discard this
   // irrelevant planner hint only when the quantity and operation are explicit.
   if (["measurement", "duration"].includes(String(p.quantity)) && ["recall", "comparison", "overview"].includes(operation)) p.ordinal = null;
+  // Episode metadata is advisory read routing, never reference authority.
+  // An ordinary observation has no displayed ordinal. Recover its historical
+  // read rather than rejecting it or asking about an unrelated symptom.
+  const episodeReference = isEpisodeSubjectReference(context.currentMessage);
+  if (operation === "episode" && p.ordinal === null) operation = episodeReference ? "clarify" : "recall";
+  if (operation !== "episode" && p.ordinal !== null && !episodeReference) p.ordinal = null;
+  // The episode register covers specific symptom groups, not all quantities
+  // or questions about whether a note establishes frequency. Unsupported
+  // topics go through ordinary evidence retrieval and answer review.
+  if (operation === "count" && p.episodeTopic === null && !/\\bepisodes?\\b/i.test(context.currentMessage)) operation = "recall";
   if (operation === "episode" && p.ordinal === null || operation !== "episode" && p.ordinal !== null) return fail("episode_reference");
   const conversationOnly = p.scope === "none" && (p.mode === "conversation" || p.mode === "clarify" || p.mode === "read" && operation === "general");
   if (p.mode === "conversation" && !conversationOnly) return fail("conversation_scope");

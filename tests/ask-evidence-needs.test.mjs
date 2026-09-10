@@ -84,3 +84,24 @@ test('opposite temporal needs retain separate query directions and last-candidat
  assert.equal(evidenceRemovalCost(evidence,'care:one'),1);
  assert.equal(evidenceRemovalCost(evidence,'care:two'),1);
 });
+
+test('month anchors retain broad context, respect access, and protect representation',()=>{
+ const window={from:'2022-02-15T00:00:00.000Z',to:'2025-01-01T00:00:00.000Z'};
+ const broad={...window,descending:true,lexical:false,terms:[]};
+ const r=compileHistoryReadStrategies('Compare February 2022 with the time before and Dec. 2024.',2026,window,[broad],4);
+ assert.equal(r.strategies.length,3);
+ assert.deepEqual(r.strategies.map(s=>s.target),['2022-02','2024-12',undefined]);
+ assert.equal(r.strategies[0].from,window.from);
+ assert.equal(r.strategies[1].to,window.to);
+ assert.deepEqual(r.strategies.at(-1),broad);
+ const outside=compileHistoryReadStrategies('Read February 2021 and 2026-03.',2026,window,[broad],4);
+ assert.deepEqual(outside.strategies,[broad]);
+ const limited=compileHistoryReadStrategies('Compare Jan 2023, Feb 2023, March 2023 and April 2023.',2026,window,[broad],2);
+ assert.equal(limited.strategies.length,2); assert.equal(limited.omittedTargets.length,3);
+ const evidence=fixture(); evidence.interpretation.request.evidenceNeeds=[];
+ evidence.history.targets=[{petId:'pet',day:'2023-02'}];
+ evidence.represented[0].occurredAt='2023-02-18T00:00:00.000Z';
+ assert.equal(evidenceRemovalCost(evidence,'care:one'),1);
+ evidence.represented[0].occurredAt='2023-03-18T00:00:00.000Z';
+ assert.equal(evidenceRemovalCost(evidence,'care:one'),0);
+});
