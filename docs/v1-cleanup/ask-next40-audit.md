@@ -17,13 +17,13 @@ One implementation regression was found and corrected during verification: initi
 
 Two application dependencies changed outside the selected 40: `ai/safety-temporal-scope.ts` exposes existing clause boundaries without expanding provider payloads; `application-actions/state-claims.ts` enforces truthful navigation state through the existing review/publication owner. No migration, billing change, new write authority, or unrelated application refactor is included.
 
-9. **Medium — false navigation-execution claim found live.** A correct calculation and profile link shipped with “Her profile is open” before any click. A link is not browser execution. The existing state-claim policy now rejects active/passive opened-page claims during generation and reload, including when an unrelated database mutation has a verified success receipt. This preserves the valid calculation and link. Regression reproduced locally before the fix.
+9. **Medium — false navigation-execution claim found live.** A correct calculation and profile link shipped with “Her profile is open” before any click. A link is not browser execution. The existing state-claim policy now rejects active/passive and progressive navigation claims during generation, reload, and sidebar preview rendering, including when an unrelated database mutation has a verified success receipt. This preserves the valid calculation and link. Regression reproduced locally before the fix.
 
 ## Verification
 
 - Baseline: **1,058 / 1,067 tests passed**, zero skipped. Nine failures were stale test contracts from the preceding completion-review work: four missing explicit reviewer verdict fixtures, one old schema field count, one source-code assertion tied to the previous admission implementation, and three fixture results missing the required `applicationActions` array. Fixtures were made explicit; the admission source assertion was replaced with behavioral checks for persistence failure, limited delivery and complete delivery.
 - New regression suite: `tests/ask-next40-reliability.test.mjs`; failures were reproduced before fixes. Existing tests remain active.
-- Initial focused run: **1,105 / 1,105 tests passed** across 65 relevant files. After the live navigation finding, the final run passed **1,120 / 1,120 tests** across 66 relevant files, with zero failed/cancelled/skipped. Final scoped TypeScript and ESLint: zero diagnostics. A local production build passed; the final deployed-source build and live verification are pending.
+- Initial focused run: **1,105 / 1,105 tests passed** across 65 relevant files. After the live navigation finding, the final run passed **1,121 / 1,121 tests** across 66 relevant files, with zero failed/cancelled/skipped. Final scoped TypeScript and ESLint: zero diagnostics. A local production build passed; final-source Vercel preview and production builds also passed, followed by the live checks recorded below.
 - All 40 application files plus the changed safety helper passed scoped TypeScript and ESLint checks before the final integration pass.
 
 ## Per-file audit
@@ -42,7 +42,7 @@ Two application dependencies changed outside the selected 40: `ai/safety-tempora
 | 28 | `app/lib/ask-analytics.ts` | Reviewed enumerated event callers and browser event transport; no question text is passed by current callers. |
 | 29 | `app/lib/ask-care-history-state.ts` | Reviewed saved/pending/failed/suggestion precedence against durable receipts. |
 | 30 | `app/lib/ask-conversation-authority.ts` | Reviewed service authority RPC arguments and owner/source binding; existing authority/security tests exercised. |
-| 31 | `app/lib/ask-conversation-server.ts` | Reviewed authenticated access, suggestion reconciliation, trusted capability reload, expiry, and terminal claims. |
+| 31 | `app/lib/ask-conversation-server.ts` | Reviewed authenticated access, suggestion reconciliation, trusted capability reload, expiry, and terminal claims; fixed preview policy parity with answer reload. |
 | 32 | `app/lib/ask-conversations.ts` | Reviewed retry deduplication, notices, titles, dates and sign-out state cleanup. |
 | 33 | `app/lib/ask-draft.ts` | Added isolated draft and blocked-storage behavioral tests. |
 | 34 | `app/lib/ask-experience.ts` | Reviewed urgent/grief/casual/complex presentation and suggested-question suppression. |
@@ -75,7 +75,7 @@ Two application dependencies changed outside the selected 40: `ai/safety-tempora
 
 ## Rating and limits
 
-A 10/10 or “no faults” guarantee is not supported by finite tests. The release rating will reflect the final tested flows. In particular, general/navigation answers can still have an overall `limited` assessment when calculation/evidence checks are not independently evaluated; HTTP 200 and successful action receipts must not promote those checks to passed. English surface-language heuristics are not a proof of multilingual or arbitrary discourse understanding. Provider and database outage behavior is verified with controlled local failures, not disruptive production fault injection.
+A 10/10 or “no faults” guarantee is not supported by finite tests. Engineering assessment for this audited batch: **9/10**, with all reproduced defects fixed and the final acceptance scenarios below passing. This is a bounded judgment, not a mathematical score or a guarantee for the entire Ask feature. In particular, general/navigation answers can still have an overall `limited` assessment when calculation/evidence checks are not independently evaluated; HTTP 200 and successful action receipts must not promote those checks to passed. English surface-language heuristics are not a proof of multilingual or arbitrary discourse understanding. Provider and database outage behavior is verified with controlled local failures, not disruptive production fault injection.
 
 ## Production acceptance — initial rollout
 
@@ -89,4 +89,21 @@ PR #294 merged as `b2ef00639dff3641bce3ebd93919843ed3461f04`; final-source Verce
 - Navigation + `(2 + 3) * 4`: request `57e80998-d301-4519-b2d6-c00eeaa9eceb`, conversation `d608cc5b-a3cf-49ad-9fc5-693131619495`. Returned 20 and the correct Clover profile link, but incorrectly said the profile was already open. The link itself was clicked and worked. **This initial wording failed acceptance** and prompted finding 9; it is not relabelled a pass after repair.
 - Synthetic live care rows remained **3,736**, unchanged from the pre-test baseline. No 5xx logs were found in the initial rollout window.
 
-Final navigation-policy rollout and recheck: pending.
+## Production acceptance — navigation follow-up
+
+PR #295 merged as `5154d75a116324574c68a749b290a3155370a6e3`; preview and production builds passed. Deployment `dpl_H9z2AP3Nt1rjRLUYhm6t8MY8KrP1` owned the production domain before recheck. The original saved answer body correctly became “The math comes out to 20.”, with its profile facts and Open link preserved. Two remaining surfaces failed acceptance: the sidebar preview retained the past-tense claim, and fresh request `3c8fc90a-795d-48f8-951f-c7b232bc90fd` (conversation `83b29cee-526f-455f-b953-949ed9ad1969`) said “Opening her profile. The calculation is 20.” These failed iterations are retained as evidence, not counted as passes.
+
+PR #296 applies the same policy to previews and progressive navigation announcements. Both regressions failed before the fixes. The final focused suite passes **1,121/1,121** tests across 66 files, with zero failed, cancelled or skipped tests. Changed source files pass ESLint and scoped TypeScript with zero diagnostics. Explanatory gerunds, negation, owner titles, arithmetic, and navigation links remain intact.
+
+## Final production acceptance
+
+PR #296 merged as `c584e3901fa5c343c97e9de2616534dbd5939efe`. Preview `dpl_4ncgL35xszvFMvJvg3RNKpZTZcGD` and production `dpl_GT59mdyg9tX2o5MaBrW2Yq1wNRW3` built successfully. The production deployment was READY and owned `www.furvise.com` before the following browser checks.
+
+- Reloaded the saved progressive-claim conversation: body now says “The calculation is 20.” and retains the correct Open link.
+- Opened Conversations: both affected previews now contain only their valid calculation sentences. Original conversation titles remain intact.
+- Repeated the exact fresh request: “Open Clover's profile and calculate (2 + 3) * 4.” Response: “The action below shows its status. (2 + 3) * 4 = 20.” No false execution claim. Clicked Open and verified Clover's profile heading and owned destination.
+- Fresh request `7571c56c-0b9e-4ae1-99e2-deaa5fe0d9b0`, conversation `fe4f6810-f6f0-41e2-afea-ea135e6dc7d9`: persisted summary matches the rendered answer. Structural validity and task completion passed. Overall assessment remains **limited** because this non-history route does not independently evaluate evidence, calculation and subject/date checks. The arithmetic was independently checked in this audit; the persisted assessment was not promoted or misrepresented.
+- Submitted “Clover cannot breathe beside my child.” Immediate emergency veterinary guidance appeared, with explicit disclosure that it was not saved. Mentioning a child did not suppress the named pet's emergency.
+- Synthetic care rows remained **3,736**, matching the pre-test baseline. No 5xx runtime logs matched the final deployment's checked window (05:26–05:36 UTC).
+
+All nine reproduced defect classes are fixed. Exact episode-count success remains unproven against this correction-uncertain production dataset; controlled local tests cover open-bound rendering and fail-closed behavior. General-answer assessment coverage and unrestricted natural-language interpretation are remaining limits, so a fault-free 10/10 claim would be unsupported. No additional production data was fabricated or altered to force acceptance.
