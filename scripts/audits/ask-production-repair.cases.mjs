@@ -100,7 +100,7 @@ test('explicit names, contextual labels and ambiguous pronouns remain server sco
   assert.equal(follow.context.pet.id, 'luna'); assert.match(final(follow), /2013-01-01/);
   const back = await exercise('Return to Milo stomach history.', {history: true, rows, messages: [message('Tell me about Luna.')], interpretationProposal: plan({subject: 'conversation'})});
   assert.equal(back.context.pet.id, 'milo'); assert.doesNotMatch(final(back), /one day/);
-  const ambiguous = await exercise('What happened to them?', {history: true, fixturePets, rows, messages: [message('Compare Milo and Bruno.')], interpretationProposal: plan({subject: 'conversation', petNames: []})});
+  const ambiguous = await exercise('What happened to them?', {taskReviewResponse: true, history: true, fixturePets, rows, messages: [message('Compare Milo and Bruno.')], interpretationProposal: plan({subject: 'conversation', petNames: []})});
   assert.equal(ambiguous.context.askInterpretation.clarification, 'subject'); assert.deepEqual(ambiguous.context.askInterpretation.petIds, []);
   for (const r of [luna, follow, back, ambiguous]) noWrites(r);
 });
@@ -219,6 +219,6 @@ test('partial retrieval and an unresolved correction retain both limitations and
 
 test('missing named subject remains a clarification', async t => {
   clock(t);
-  const r = await exercise('What happened to them?', {history: true, rows: [stool], messages: [], interpretationProposal: requestProposal(plan({operation:'clarify',subject: 'explicit', petNames: []}), 'What happened to them?')});
+  const r = await exercise('What happened to them?', {taskReviewResponse: true, history: true, rows: [stool], messages: [], interpretationProposal: requestProposal(plan({operation:'clarify',subject: 'explicit', petNames: []}), 'What happened to them?')});
   assert.equal(r.context.askInterpretation.clarification, 'subject'); assert.deepEqual(r.context.askInterpretation.petIds, []); noWrites(r);
 });

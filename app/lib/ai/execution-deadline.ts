@@ -22,7 +22,7 @@ export class OperationDeadline {
   }
   remainingMs() { return Math.max(0, Math.floor(this.expiresAt - this.clock())); }
   allocate(stage: PipelineStage, maximumMs: number, reserveMs = 0, minimumMs = 1) {
-    if (![maximumMs, reserveMs, minimumMs].every(Number.isFinite) || maximumMs <= 0 || reserveMs < 0 || minimumMs < 1)
+    if (![maximumMs, reserveMs, minimumMs].every(Number.isFinite) || maximumMs < minimumMs || reserveMs < 0 || minimumMs < 1)
       throw new Error("INVALID_STAGE_BUDGET");
     const remaining = this.remainingMs() - reserveMs;
     if (remaining < minimumMs) throw new StageDeadlineError(stage, Math.max(0, remaining));
