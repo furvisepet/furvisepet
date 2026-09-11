@@ -773,7 +773,7 @@ function ApplicationActionCard({ action, onAction }: { action: FurviseApplicatio
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const destructive = action.safetyClass === "DESTRUCTIVE";
-  if (action.status === "cancelled") return null;
+  if (action.status === "cancelled") return <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] p-3.5" data-action-status="cancelled" role="status"><p className="text-sm font-semibold text-[var(--text-secondary)]">{action.resultMessage || "The action was cancelled."}</p></div>;
   if (action.status === "succeeded") return <div className="rounded-xl border border-[var(--selection-strong)] bg-[var(--surface-supportive)] p-3.5" data-action-status="succeeded" role="status"><p className="text-sm font-semibold text-[var(--text-primary)]">{action.resultMessage || "Action completed."}</p></div>;
   if (action.status === "failed") return <div className="rounded-xl border border-[var(--warning-border)] bg-[var(--warning-surface)] p-3.5" data-action-status="failed" role="status"><p className="text-sm font-semibold text-[var(--warning-text)]">{action.errorMessage || "That action could not be completed."}</p></div>;
   if (action.href) return <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-primary)] p-3.5" data-action-status="navigation"><p className="text-sm font-semibold text-[var(--text-primary)]">{action.label}</p><p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{action.description}</p><Link className={`${secondaryButton} mt-3`} href={action.href}>Open</Link></div>;
