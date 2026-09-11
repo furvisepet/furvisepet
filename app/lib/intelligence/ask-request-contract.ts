@@ -212,8 +212,11 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     p.requirements = [];
   }
   const navigation = p.operation === "navigate";
-  if (navigation && (p.mode !== "read" || p.evidenceBasis !== null || !petIds.length || p.from !== null || p.to !== null
-    || p.terms.length || p.quantity !== null || p.ordinal !== null || p.episodeTopic !== null)) return fail("navigation");
+  if (navigation && (p.mode !== "read" || p.evidenceBasis !== null || !petIds.length)) return fail("navigation");
+  // Navigation grants no historical retrieval. Stray quantity/date/search
+  // hints (including a quantity from the companion question) cannot turn it
+  // into a records task, and need not reject the valid owned destination.
+  if (navigation) Object.assign(p, { from: null, to: null, terms: [], quantity: null, ordinal: null, episodeTopic: null });
   let operation = (navigation ? "general" : p.operation) as Exclude<typeof operations[number], "navigate">;
   // Quantity is a separate semantic axis. Counting records or measurements
   // cannot accidentally invoke the illness episode membership subsystem.
