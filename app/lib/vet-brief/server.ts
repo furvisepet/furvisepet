@@ -65,6 +65,7 @@ export function toPublicVetBriefRecord(row: VetBriefDatabaseRow) {
     version: row.version,
     status: row.status,
     previousVersionId: row.previous_version_id,
+    sourceEntryIds: row.source_entry_ids || [],
     document,
   };
 }
