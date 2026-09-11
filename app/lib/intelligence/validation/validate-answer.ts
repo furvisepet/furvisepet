@@ -1,3 +1,4 @@
+import { rememberReviewedTaskPresentation } from "../ask-evidence-presentation.ts";
 import {
   historyFallbackPresentation,
   mapAskProse,
@@ -263,6 +264,7 @@ export function validateGeneratedAnswer(
   });
   const finalReviewMatches = Boolean(reviewedHistory && response.answer.summary === (reviewedHistory.proseText || reviewedHistory.text)
     && response.answer.sections.length === 0 && !response.answer.safetyNote && !reviewedHistory.sourceReports?.length);
+  if (finalReviewMatches && reviewedHistory?.actions) rememberReviewedTaskPresentation(response.evidenceContract, response.answer, reviewedHistory.actions);
   const obligationChecks = finalReviewMatches ? reviewedHistory?.completion : undefined;
   const historyTask = Boolean(response.evidenceContract?.interpretation?.request && response.evidenceContract.history && !currentEmergency);
   const fallbackUsed = historyTask && repairs.includes("grounded_history_in_source_reports") && !finalReviewMatches;
@@ -277,7 +279,7 @@ export function validateGeneratedAnswer(
       evidenceSupport: finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       subjectDateCorrectness: unauthorizedPetNamed ? "failed" : finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       calculationCorrectness: finalReviewMatches ? "passed" : "not_evaluated",
-      taskCompletion: obligationChecks?.length && obligationChecks.every(c => c.status !== "missing") ? "passed"
+      taskCompletion: obligationChecks?.length ? obligationChecks.every(c => c.status === "answered") ? "passed" : "failed"
         : fallbackUsed ? "failed" : "not_evaluated",
     },
   });

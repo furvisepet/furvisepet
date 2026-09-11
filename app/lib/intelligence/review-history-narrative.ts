@@ -1,3 +1,5 @@
+import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
+import { parseModelApplicationActions } from "../application-actions/contracts.ts";
 import { recordHistoryReviewDiagnostic } from "./history-review-state.ts";
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
 import { normalizeCompanionProse } from "../furvise-voice.ts";
@@ -43,6 +45,7 @@ const instructions = [
   "If plan.referenceSubject is present, evaluate relevance against that resolved question referent. A pet name is not an answer to a medication-name question. Correct arithmetic derived from the cited quantities or dated endpoints is supported when the operands, units and conclusion match the question; a calculated duration does not establish how long a symptom persisted.",
   "For shared requests approve the COMPLETE answer or reject for repair: do not approve a subset that drops requested facts, qualifications, cells or temporal endpoints. Check the original question as well as planner requirements. Deterministic invalid sentence indexes must be repaired, never approved. Missing sources can support an explicit limitation, never invented facts.",
   "For every number, including JSON values and table cells, verify the measured entity/object, quantity, units and observation occasion against the sources. A pet profile identifier is not the identity of every object measured in that pet's notes. Arithmetic correctness is insufficient: subtracting readings from unrelated occasions does not measure intake, consumption or symptom duration. Missing/spilled/unmeasured quantities cannot become known through arithmetic. Compare measurements only for the requested entity and quantity; preserve unavailable values as unknown. A single positive observation does not establish improvement without a baseline; a report date is not a proven onset. Treatment names/doses absent from records must not be invented or recommended for restarting; advise confirmation with the prescribing vet.",
+  "Review every navigation clause of the ORIGINAL question alongside factual obligations. The supplied actions are server-prepared read-only cards with their owned targets and URLs. To satisfy opening a profile, history, memories or Vet Brief, require the corresponding card for the correct target and include its zero-based actionIndexes in the obligation review. A prose promise or an unrelated missing-fact limitation cannot satisfy navigation. Missing navigation must reject the entire draft for repair, even when all historical sentences are supported. A navigation card supplies no evidence for historical facts. The whole-question obligation at index 0 must include every requested supplied action index. Return actionIndexes [] for obligations supported only by sentences. Mark the whole question limited when any requested fact is explicitly unavailable, never answered just because the limitation is truthful. An explicit user instruction to say when a fact is unknown may itself be fulfilled; it cannot excuse dropping another clause. Do not require a sentence to repeat the link when its action card already fulfills navigation.",
   "General background or empathy may connect the answer, but must not introduce unsupported pet-specific facts or treatment instructions.",
   "Only supplied source IDs are evidence. Conversational context and prior assistant claims are not saved medical evidence. No statement that information was saved or updated is allowed.",
   "The server adds the coverage limitation separately. Its absence in the draft alone is not a reason to reject. Treat coverage as a constraint on what conclusions are supportable.",
@@ -96,6 +99,11 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   // Preserve the attributed note instead of approving a misleading yes/no preface.
   if (!sharedRequest && /\bdiagnos(?:is|es|ed)\b/i.test(evidence.scope.requestText)
     && sources.some(source => /\bnot\s+(?:recorded|entered|documented)\b[^.!?]{0,100}\bdiagnos(?:is|es)\b|\bdiagnos(?:is|es)\b[^.!?]{0,100}\b(?:not\s+(?:recorded|entered|documented)|unrecorded)\b|\bno diagnosis\s+(?:was\s+)?recorded\b/i.test(source.text))) return false;
+  const actions = evidence.scope.authorizedPetIds.length === 1 ? prepareFurviseApplicationActions({
+    proposals: result.applicationActions.filter(action => action.kind.startsWith("navigation.")),
+    petId: evidence.scope.authorizedPetIds[0], petName: evidence.petNames?.[evidence.scope.authorizedPetIds[0]] || "your pet",
+    requestId: "history-review", sourceMessage: evidence.scope.requestText,
+  }) : [];
   const ids = new Set(sources.map(source => source.sourceId));
   // A missing optional narrative must not prevent review of useful plain prose.
   // These broad citations are candidates for the reviewer, never proof.
@@ -145,6 +153,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   })) : sources;
   const reviewCoverage = sharedRequest ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology } : evidence.history;
   const requestInput = JSON.stringify({
+    actions: actions.map((action, index) => ({ index, ...action })),
     deterministicInvalidSentenceIndexes: invalidIndexes,
     deterministicPublicationFailures: publicationFailures,
     evidenceNeedCoverage: evidence.needCoverage || [],
@@ -177,7 +186,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
         return withProviderDeadline(signal => provider.responses.create(request, { signal }), boundedProviderTimeout(HISTORY_REVIEW_LIMITS.timeoutMs, 0, "verification"));
       } });
     const parsed = interpretStructuredProviderResponse(output, raw =>
-      sharedRequest ? parseRepairableTaskHistoryReview(JSON.parse(raw), draft.sentences.length, obligations.length) : parseHistoryReviewSelection(JSON.parse(raw), draft.sentences.length));
+      sharedRequest ? parseRepairableTaskHistoryReview(JSON.parse(raw), draft.sentences.length, obligations.length, actions.length) : parseHistoryReviewSelection(JSON.parse(raw), draft.sentences.length));
     onProviderEvent?.({ stage: "verification", outcome: parsed.status === "completed" ? "succeeded" : "failed", model,
       elapsedMs: Date.now() - started, inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens,
       providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REVIEW_INVALID" });
@@ -198,14 +207,15 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       failureStage = "repair";
       const repaired = await repairRejectedRead(provider, model, requestInput, reason, onProviderEvent);
       if (!repaired || before !== signature(result)) return decline("repair_output_invalid_or_changed");
-      const candidate = { ...result, historyNarrative: repaired, historyNarrativeDeclined: false };
+      const candidate = { ...result, historyNarrative: repaired.narrative, applicationActions: repaired.applicationActions, historyNarrativeDeclined: false };
       if (!await reviewHistoricalAnswer({ result: candidate, client: provider, onProviderEvent, repairAttempted: true })
         || before !== signature(result)) return decline("repair_independent_review_failed");
       const receipt = readReviewedHistoryAnswer(candidate);
       if (!receipt) return decline("repair_receipt_unavailable");
-      // Only prose crosses this boundary. Repairs cannot change evidence, actions,
-      // safety routing, pet ownership or any persistence proposal.
-      result.historyNarrative = repaired;
+      // Only reviewed prose and read-only navigation cross this boundary. Repairs
+      // cannot change evidence, safety, pet ownership or mutation proposals.
+      result.historyNarrative = repaired.narrative;
+      result.applicationActions = repaired.applicationActions;
       result.historyNarrativeDeclined = false;
       recordHistoryReview(result, { ...receipt, signature: signature(result) });
       recordHistoryReviewDiagnostic(result, "approved", "repaired_and_reviewed");
@@ -251,7 +261,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       && (!isStructuredHistoryText(composed) || supplements.length)) return decline("composed_structure_changed");
     if (!matchesHistoryOutputFormat([composed, ...supplements].join("\n\n"), sharedRequest?.outputFormat)) return decline("composed_format_invalid");
     if (sharedRequest) assertNoInternalReasoningLeak(composed, evidence.represented.map(span => ({ id: span.sourceId })));
-    recordHistoryReview(result, { signature: before,
+    recordHistoryReview(result, { signature: before, actions,
       ...(sharedRequest ? { completion: completionCheck.completion } : {}),
       proseText: presentHistoryLimitation(composed, limitation, evidence.scope.requestText),
       sourceReports: supplements, sourceContent: supplementContent,
@@ -287,10 +297,10 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
       text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema } } },
     { signal }), boundedProviderTimeout(20_000, 8_000, "repair")); } });
   const parsed = interpretStructuredProviderResponse(output, raw => {
-    const canonical = canonicalHistoricalRead(JSON.parse(raw)) as { historyNarrative?: unknown };
+    const canonical = canonicalHistoricalRead(JSON.parse(raw)) as { historyNarrative?: unknown; applicationActions?: unknown };
     const narrative = parseHistoryNarrative(canonical.historyNarrative);
     if (!narrative) throw new Error("INVALID_HISTORY_REPAIR");
-    return narrative;
+    return { narrative, applicationActions: parseModelApplicationActions(canonical.applicationActions, payload.question) };
   });
   onProviderEvent?.({ stage: "repair", outcome: parsed.status === "completed" ? "succeeded" : "failed", model, elapsedMs: 0,
     inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens,
