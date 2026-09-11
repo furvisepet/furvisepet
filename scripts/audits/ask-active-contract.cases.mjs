@@ -70,3 +70,55 @@ test('malformed primary output remains a bounded incomplete answer without mutat
  providerResponse:async()=>({status:'completed',output_text:'{}',usage:{input_tokens:20,output_tokens:2}})});
  assert.equal(r.result.answerValidation.assessment.outcome,'limited');noWrites(r);
 });
+
+const { emptyProposedSemanticFrame } = await import('../../app/lib/intelligence/semantic-frame/extract-frame.ts');
+const updateProposal = (question, patch = {}) => proposal(question, {
+ mode: 'update', operation: 'general', quantity: null, evidenceBasis: null,
+ frame: emptyProposedSemanticFrame(), ...patch,
+});
+for (const question of ['Milo had a 7 minute play session today. Save this update to care history.', 'Archive Milo.']) {
+ test('owner update/action without prior evidence has an explicit valid contract: '+question, async()=>{
+  let calls=0;
+  const result=await interpretAskQuestion({context:{...context,currentMessage:question},model:'gpt-5-mini',client:{responses:{async create(request){
+   calls++; assert.match(request.instructions,/evidenceBasis null when no saved facts are needed/);
+   return {status:'completed',output_text:JSON.stringify(updateProposal(question)),usage:{input_tokens:12,output_tokens:8}};
+  }}}});
+  assert.equal(calls,1); assert.equal(result.request.evidenceBasis,null);
+  assert.equal(result.readOnly,false); assert.deepEqual(result.petIds,[pets[0].id]);
+  assert.equal(result.history,null); assert.deepEqual(result.frame,emptyProposedSemanticFrame());
+ });
+ for(const basis of ['general','supplied_context']) test('one re-interpretation repairs contradictory '+basis+' for '+question,async()=>{
+  let calls=0;const events=[];
+  const invalid=updateProposal(question,{evidenceBasis:basis,premiseQuotes:[question]});
+  assert.throws(()=>recoverAskInterpretation(invalid,{...context,currentMessage:question}),/BASIS_UPDATE/);
+  const result=await interpretAskQuestion({context:{...context,currentMessage:question},model:'gpt-5-mini',onProviderEvent:e=>events.push(e),client:{responses:{async create(request){
+   calls++;if(calls===2)assert.match(request.instructions,/never relabel them as real updates/);
+   return {status:'completed',output_text:JSON.stringify(calls===1?invalid:updateProposal(question)),usage:{input_tokens:12,output_tokens:8}};
+  }}}});
+  assert.equal(calls,2);assert.equal(result.request.evidenceBasis,null);assert.equal(result.readOnly,false);
+  assert.equal(events.filter(e=>e.providerErrorCode==='ASK_REQUEST_CONTRACT_BASIS_UPDATE').length,1);
+ });
+}
+for(const question of ['Fictional example: Milo missed breakfast. Save that.', 'If Milo missed breakfast, would you save that?', 'The quote says "Archive Milo." Explain it; do not archive him.']) {
+ test('repair preserves non-writing fictional/hypothetical/quoted intent: '+question,async()=>{
+  let calls=0;
+  const result=await interpretAskQuestion({context:{...context,currentMessage:question},model:'gpt-5-mini',client:{responses:{async create(){
+   calls++;const value=calls===1?updateProposal(question,{evidenceBasis:'supplied_context',premiseQuotes:[question]}):proposal(question,{mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'supplied_context',premiseQuotes:[question]});
+   return {status:'completed',output_text:JSON.stringify(value),usage:{input_tokens:12,output_tokens:8}};
+  }}}});
+  assert.equal(calls,2);assert.equal(result.readOnly,true);assert.equal(result.conversationOnly,true);
+  assert.deepEqual(result.petIds,[]);assert.equal(result.history,null);assert.deepEqual(result.frame,emptyProposedSemanticFrame());
+ });
+}
+for(const [name,patch,reason] of [
+ ['repeated conflicting basis',{evidenceBasis:'general'},'BASIS_UPDATE'],
+ ['foreign subject',{petNames:['NotOwned']},'OWNERSHIP'],
+ ['missing frame',{frame:null},'FRAME'],
+ ['unknown source reference',{referenceTurnIds:['not-a-user-turn']},'REFERENCE'],
+]) test('repair remains bounded and rejects '+name,async()=>{
+ let calls=0;const question='Archive Milo.';
+ await assert.rejects(interpretAskQuestion({context:{...context,currentMessage:question},model:'gpt-5-mini',client:{responses:{async create(){
+  calls++;return {status:'completed',output_text:JSON.stringify(updateProposal(question,calls===1?{evidenceBasis:'general'}:patch)),usage:{input_tokens:12,output_tokens:8}};
+ }}}}),e=>e.diagnostics.providerErrorCode==='ASK_REQUEST_CONTRACT_'+reason);
+ assert.equal(calls,2);
+});

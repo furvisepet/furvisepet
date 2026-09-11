@@ -1,5 +1,33 @@
 # Ask: first 20 files — code audit
 
+## Production verification — 11 September 2026
+
+**Live acceptance failed.** Five first-attempt prompts were submitted through the signed-in production app: two passed and three failed. No failed prompt was resubmitted. These results supersede any impression that the local checks established end-to-end readiness.
+
+Approved rollout: PR #282 merged as `f0e164858419784c4021ebdb384e5b806a78e333`. Vercel deployment `dpl_4F1c6m8ZisWXYdvoKPNvCZuJTauZ` reached READY and owns `www.furvise.com`. The suggestion-transition migration was applied before rollout; production PostgreSQL confirms EXECUTE is denied to anon/authenticated and granted to service_role. The prior “not deployed” note below describes the earlier local verification stage.
+
+Tests used the existing synthetic Clover profile, the real browser session, real API/model calls and production database reads. No mocked network responses or authentication were used.
+
+| Scenario | Live result | Evidence |
+|---|---|---|
+| Fictional red=2/blue=3 counts, CSV only | Pass | Exact stored answer: `color,count\nred,2\nblue,3`; no capability detour. |
+| Reload that answer | Pass, additional check | Visible conversation body identical before and after reload; database answer agrees. |
+| Ask whether Vet Brief exports PDF; do not create one | Pass | Correct availability answer, with an optional preparation button; no action invoked. |
+| Show Clover's profile AND explain fictional 2+3 | Fail | History fallback instead of either requested result. Trace: `ASK_HISTORY_REPAIR_INVALID`; initial output validation: `MISSING_READ_BODY`. Four provider calls. |
+| Archive Clover, then cancel confirmation | Setup failed | HTTP 503; interpretation rejected with `ASK_REQUEST_CONTRACT_BASIS_UPDATE`. No action capability created, so Cancel could not be tested. Credit released. |
+| Save Clover's seven-minute play session | Fail | HTTP 503 with the same interpretation-contract error. No care entry created. Credit released. |
+| Recover a failed first turn | Partial | Failed conversations were absent from the already-loaded list until a full page reload. After reload, the failed save reopened with the original question and retry control. No retry performed. |
+
+**Additional completion concern:** the compound-request fallback was stored with `finalStage=COMPLETED`, `creditDisposition=complete`, and no final error, despite `providerFailureClass=ASK_HISTORY_REPAIR_INVALID`. Treat this as an unresolved failure/credit-accounting contract issue, not a successful answer.
+
+**Database outcome:** live care entries remained 3,729; Clover remained active; no action capabilities were created by this run. Conversation records for the five submitted prompts were retained as evidence.
+
+**Not established by this run:** successful save/repeat-save/cross-pet-save behavior (initial save failed), cancellation persistence (proposal failed), monitor/dismiss behavior through the UI, native concurrent transitions, and pagination beyond 40 conversations/100 messages. The existing account's conversations did not reach those pagination boundaries. Earlier offline checks for these paths remain useful but are not live passes.
+
+Reproduction conversations: CSV `dceb8218-e601-4ab4-9222-21b227738d4a`; PDF capability `8a9cc9d7-6c7d-4d4a-9e67-f6ca11b18e89`; compound request `83dbac36-bd30-4a4e-b6c2-c7c52a49fc27`; archive `00c9cd44-c157-44e3-9030-2164dd1cc294`; save `0866ffb8-808b-4b8d-ba32-571d7241b489`.
+
+Next repair priorities are the interpretation contract for explicit mutations, mixed navigation/question handling through the full pipeline, unsuccessful-fallback completion/credit policy, and conversation-list refresh after a failed first turn. Validation and write-authorization checks must remain intact while correcting these failures.
+
 ## Repair verification — 11 September 2026
 
 The repairs for F1–F9 pass the focused checks below. Verification covers the original 20 application files, two directly changed conversation helpers, and the suggestion-transition migration. Fourteen of the 20 application files required edits; six were reviewed without unnecessary changes. No full-project test suite or build was rerun for this verification pass.
