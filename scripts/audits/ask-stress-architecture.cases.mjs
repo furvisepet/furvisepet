@@ -335,3 +335,16 @@ test('only a fully reviewed ready task plus an applied receipt completes a pendi
   assert.equal(turn.snapshot().taskOutcome,expected);
  }
 });
+
+for (const inventedDate of [false,true]) test(`CSV quotes are cell delimiters; row dates remain grounded (invented=${inventedDate})`,async t=>{
+ clock(t); const rows=[care('first','milo','2026-06-03','general','Aster rested, then slept.'),care('second','milo','2026-06-04','general','Aster ate, then rested.')];
+ const payload={readVersion:'history-answer.v1',layout:'csv',historyNarrative:null,json:null,limitation:null,
+ safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:rows.map(r=>'care:'+r.id),
+ table:{headers:['date','event'],rows:rows.map((r,i)=>({cells:[inventedDate&&i===1?'2026-06-05':r.occurred_at.slice(0,10),r.note],sourceIds:['care:'+r.id],calculations:[]}))}};
+ const r=await exercise('Give Aster saved rest notes as CSV only, columns date and event.',{fixturePets:owned,messages:[],history:true,rows,
+ interpretationProposal:proposal({outputFormat:'csv',terms:['rest']}),
+ providerResponse:async()=>({status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}}),
+ reviewResponse:{approved:true},expectedReviewCalls:null});
+ if(inventedDate) assert.equal(readReviewedHistoryAnswer(r.result.reasoning),null);
+ else {assert.equal(r.publication.failure,null);assert.equal(r.reviewRequests.length,1);assert.match(r.result.reasoning.answer.summary,/2026-06-04,"Aster ate, then rested\."/);}
+});

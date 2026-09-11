@@ -30,7 +30,7 @@ function quantities(text: string): string[] {
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
  * prevents an approving model from manufacturing a date or dose. */
-export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = [], onUnsupported?: (reason: string) => void): boolean {
+export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = [], onUnsupported?: (reason: string) => void, serializedResult = false): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
   // Missing documentation cannot support a claim that a clinical act never occurred.
@@ -44,7 +44,9 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     && !sources.every(source => source.occurredAt?.slice(0, 10) === new Date().toISOString().slice(0, 10))) return false;
   // A displayed quotation must be an exact substring of one source. Dates
   // outside the quotation must identify that source, not a different citation.
-  for (const match of (isStructuredHistoryText(text) ? [] : text.matchAll(/"([^"]+)"|“([^”]+)”/g))) {
+  // Quotation marks in a typed CSV cell are serialization delimiters, not
+  // verbatim prose attribution. Row-bound factual anchors still run below.
+  for (const match of (serializedResult || isStructuredHistoryText(text) ? [] : text.matchAll(/"([^"]+)"|“([^”]+)”/g))) {
     const quote = match[1] ?? match[2];
     const matching = sources.filter(source => source.text.includes(quote));
     if (!matching.length) {

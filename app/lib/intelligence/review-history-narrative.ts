@@ -116,7 +116,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   catch { return decline("draft_publication_rejected"); }
   const anchorHints = new Map<string, string[]>();
   const calculationHints = new Map<string, Array<{ operation: string; expectedValue: number; unit: string }>>();
-  const supported = (sentence: typeof proposedDraft.sentences[number]) => {
+  const supported = (sentence: typeof proposedDraft.sentences[number], serializedResult = false) => {
     if (!sentence.sourceIds.every(id => ids.has(id))) return false;
     const cited = sources.filter(source => sentence.sourceIds.includes(source.sourceId));
     const hints: Array<{ operation: string; expectedValue: number; unit: string }> = [];
@@ -127,7 +127,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     return derived !== null && historyNarrativeAnchorsSupported(sentence.text, cited,
       (sharedRequest ? [evidence.scope.requestText, evidence.interpretation?.referenceQuestion].filter(Boolean).join("\n") : evidence.interpretation?.referenceQuestion || evidence.scope.requestText), derived, !sharedRequest,
       sharedRequest ? [evidence.interpretation?.history?.from, evidence.interpretation?.history?.to,
-        evidence.interpretation?.history?.to ? new Date(Date.parse(evidence.interpretation.history.to) - 86400000).toISOString() : null].filter((date): date is string => !!date) : [], reason => anchorFailures.push(reason))
+        evidence.interpretation?.history?.to ? new Date(Date.parse(evidence.interpretation.history.to) - 86400000).toISOString() : null].filter((date): date is string => !!date) : [], reason => anchorFailures.push(reason), serializedResult)
       && (sharedRequest || !hasUndatedHistoricalCareState(sentence.text, cited));
   };
   // Review the entire shared answer, including invalid clauses. Removing them
@@ -140,7 +140,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const reason = readPublicationFailure(sentence.text);
     return reason ? [{ index, reason }] : [];
   }) : [];
-  const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence)
+  const invalidIndexes = draft.sentences.flatMap((sentence, index) => supported(sentence, Boolean(result.historicalResult && result.historicalResult.layout === sharedRequest?.outputFormat))
     && !publicationFailures.some(failure => failure.index === index) ? [] : [index]);
   if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
   if (!draft.sentences.length || repairAttempted && invalidIndexes.length) return decline("draft_anchors_invalid");
