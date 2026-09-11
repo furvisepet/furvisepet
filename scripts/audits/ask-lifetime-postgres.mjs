@@ -213,6 +213,12 @@ try {
  assert.equal(sql(`select status from public.pet_care_episodes where id=${quote(lunaSecond.episode_id)};`),'resolved');
  assert.equal(json(`select public.read_ask_episode_sources(${quote(luna)},array['vomiting','vomit']);`).recorded_census.episodeCount,2);
  log.push('unprefixed native symptom with rebuilt summary resolves through real governance and persistence without creating another episode');
+ const aliasThird=await write('Luna had a new separate vomiting episode.','started','opening','2026-09-01T00:00:00Z',luna,[],'vomiting_episode_update');
+ const aliasResolution=await write('Luna stopped vomiting completely.','resolved','resolution','2026-09-03T00:00:00Z',luna,active(luna));
+ assert.equal(aliasResolution.episode_id,aliasThird.episode_id);
+ assert.equal(sql(`select status from public.pet_care_episodes where id=${quote(aliasThird.episode_id)};`),'resolved');
+ assert.equal(json(`select public.read_ask_episode_sources(${quote(luna)},array['vomiting','vomit']);`).recorded_census.episodeCount,3);
+ log.push('plain symptom resolution preserves the generated alias episode identity through actual SQL persistence');
  console.log(JSON.stringify({passed:log},null,2));
 } finally {
  try {
