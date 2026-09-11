@@ -48,7 +48,7 @@ This fixes the misleading retry behavior, **not the missing historical relations
 - Explicit negative quantities cannot become positive through anchor extraction or Unicode-minus operand matching. A single reverse-Polish operand must meet the same finite-value and scale bounds as compound calculations.
 - History-access clipping compares instants, preventing timezone spellings from expanding the authorized window. The projection reader uses instant comparisons at midnight and the exclusive upper boundary.
 - Reviewed-answer receipts and accepted census objects are defensive snapshots. Mutating the caller's input cannot rewrite an accepted receipt or count.
-- Deterministic body-mass drafts defer uncertain/negated measurements and structurally unsafe table names to ordinary reviewed generation.
+- Deterministic body-mass drafts use the shared assertion parser to defer uncertain/negated/conditional measurements, including contractions and structurally unsafe table names to ordinary reviewed generation.
 
 The shared deadline, correction discovery, episode reader and episode presentation are narrow dependencies outside the 25-file remainder. Factual review, request intent, write authorization and billing remain separate.
 
@@ -62,7 +62,11 @@ The shared deadline, correction discovery, episode reader and episode presentati
 
 ## Release and live verification
 
-Pending final-source deployment and browser checks.
+PR #297 merged as `c1c4d8524daf9dba3ec1318077c2d7fce93a847d`. Final preview `dpl_FY1aeemExNLz2tqgTJanJuazStWi` passed its build at source `db2225548dcf219e54055151eabc5900305a69de`. Production deployment `dpl_7UYFoHYPqDQgtjk2T6o5JFiH763d` passed its build and was READY, assigned to `www.furvise.com`, at the exact merge commit before browser checks.
+
+- Fresh episode request: “How many recorded vomiting episodes has Clover had since 2024-01-01?” Request `cba66c50-9c2a-4b84-a588-2de7a2be80a5`, conversation `67904f90-d3a6-45ad-9a72-75fa73c1dbf9`. The response explained unresolved correction links, explicitly avoided implying zero episodes, and no longer suggested retrying. Reload preserved the exact response. Persisted assessment correctly remained **limited**; this is a failure-classification acceptance pass, not an exact-count pass.
+- Fresh dated conversion: Clover and Pixel's recorded body weights on 2024-01-09, grams, name-sorted table. Request `706a6a19-aa5d-4e96-b1a1-9a0430085a0e`, conversation `f9349378-2635-4f93-afe0-bf617e0d959b`. Returned Clover **2200 g**, Pixel **5120 g**. All five persisted assessment checks passed, outcome **complete**. Both table rows survived reload unchanged.
+- No 5xx logs matched this deployment in the checked 05:52–06:02 UTC window. Synthetic live care records remained **3,736**, unchanged. The live tests were read-only.
 
 ## Rating and remaining limits
 
