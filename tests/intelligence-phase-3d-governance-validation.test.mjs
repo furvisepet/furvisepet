@@ -88,7 +88,7 @@ test("governed recovery removes only stale unconditional escalation and retains 
     },
   ), context("Mani seems normal now"), "recently_resolved");
   assert.equal(result.response.answer.summary, "That's a good sign. If symptoms return, seek urgent care.");
-  assert.equal(result.response.answer.title, "It sounds like Mani is improving");
+  assert.equal(result.response.answer.title, "Recovery update for Mani");
   assert.equal(result.response.safetyLevel, "monitor");
   assert.equal(result.response.responseMode, "practical_guidance");
   assert.equal(result.response.shoppingSuppressed, false);
@@ -98,7 +98,7 @@ test("governed recovery removes only stale unconditional escalation and retains 
 test("governed recovery also removes stale unconditional escalation from adaptive sections", () => {
   const result = validateGeneratedAnswer(reasoning("That's a good sign.", {
     answer: {
-      title: "It sounds like Mani is improving",
+      title: "Recovery update for Mani",
       summary: "That's a good sign.",
       sections: [{ heading: "What to do", items: ["Contact an emergency veterinarian now.", "Watch for symptoms returning."] }],
       safetyNote: null,

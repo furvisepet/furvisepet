@@ -1,6 +1,7 @@
 import { rememberReviewedTaskPresentation } from "../ask-evidence-presentation.ts";
 import {
   historyFallbackPresentation,
+  recoveryUpdateTitle,
   mapAskProse,
   askProseOnly,
   preserveReviewedLayout,
@@ -130,7 +131,7 @@ export function validateGeneratedAnswer(
       ...section,
       items: section.items.map(reconcile).filter(Boolean),
     })).filter((section) => section.items.length > 0);
-    if (/^Urgent guidance for\b/i.test(response.answer.title)) response.answer.title = `It sounds like ${context.pet.name} is improving`;
+    if (/^Urgent guidance for\b/i.test(response.answer.title)) response.answer.title = recoveryUpdateTitle(context.pet.name);
     response.safetyLevel = "monitor";
     response.shoppingSuppressed = false;
     response.intelligenceSafety.level = "recently_resolved";

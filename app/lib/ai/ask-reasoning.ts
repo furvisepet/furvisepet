@@ -1,6 +1,6 @@
 import { evidenceRemovalCost } from "../intelligence/evidence-need-coverage.ts";
 import { withProviderDeadline } from "./execution-deadline.ts";
-import { stripKnownHistoryCitations } from "../furvise-output.ts";
+import { recoveryUpdateTitle, stripKnownHistoryCitations } from "../furvise-output.ts";
 import { companionVoiceInstructions, FURVISE_SHARED_PROMPT_RULES } from "../furvise-voice.ts";
 import { historicalReadInstructions, historicalReadSchema, canonicalHistoricalRead } from "../intelligence/historical-read-response.ts";
 import { deterministicReadProjection } from "../intelligence/read-projection.ts";
@@ -896,7 +896,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   }
   const petName = profile?.name || "Your pet";
   const title = input.concernStateHint === "improved" || input.concernStateHint === "resolved"
-    ? `It sounds like ${petName} is improving`
+    ? recoveryUpdateTitle(petName)
     : input.concernStateHint === "recurrence"
       ? "A previous concern may have returned"
       : parsed.responseMode === "urgent_safety" ? urgentSemanticTitle(petName, parsed.semanticEvents, input.question, input.concerns || []) : "Furvise";

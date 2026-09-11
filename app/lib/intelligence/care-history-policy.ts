@@ -48,7 +48,7 @@ export function omitGovernedCareSaveDuplicates(input: {
     && item.event.subject.type === "pet" && item.event.subject.id === input.petId
     && item.event.domain === "health").map(item => item.event.sourceExcerpt.trim()).filter(Boolean));
   return input.actions.filter(action => !(action.kind === "care_history.add"
-    && (action.input.category === null || action.input.category === "health")
+    && [null, "health", "symptom"].includes(action.input.category)
     && action.input.target !== "last" && details.has(action.input.detail?.trim() || "")));
 }
 
