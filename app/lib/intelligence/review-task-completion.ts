@@ -160,7 +160,8 @@ export async function reviewTaskCompletion(input: {
           input: item.event, destinations: item.destinations, executionDisposition: "automatic_after_persistence",
           origin: "server_governed_care_event", visibleCardRequired: false,
         }))], mutationExecution: false, reviewStage: "before_persistence_and_execution",
-      automaticMutationIndexes: actions.flatMap((action,index) => actionCanAutoExecute(action.kind,action.explicitIntent) ? [index] : []) };
+      automaticMutationIndexes: actions.flatMap((action,index) => actionCanAutoExecute(action.kind,action.explicitIntent) ? [index] : [])
+        .concat(pendingEvents.map((_,index) => actions.length + index)) };
     const schema = taskReviewSchema(obligations.length, actions.length + pendingEvents.length, readyActionIndexes);
     let reviewFailure = "INVALID";
     const reviewed = parseTaskCompletion(await invoke(attempt ? "task_rereview" : "task_review", payload, schema, instructions), obligations, 1, actions.length + pendingEvents.length, reason => { reviewFailure = reason; }, readyActionIndexes);

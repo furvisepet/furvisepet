@@ -266,6 +266,7 @@ test('governed health save reaches completion review before its persistence rece
    pendingCareEvents:pending,requestId:'semantic-ready',validate:validation,client:mock([verdict],seen)});
  const input=JSON.parse(seen[0].input);
  assert.equal(input.actions[0].origin,'server_governed_care_event');
+ assert.deepEqual(input.automaticMutationIndexes,[0]);
  assert.equal(input.actions[0].input.temporal.occurredAt,event.temporal.occurredAt);
  assert.equal(input.actions[0].executionDisposition,'automatic_after_persistence');
  assert.equal(r.assessment.outcome,'limited','readiness is not execution success');
