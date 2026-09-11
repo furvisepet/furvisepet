@@ -101,7 +101,7 @@ test('persistent omission fails after exactly one repair',async()=>{
   const seen=[];await assert.rejects(run([rejected,{answer:body,navigation:[nav]},rejected],response(),seen),/ASK_TASK_INCOMPLETE/);assert.equal(seen.length,3);
 });
 test('review failure is not silently accepted',async()=>{
-  await assert.rejects(run([{obligations:[],reason:null}]),/ASK_TASK_REVIEW_INVALID/);
+  await assert.rejects(run([{obligations:[],reason:null},{answer:body,navigation:[nav]},{obligations:[],reason:null}]),/ASK_TASK_REVIEW_INVALID/);
 });
 test('an explicit limitation is not reported as complete',async()=>{
   const text='I cannot open that page here. The fictional sum is 5.';
@@ -156,4 +156,33 @@ test('navigation mode conflict gets one bounded reinterpretation without write a
  const result=await interpretAskQuestion({context,model:'gpt-5-mini',onProviderEvent:e=>events.push(e),client:mock(replies)});
  assert.equal(result.readOnly,true);assert.equal(result.history,null);assert.equal(replies.length,0);
  assert.ok(events.some(e=>e.providerErrorCode==='ASK_REQUEST_CONTRACT_NAVIGATION'));
+});
+
+for (const hyphen of ['-', '\u2010', '\u2011']) test('duration typography preserves exact save authority: '+hyphen,()=>{
+ assert.equal(authorized(source,observation.replace('7 minute','7'+hyphen+'minute')),true);
+ assert.equal(authorized(source.replace('7 minute','-7 minute'),observation.replace('7 minute','7'+hyphen+'minute')),false);
+ assert.equal(authorized(source.replace('7 minute','7.5 minute'),observation.replace('7 minute','75'+hyphen+'minute')),false);
+});
+test('invalid limitation references get one repair and an independently valid review',async()=>{
+ const invalid=review();invalid.obligations[1].status='limited';
+ const seen=[];const result=await run([invalid,{answer:body,navigation:[nav]},review()],response(),seen);
+ assert.equal(seen.length,3);assert.equal(result.assessment.checks.taskCompletion,'passed');
+ assert.match(JSON.parse(seen[1].input).rejectionReason,/LIMITATION_SUPPORT/);
+});
+test('action readiness requires a server eligible card and whole-answer support',()=>{
+ const verdict={obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}],reason:null};
+ assert.equal(parseTaskCompletion(verdict,[source],1,1),null);
+ const accepted=parseTaskCompletion(verdict,[source],1,1,undefined,[0]);
+ assert.equal(accepted.accepted,true);assert.equal(accepted.complete,false);
+ verdict.obligations[0].answerIndexes=[];
+ assert.equal(parseTaskCompletion(verdict,[source],1,1,undefined,[0]),null);
+});
+test('an exact observation save is reviewed as ready, never falsely completed',async()=>{
+ const saveContext={...context,currentMessage:source,askInterpretation:{...context.askInterpretation,request:{...context.askInterpretation.request,requirements:[]}}};
+ const seen=[];const verdict={obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}],reason:null};
+ const r=response('The action below shows the status of this update.',[{...action,input:{...action.input,detail:observation.replace('7 minute','7-minute')}}]);
+ const result=await reviewTaskCompletion({validation:validation(r),context:saveContext,requestId:'save-ready',validate:validation,client:mock([verdict],seen)});
+ assert.equal(JSON.parse(seen[0].input).actions[0].executionDisposition,'automatic_after_persistence');
+ assert.equal(result.assessment.checks.taskCompletion,'failed');
+ assert.equal(result.assessment.outcome,'limited');
 });

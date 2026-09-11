@@ -188,7 +188,8 @@ function exactCareHistoryAddCommand(command: string, detail: string | null) {
 // Keep decimals, signs, negation and qualifiers intact. Authority is for the
 // stated observation, never a model paraphrase that merely shares its keywords.
 function careLiteral(value: string | null) {
-  return String(value || "").normalize("NFC").toLowerCase().trim().replace(/[.!]$/, "").replace(/\s+/g, " ");
+  return String(value || "").normalize("NFC").toLowerCase().trim().replace(/[.!]$/, "").replace(/\s+/g, " ")
+    .replace(/(\d)[-\u2010\u2011](?=(?:second|minute|hour)s?\b)/g, "$1 ");
 }
 function careCommand(value: string) {
   return careLiteral(value).replace(/^furvise[, ]+/, "").replace(/^please /, "")

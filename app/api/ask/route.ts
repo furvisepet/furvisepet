@@ -1711,7 +1711,12 @@ async function persistAssistantAnswer({
         operationOwnerToken,
         payloadHash: operationPayloadHash,
         petId,
-        recentCareEntries,
+        // An explicit new observation belongs to this turn. Similar text from
+        // an older turn must not consume a newly requested save.
+        recentCareEntries: parseStoredApplicationActions((response as { applicationActions?: unknown }).applicationActions)
+          .some(action => action.kind === "care_history.add" && shouldAutoExecuteAction(action))
+          ? recentCareEntries.filter(entry => entry.intelligence_source_message_id === userMessageId)
+          : recentCareEntries,
         requestId,
         sourceMessageId: userMessageId,
         supabase,
