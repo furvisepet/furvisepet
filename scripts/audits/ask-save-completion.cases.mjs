@@ -78,7 +78,7 @@ const run=(values,r=response(),seen=[])=>reviewTaskCompletion({validation:valida
 test('compound answer requires both explanation and the actual navigation card',async()=>{
   const seen=[];const result=await run([review()],response(),seen);
   assert.equal(result.assessment.checks.taskCompletion,'passed');
-  const payload=JSON.parse(seen[0].input);assert.equal(payload.obligations[0],question);
+  const payload=JSON.parse(seen[0].input);assert.equal(payload.obligations[0].text,question);
   assert.equal(payload.actions[0].href,`/pets/${pet.id}`);
 });
 for(const [label,change] of [
@@ -119,7 +119,7 @@ test('real generation, governance, validation and publication preserve both requ
   const r=await exercise(question,{history:true,rows:[],messages:[],interpretationProposal:plan,
     providerOverrides:{answer:body,applicationActions:[nav,action]},taskReviewProviderResponse:async request=>{
       const payload=JSON.parse(request.input);
-      assert.equal(payload.obligations[0],question);
+      assert.equal(payload.obligations[0].text,question);
       assert.equal(payload.actions.length,1,'read-only governance removes mutation before review');
       assert.equal(payload.actions[0].kind,'navigation.open_pet_profile');
       return {status:'completed',output_text:JSON.stringify(review(payload.answer)),usage:{input_tokens:100,output_tokens:50}};
@@ -141,4 +141,19 @@ test('final publication binding detects removed or changed action and answer',()
  assert.equal(reviewedTaskPresentationFailure(evidence,answer,[{...actions[0],petId:'other'}]),'task_action_missing_or_changed');
  assert.match(reviewedTaskPresentationFailure(evidence,{...answer,summary:'Use the profile link.'},actions),/^task_/);
  assert.equal(reviewedTaskPresentationFailure(structuredClone(evidence),answer,[]),null,'stored JSON cannot create a live approval receipt');
+});
+
+test('stray navigation search and calculation metadata cannot force historical routing',()=>{
+ const result=validateAskRequest({...plan,quantity:'measurement',terms:['profile'],from:'2026-01-01',to:'2026-02-01'},context);
+ assert.equal(result.history,null);assert.equal(result.readOnly,true);assert.equal(result.request.quantity,null);
+ assert.deepEqual(result.petIds,[pet.id]);
+});
+
+test('navigation mode conflict gets one bounded reinterpretation without write authority',async()=>{
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ const {emptyProposedSemanticFrame}=await import('../../app/lib/intelligence/semantic-frame/extract-frame.ts');
+ const events=[];const replies=[{...plan,mode:'mixed',frame:emptyProposedSemanticFrame()},plan];
+ const result=await interpretAskQuestion({context,model:'gpt-5-mini',onProviderEvent:e=>events.push(e),client:mock(replies)});
+ assert.equal(result.readOnly,true);assert.equal(result.history,null);assert.equal(replies.length,0);
+ assert.ok(events.some(e=>e.providerErrorCode==='ASK_REQUEST_CONTRACT_NAVIGATION'));
 });
