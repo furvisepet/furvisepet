@@ -1,6 +1,7 @@
 import type { CareEntryRow, DogProfileWithMemories } from "./supabase";
 import { formatPetDisplayName, formatSpecies } from "./petwise";
 import { isKnownConversationalCareNoise } from "./intelligence/care-history-policy.ts";
+import { explicitCareEntryDate, formatHistoryTimestamp } from "./history-archive.ts";
 
 export const SERVER_SAFE_GREETING = "Welcome back";
 export const TODAY_REMEMBER_EXAMPLES = [
@@ -148,7 +149,8 @@ export function formatTodayPetContext(profile: Pick<DogProfileWithMemories, "age
     .join(" · ");
 }
 
-export function formatTodayTimelineDate(value: string, now = new Date()) {
+export function formatTodayTimelineDate(value: string, now = new Date(), metadata?: Record<string, unknown> | null) {
+  if (explicitCareEntryDate(value, metadata)) return formatHistoryTimestamp(value, undefined, metadata);
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "Recently";
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();

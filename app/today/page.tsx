@@ -225,7 +225,7 @@ export default function TodayPage() {
                   {recentEntries.map((entry) => (
                     <li className={styles.recentEntry} key={entry.id}>
                       <p className={styles.recentMetadata}>
-                        <time dateTime={entry.occurred_at}>{formatTodayTimelineDate(entry.occurred_at)}</time>
+                        <time dateTime={entry.occurred_at}>{formatTodayTimelineDate(entry.occurred_at, undefined, entry.care_event_metadata)}</time>
                         <span aria-hidden="true"> · </span>
                         <span>{formatCareEntryCategory(entry.category)}</span>
                       </p>

@@ -21,7 +21,7 @@ export function getHistoryFromInstant(when: HistoryWhenFilter, now = new Date())
   return new Date(now.getTime() - days * 86_400_000).toISOString();
 }
 
-export function formatHistoryTimestamp(value: string, locale?: string, metadata?: Record<string, unknown> | null) {
+export function explicitCareEntryDate(value: string, metadata?: Record<string, unknown> | null): string | null {
   const instant = new Date(value);
   const batchIndex = metadata?.sourceNoteIndex, batchCount = metadata?.sourceNoteCount;
   const datedBatch = metadata?.source === "ask_furvise" && Number.isInteger(batchIndex) && Number.isInteger(batchCount)
@@ -31,8 +31,15 @@ export function formatHistoryTimestamp(value: string, locale?: string, metadata?
   // local clock time. Do not move that date across days or invent a time of day.
   if (typeof explicitDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(explicitDate)
     && Number.isFinite(instant.getTime()) && instant.toISOString() === `${explicitDate}T00:00:00.000Z`) {
-    return new Intl.DateTimeFormat(locale || "en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).format(instant);
+    return explicitDate;
   }
+  return null;
+}
+
+export function formatHistoryTimestamp(value: string, locale?: string, metadata?: Record<string, unknown> | null) {
+  if (explicitCareEntryDate(value, metadata)) return new Intl.DateTimeFormat(locale || "en-US", {
+    year: "numeric", month: "short", day: "numeric", timeZone: "UTC",
+  }).format(new Date(value));
   return locale ? formatCareEntryTimestamp(value, locale) : formatCareEntryTimestamp(value);
 }
 
