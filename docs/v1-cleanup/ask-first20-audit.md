@@ -1,5 +1,41 @@
 # Ask: first 20 files — code audit
 
+## Compound historical navigation repair — production acceptance and rating
+
+September 11, 2026. PR #290 merged as `da9dd805011c45b7b9cf887e8afcf23d72e1841f`. Deployment `dpl_FREGYpEWvxVA4xYiamf2pp9MxxTw` reached READY and owns `www.furvise.com`, `furvise.com` and `furvise.vercel.app`. Preview and production builds passed.
+
+Historical answer composition now permits a bounded navigation-only field. It supplies no arbitrary URL, pet identifier or mutation fields. The existing parser verifies the action's current-message evidence; the server prepares the owned target and link. Historical review checks the original question against the factual prose and actual indexed action cards in the same existing review call. A single repair can supply missing navigation and requires independent re-review. No provider-call budget was expanded. Review signatures bind the proposals, and final presentation receipts reject removed or changed reviewed cards. An explicitly limited historical obligation no longer counts as passed task completion.
+
+**Local verification: 143 focused tests passed.** These cover the new historical generation/repair/publication path plus existing owner-update interpretation, save intent, non-history completion, admission settlement, failed-turn recovery, credit-ledger integrity, structured output and deadline behavior. Scoped TypeScript and lint checks passed. No full local codebase suite was run.
+
+**Production reliability rating: 6/10 for the tested Ask experience.** This is an engineering judgment from the observed flows, not a statistical success-rate estimate or certification of all Ask files. The new historical-navigation defect is resolved in its exact reproduction, and failure containment worked. However, two ordinary requests failed, and a save receipt/action presentation remained inconsistent. These outcomes prevent calling Ask consistently reliable or assigning a near-perfect rating.
+
+Six first-attempt user scenarios were exercised through the signed-in production app. None of the failed turns was retried and relabelled as a pass. The original seven-minute save was a separate control from the twelve-minute variation.
+
+| Scenario | Production result | Evidence |
+|---|---|---|
+| Exact failure: open Clover's profile plus exact collar color at birth | **Pass.** Correct owned profile link and honest missing-fact explanation. Link survived reload and opened Clover's real profile. Assessment `limited`, taskCompletion `failed`, other factual checks passed. Existing bounded repair and re-review were used. | Conversation `2341f73e-247d-426a-a289-e3fa64cd9675`; request `de088925-599c-4c50-842e-22d678b83e3a`. |
+| Owner update: twelve-minute play session, save to care history | **Fail.** Interpretation and generation succeeded, but completion review rejected the answer after repair/re-review; HTTP 503, `ASK_TASK_INCOMPLETE`. No assistant answer or care entry was written. | Conversation `06cf4cb5-e627-41ef-ba3a-25cb54597f75`; request `83b8d026-8aa5-4dee-957c-2d7d246f320b`. |
+| Fictional fourteen-minute play example, explain and do not save | **Pass.** Explanation only; no action or care entry. | Conversation `62e66ca3-ff5c-429e-82b1-ee901bbb95f1`. |
+| Open Clover's profile plus explain 8 + 5 | **Fail.** A malformed completion verdict was rejected with `ASK_TASK_REVIEW_INVALID_LIMITATION_SUPPORT`; HTTP 503. No assistant answer was written. | Conversation `905185ab-2922-405f-aa46-115aff9b66c6`; request `c4e8b58a-abaa-46df-8200-9e4478eef212`. |
+| Archive Clover, inspect confirmation, then cancel | **Pass for authorization/cancellation.** Review action exposed Confirm/Cancel; Cancel persisted and reload did not revive the action. Clover stayed active. **Presentation caveat:** the original sentence “She’s set to be archived” remained after cancellation while the action card disappeared. | Conversation `2363b61d-6982-40bd-ada7-8c5017b6c891`; stored capability `cancelled`, profile `active`. |
+| Original seven-minute save request | **Partial.** The stored persistence receipt recognized the pre-existing seven-minute care entry with `alreadyPersisted: true`; no new entry was created. The UI nevertheless retained an Add to care history button alongside Added to care history, including after reload. The proposed detail changed `7 minute` to `7-minute`; the strict intent matcher left the action pending with `explicitIntent: false`. No Add button was clicked. | Conversation `f6a98b5b-c2d2-4405-94ee-987d6756f6ab`; receipt references existing entry `aa98580a-98da-4312-8caa-4638a0be0f4d`; assistant `bb4d05a3-3a42-4679-84c6-8b72436913db`. |
+
+Issue 3 was verified on a real delivered limited answer: runtime logs show HTTP 200 and admission's `operation failed` settlement for the exact historical compound request, while the answer remained durable and usable. Admission bookkeeping is separate from billing; this patch does not change charging policy for delivered limited answers.
+
+Issue 4 was verified on both naturally failed first turns: immediately opening Conversations, before any reload, showed the newly persisted failed question. Database reads confirmed saved user messages without assistant messages. Both failed requests' credit ledger rows were `released` with release disposition. The existing deterministic tests separately verify unchanged retry identity and isolation of list-refresh failures. A synthetic nonexistent-pet failure was unnecessary once these real failures occurred.
+
+Care-history count started and ended at **3,731 active entries**. No pet was archived. No new care-history entry was created during this acceptance run.
+
+Remaining work, in priority order:
+
+1. Non-history completion review is still brittle: an ordinary explicit save can fail after bounded repair, and a malformed reviewer reference can reject an otherwise ordinary navigation/calculation request. The save error does not expose enough structured rejection detail to establish the exact semantic cause from logs; no cause is invented here.
+2. Exact save-intent matching and receipt presentation need to agree on harmless duration typography and already-persisted observations. The observed seven-minute action remained pending while another persistence receipt referenced an existing saved event. Do not weaken quantity/sign/negation or write-authorization checks to mask this.
+3. Cancelled action copy must remain truthful after reload. Immutable original prose cannot serve as the current execution status.
+
+The earlier failures below remain historical evidence. This section supersedes any implication that all previously fixed Ask flows passed this production run.
+
+
 ## Issues 3 and 4 — admission assessment and failed-turn discovery
 
 September 11, 2026. These changes address the two exact mechanisms in the follow-up audit.
