@@ -71,6 +71,6 @@ test('dated projection includes PostgreSQL midnight and excludes the upper bound
   assert.equal(deterministicReadProjection(projectionFixture('Clover body weight was 2.1 kg.', '2024-01-10T00:00:00+00:00')), null);
 });
 test('deterministic projection does not turn uncertain or negated weight into a value', () => {
-  for (const text of ['Clover never weighed 2.1 kg.', 'Clover body weight was 2.1 kg, possibly.'])
-    assert.equal(deterministicReadProjection(projectionFixture(text)), null);
+  for (const text of ['Clover never weighed 2.1 kg.', "Clover hasn't weighed 2.1 kg.", 'If Clover weighed 2.1 kg, this is hypothetical.', 'Clover body weight was 2.1 kg, possibly.'])
+    assert.equal(deterministicReadProjection(projectionFixture(text)), null, text);
 });

@@ -1,3 +1,4 @@
+import { isOwnerCertainEvidence, analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { units } from "./history-calculation.ts";
 import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrative.ts";
 import type { AskEvidenceContract } from "./ask-evidence.ts";
@@ -23,7 +24,9 @@ export function parseReadProjection(value: unknown): ReadProjection | null {
  * This produces a draft: independent review must still verify task semantics. */
 function bodyMeasurement(text: string) {
   const matches = [...text.matchAll(/\b(?:body (?:weight|mass) (?:was|is)|weighed)\s+(-?\d+(?:\.\d+)?)\s+(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/gi)];
-  if (matches.length !== 1 || /\b(?:not|never|maybe|might|possibly|estimated|approximately)\b/i.test(text) || /\b(?:correction|corrected|carrier|harness|equipment|parcel)\b/i.test(text)
+  if (matches.length !== 1 || !isOwnerCertainEvidence(text, matches[0][0])
+    || analyzeOwnerAssertions(text).clauseSpans.some(clause => clause.text.includes(matches[0][0]) && clause.isNegated)
+    || /\b(?:estimated|approximately)\b/i.test(text) || /\b(?:correction|corrected|carrier|harness|equipment|parcel)\b/i.test(text)
     && !/\b(?:without equipment|no carrier or harness included)\b/i.test(text)) return null;
   const m = matches[0], unit = units[m[2].toLowerCase()], value=Number(m[1]);
   if (!unit || !Number.isFinite(value) || value<=0) return null;
