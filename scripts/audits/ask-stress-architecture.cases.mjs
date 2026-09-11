@@ -286,6 +286,14 @@ for(const quantity of ['records','duration','measurement'])test('episode identit
  assert.equal(result.referenceTarget.kind,'episode'); assert.equal(result.referenceTarget.ordinal,'second');
  assert.equal(result.readOperation??result.operation,'recall');
 });
+test('explicit month exports and counts cannot be narrowed to a prior save receipt',()=>{
+ for (const question of ['How many saved care-history entries does Aster have in September 2026? Count database notes, not the events described inside a note.', 'Return CSV only, with columns date,note, for Aster’s saved care-history entries in September 2026. Quote the saved note exactly. Do not save anything.']) {
+  const result=validateAskRequest(proposal({quantity:'records',from:'2026-09-01',to:'2026-09-10',referenceTurnIds:['prior']}),{...context,currentMessage:question,conversationTurns:[{id:'prior',role:'user',text:'Save these four dated notes for Aster.'}]});
+  assert.deepEqual(result.request.referenceTurnIds,[]);
+  assert.equal(result.history.from,'2026-09-01T00:00:00.000Z');assert.equal(result.history.to,'2026-10-01T00:00:00.000Z');
+  assert.equal(result.request.question,question);
+ }
+});
 test('scoped episode selectors require user-grounded bounds and keep conversation references pinned',()=>{
  const question='Show Aster’s second documented vomiting episode in 2014.';
  const input=proposal({operation:'episode',selection:'reference',ordinal:'second',quantity:'records',episodeTopic:'vomiting',from:'2014-01-01',to:'2015-01-01'});
@@ -297,7 +305,10 @@ test('scoped episode selectors require user-grounded bounds and keep conversatio
  const month=validateAskRequest(input,{...context,currentMessage:'Show Aster’s second documented vomiting episode in May 2014.'});
  assert.equal(month.referenceTarget.basis,'scoped_register'); assert.equal(month.history.from,'2014-05-01T00:00:00.000Z');
  const referenced=validateAskRequest({...input,referenceTurnIds:['prior']},{...context,currentMessage:question,conversationTurns:[{id:'prior',role:'user',text:'List Aster vomiting episodes in 2014.'}]});
- assert.equal(referenced.referenceTarget.basis,'displayed_list');
+ assert.equal(referenced.referenceTarget.basis,'scoped_register');
+ assert.deepEqual(referenced.request.referenceTurnIds,[]);
+ const pinned=validateAskRequest({...input,referenceTurnIds:['prior']},{...context,currentMessage:'Show Aster’s second documented vomiting episode in that displayed 2014 list.',conversationTurns:[{id:'prior',role:'user',text:'List Aster vomiting episodes in 2014.'}]});
+ assert.equal(pinned.referenceTarget.basis,'displayed_list');
  const invented=validateAskRequest(input,{...context,currentMessage:'Show Aster’s documented vomiting history in 2014.'});
  assert.equal(invented.referenceTarget,undefined);
 });
