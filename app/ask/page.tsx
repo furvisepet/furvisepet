@@ -447,7 +447,7 @@ function AskPageContent() {
         if (typeof window !== "undefined") replaceAskLocation({ conversationId: payload.conversationId });
         trackAskEvent("conversation_started", { source });
       }
-      if (!standaloneEmergency) await refreshConversations().catch(() => undefined);
+      if (!standaloneEmergency) void refreshConversations().catch(() => undefined);
       setPersistenceWarning(payload.persistence?.saved === false ? payload.persistence.warning || "This answer could not be saved to conversation history." : "");
       setRequestPhase("completed");
       if (parsed.urgency === "urgent") trackAskEvent("urgent_guidance_shown", { answerType: parsed.answerType });
@@ -464,7 +464,7 @@ function AskPageContent() {
       trackAskEvent("answer_failed", { source });
       // The server may have created a conversation before the answer failed.
       // Refresh discovery without replacing the failed turn's retry identity.
-      await refreshConversations().catch(() => undefined);
+      void refreshConversations().catch(() => undefined);
     } finally {
       askRequestActiveRef.current = false;
       setAskRequestActive(false);

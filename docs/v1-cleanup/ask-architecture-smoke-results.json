@@ -1,0 +1,47 @@
+{
+  "deployment": "dpl_DNfixHtThgjXLwjDNUunGtW5rjXx",
+  "results": [
+    {
+      "id": 1,
+      "phase": "first-deployment-smoke",
+      "deployment": "dpl_DNfixHtThgjXLwjDNUunGtW5rjXx",
+      "url": "https://www.furvise.com/ask?conversation=3bcf18e3-8492-46e1-ab94-5e0ea75adfe5",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: What can you help me do for my pets, and what can you not do?\n      - article:\n        - generic: Furvise\n        - paragraph: \"I can: - Help you think through symptoms and what to watch for. - Help you make a care plan or routine. - Help you prepare for a vet visit and organize questions. - Help you write or clean up notes about feeding, meds, behavior, and changes. - Help you review pet details or history if you paste them here. - Help draft messages for a vet or caregiver.\"\n        - paragraph: \"What I can\u2019t do in this chat: - I can\u2019t access or open your saved pet records here right now. - I can\u2019t browse live websites or verify current external info. - I can\u2019t see other people\u2019s accounts or secret info. - I can\u2019t actually save, edit, book, archive, or delete anything from here. - I can\u2019t diagnose your pet or replace a vet.\"\n        - paragraph: If you want, send me what\u2019s going on with one pet, and I\u2019ll help you sort out the next best steps.\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send \u00b7 Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable\u2026\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "grade": "fail",
+      "finding": "Still confuses route permissions with product capabilities."
+    },
+    {
+      "id": 2,
+      "phase": "first-deployment-smoke",
+      "deployment": "dpl_DNfixHtThgjXLwjDNUunGtW5rjXx",
+      "url": "https://www.furvise.com/ask?conversation=3bcf18e3-8492-46e1-ab94-5e0ea75adfe5",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Open Sable's profile and tell me which basic details are saved for her.\n      - article:\n        - generic: Furvise\n        - paragraph: \"Sable\u2019s saved profile details I can see are: she is a dog, her breed is \\\"Synthetic launch QA \u2014 Labrador\\\", she is female, she is 4 years old, and her lifecycle status is active. I do not see weight, current food, or pronouns in the profile details available here.\"\n        - button \"Copy\"\n        - region \"Furvise actions\":\n          - paragraph: Open Sable's profile\n          - paragraph: Open this Furvise page.\n          - link \"Open\":\n            - /url: /pets/618343ec-7fa5-40bc-ab86-2f9a850d1d07\n      - generic: Sable\n      - generic: Enter to send \u00b7 Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable\u2026\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "grade": "pass",
+      "finding": "Profile link plus correct saved species, breed, sex and age."
+    },
+    {
+      "id": 3,
+      "phase": "first-deployment-smoke",
+      "deployment": "dpl_DNfixHtThgjXLwjDNUunGtW5rjXx",
+      "url": "https://www.furvise.com/ask?conversation=3bcf18e3-8492-46e1-ab94-5e0ea75adfe5",
+      "rendered": ":\n        - generic: Furvise\n        - paragraph: \"Sable\u2019s saved profile details I can see are: she is a dog, her breed is \\\"Synthetic launch QA \u2014 Labrador\\\", she is female, she is 4 years old, and her lifecycle status is active. I do not see weight, current food, or pronouns in the profile details available here.\"\n        - button \"Copy\"\n        - region \"Furvise actions\":\n          - paragraph: Open Sable's profile\n          - paragraph: Open this Furvise page.\n          - link \"Open\":\n            - /url: /pets/618343ec-7fa5-40bc-ab86-2f9a850d1d07\n      - article \"You\":\n        - paragraph: You\n        - paragraph: Take me to Sable's history, and explain the difference between a saved note and an episode.\n      - alert:\n        - heading \"Furvise couldn't finish that answer\" [level=2]\n        - paragraph: Furvise couldn't finish that answer just now. Your question is still here, so you can try again safely. No AI credit was used.\n        - button \"Try again\"\n      - generic: Sable\n      - generic: Enter to send \u00b7 Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable\u2026\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "grade": "fail",
+      "finding": "Hard UI error."
+    },
+    {
+      "id": 4,
+      "phase": "first-deployment-smoke",
+      "deployment": "dpl_DNfixHtThgjXLwjDNUunGtW5rjXx",
+      "url": "https://www.furvise.com/ask?conversation=3bcf18e3-8492-46e1-ab94-5e0ea75adfe5",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Help me open a vet brief for Sable using her saved history. Don't add any new health observations.\n      - article:\n        - generic: Furvise\n        - paragraph: I can open her vet brief from her saved history now. I\u2019m not adding any new health observations.\n        - heading \"What I\u2019m doing\" [level=3]\n        - list:\n          - generic: Opening the vet brief for Sable using her saved history only.\n        - button \"Prepare vet brief\"\n        - button \"Copy\"\n        - region \"Furvise actions\":\n          - paragraph: Open Vet Briefs\n          - paragraph: Open this Furvise page.\n          - link \"Open\":\n            - /url: /vet-briefs?pet=618343ec-7fa5-40bc-ab86-2f9a850d1d07\n      - generic: Sable\n      - generic: Enter to send \u00b7 Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable\u2026\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "grade": "partial",
+      "finding": "Scoped link available, but prose falsely describes opening in progress."
+    },
+    {
+      "id": 5,
+      "status": "pass",
+      "deployment": "dpl_DNfixHtThgjXLwjDNUunGtW5rjXx",
+      "snapshot": " \"You\":\n        - paragraph: You\n        - paragraph: Does an unanswered or limited Ask response use my allowance? Explain without changing my membership.\n      - article:\n        - generic: Furvise\n        - paragraph: No, not if there is no answer saved. An Ask attempt that fails before any AI answer is durably saved does not use your allowance.\n        - paragraph: Yes, a limited answer does use your allowance if that limited answer is actually saved to the conversation. The key point is whether an AI answer gets persisted, not whether the answer is full or limited.\n        - paragraph: I\u2019m not changing your membership here. I also can\u2019t see your remaining balance from this chat unless you share your usage ledger.\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send \u00b7 Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\" [active]:\n        - /placeholder: Ask or tell Furvise more about Sable\u2026\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert"
+    }
+  ]
+}

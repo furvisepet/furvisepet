@@ -102,6 +102,13 @@ test('persistent omission fails after exactly one repair',async()=>{
   const rejected=review();rejected.obligations[0].status='missing';rejected.reason='Calculation missing';
   const seen=[];await assert.rejects(run([rejected,{answer:body,navigation:[nav]},rejected],response(),seen),/ASK_TASK_INCOMPLETE/);assert.equal(seen.length,3);
 });
+test('a prose-only repair preserves already prepared navigation for independent re-review',async()=>{
+  const rejected=review(); rejected.obligations[0].status='missing'; rejected.reason='Repair explanation';
+  const seen=[]; const result=await run([rejected,{answer:body,navigation:[],navigationUpdate:'preserve'},review()],response(),seen);
+  assert.equal(result.response.applicationActions.length,1);
+  assert.equal(JSON.parse(seen[2].input).actions[0].kind,nav.kind);
+  assert.equal(result.assessment.checks.taskCompletion,'passed');
+});
 test('review failure is not silently accepted',async()=>{
   await assert.rejects(run([{obligations:[],reason:null},{answer:body,navigation:[nav]},{obligations:[],reason:null}]),/ASK_TASK_REVIEW_INVALID/);
 });

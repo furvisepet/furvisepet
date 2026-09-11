@@ -1,4 +1,5 @@
 import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
+import { formatHistoryPeriod } from "../furvise-output.ts";
 import { readReviewedHistoryAnswer } from "./history-review-state.ts";
 import type { HistoryCoverage } from "./history-retrieval.ts";
 
@@ -58,9 +59,8 @@ export function episodeAnswer(result: EpisodeResult): { summary: string; section
     };
   }
   if (result.coverage === "recorded_complete" && Number.isSafeInteger(result.exactTotal) && result.exactTotal! >= 0 && result.recordedInventory) {
-    const period = result.from && result.to ? ` for ${result.from.slice(0,10)} to ${result.to.slice(0,10)} (end exclusive)`
-      : result.from ? ` from ${result.from.slice(0,10)}` : result.to ? ` before ${result.to.slice(0,10)}` : "";
-    return {summary:`Exactly ${result.exactTotal} recorded ${result.topic} episode${result.exactTotal === 1 ? "" : "s"} in your verified saved care history${period}, as of ${result.recordedInventory.snapshot}. Showing ${result.items.length}. This count covers episodes established by saved care records. Chat messages that were not saved to history are outside this count; unrecorded episodes remain unknown.`,
+    const period = formatHistoryPeriod(result.from, result.to);
+    return {summary:`Exactly ${result.exactTotal} recorded ${result.topic} episode${result.exactTotal === 1 ? "" : "s"} in your verified saved care history${period}, checked on ${result.recordedInventory.snapshot.slice(0,10)}. Showing ${result.items.length}. This count covers episodes established by saved care records. Chat messages that were not saved to history are outside this count; unrecorded episodes remain unknown.`,
       sections:result.items.length ? [{heading:"Recorded episodes",items:result.items.map(i=>`Episode ${i.ordinal}: ${i.startedAt.slice(0,10)}, ${result.topic}.`)}] : []};
   }
   const summary=result.referenceStatus==="resolved" ? `This is episode ${result.items[0].ordinal} from the list you were shown, with its original position preserved.`

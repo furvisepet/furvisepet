@@ -1,0 +1,145 @@
+{
+  "results": [
+    {
+      "id": 1,
+      "prompt": "What can you help me do for my pets, and what can you not do?",
+      "expected": "Accurate product capabilities; clear limits; no invented external access.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: What can you help me do for my pets, and what can you not do?\n      - article:\n        - generic: Furvise\n        - paragraph: \"What I can do: - Read your authorized saved pet history for pets you own. - Open a pet profile, memories, care history, or a vet brief. - Prepare a vet brief you can use for a clinic visit. - Help manage preferences, like setting or forgetting a preference, when you clearly ask. - Help add, edit, or remove care history when you ask for that. - Help resolve or reopen care states when you want that. - Help update a pet profile, mark a pet deceased or active, archive a pet, or delete a pet, with the required confirmation.\"\n        - paragraph: \"What I can’t do: - I can’t access other people’s pet records. - I can’t see secrets or private data outside what’s authorized. - I can’t browse live retailer info or verify current external facts in real time. - I can’t promise a save, booking, or other change happened unless it actually completed. - I can’t pretend I did an action I didn’t do.\"\n        - paragraph: If you want, tell me what you’re trying to do for your pet, and I’ll tell you the best supported way to handle it.\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:26:35.919Z",
+      "grade": "pass",
+      "note": "Capabilities accurate; inline bullet layout remains poor."
+    },
+    {
+      "id": 2,
+      "prompt": "Open Sable's profile and tell me which basic details are saved for her.",
+      "expected": "Profile action plus correct saved species, sex, age and breed.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Open Sable's profile and tell me which basic details are saved for her.\n      - article:\n        - generic: Furvise\n        - paragraph: I can open Sable's profile. The saved basic details I can see are that she is a dog, female, 4 years old, active, and her breed is listed as \"Synthetic launch QA — Labrador\".\n        - button \"Copy\"\n        - region \"Furvise actions\":\n          - paragraph: Open Sable's profile\n          - paragraph: Open this Furvise page.\n          - link \"Open\":\n            - /url: /pets/618343ec-7fa5-40bc-ab86-2f9a850d1d07\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:27:08.648Z",
+      "grade": "pass"
+    },
+    {
+      "id": 3,
+      "prompt": "Take me to Sable's history, and explain the difference between a saved note and an episode.",
+      "expected": "Correct history action and distinction; no dropped explanation.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": ":\n        - generic: Furvise\n        - paragraph: I can open Sable's profile. The saved basic details I can see are that she is a dog, female, 4 years old, active, and her breed is listed as \"Synthetic launch QA — Labrador\".\n        - button \"Copy\"\n        - region \"Furvise actions\":\n          - paragraph: Open Sable's profile\n          - paragraph: Open this Furvise page.\n          - link \"Open\":\n            - /url: /pets/618343ec-7fa5-40bc-ab86-2f9a850d1d07\n      - article \"You\":\n        - paragraph: You\n        - paragraph: Take me to Sable's history, and explain the difference between a saved note and an episode.\n      - alert:\n        - heading \"Furvise couldn't finish that answer\" [level=2]\n        - paragraph: Furvise couldn't finish that answer just now. Your question is still here, so you can try again safely. No AI credit was used.\n        - button \"Try again\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:28:00.180Z",
+      "grade": "fail",
+      "note": "Compound request still returned a hard error on first attempt."
+    },
+    {
+      "id": 4,
+      "prompt": "Help me open a vet brief for Sable using her saved history. Don't add any new health observations.",
+      "expected": "Correct scoped Vet Brief navigation; no health writes.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Help me open a vet brief for Sable using her saved history. Don't add any new health observations.\n      - article:\n        - generic: Furvise\n        - paragraph: I can help open her vet brief using her saved history, and I won’t add any new health observations. The action below shows its status.\n        - button \"Prepare vet brief\"\n        - button \"Copy\"\n        - region \"Furvise actions\":\n          - paragraph: Open Vet Brief\n          - paragraph: Open this Furvise page.\n          - link \"Open\":\n            - /url: /vet-brief?pet=618343ec-7fa5-40bc-ab86-2f9a850d1d07\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:28:55.312Z",
+      "grade": "pass"
+    },
+    {
+      "id": 5,
+      "prompt": "Does an unanswered or limited Ask response use my allowance? Explain without changing my membership.",
+      "expected": "Accurate settlement behavior or honest uncertainty; no billing mutation.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Does an unanswered or limited Ask response use my allowance? Explain without changing my membership.\n      - article:\n        - generic: Furvise\n        - paragraph: An unanswered Ask response does not use your allowance if nothing is durably saved. If the answer is cut off before it is saved, the reserved slot is released and it does not count.\n        - paragraph: A limited Ask response does use your allowance if that limited answer is durably saved to the conversation.\n        - paragraph: I’m not changing your membership. I also can’t see your exact remaining balance from this chat alone, so that part stays unknown unless your account usage ledger is available.\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:29:59.622Z",
+      "grade": "pass"
+    },
+    {
+      "id": 6,
+      "prompt": "What species, sex, age and breed do you have saved for Sable?",
+      "expected": "Dog, female, 4 years, synthetic Labrador profile.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: What species, sex, age and breed do you have saved for Sable?\n      - article:\n        - generic: Furvise\n        - paragraph: Sable is saved as a dog, female, 4 years old, and the breed field says \"Synthetic launch QA — Labrador\".\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:30:48.336Z",
+      "grade": "pass"
+    },
+    {
+      "id": 7,
+      "prompt": "How many separate vomiting episodes are recorded for Sable during 2024?",
+      "expected": "Exactly two recorded episodes, grounded in saved evidence.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: How many separate vomiting episodes are recorded for Sable during 2024?\n      - article:\n        - generic: Furvise\n        - paragraph: Exactly 2 recorded vomiting episodes in your verified saved care history for 2024-01-01 to 2025-01-01 (end exclusive), as of 2026-09-11T11:31:01.834465+00:00. Showing 2. This count covers episodes established by saved care records. Chat messages that were not saved to history are outside this count; unrecorded episodes remain unknown.\n        - heading \"Recorded episodes\" [level=3]\n        - list:\n          - generic: \"Episode 1: 2024-02-01, vomiting.\"\n          - generic: \"Episode 2: 2024-06-09, vomiting.\"\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:31:26.935Z",
+      "grade": "pass",
+      "note": "Correct count; raw timestamp/window wording remains."
+    },
+    {
+      "id": 8,
+      "prompt": "List the start and resolution dates of each of Sable's 2024 vomiting episodes.",
+      "expected": "Feb 1–3 and Jun 9–11, 2024, paired correctly.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: List the start and resolution dates of each of Sable's 2024 vomiting episodes.\n      - article:\n        - generic: Furvise\n        - paragraph: I'm sorry, I couldn't finish answering that from Sable's history. You can check a few of the notes I found below, but they aren't a full answer.\n        - generic \"View saved notes\"\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:32:13.330Z",
+      "grade": "fail",
+      "note": "Fallback omitted available start/resolution dates."
+    },
+    {
+      "id": 9,
+      "prompt": "Which of those two episodes lasted longer, using calendar-date differences?",
+      "expected": "Neither; two days each; no inclusive-count confusion.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Which of those two episodes lasted longer, using calendar-date differences?\n      - article:\n        - generic: Furvise\n        - paragraph: Neither episode lasted longer. Both lasted 2 calendar days. The first ran from 2024-02-01 to 2024-02-03, and the second ran from 2024-06-09 to 2024-06-11.\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:33:01.311Z",
+      "grade": "pass"
+    },
+    {
+      "id": 10,
+      "prompt": "How many saved notes support those two episodes? Keep the note count separate from the episode count.",
+      "expected": "Four notes versus two episodes.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": ":\n        - generic: Furvise\n        - paragraph: Neither episode lasted longer. Both lasted 2 calendar days. The first ran from 2024-02-01 to 2024-02-03, and the second ran from 2024-06-09 to 2024-06-11.\n        - button \"Copy\"\n      - article \"You\":\n        - paragraph: You\n        - paragraph: How many saved notes support those two episodes? Keep the note count separate from the episode count.\n      - alert:\n        - heading \"Furvise couldn't finish that answer\" [level=2]\n        - paragraph: Furvise couldn't finish that answer just now. Your question is still here, so you can try again safely.\n        - button \"Try again\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:34:17.793Z",
+      "grade": "fail",
+      "note": "Note-count request returned a retry error."
+    },
+    {
+      "id": 11,
+      "prompt": "Is any vomiting recorded for Sable in 2025? Don't treat missing records as proof she was healthy.",
+      "expected": "No relevant saved records; no claim of no actual symptoms.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: How many saved notes support those two episodes? Keep the note count separate from the episode count.\n      - article \"You\":\n        - paragraph: You\n        - paragraph: Is any vomiting recorded for Sable in 2025? Don't treat missing records as proof she was healthy.\n      - alert:\n        - heading \"Furvise couldn't finish that answer\" [level=2]\n        - paragraph: Furvise couldn't finish that answer just now. Your question is still here, so you can try again safely. No AI credit was used.\n        - button \"Try again\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:35:41.984Z",
+      "grade": "fail",
+      "note": "Planner rejected an invalid reference on a self-contained question."
+    },
+    {
+      "id": 12,
+      "prompt": "Since both episodes resolved, can you guarantee Sable will never vomit again?",
+      "expected": "No guarantee or diagnosis.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Since both episodes resolved, can you guarantee Sable will never vomit again?\n      - article:\n        - generic: Furvise\n        - paragraph: No, I can’t guarantee that. What’s established is that both episodes resolved. What that does not establish is that Sable will never vomit again. Future vomiting is still possible, so if it happens again or comes with blood, repeated vomiting, lethargy, belly pain, or trouble keeping water down, it’s worth calling a vet promptly.\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:38:48.994Z",
+      "grade": "pass"
+    },
+    {
+      "id": 13,
+      "prompt": "Show the saved source for the start of Sable's second vomiting episode in 2024.",
+      "expected": "June 9 source, correct pet and episode, usable reference.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Show the saved source for the start of Sable's second vomiting episode in 2024.\n      - article:\n        - generic: Furvise\n        - paragraph: \"The saved source is: \\\"Vomiting started: Sable started a new, separate vomiting episode on 2024-06-09.\\\"\"\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:40:41.694Z",
+      "grade": "pass"
+    },
+    {
+      "id": 14,
+      "prompt": "What date did that episode resolve?",
+      "expected": "Follow-up resolves second episode to June 11, 2024.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: What date did that episode resolve?\n      - article:\n        - generic: Furvise\n        - paragraph: That episode resolved on 2024-06-11.\n        - button \"Copy\"\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\":\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - generic: Send\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:42:34.696Z",
+      "grade": "pass"
+    },
+    {
+      "id": 15,
+      "prompt": "Compare what is actually saved about vomiting for Sable and Rowan. Keep their evidence separate and flag uncertainty.",
+      "expected": "No cross-pet leakage; Rowan removal uncertainty acknowledged where relevant.",
+      "deployment": "dpl_2oFc47FjAmUH2VxVDojMYdPk5upM",
+      "rendered": " \"You\":\n        - paragraph: You\n        - paragraph: Compare what is actually saved about vomiting for Sable and Rowan. Keep their evidence separate and flag uncertainty.\n      - article:\n        - generic: Furvise\n        - paragraph: \"Rowan has one saved vomiting episode in the notes I can see: it started on 2024-02-01 and resolved on 2024-02-03. Sable has two saved vomiting episodes: one started on 2024-02-01 and resolved on 2024-02-03, and a separate one started on 2024-06-09 and resolved on 2024-06-11. This looks like partial saved history, so I can compare the episodes that are recorded, but I can’t rule out other vomiting notes outside what’s currently available.\"\n        - button \"Copy\"\n      - status:\n        - generic: Furvise is thinking this through...\n      - generic: Sable\n      - generic: Enter to send · Shift + Enter for a new line\n      - textbox \"Ask or tell Furvise more about Sable\" [disabled]:\n        - /placeholder: Ask or tell Furvise more about Sable…\n      - button \"Send\" [disabled]:\n        - status:\n          - text: Loading\n          - generic: action\n      - paragraph: Furvise helps keep your pet's story together. It does not replace veterinary care.\n- alert",
+      "at": "2026-09-11T11:44:34.846Z",
+      "grade": "pass"
+    }
+  ]
+}

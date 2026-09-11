@@ -1,9 +1,9 @@
-import { splitAskTextBlocks, type AskTextBlock, parsePlainTable } from "../lib/furvise-output";
+import { splitAskPresentationBlocks, parsePlainTable } from "../lib/furvise-output";
 
 /** Preserve source punctuation. Table cells are escaped text, not HTML/Markdown. */
 export function AskAnswerText({ text, afterHeading = false }: { text: string; afterHeading?: boolean }) {
   return <div className={`${afterHeading ? "mt-1.5 " : ""}space-y-3 [overflow-wrap:anywhere] text-[1.05rem] leading-7 text-[var(--pw-text)]`}>
-    {splitAskTextBlocks(text).flatMap<AskTextBlock>(block => block.kind === "code" ? [block] : block.text.split(/\n\s*\n/).filter(Boolean).map(text => ({kind:"prose" as const,text}))).map((block, index) => {
+    {splitAskPresentationBlocks(text).map((block, index) => {
       if (block.kind === "code") return <pre key={index} className="overflow-x-auto rounded-lg bg-black/5 p-3 text-sm leading-6"><code>{block.text}</code></pre>;
       const paragraph = block.text;
       const table = parsePlainTable(paragraph);
