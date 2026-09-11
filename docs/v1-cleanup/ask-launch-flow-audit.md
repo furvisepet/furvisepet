@@ -1,5 +1,7 @@
 # Ask launch flow audit — 2026-09-11
 
+This is a chronological investigation log. Earlier pending statements describe that stage; the final acceptance section records the latest result.
+
 ## Live baseline
 
 - Production compound navigation/explanation/calculation request correctly returned 2,100 g and a working Clover profile link. Persisted conversation `d7bc1888-8720-4e45-9a91-c3f7ccea014a` nevertheless had outcome limited: evidence, subject/date and calculation checks were not evaluated.
@@ -65,3 +67,21 @@ The same native-key mismatch existed in the private exact SQL writer. Migration 
 The original failed logical turn `d19836f0-4f30-45df-a2de-2a8d561e7e7a` now completed in three provider calls. It created exactly one resolution entry `39b31b27-3efc-41f1-b95c-d8f6af9cfdb1` from the original source message, dated `2024-02-03`; the original episode is resolved at that same date. Answer `6942466f-c5c0-4b3f-8e84-4edf15e7caa9` has a persisted receipt. The UI date fix is also verified: the initial History row now says February 1 without an invented clock time.
 
 That successful resolution exposed two final presentation details: the duplicate-card filter omitted the canonical `symptom` category alias, and a generated recovery heading implied current improvement for a historical event. The filter now includes the alias with the same exact-source matching; a shared neutral recovery heading replaces that unsupported present-tense claim. Prior saved answers are not rewritten.
+
+## Second-episode production finding and PR 305
+
+Request `0c7e81ce-c3b8-419f-be4c-6dc5ab00197a` on PR 304 production rejected a started event as `unsupported_evidence`, then fell through to a legacy care action. It saved entry `344b7ea6-bec7-4757-a4dd-6c798bfda578` with occurrence time `2026-09-11T07:36:39.86482Z` despite the owner's explicit `2024-06-09` date. The UI simultaneously asked for confirmation and showed a persistence receipt. This was a real failed acceptance case, not an HTTP delivery failure.
+
+PR 305 adds one bounded event-evidence repair using exact current-message assertions and blocks persistence after any semantic-governance rejection. A rejected semantic proposal can no longer fall through to the legacy writer. The repair cannot stack beyond the existing generation budget. Tests preserve the exact historical date and opening boundary and reject repeated unsupported evidence. All 76 focused tests, TypeScript and changed-file ESLint passed; preview and production builds passed. Production merge is `c2747306cccf58d033bf3bf9f13ed2655160ab67`.
+
+Removal of the erroneous synthetic Rowan entry through History was blocked by automatic approval review: irreversible deletion needs explicit user authorization. No removal occurred, and no provenance or deletion debt was cleared. This entry is retained pending permission. Sable (`618343ec-7fa5-40bc-ab86-2f9a850d1d07`) was created through onboarding as an isolated synthetic test profile for the final rerun.
+
+## Validated topic alias repair and final presentation coverage
+
+Sable's first save, first resolution (after one retry), and second save produced three correctly dated entries across two episodes: February 1/3 on `d41b5958-293d-4591-8e22-4666a069a4d0`, and June 9 on `36b12da6-3475-4184-81d1-b63d65d24fb2`. The second entry `984c5576-1630-4f99-a51d-06b6ad291b3b` has intact opening proof and `inventoryTopic=vomiting`, but its generated topic is `vomiting_episode_update`. Exact-key readers excluded it, returning one verified episode and no exact total.
+
+Migration `20260911080029` resolves that alias only through intact opening proof, matching owner, pet, episode, source, and generated topic. It applies the same key mapping to census, membership selection and displayed/reference keys. Unknown or altered evidence remains unclassified. No existing episode IDs or source rows change. The SQL harness reproduced the live one/null count before the fix and passed all 14 scenarios after it, including alias invalidation and foreign-owner negatives. Rollback/reapply restored the membership reader definition exactly.
+
+The remaining duplicate proposals store the exact observation in input.value while paraphrasing input.detail. Presentation now recognizes either exact binding. A resolve-state proposal is omitted only for the sole exact governed resolved assertion, the whole current message, and a known owned episode reference. Distinct notes, multiple assertions, missing governance and unresolved targets remain independently reviewable. All 70 save/completion cases and TypeScript/ESLint passed.
+
+One first-pass resolution attempt (`0e5db77d-1c3b-45a9-a4a7-afa5ec9164d2`) exhausted its bounded completion-review repair with an unmet advisory obligation. It wrote nothing and released the AI credit. The same logical turn succeeded in three provider calls on retry, with one dated resolution entry and no duplicate persistence. This remains observed first-pass reliability risk; a successful retry is not evidence of a flawless first attempt.

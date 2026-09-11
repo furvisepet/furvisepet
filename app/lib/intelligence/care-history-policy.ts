@@ -44,12 +44,25 @@ export function omitGovernedCareSaveDuplicates(input: {
   petId: string;
 }) {
   if (!isExplicitCareHistorySaveRequest(input.message)) return input.actions;
-  const details = new Set(input.events.filter(item => item.destinations.includes("care_event")
+  const healthEvents = input.events.filter(item => item.destinations.includes("care_event")
     && item.event.subject.type === "pet" && item.event.subject.id === input.petId
-    && item.event.domain === "health").map(item => item.event.sourceExcerpt.trim()).filter(Boolean));
-  return input.actions.filter(action => !(action.kind === "care_history.add"
-    && [null, "health", "symptom"].includes(action.input.category)
-    && action.input.target !== "last" && details.has(action.input.detail?.trim() || "")));
+    && item.event.domain === "health");
+  const details = new Set(healthEvents.map(item => item.event.sourceExcerpt.trim()).filter(Boolean));
+  const assertions = analyzeOwnerAssertions(input.message).assertionClauses;
+  const resolvedAssertion = assertions.length === 1 && healthEvents.some(item =>
+    item.event.transition === "resolved" && item.event.state === "resolved"
+    && Boolean(item.event.references?.episodeId)
+    && item.event.sourceExcerpt.trim() === assertions[0].trim());
+  return input.actions.filter(action => {
+    if (![null, "health", "symptom"].includes(action.input.category) || action.input.target === "last") return true;
+    if (action.kind === "care_history.add") return ![action.input.detail, action.input.value]
+      .some(value => Boolean(value?.trim()) && details.has(value!.trim()));
+    // A whole-message resolution proposal for the sole exact governed assertion
+    // is the same state change. Multiple assertions remain independently reviewed.
+    if (action.kind === "care_state.resolve" && resolvedAssertion
+      && action.evidence.trim() === input.message.trim()) return false;
+    return true;
+  });
 }
 
 export function evaluateCareHistorySaveWorthiness(input: {

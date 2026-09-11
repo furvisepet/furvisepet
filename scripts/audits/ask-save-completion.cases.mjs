@@ -304,3 +304,19 @@ test('governed save has one presentation owner without dropping distinct or unap
   const value={...input,...patch};assert.deepEqual(omitGovernedCareSaveDuplicates(value),value.actions);
  }
 });
+
+
+test('paraphrased save detail retains the exact value binding; resolved state has one owner',async()=>{
+ const {omitGovernedCareSaveDuplicates}=await import('../../app/lib/intelligence/care-history-policy.ts');
+ const observation='Sable stopped vomiting completely on 2024-02-03.';
+ const message=observation+' Save this resolution to her care history.';
+ const event={event:{subject:{type:'pet',id:pet.id},domain:'health',sourceExcerpt:observation,
+   transition:'resolved',state:'resolved',references:{episodeId:'owned-episode'}},destinations:['care_event']};
+ const save={...action,evidence:message,input:{...action.input,value:observation,detail:'Resolution of the vomiting episode on 2024-02-03.',category:'symptom'}};
+ const resolve={...save,kind:'care_state.resolve',input:{...save.input,value:'Vomiting resolved on 2024-02-03.'}};
+ const input={actions:[save,resolve,nav],events:[event],message,petId:pet.id};
+ assert.deepEqual(omitGovernedCareSaveDuplicates(input),[nav]);
+ assert.deepEqual(omitGovernedCareSaveDuplicates({...input,events:[]}),input.actions);
+ assert.deepEqual(omitGovernedCareSaveDuplicates({...input,actions:[resolve],message:message+' Sable is coughing now.'}),[resolve]);
+ assert.deepEqual(omitGovernedCareSaveDuplicates({...input,actions:[resolve],events:[{...event,event:{...event.event,references:{}}}]}),[resolve]);
+});
