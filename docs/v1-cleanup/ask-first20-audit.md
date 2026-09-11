@@ -1,14 +1,32 @@
 # Ask: first 20 files — code audit
 
-## Explicit-save gap and issue 2 — implementation verification
+## Explicit-save gap and issue 2 — implemented and live verified
 
-The follow-up preserves direct observation literals (including decimals, signs, negation and qualifiers) when matching a named-pet observation followed by an explicit save command. Ambiguous/paraphrased details retain the action card. In-progress save claims are rejected before publication; only execution receipts establish success.
+Final verified production source: `c914539015fb3ef181cca1741c27c1c0fd5ddb55`, deployment `dpl_5XuqUWUJ7BCQib7gdvXaEjxtrwWp`, September 11, 2026. PRs #286–#288 are merged. The intermediate production failures below are retained as failures, not counted as passing retries.
 
-Navigation has a read-only execution route distinct from historical retrieval. Non-history request contracts now receive independent completion review against the entire original question, advisory requirements, final answer and server-prepared action cards. One prose/navigation repair may be followed by independent re-review under the existing shared admission/deadline budget. Repairs cannot add or alter mutation proposals. A live, non-serializable presentation receipt detects changed answer content or missing/changed action cards at publication. Explicit limitations remain limited; missing obligations fail rather than silently pass.
+The explicit-save matcher now binds a directly stated named-pet observation followed by a save command to the exact observation detail. It preserves decimals, signs, negation and qualifiers; ambiguous or materially changed details retain confirmation through their action card. The tested equivalent detail forms include the full observation, predicate, and an explicit quantity without its indefinite article. In-progress save wording is checked before publication. Only server execution receipts establish a successful write.
 
-Local verification: **138 focused tests passed**, including 39 new save/completion cases, real generation/governance/publication wiring, existing first-20 reliability and adjacent contract, authority, rendering and deadline regressions. Scoped TypeScript: zero diagnostics. Scoped ESLint: no errors or warnings. Earlier tests needed explicit mocked verdicts for the newly added non-history review call; their prior behavior assertions remain intact. No full local project suite was run. Live verification is pending below.
+Navigation now has a read-only route independent of historical retrieval. Irrelevant retrieval hints cannot force a navigation request into the records-only answer format. Non-history request contracts receive independent completion review against the entire original question, advisory requirements, canonical answer and server-prepared action cards. One prose/navigation repair may receive a separate re-review under the existing shared admission/deadline budget; it cannot create or alter mutation proposals. Review references use server indexes rather than asking a model to reproduce answer quotations. A live, non-serializable receipt detects changed answer content or missing/changed action cards at publication. Missing obligations cannot silently pass; explicit limitations are not certified as complete. Factual-history review and write authorization remain separate.
 
-Issues 3 (credit settlement) and 4 (failed-first-turn sidebar refresh) are not changed.
+Verification on the final source: **140 focused tests passed**, including 41 save/completion cases, real generation/governance/publication wiring, existing first-20 reliability and adjacent contract, authority, rendering and deadline regressions. Scoped TypeScript had zero diagnostics; scoped ESLint passed. Preview and production builds passed. No full local project suite was run. Existing conversational test fixtures explicitly mock the newly introduced review call; their prior behavior assertions remain intact. Mocked verdicts test wiring and enforcement, not real-model semantic accuracy; the live observations below provide separate evidence.
+
+| Live scenario | Observed result |
+|---|---|
+| Original “Show Clover's profile … 2 plus 3 … do not change” request | Returned the profile details and **5** in one answer; survived reload. The stated sex, age, breed, weight and food were subsequently checked against Clover's actual profile page. Stored task-completion check: passed. |
+| Explicit “Open Clover's profile … 8 plus 5 … do not change” request | Returned **13** and an Open action. Both survived reload. Clicking the action opened the correct Clover profile. Stored task-completion check: passed. |
+| Original seven-minute observation followed by “Save this update to care history” | Automatically added exactly one Clover entry, without clicking an action button. The server capability reports succeeded. Answer and success receipt survived reload; reload did not duplicate the entry. |
+| Fictional nine-minute play example with explicit no-save instruction | Explained the fictional sentence, produced no action, and added no care entry. Clover remains active. |
+
+The account's active care-entry count moved from **3,730 to 3,731**, solely for the deliberate automatic-save test, and remained 3,731 after reloads and the no-save control. Exactly one entry is bound to the tested source turn `24a4b2af-671b-4a42-aae3-1c561e8237cf`; entry ID `aa98580a-98da-4312-8caa-4638a0be0f4d`, note `7 minute play session today`.
+
+Evidence conversations: original compound `6d8631fd-b0db-4134-98bc-1906248c7e36`; explicit navigation `bdc473e9-dd64-43c7-bf50-ee7db25723f7`; automatic save `4114f44c-09ac-4603-ac25-25201df903af`; fictional control `990dd688-653a-4d06-a3a1-e6f84ec58c83`.
+
+Intermediate failures:
+
+- On `bc72d640ae8256df69f86c728fbcadf0dcb9c043`, the compound request stopped at `ASK_REQUEST_CONTRACT_NAVIGATION` (conversation `6a64cd08-f429-4d63-8862-eb35d0c05313`). A save also stopped after its review call before persistence (`fc79948b-3697-4d6b-af1b-63c5e823f4e7`); that revision did not expose a specific review subreason. Both left the entry count unchanged.
+- On `4aa0ee5c8fc3f54dd32cc6c582e47563dbfed15b`, navigation reached generation and independent review, but the quoted supporting text did not match the canonical answer (`ASK_TASK_REVIEW_INVALID_QUOTE`, conversation `2425630d-554c-4b09-bcda-543ec022862a`). The final revision replaced this duplicate textual channel with canonical answer indexes while retaining immutable-body and action checks.
+
+**Remaining scope:** issue 3 (credit settlement) and issue 4 (failed-first-turn sidebar refresh) are not changed. The successful save's answer assessment is still a pre-execution limited assessment; the subsequent authoritative capability receipt records the successful write. Reconciling execution outcomes with final settlement remains separate work. These targeted results are not a fault-free certification of all Ask behavior.
 
 ## Issue 1 follow-up — owner-update interpretation
 
