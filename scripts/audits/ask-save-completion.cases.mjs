@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 const { hasDeterministicUserMutationIntent } = await import('../../app/lib/application-actions/planner.ts');
 const { containsUnverifiedStateClaim } = await import('../../app/lib/application-actions/state-claims.ts');
-const { parseTaskCompletion, reviewTaskCompletion } = await import('../../app/lib/intelligence/review-task-completion.ts');
+const { parseTaskCompletion, reviewTaskCompletion, taskReviewSchema } = await import('../../app/lib/intelligence/review-task-completion.ts');
 const { canonicalReviewPurpose } = await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
 const { createAnswerAssessment } = await import('../../app/lib/intelligence/answer-assessment.ts');
 const { validateAskRequest } = await import('../../app/lib/intelligence/ask-request-contract.ts');
@@ -80,7 +80,7 @@ test('compound answer requires both explanation and the actual navigation card',
   assert.equal(result.assessment.checks.taskCompletion,'passed');
   const payload=JSON.parse(seen[0].input);assert.equal(payload.obligations[0].text,question);
   assert.equal(payload.actions[0].href,`/pets/${pet.id}`);
-  assert.equal(seen[0].text.format.schema.properties.obligations.items.properties.status.enum.includes("action_ready"),false);
+  assert.equal(JSON.stringify(seen[0].text.format.schema).includes('"action_ready"'),false);
 });
 for(const [label,change] of [
   ['omitted item',r=>r.obligations.pop()],
@@ -184,7 +184,22 @@ test('an exact observation save is reviewed as ready, never falsely completed',a
  const r=response('The action below shows the status of this update.',[{...action,input:{...action.input,detail:observation.replace('7 minute','7-minute')}}]);
  const result=await reviewTaskCompletion({validation:validation(r),context:saveContext,requestId:'save-ready',validate:validation,client:mock([verdict],seen)});
  assert.equal(JSON.parse(seen[0].input).actions[0].executionDisposition,'automatic_after_persistence');
- assert.equal(seen[0].text.format.schema.properties.obligations.items.properties.status.enum.includes('action_ready'),true);
+ assert.equal(JSON.stringify(seen[0].text.format.schema).includes('"action_ready"'),true);
  assert.equal(result.assessment.checks.taskCompletion,'failed');
  assert.equal(result.assessment.outcome,'limited');
+});
+
+test('provider schema rejects unsupported references before generation',async()=>{
+ const {createRequire}=await import('node:module');const require=createRequire(import.meta.url);const Ajv=require('ajv');
+ const validate=new Ajv({strict:false}).compile(taskReviewSchema(3,1,[]));
+ assert.equal(validate(review()),true);
+ const invalid=review();invalid.obligations[1].status='limited';assert.equal(validate(invalid),false);
+ invalid.obligations[1].status='action_ready';assert.equal(validate(invalid),false);
+ invalid.obligations[1].status='answered';invalid.obligations[1].actionIndexes=[1];assert.equal(validate(invalid),false);
+ const empty=review();empty.obligations[0].answerIndexes=[];assert.equal(validate(empty),false);
+ const noActions=new Ajv({strict:false}).compile(taskReviewSchema(1,0,[]));
+ assert.equal(noActions({obligations:[{index:0,status:'limited',answerIndexes:[0],actionIndexes:[]}],reason:null}),true);
+ const ready=new Ajv({strict:false}).compile(taskReviewSchema(1,2,[1]));
+ const verdict={obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[1]}],reason:null};
+ assert.equal(ready(verdict),true);verdict.obligations[0].actionIndexes=[0];assert.equal(ready(verdict),false);
 });

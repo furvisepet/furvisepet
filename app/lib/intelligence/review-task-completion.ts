@@ -15,15 +15,32 @@ import type { FurviseLiveContext } from "./types.ts";
 
 const taskFailure = (code: string) => Object.assign(new Error(code), { code });
 const statuses = ["answered", "action_ready", "limited", "missing", "not_requested"] as const;
-const reviewSchema = { type: "object", additionalProperties: false, required: ["obligations", "reason"], properties: {
-  reason: { type: ["string", "null"], maxLength: 600 },
-  obligations: { type: "array", minItems: 1, maxItems: 9, items: { type: "object", additionalProperties: false,
-    required: ["index", "status", "answerIndexes", "actionIndexes"], properties: {
-      index: { type: "integer", minimum: 0, maximum: 8 }, status: { type: "string", enum: statuses },
-      answerIndexes: { type: "array", maxItems: 1, items: { type: "integer", enum: [0] } },
-      actionIndexes: { type: "array", maxItems: 3, items: { type: "integer", minimum: 0, maximum: 2 } },
-    } } },
-} };
+/** Encode reference support in the provider schema as well as the parser.
+ * Invalid limitation references and mutation-only navigation verdicts must not
+ * be normal model choices that consume the repair budget. */
+export function taskReviewSchema(obligationCount: number, actionCount: number, readyActionIndexes: readonly number[]) {
+  const actionIndexes = Array.from({ length: actionCount }, (_, index) => index);
+  const branch = (status: typeof statuses[number], answerRequired: boolean, actionRequired = false, allowedActions = actionIndexes) => ({
+    type: "object", additionalProperties: false, required: ["index", "status", "answerIndexes", "actionIndexes"],
+    properties: {
+      index: { type: "integer", minimum: status === "not_requested" ? 1 : 0, maximum: obligationCount - 1 },
+      status: { type: "string", enum: [status] },
+      answerIndexes: { type: "array", minItems: answerRequired ? 1 : 0, maxItems: 1, items: { type: "integer", enum: [0] } },
+      actionIndexes: { type: "array", minItems: actionRequired ? 1 : 0, maxItems: Math.min(3, allowedActions.length),
+        items: { type: "integer", enum: allowedActions.length ? allowedActions : [0] } },
+    },
+  });
+  return { type: "object", additionalProperties: false, required: ["obligations", "reason"], properties: {
+    reason: { type: ["string", "null"], maxLength: 600 },
+    obligations: { type: "array", minItems: obligationCount, maxItems: obligationCount, items: { anyOf: [
+      branch("answered", true),
+      ...(actionCount ? [branch("answered", false, true)] : []),
+      branch("limited", true), branch("missing", false),
+      ...(obligationCount > 1 ? [branch("not_requested", false)] : []),
+      ...(readyActionIndexes.length ? [branch("action_ready", true, true, [...readyActionIndexes])] : []),
+    ] } },
+  } };
+}
 type Completion = { index: number; status: typeof statuses[number]; answerIndexes: number[]; actionIndexes: number[] };
 const visible = (r: AskReasoningResult) => [r.answer.summary, ...r.answer.sections.flatMap(s => [s.heading, ...s.items]), r.answer.safetyNote || ""].join("\n");
 
@@ -114,15 +131,7 @@ export async function reviewTaskCompletion(input: {
         : actionCanAutoExecute(action.kind, action.explicitIntent) ? "automatic_after_persistence"
         : action.confirmationPolicy === "always" ? "requires_confirmation" : "offer_only" })), mutationExecution: false, reviewStage: "before_persistence_and_execution",
       automaticMutationIndexes: actions.flatMap((action,index) => actionCanAutoExecute(action.kind,action.explicitIntent) ? [index] : []) };
-    // Navigation cannot receive a mutation-only verdict, even if a reviewer
-    // confuses providing a link with waiting for a browser click.
-    const schema = { ...reviewSchema, properties: { ...reviewSchema.properties,
-      obligations: { ...reviewSchema.properties.obligations, items: { ...reviewSchema.properties.obligations.items,
-        properties: { ...reviewSchema.properties.obligations.items.properties,
-          status: { type: "string", enum: readyActionIndexes.length ? statuses : statuses.filter(status => status !== "action_ready") },
-        },
-      } },
-    } };
+    const schema = taskReviewSchema(obligations.length, actions.length, readyActionIndexes);
     let reviewFailure = "INVALID";
     const reviewed = parseTaskCompletion(await invoke(attempt ? "task_rereview" : "task_review", payload, schema, instructions), obligations, 1, actions.length, reason => { reviewFailure = reason; }, readyActionIndexes);
     if (snapshot !== JSON.stringify({ answer: response.answer, actions: prepare(response) })) throw taskFailure("ASK_TASK_REVIEW_BODY_CHANGED");
