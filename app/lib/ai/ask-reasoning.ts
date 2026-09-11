@@ -755,6 +755,8 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   }
 
   if (hasUnsupportedTerminalRecovery(parsed)) {
+    input.onProviderEvent?.({ stage: "verification", outcome: "failed", model: usedModel, elapsedMs: 0,
+      providerErrorCode: "ASK_RECOVERY_EVIDENCE_UNSUPPORTED", validationDetails: parsed.messageUnderstanding.recoveryEvidence.outcome });
     if (retryUsed) {
       throw new AskPipelineError("fallback_invalid_output", "Ask provider returned unsupported terminal recovery.", {
         elapsedMs: 0, model: usedModel, providerErrorCode: "ASK_OUTPUT_INVALID",
@@ -770,7 +772,8 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       parseOutput,
       request: buildProviderRequest({
         ...context.promptContext,
-        recoveryRepairInstruction: "Reclassify the newest currentMessage without inheriting recovery from prior context. A current condition report is not recovery. Terminal recovery requires explicit current-message evidence of baseline restoration, symptom absence, or an ended problem.",
+        recoveryRepairInstruction: "Repair the specific rejectedRecoveryEvidence using the newest currentMessage. Preserve historical dates: ending a past episode does not establish current health. Use problem_ended or symptom_absent when the owner explicitly says that the symptom stopped or ended. Use return_to_baseline only for an explicit return to normal or baseline; stopping one symptom does not establish overall baseline restoration. The surfaceText must quote the full exact supporting clause, including its recovery verb and qualifiers. Never use terminal with outcome none or a missing quote. If the current message does not establish recovery, use none or uncertain and do not resolve an episode. Keep the observation available for history governance regardless of whether recovery is established.",
+        rejectedRecoveryEvidence: parsed.messageUnderstanding.recoveryEvidence,
       }),
       stage: "repair",
       timeoutMs: 20_000,
@@ -778,6 +781,8 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     retryUsed = true;
     usedModel = repairModel;
     if (hasUnsupportedTerminalRecovery(parsed)) {
+      input.onProviderEvent?.({ stage: "verification", outcome: "failed", model: usedModel, elapsedMs: 0,
+        providerErrorCode: "ASK_RECOVERY_REPAIR_UNSUPPORTED", validationDetails: parsed.messageUnderstanding.recoveryEvidence.outcome });
       throw new AskPipelineError("fallback_invalid_output", "Ask provider repeated unsupported terminal recovery.", {
         elapsedMs: 0, model: usedModel, providerErrorCode: "ASK_OUTPUT_INVALID",
         validationDetails: "Terminal recovery remained unsupported after one bounded current-message repair.",
