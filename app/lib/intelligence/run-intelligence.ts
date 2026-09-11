@@ -176,6 +176,11 @@ export async function runFurviseIntelligence({
     resolutionSafetyAllowed: semanticGovernanceInput.allowTerminalResolution,
   });
 
+  // A legacy care action cannot replace a rejected semantic write: that path
+  // cannot preserve the rejected proposal's date, episode boundary, or proof.
+  if (semanticGovernance.rejected.length) throw Object.assign(
+    new Error("FURVISE_SEMANTIC_WRITE_REJECTED"), { code: "ASK_SEMANTIC_WRITE_REJECTED" });
+
   const proposedResolutionPolicy = evaluateCareActionPolicy({
     actions: hasOwnedPetSubject ? reasoning.careActions : [],
     currentMessage: context.currentMessage,

@@ -511,3 +511,38 @@ test("represented episode preserves stored identity without authorizing displaye
   assert.equal(record?.metadata.recurrence_of, "stool-first");
   assert.equal(record?.metadata.sequenceScope, "stored_topic_sequence_not_displayed_ordinal");
 });
+
+test("event evidence repair preserves an explicit historical date and episode boundary", async () => {
+  const assertion = "Mani started a new, separate vomiting episode on 2024-06-09.";
+  const question = `${assertion} Please save this to her history.`;
+  const event = {
+    subject: { type: "pet", name: "Mani" }, domain: "health", topic: "vomiting",
+    eventTitle: "Vomiting episode started", transition: "started", state: "historical",
+    temporal: { occurredAt: "2024-06-09T00:00:00.000Z", explicitTime: "2024-06-09" },
+    importance: "important", confidence: 0.99, sourceExcerpt: assertion,
+    episodeBoundary: { role: "opening", evidence: assertion, confidence: 0.99 },
+  };
+  const invalid = unified({ semanticEvents: [{ ...event, sourceExcerpt: question }] });
+  const valid = unified({ semanticEvents: [event] });
+  const client = mockClient([invalid, valid]);
+  const result = await generateContextAwareAskResponse({ ...input({ question }), client });
+  assert.equal(client.requests.length, 2);
+  assert.equal(JSON.parse(client.requests[1].input).rejectedEventEvidence[0].sourceExcerpt, question);
+  assert.equal(result.semanticEvents[0].sourceExcerpt, assertion);
+  assert.deepEqual(result.semanticEvents[0].temporal, event.temporal);
+  assert.deepEqual(result.semanticEvents[0].episodeBoundary, event.episodeBoundary);
+});
+
+test("repeated unsupported event evidence fails before it can become a legacy save", async () => {
+  const question = "Mani started vomiting on 2024-06-09. Save this to history.";
+  const invalid = unified({ semanticEvents: [{
+    subject: { type: "pet", name: "Mani" }, domain: "health", topic: "vomiting",
+    eventTitle: "Vomiting", transition: "started", state: "historical",
+    temporal: { occurredAt: "2024-06-09T00:00:00.000Z", explicitTime: "2024-06-09" },
+    importance: "important", confidence: 0.99, sourceExcerpt: "Mani vomited yesterday",
+  }] });
+  const client = mockClient([invalid, invalid]);
+  await assert.rejects(generateContextAwareAskResponse({ ...input({ question }), client }),
+    error => error instanceof AskPipelineError && error.diagnostics.providerErrorCode === "ASK_EVENT_EVIDENCE_UNSUPPORTED");
+  assert.equal(client.requests.length, 2);
+});

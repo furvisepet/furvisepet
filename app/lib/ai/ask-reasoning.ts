@@ -1,3 +1,4 @@
+import { isOwnerAssertedEvidence } from "./owner-assertion.ts";
 import { evidenceRemovalCost } from "../intelligence/evidence-need-coverage.ts";
 import { withProviderDeadline } from "./execution-deadline.ts";
 import { recoveryUpdateTitle, stripKnownHistoryCitations } from "../furvise-output.ts";
@@ -364,7 +365,7 @@ const unifiedInstructions = [
   "A proposedHistoryUpdate is only an offer. Never write authoritative persistence claims such as I saved that, I added that to history, I updated the profile, or I marked it resolved. The server renders confirmation only after its transaction. Use proposedHistoryUpdate only for future-care-relevant symptoms, sustained changes, treatment outcomes, exposures, veterinary events, or tracked improvement. Do not propose jokes, opinions, normal play, one-off cute behavior, or ordinary questions.",
   "Classify multiple simultaneous intents in messageUnderstanding. Extract only durable, human-meaningful facts explicitly stated by the user in learnings, with a verbatim short sourceExcerpt from the current message. factValue must be a natural-language semantic proposition, never a boolean, number, enum, identifier, lifecycle/profile status, classifier result, action state, or temporary conversation state. Preserve words such as sometimes, usually, may, might, and recently rather than strengthening uncertainty into fact. Lifecycle belongs to the supplied profile, symptoms/events belong in semanticEvents or Care History, and singleton communication preferences belong in typed applicationActions.",
   "Use careActions only for explicit, useful time-bound care changes. Confidence must reflect the evidence. Never propose a diagnosis or an inferred medication dosage.",
-  "Interpret meaningful statements into semanticEvents. Keep topic concise, normalized, and extensible rather than choosing from a fixed topic catalogue. Use the same topic as a supplied active episode when the message continues, improves, worsens, or resolves it. Keep eventTitle separate: write a short natural History title such as Luna was found, Started medication, Food changed, or Vaccination; never expose topic keys, underscores, or duplicated transition words in eventTitle.",
+  "Interpret meaningful statements into semanticEvents. sourceExcerpt must quote only the verbatim owner assertion from currentMessage, excluding save directives; never paraphrase it. Preserve explicit dates in temporal and sourceExcerpt. Keep topic concise, normalized, and extensible rather than choosing from a fixed topic catalogue. Use the same topic as a supplied active episode when the message continues, improves, worsens, or resolves it. Keep eventTitle separate: write a short natural History title such as Luna was found, Started medication, Food changed, or Vaccination; never expose topic keys, underscores, or duplicated transition words in eventTitle.",
   "Emit semanticEvents only for occurrences with future care value: new or changing symptoms, sustained behavior or routine changes, appetite/drinking/elimination changes, medication or treatment changes and outcomes, weight or diet changes, clinically relevant exposures, injuries, veterinary visits/results, recurring concerns, and tracked improvement/worsening/resolution. Do not emit them for jokes, opinions, greetings, generic questions, normal play, chasing butterflies, or irrelevant outside-animal facts. An explicit owner command to save or log something overrides this normal threshold. Chronology and memory are independent destinations. Use state=historical for a completed standalone event; use active or monitoring only when it creates or changes an ongoing temporary state.",
   "Classify preventive procedures and completed care services as domain=care rather than as a health symptom. Preserve the user's temporal wording in temporal.explicitTime, and set temporal.occurredAt only when the occurrence timestamp is supported by the supplied request context.",
   "Semantic fields are independent: urgency is safety, not a topic. A safety event is not respiratory unless the message or supplied current context explicitly concerns breathing.",
@@ -752,6 +753,31 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     parsed.messageUnderstanding = { ...parsed.messageUnderstanding,
       userIsResolvingConcern: false, recoveryStatus: "none", recoveryConfidence: 1,
       recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
+  }
+
+  const unsupportedEventEvidence = parsed.semanticEvents.filter(event =>
+    !isOwnerAssertedEvidence(input.question, event.sourceExcerpt));
+  if (unsupportedEventEvidence.length) {
+    if (retryUsed) throw new AskPipelineError("fallback_invalid_output", "Ask event evidence remained unsupported.", {
+      elapsedMs: 0, model: usedModel, providerErrorCode: "ASK_EVENT_EVIDENCE_UNSUPPORTED",
+    });
+    const repairModel = models.fallback && models.fallback !== usedModel ? models.fallback : usedModel;
+    parsed = await runProviderRequest({
+      client, fallbackFrom: usedModel, model: repairModel, onEvent: input.onProviderEvent, parseOutput,
+      request: buildProviderRequest({ ...context.promptContext,
+        eventEvidenceRepairInstruction: "Repair the rejected event source excerpts using only verbatim owner assertions in currentMessage. Exclude save instructions and other non-assertion sentences from sourceExcerpt. Do not paraphrase, change the event, drop an explicit date, or invent evidence. Preserve the requested episode boundary. If no assertion supports an event, omit it and explain that it cannot be saved.",
+        rejectedEventEvidence: unsupportedEventEvidence,
+      }),
+      stage: "repair", timeoutMs: 20_000,
+    });
+    retryUsed = true;
+    usedModel = repairModel;
+    if (parsed.semanticEvents.some(event => !isOwnerAssertedEvidence(input.question, event.sourceExcerpt))
+      || !parsed.semanticEvents.length && parsed.careActions.length > 0) {
+      throw new AskPipelineError("fallback_invalid_output", "Ask event evidence remained unsupported after repair.", {
+        elapsedMs: 0, model: usedModel, providerErrorCode: "ASK_EVENT_EVIDENCE_UNSUPPORTED",
+      });
+    }
   }
 
   if (hasUnsupportedTerminalRecovery(parsed)) {
