@@ -134,20 +134,22 @@ test('pet-switch month reaches the record through real retrieval despite newer n
 });
 test('repair telemetry accounts for every mocked provider invocation',async t=>{
  clock(t);const events=[];
- const r=await exercise('What does the latest rest note say?',{fixturePets:owned,messages:[],history:true,
+ const r=await exercise("Open Aster's profile and tell me what the latest rest note says.",{fixturePets:owned,messages:[],history:true,
  rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],interpretationProposal:proposal(),
  onProviderEvent:event=>events.push(event),
- providerOverrides:{historyNarrative:{sentences:[{text:'{"observation":"Aster rested normally."}',sourceIds:['care:rest'],calculations:[]}]}},
+ providerOverrides:{applicationActions:[{kind:'navigation.open_pet_profile',explicitIntent:true,evidence:"Open Aster's profile",input:{field:null,value:null,title:null,detail:null,category:null,target:'selected'}}],historyNarrative:{sentences:[{text:'{"observation":"Aster rested normally."}',sourceIds:['care:rest'],calculations:[]}]}},
  expectedReviewCalls:3,reviewProviderResponse:async request=>{
  const input=JSON.parse(request.input);
- const payload=request.text.format.name==='furvise_history_repair'?{readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
+ const payload=request.text.format.name==='furvise_history_repair'?{navigationActions:null,readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
  safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:rest'],
  historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:rest'],calculations:[]}]}}:
- {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null};
+ {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0],actionIndexes:[0]})),rejectionReason:null};
  return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
  }});
  assert.equal(events.filter(e=>e.outcome==='started').length,5);
  assert.equal(events.filter(e=>e.stage==='repair'&&e.outcome==='succeeded').length,1);
+ assert.equal(r.result.reasoning.applicationActions[0]?.kind,'navigation.open_pet_profile');
+ assert.equal(JSON.parse(r.reviewRequests.at(-1).input).actions[0]?.href,`/pets/${owned[0].id}`);
  assert.equal(r.publication.failure,null);
 });
 
@@ -276,6 +278,8 @@ test('empty export completion requires an exhausted owned need query, never an u
  const evidence={scope:{authorizedPetIds:['pet']},interpretation:{request:{evidenceNeeds:[{id:'need',quote:'vaccinations',terms:['vaccination']}] }},
   history:{needs:[query],provenance:[]},represented:[],sources:[],losses:[]};
  const keys=completedEmptyEvidenceNeeds(evidence);assert.deepEqual(keys,[JSON.stringify(['need','pet'])]);
+ assert.deepEqual(completedEmptyEvidenceNeeds({...evidence,losses:[{sourceId:'profile:unrelated:breed',reason:'prompt_budget'}]}),keys);
+ assert.deepEqual(completedEmptyEvidenceNeeds({...evidence,losses:[{sourceId:'care:matching',reason:'prompt_budget'}],history:{...evidence.history,needs:[{...query,candidateIds:['care:matching']}]}}),[]);
  const obligation={index:0,text:'vaccinations',needId:'need',petId:'pet',availability:'no_candidate_match'};
  const review={index:0,status:'answered',sentenceIndexes:[0]};
  assert.deepEqual(reviewObligationCompletion([obligation],[review],[{sourceIds:[]}],[],keys).failures,[]);
@@ -330,4 +334,17 @@ test('only a fully reviewed ready task plus an applied receipt completes a pendi
   const turn=new AskTurnLifecycle('logical','attempt');turn.outcomes('limited',mutation,ready);
   assert.equal(turn.snapshot().taskOutcome,expected);
  }
+});
+
+for (const inventedDate of [false,true]) test(`CSV quotes are cell delimiters; row dates remain grounded (invented=${inventedDate})`,async t=>{
+ clock(t); const rows=[care('first','milo','2026-06-03','general','Aster rested, then slept.'),care('second','milo','2026-06-04','general','Aster ate, then rested.')];
+ const payload={readVersion:'history-answer.v1',layout:'csv',historyNarrative:null,json:null,limitation:null,
+ safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:rows.map(r=>'care:'+r.id),
+ table:{headers:['date','event'],rows:rows.map((r,i)=>({cells:[inventedDate&&i===1?'2026-06-05':r.occurred_at.slice(0,10),r.note],sourceIds:['care:'+r.id],calculations:[]}))}};
+ const r=await exercise('Give Aster saved rest notes as CSV only, columns date and event.',{fixturePets:owned,messages:[],history:true,rows,
+ interpretationProposal:proposal({outputFormat:'csv',terms:['rest']}),
+ providerResponse:async()=>({status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}}),
+ reviewResponse:{approved:true},expectedReviewCalls:null});
+ if(inventedDate) assert.equal(readReviewedHistoryAnswer(r.result.reasoning),null);
+ else {assert.equal(r.publication.failure,null);assert.equal(r.reviewRequests.length,1);assert.match(r.result.reasoning.answer.summary,/2026-06-04,"Aster ate, then rested\."/);}
 });
