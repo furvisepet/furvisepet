@@ -1,3 +1,4 @@
+import { noteBatchReviewActions } from "./dated-note-batch.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
 import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
 import type { GovernedAskExecutionPlan } from "./run-intelligence.ts";
@@ -100,7 +101,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   }) : [];
   const pending = executionPlan && isExplicitCareHistorySaveRequest(evidence.scope.requestText) && !evidence.scope.readOnlyRecall
     ? [...executionPlan.semanticEvents.map(item => ({ origin: "server_governed_care_event", kind: "care_history.semantic_event", petId: item.event.subject.id, input: item.event })),
-      ...executionPlan.careActions.map(action => ({ origin: "server_governed_care_event", kind: "care_history.governed_action", petId: executionPlan.petId, input: action }))] : [];
+      ...[...executionPlan.careActions, ...noteBatchReviewActions(executionPlan.noteBatch || [])].map(action => ({ origin: "server_governed_care_event", kind: "care_history.governed_action", petId: executionPlan.petId, input: action }))] : [];
   const reviewActions = [...actions, ...pending];
   const ids = new Set(sources.map(source => source.sourceId));
   // A missing optional narrative must not prevent review of useful plain prose.

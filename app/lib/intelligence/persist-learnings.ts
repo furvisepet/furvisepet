@@ -1,3 +1,4 @@
+import type { DatedCareNote } from "./dated-note-batch.ts";
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -39,6 +40,7 @@ export async function persistIntelligenceLearnings({
   authorizedPetIds,
   careActions,
   semanticEvents = [],
+  noteBatch = [],
   learnings,
   currentMessage,
   operationOwnerToken,
@@ -54,6 +56,7 @@ export async function persistIntelligenceLearnings({
   authorizedPetIds: string[];
   careActions: IntelligenceCareAction[];
   semanticEvents?: GovernedCanonicalEvent[];
+  noteBatch?: DatedCareNote[];
   learnings: IntelligenceLearning[];
   currentMessage: string;
   operationOwnerToken: string;
@@ -74,7 +77,7 @@ export async function persistIntelligenceLearnings({
   const persistableSemanticEvents = semanticEvents.filter((item) => item.destinations.some((destination) =>
     destination === "care_event" || destination === "episode_current_state" || destination === "state_only"));
   const semanticEvent = persistableSemanticEvents[0];
-  const carePersistence = resolutionAction
+  const carePersistence = noteBatch.length ? await persistDatedNoteBatch({ notes: noteBatch, userId, petId, sourceMessageId }) : resolutionAction
     ? await persistCanonicalCareAction({ action: resolutionAction, petId, sourceMessageId, supabase, userId, recentCareEntries })
     : semanticEvent && persistableSemanticEvents.length
     ? await persistCanonicalSemanticEvents({ events: persistableSemanticEvents, petId, sourceMessageId, supabase, userId, recentCareEntries })
@@ -432,4 +435,15 @@ async function preparePersistableLearnings({ authorizedPetIds, currentMessage, l
     if (!duplicate) accepted.push(learning);
   }
   return accepted;
+}
+
+async function persistDatedNoteBatch(input: { notes: DatedCareNote[]; userId: string; petId: string; sourceMessageId: string }): Promise<CarePersistenceResult> {
+  const { data, error } = await createCanonicalCareAuthorityClient().rpc("persist_furvise_server_note_batch", {
+    p_user_id: input.userId, p_pet_id: input.petId, p_source_message_id: input.sourceMessageId, p_notes: input.notes,
+  });
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  const ids = stringArray(row?.care_entry_ids);
+  const confirmed = !error && row?.persistence_status === "persisted" && ids.length === input.notes.length;
+  return { status: confirmed ? "persisted" : "failed", careEntryIds: confirmed ? ids : [], concernIds: [],
+    errorCode: confirmed ? null : "DATED_NOTE_BATCH_UNCONFIRMED", currentSafetyState: null, alreadyPersisted: row?.already_persisted === true };
 }

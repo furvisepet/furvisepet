@@ -40,7 +40,7 @@ for(const file of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql'
  report.migrations++;
 }
 report.engine=(await db.query('select version()')).rows[0].version;
-for(const name of ['ask_history_candidate_read','ask_history_latest_candidates','ask_history_scoped_read','ask_lifetime_time_and_privileges','ask_lifetime_census','ask_century_census','ask_century_scale']) {
+for(const name of ['ask_dated_note_batch','ask_history_candidate_read','ask_history_latest_candidates','ask_history_scoped_read','ask_lifetime_time_and_privileges','ask_lifetime_census','ask_century_census','ask_century_scale']) {
  const started=Date.now();
  await db.exec(readFileSync(`supabase/tests/${name}.sql`,'utf8').replace(/^\\.*$/gm,''));
  report.suites.push({name,status:'passed',elapsedMs:Date.now()-started});

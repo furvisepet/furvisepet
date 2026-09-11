@@ -1,7 +1,7 @@
 import { isOwnerCertainEvidence, analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { units } from "./history-calculation.ts";
 import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrative.ts";
-import type { AskEvidenceContract } from "./ask-evidence.ts";
+import { eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import type { HistoryCalculation } from "./history-calculation.ts";
 export type ReadProjection = { nameHeader: string; valueHeader: string; quantity: "body_mass"; unit: string; order: "name_ascending" | "name_descending" | "value_ascending" | "value_descending" | "scope" };
 export const readProjectionSchema = { type: ["object", "null"], additionalProperties: false,
@@ -35,6 +35,26 @@ function bodyMeasurement(text: string) {
 const csv = (cell: string) => /[",\r\n]/.test(cell) ? '"' + cell.replaceAll('"','""') + '"' : cell;
 export function deterministicReadProjection(evidence: AskEvidenceContract): HistoryNarrative | null {
   const request = evidence.interpretation?.request, projection = request?.projection;
+  // A request-linked receipt is a separate evidence channel from a history search.
+  // A lexical query returning no notes must not erase an existing write receipt.
+  const requestText = evidence.scope.requestText;
+  if (evidence.scope.readOnlyRecall && /\b(?:save|saved|receipts?)\b/i.test(requestText)
+    && /\b(?:did|actually|receipts?|confirm|verify)\b/i.test(requestText)) {
+    const receipts = evidence.operationReceipts || [];
+    const referenced = receipts.filter(receipt => request?.referenceTurnIds.includes(receipt.sourceMessageId));
+    const receipt = referenced.at(-1) || receipts.filter(item => /\b(?:save|log|record|add)\b/i.test(item.requestText)).at(-1);
+    if (receipt) {
+      const sources = eligibleAnswerSources(evidence);
+      const records = receipt.records.map(record => ({ record, source: sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}:record:${record.id}`) }));
+      if (records.length && records.every(item => item.source)) return parseHistoryNarrative({ sentences: records.map(({record, source}) => ({
+        text: `${record.occurredAt.slice(0,10)} linked saved note: ${JSON.stringify(record.note)}`,
+        sourceIds: [source!.sourceId], calculations: [],
+      })) }) || null;
+      const header = sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}`);
+      if (!records.length && header) return parseHistoryNarrative({sentences:[{text:"No current care-history entry is linked to that prior request.",sourceIds:[header.sourceId],calculations:[]}]}) || null;
+    }
+  }
+
   if (!projection || !["table","csv"].includes(request.outputFormat || "") || !evidence.history
     || evidence.scope.status !== "resolved" || !evidence.scope.readOnlyRecall || evidence.scope.requestKind === "count"
     || evidence.history.corrections === "unavailable" || evidence.episodes) return null;

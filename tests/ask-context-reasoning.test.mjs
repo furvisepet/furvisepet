@@ -186,7 +186,8 @@ test("compact context keeps no more than five updates, eight memories, and six t
   assert.match(context.promptContext.olderUpdateSummary, /not a count of all omitted history/);
   for (const record of context.records.filter(item => item.sourceType === "care_update")) {
     const source = careEntries.find(entry => `care:${entry.id}` === record.id);
-    assert.equal(record.value, [source.title, source.note].filter(Boolean).join(": "));
+    assert.equal(record.value, source.note);
+    assert.equal(record.metadata.title, source.title);
     assert.ok(context.promptContext.evidenceContract.represented.some(span => span.sourceId === record.id && span.text === record.value));
   }
 });

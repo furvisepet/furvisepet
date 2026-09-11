@@ -1715,7 +1715,7 @@ async function persistAssistantAnswer({
   let semanticTrace = intelligenceResult?.semanticTrace || null;
   const reviewableSemanticEvent = deferHighImpactLifecyclePersistence ? null
     : intelligenceResult?.executionPlan.semanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
-  if (!deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.executionPlan.learnings.length || intelligenceResult.executionPlan.careActions.length || intelligenceResult.executionPlan.semanticEvents.length)) {
+  if (!deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.executionPlan.learnings.length || intelligenceResult.executionPlan.careActions.length || intelligenceResult.executionPlan.semanticEvents.length || intelligenceResult.executionPlan.noteBatch?.length)) {
     try {
       assertGovernedAskExecutionPlan(intelligenceResult.executionPlan);
       intelligencePersistence = await persistIntelligenceLearnings({
@@ -1724,6 +1724,7 @@ async function persistAssistantAnswer({
         careActions: historyReviewRequired ? [] : intelligenceResult.executionPlan.careActions,
         currentMessage: sourceMessage,
         semanticEvents: historyReviewRequired ? [] : intelligenceResult.executionPlan.semanticEvents,
+        noteBatch: historyReviewRequired ? [] : intelligenceResult.executionPlan.noteBatch,
         learnings: intelligenceResult.executionPlan.learnings,
         operationOwnerToken,
         payloadHash: operationPayloadHash,
@@ -1839,7 +1840,7 @@ async function persistAssistantAnswer({
     && intelligenceResult?.answerValidation.completion?.find(item => item.index === 0)?.status !== "refused";
   const mutationOutcome = requestedMutations.some(action => action.status === "failed") || explicitHistoryWrite && carePersistence.status === "failed" ? "failed"
     : requestedMutations.some(action => action.status !== "succeeded") || explicitHistoryWrite && carePersistence.status !== "persisted" ? "pending"
-    : requestedMutations.length || explicitHistoryWrite ? "applied" : "not_requested";
+    : requestedMutations.length || explicitHistoryWrite || carePersistence.careEntryIds.length ? "applied" : "not_requested";
   const reviewedCompletion = intelligenceResult?.answerValidation.completion || [];
   const checks = intelligenceResult?.answerValidation.assessment.checks;
   const readyForExecution = reviewedCompletion.some(item => item.status === "action_ready")

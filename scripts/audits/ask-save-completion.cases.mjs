@@ -190,7 +190,7 @@ test('an exact observation save is reviewed as ready, never falsely completed',a
  const saveContext={...context,currentMessage:source,askInterpretation:{...context.askInterpretation,request:{...context.askInterpretation.request,requirements:[]}}};
  const seen=[];const verdict={verification:verification(),obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}],reason:null};
  const r=response('The action below shows the status of this update.',[{...action,input:{...action.input,detail:observation.replace('7 minute','7-minute')}}]);
- const result=await reviewTaskCompletion({validation:validation(r),context:saveContext,requestId:'save-ready',validate:validation,client:mock([verdict],seen)});
+ const result=await reviewTaskCompletion({validation:validation(r),context:saveContext,requestId:'save-ready',validate:validation,client:mock([verdict,{answer:'The dated observation is ready for the requested save.',navigation:null},verdict],seen)});
  assert.equal(JSON.parse(seen[0].input).actions[0].executionDisposition,'automatic_after_persistence');
  assert.equal(JSON.stringify(seen[0].text.format.schema).includes('"action_ready"'),true);
  assert.equal(result.assessment.checks.taskCompletion,'failed');
