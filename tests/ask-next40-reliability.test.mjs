@@ -72,12 +72,14 @@ for (const message of ['Luna cannot breathe. Pixel is breathing normally.',
   'Luna is breathing normally but now she cannot breathe.',
   'I cannot breathe and Luna is having a seizure.',
   'Luna is having a seizure. Pixel stopped seizing.',
+  'Clover cannot breathe beside my child.',
   'Luna cannot breathe. Pixel vomited. She is breathing normally now.',
   'Luna cannot breathe. She might be breathing normally now.',
   'Luna is not breathing normally and cannot breathe.']) {
   test(`emergency remains scoped to its current report: ${message}`, () => assert.ok(detectImmediateAskEmergency(message)));
 }
 for (const message of ['I cannot breathe after my run.', 'My pet stopped seizing and is back to normal.',
+  'My child is gasping.', 'We cannot breathe.',
   'Luna cannot breathe. Luna is breathing normally now.', 'Luna was gasping but she is breathing normally now.',
   'Luna was gasping but she is no longer gasping.',
   'If my dog cannot breathe, what should I do?', 'In 2020 Luna was gasping.']) {
