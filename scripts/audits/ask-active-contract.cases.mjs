@@ -122,3 +122,12 @@ for(const [name,patch,reason] of [
  }}}}),e=>e.diagnostics.providerErrorCode==='ASK_REQUEST_CONTRACT_'+reason);
  assert.equal(calls,2);
 });
+
+for(const frame of [null,{schemaVersion:'wrong'}]) test('action-only frame failure receives one validated repair: '+JSON.stringify(frame),async()=>{
+ let calls=0;const question='Archive Milo.';
+ const result=await interpretAskQuestion({context:{...context,currentMessage:question},model:'gpt-5-mini',client:{responses:{async create(request){
+  calls++;assert.match(request.instructions,/frame must be a valid semantic-frame object, never null/);
+  return {status:'completed',output_text:JSON.stringify(updateProposal(question,calls===1?{frame}:{})),usage:{input_tokens:12,output_tokens:8}};
+ }}}});
+ assert.equal(calls,2);assert.deepEqual(result.frame,emptyProposedSemanticFrame());assert.deepEqual(result.petIds,[pets[0].id]);
+});
