@@ -80,6 +80,7 @@ test('compound answer requires both explanation and the actual navigation card',
   assert.equal(result.assessment.checks.taskCompletion,'passed');
   const payload=JSON.parse(seen[0].input);assert.equal(payload.obligations[0].text,question);
   assert.equal(payload.actions[0].href,`/pets/${pet.id}`);
+  assert.equal(seen[0].text.format.schema.properties.obligations.items.properties.status.enum.includes("action_ready"),false);
 });
 for(const [label,change] of [
   ['omitted item',r=>r.obligations.pop()],
@@ -183,6 +184,7 @@ test('an exact observation save is reviewed as ready, never falsely completed',a
  const r=response('The action below shows the status of this update.',[{...action,input:{...action.input,detail:observation.replace('7 minute','7-minute')}}]);
  const result=await reviewTaskCompletion({validation:validation(r),context:saveContext,requestId:'save-ready',validate:validation,client:mock([verdict],seen)});
  assert.equal(JSON.parse(seen[0].input).actions[0].executionDisposition,'automatic_after_persistence');
+ assert.equal(seen[0].text.format.schema.properties.obligations.items.properties.status.enum.includes('action_ready'),true);
  assert.equal(result.assessment.checks.taskCompletion,'failed');
  assert.equal(result.assessment.outcome,'limited');
 });
