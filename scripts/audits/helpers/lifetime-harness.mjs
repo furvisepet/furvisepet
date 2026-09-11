@@ -14,6 +14,10 @@ registerHooks({
       const url = new URL('../../../app/lib/intelligence/review-history-narrative.ts', import.meta.url).href;
       return {shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('import {reviewHistoricalAnswer as review} from '+JSON.stringify(url)+'; export const reviewHistoricalAnswer = input => review({...input,client:globalThis.__historyAuditReviewClient});')};
     }
+    if (context.parentURL?.endsWith('/run-intelligence.ts') && /review-task-completion/.test(specifier)) {
+      const url = new URL('../../../app/lib/intelligence/review-task-completion.ts', import.meta.url).href;
+      return {shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('import {reviewTaskCompletion as review} from '+JSON.stringify(url)+'; export const reviewTaskCompletion = input => review({...input,client:globalThis.__taskAuditReviewClient});')};
+    }
     if (specifier === 'server-only') return { shortCircuit: true, url: 'data:text/javascript,export default {}' };
     if (context.parentURL?.endsWith('/run-intelligence.ts') && /ask-reasoning$/.test(specifier)) {
       return { shortCircuit: true, url: `data:text/javascript,${encodeURIComponent(adapter)}` };
@@ -156,7 +160,7 @@ function output(answer = 'The supplied observations are owner reports, not a dia
     intelligenceSafety: { level: 'routine', reason: 'Retrospective question', requiresImmediateAction: false, shoppingSuppressed: false },
     learnings: [], careActions: [], semanticEvents: [], intelligenceMetadata: { confidence: 'high', usedPetContext: true, usedCareHistory: true, usedMemories: false } };
 }
-async function exercise(question, { historyAccess, fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
+async function exercise(question, { historyAccess, fixturePets = pets, onProviderEvent, onStage, petId = 'milo', conversationPetId = 'milo', rows = decisive, messages, dateRange, failCare, careEpisodes, answer, authoritativePetIds = [petId], prepareEvidence, providerOverrides = {}, taskReviewResponse, taskReviewProviderResponse, reviewResponse, reviewProviderResponse, expectedReviewCalls = 0, authoritativeSemanticFrame, afterGeneration, providerSequence, expectedProviderCalls = 1, prepareContext, history = false, interpretationProposal, interpretationResponse, providerResponse, interpretationModel = "gpt-5-mini", graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride } = {}) {
   const supabase = database(rows, { fixturePets, conversationPetId, messages, failCare, careEpisodes, graph, failGraph, failHistoryPage, historyPageCap, graphAtCall, candidateError, candidateRowsOverride, episodeError, episodeRowsOverride });
   let context = await buildFurviseContext({ supabase, userId: ownerId, historyAccess, petId, conversationId: messages ? 'chat' : null,
     conversationPetId: messages ? conversationPetId : null, currentMessage: question, dateRange });
@@ -190,6 +194,12 @@ async function exercise(question, { historyAccess, fixturePets = pets, onProvide
   // Same evidence creation and explicit parameter used by the route callback.
   const evidenceContract = createAskEvidenceContract(context, authoritativePetIds);
   prepareEvidence?.(evidenceContract);
+  globalThis.__taskAuditReviewClient = {responses:{async create(request, options) {
+    if (taskReviewProviderResponse) return taskReviewProviderResponse(request, options);
+    assert.equal(taskReviewResponse, true, 'non-history task review needs an explicit provider verdict fixture');
+    const payload = JSON.parse(request.input);
+    return {status:'completed',output_text:JSON.stringify({reason:null, obligations:payload.obligations.map((_,index)=>({index,status:'answered',answerQuote:payload.answer,actionIndexes:[]}))}),usage:{input_tokens:100,output_tokens:50}};
+  }}};
   const reviewRequests = [];
   globalThis.__historyAuditReviewClient = {responses:{async create(request, options) {
     reviewRequests.push(request);
@@ -217,7 +227,9 @@ async function exercise(question, { historyAccess, fixturePets = pets, onProvide
   if (expectedReviewCalls !== null) assert.equal(reviewRequests.length, expectedReviewCalls, 'bounded history-review call count');
   const { buildAskConversationResponse } = await import('../../../app/lib/ask.mjs');
   const { inspectAskPublication } = await import('../../../app/lib/intelligence/inspect-ask-publication.ts');
-  const publication = inspectAskPublication(result.reasoning.answer, buildAskConversationResponse(result.reasoning.answer),
+  const {prepareFurviseApplicationActions} = await import('../../../app/lib/application-actions/planner.ts');
+  const actions = prepareFurviseApplicationActions({proposals:result.reasoning.applicationActions,petId:context.pet.id,petName:context.pet.name,requestId:'synthetic-audit-request',sourceMessage:question});
+  const publication = inspectAskPublication(result.reasoning.answer, buildAskConversationResponse(result.reasoning.answer,{applicationActions:actions}),
     context.askInterpretation?.readOnly === true, result.reasoning.evidenceContract, context.episodeResult);
   return { publication, reviewRequests, context, result, prompt: requests[0] ? JSON.parse(requests[0].input) : null, serialized: requests[0]?.input || '', queries: supabase.queries, interpretationRequests };
 }

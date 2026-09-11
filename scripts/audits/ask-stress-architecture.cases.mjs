@@ -78,7 +78,7 @@ test('safe conversational answer remains publishable: '+text,async t=>{
  clock(t);
  const r=await exercise('A hypothetical question only; explain the limitation.',{fixturePets:owned,rows:[],messages:[],history:true,
  interpretationProposal:proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'}),
- providerOverrides:{answer:text}});
+ taskReviewResponse:true,providerOverrides:{answer:text}});
  assert.equal(r.publication.failure,null);
  assert.match(r.result.reasoning.answer.summary,/No\.|cannot disclose/);
 });
@@ -107,7 +107,7 @@ test('plural follow-up retains the compared pets on their shared month',()=>{
 test('offer-only conversational output survives approval and reload',async t=>{
  clock(t);const r=await exercise('Hello.',{fixturePets:owned,rows:[],messages:[],history:true,
  interpretationProposal:proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',evidenceBasis:'general'}),
- providerOverrides:{answer:'I can help you with that.'}});
+ taskReviewResponse:true,providerOverrides:{answer:'I can help you with that.'}});
  assert.equal(r.publication.failure,null);assert.ok(r.result.reasoning.answer.summary);
 });
 

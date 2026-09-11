@@ -16,7 +16,7 @@ import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
 export const ASK_REQUEST_VERSION = "ask-request.v2";
 const modes = ["read", "conversation", "update", "mixed", "clarify"] as const;
 const scopes = ["selected", "named", "conversation", "account", "none"] as const;
-const operations = ["recall", "overview", "comparison", "status", "count", "episode", "general", "clarify"] as const;
+const operations = ["recall", "overview", "comparison", "status", "count", "episode", "general", "navigate", "clarify"] as const;
 const selections = ["summary", "comparison", "latest", "earliest", "earliest_occurrence", "period", "reference"] as const;
 const quantities = ["episodes", "records", "measurement", "duration", null] as const;
 const ordinals = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "last", "that", null] as const;
@@ -56,6 +56,7 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "Use operation navigate with mode read, evidenceBasis null and the owned target scope for opening an application page, including a navigation request combined with a general question or supplied fictional calculation. Navigation needs an owned destination, not historical evidence. Use no history terms, dates, quantity or evidenceNeeds. If any part asks for actual stored facts, use the appropriate saved_history operation instead. Opening a page grants no writes. Keep every requested part in requirements and the original question.",
   "projection is an optional typed execution proposal, never evidence. For a table/CSV consisting ONLY of pet names and recorded body mass, set projection with exact requested nameHeader/valueHeader, quantity body_mass, canonical requested unit kg/g/mg/lb and requested order. Otherwise set null. It supplies no measurements and authorizes no facts; the server can compute conversions, sort and render verified records. Additional narrative, medical conclusions, arithmetic across pets, ambiguous fields or additional columns require null. Independent review still checks the original whole question.",
   "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. Include the local date or period in each exact quote when it belongs to that requested fact; do not collapse differently dated facts into an undated keyword. petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
   "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
@@ -210,7 +211,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     // Language, format and factual obligations remain in the original user text.
     p.requirements = [];
   }
-  let operation = p.operation as typeof operations[number];
+  const navigation = p.operation === "navigate";
+  if (navigation && (p.mode !== "read" || p.evidenceBasis !== null || !petIds.length || p.from !== null || p.to !== null
+    || p.terms.length || p.quantity !== null || p.ordinal !== null || p.episodeTopic !== null)) return fail("navigation");
+  let operation = (navigation ? "general" : p.operation) as Exclude<typeof operations[number], "navigate">;
   // Quantity is a separate semantic axis. Counting records or measurements
   // cannot accidentally invoke the illness episode membership subsystem.
   if (operation === "count" && p.quantity !== "episodes") operation = "recall";
@@ -237,7 +241,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const conversationOnly = p.scope === "none" && (p.mode === "conversation" || p.mode === "clarify" || p.mode === "read" && operation === "general");
   if (p.mode === "conversation" && !conversationOnly) return fail("conversation_scope");
   // A read request cannot silently lose retrieval through a redundant label.
-  if (p.mode === "read" && operation === "general" && !conversationOnly) operation = "recall";
+  if (p.mode === "read" && operation === "general" && !conversationOnly && !navigation) operation = "recall";
   const clarification = conversationOnly ? null : !petIds.length ? "subject" : p.mode === "clarify" || operation === "clarify" ? "reference" : null;
   const historical = !conversationOnly && p.mode !== "update" && operation !== "general" && !clarification;
   // As-of is an upper bound, not an exact-date lookup. Preserve a separately

@@ -70,7 +70,8 @@ export function hasDeterministicUserMutationIntent(input: {
     case "memory.forget_preference":
       return exactPreferenceForgetCommand(command, input.action.input.field);
     case "care_history.add":
-      return exactCareHistoryAddCommand(command, input.action.input.detail);
+      return exactCareHistoryAddCommand(careCommand(input.sourceMessage), input.action.input.detail)
+        || exactObservationSaveCommand(input.sourceMessage, input.action.input.detail, input.petName);
     case "care_state.resolve":
       return /^(?:mark|record|set) (?:it|this concern|that concern|the concern) (?:as )?resolved$/.test(command)
         || /^(?:resolve|close) (?:it|this concern|that concern|the concern)$/.test(command);
@@ -176,12 +177,41 @@ function exactPreferenceForgetCommand(command: string, field: string | null) {
 }
 
 function exactCareHistoryAddCommand(command: string, detail: string | null) {
-  const normalizedDetail = normalizeIntentPhrase(detail);
+  const normalizedDetail = careLiteral(detail);
   if (!normalizedDetail || normalizedDetail.length < 12) return false;
   const exactDetail = escapeRegExp(normalizedDetail);
   const destination = "(?:care history|care log|health history|health log)";
   return new RegExp(`^(?:add|log|record|save) (?:this |that )?${exactDetail}(?: (?:in|to) (?:my |the )?${destination})?$`).test(command)
     || new RegExp(`^(?:add|log|record|save) (?:this |that |it )?(?:in|to) (?:my |the )?${destination} ${exactDetail}$`).test(command);
+}
+
+// Keep decimals, signs, negation and qualifiers intact. Authority is for the
+// stated observation, never a model paraphrase that merely shares its keywords.
+function careLiteral(value: string | null) {
+  return String(value || "").normalize("NFC").toLowerCase().trim().replace(/[.!]$/, "").replace(/\s+/g, " ");
+}
+function careCommand(value: string) {
+  return careLiteral(value).replace(/^furvise[, ]+/, "").replace(/^please /, "")
+    .replace(/^(?:(?:can|could|would|will) you |i (?:want|need|would like) (?:you|furvise) to )/, "").replace(/ please$/, "");
+}
+function exactObservationSaveCommand(source: string, detail: string | null, petName: string) {
+  const match = /^(.+)[.!]\s+(?:please\s+)?(?:save|add|log|record)\s+(?:this|that)\s+(?:update|observation)\s+(?:to|in)\s+(?:the\s+)?(?:care history|care log|health history|health log)[.!]?$/i.exec(source.trim());
+  if (!match || !detail || !petName) return false;
+  const observation = careLiteral(match[1]);
+  // Only a single, directly asserted named-pet observation is eligible here.
+  // Ambiguous, quoted, conditional or compound commands retain their action card.
+  if (/["“”‘’?;\n]|[.!](?:\s|$)|['’](?!s\b)/.test(match[1]) || /\b(?:if|suppose|imagine|fictional|hypothetical|pretend|would|could|said|says|save|record|log|delete|archive)\b/i.test(observation)) return false;
+  const pet = careLiteral(petName);
+  if (!observation.startsWith(pet + " ")) return false;
+  const predicate = observation.slice(pet.length + 1);
+  const candidates = [observation, predicate];
+  if (predicate.startsWith("had ")) {
+    const event = predicate.slice(4);
+    candidates.push(event);
+    // An indefinite article before an explicit numeric quantity adds no fact.
+    if (/^an? \d/.test(event)) candidates.push(event.replace(/^an? /, ""));
+  }
+  return candidates.includes(careLiteral(detail));
 }
 
 function normalizedCommand(value: string) {
