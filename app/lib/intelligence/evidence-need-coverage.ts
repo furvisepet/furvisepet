@@ -6,9 +6,13 @@ export type NeedCoverage = { needId: string; window?: EvidenceNeedWindow; semant
 /** A completed empty search can support zero export rows, never a claim that
  * an event did not happen. Failed, capped and unqueried needs supply no receipt. */
 export function completedEmptyEvidenceNeeds(evidence: AskEvidenceContract): string[] {
-  if (evidence.interpretation?.request?.evidenceNeedIssues?.length || evidence.losses.length) return [];
+  if (evidence.interpretation?.request?.evidenceNeedIssues?.length) return [];
   return buildEvidenceNeedCoverage(evidence).flatMap(need => need.pets.flatMap(pet => {
     const queries = (evidence.history?.needs || []).filter(query => query.needId === need.needId && query.petId === pet.petId);
+    // Receipt scope is this exact query, not every record considered for the
+    // turn. Unrelated prompt omissions cannot turn a completed zero-hit query
+    // into an unavailable query. Any omitted matching candidate still leaves
+    // its ID in the query receipt and therefore cannot pass this check.
     return pet.state === "no_candidate_match" && queries.length && queries.every(query => ["unknown", "complete"].includes(query.status) && !query.reason && query.exhausted && !query.candidateIds.length)
       ? [JSON.stringify([need.needId, pet.petId])] : [];
   }));

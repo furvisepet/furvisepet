@@ -278,6 +278,8 @@ test('empty export completion requires an exhausted owned need query, never an u
  const evidence={scope:{authorizedPetIds:['pet']},interpretation:{request:{evidenceNeeds:[{id:'need',quote:'vaccinations',terms:['vaccination']}] }},
   history:{needs:[query],provenance:[]},represented:[],sources:[],losses:[]};
  const keys=completedEmptyEvidenceNeeds(evidence);assert.deepEqual(keys,[JSON.stringify(['need','pet'])]);
+ assert.deepEqual(completedEmptyEvidenceNeeds({...evidence,losses:[{sourceId:'profile:unrelated:breed',reason:'prompt_budget'}]}),keys);
+ assert.deepEqual(completedEmptyEvidenceNeeds({...evidence,losses:[{sourceId:'care:matching',reason:'prompt_budget'}],history:{...evidence.history,needs:[{...query,candidateIds:['care:matching']}]}}),[]);
  const obligation={index:0,text:'vaccinations',needId:'need',petId:'pet',availability:'no_candidate_match'};
  const review={index:0,status:'answered',sentenceIndexes:[0]};
  assert.deepEqual(reviewObligationCompletion([obligation],[review],[{sourceIds:[]}],[],keys).failures,[]);
