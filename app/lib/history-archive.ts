@@ -22,8 +22,11 @@ export function getHistoryFromInstant(when: HistoryWhenFilter, now = new Date())
 }
 
 export function formatHistoryTimestamp(value: string, locale?: string, metadata?: Record<string, unknown> | null) {
-  const explicitDate = metadata?.explicitTime;
   const instant = new Date(value);
+  const batchIndex = metadata?.sourceNoteIndex, batchCount = metadata?.sourceNoteCount;
+  const datedBatch = metadata?.source === "ask_furvise" && Number.isInteger(batchIndex) && Number.isInteger(batchCount)
+    && Number(batchCount) >= 2 && Number(batchCount) <= 8 && Number(batchIndex) >= 1 && Number(batchIndex) <= Number(batchCount);
+  const explicitDate = metadata?.explicitTime ?? (datedBatch && Number.isFinite(instant.getTime()) ? instant.toISOString().slice(0,10) : null);
   // An explicit calendar date is stored at UTC midnight, not as an observed
   // local clock time. Do not move that date across days or invent a time of day.
   if (typeof explicitDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(explicitDate)
