@@ -89,7 +89,7 @@ export function toConversationSummary(row: AskConversationRow): AskConversationS
     petId: row.pet_profile_id,
     petName: relation?.name?.trim() || "Pet",
     title: row.title,
-    preview: row.preview,
+    preview: scrubUntrustedMutationClaim(row.preview, ""),
     status: row.status,
     lastActivityAt: row.last_activity_at,
   };

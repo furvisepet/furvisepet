@@ -12,6 +12,14 @@ registerHooks({ resolve(specifier, context, next) {
   return next(specifier, context);
 } });
 globalThis.fetch = async () => { throw new Error('Network forbidden in synthetic regression'); };
+test('conversation previews use the same claim policy as a reloaded answer', async () => {
+  const { toConversationSummary } = await import('../app/lib/ask-conversation-server.ts');
+  const row = { id: 'chat', pet_profile_id: 'pet', title: 'My chosen title', status: 'active', last_activity_at: '2026-09-11',
+    preview: 'Her profile is open. The math comes out to 20.', dog_profiles: { name: 'Clover' } };
+  assert.equal(toConversationSummary(row).preview, 'The math comes out to 20.');
+  assert.equal(toConversationSummary(row).title, row.title);
+  assert.equal(row.preview, 'Her profile is open. The math comes out to 20.');
+});
 const { evidenceAnswerPolicy, evidenceSource, attributedHistoryAnswer } = await import('../app/lib/intelligence/ask-evidence.ts');
 const { reviewHistoricalAnswer, readReviewedHistoryAnswer } = await import('../app/lib/intelligence/review-history-narrative.ts');
 const { validateGeneratedAnswer } = await import('../app/lib/intelligence/validation/validate-answer.ts');

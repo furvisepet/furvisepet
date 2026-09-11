@@ -21,12 +21,12 @@ import { scrubUntrustedMutationClaim } from '../app/lib/ask-publication.ts';
 import { containsUnverifiedStateClaim, enforceVerifiedStateClaims } from '../app/lib/application-actions/state-claims.ts';
 
 test('a navigation link never certifies browser execution, including after reload', () => {
-  for (const claim of ['Her profile is open.', "I opened Clover's profile.", 'The care history page has been opened.']) {
+  for (const claim of ['Her profile is open.', "I opened Clover's profile.", 'The care history page has been opened.', 'Opening her profile.', "I’m opening Clover’s profile now.", 'I am navigating to her profile.']) {
     assert.equal(containsUnverifiedStateClaim(claim), true, claim);
     assert.equal(scrubUntrustedMutationClaim(claim + ' The math comes out to 20.', ''), 'The math comes out to 20.');
     assert.equal(enforceVerifiedStateClaims(claim + ' The math comes out to 20.', true), 'The math comes out to 20.');
   }
-  for (const text of ['Use Open to view her profile.', 'Her profile is not open.', 'The clinic is open.', "Clover's mouth is open."])
+  for (const text of ['Use Open to view her profile.', 'Her profile is not open.', 'The clinic is open.', 'Opening a profile lets you view its details.', 'I am not opening her profile.', "Clover's mouth is open."])
     assert.equal(containsUnverifiedStateClaim(text), false, text);
 });
 
