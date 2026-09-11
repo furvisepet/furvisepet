@@ -192,6 +192,14 @@ try {
  assert.equal(json(`select affected_pet_ids from public.ask_recorded_inventory_removals where user_id=${quote(owner)};`).includes(milo),true);
  assert.equal(json(`select affected_pet_ids from public.ask_recorded_inventory_removals where user_id=${quote(owner)};`).includes(luna),false);
  log.push('Milo hard-deletion uncertainty does not block Luna two-episode census');
+ // Reproduce the native symptom shape observed in production after its summary
+ // projection: health keys need not have a domain prefix or semantic metadata.
+ sql(`update public.pet_care_episodes set normalized_key='vomiting',episode_type='symptom',summary=jsonb_build_object('eventCount',1,'latestStatus','active') where id=${quote(lunaSecond.episode_id)};`);
+ const nativeResolution=await write('Luna stopped vomiting completely.','resolved','resolution','2026-08-31T00:00:00Z',luna,active(luna));
+ assert.equal(nativeResolution.episode_id,lunaSecond.episode_id);
+ assert.equal(sql(`select status from public.pet_care_episodes where id=${quote(lunaSecond.episode_id)};`),'resolved');
+ assert.equal(json(`select public.read_ask_episode_sources(${quote(luna)},array['vomiting','vomit']);`).recorded_census.episodeCount,2);
+ log.push('unprefixed native symptom with rebuilt summary resolves through real governance and persistence without creating another episode');
  console.log(JSON.stringify({passed:log},null,2));
 } finally {
  try {

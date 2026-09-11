@@ -429,3 +429,25 @@ test("urgent presentation is topic-aware and never equates urgency with breathin
   const generic = base({ domain: "other", topic: "acute_issue", sourceExcerpt: "Something urgent happened" });
   assert.equal(urgentSemanticTitle("Luna", [generic], generic.sourceExcerpt), "Urgent guidance for Luna");
 });
+
+test("writer-created unprefixed symptom episode remains eligible for grounded dated resolution", () => {
+  const message = "Luna stopped vomiting completely on 2024-02-03. Save this resolution to her care history.";
+  const source = "Luna stopped vomiting completely on 2024-02-03.";
+  const active = episode("health", "vomiting", { normalized_key:"vomiting", episode_type:"symptom",
+    started_at:"2024-02-01T00:00:00Z",last_event_at:"2024-02-01T00:00:00Z",summary:{eventCount:1,latestStatus:"active"} });
+  const proposal=base({domain:"health",topic:"vomiting",eventTitle:"Vomiting ended",transition:"resolved",state:"resolved",importance:"important",sourceExcerpt:source,
+    temporal:{occurredAt:"2024-02-03T00:00:00Z",explicitTime:"2024-02-03"}});
+  const input={proposals:[proposal],message,pet,activeEpisodes:[active],allowTerminalResolution:true,
+    recoveryAssessment:recoveryAssessment("terminal",.99,source,"problem_ended")};
+  const result=governCanonicalEvents(input);
+  assert.equal(result.accepted.length,1,JSON.stringify(result.rejected));
+  assert.equal(result.accepted[0].event.references.episodeId,active.id);
+  assert.equal(result.accepted[0].event.temporal.occurredAt,"2024-02-03T00:00:00Z");
+  for(const patch of [{activeEpisodes:[active,{...active,id:"another",normalized_key:"health_vomiting"}]},
+    {activeEpisodes:[{...active,episode_type:"care_tracking"}]},
+    {activeEpisodes:[{...active,summary:{semanticDomain:"safety"}}]},
+    {allowTerminalResolution:false},
+    {recoveryAssessment:recoveryAssessment("uncertain",.5,source,"uncertain")}]) {
+    assert.equal(governCanonicalEvents({...input,...patch}).accepted.length,0);
+  }
+});

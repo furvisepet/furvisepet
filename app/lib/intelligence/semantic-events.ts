@@ -299,7 +299,10 @@ function episodeSemanticTopic(domain: string, episode: CareEpisode) {
 function compatibilityScore(domain: string, topic: string, episode: CareEpisode) {
   const episodeDomain = typeof episode.summary?.semanticDomain === "string"
     ? episode.summary.semanticDomain
-    : episode.normalized_key.startsWith(`${domain}_`) ? domain : null;
+    : episode.normalized_key.startsWith(`${domain}_`) ? domain
+      // Native care-history writers use unprefixed keys and can rebuild summary
+      // without semantic metadata. The persisted symptom type still owns health.
+      : domain === "health" && episode.episode_type === "symptom" ? "health" : null;
   if (episodeDomain !== domain) return 0;
   const episodeTopic = episodeSemanticTopic(domain, episode);
   if (episode.normalized_key === semanticEpisodeKey(domain, topic) || episode.normalized_key === topic || episodeTopic === topic) return 1;
