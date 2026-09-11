@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { registerHooks } from 'node:module';
 import {openSync,writeFileSync,closeSync,unlinkSync} from 'node:fs';
 import { embeddedPostgres } from './helpers/embedded-postgres.mjs';
 import { exercise, resolveAskTurnSubject, ASK_PROMPT_CONTEXT_CHAR_BUDGET } from './helpers/lifetime-harness.mjs'; // installs offline provider hooks
@@ -41,7 +42,19 @@ const rpc=(name,args)=>{
  const request={abortSignal(){return this;},then(resolve,reject){return Promise.resolve().then(()=>({data:json(statement),error:null})).then(resolve,reject);}};
  return request;
 };
-const db={rpc};
+const db={rpc,from(table) {
+ assert.equal(table,'dog_profiles');let ids=[];
+ return {select(columns){assert.equal(columns,'id');return this;},eq(column,value){assert.equal(column,'user_id');assert.equal(value,owner);return this;},
+  in(column,values){assert.equal(column,'id');ids=values;return this;},async returns(){return {error:null,data:json(`select coalesce(jsonb_agg(jsonb_build_object('id',id)),'[]') from public.dog_profiles where user_id=${quote(owner)} and id=any(${quote(ids)});`)};}};
+}};
+// Replace only the connection factory; the production persistence coordinator,
+// source preparation, RPC argument builder and database writer are real.
+globalThis.__launchSqlAuthority=db;
+registerHooks({resolve(specifier,context,nextResolve){
+ if(context.parentURL?.endsWith('/persist-learnings.ts') && /care-authority-client/.test(specifier)) return {shortCircuit:true,url:'data:text/javascript,export const createCanonicalCareAuthorityClient = () => globalThis.__launchSqlAuthority;'};
+ return nextResolve(specifier,context);
+}});
+const {persistIntelligenceLearnings}=await import('../../app/lib/intelligence/persist-learnings.ts');
 let sequence=0;
 async function write(note,transition,kind,date,pet=milo,active=[],topic='vomiting') {
  note=note.replace(/\.$/,` on ${date.slice(0,10)}.`);
@@ -52,8 +65,13 @@ async function write(note,transition,kind,date,pet=milo,active=[],topic='vomitin
  const g=governCanonicalEvents({proposals:[proposal],message:note,resolvedPetSubject:{id:pet,name:proposal.subject.name},activeEpisodes:active});
  assert.equal(g.accepted.length,1,JSON.stringify(g.rejected));
  assert.ok(g.accepted[0].recordedEvidence,`No provenance: ${note}`);
+ const persisted=await persistIntelligenceLearnings({assistantMessageId:randomUUID(),authorizedPetIds:[pet],careActions:[],
+  semanticEvents:g.accepted,learnings:[],currentMessage:note,operationOwnerToken:randomUUID(),payloadHash:'fixture',
+  petId:pet,requestId:randomUUID(),sourceMessageId:source,supabase:db,userId:owner,recentCareEntries:[]});
+ assert.equal(persisted.carePersistence.status,'persisted',JSON.stringify(persisted.carePersistence));
+ assert.equal(sql(`select note from public.pet_care_entries where id=${quote(persisted.persistedCareEntryId)};`),note,'source text must survive the production persistence coordinator unchanged');
  const r=await persistSemanticEventRpc({event:g.accepted[0],fallbackPetId:pet,sourceMessageId:source,userId:owner,supabase:db});
- assert.equal(r.error,null);return {...r.data[0],source,proposal,event:g.accepted[0]};
+ assert.equal(r.error,null);assert.equal(r.data[0].already_persisted,true);return {...r.data[0],source,proposal,event:g.accepted[0]};
 }
 const active=pet=>json(`select coalesce(jsonb_agg(e),'[]') from public.pet_care_episodes e where user_id=${quote(owner)} and pet_profile_id=${quote(pet)} and status in ('active','monitoring');`);
 const read=()=>json(`select public.read_ask_episode_sources(${quote(milo)},array['vomiting','vomit']);`);

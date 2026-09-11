@@ -13,7 +13,7 @@
 
 ## Verification before deployment
 
-- 1,452 focused tests passed, zero failed/skipped/cancelled.
+- 1,453 focused tests passed, zero failed/skipped/cancelled.
 - Full project TypeScript check passed; changed TypeScript ESLint passed.
 - Disposable PostgreSQL/WASM writer-to-reader scenarios passed, including 70 sources/two episodes, import deduplication, correction/deletion invalidation, saved ordinal references, and unaffected Luna counts after deleting Milo data. Provider mocked in these SQL pipeline scenarios.
 - SQL time/role/receipt assertions passed and rolled back. Private scope helpers and receipt tables remain inaccessible to application roles. Native multi-connection concurrency was not tested by the embedded database.
@@ -30,3 +30,9 @@ The first app save for new synthetic pet Rowan failed with `ASK_TASK_INCOMPLETE_
 ## Production acceptance
 
 Database migration applied as `20260911062524`; retained legacy debt remains bound to the ten existing pets. Rowan was created using app onboarding afterward. Final application deployment and live recheck pending.
+
+## Live persistence boundary finding
+
+The retried answer reached persistence, where SQL rejected `RECORDED_SOURCE_PROVENANCE_INVALID`. `persistCanonicalSemanticEvent` had passed a presentation-rewritten source excerpt into the RPC while retaining the original source hash. The repair passes the original governed event; presentation preparation remains available for display and duplicate matching.
+
+The disposable SQL scenario now runs every save through `persistIntelligenceLearnings`, the same coordinator used by the route, with only its connection factory replaced by the SQL test transport. It reproduced the exact production error before the one-line repair and passed all scenarios afterward. This supersedes the narrower direct-RPC writer coverage. No SQL validation was weakened.
