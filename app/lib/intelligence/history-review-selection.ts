@@ -24,7 +24,8 @@ export function parseHistoryReviewSelection(value: unknown, sentenceCount: numbe
 
 /** A task-level receipt cannot approve a subset that silently drops a requested
  * obligation. Limited evidence is a valid answer only with retained explanation. */
-export type TaskObligationReview = { index: number; status: "answered" | "limited" | "missing" | "action_ready" | "refused" | "needs_information"; sentenceIndexes: number[]; actionIndexes?: number[] };
+export const TASK_COMPLETION_STATUSES = ["answered", "action_ready", "limited", "missing", "not_requested", "refused", "needs_information"] as const;
+export type TaskObligationReview = { index: number; status: typeof TASK_COMPLETION_STATUSES[number]; sentenceIndexes: number[]; actionIndexes?: number[] };
 export const taskHistoryReviewSchema = {
   ...historyReviewSelectionSchema,
   required: [...historyReviewSelectionSchema.required, "obligations"],

@@ -123,11 +123,11 @@ export class AskTurnLifecycle {
 
   get state() { return this.stateValue; }
 
-  outcomes(answer: NonNullable<AskTurnTrace["answerOutcome"]>, mutation: NonNullable<AskTurnTrace["mutationOutcome"]>) {
+  outcomes(answer: NonNullable<AskTurnTrace["answerOutcome"]>, mutation: NonNullable<AskTurnTrace["mutationOutcome"]>, readyForExecution = false) {
     this.traceValue.answerOutcome = answer;
     this.traceValue.mutationOutcome = mutation;
     this.traceValue.taskOutcome = answer === "failed" || mutation === "failed" ? "failed"
-      : answer === "complete" && mutation !== "pending" ? "complete" : "limited";
+      : (answer === "complete" && mutation !== "pending") || (answer === "limited" && readyForExecution && mutation === "applied") ? "complete" : "limited";
     return this;
   }
 

@@ -1,3 +1,4 @@
+import { TASK_COMPLETION_STATUSES } from "./history-review-selection.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
 import "server-only";
 import OpenAI from "openai";
@@ -24,7 +25,7 @@ const verificationSchema = { type: "object", additionalProperties: false, requir
       status: { type: "string", enum: ["passed", "failed", "not_applicable"] },
       reason: { type: "string", minLength: 1, maxLength: 600 },
     } }])) };
-const statuses = ["answered", "action_ready", "limited", "missing", "not_requested", "refused", "needs_information"] as const;
+const statuses = TASK_COMPLETION_STATUSES;
 /** Encode reference support in the provider schema as well as the parser.
  * Invalid limitation references and mutation-only navigation verdicts must not
  * be normal model choices that consume the repair budget. */
@@ -179,7 +180,7 @@ export async function reviewTaskCompletion(input: {
     if (!reviewed && attempt) throw taskFailure("ASK_TASK_REVIEW_INVALID_" + reviewFailure);
     if (reviewed?.accepted && !containsUnverifiedStateClaim(body)) {
       rememberReviewedTaskPresentation(response.evidenceContract, response.answer, actions);
-      return { ...validation, assessment: createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
+      return { ...validation, completion: reviewed.completion.map(item => ({ index: item.index, status: item.status, sentenceIndexes: [...item.answerIndexes], actionIndexes: [...item.actionIndexes], sourceIds: [] })), assessment: createAnswerAssessment({ body: response.answer, evidence: response.evidenceContract || null,
         checks: { ...validation.assessment.checks,
           ...Object.fromEntries(verificationKeys.map(key => [key, validation.assessment.checks[key] === "failed"
             ? "failed" : reviewed.verification[key].status])), taskCompletion: reviewed.complete ? "passed" : "failed" },

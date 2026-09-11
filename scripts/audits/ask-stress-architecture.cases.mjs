@@ -283,3 +283,21 @@ test('structured diagnostics retain safe contract codes without leaking parser i
  assert.equal(safeStructuredValidationReason(new SyntaxError('Private note and secret token')),'JSON_SYNTAX');
  assert.equal(safeStructuredValidationReason(new Error('Private note and secret token')),'STRUCTURED_CONTRACT_INVALID');
 });
+
+test('approved history receipt survives validation without granting authority to clones or changed drafts',async t=>{
+ clock(t);const r=await exercise('What did Aster do in April 2024?',{fixturePets:owned,messages:[],history:true,
+ rows:[care('verified-rest','milo','2024-04-07','general','Aster rested on a blue mat.')],
+ interpretationProposal:proposal({from:'2024-04-01',to:'2024-05-01',terms:['rest']}),
+ providerOverrides:{historyNarrative:{sentences:[{text:'Aster rested on a blue mat.',sourceIds:['care:verified-rest'],calculations:[]}]}},
+ reviewResponse:{approved:true},expectedReviewCalls:1});
+ assert.ok(readReviewedHistoryAnswer(r.result.reasoning));
+ assert.equal(readReviewedHistoryAnswer(structuredClone(r.result.reasoning)),null);
+ r.result.reasoning.historyNarrative.sentences[0].text='Aster has a diagnosis.';
+ assert.equal(readReviewedHistoryAnswer(r.result.reasoning),null);
+});
+test('only a fully reviewed ready task plus an applied receipt completes a pending write',()=>{
+ for(const [mutation,ready,expected] of [['applied',true,'complete'],['applied',false,'limited'],['pending',true,'limited'],['failed',true,'failed']]){
+  const turn=new AskTurnLifecycle('logical','attempt');turn.outcomes('limited',mutation,ready);
+  assert.equal(turn.snapshot().taskOutcome,expected);
+ }
+});

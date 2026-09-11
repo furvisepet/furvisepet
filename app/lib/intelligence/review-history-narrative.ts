@@ -200,6 +200,12 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const completionCheck = sharedRequest && selection.approved && "obligations" in selection
       ? reviewObligationCompletion(obligations, (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations, draft.sentences, sources)
       : { failures: [], completion: [] };
+    if (selection.approved && "obligations" in selection) {
+      for (const item of (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations) {
+        if (item.status === "action_ready" && !item.actionIndexes?.some(index => index >= actions.length && index < reviewActions.length)) completionCheck.failures.push("action_not_ready:" + item.index);
+        if (item.index === 0 && item.status === "refused" && pending.length) completionCheck.failures.push("refusal_conflicts_with_pending_write");
+      }
+    }
     const selectedText = (selection.approved ? selection.retainedSentenceIndexes.map(index => draft.sentences[index]) : draft.sentences).map(chunk => chunk.text).join("\n");
     const completeSelection = !selection.approved || !sharedRequest || selection.retainedSentenceIndexes.length === draft.sentences.length;
     const anchorsValid = !selection.approved || selection.retainedSentenceIndexes.every(index => !invalidIndexes.includes(index));

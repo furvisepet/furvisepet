@@ -1,3 +1,4 @@
+import { readReviewedHistoryAnswer, recordHistoryReview, historyReviewSignature } from "./history-review-state.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
@@ -367,7 +368,9 @@ export async function runFurviseIntelligence({
       hasOwnedPetSubject ? authoritativePetIds : [context.pet.id]),
   });
   assertGovernedAskExecutionPlan(executionPlan);
+  const finalHistoryReceipt = readReviewedHistoryAnswer(answerValidation.response);
   Object.assign(reasoning, answerValidation.response);
+  if (finalHistoryReceipt) recordHistoryReview(reasoning, { ...finalHistoryReceipt, signature: historyReviewSignature(reasoning) });
   const shadow = buildShadowSemanticAnalysis({
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
     acceptedCareActions,
