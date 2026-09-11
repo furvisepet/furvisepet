@@ -131,3 +131,20 @@ for(const frame of [null,{schemaVersion:'wrong'}]) test('action-only frame failu
  }}}});
  assert.equal(calls,2);assert.deepEqual(result.frame,emptyProposedSemanticFrame());assert.deepEqual(result.petIds,[pets[0].id]);
 });
+
+test('named owner action scope is repaired without dropping or widening the target',async()=>{
+ const question='Archive Milo.';let calls=0;
+ assert.throws(()=>recoverAskInterpretation(updateProposal(question,{scope:'none'}),{...context,currentMessage:question}),/SCOPE/);
+ const result=await interpretAskQuestion({context:{...context,currentMessage:question},model:'gpt-5-mini',client:{responses:{async create(request){
+  calls++;assert.match(request.instructions,/scope identifies the owned target/);
+  return {status:'completed',output_text:JSON.stringify(updateProposal(question,calls===1?{scope:'none'}:{})),usage:{input_tokens:12,output_tokens:8}};
+ }}}});
+ assert.equal(calls,2);assert.deepEqual(result.petIds,[pets[0].id]);assert.equal(result.readOnly,false);
+});
+test('repeated update scope conflict still fails after one repair',async()=>{
+ let calls=0;const question='Archive Milo.';
+ await assert.rejects(interpretAskQuestion({context:{...context,currentMessage:question},model:'gpt-5-mini',client:{responses:{async create(){
+  calls++;return {status:'completed',output_text:JSON.stringify(updateProposal(question,{scope:'none'})),usage:{input_tokens:12,output_tokens:8}};
+ }}}}),e=>e.diagnostics.providerErrorCode==='ASK_REQUEST_CONTRACT_SCOPE');
+ assert.equal(calls,2);
+});
