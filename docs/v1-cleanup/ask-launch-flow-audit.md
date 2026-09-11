@@ -107,3 +107,8 @@ The same live turn then reached a different rejected shape: `transition=resolved
 The original June 11 logical turn succeeded on deployment `dpl_DiUu7jSSxdePYYDfAE9suSkiFp1W` / commit `1caacca47c980dc673e1ec27ca4c46938b197281`. Answer `c78006b5-607d-4458-8db0-a363b24f0932` completed in four provider calls, with no final error and no proposed application actions. It saved exactly one entry, `b202614e-bf30-43de-814a-91b4488327c1`, containing the original June 11 statement and date. The existing second episode `36b12da6-3475-4184-81d1-b63d65d24fb2` is resolved at `2024-06-11T00:00:00Z`. Sable retains exactly two episodes and four care entries: two openings and two resolutions. The live UI shows the neutral recovery heading and a single saved receipt, without duplicate save/resolve controls.
 
 The final targeted run passed 61 reasoning/semantic cases, TypeScript and ESLint; the SQL harness passed all 15 scenarios. All code changes in this investigation are merged, and the final application build is deployed. The observed completion-review retry, legacy-data completeness limits, broader non-Ask launch scope and blocked Rowan cleanup remain explicitly disclosed above. This is evidence of the tested flows, not a zero-defect or 10/10 certification.
+
+
+## Authorized cleanup completed — September 11 follow-up
+
+The owner authorized removal of Rowan entry `344b7ea6-bec7-4757-a4dd-6c798bfda578`. It was removed through production History at `2026-09-11T08:24:06.99078Z` (soft deletion; provenance retained). This closes the earlier pending-cleanup item. Further launch findings and fixes are recorded in `launch-flow-audit-2026-09-11.md`.

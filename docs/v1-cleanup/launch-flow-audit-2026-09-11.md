@@ -25,7 +25,7 @@ Sable (`618343ec-7fa5-40bc-ab86-2f9a850d1d07`):
 4. Confirmed document `17741e9c-7e13-4fdf-acf3-0a3b195de038`, version 1. URL includes its ID; reload remains confirmed.
 5. Reopened and confirmed version 2, `60633afc-5d7b-4b6c-96e4-4bafdeef7295`, with version 1 as parent. Both records retain all four identical source IDs. Version 1's title is unchanged.
 6. Print opened a separate document tab showing the correct revised title, version 2, range and four dated sources.
-7. PDF endpoint completed and the UI reported success. The browser download event did not arrive in this session; physical file delivery is not certified. Export handoff hardening is included in the follow-up deployment and needs its final browser retest.
+7. PDF endpoint completed and the UI reported success. The browser download event did not arrive in this session; physical file delivery is not certified. The final production export handoff was retested: the page reports "PDF ready. Check your browser downloads." but no download event arrived within 15 seconds. Console diagnostics showed browser-extension metadata communication errors; this does not prove an application failure or successful physical delivery.
 
 One earlier empty synthetic brief (`09b1584b-96dd-4920-b54a-7a558582990d`) remains as a test receipt. No clinical data was invented or added by the brief tests.
 
@@ -43,7 +43,7 @@ Production compatibility contract v2 returned `failed_checks: []` after alignmen
 
 PR309 GitHub Security CI run 34580113435: full suite 2,145 passed; focused security 160 passed; lint, TypeScript, production dependency audit and production build passed. These counts overlap. Initial npm install reported a development-tree advisory; the production dependency audit reported zero vulnerabilities.
 
-Additional local checks: 47 focused billing/Vet Brief tests, 13 readiness tests, and 30 export/security tests passed (overlapping). TypeScript and changed-file ESLint passed. Follow-up PR310 carries the database/readiness and export hardening; its exact final CI/deployment result must be checked before claiming completion.
+Additional local checks: 47 focused billing/Vet Brief tests, 13 readiness tests, and 30 export/security tests passed (overlapping). TypeScript and changed-file ESLint passed. Follow-up PR310 head `f637c40f64565597f4282f3b471da86e7da45d55` passed Security CI run 34581352043: 2,146 full tests, 160 focused security tests, lint, TypeScript, production dependency audit (zero vulnerabilities), and production build. It merged as `5415e3ee30134443df8ce7b03a1a554dbf57a6ce`; deployment `dpl_8HRaJmpJFfEu5noxLiQkw2zozmMW` is READY and assigned to www.furvise.com. Final reload preserves the confirmed revised document.
 
 ## Billing and account evidence
 
@@ -53,7 +53,7 @@ Read-only Stripe checks on the Furvise live account:
 - Enabled webhook `we_1U4X8dFZUuSMatnol5fzIBwr`: correct www.furvise.com endpoint and Checkout-completed/subscription-created/updated/deleted events.
 - Active default portal supports payment-method updates, invoice history and cancellation at period end.
 
-No live charge, cancellation or entitlement override was performed. Membership correctly displays internal testing access, which cannot establish consumer paid-plan behavior. Account details, login/security and data/privacy screens load; this is navigation verification only.
+No live charge, cancellation or entitlement override was performed. Membership correctly displays internal testing access, which cannot establish consumer paid-plan behavior. Account details, login/security and data/privacy screens load. Clicking Download data returned "Sign in again before exporting your data." The existing session did not satisfy the export reauthentication requirement; no account export delivery is certified. The owner account was not signed out or modified.
 
 ## Remaining launch gates
 
