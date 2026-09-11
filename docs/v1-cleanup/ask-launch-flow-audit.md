@@ -36,3 +36,11 @@ Database migration applied as `20260911062524`; retained legacy debt remains bou
 The retried answer reached persistence, where SQL rejected `RECORDED_SOURCE_PROVENANCE_INVALID`. `persistCanonicalSemanticEvent` had passed a presentation-rewritten source excerpt into the RPC while retaining the original source hash. The repair passes the original governed event; presentation preparation remains available for display and duplicate matching.
 
 The disposable SQL scenario now runs every save through `persistIntelligenceLearnings`, the same coordinator used by the route, with only its connection factory replaced by the SQL test transport. It reproduced the exact production error before the one-line repair and passed all scenarios afterward. This supersedes the narrower direct-RPC writer coverage. No SQL validation was weakened.
+
+## Production recheck after PR 299
+
+- Rowan's empty recorded register returned exactly zero in conversation `cfb04a7d-4860-4736-8cc5-943d14f0998b`.
+- On production `4cf0d5f75e0bb149b11b7b3a5b7f0ac88e08c88b`, a real Ask save created entry `1fbcd91b-9f64-4ea6-8ecd-b903bd51bd36`, original text and `2024-02-01` date intact, and episode `cdee674e-a232-4fcc-830d-4ac3eeb46c1c`. Conversation `a1bafbab-13db-4f4d-8aad-e6cec627becc` has the successful persistence receipt.
+- Resolution request `d19836f0-4f30-45df-a2de-2a8d561e7e7a` failed before persistence with `provider_call_budget_exhausted` after interpretation and generation. The generator's repair/fallback calls lacked an explicit phase and were denied as third ordinary calls. They now use one generation-repair phase followed by independent review, at most four calls. Interpretation repair, generation repair and downstream review repair cannot stack into additional cycles. Deadline/cost accounting stays enforced.
+- The successful save also exposed a redundant proposed application save card beside its receipt. Exact matching health proposals are now removed before review when the same owned pet's governed event already represents the explicit save. Distinct details, other destinations and unapproved writes are preserved. The actual receipt still depends on persistence.
+- Full TypeScript and the save/completion plus real-admission request-contract regressions passed for these follow-up changes. Deployment and resolution retry pending.

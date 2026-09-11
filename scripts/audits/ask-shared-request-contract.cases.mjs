@@ -1295,3 +1295,22 @@ test('a note-frequency question reaches ordinary evidence rather than an unrelat
  assert.equal(r.context.episodeResult,undefined);
  assert.ok(r.context.askHistory.entries.some(e=>e.id==='noise-note'));
 });
+
+test('generation repair has a single admitted phase followed by independent review', async t => {
+ clock(t);
+ const {runAdmittedAiOperation}=await import('../../app/lib/ai/usage-guard/admission.ts');
+ const {MemoryAiGuardTestStore}=await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
+ const {OPENAI_ANALYSIS_MODEL}=await import('../../app/lib/ai/config.ts');
+ const {executeAdmittedProviderCall}=await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
+ const store=new MemoryAiGuardTestStore();let invoked=0;
+ const call=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,maxOutputTokens:100,providerInput:'synthetic',
+  invoke:async()=>{invoked++;return {usage:{input_tokens:10,output_tokens:10}};}});
+ await runAdmittedAiOperation({store,feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'generation-repair'},async()=>{
+  await assert.rejects(call('generation_repair'));await call();await assert.rejects(call('generation_repair'));await call();
+  await call('generation_repair');
+  for(const purpose of [undefined,'generation_repair','interpretation_repair','history_repair','history_rereview']) await assert.rejects(call(purpose));
+  await call('task_review');
+  for(const purpose of [undefined,'generation_repair','task_review','task_repair','task_rereview']) await assert.rejects(call(purpose));
+ });
+ assert.equal(invoked,4);assert.equal(store.getSnapshot('2026-09-04').calls,4);
+});

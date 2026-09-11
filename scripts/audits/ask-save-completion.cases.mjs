@@ -289,3 +289,17 @@ test('an owned action target cannot evade subject verification as inapplicable',
  const {createRequire}=await import('node:module');const Ajv=createRequire(import.meta.url)('ajv');
  assert.equal(new Ajv({strict:false}).compile(taskReviewSchema(3,1,[]))(verdict),false);
 });
+
+test('governed save has one presentation owner without dropping distinct or unapproved writes',async()=>{
+ const {omitGovernedCareSaveDuplicates}=await import('../../app/lib/intelligence/care-history-policy.ts');
+ const event={event:{subject:{type:'pet',id:pet.id},domain:'health',sourceExcerpt:observation},destinations:['care_event']};
+ const save={...action,input:{...action.input,category:'health',detail:observation}};
+ const input={actions:[save,nav],events:[event],message:source,petId:pet.id};
+ assert.deepEqual(omitGovernedCareSaveDuplicates(input),[nav]);
+ for(const patch of [{events:[]},{message:observation},{petId:'foreign'},
+  {events:[{...event,destinations:['episode_current_state']}]},
+  {actions:[{...save,input:{...save.input,detail:observation+' twice'}}]},
+  {actions:[{...save,input:{...save.input,target:'last'}}]}]) {
+  const value={...input,...patch};assert.deepEqual(omitGovernedCareSaveDuplicates(value),value.actions);
+ }
+});

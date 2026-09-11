@@ -1266,7 +1266,7 @@ async function runProviderRequest<T>({ client, fallbackFrom, model, onEvent, par
       ...compatibleRequest,
       ...(supportsReasoningEffort(model) ? { reasoning: compatibleRequest.reasoning || { effort: "low" } } : {}),
       model,
-    }, timeoutMs, () => onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit }));
+    }, timeoutMs, () => onEvent?.({ stage, outcome: "started", model, elapsedMs: 0, fallbackFrom, configuredOutputLimit }), stage === "repair" || stage === "fallback" ? "generation_repair" : undefined);
     const result = interpretStructuredProviderResponse(response, parseOutput);
     const diagnostics = {
       configuredOutputLimit,
@@ -1318,11 +1318,11 @@ function isRepairableStructuredOutput(error: AskPipelineError) {
     error.diagnostics.providerErrorCode === "ASK_OUTPUT_INVALID";
 }
 
-async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number, onAttempt?: () => void) {
+async function createWithTimeout(client: AskReasoningOpenAiClient, request: Record<string, unknown>, timeoutMs: number, onAttempt?: () => void, purpose?: "generation_repair") {
   const format = request.text as { format?: { schema?: { properties?: Record<string, unknown> } } } | undefined;
-  const reserveMs = format?.format?.schema?.properties?.readVersion ? 8_000 : 0;
+  const reserveMs = purpose === "generation_repair" || format?.format?.schema?.properties?.readVersion ? 8_000 : 0;
   return executeAdmittedProviderCall({
-    reserveMs,
+    purpose, reserveMs,
     invoke: () => withProviderDeadline(signal => { onAttempt?.(); return client.responses.create(request, { signal }); }, boundedProviderTimeout(timeoutMs, reserveMs)),
     maxOutputTokens: typeof request.max_output_tokens === "number" ? request.max_output_tokens : 0,
     model: typeof request.model === "string" ? request.model : "",
