@@ -296,6 +296,7 @@ test('governed save has one presentation owner without dropping distinct or unap
  const save={...action,input:{...action.input,category:'health',detail:observation}};
  const input={actions:[save,nav],events:[event],message:source,petId:pet.id};
  assert.deepEqual(omitGovernedCareSaveDuplicates(input),[nav]);
+ assert.deepEqual(omitGovernedCareSaveDuplicates({...input,actions:[{...save,input:{...save.input,category:'symptom'}},nav]}),[nav]);
  for(const patch of [{events:[]},{message:observation},{petId:'foreign'},
   {events:[{...event,destinations:['episode_current_state']}]},
   {actions:[{...save,input:{...save.input,detail:observation+' twice'}}]},
