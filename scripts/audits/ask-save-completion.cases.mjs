@@ -252,3 +252,32 @@ test('evidence changed during review invalidates the review capability',async()=
  const client={responses:{async create(){r.evidenceContract.represented.push({text:'Changed while reviewing'});return {status:'completed',output_text:JSON.stringify(review()),usage:{input_tokens:10,output_tokens:10}};}}};
  await assert.rejects(reviewTaskCompletion({validation:validation(r),context,requestId:'evidence-race',validate:validation,client}),/ASK_TASK_REVIEW_BODY_CHANGED/);
 });
+
+test('governed health save reaches completion review before its persistence receipt exists',async()=>{
+ const text=`${pet.name} started vomiting on 2024-02-01. Please save this to his history.`;
+ const ctx={...context,currentMessage:text,askInterpretation:{...context.askInterpretation,request:{...context.askInterpretation.request,requirements:[]}}};
+ const event={subject:{type:'pet',id:pet.id,name:pet.name},domain:'health',topic:'vomiting',normalizedTopic:'vomiting',
+   eventTitle:'Vomiting started',transition:'started',state:'historical',temporal:{occurredAt:'2024-02-01T00:00:00Z',explicitTime:'2024-02-01'},
+   sourceExcerpt:`${pet.name} started vomiting on 2024-02-01`,references:{priorEventIds:[],episodeId:null,concernId:null},importance:'important',confidence:.99};
+ const pending=[{event,destination:'care_event',destinations:['care_event','episode_current_state']}];
+ const verdict={...review(),obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}]};
+ const seen=[];
+ const r=await reviewTaskCompletion({validation:validation(response('The update records the vomiting onset as February 1, 2024.',[])),context:ctx,
+   pendingCareEvents:pending,requestId:'semantic-ready',validate:validation,client:mock([verdict],seen)});
+ const input=JSON.parse(seen[0].input);
+ assert.equal(input.actions[0].origin,'server_governed_care_event');
+ assert.equal(input.actions[0].input.temporal.occurredAt,event.temporal.occurredAt);
+ assert.equal(input.actions[0].executionDisposition,'automatic_after_persistence');
+ assert.equal(r.assessment.outcome,'limited','readiness is not execution success');
+ assert.equal(r.response.applicationActions.length,0,'review does not mint a duplicate application save');
+ for (const [label,ctxPatch,eventPatch] of [
+   ['no explicit save',{currentMessage:`${pet.name} started vomiting on 2024-02-01.`},{}],
+   ['foreign subject',{}, {subject:{type:'pet',id:'foreign',name:'Other'}}],
+ ]) {
+   const calls=[];
+   await assert.rejects(reviewTaskCompletion({validation:validation(response('Observation acknowledged.',[])),context:{...ctx,...ctxPatch},
+    pendingCareEvents:[{...pending[0],event:{...event,...eventPatch}}],requestId:label,validate:validation,
+    client:mock([verdict,{answer:'Observation acknowledged.',navigation:[]},verdict],calls)}),/ASK_TASK_REVIEW_INVALID/);
+   assert.equal(JSON.parse(calls[0].input).actions.length,0);
+ }
+});

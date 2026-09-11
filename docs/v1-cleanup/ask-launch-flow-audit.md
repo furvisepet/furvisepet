@@ -23,6 +23,10 @@
 - Old unlinked correction notes, unclassified historical sources and unknown deletion identities still cannot establish exact counts. No correction relation is inferred or cleared by this migration. This does not complete legacy reconciliation or narrow unknown correction effects within the same pet to individual topics.
 - This is an Ask audit, not certification of billing, Vet Brief or all launch surfaces.
 
+## Additional live save finding
+
+The first app save for new synthetic pet Rowan failed with `ASK_TASK_INCOMPLETE_OBLIGATIONS_3` (request `a47d97af-ecfd-47de-aff3-fc56039e9fd4`). Completion review could inspect application cards but could not see already-governed semantic health events waiting for persistence. The reviewer now receives those events as pending actions for explicit saves, with exact subject/date/source data. It cannot invent events, change their authority or turn readiness into execution success. Ordinary observations retain their confirmation policy.
+
 ## Production acceptance
 
-Pending deployment and live verification.
+Database migration applied as `20260911062524`; retained legacy debt remains bound to the ten existing pets. Rowan was created using app onboarding afterward. Final application deployment and live recheck pending.
