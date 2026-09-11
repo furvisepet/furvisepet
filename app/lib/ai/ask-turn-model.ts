@@ -200,7 +200,8 @@ export async function runOptionalAskSubsystem<T>(input: {
   try {
     return await input.operation();
   } catch (error) {
-    input.onFailure?.(input.component, error);
+    try { input.onFailure?.(input.component, error); }
+    catch { console.warn("[Ask] Optional failure reporting unavailable", input.component); }
     return input.fallback;
   }
 }

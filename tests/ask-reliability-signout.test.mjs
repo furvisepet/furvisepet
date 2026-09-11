@@ -69,9 +69,9 @@ test("provider rate limits release the one reservation and return a stable recov
   assert.match(errorUx, /"TEMPORARY_PROVIDER_FAILURE"/);
 });
 
-test("Recent conversations excludes threads that have no assistant answer", () => {
-  assert.match(conversationListRoute, /ask_conversation_messages!inner\(id, role\)/);
-  assert.match(conversationListRoute, /\.eq\("ask_conversation_messages\.role", "furvise"\)/);
+test("Recent conversations retains failed first turns for retry", () => {
+  assert.doesNotMatch(conversationListRoute, /ask_conversation_messages!inner/);
+  assert.match(conversationListRoute, /nextCursor/);
 });
 
 test("conversation cards hide internal usage copy and generic AI headings", () => {
@@ -120,7 +120,9 @@ test("request IDs are indexed safely on the existing message table", () => {
 });
 
 test("saved conversations load chronologically and Recent conversations is recoverable", () => {
-  assert.match(conversationRoute, /order\("sequence_number", \{ ascending: true \}\)/);
+  assert.match(conversationRoute, /order\("sequence_number", \{ ascending: false \}\)/);
+  assert.match(conversationRoute, /\.reverse\(\)/);
+  assert.match(conversationRoute, /olderMessagesCursor/);
   assert.match(page, /No conversations yet/);
   assert.match(page, /Questions and things you tell Furvise will show up here\./);
   assert.match(page, /event\.key === "Escape"/);

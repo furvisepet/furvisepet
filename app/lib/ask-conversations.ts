@@ -42,6 +42,7 @@ export type StoredAskMessage =
 
 export type AskConversationDetail = AskConversationSummary & {
   messages: StoredAskMessage[];
+  olderMessagesCursor?: number | null;
 };
 
 type RetryMessageRow = { id: string; request_id?: string | null; role: "user" | "furvise"; user_text?: string | null; created_at: string };

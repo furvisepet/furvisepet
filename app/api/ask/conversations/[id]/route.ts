@@ -8,33 +8,50 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if ("response" in context) return context.response;
   const { id } = await params;
   if (!isUuid(id)) return Response.json({ error: "That conversation identifier is invalid." }, { status: 400 });
-  const { data: conversation } = await context.supabase
+  const rawBefore = new URL(request.url).searchParams.get("before");
+  const before = rawBefore === null ? null : Number(rawBefore);
+  if (before !== null && (!Number.isSafeInteger(before) || before < 1)) return Response.json({ error: "That message page is invalid." }, { status: 400 });
+  const { data: conversation, error: conversationError } = await context.supabase
     .from("ask_conversations")
     .select("id, user_id, pet_profile_id, title, preview, status, last_activity_at, dog_profiles(name)")
     .eq("id", id)
     .eq("user_id", context.userId)
     .maybeSingle<AskConversationRow>();
+  if (conversationError) return Response.json({ error: "That conversation could not be loaded." }, { status: 503 });
   if (!conversation) return Response.json({ error: "That conversation is not available." }, { status: 404 });
-  const { data: messages, error } = await context.supabase
+  let messageQuery = context.supabase
     .from("ask_conversation_messages")
-    .select("id, request_id, role, user_text, response_data, save_metadata, context_used, care_persistence, created_at")
+    .select("id, request_id, role, user_text, response_data, save_metadata, context_used, care_persistence, created_at, sequence_number")
     .eq("conversation_id", id)
     .eq("user_id", context.userId)
-    .order("sequence_number", { ascending: true })
-    .returns<AskMessageRow[]>();
+    .order("sequence_number", { ascending: false })
+    .limit(100);
+  if (before !== null) messageQuery = messageQuery.lt("sequence_number", before);
+  const { data: page, error } = await messageQuery.returns<(AskMessageRow & { sequence_number: number })[]>();
   if (error) return Response.json({ error: "That conversation could not be opened." }, { status: 503 });
-  const { data: suggestions } = await context.supabase
+  const messages = [...(page || [])].reverse();
+  // Keep the oldest exchange together across pages: an assistant at the
+  // boundary belongs with the preceding user message on the next page.
+  if (messages.length === 100 && messages[0].role === "furvise") messages.shift();
+  const olderMessagesCursor = page?.length === 100 ? messages[0]?.sequence_number || null : null;
+  const assistantIds = messages.filter(message => message.role === "furvise").map(message => message.id);
+  const { data: suggestions, error: suggestionsError } = assistantIds.length ? await context.supabase
     .from("ai_update_suggestions")
     .select("id, source_message_id, concern_id, care_entry_id, applied_at, type, title, details, status")
     .eq("conversation_id", id)
     .eq("user_id", context.userId)
+    .in("source_message_id", assistantIds)
     .order("created_at", { ascending: true })
-    .returns<AskSuggestionRow[]>();
-  const canonicalSuggestions = await reconcileAskSuggestions(context.supabase, context.userId, suggestions || []);
+    .returns<AskSuggestionRow[]>() : { data: [], error: null };
+  if (suggestionsError) return Response.json({ error: "The saved update status could not be loaded." }, { status: 503 });
+  let canonicalSuggestions: Awaited<ReturnType<typeof reconcileAskSuggestions>>;
+  try { canonicalSuggestions = await reconcileAskSuggestions(context.supabase, context.userId, suggestions || []); }
+  catch { return Response.json({ error: "The saved update status could not be loaded." }, { status: 503 }); }
   const userMessageIds = (messages || []).filter((message) => message.role === "user").map((message) => message.id);
-  const { data: automaticallyPersistedEntries } = userMessageIds.length
-    ? await context.supabase.from("pet_care_entries").select("id, concern_id, intelligence_source_message_id").eq("user_id", context.userId).in("intelligence_source_message_id", userMessageIds)
-    : { data: [] };
+  const { data: automaticallyPersistedEntries, error: receiptError } = userMessageIds.length
+    ? await context.supabase.from("pet_care_entries").select("id, concern_id, intelligence_source_message_id").eq("user_id", context.userId).is("deleted_at", null).in("intelligence_source_message_id", userMessageIds)
+    : { data: [], error: null };
+  if (receiptError) return Response.json({ error: "The saved update status could not be loaded." }, { status: 503 });
   const requestByUserMessage = new Map((messages || []).filter((message) => message.role === "user").map((message) => [message.id, message.request_id]));
   const assistantByRequest = new Map((messages || []).filter((message) => message.role === "furvise" && message.request_id).map((message) => [message.request_id, message.id]));
   const automaticPersistenceByMessage = new Map<string, { status: "persisted"; careEntryIds: string[]; concernIds: string[]; errorCode: null }>();
@@ -47,8 +64,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (entry.concern_id && !existing.concernIds.includes(entry.concern_id)) existing.concernIds.push(entry.concern_id);
     automaticPersistenceByMessage.set(assistantId, existing);
   }
-  const capabilityActions = await loadActionCapabilitiesForMessages(context.userId, (messages || []).filter((message) => message.role === "furvise").map((message) => message.id));
-  return Response.json({ conversation: toConversationDetail(conversation, messages || [], canonicalSuggestions, automaticPersistenceByMessage, capabilityActions) });
+  try {
+    const capabilityActions = await loadActionCapabilitiesForMessages(context.userId, assistantIds);
+    return Response.json({ conversation: { ...toConversationDetail(conversation, messages, canonicalSuggestions, automaticPersistenceByMessage, capabilityActions), olderMessagesCursor } });
+  } catch { return Response.json({ error: "The action status could not be loaded." }, { status: 503 }); }
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -23,12 +23,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const question = typeof body.question === "string" ? body.question.trim() : "";
   const response = parseAskConversationResponse(body?.response);
   if (!question || question.length > 1200 || !response) return Response.json({ error: "A complete exchange is required." }, { status: 400 });
-  const { data: conversation } = await context.supabase.from("ask_conversations")
+  const { data: conversation, error: conversationError } = await context.supabase.from("ask_conversations")
     .select("id, dog_profiles!inner(lifecycle_status)")
     .eq("id", id)
     .eq("user_id", context.userId)
     .neq("dog_profiles.lifecycle_status", "archived")
     .maybeSingle<{ id: string }>();
+  if (conversationError) return Response.json({ error: "That conversation could not be loaded." }, { status: 503 });
   if (!conversation) return Response.json({ error: "That conversation is not available." }, { status: 404 });
   const gate = await beginIdempotentRateLimitedOperation({ operationType: "conversation.exchange.create", payload: { contextUsed: body.contextUsed, conversationId: id, question, response, saveMetadata: body.saveMetadata }, policy: "CONVERSATION_WRITE", request, route: "/api/ask/conversations/[id]/messages", supabase: context.supabase, userId: context.userId });
   if ("response" in gate) return gate.response;

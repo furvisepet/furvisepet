@@ -12,14 +12,27 @@ const capabilityStatus = /\b(?:planned|roadmap|rollout|not (?:built|available|re
 const capabilityNames = /\b(?:longer[- ]history pattern detection|live product research|vet[- ]?prep exports?|planned furvise plus capability)\b/i;
 
 export function classifyFurviseCapabilityQuestion(question: string): FurviseCapabilityIntent | null {
-  const normalized = question.normalize("NFKC");
-  if (!productQuestionContext.test(normalized)) return null;
+  const normalized = question.normalize("NFKC").trim();
+  if (/\b(?:as|in)\s+(?:CSV|JSON|a table|bullets)\b/i.test(normalized)) return null;
+  // Format requests are tasks, not subscription/capability questions. Require
+  // an explicit availability inquiry instead of treating "export" as intent.
+  if (!productQuestionContext.test(normalized) || !/\b(?:(?:can|does|will)\s+(?:furvise|(?:the|this) app)|can I\b[^?!.]{0,100}\b(?:from|in|with)\s+furvise|(?:is|are)\b[^?!.]{0,100}\b(?:available|supported|included)|(?:my plan|subscription)\b[^?!.]{0,80}\b(?:include|support)|what\b[^?!.]{0,60}\b(?:features?|capabilities))\b/i.test(normalized)) return null;
   if (/\b(?:export|pdf|download|printable report|vet[- ]?prep report)\b/i.test(normalized)) return "vet_prep_exports";
   // Addressing Furvise is not, by itself, a question about product availability.
   const historyCapabilityInquiry = /\b(?:plus|my plan|subscription|feature|capability|available|upgrade|supports?|supported|(?:can|does|will)\s+(?:furvise|(?:the|this) app))\b/i.test(normalized);
   if (historyCapabilityInquiry && /\b(?:longer? history|older history|all history|history patterns?|history trends?|patterns? over time)\b/i.test(normalized)) return "long_history_patterns";
   if (/\b(?:live product|research (?:current )?products?|current (?:product )?prices?|retailer|chewy|amazon|walmart)\b/i.test(normalized)) return "live_product_research";
   return null;
+}
+
+/** Current shipped capabilities, independent of model-authored product claims. */
+export function buildFurviseCapabilityResponse(intent: FurviseCapabilityIntent): VisibleAskAnswer {
+  const summaries: Record<FurviseCapabilityIntent, string> = {
+    vet_prep_exports: "Vet Brief can prepare a report from your pet's saved records and export it as a PDF. Open Vet Brief to review the report and the access available on your plan.",
+    long_history_patterns: "Ask can look up older saved pet records and compare the evidence it finds. An answer depends on the records available; it cannot promise a complete lifetime pattern or fill in undocumented periods.",
+    live_product_research: "Furvise does not currently provide live retailer research, current prices, or a live product catalogue.",
+  };
+  return { title: "Furvise capabilities", summary: summaries[intent], sections: [], safetyNote: null };
 }
 
 export function sanitizeInternalProductMetadataFromCareAnswer<T extends VisibleAskAnswer>(answer: T) {

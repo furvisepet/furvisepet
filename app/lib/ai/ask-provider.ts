@@ -46,7 +46,7 @@ export function interpretStructuredProviderResponse<T>(
   const incompleteReason = response.incomplete_details?.reason || null;
   const common = { rawText, incompleteReason, finishReason, refusal, usage };
 
-  if (status === "incomplete") {
+  if (status === "incomplete" || response.output?.some(item => item.status === "incomplete")) {
     return {
       ...common,
       status: "incomplete",
@@ -56,7 +56,7 @@ export function interpretStructuredProviderResponse<T>(
       parsingAttempted: false,
     };
   }
-  if (status === "failed" || response.error) {
+  if (status === "failed" || response.error || response.output?.some(item => item.status === "failed")) {
     return {
       ...common,
       status: "failed",
@@ -123,5 +123,5 @@ function collectRefusal(output: OpenAiStructuredResponseLike["output"]) {
 }
 
 function numberOrNull(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }

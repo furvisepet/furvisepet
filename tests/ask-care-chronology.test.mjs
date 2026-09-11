@@ -41,7 +41,7 @@ test("persistence failure cannot show Added to care history", () => {
 test("a repeated save request reuses the previous source entry", () => {
   assert.match(askRoute, /findExistingCareEventForSaveRequest/);
   assert.match(askRoute, /alreadyPersisted: true/);
-  assert.match(askRoute, /improvement is already in/);
+  assert.match(askRoute, /update is already in/);
 });
 
 test("recurrence is a distinct chronological event", () => {
@@ -139,5 +139,5 @@ test("compatibility repair trusts explicit user messages and structured urgency 
 
 test("carePersistence metadata is stored with conversation messages", () => {
   assert.match(migration, /add column if not exists care_persistence jsonb/);
-  assert.match(askRoute, /finalizeAskAssistantResponse\(\{[\s\S]*carePersistence,[\s\S]*responseData: canonicalResponse/);
+  assert.match(askRoute, /finalizePersistedAskAnswer\(\{[\s\S]*carePersistence,[\s\S]*responseData: canonicalResponse/);
 });

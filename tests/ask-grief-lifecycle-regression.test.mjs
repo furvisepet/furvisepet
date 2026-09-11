@@ -41,7 +41,8 @@ test("the exact production traumatic-death report is a confirmed loss, not activ
   assert.match(reasoning, /parsed\.safetyLevel = "normal"/);
   assert.match(reasoning, /parsed\.shoppingSuppressed = true/);
   assert.match(route, /currentLoss === "confirmed_current" \? null : detectImmediateAskEmergency\(question\)/);
-  assert.match(orchestrator, /aiResult\.responseMode === "grief_support"[\s\S]*\? null/);
+  assert.match(orchestrator, /aiResult\.responseMode !== "grief_support"/);
+  assert.match(orchestrator, /let suggestion = !allowsHistorySuggestions[\s\S]*\? null/);
 });
 
 test("confirmed loss variants are recognized while uncertainty, hypotheticals, missing status, and corrections are preserved", () => {

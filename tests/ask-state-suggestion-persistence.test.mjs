@@ -31,7 +31,7 @@ test("request retries reuse a matching state effect", () => {
 
 test("already-applied suggestions return a successful canonical result", () => {
   assert.match(migration, /v_suggestion\.status = 'saved'[\s\S]*'already_applied'/);
-  assert.match(suggestionRoute, /alreadyAppliedResponse/);
+  assert.match(suggestionRoute, /"already_applied"/);
 });
 
 test("already-resolved concerns are successful no-ops", () => {
@@ -123,9 +123,9 @@ test("a later recovery can create a distinct chronological event", () => {
 });
 
 test("conversation copy cannot claim resolution while confirmation is pending", () => {
-  assert.match(askRoute, /reconcileResponsePersistenceCopy/);
-  assert.match(askRoute, /persistenceMode !== "automatic"/);
-  assert.match(askRoute, /sounds improved/);
+  assert.match(askRoute, /let governedAnswer = enforceAnswerStateClaims/);
+  assert.match(askRoute, /inspectAskPublication/);
+  assert.doesNotMatch(askRoute, /reconcileResponsePersistenceCopy/);
 });
 
 test("refresh restores automatic and manually saved canonical state", () => {

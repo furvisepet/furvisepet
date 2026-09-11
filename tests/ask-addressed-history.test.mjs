@@ -15,6 +15,7 @@ for (const question of [
   'When will Furvise support older history?',
 ]) test('explicit capability inquiry remains supported: ' + question, () => assert.equal(classify(question), 'long_history_patterns'));
 test('other product intents retain routing', () => {
-  assert.equal(classify('Furvise, export a vet prep PDF.'), 'vet_prep_exports');
+  assert.equal(classify('Furvise, export a vet prep PDF.'), null);
+  assert.equal(classify('Does Furvise support PDF exports?'), 'vet_prep_exports');
   assert.equal(classify('Can Furvise research current product prices?'), 'live_product_research');
 });
