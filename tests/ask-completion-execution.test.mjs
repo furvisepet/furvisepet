@@ -98,10 +98,46 @@ test('admission settlement cannot erase a durable answer or complete a failed pe
  const calls=[],logs=[];
  const {finalizeAiAdmissionAfterPersistence}=createAskAdmissionSettlement((stage)=>logs.push(stage));
  const admission={complete:async()=>{calls.push('complete');throw Error('bookkeeping');},fail:async()=>{calls.push('fail');}};
- await finalizeAiAdmissionAfterPersistence({admission,alreadyFinalized:false,requestId:'r',response:new Response('saved')});
+ await finalizeAiAdmissionAfterPersistence({admission,alreadyFinalized:false,assessment:createAnswerAssessment({checks:checks(),body:'answer',evidence:'source'}),requestId:'r',response:new Response('saved')});
  assert.deepEqual(calls,['complete']);assert.deepEqual(logs,['ai_operation_completion']);
- await finalizeAiAdmissionAfterPersistence({admission,alreadyFinalized:false,requestId:'r',response:new Response('failed',{status:503})});
+ await finalizeAiAdmissionAfterPersistence({admission,alreadyFinalized:false,assessment:createAnswerAssessment({checks:checks(),body:'answer',evidence:'source'}),requestId:'r',response:new Response('failed',{status:503})});
  assert.deepEqual(calls,['complete','fail']);
- await finalizeAiAdmissionAfterPersistence({admission,alreadyFinalized:true,requestId:'r',response:new Response('saved')});
+ await finalizeAiAdmissionAfterPersistence({admission,alreadyFinalized:true,assessment:createAnswerAssessment({checks:checks(),body:'answer',evidence:'source'}),requestId:'r',response:new Response('saved')});
  assert.equal(calls.length,2);
+});
+
+
+test('HTTP delivery never upgrades limited, failed, or missing assessments', async () => {
+ const {createAskAdmissionSettlement}=await import('../app/lib/ai/ask-admission-settlement.ts');
+ const calls=[];
+ const settlement=createAskAdmissionSettlement(()=>{});
+ const admission={complete:async()=>calls.push('complete'),fail:async error=>calls.push(error.message)};
+ for(const [assessment,expected] of [
+  [createAnswerAssessment({checks:{...checks(),taskCompletion:'failed'},body:'limited',evidence:[]}), 'ASK_ANSWER_LIMITED'],
+  [createAnswerAssessment({checks:{...checks(),evidenceSupport:'failed'},body:'unsafe',evidence:[]}), 'ASK_ANSWER_FAILED'],
+  [null, 'ASK_ANSWER_UNASSESSED'],
+ ]) {
+  // A delivered action receipt or JSON outcome is not an answer assessment.
+  const response=Response.json({success:true,outcome:'complete',applicationActions:[{status:'succeeded'}]});
+  await settlement.finalizeAiAdmissionAfterPersistence({admission,alreadyFinalized:false,assessment,requestId:'r',response});
+  assert.equal(calls.at(-1),expected);
+  assert.equal(response.bodyUsed,false);
+  assert.equal((await response.json()).success,true);
+ }
+ assert.equal(calls.includes('complete'),false);
+});
+
+test('failure bookkeeping errors preserve limited answers and finalized admissions are untouched', async () => {
+ const {createAskAdmissionSettlement}=await import('../app/lib/ai/ask-admission-settlement.ts');
+ const calls=[],logs=[];
+ const settlement=createAskAdmissionSettlement(stage=>logs.push(stage));
+ const admission={complete:async()=>calls.push('complete'),fail:async()=>{calls.push('fail');throw Error('store unavailable');}};
+ const response=new Response('saved fallback');
+ const input={admission,alreadyFinalized:false,assessment:null,requestId:'r',response};
+ await settlement.finalizeAiAdmissionAfterPersistence(input);
+ assert.deepEqual(calls,['fail']);assert.deepEqual(logs,['ai_operation_failure_recording']);
+ assert.equal(await response.text(),'saved fallback');
+ await settlement.finalizeAiAdmissionAfterPersistence({...input,alreadyFinalized:true});
+ await settlement.finalizeAiAdmissionAfterPersistence({...input,admission:null});
+ assert.deepEqual(calls,['fail']);
 });

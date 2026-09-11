@@ -456,6 +456,9 @@ function AskPageContent() {
       setFailedRequest({ code: failure.code, payload: requestPayload, logicalTurnId, retryAfterSeconds: failure.retryAfterSeconds, scope, userMessageId });
       setRequestPhase("failed");
       trackAskEvent("answer_failed", { source });
+      // The server may have created a conversation before the answer failed.
+      // Refresh discovery without replacing the failed turn's retry identity.
+      await refreshConversations().catch(() => undefined);
     } finally {
       askRequestActiveRef.current = false;
       setAskRequestActive(false);
