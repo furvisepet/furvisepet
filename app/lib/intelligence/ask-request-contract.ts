@@ -3,7 +3,7 @@ import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { conversationReadAnchor } from "./conversation-read-anchor.ts";
 import { isEpisodeSubjectReference } from "./episode-reference-language.ts";
 import { evidenceNeedsSchema, validateEvidenceNeeds, type EvidenceNeed } from "./evidence-needs.ts";
-import { literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./history-dates.ts";
+import { evidenceNeedWindow, literalHistoryYearWindow, literalHistoryMonthWindow, literalHistoryReportDayWindow, explicitHistoryDayWindow, requestsPastPresentComparison } from "./history-dates.ts";
 import { emptyProposedSemanticFrame, validateProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 import type { AskInterpretation } from "./interpret-ask.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -66,7 +66,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
   "Return one ask-request.v2 contract. requirements describe visible answer content, language and format; execution constraints such as no saving belong in mode, not prose requirements. Interpret the user's intent semantically; do not answer the question. This contract controls bounded reads, never permission to write.",
   "premiseQuotes contains verbatim factual premises from current or prior USER text only when evidenceBasis is supplied_context. Questions, output labels, requested column names and formatting instructions are NOT supplied facts. If the required values were not supplied and belong to an owned pet, choose saved_history and retrieve them, even for a one-line or structured answer. Use [] for saved_history/general/null. Never quote an instruction or question as if it supplied a missing value.",
   "excludedPetNames lists owned pets explicitly excluded from this read; petNames lists only the requested subjects. Use canonical supplied owned names, resolving obvious unique spelling abbreviations from the whole request. An excluded name is not the subject. A clear subject, topic and ordering request needs retrieval, not reference clarification.",
-  "First identify evidenceBasis independently of topic and formatting: saved_history requires owned stored records; supplied_context uses facts or fictional premises supplied in this message or prior USER messages; general needs no personal records. Dates, animal names and words like record inside a supplied example do not turn it into a database lookup. Supplied-context and general tasks use scope none, mode conversation, operation general, petNames [], frame null, even when asking for comparison, arithmetic, or clarification. Their referents may be fictional or non-pet and must not be forced into an owned profile. For a genuine current owner observation or explicit application action (such as saving an update or archiving a pet), use mode update, or mixed when it also includes a question. Use evidenceBasis null when no saved facts are needed; use saved_history only when the request also needs stored evidence. New owner observations are not supplied_context examples and do not need to exist in history first. Neither mode nor evidenceBasis grants write permission; the server separately validates the source, subject and action intent. Never use supplied_context or general for update/mixed.",
+  "First identify evidenceBasis independently of topic and formatting: saved_history requires owned stored records; supplied_context uses facts or fictional premises supplied in this message or prior USER messages; general needs no personal records. Dates, animal names and words like record inside a supplied example do not turn it into a database lookup. Tasks consisting only of supplied-context or general questions use scope none, mode conversation, operation general, petNames [], frame null, even when asking for comparison, arithmetic, or clarification. When the same task also requests application navigation, retain operation navigate, mode read, evidenceBasis null and the owned destination scope as specified above; the general companion question must not erase that destination. Their referents may be fictional or non-pet and must not be forced into an owned profile. For a genuine current owner observation or explicit application action (such as saving an update or archiving a pet), use mode update, or mixed when it also includes a question. Use evidenceBasis null when no saved facts are needed; use saved_history only when the request also needs stored evidence. New owner observations are not supplied_context examples and do not need to exist in history first. Neither mode nor evidenceBasis grants write permission; the server separately validates the source, subject and action intent. Never use supplied_context or general for update/mixed.",
   "mode read covers questions, explanations, comparisons, formatting requests, quotations and challenges to a premise. A premise or a quoted instruction is not an owner update. mode mixed requires a genuine new owner observation plus a question; update is a genuine observation or explicit application action without a question. An action request is not itself an observation: do not fabricate a factual claim for it; a valid frame may contain no claims. conversation needs no saved pet facts. clarify is only for an unresolved identity or ambiguous reference after reading the supplied dialogue. Missing factual evidence is a reason to retrieve, not clarify; the planner has not read the history yet.",
   "question is a standalone restatement of the current requested task. Resolve follow-up references from recentDialogueForReferencesOnly, listing the IDs used in referenceTurnIds. Preserve negation, uncertainty and all requested parts. Do not turn assistant claims into saved facts: dialogue identifies a referent only; saved-history factual premises must be checked against retrieved evidence. For supplied_context, prior USER messages supply the scenario premises; preserve them and their fictional status. Assistant text never establishes an owned pet, a new fact or write permission.",
   "outputFormat is the explicitly requested output container (prose, bullets, table, json, csv), or null when none is requested. Carry it through reference-based format requests. requirements lists the requested answer obligations, including format, language, brevity, calculations and comparisons. Carry every part forward; formatting is not a retrieval topic. For questions about what is unknown, preserve the subject and the attribute under discussion as an explicit answer obligation; do not substitute an unrelated unknown. Do not invent requirements.",
@@ -140,6 +140,10 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   }
   // Non-record evidence can only narrow authority. A fictional name or date
   // does not grant access to the selected profile, and cannot become a write.
+  // A navigation destination and a general explanation have different needs.
+  // Keep the destination while normalizing the companion's redundant basis;
+  // navigation below still discards all history bounds and grants no writes.
+  if (p.operation === "navigate" && p.mode === "read" && p.evidenceBasis === "general") p.evidenceBasis = null;
   if (p.evidenceBasis === "supplied_context" || p.evidenceBasis === "general") {
     if (p.mode === "update" || p.mode === "mixed") return fail("basis_update");
     Object.assign(p, { mode: "conversation", scope: "none", petNames: [], operation: "general",
@@ -233,10 +237,16 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (operation === "episode" && p.quantity !== "episodes" && p.selection === "reference" && p.episodeTopic === null && p.ordinal === null) operation = "recall";
   // A reference target and the operation on that target are independent.
   // Preserve a grounded episode selector for member/date/duration projections.
-  const episodeReference = isEpisodeSubjectReference(context.currentMessage);
+  // The interpreted target is independent of an exact adjacent-word grammar.
+  // Require its noun and ordinal in the user source; model-only ordinals cannot
+  // create a reference. Semantic relevance is still independently reviewed.
+  const episodeReference = isEpisodeSubjectReference(context.currentMessage)
+    || p.selection === "reference" && p.episodeTopic !== null && p.ordinal !== null
+      && /\bepisodes?\b/i.test(context.currentMessage)
+      && new RegExp(`\\b${p.ordinal}\\b`, "i").test(context.currentMessage);
   const episodeTarget = episodeReference && p.ordinal !== null
     ? { kind: "episode" as const, ordinal: p.ordinal as AskInterpretation["ordinal"], topic: p.episodeTopic as AskInterpretation["episodeTopic"] } : undefined;
-  if (!episodeTarget && operation !== "episode") p.ordinal = null;
+  if (!episodeTarget) p.ordinal = null;
   if (operation === "episode" && p.ordinal === null) operation = episodeReference ? "clarify" : "recall";
   if (operation === "count" && p.episodeTopic === null && !/\bepisodes?\b/i.test(context.currentMessage)) operation = "recall";
   const conversationOnly = p.scope === "none" && (p.mode === "conversation" || p.mode === "clarify" || p.mode === "read" && operation === "general");
@@ -292,7 +302,14 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs } : {}),
     ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}), version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
     evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question as string, requirements: p.requirements as string[], referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
-  return { ...(episodeTarget ? { referenceTarget: episodeTarget } : {}), version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
+  // A self-contained ordinal in an explicit period selects from a fresh owned
+  // register. Conversational selectors retain their original versioned list.
+  const explicitEpisodePeriod = evidenceNeedWindow(context.currentMessage) || literalHistoryYearWindow(context.currentMessage);
+  const target = episodeTarget ? { ...episodeTarget, basis: !p.referenceTurnIds.length && episodeTarget.topic
+    && episodeTarget.ordinal !== "that" && explicitEpisodePeriod
+    && Date.parse(explicitEpisodePeriod.from) === Date.parse(from || "") && Date.parse(explicitEpisodePeriod.to) === Date.parse(to || "")
+      ? "scoped_register" as const : "displayed_list" as const } : undefined;
+  return { ...(target ? { referenceTarget: { ...target, ...(target.basis === "scoped_register" ? { period: explicitEpisodePeriod } : {}) } } : {}), version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
     readOperation: p.mode === "update" ? null : operation, selection: p.selection as AskInterpretation["selection"],
     petIds, topic: p.topic, readOnly, clarification, frame,
     referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),

@@ -107,6 +107,14 @@ export function requestsPastPresentComparison(text: string): boolean {
 }
 
 export type EvidenceNeedWindow = { from: string; to: string };
+/** A single standalone calendar year, not a cutoff, date or comparison. */
+export function literalHistoryYearWindow(text: string): EvidenceNeedWindow | undefined {
+  const years = [...new Set(text.match(/\b(?:19|20)\d{2}\b/g) || [])];
+  if (years.length !== 1 || /\b(?:before|after|since|until|between|from|as of)\b/i.test(text)
+    || requestsPastPresentComparison(text) || explicitHistoryMonths(text).length
+    || explicitHistoryDays(text, Number(years[0]), 8).length || /\b\d{4}-\d{2}/.test(text)) return;
+  return { from: `${years[0]}-01-01T00:00:00.000Z`, to: `${Number(years[0]) + 1}-01-01T00:00:00.000Z` };
+}
 /** Only a single explicit calendar label in a validated USER quote supplies a
  * local interval. Ambiguous/open comparisons retain the planner's wider scope. */
 export function evidenceNeedWindow(quote: string): EvidenceNeedWindow | undefined {

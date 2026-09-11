@@ -10,6 +10,39 @@ const context = {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],currentM
 const proposal = patch => ({version:ASK_REQUEST_VERSION,mode:'read',question:'Read the requested facts.',requirements:[],
  referenceTurnIds:[],scope:'named',petNames:['Aster'],operation:'recall',selection:'summary',quantity:null,topic:'observations',terms:[],
  from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[],...patch});
+test('receipt records retain per-record dates through generation and shared eligibility',async t=>{
+ clock(t);
+ const {eligibleAnswerSources}=await import('../../app/lib/intelligence/ask-evidence.ts');
+ const {historyNarrativeAnchorsSupported}=await import('../../app/lib/intelligence/history-narrative-facts.ts');
+ const prior='Save the feeding observation.';
+ const note='Aster ate 71 g of food.';
+ const r=await exercise('Which dated record is linked to the prior request?',{fixturePets:owned,rows:[],messages:[],
+  prepareContext(ctx){ctx.conversationTurns=[{id:'receipt-turn',role:'user',text:prior,createdAt:'2026-09-03T00:00:00.000Z',operationReceipt:{
+   sourceMessageId:'receipt-turn',petId:owned[0].id,requestText:prior,answerPersisted:true,
+   records:[{id:'receipt-record',note,occurredAt:'2026-09-02T00:00:00.000Z'}],
+  }},{id:'current-turn',role:'user',text:ctx.currentMessage,createdAt:'2026-09-04T00:00:00.000Z'}];}});
+ const source=r.prompt.contextRecords.find(s=>s.id==='operation:receipt-turn:record:receipt-record');
+ assert.ok(source);assert.equal(source.occurredAt,'2026-09-02T00:00:00.000Z');assert.ok(source.value.includes(note));
+ const evidence=r.prompt.evidenceContract;
+ const eligible=eligibleAnswerSources(evidence);
+ const dated=eligible.find(s=>s.sourceId===source.id);assert.ok(dated);
+ assert.equal(historyNarrativeAnchorsSupported('September 2, 2026: "Aster ate 71 g of food."',[dated],'',[],false),true);
+ assert.equal(historyNarrativeAnchorsSupported('September 3, 2026: "Aster ate 71 g of food."',[dated],'',[],false),false);
+ const forged=structuredClone(evidence);forged.represented.find(s=>s.sourceId===source.id).text='Aster ate 700 g.';
+ assert.equal(eligibleAnswerSources(forged).some(s=>s.sourceId===source.id),false);
+ const removed=structuredClone(evidence);removed.operationReceipts[0].records=[];
+ assert.equal(eligibleAnswerSources(removed).some(s=>s.sourceId===source.id),false);
+});
+test('general explanation cannot erase a declared owned navigation destination',()=>{
+ const result=validateAskRequest(proposal({operation:'navigate',evidenceBasis:'general',terms:['vomiting'],from:'2024-01-01',to:'2025-01-01'}),
+  {...context,currentMessage:'Open Aster’s history and explain how notes differ from episodes.'});
+ assert.deepEqual(result.petIds,[owned[0].id]);
+ assert.equal(result.request.evidenceBasis,null);assert.equal(result.history,null);assert.equal(result.readOnly,true);
+ assert.equal(result.conversationOnly,undefined);
+ const general=validateAskRequest(proposal({operation:'general',mode:'conversation',scope:'none',petNames:[],evidenceBasis:'general'}),
+  {...context,currentMessage:'Explain how notes differ from episodes.'});
+ assert.deepEqual(general.petIds,[]);assert.equal(general.history,null);
+});
 test('invalid planner references get one repair while repeated invalid references still fail closed',async()=>{
  const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
  for(const repeatInvalid of [false,true]) {
@@ -252,6 +285,19 @@ for(const quantity of ['records','duration','measurement'])test('episode identit
  const result=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:'second',quantity,episodeTopic:'vomiting'}),{...context,currentMessage:question});
  assert.equal(result.referenceTarget.kind,'episode'); assert.equal(result.referenceTarget.ordinal,'second');
  assert.equal(result.readOperation??result.operation,'recall');
+});
+test('scoped episode selectors require user-grounded bounds and keep conversation references pinned',()=>{
+ const question='Show Aster’s second documented vomiting episode in 2014.';
+ const input=proposal({operation:'episode',selection:'reference',ordinal:'second',quantity:'records',episodeTopic:'vomiting',from:'2014-01-01',to:'2015-01-01'});
+ const scoped=validateAskRequest(input,{...context,currentMessage:question});
+ assert.equal(scoped.referenceTarget.basis,'scoped_register');
+ for(const q of ['Show Aster’s second documented vomiting episode.', 'Show Aster’s second documented vomiting episode since 2014.', 'Show Aster’s second documented vomiting episode in May 2014.']) {
+  assert.equal(validateAskRequest(input,{...context,currentMessage:q}).referenceTarget.basis,'displayed_list');
+ }
+ const referenced=validateAskRequest({...input,referenceTurnIds:['prior']},{...context,currentMessage:question,conversationTurns:[{id:'prior',role:'user',text:'List Aster vomiting episodes in 2014.'}]});
+ assert.equal(referenced.referenceTarget.basis,'displayed_list');
+ const invented=validateAskRequest(input,{...context,currentMessage:'Show Aster’s documented vomiting history in 2014.'});
+ assert.equal(invented.referenceTarget,undefined);
 });
 for(const layout of ['csv','table']) for(const size of [0,11,32])test(layout+' uses record bounds for '+size+' rows and keeps row provenance',()=>{
  const rows=Array.from({length:size},(_,i)=>({cells:['Aster','Rested.'],sourceIds:['care:'+i],calculations:[]}));

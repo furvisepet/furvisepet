@@ -894,8 +894,10 @@ test('genuine episode requests still require a valid episode referent',()=>{
  assert.equal(missing.readOperation,'clarify'); assert.equal(missing.ordinal,null);
  const projected=validateAskRequest(proposal({operation:'recall',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'});
  assert.equal(projected.referenceTarget.kind,'episode'); assert.equal(projected.referenceTarget.ordinal,'second');
- const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),context);
+ const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'});
  assert.equal(r.readOperation,'episode');assert.equal(r.ordinal,'second');
+ const invented=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),context);
+ assert.equal(invented.readOperation,'recall');assert.equal(invented.ordinal,null);
 });
 
 test('standalone task wording cannot be replaced by a planner paraphrase', () => {

@@ -6,6 +6,35 @@ const source = care('recorded-one','milo','2011-02-01','symptom','Milo had a new
 const episode = {id:'registered-one',user_id:ownerId,pet_profile_id:'milo',normalized_key:'vomiting',started_at:source.occurred_at,updated_at:source.updated_at,sequence_number:7,recurrence_of:null,status:'resolved'};
 const payload = () => ({membership_contract:'ask-episode-membership.v1',episodes:[episode],sources:[source],claims:[],memberships:[{id:'edge-one',user_id:ownerId,pet_profile_id:'milo',episode_id:episode.id,care_entry_id:source.id,claim_id:null,event_ordinal:1,event_role:'opening',occurred_at:source.occurred_at,created_at:source.created_at,source_issue:null}],recorded_inventory:{version:'ask-recorded-inventory.v1',ownerId,petId:'milo',keys:['vomiting','vomit'],from:null,to:null,revision:'1',snapshot:'2026-09-04T18:00:00Z',episodeCount:1,careIds:[source.id],claimIds:[],failures:[]}});
 const run = (data=payload(), options={}) => exercise('List all recorded vomiting episodes over Milo lifetime.',{history:true,rows:data.sources,messages:[],careEpisodes:data.episodes,episodeRowsOverride:data,answer:'Exactly seven lifetime episodes.',...options});
+for (const quantity of ['records', 'duration', 'episodes']) test(`standalone scoped ordinal retrieves certified members for ${quantity}`, async t => {
+ clock(t); const d = many(2);
+ d.recorded_inventory.from = '2011-01-01T00:00:00.000Z'; d.recorded_inventory.to = '2012-01-01T00:00:00.000Z';
+ const r = await exercise('Show Milo’s second recorded vomiting episode in 2011.', {
+  history: true, rows: d.sources, messages: [], careEpisodes: d.episodes, episodeRowsOverride: d,
+  interpretationProposal: { operation: 'episode', subject: 'explicit', petNames: ['Milo'], selection: 'reference', quantity,
+   topic: 'vomiting', terms: ['vomiting'], from: '2011-01-01', to: '2012-01-01', episodeTopic: 'vomiting', ordinal: 'second' },
+ });
+ assert.equal(r.context.askInterpretation.referenceTarget.basis, 'scoped_register');
+ assert.equal(r.context.episodeResult.referenceStatus, 'resolved');
+ assert.equal(r.context.episodeResult.items[0].id, 'episode:ep-1');
+ assert.deepEqual(r.context.episodeResult.details.map(s => s.sourceId), ['care:source-1']);
+ assert.equal(r.queries.some(q => q.table === 'read_ask_episode_references'), false);
+ assert.deepEqual(r.result.acceptedCareActions, []);
+});
+for (const failure of ['incomplete', 'out_of_range', 'display_bound', 'access_clipped']) test(`scoped ordinal rejects ${failure} without a substitute`, async t => {
+ clock(t); const d = many(failure === 'display_bound' ? 12 : 1);
+ d.recorded_inventory.from = '2011-01-01T00:00:00.000Z'; d.recorded_inventory.to = '2012-01-01T00:00:00.000Z';
+ if (failure === 'incomplete') d.recorded_inventory.failures = ['unknown_classification'];
+ const r = await exercise(`Show Milo’s ${failure === 'out_of_range' ? 'eighth' : 'last'} recorded vomiting episode in 2011.`, {
+  history: true, rows: d.sources, messages: [], careEpisodes: d.episodes, episodeRowsOverride: d,
+  ...(failure === 'access_clipped' ? { historyAccess: { months: 60, from: '2011-02-01T00:00:00.000Z', to: '2016-02-01T00:00:00.000Z' } } : {}),
+  interpretationProposal: { operation: 'episode', subject: 'explicit', petNames: ['Milo'], selection: 'reference', quantity: 'records',
+   topic: 'vomiting', terms: ['vomiting'], from: '2011-01-01', to: '2012-01-01', episodeTopic: 'vomiting', ordinal: failure === 'out_of_range' ? 'eighth' : 'last' },
+ });
+ assert.equal(r.context.episodeResult.referenceStatus, 'clarify');
+ assert.deepEqual(r.context.episodeResult.items, []);
+ assert.equal(r.context.episodeResult.details, undefined);
+});
 test('complete recorded inventory reaches actual callback and final validator', async t=>{
  clock(t); const r=await run();
  assert.equal(r.context.episodeResult.exactTotal,1);

@@ -67,6 +67,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     : (!follow && !isEpisodeListRequest(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
   const { topic, ambiguous: ambiguousTopic } = interpretation ? { topic: interpretation.episodeTopic, ambiguous: false } : topicOf(message);
   const plan = interpretation ? interpretation.history : planHistoricalQuery(message);
+  const registerSelection = !!follow && interpretation?.referenceTarget?.basis === "scoped_register";
   const result: EpisodeResult = { version: "ask-episodes.v1", petId: context.pet.id, topic: topic || "unspecified",
     ...(interpretation ? { conversational: true, petName: context.pet.name } : {}),
     from: plan?.from || null, to: plan?.to || null, items: [], supportedCount: 0, exactTotal: null, entryCount: 0,
@@ -90,7 +91,8 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
   let refs: EpisodeReferences | null = null;
   try {
     if (petIds.length !== 1 || !petIds.includes(context.pet.id)) { result.coverage="ambiguous"; result.referenceStatus="clarify"; return done(); }
-    if (follow) {
+    if (registerSelection && (!topic || !plan?.from || !plan.to || follow?.ambiguous)) return done();
+    if (follow && !registerSelection) {
       // An unspecified topic may inherit the saved list; competing topics may not.
       if (follow.ambiguous || ambiguousTopic || !context.conversationId) return done();
       const stored = await readWithinBudget(signal => db.rpc("read_ask_episode_references", {p_conversation_id:context.conversationId}).abortSignal(signal));
@@ -118,6 +120,10 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       throw new Error("historical_episode_correction_unavailable");
     }
     const bounded = boundedEpisodePlan({ from: result.from, to: result.to }, context.historyAccess);
+    if (registerSelection && (Date.parse(bounded.from || "") !== Date.parse(interpretation?.referenceTarget?.period?.from || "")
+      || Date.parse(bounded.to || "") !== Date.parse(interpretation?.referenceTarget?.period?.to || ""))) {
+      result.reasons.push("scoped_episode_period_incomplete"); return done();
+    }
     result.from = bounded.from; result.to = bounded.to;
     if (result.from && result.to && result.from >= result.to) { result.reasons.push("requested_period_outside_subscription_window"); return done(); }
     const episodeIds = refs?.items.filter(i => i.id.startsWith("episode:")).map(i => i.id.slice(8));
@@ -258,6 +264,22 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       result.recordedInventory = { revision:census.revision, snapshot:census.snapshot, scope:"care_claim_episode_register" };
       result.reasons = ["recorded_register_only_not_lifetime_coverage", ...(result.items.length < census.episodeCount ? ["display_bound"] : [])];
     }
+    if (registerSelection) {
+      // Ordinals over the register require certified completeness. A bounded
+      // subset cannot establish the first/second/last recorded episode.
+      const ordinal = follow?.ordinal;
+      const index = ordinal === "last" ? result.items.length - 1
+        : ["first","second","third","fourth","fifth","sixth","seventh","eighth"].indexOf(ordinal || "");
+      if (result.coverage !== "recorded_complete" || result.exactTotal !== result.items.length
+        || index < 0 || !result.items[index]) {
+        result.referenceStatus = "clarify"; result.items = []; result.supportedCount = 0;
+        result.reasons.push("scoped_episode_selection_unavailable"); return done();
+      }
+      if (!context.conversationId) return done();
+      refs = { version: "ask-episodes.v1", ownerId: context.owner.userId, conversationId: context.conversationId,
+        petId: context.pet.id, topic: result.topic, from: result.from, to: result.to,
+        coverage: "partial", exactTotal: null, items: result.items, selectedId: result.items[index].id };
+    }
     if (refs) {
       const ordinal=follow?.ordinal;
       const index=ordinal === "last" ? refs.items.length-1 : ["first","second","third","fourth","fifth","sixth","seventh","eighth"].indexOf(ordinal || "");
@@ -268,6 +290,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
         result.referenceStatus="stale"; result.items=[]; result.supportedCount=0; return done();
       }
       result.referenceStatus="resolved"; result.items=[{...current,ordinal:selected.ordinal}]; result.supportedCount=1;
+      result.referenceBasis = registerSelection ? "scoped_register" : "displayed_list";
       // Only fresh, effective members of the selected group can supply details.
       // Keep complete notes and dates; do not infer cause or recovery from a label.
       result.details=candidates.filter(s=>s.episode_id===selected.id.slice(8) && effectiveIds.has(s.id) && !s.deleted_at)

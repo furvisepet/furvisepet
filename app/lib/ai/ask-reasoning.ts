@@ -60,7 +60,7 @@ import { modelApplicationActionJsonSchema, parseModelApplicationActions, type Mo
 import { buildObservationAssessmentFallback, isUselessQuestionEcho } from "./conversation-intent.ts";
 import { ensureConfirmedLossAction, resolvePetLossContext } from "./pet-loss.ts";
 import { applyAskAnswerEconomy, planAskAnswerDepth, type AskAnswerEconomyPlan } from "./ask-answer-economy.ts";
-import { careEvidenceId, evidenceForRecords, representEvidence, eligibleAnswerSources, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
+import { careEvidenceId, evidenceForRecords, representEvidence, eligibleAnswerSources, operationReceiptEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
 export type AskContextSourceType =
   | "operation_receipt"
@@ -1473,15 +1473,11 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
         sequenceScope: "stored_topic_sequence_not_displayed_ordinal" },
     });
   }
-  for (const receipt of input.evidenceContract?.operationReceipts || []) {
+  for (const receipt of operationReceiptEvidence(input.evidenceContract?.operationReceipts || [])) {
     const profile = profiles.get(receipt.petId);
     if (!profile) continue;
-    const text = `Prior request (intent, not a saved observation): ${JSON.stringify(receipt.requestText)}. `
-      + `An assistant answer ${receipt.answerPersisted ? "was" : "was not"} persisted for that turn. `
-      + (receipt.records.length ? "Currently saved care records linked to that exact turn: " + receipt.records.map(record => `${record.occurredAt}: ${JSON.stringify(record.note)}`).join("; ")
-        : "No current care record for this pet is linked to that exact turn. This is a write-status lookup, not a claim that the reported event never happened.");
-    records.push({ ...baseRecord(`operation:${receipt.sourceMessageId}`, "operation_receipt", profile, "operation_status", text, null),
-      status: "unknown", priority: "routine", metadata: { authority: "owned_source_turn_lookup" } });
+    records.push({ ...baseRecord(receipt.sourceId, "operation_receipt", profile, "operation_status", receipt.text, receipt.occurredAt),
+      occurredAt: receipt.occurredAt, status: "unknown", priority: "routine", metadata: { authority: "owned_source_turn_lookup" } });
   }
   const episodeEvidence = input.evidenceContract?.episodes;
   const episodeProfile = episodeEvidence && profiles.get(episodeEvidence.petId);
