@@ -81,6 +81,18 @@ test('Cancel sends a durable cancellation and never confirms the action',async()
   await Promise.resolve();assert.deepEqual(calls,['cancel']);
 });
 
+test('cancelled and saved receipts remain visible and cannot render another action button',()=>{
+ const card=extract('app/ask/page.tsx','ApplicationActionCard',{
+  React:{createElement:(type,props,...children)=>({type,props:props||{},children})},useState:initial=>[initial,noop],
+ });
+ for(const status of ['cancelled','succeeded']) {
+  const tree=card({action:{status,safetyClass:'LOW_RISK_REVERSIBLE',resultMessage:'Durable '+status},onAction:()=>assert.fail('terminal action executed')});
+  assert.equal(tree.props.role,'status');assert.equal(tree.props['data-action-status'],status);
+  assert.match(JSON.stringify(tree),new RegExp('Durable '+status));
+  assert.doesNotMatch(JSON.stringify(tree),/"type":"button"/);
+ }
+});
+
 function openHarness() {
   const pending=new Map(), selected=[], errors=[], loading=[]; const conversationLoadRef={current:0};
   const run=extract('app/ask/page.tsx','openConversation',{

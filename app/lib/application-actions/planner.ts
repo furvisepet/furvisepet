@@ -195,16 +195,22 @@ function careCommand(value: string) {
   return careLiteral(value).replace(/^furvise[, ]+/, "").replace(/^please /, "")
     .replace(/^(?:(?:can|could|would|will) you |i (?:want|need|would like) (?:you|furvise) to )/, "").replace(/ please$/, "");
 }
-function exactObservationSaveCommand(source: string, detail: string | null, petName: string) {
+/** A literal single-observation save is an application command, not a model
+ * inference. Return original owner wording; normalization is for matching only. */
+export function explicitCareObservationSaveText(source: string, petName: string): string | null {
   const match = /^(.+)[.!]\s+(?:please\s+)?(?:save|add|log|record)\s+(?:this|that)\s+(?:update|observation)\s+(?:to|in)\s+(?:the\s+)?(?:care history|care log|health history|health log)[.!]?$/i.exec(source.trim());
-  if (!match || !detail || !petName) return false;
+  if (!match || !petName) return null;
   const observation = careLiteral(match[1]);
-  // Only a single, directly asserted named-pet observation is eligible here.
-  // Ambiguous, quoted, conditional or compound commands retain their action card.
-  if (/["“”‘’?;\n]|[.!](?:\s|$)|['’](?!s\b)/.test(match[1]) || /\b(?:if|suppose|imagine|fictional|hypothetical|pretend|would|could|said|says|save|record|log|delete|archive)\b/i.test(observation)) return false;
-  const pet = careLiteral(petName);
-  if (!observation.startsWith(pet + " ")) return false;
-  const predicate = observation.slice(pet.length + 1);
+  if (/["“”‘’?;\n]|[.!](?:\s|$)|['’](?!s\b)/.test(match[1]) || /\b(?:if|suppose|imagine|fictional|hypothetical|pretend|would|could|said|says|save|record|log|delete|archive)\b/i.test(observation)) return null;
+  if (!observation.startsWith(careLiteral(petName) + " ")) return null;
+  return match[1].trim();
+}
+
+function exactObservationSaveCommand(source: string, detail: string | null, petName: string) {
+  const original = explicitCareObservationSaveText(source, petName);
+  if (!original || !detail) return false;
+  const observation = careLiteral(original);
+  const predicate = observation.slice(careLiteral(petName).length + 1);
   const candidates = [observation, predicate];
   if (predicate.startsWith("had ")) {
     const event = predicate.slice(4);

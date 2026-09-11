@@ -1,3 +1,4 @@
+import { explicitCareObservationSaveText } from "../application-actions/planner.ts";
 import type { ModelApplicationAction } from "../application-actions/types.ts";
 import { buildFurvisePreferenceConfirmation } from "../furvise-output.ts";
 import type { AskOrchestratorResult } from "./ask-orchestrator.ts";
@@ -30,6 +31,22 @@ export function planDeterministicAskCommand(message: string, petName: string): D
         kind: "memory.set_preference",
         input: { field: "preferred_language", value: language, title: null, detail: null, category: null, target: null },
         evidence: normalized.slice(0, 240),
+        explicitIntent: true,
+      }],
+    };
+  }
+
+  const observation = explicitCareObservationSaveText(message, petName);
+  // Only the literal, complete save command is consumed. Compound tasks,
+  // additional subjects, questions and long payloads retain full interpretation.
+  if (observation && observation.length <= 500 && !/\b(?:and|but|while|then|also)\b/i.test(observation)) {
+    return {
+      routeType: "application_action",
+      orchestration: deterministicResult("Care history", "The action below shows the save status for this update.", "question"),
+      proposals: [{
+        kind: "care_history.add",
+        input: { field: null, value: null, title: "Owner update", detail: observation, category: "general", target: "selected" },
+        evidence: message.trim().slice(0, 240),
         explicitIntent: true,
       }],
     };
