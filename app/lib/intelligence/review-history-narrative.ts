@@ -2,9 +2,10 @@ import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
 import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
 import type { GovernedAskExecutionPlan } from "./run-intelligence.ts";
 import { eligibleAnswerSources } from "./ask-evidence.ts";
+import { completedEmptyEvidenceNeeds } from "./evidence-need-coverage.ts";
 import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
 import { parseModelApplicationActions } from "../application-actions/contracts.ts";
-import { recordHistoryReviewDiagnostic } from "./history-review-state.ts";
+import { readHistoryReviewDiagnostic, recordHistoryReviewDiagnostic } from "./history-review-state.ts";
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
 import { normalizeCompanionProse } from "../furvise-voice.ts";
 import { readPublicationFailure } from "../ask-publication.ts";
@@ -153,6 +154,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const reviewCoverage = sharedRequest ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology } : evidence.history;
   const requestInput = JSON.stringify({
     actions: reviewActions.map((action, index) => ({ index, ...action })),
+    emptyResultPolicy: "An empty export contains only headers, never a fabricated limitation row. Approve it only when the requested retrieval completed with no matching records in the authorized scope. typedResult.limitation is review metadata, not visible answer text: it cannot conceal a failed query, excluded interval, omitted matching records or incomplete retrieval. Reject those misleading empty results for repair. A correctly empty requested export needs no extra prose row.",
     productFacts: furviseProductFacts(), typedResult: result.historicalResult || null, deterministicInvalidResultItems: invalidResultItems,
     deterministicInvalidSentenceIndexes: invalidIndexes,
     deterministicPublicationFailures: publicationFailures,
@@ -198,7 +200,9 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     };
     if (before !== signature(result)) return decline("review_input_changed");
     const completionCheck = sharedRequest && selection.approved && "obligations" in selection
-      ? reviewObligationCompletion(obligations, (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations, draft.sentences, sources)
+      ? reviewObligationCompletion(obligations, (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations, draft.sentences, sources,
+        result.historicalResult && result.historicalResult.layout === sharedRequest.outputFormat && !result.historicalResult.items.length
+          ? completedEmptyEvidenceNeeds(evidence) : [])
       : { failures: [], completion: [] };
     if (selection.approved && "obligations" in selection) {
       for (const item of (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations) {
@@ -212,6 +216,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const formatValid = !invalidResultItems.length && matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid && !completionCheck.failures.length
       && (!sharedRequest || !readPublicationFailure(selectedText));
     if (!selection.approved || !formatValid) {
+      console.info("[Ask history review] rejected", { repairAttempted, reviewerApproved: selection.approved, invalidSentenceIndexes: invalidIndexes, invalidResultItems, completionFailures: completionCheck.failures, formatValid });
       const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Publication failures: ${JSON.stringify(publicationFailures)}. Per-fact evidence failures: ${JSON.stringify(completionCheck.failures)}. An answered obligation must cite the assigned pet and interval. If evidence is unavailable, explicitly explain the limitation for that fact instead of using another pet or period. Use plain readable wording that survives serialization and reload; describe historical reports with explicit attribution, and never claim the app performed an action. Preserve all supported facts and uncertainty. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Server-computed corrections for grounded calculation operands: ${JSON.stringify([...calculationHints.values()].flat())}. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
         : "rejectionReason" in selection ? selection.rejectionReason : null;
       if (repairAttempted || !sharedRequest || typeof reason !== "string" || !reason) return decline("review_rejected_without_eligible_repair");
@@ -221,7 +226,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       const repairedActions = [...result.applicationActions.filter(action => !action.kind.startsWith("navigation.")), ...repaired.applicationActions];
       const candidate = { ...result, historicalResult: repaired.historicalResult, historyNarrative: repaired.narrative, applicationActions: repairedActions, historyNarrativeDeclined: false };
       if (!await reviewHistoricalAnswer({ result: candidate, client: provider, onProviderEvent, repairAttempted: true, executionPlan })
-        || before !== signature(result)) return decline("repair_independent_review_failed");
+        || before !== signature(result)) return decline("repair_independent_review_failed:" + (readHistoryReviewDiagnostic(candidate)?.reason || "unknown"));
       const receipt = readReviewedHistoryAnswer(candidate);
       if (!receipt) return decline("repair_receipt_unavailable");
       // Only reviewed prose and read-only navigation cross this boundary. Repairs

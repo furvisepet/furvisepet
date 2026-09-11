@@ -91,7 +91,7 @@ for(const changed of [false,true]) test(`imported lineage deduplication, changed
 test('period census and final answer use the identical half-open scope',async t=>{
  clock(t);const d=payload();d.recorded_inventory.from='2011-01-01T00:00:00+00:00';d.recorded_inventory.to='2012-01-01T00:00:00+00:00';
  const r=await exercise('List all recorded vomiting episodes in 2011.',{history:true,rows:d.sources,messages:[],careEpisodes:d.episodes,episodeRowsOverride:d});
- assert.equal(r.context.episodeResult.exactTotal,1);assert.match(r.result.reasoning.answer.summary,/2011-01-01 to 2012-01-01/);
+ assert.equal(r.context.episodeResult.exactTotal,1);assert.match(r.result.reasoning.answer.summary,/for 2011/);
  assert.ok(r.queries.filter(q=>q.table==='read_ask_episode_sources').every(q=>Date.parse(q.args.p_from)===Date.parse(d.recorded_inventory.from)&&Date.parse(q.args.p_to)===Date.parse(d.recorded_inventory.to)));
 });
 test('references from a 12-group census resolve against the pinned eight-group page',async t=>{

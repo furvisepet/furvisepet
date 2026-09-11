@@ -145,7 +145,7 @@ test("the Ask request contract has no client-controlled emergency override", () 
 test("the client accepts only the explicit standalone emergency shape without inventing conversation or usage state", () => {
   assert.match(askPage, /payload\?\.handledWithoutAi && payload\.persistence\?\.saved === false && parsed\?\.urgency === "urgent"/);
   assert.match(askPage, /\(!payload\.conversationId && !standaloneEmergency\)/);
-  assert.match(askPage, /if \(!standaloneEmergency\) await refreshConversations/);
+  assert.match(askPage, /if \(!standaloneEmergency\) void refreshConversations/);
   assert.match(askPage, /if \(payload\?\.usage\) setUsage/);
   const responseFunction = route.slice(route.indexOf("function standaloneEmergencyResponse"), route.indexOf("function didPersistEffectiveState"));
   assert.doesNotMatch(responseFunction, /usage|remainingCredits|conversationId|userMessageId/);

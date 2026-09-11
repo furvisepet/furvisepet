@@ -3,6 +3,16 @@ import type { AskEvidenceContract } from "./ask-evidence.ts";
 export type NeedCoverage = { needId: string; window?: EvidenceNeedWindow; semanticSupport: "unverified";
   pets: Array<{ petId: string; candidateSourceIds: string[]; representedSourceIds: string[];
     state: "candidates_available" | "query_unavailable" | "not_represented" | "not_queried" | "no_candidate_match"; reasons: string[] }> };
+/** A completed empty search can support zero export rows, never a claim that
+ * an event did not happen. Failed, capped and unqueried needs supply no receipt. */
+export function completedEmptyEvidenceNeeds(evidence: AskEvidenceContract): string[] {
+  if (evidence.interpretation?.request?.evidenceNeedIssues?.length || evidence.losses.length) return [];
+  return buildEvidenceNeedCoverage(evidence).flatMap(need => need.pets.flatMap(pet => {
+    const queries = (evidence.history?.needs || []).filter(query => query.needId === need.needId && query.petId === pet.petId);
+    return pet.state === "no_candidate_match" && queries.length && queries.every(query => ["unknown", "complete"].includes(query.status) && !query.reason && query.exhausted && !query.candidateIds.length)
+      ? [JSON.stringify([need.needId, pet.petId])] : [];
+  }));
+}
 /** Rebuilt from the final represented sources after EVERY prompt-budget change.
  * A lexical hit is a candidate, never proof that an obligation was answered. */
 export function buildEvidenceNeedCoverage(evidence: AskEvidenceContract): NeedCoverage[] {

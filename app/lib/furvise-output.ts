@@ -2,6 +2,17 @@ import type { AskEvidenceContract } from "./intelligence/ask-evidence.ts";
 
 /** Shared response formats and public messages. No persistence or factual authority. */
 
+export function formatHistoryPeriod(from: string | null, to: string | null): string {
+  const start = from ? new Date(from) : null, end = to ? new Date(to) : null;
+  const midnight = (date: Date | null) => date && Number.isFinite(date.getTime()) && date.toISOString().endsWith("T00:00:00.000Z");
+  if (midnight(start) && midnight(end) && start!.getTime() < end!.getTime()) {
+    const first = start!.toISOString().slice(0, 10), last = new Date(end!.getTime() - 1).toISOString().slice(0, 10);
+    if (first.endsWith("-01-01") && last === first.slice(0, 4) + "-12-31") return ` for ${first.slice(0, 4)}`;
+    return ` from ${first} through ${last}`;
+  }
+  return from && to ? ` from ${from} until (but not including) ${to}` : from ? ` from ${from}` : to ? ` before ${to}` : "";
+}
+
 export function recoveryUpdateTitle(petName: string) {
   return `Recovery update for ${petName}`;
 }
@@ -95,6 +106,24 @@ export function splitAskTextBlocks(value: string): AskTextBlock[] {
   return blocks;
 }
 
+/** Render list runs separately from adjacent prose without changing wording. */
+export function splitAskPresentationBlocks(value: string): AskTextBlock[] {
+  return splitAskTextBlocks(value).flatMap<AskTextBlock>(block => {
+    if (block.kind === "code") return [block];
+    return block.text.split(/\n\s*\n/).filter(Boolean).flatMap(paragraph => {
+      const runs: string[][] = [];
+      let previousList: boolean | undefined;
+      for (const line of paragraph.split(/\r?\n/)) {
+        const list = /^\s*[-*•]\s+\S/.test(line);
+        if (list !== previousList) runs.push([]);
+        runs.at(-1)!.push(line);
+        previousList = list;
+      }
+      return runs.map(lines => ({ kind: "prose" as const, text: lines.join("\n") }));
+    });
+  });
+}
+
 export function mapAskProse(value: string, transform: (text: string) => string): string {
   return splitAskTextBlocks(value).map(block => {
     if (block.kind === "code") return block.raw;
@@ -121,7 +150,7 @@ export function parsePlainTable(text: string): { headers: string[]; rows: string
   // Reviewers may omit the non-factual separator while retaining every cell.
   const hasSeparator = cells[1].every(cell => /^:?-{3,}:?$/.test(cell));
   const rows = cells.slice(hasSeparator ? 2 : 1);
-  if (!rows.length) return null;
+  if (!rows.length && !hasSeparator) return null;
   if (rows.some(row => !row.some(Boolean) || row.every(cell => /^:?-{3,}:?$/.test(cell)))) return null;
   return { headers: cells[0], rows };
 }
@@ -152,7 +181,7 @@ export function parseCsvRecords(text: string): string[][] | null {
   }
   if (quoted) return null;
   if (row.length || cell || closed) { row.push(cell); rows.push(row); }
-  if (rows.length < 2 || rows[0].length < 2 || rows.some(r => r.length !== rows[0].length)) return null;
+  if (rows.length < 1 || rows[0].length < 2 || rows[0].some(cell => !cell.trim()) || rows.some(r => r.length !== rows[0].length)) return null;
   return rows;
 }
 

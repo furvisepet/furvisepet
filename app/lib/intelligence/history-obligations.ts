@@ -33,7 +33,7 @@ export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryO
  * syntactically valid sentence index pointing at another pet's answer. */
 export function reviewObligationCompletion(obligations: readonly HistoryObligation[], reviews: readonly TaskObligationReview[],
   sentences: readonly { sourceIds: string[] }[],
-  sources: readonly { sourceId: string; petId: string; occurredAt?: string | null }[]) {
+  sources: readonly { sourceId: string; petId: string; occurredAt?: string | null }[], completedEmptyNeedKeys: readonly string[] = []) {
   const failures: string[] = [], completion: ObligationCompletion[] = [];
   for (const obligation of obligations) {
     const review = reviews.find(item => item.index === obligation.index);
@@ -42,7 +42,9 @@ export function reviewObligationCompletion(obligations: readonly HistoryObligati
     const matching = sources.filter(source => cited.has(source.sourceId)
       && (!obligation.petId || source.petId === obligation.petId)
       && withinEvidenceNeedWindow(source.occurredAt, obligation.window));
-    if (review.status === "answered" && obligation.petId && !matching.length)
+    const completedEmptyExport = obligation.needId && obligation.petId && obligation.availability === "no_candidate_match"
+      && completedEmptyNeedKeys.includes(JSON.stringify([obligation.needId, obligation.petId]));
+    if (review.status === "answered" && obligation.petId && !matching.length && !completedEmptyExport)
       failures.push("obligation_evidence_scope:" + obligation.index);
     completion.push({ index: obligation.index, ...(obligation.needId ? { needId: obligation.needId } : {}),
       ...(obligation.petId ? { petId: obligation.petId } : {}), ...(obligation.window ? { window: obligation.window } : {}),

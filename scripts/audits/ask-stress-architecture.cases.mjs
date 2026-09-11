@@ -10,6 +10,18 @@ const context = {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],currentM
 const proposal = patch => ({version:ASK_REQUEST_VERSION,mode:'read',question:'Read the requested facts.',requirements:[],
  referenceTurnIds:[],scope:'named',petNames:['Aster'],operation:'recall',selection:'summary',quantity:null,topic:'observations',terms:[],
  from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[],...patch});
+test('invalid planner references get one repair while repeated invalid references still fail closed',async()=>{
+ const {interpretAskQuestion}=await import('../../app/lib/intelligence/interpret-ask.ts');
+ for(const repeatInvalid of [false,true]) {
+  const calls=[];
+  const client={responses:{create:async request=>{calls.push(request);return {status:'completed',output_text:JSON.stringify(proposal({referenceTurnIds:calls.length===1||repeatInvalid?['invented-turn']:[]})),usage:{input_tokens:10,output_tokens:10}};}}};
+  const invoke=()=>interpretAskQuestion({context,model:'gpt-5.4-mini',client});
+  if(repeatInvalid) { const limited=await invoke(); assert.deepEqual(limited.petIds,[]); assert.equal(limited.history,null); assert.equal(limited.request,undefined); }
+  else assert.deepEqual((await invoke()).request.referenceTurnIds,[]);
+  assert.equal(calls.length,2);
+  assert.match(calls[1].instructions,/ASK_REQUEST_CONTRACT_REFERENCE/);
+ }
+});
 test('CSV contract has a typed body and canonical escaping',()=>{
  const schema=historicalReadSchema({historyNarrative:{}},'csv');
  assert.deepEqual(schema.properties.layout.enum,['csv']);
@@ -245,7 +257,10 @@ for(const layout of ['csv','table']) for(const size of [0,11,32])test(layout+' u
  limitation:size?null:'No matching records were available.',safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:[],table:{headers:['Pet','Note'],rows}});
  assert.equal(result.historicalResult.items.length,size);
  rows.forEach((row,i)=>assert.deepEqual(result.historicalResult.items[i].sourceIds,row.sourceIds));
- if(!size) assert.match(result.answer,/No matching records/);
+ if(!size) {
+  assert.equal(result.historicalResult.limitation,'No matching records were available.');
+  assert.equal(result.answer,layout==='csv'?'Pet,Note':'| Pet | Note |\n| --- | --- |');
+ }
 });
 test('record counts reject duplicate operands, missing records, wrong counts and episode units',()=>{
  const sources=[{sourceId:'care:a',text:'Observed rest.'},{sourceId:'care:b',text:'Observed rest.'}];
@@ -253,6 +268,21 @@ test('record counts reject duplicate operands, missing records, wrong counts and
  assert.ok(verifiedCalculationQuantities([count],sources));
  for(const patch of [{value:3},{unit:'episodes'},{operands:[count.operands[0],count.operands[0]]}]) assert.equal(verifiedCalculationQuantities([{...count,...patch}],sources),null);
  assert.equal(verifiedCalculationQuantities([count],sources.slice(0,1)),null);
+});
+test('empty export completion requires an exhausted owned need query, never an unavailable or missing lookup',async()=>{
+ const {completedEmptyEvidenceNeeds}=await import('../../app/lib/intelligence/evidence-need-coverage.ts');
+ const {reviewObligationCompletion}=await import('../../app/lib/intelligence/history-obligations.ts');
+ const query={petId:'pet',needId:'need',candidateIds:[],exhausted:true,status:'unknown'};
+ const evidence={scope:{authorizedPetIds:['pet']},interpretation:{request:{evidenceNeeds:[{id:'need',quote:'vaccinations',terms:['vaccination']}] }},
+  history:{needs:[query],provenance:[]},represented:[],sources:[],losses:[]};
+ const keys=completedEmptyEvidenceNeeds(evidence);assert.deepEqual(keys,[JSON.stringify(['need','pet'])]);
+ const obligation={index:0,text:'vaccinations',needId:'need',petId:'pet',availability:'no_candidate_match'};
+ const review={index:0,status:'answered',sentenceIndexes:[0]};
+ assert.deepEqual(reviewObligationCompletion([obligation],[review],[{sourceIds:[]}],[],keys).failures,[]);
+ assert.equal(reviewObligationCompletion([obligation],[review],[{sourceIds:[]}],[]).failures.length,1);
+ for(const patch of [{exhausted:false},{status:'unavailable'},{status:'partial'},{candidateIds:['care:missing']},{reason:'need_query_budget'}])
+  assert.deepEqual(completedEmptyEvidenceNeeds({...evidence,history:{...evidence.history,needs:[{...query,...patch}]}}),[]);
+ assert.deepEqual(completedEmptyEvidenceNeeds({...evidence,history:{needs:[]}}),[]);
 });
 test('governed execution authority is tied to the issued plan and exact reviewed content',()=>{
  const action={action:'create_entry',category:'general',title:'Rest',details:'Aster rested.',severity:'routine',confidence:1,relatedRecordId:null};
