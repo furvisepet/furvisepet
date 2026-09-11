@@ -5,7 +5,6 @@ import { isPetObservationEvidence, petObservationSpans } from "./recovery-subjec
 import { decideWhetherAiGenerationIsNeeded } from "./response-planner.ts";
 import { classifyUserTurn, type TurnIntent } from "./turn-classifier.ts";
 import { evaluateCareHistorySaveWorthiness } from "../intelligence/care-history-policy.ts";
-import { planAskAnswerDepth } from "./ask-answer-economy.ts";
 
 export type AskOrchestratorResult = {
   aiResult: AskReasoningResult | null;
@@ -80,12 +79,12 @@ function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, tu
   turn: ReturnType<typeof classifyUserTurn>;
 }): AskOrchestratorResult {
   const proposed = aiResult.proposedHistoryUpdate;
-  const answerDepth = aiResult.answerDepth || planAskAnswerDepth({
-    intent: turn.intent,
-    message,
-    minimumSafetyLevel: aiResult.safetyLevel,
-    responseMode: aiResult.responseMode,
-  });
+  // Presentation depth never decides whether a grounded observation can be
+  // offered for saving. Scope, safety and source grounding own that decision.
+  const allowsHistorySuggestions = aiResult.safetyLevel !== "urgent"
+    && aiResult.responseMode !== "grief_support"
+    && aiResult.evidenceContract?.interpretation?.conversationOnly !== true
+    && aiResult.evidenceContract?.scope.readOnlyRecall !== true;
   const hasMemoryApplicationAction = (aiResult.applicationActions || []).some((action) => action.kind.startsWith("memory."));
   const recoveryConcerns = concerns.filter((target) => isRecoveryGroundedForConcern({ activeConcerns: concerns, concern: target, message, petId: target.pet_profile_id, petName }));
   const improvementSuggestion = recoveryConcerns.length === 1
@@ -93,7 +92,7 @@ function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, tu
     : null;
   const modelSuggestion: PendingUpdateSuggestion | null = turn.intent !== "casual" && proposed.shouldOffer
     && proposed.details
-    && answerDepth.allowsAutomaticHistory
+    && allowsHistorySuggestions
     ? {
         type: proposed.resolvesConcernId ? "concern_resolution" : "history",
         title: proposed.resolvesConcernId ? "Save this improvement" : "Save this update?",
@@ -117,7 +116,7 @@ function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, tu
   const suggestionConcern = candidateSuggestion?.type === "concern_resolution" && candidateSuggestion.concernId
     ? concerns.find((item) => item.id === candidateSuggestion.concernId) || null
     : null;
-  let suggestion = aiResult.responseMode === "grief_support"
+  let suggestion = !allowsHistorySuggestions
     ? null
     : candidateSuggestion && !isPendingUpdateSuggestionGrounded({
         suggestion: candidateSuggestion,
@@ -129,7 +128,7 @@ function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, tu
         petName,
       })
       ? null
-    : (candidateSuggestion?.type === "history" || candidateSuggestion?.type === "concern_opening") && (!answerDepth.allowsAutomaticHistory || !evaluateCareHistorySaveWorthiness({
+    : (candidateSuggestion?.type === "history" || candidateSuggestion?.type === "concern_opening") && (!allowsHistorySuggestions || !evaluateCareHistorySaveWorthiness({
       category: typeof candidateSuggestion.payload.category === "string" ? candidateSuggestion.payload.category : undefined,
       title: typeof candidateSuggestion.payload.title === "string" ? candidateSuggestion.payload.title : candidateSuggestion.title,
       details: candidateSuggestion.details,
@@ -138,12 +137,12 @@ function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, tu
   // A rejected terminal proposal can still contain a useful qualified report.
   // Retain the owner's entire supported observation, never the model's recovery
   // title/note or a raw outside-animal message under the selected pet.
-  if (!suggestion && aiResult.responseMode !== "grief_support" && answerDepth.allowsAutomaticHistory
+  if (!suggestion && aiResult.responseMode !== "grief_support" && allowsHistorySuggestions
     && isPetObservationEvidence(message, message, petName)) {
     const observation = buildObservationSuggestion({ message, petName });
     if (isPendingUpdateSuggestionGrounded({ suggestion: observation, message, petName })) suggestion = observation;
   }
-  if (!suggestion && aiResult.responseMode !== "grief_support" && answerDepth.allowsAutomaticHistory) {
+  if (!suggestion && aiResult.responseMode !== "grief_support" && allowsHistorySuggestions) {
     const spans = petObservationSpans(message, petName);
     // Do not sever the qualifier of an uncertain clause; the whole-source path
     // above preserves those. Independently certain observations can stand alone.

@@ -117,34 +117,23 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return Response.json({ ok: true, requestId, status: "pending", suggestion: toCanonicalSuggestion(data) });
   }
 
-  if (action === "dismiss") {
-    if (suggestion.status === "saved") return alreadyAppliedResponse(suggestion, diagnostic, requestId);
-    const { error: dismissError } = await auth.authority.from("ai_update_suggestions")
-      .update({ actioned_at: new Date().toISOString(), status: "dismissed" })
-      .eq("id", id).eq("user_id", auth.userId).eq("status", "pending");
-    if (dismissError) {
-      logSuggestionFailure("dismiss_suggestion", dismissError, logContext);
-      return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This improvement could not be dismissed.", 503, requestId);
+  if (action === "dismiss" || action === "monitor") {
+    const { data, error: transitionError } = await auth.authority.rpc("transition_ask_suggestion", {
+      p_user_id: auth.userId, p_suggestion_id: id, p_action: action,
+    });
+    if (transitionError) {
+      const mapped = mapRpcError(transitionError);
+      logSuggestionFailure("transition_suggestion", transitionError, logContext);
+      return suggestionError(mapped.code, mapped.message, mapped.status, requestId);
     }
-    return Response.json({ ok: true, requestId, status: "dismissed", suggestionId: id, message: "Not saved." });
-  }
-
-  if (action === "monitor") {
-    if (!suggestion.concern_id) return suggestionError("SUGGESTION_INVALID", "This improvement is not linked to a concern.", 422, requestId);
-    if (diagnostic.concernStatus === "resolved") return alreadyAppliedResponse(suggestion, diagnostic, requestId);
-    const { error: concernError } = await auth.authority.from("pet_concerns")
-      .update({ status: "monitoring", updated_at: new Date().toISOString() })
-      .eq("id", suggestion.concern_id).eq("user_id", auth.userId).in("status", ["active", "monitoring", "reopened"]);
-    if (concernError) {
-      logSuggestionFailure("monitor_concern", concernError, logContext);
-      return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This concern could not be updated.", 503, requestId);
+    const result = (Array.isArray(data) ? data[0] : data) as (Omit<ApplyRow, "apply_status"> & { apply_status: "applied" | "already_applied" | "dismissed" }) | null;
+    if (!result || result.suggestion_id !== id || !["applied", "already_applied", "dismissed"].includes(result.apply_status)) {
+      return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "The update result could not be confirmed. Try again.", 503, requestId);
     }
-    const { error: markError } = await markSuggestion(id, auth.userId, "saved");
-    if (markError) {
-      logSuggestionFailure("mark_monitoring_suggestion", markError, logContext);
-      return suggestionError("SUGGESTION_PERSISTENCE_FAILED", "This concern could not be updated.", 503, requestId);
-    }
-    return Response.json({ ok: true, requestId, status: "applied", suggestionId: id, concernId: suggestion.concern_id, concernStatus: "monitoring", careEntryId: null, message: "This concern is being monitored." });
+    return Response.json({ ok: true, requestId, status: result.apply_status, suggestionId: result.suggestion_id,
+      concernId: result.concern_id, careEntryId: result.care_entry_id, concernStatus: result.concern_status,
+      appliedAt: result.applied_at, message: result.apply_status === "dismissed" ? "Not saved."
+        : result.apply_status === "already_applied" ? "This suggestion was already applied." : "This concern is being monitored." });
   }
 
   if (suggestion.type === "memory") return saveMemorySuggestion(auth.authority, auth.userId, suggestion, requestId, logContext);
@@ -213,15 +202,6 @@ async function loadSuggestionDiagnostic(supabase: SupabaseClient, userId: string
   return { concernStatus: concernResult.data?.status || null, careEntryId: entryResult.data?.id || suggestion.care_entry_id || null };
 }
 
-function alreadyAppliedResponse(suggestion: SuggestionRow, diagnostic: { careEntryId: string | null; concernStatus: string | null }, requestId: string) {
-  return Response.json({
-    ok: true, requestId, status: "already_applied", suggestionId: suggestion.id, concernId: suggestion.concern_id,
-    careEntryId: diagnostic.careEntryId, concernStatus: diagnostic.concernStatus,
-    suggestion: { ...toCanonicalSuggestion(suggestion), status: "saved" },
-    message: "This improvement was already added to the pet’s history.",
-  });
-}
-
 function mapRpcError(error: PostgrestError): { code: SuggestionErrorCode; message: string; status: number } {
   const internal = `${error.message} ${error.details || ""}`;
   if (/SUGGESTION_NOT_FOUND/.test(internal)) return { code: "SUGGESTION_NOT_FOUND", message: "This improvement is no longer available.", status: 404 };
@@ -241,11 +221,6 @@ function logSuggestionFailure(operationStage: string, error: PostgrestError | nu
     operationStage,
     ...safeErrorForLog(error),
   });
-}
-
-async function markSuggestion(id: string, userId: string, status: "saved" | "dismissed") {
-  const now = new Date().toISOString();
-  return createCanonicalCareAuthorityClient().from("ai_update_suggestions").update({ actioned_at: now, ...(status === "saved" ? { applied_at: now } : {}), status }).eq("id", id).eq("user_id", userId);
 }
 
 async function loadSuggestionContext(request: Request, requestId: string): Promise<{ response: Response } | { authority: SupabaseClient; supabase: SupabaseClient; userId: string }> {

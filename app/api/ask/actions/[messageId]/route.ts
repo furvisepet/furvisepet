@@ -23,17 +23,20 @@ export async function POST(request: Request, routeContext: RouteContext) {
   catch { return Response.json({ error: "That action could not be verified." }, { status: 503 }); }
   if (!execution) return unavailable(); // same answer for guessed IDs, other users, and wrong messages
   const { action } = execution;
-  emitOperationalEvent({ actorId: auth.userId, errorCode: action.status === "failed" ? "ASK_ACTION_FAILED" : undefined,
+  try { emitOperationalEvent({ actorId: auth.userId, errorCode: action.status === "failed" ? "ASK_ACTION_FAILED" : undefined,
     eventType: action.status === "failed" ? "application_error" : "application_action", feature: "ask_application_action",
     metadata: { actionKind: action.kind, outcome: action.status }, operationId: body.actionId,
     requestId: action.sourceMessageId || body.actionId, resourceId: action.petId,
-    route: "/api/ask/actions/[messageId]", severity: action.status === "failed" ? "warning" : "info" });
+    route: "/api/ask/actions/[messageId]", severity: action.status === "failed" ? "warning" : "info" }); }
+  catch { console.warn("[Ask] Action telemetry unavailable"); }
   if (action.status === "succeeded") revalidateActionViews(action.petId);
   return Response.json({ action, changed: execution.changed });
 }
 
 function unavailable() { return Response.json({ error: "That action is no longer available." }, { status: 404 }); }
 function revalidateActionViews(petId: string) {
-  revalidatePath("/pets"); revalidatePath(`/pets/${petId}`); revalidatePath(`/dogs/${petId}/memories`);
-  revalidatePath("/history"); revalidatePath("/care-log"); revalidatePath("/vet-brief");
+  for (const path of ["/pets", `/pets/${petId}`, `/dogs/${petId}/memories`, "/history", "/care-log", "/vet-brief", "/dashboard", "/today"]) {
+    try { revalidatePath(path); }
+    catch { console.warn("[Ask] Action view refresh unavailable"); }
+  }
 }

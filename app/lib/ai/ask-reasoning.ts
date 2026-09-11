@@ -878,7 +878,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   answerText = economicalAnswer.summary;
   parsed.answerSections = economicalAnswer.sections;
   parsed.suggestedFollowUps = parsed.suggestedFollowUps.slice(0, answerDepth.maxFollowUps);
-  if (!answerDepth.allowsAutomaticHistory) parsed.proposedHistoryUpdate = emptyHistoryUpdate();
+  if (historicalRead || context.promptContext.evidenceContract.interpretation?.conversationOnly) parsed.proposedHistoryUpdate = emptyHistoryUpdate();
   try { assertNoInternalReasoningLeak(answerText, context.records); }
   catch (error) {
     if (!historicalRead || !context.promptContext.evidenceContract.interpretation?.request) throw error;
@@ -1219,7 +1219,7 @@ export function buildAskProviderRequest(promptContext: object) {
     transported = { ...promptContext,
       ...(contextRecords ? { contextRecords: contextRecords.map(record => {
         if (record.sourceType !== "care_update" || !represented.has(record.id)) return record;
-        const { value: _text, ...metadata } = record;
+        const metadata = Object.fromEntries(Object.entries(record).filter(([key]) => key !== "value"));
         return { ...metadata, valueSource: "evidenceContract.represented.text joined by sourceId = id" };
       }) } : {}),
       evidenceContract: { ...evidence,

@@ -31,7 +31,7 @@ import {
 import { AskTurnLifecycle, deriveAskAttemptId, runOptionalAskSubsystem, type AskSubsystem, type AskTurnTrace } from "../../lib/ai/ask-turn-model";
 import { orchestrateAskTurn, planProviderIndependentAskTurn } from "../../lib/ai/ask-orchestrator";
 import { planDeterministicAskCommand } from "../../lib/ai/ask-command-router";
-import { classifyFurviseCapabilityQuestion, type FurviseCapabilityIntent } from "../../lib/ai/ask-internal-product-policy";
+import { classifyFurviseCapabilityQuestion, buildFurviseCapabilityResponse } from "../../lib/ai/ask-internal-product-policy";
 import { safeAskDiagnosticStage } from "../../lib/ai/ask-error-diagnostic.ts";
 import { admitAiOperation, type AiOperationAdmission } from "../../lib/ai/usage-guard/admission";
 import { AiAdmissionError } from "../../lib/ai/usage-guard/errors";
@@ -56,14 +56,12 @@ import type {
   DogMemoryRow,
   DogProfileRow,
 } from "../../lib/supabase";
-import { FURVISE_SAFETY_LINE } from "../../lib/furvise-output";
 import {
   FURVISE_ANSWER_UNAVAILABLE_MESSAGE,
   FURVISE_ASK_UNAVAILABLE_MESSAGE,
   buildFurviseClarification,
 } from "../../lib/furvise-output";
 import {
-  getPaidGateMessage,
   type PlanId,
 } from "../../lib/billing/plan-limits";
 import { resolveEffectiveEntitlements, type EffectiveEntitlements } from "../../lib/billing/entitlements";
@@ -248,7 +246,7 @@ export async function POST(request: Request) {
     return askFailure("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, {}, "entitlement_lookup");
   }
   if ("response" in context) return context.response;
-  const { capabilities, usage } = context;
+  const { usage } = context;
   const historyAccess = resolveAskHistoryAccess(context.planId);
 
   if (!petId || (petId !== "all" && !isSecurityUuid(petId)) || (conversationId && !isSecurityUuid(conversationId))) {
@@ -873,7 +871,7 @@ export async function POST(request: Request) {
   const safetyLevel = orchestration.safetyLevel;
   const plannedCapabilityIntent = classifyFurviseCapabilityQuestion(question);
   const plannedGate = reasoning && plannedCapabilityIntent && safetyLevel === "normal" && !reasoning.shoppingSuppressed
-    ? buildPlannedCapabilityResponse(plannedCapabilityIntent, capabilities)
+    ? buildFurviseCapabilityResponse(plannedCapabilityIntent)
     : null;
   if (plannedGate) {
     const plannedResponse = buildAskConversationResponse(plannedGate, {
@@ -1345,7 +1343,7 @@ function buildAuthoritativeLifecycleCorrectionOrchestration(
 function buildAlreadyPersistedOrchestration(petName: string) {
   return {
     aiResult: null,
-    answer: { title: "Already in history", summary: `Yes, that improvement is already in ${petName}'s history.`, sections: [], safetyNote: null },
+    answer: { title: "Already in history", summary: `That update is already in ${petName}'s history.`, sections: [], safetyNote: null },
     concern: null,
     handledWithoutAi: true,
     intent: "status_update" as const,
@@ -1410,15 +1408,17 @@ async function findExistingCareEventForSaveRequest({ context, currentSourceMessa
   supabase: SupabaseClient;
   userId: string;
 }): Promise<CarePersistenceResult | null> {
-  if (!/\b(?:save|add|put|note)\b[\s\S]*\b(?:that|history|care)\b|\bcan (?:you|u) save\b/i.test(message)) return null;
-  const priorRecovery = [...context.conversationTurns].reverse().find((turn) => turn.role === "user" && turn.id !== currentSourceMessageId
-    && /\b(?:good|fine|normal|better|recovered)\b/i.test(turn.text));
-  if (!priorRecovery) return null;
-  const { data, error } = await supabase.from("pet_care_entries").select("id, concern_id")
-    .eq("user_id", userId).eq("pet_profile_id", petId).eq("intelligence_source_message_id", priorRecovery.id)
-    .order("created_at", { ascending: false }).limit(1).maybeSingle<{ id: string; concern_id: string | null }>();
-  if (error || !data) return null;
-  return { status: "persisted", careEntryIds: [data.id], concernIds: data.concern_id ? [data.concern_id] : [], errorCode: null, currentSafetyState: "recently_resolved", alreadyPersisted: true };
+  // This fast path is only a reference to the immediately preceding owner
+  // update. New facts, named subjects and compound commands need interpretation.
+  if (!/^(?:please\s+)?(?:(?:can|could|would) (?:you|u)\s+)?(?:save|add|record|note)\s+(?:that|this)(?:\s+(?:update|detail))?(?:\s+(?:to|in)\s+(?:(?:my|the)\s+)?(?:care\s+)?history)?(?:\s+please)?[.!?]*$/i.test(message.trim())) return null;
+  const previous = [...context.conversationTurns].reverse().find((turn) => turn.role === "user" && turn.id !== currentSourceMessageId);
+  if (!previous) return null;
+  const { data, error } = await supabase.from("pet_care_entries").select("id, concern_id, pet_profile_id")
+    .eq("user_id", userId).eq("intelligence_source_message_id", previous.id).is("deleted_at", null)
+    .order("created_at", { ascending: false }).limit(2).returns<{ id: string; concern_id: string | null; pet_profile_id: string }[]>();
+  if (error || data?.length !== 1 || data[0].pet_profile_id !== petId) return null;
+  const entry = data[0];
+  return { status: "persisted", careEntryIds: [entry.id], concernIds: entry.concern_id ? [entry.concern_id] : [], errorCode: null, currentSafetyState: null, alreadyPersisted: true };
 }
 
 async function ensureConversationAndUserMessage({
@@ -1807,27 +1807,17 @@ async function persistAssistantAnswer({
     hasSavedSuggestion: Boolean(savedSuggestion),
     memoryIds: intelligencePersistence?.memoryIds || [],
   });
-  const reconciledResponse = reconcileResponsePersistenceCopy(response, persistenceMode, automaticCareFailure || Boolean(savedSuggestion));
+  // The reviewed answer body is immutable. Persistence outcomes belong in
+  // receipts/cards, never in a second unreviewed prose rewrite.
   turnLifecycle.actions(applicationActions.length);
   turnLifecycle.transition("COMPLETED");
   const canonicalResponse = {
-    ...attachEpisodeReferences(applicationActions.length ? { ...reconciledResponse, applicationActions } : reconciledResponse, intelligenceResult?.reasoning.evidenceContract?.episodes),
+    ...attachEpisodeReferences(applicationActions.length ? { ...response, applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes),
     turn: turnLifecycle.snapshot(),
   };
-  await runOptionalAskSubsystem({
-    component: "conversation_metadata",
-    fallback: null,
-    operation: async () => {
-      const { data, error } = await finalizeAskAssistantResponse({
-        carePersistence,
-        messageId: assistantMessage.id,
-        responseData: canonicalResponse,
-        userId,
-      });
-      if (error || data !== true) throw error || new Error("ASK_RESPONSE_FINALIZE_FAILED");
-      return null;
-    },
-    onFailure: optionalFailure,
+  const durableFallback = await finalizePersistedAskAnswer({
+    carePersistence, conversationId, messageId: assistantMessage.id,
+    responseData: canonicalResponse, requestId, supabase, userId,
   });
   if (didPersistEffectiveState(intelligencePersistence, carePersistence)) {
     revalidateAskStateViews([
@@ -1837,6 +1827,10 @@ async function persistAssistantAnswer({
   }
   if (applicationStateChanged) revalidateAskStateViews([petId]);
   emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
+  // A lost finalization acknowledgment must never publish an unconfirmed body.
+  // Read back the durable answer rather than rerunning effects or charging again.
+  if (durableFallback) return completedResponseFromPersisted(durableFallback, nextUsage,
+    "Your answer is saved. Reopen the conversation to check the latest update and action status.");
   return successfulAnswerResponse({
     assistantMessageId: assistantMessage.id,
     applicationStateChanged,
@@ -2087,23 +2081,6 @@ function textPayloadValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function reconcileResponsePersistenceCopy(response: CompletedAskResponse, persistenceMode: "automatic" | "suggested" | "none", stateUpdatePending = false) {
-  let directAnswer = response.directAnswer;
-  if (persistenceMode !== "automatic") {
-    directAnswer = directAnswer
-      .replace(/I(?:'ve| have)? (?:saved|added|recorded|noted) (?:that|this|the update)[^.]*\.?/gi, "You can save this update to care history.")
-      .replace(/(?:that|this) (?:has been|is) (?:saved|added|recorded) (?:in|to) [^.]*\.?/gi, "You can save this update to care history.");
-  }
-  if (stateUpdatePending) {
-    directAnswer = directAnswer
-      .replace(/has now been marked resolved/gi, "sounds improved")
-      .replace(/has been marked resolved/gi, "sounds improved")
-      .replace(/(?:the )?episode has resolved(?: for now)?/gi, "the episode sounds improved for now")
-      .replace(/marked resolved/gi, "reported as improved");
-  }
-  return directAnswer === response.directAnswer ? response : { ...response, directAnswer };
-}
-
 async function loadPersistedRequest({ petId, requestId, supabase, userId }: { petId: string; requestId: string; supabase: SupabaseClient; userId: string }): Promise<PersistedRequestState | null> {
   const { data: messages, error } = await supabase
     .from("ask_conversation_messages")
@@ -2170,7 +2147,27 @@ function assertPersistedReplayIdentity({
   }
 }
 
-function completedResponseFromPersisted(state: PersistedRequestState, usage: AiCreditStatus) {
+async function finalizePersistedAskAnswer(input: {
+  carePersistence: CarePersistenceResult; conversationId: string; messageId: string;
+  responseData: CompletedAskResponse; requestId: string; supabase: SupabaseClient; userId: string;
+}): Promise<PersistedRequestState | null> {
+  let failure: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const result = await finalizeAskAssistantResponse(input);
+      if (!result.error && result.data === true) return null;
+      failure = result.error || new Error("ASK_RESPONSE_FINALIZE_FAILED");
+    } catch (error) { failure = error; }
+  }
+  const durable = await loadPersistedRequestByConversation(input);
+  if (!durable?.assistantMessage?.response_data || durable.assistantMessage.id !== input.messageId) {
+    throw new AskApiError("DATABASE_ERROR", FURVISE_ASK_UNAVAILABLE_MESSAGE, 503, "persistence_failed", failure);
+  }
+  logAskServerError("response_finalization_readback", failure, { requestId: input.requestId }, 200);
+  return durable;
+}
+
+function completedResponseFromPersisted(state: PersistedRequestState, usage: AiCreditStatus, persistenceWarning?: string) {
   const assistantMessage = state.assistantMessage;
   if (!assistantMessage?.response_data) throw new AskApiError("DATABASE_ERROR", "Furvise could not load this answer.", 503, "request_lookup");
   const response = assistantMessage.response_data;
@@ -2182,6 +2179,7 @@ function completedResponseFromPersisted(state: PersistedRequestState, usage: AiC
     requestId: assistantMessage.request_id || "",
     response,
     saved: true,
+    persistenceWarning,
     saveMetadata: assistantMessage.save_metadata,
     safetyLevel: response.urgency === "urgent" ? "urgent" : response.urgency === "monitor" || response.urgency === "resolved" ? "monitor" : "normal",
     shoppingSuppressed: response.urgency === "urgent",
@@ -2561,45 +2559,4 @@ function formatContextSourceLabel(record: AskContextRecord) {
     resolved_episode: "Recently resolved episodes",
     episode_evidence: "Source-linked episode history",
   } satisfies Record<AskContextRecord["sourceType"], string>)[record.sourceType];
-}
-
-function buildPlannedCapabilityResponse(intent: FurviseCapabilityIntent, capabilities: EffectiveEntitlements["capabilities"]) {
-  if (intent === "vet_prep_exports") {
-    return plannedCapabilityResponse(
-      capabilities.vetPrepExports
-        ? "Exportable vet-prep reports are not built yet."
-        : getPaidGateMessage("vetPrepExports"),
-    );
-  }
-  if (intent === "long_history_patterns") {
-    return plannedCapabilityResponse(
-      capabilities.longHistoryPatternDetection
-        ? "Longer-history pattern detection is not built yet."
-        : getPaidGateMessage("longHistoryPatternDetection"),
-    );
-  }
-  if (intent === "live_product_research") {
-    return plannedCapabilityResponse(
-      capabilities.liveProductResearch
-        ? "Live product research is not built yet."
-        : getPaidGateMessage("liveProductResearch"),
-    );
-  }
-  return null;
-}
-
-function plannedCapabilityResponse(message: string) {
-  return {
-    title: "Planned Furvise Plus capability",
-    summary: message,
-    sections: [
-      {
-        heading: "Still available",
-        items: [
-          "Care log, Dashboard, pet profiles, Results, safety guidance, and curated static product suggestions remain available.",
-        ],
-      },
-    ],
-    safetyNote: FURVISE_SAFETY_LINE,
-  };
 }

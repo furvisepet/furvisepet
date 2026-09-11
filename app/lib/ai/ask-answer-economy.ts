@@ -10,7 +10,6 @@ export type AskAnswerEconomyPlan = {
   maxBullets: number;
   maxFollowUps: number;
   followUpDeltaOnly: boolean;
-  allowsAutomaticHistory: boolean;
 };
 
 export type AskEconomyAnswer = {
@@ -80,7 +79,7 @@ export function applyAskAnswerEconomy<T extends AskEconomyAnswer>(answer: T, eco
     return {
       ...answer,
       summary: canonicalizeAnswerProse(answer.summary),
-      sections: normalizeSectionsWithoutSemanticRemoval(answer.sections, economy.maxSections, economy.maxBullets),
+      sections: normalizeSectionsWithoutSemanticRemoval(answer.sections),
     };
   }
 
@@ -192,11 +191,11 @@ export function countWords(value: string) {
 
 function plan(depth: AskAnswerDepth, followUpDeltaOnly: boolean): AskAnswerEconomyPlan {
   const values: Record<AskAnswerDepth, Omit<AskAnswerEconomyPlan, "depth" | "followUpDeltaOnly">> = {
-    0: { label: "ack_social", targetWords: { min: 3, max: 45 }, maxSections: 0, maxBullets: 0, maxFollowUps: 0, allowsAutomaticHistory: false },
-    1: { label: "simple", targetWords: { min: 40, max: 120 }, maxSections: 0, maxBullets: 0, maxFollowUps: 1, allowsAutomaticHistory: false },
-    2: { label: "practical", targetWords: { min: 100, max: 250 }, maxSections: 1, maxBullets: 4, maxFollowUps: 2, allowsAutomaticHistory: true },
-    3: { label: "complex", targetWords: { min: 200, max: 450 }, maxSections: 4, maxBullets: 8, maxFollowUps: 3, allowsAutomaticHistory: true },
-    4: { label: "safety_urgent", targetWords: { min: 0, max: Number.POSITIVE_INFINITY }, maxSections: 6, maxBullets: 12, maxFollowUps: 0, allowsAutomaticHistory: false },
+    0: { label: "ack_social", targetWords: { min: 3, max: 45 }, maxSections: 0, maxBullets: 0, maxFollowUps: 0 },
+    1: { label: "simple", targetWords: { min: 40, max: 120 }, maxSections: 0, maxBullets: 0, maxFollowUps: 1 },
+    2: { label: "practical", targetWords: { min: 100, max: 250 }, maxSections: 1, maxBullets: 4, maxFollowUps: 2 },
+    3: { label: "complex", targetWords: { min: 200, max: 450 }, maxSections: 4, maxBullets: 8, maxFollowUps: 3 },
+    4: { label: "safety_urgent", targetWords: { min: 0, max: Number.POSITIVE_INFINITY }, maxSections: 6, maxBullets: 12, maxFollowUps: 0 },
   };
   return { depth, followUpDeltaOnly, ...values[depth] };
 }
@@ -234,13 +233,13 @@ function dedupeSections(sections: AskEconomyAnswer["sections"], summary: string,
   return selectCoherentBullets(accepted, maxBullets);
 }
 
-function normalizeSectionsWithoutSemanticRemoval(sections: AskEconomyAnswer["sections"], maxSections: number, maxBullets: number) {
-  const normalized = sections.slice(0, maxSections).flatMap((section) => {
+function normalizeSectionsWithoutSemanticRemoval(sections: AskEconomyAnswer["sections"]) {
+  const normalized = sections.flatMap((section) => {
     const heading = clean(section.heading);
     const items = section.items.flatMap((item) => splitCompositeBullet(canonicalizeAnswerProse(item))).filter(Boolean);
     return heading && items.length ? [{ heading, items }] : [];
   });
-  return selectCoherentBullets(normalized, maxBullets);
+  return normalized;
 }
 
 function splitCompositeBullet(value: string) {

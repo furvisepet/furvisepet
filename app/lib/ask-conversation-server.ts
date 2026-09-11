@@ -61,9 +61,10 @@ export type AskSuggestionRow = StoredAskSuggestion & {
 
 export async function reconcileAskSuggestions(supabase: SupabaseClient, userId: string, suggestions: AskSuggestionRow[]) {
   const suggestionIds = suggestions.map((item) => item.id);
-  const { data: entries } = suggestionIds.length
-      ? await supabase.from("pet_care_entries").select("id, state_suggestion_id").eq("user_id", userId).in("state_suggestion_id", suggestionIds)
-      : { data: [] };
+  const { data: entries, error: entriesError } = suggestionIds.length
+      ? await supabase.from("pet_care_entries").select("id, state_suggestion_id").eq("user_id", userId).is("deleted_at", null).in("state_suggestion_id", suggestionIds)
+      : { data: [], error: null };
+  if (entriesError) throw new Error("ASK_SUGGESTION_RECONCILIATION_UNAVAILABLE");
   const entryBySuggestion = new Map((entries || []).filter((item) => item.state_suggestion_id).map((item) => [item.state_suggestion_id, item.id]));
   const reconciled = suggestions.map((suggestion) => {
     const careEntryId = suggestion.care_entry_id || entryBySuggestion.get(suggestion.id) || null;

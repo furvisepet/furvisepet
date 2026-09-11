@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AskAnswerText } from "../components/ask-answer-text";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -123,6 +123,7 @@ export default function AskPage() {
 }
 
 function AskPageContent() {
+  const router = useRouter();
   const { composerFocused, setComposerFocused } = useAskComposerFocus();
   const searchParams = useSearchParams();
   const { status: authStatus, user: authUser } = useRequireConfirmedSupabaseAuth();
@@ -133,6 +134,11 @@ function AskPageContent() {
   const [thread, setThread] = useState<ConversationMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [olderMessagesCursor, setOlderMessagesCursor] = useState<number | null>(null);
+  const [olderMessagesLoading, setOlderMessagesLoading] = useState(false);
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const conversationListRef = useRef(0);
   const [pendingNewQuestion, setPendingNewQuestion] = useState(false);
   const [renameTarget, setRenameTarget] = useState<AskConversationSummary | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -151,7 +157,9 @@ function AskPageContent() {
   const [usage, setUsage] = useState<AskUsageStatus | null>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
+  const preserveScrollRef = useRef(false);
   const askRequestActiveRef = useRef(false);
+  const conversationLoadRef = useRef(0);
 
   useEffect(() => () => setComposerFocused(false), [setComposerFocused]);
 
@@ -170,15 +178,17 @@ function AskPageContent() {
         setSelectedPet(petId);
         if (petId) persistActivePetId(petId);
         const usageStatus = await fetchAskUsage().catch(() => null);
-        const history = await fetchConversationList().catch(() => {
+        const historyPage = await fetchConversationList().catch(() => {
           setConversationListError("Recent conversations could not be loaded. Try again.");
-          return [];
+          return { conversations: [], nextCursor: null };
         });
+        const history = historyPage.conversations;
         if (!active) return;
         if (usageStatus) setUsage(usageStatus);
         setConversations(history);
+        setHistoryCursor(historyPage.nextCursor);
         const requestedConversation = searchParams.get("conversation");
-        if (requestedConversation && history.some((item) => item.id === requestedConversation)) {
+        if (requestedConversation) {
           await openConversation(requestedConversation, history);
         } else if (petId) {
           setQuestion(readAskDraft(window.localStorage, null, petId));
@@ -190,7 +200,7 @@ function AskPageContent() {
       }
     }
     void load();
-    return () => { active = false; };
+    return () => { active = false; conversationLoadRef.current += 1; conversationListRef.current += 1; };
     // The initial route selection is intentionally captured once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus, authUser]);
@@ -223,23 +233,35 @@ function AskPageContent() {
   });
 
   useEffect(() => {
+    if (preserveScrollRef.current) { preserveScrollRef.current = false; return; }
     conversationEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [requestPhase, thread]);
 
-  async function refreshConversations() {
+  async function refreshConversations(cursor: string | null = null) {
+    const generation = ++conversationListRef.current;
+    setHistoryLoading(true);
     try {
-      const history = await fetchConversationList();
-      setConversations(history);
+      const page = await fetchConversationList(cursor);
+      if (generation !== conversationListRef.current) return page.conversations;
+      setConversations((current) => cursor
+        ? [...current, ...page.conversations.filter(item => !current.some(existing => existing.id === item.id))]
+        : page.conversations);
+      setHistoryCursor(page.nextCursor);
       setConversationListError("");
-      return history;
+      return page.conversations;
     } catch (refreshError) {
-      setConversationListError("Recent conversations could not be loaded. Try again.");
+      if (generation === conversationListRef.current) setConversationListError("Recent conversations could not be loaded. Try again.");
       throw refreshError;
+    } finally {
+      if (generation === conversationListRef.current) setHistoryLoading(false);
     }
   }
 
   async function openConversation(id: string, known = conversations) {
     if (askRequestActiveRef.current) return;
+    const generation = ++conversationLoadRef.current;
+    setOlderMessagesCursor(null);
+    setOlderMessagesLoading(false);
     saveCurrentDraft();
     setError("");
     setStatus("");
@@ -247,6 +269,7 @@ function AskPageContent() {
     try {
       dismissOnboardingEntry();
       const payload = await conversationJson(`/api/ask/conversations/${encodeURIComponent(id)}`) as { conversation?: AskConversationDetail };
+      if (generation !== conversationLoadRef.current) return;
       if (!payload.conversation) throw new Error("That conversation is not available.");
       const parsedThread = parseConversationDetail(payload.conversation);
       setSelectedPet(payload.conversation.petId);
@@ -256,6 +279,7 @@ function AskPageContent() {
       }
       setActiveConversationId(payload.conversation.id);
       setThread(parsedThread);
+      setOlderMessagesCursor(payload.conversation.olderMessagesCursor ?? null);
       const lastMessage = parsedThread.at(-1);
       const retryScope = `ask:${payload.conversation.petId}:${payload.conversation.id}`;
       setFailedRequest(lastMessage?.role === "user" && lastMessage.failed && lastMessage.requestId
@@ -277,16 +301,40 @@ function AskPageContent() {
       setHistoryOpen(false);
       trackAskEvent("conversation_reopened");
       if (!known.some((item) => item.id === id)) await refreshConversations();
-      requestAnimationFrame(() => composerRef.current?.focus());
+      requestAnimationFrame(() => { if (generation === conversationLoadRef.current) composerRef.current?.focus(); });
     } catch (openError) {
+      if (generation !== conversationLoadRef.current) return;
       setError(openError instanceof Error ? openError.message : "That conversation could not be opened.");
     } finally {
-      setLoading(false);
+      if (generation === conversationLoadRef.current) setLoading(false);
+    }
+  }
+
+  async function loadOlderMessages() {
+    if (!activeConversationId || olderMessagesCursor === null || olderMessagesLoading) return;
+    const generation = conversationLoadRef.current;
+    setOlderMessagesLoading(true);
+    try {
+      const payload = await conversationJson(`/api/ask/conversations/${encodeURIComponent(activeConversationId)}?before=${olderMessagesCursor}`) as { conversation?: AskConversationDetail };
+      if (generation !== conversationLoadRef.current) return;
+      if (!payload.conversation) throw new Error("Older messages could not be loaded.");
+      const older = parseConversationDetail(payload.conversation);
+      preserveScrollRef.current = true;
+      setThread(current => reconcileThreadApplicationActions([...older.filter(item => !current.some(existing => existing.id === item.id)), ...current]));
+      setOlderMessagesCursor(payload.conversation.olderMessagesCursor ?? null);
+    } catch (loadError) {
+      if (generation === conversationLoadRef.current) setError(loadError instanceof Error ? loadError.message : "Older messages could not be loaded.");
+    } finally {
+      if (generation === conversationLoadRef.current) setOlderMessagesLoading(false);
     }
   }
 
   function switchPet(petId: string) {
     if (askRequestActiveRef.current) return;
+    conversationLoadRef.current += 1;
+    setOlderMessagesCursor(null);
+    setOlderMessagesLoading(false);
+    setLoading(false);
     saveCurrentDraft();
     dismissOnboardingEntry();
     setSelectedPet(petId);
@@ -313,6 +361,10 @@ function AskPageContent() {
 
   function startNewQuestion() {
     if (askRequestActiveRef.current) return;
+    conversationLoadRef.current += 1;
+    setOlderMessagesCursor(null);
+    setOlderMessagesLoading(false);
+    setLoading(false);
     dismissOnboardingEntry();
     if (selectedPet && typeof window !== "undefined") removeAskDraft(window.localStorage, activeConversationId, selectedPet);
     setQuestion("");
@@ -505,7 +557,7 @@ function AskPageContent() {
     if (action === "prepare_vet_note") {
       trackAskEvent("vet_brief_started", { answerType: message.response.answerType });
       const conversation = activeConversationId ? `&conversation=${encodeURIComponent(activeConversationId)}` : "";
-      window.location.assign(`/vet-brief?pet=${encodeURIComponent(selectedPet)}&source=ask${conversation}`);
+      router.push(`/vet-brief?pet=${encodeURIComponent(selectedPet)}&source=ask${conversation}`);
     }
     if (action === "start_tracking") trackAskEvent("tracking_started", { answerType: message.response.answerType });
     if (action === "save_key_detail" || action === "add_to_care_history" || action === "start_tracking") requestSave(message);
@@ -523,10 +575,11 @@ function AskPageContent() {
         setThread((current) => current.map((item) => item.id === messageId && item.role === "furvise" ? { ...item, suggestion: { ...editedSuggestion, error: null, uiStatus: "idle" } } : item));
         return;
       }
-      if (action === "dismiss") {
+      if (action === "dismiss" && payload.status === "dismissed") {
         setThread((current) => updateMessageSuggestion(current, messageId, suggestion.id, { error: null, status: "dismissed", uiStatus: "dismissed" }));
         return;
       }
+      if (payload.status !== "applied" && payload.status !== "already_applied") throw new Error("The suggestion result could not be confirmed. Try again.");
       const applyStatus = payload.status === "already_applied" ? "already_applied" : "applied";
       markAppDataChanged();
       setThread((current) => updateMessageSuggestion(current, messageId, suggestion.id, {
@@ -560,7 +613,7 @@ function AskPageContent() {
         ? { ...message, response: { ...message.response, applicationActions: (message.response.applicationActions || []).map((candidate) => candidate.id === action.id ? payload.action! : candidate) } }
         : message)));
       if (payload.changed) markAppDataChanged();
-      if (payload.changed && action.kind === "pet.delete_permanently") window.location.assign("/pets");
+      if (payload.changed && action.kind === "pet.delete_permanently") router.push("/pets");
     } catch (actionError) {
       const failed = { ...action, status: "failed" as const, errorMessage: actionError instanceof Error ? actionError.message : "That Furvise action could not be completed." };
       setThread((current) => reconcileThreadApplicationActions(current.map((message) => message.role === "furvise"
@@ -604,7 +657,8 @@ function AskPageContent() {
                     ? <OnboardingAskStarters onSelect={draftOnboardingQuestion} petName={petName} />
                     : <EmptyConversation lifecycleStatus={activeProfile?.lifecycle_status || "active"} petName={petName} onSelect={draftSuggestedQuestion} />
                   : null}
-                {thread.map((message, index) => message.role === "user"
+                {olderMessagesCursor !== null ? <button className={`${quietButton} mb-4`} disabled={olderMessagesLoading} onClick={() => void loadOlderMessages()} type="button">{olderMessagesLoading ? "Loading..." : "Load earlier messages"}</button> : null}
+              {thread.map((message, index) => message.role === "user"
                   ? <UserMessage key={message.id} text={message.text} />
                   : <FurviseMessage key={message.id} lifecycleStatus={activeProfile?.lifecycle_status || "active"} likelyVetConcern={hasLikelyVetConcern(thread, index)} message={message} onAction={runAction} onApplicationAction={(action, decision) => applyApplicationAction(message.id, action, decision)} onSuggestionAction={(suggestion, action, details) => applyStateSuggestion(message.id, suggestion, action, details)} userMessage={findPreviousUserMessage(thread, index)} />)}
                 {requestActive ? <Thinking /> : null}
@@ -621,7 +675,7 @@ function AskPageContent() {
         </div>
       ) : null}
 
-      {historyOpen ? <RecentConversations conversations={conversations} error={conversationListError} onClose={() => setHistoryOpen(false)} onDelete={setDeleteTarget} onOpen={(id) => void openConversation(id)} onRename={(item) => { setRenameTarget(item); setRenameDraft(item.title); }} onRetry={() => void refreshConversations()} /> : null}
+      {historyOpen ? <RecentConversations conversations={conversations} error={conversationListError} onClose={() => setHistoryOpen(false)} onDelete={setDeleteTarget} onOpen={(id) => void openConversation(id)} onRename={(item) => { setRenameTarget(item); setRenameDraft(item.title); }} onRetry={() => void refreshConversations().catch(() => undefined)} hasMore={Boolean(historyCursor)} loading={historyLoading} onLoadMore={() => void refreshConversations(historyCursor).catch(() => undefined)} /> : null}
       {pendingNewQuestion ? <ConfirmDialog description={`Your current conversation will stay in ${petName}\u2019s history.`} onCancel={() => setPendingNewQuestion(false)} onConfirm={startNewQuestion} title="Start a new question?" confirmLabel="Start new question" cancelLabel="Keep writing" /> : null}
       {renameTarget ? <RenameDialog loading={false} onCancel={() => setRenameTarget(null)} onChange={setRenameDraft} onConfirm={() => void renameConversation()} value={renameDraft} /> : null}
       {deleteTarget ? <ConfirmDialog description={`Delete \u201c${deleteTarget.title}\u201d? This cannot be undone.`} onCancel={() => setDeleteTarget(null)} onConfirm={() => void deleteConversation()} title="Delete conversation?" confirmLabel="Delete" cancelLabel="Cancel" danger /> : null}
@@ -732,7 +786,7 @@ function ApplicationActionCard({ action, onAction }: { action: FurviseApplicatio
     <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{action.description}</p>
     {needsConfirmation && !confirming ? <button className={`${destructive ? quietButton : secondaryButton} mt-3 ${destructive ? "text-[var(--danger-text)]" : ""}`} disabled={busy} onClick={() => setConfirming(true)} type="button">Review action</button> : <div className="mt-3 flex flex-wrap gap-2">
       <button className={destructive ? dangerButton : secondaryButton} disabled={busy} onClick={() => void decide("confirm")} type="button">{busy ? "Working..." : needsConfirmation ? "Confirm" : action.label}</button>
-      {needsConfirmation ? <button className={quietButton} disabled={busy} onClick={() => confirming ? setConfirming(false) : void decide("cancel")} type="button">Cancel</button> : null}
+      {needsConfirmation ? <button className={quietButton} disabled={busy} onClick={() => void decide("cancel")} type="button">Cancel</button> : null}
     </div>}
   </div>;
 }
@@ -799,9 +853,9 @@ function CompactPetSelector({ activeProfile, disabled, onChange, profiles, selec
   return <div className="mb-4 flex flex-wrap items-center gap-2 border-y border-[var(--line)] py-3">{profiles.length > 1 ? <select aria-label="Pet" className="min-h-10 rounded-lg border border-[var(--input-border)] bg-[var(--input-background)] px-3 text-sm font-semibold text-[var(--text-primary)]" disabled={disabled} id="ask-pet-select" onChange={(event) => onChange(event.target.value)} value={selectedPet}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{formatPetDisplayName(profile.name)}</option>)}</select> : <span className="text-sm font-semibold text-[var(--text-primary)]">{name}</span>}<span className="text-sm text-[var(--text-tertiary)]">· {formatSpecies(activeProfile.species)}{formatAge(activeProfile) ? ` · ${formatAge(activeProfile)}` : ""}{status === "deceased" ? " · Passed away" : status === "archived" ? " · Archived" : ""}</span></div>;
 }
 
-function RecentConversations({ conversations, error, onClose, onDelete, onOpen, onRename, onRetry }: { conversations: AskConversationSummary[]; error: string; onClose: () => void; onDelete: (item: AskConversationSummary) => void; onOpen: (id: string) => void; onRename: (item: AskConversationSummary) => void; onRetry: () => void }) {
+function RecentConversations({ conversations, error, onClose, onDelete, onOpen, onRename, onRetry, hasMore, loading, onLoadMore }: { hasMore: boolean; loading: boolean; onLoadMore: () => void; conversations: AskConversationSummary[]; error: string; onClose: () => void; onDelete: (item: AskConversationSummary) => void; onOpen: (id: string) => void; onRename: (item: AskConversationSummary) => void; onRetry: () => void }) {
   useEffect(() => { const closeOnEscape = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") onClose(); }; window.addEventListener("keydown", closeOnEscape); return () => window.removeEventListener("keydown", closeOnEscape); }, [onClose]);
-  return <div className="fixed inset-0 z-[var(--z-dialog)] flex justify-end bg-[var(--pw-overlay)]" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><aside aria-label="Conversations" aria-modal="true" className="h-full w-full max-w-md overflow-y-auto bg-[var(--pw-surface)] p-5 shadow-2xl" role="dialog"><div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-semibold text-[var(--pw-heading)]">Conversations</h2><p className="mt-1 text-sm text-[var(--pw-muted)]">Open a past question and answer.</p></div><button aria-label="Close conversations" className={quietButton} onClick={onClose} type="button">Close</button></div>{error ? <div className="mt-5 rounded-xl border border-[var(--pw-warning-border)] p-3 text-sm text-[var(--pw-warning-text)]" role="status"><p>{error}</p><button className={`${quietButton} mt-2`} onClick={onRetry} type="button">Retry</button></div> : null}{conversations.length ? <ul className="mt-6 divide-y divide-[var(--pw-border)]">{conversations.map((item) => <li className="py-4" key={item.id}><button className="w-full text-left" onClick={() => onOpen(item.id)} type="button"><span className="block font-semibold text-[var(--pw-heading)]">{item.title}</span><span className="mt-1 block text-xs font-medium text-[var(--pw-subtle)]">{formatPetDisplayName(item.petName)} · {formatConversationDate(item.lastActivityAt)}</span><span className="mt-2 block line-clamp-2 text-sm leading-6 text-[var(--pw-muted)]">{item.preview}</span></button><div className="mt-2 flex gap-3"><button className={quietButton} onClick={() => onOpen(item.id)} type="button">Open</button><button className={quietButton} onClick={() => onRename(item)} type="button">Rename</button><button className={`${quietButton} text-[var(--pw-danger-text)]`} onClick={() => onDelete(item)} type="button">Delete</button></div></li>)}</ul> : !error ? <WorkflowEmptyState title="No conversations yet." text="Questions and things you tell Furvise will show up here." /> : null}</aside></div>;
+  return <div className="fixed inset-0 z-[var(--z-dialog)] flex justify-end bg-[var(--pw-overlay)]" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><aside aria-label="Conversations" aria-modal="true" className="h-full w-full max-w-md overflow-y-auto bg-[var(--pw-surface)] p-5 shadow-2xl" role="dialog"><div className="flex items-center justify-between gap-4"><div><h2 className="text-xl font-semibold text-[var(--pw-heading)]">Conversations</h2><p className="mt-1 text-sm text-[var(--pw-muted)]">Open a past question and answer.</p></div><button aria-label="Close conversations" className={quietButton} onClick={onClose} type="button">Close</button></div>{error ? <div className="mt-5 rounded-xl border border-[var(--pw-warning-border)] p-3 text-sm text-[var(--pw-warning-text)]" role="status"><p>{error}</p><button className={`${quietButton} mt-2`} onClick={onRetry} type="button">Retry</button></div> : null}{conversations.length ? <ul className="mt-6 divide-y divide-[var(--pw-border)]">{conversations.map((item) => <li className="py-4" key={item.id}><button className="w-full text-left" onClick={() => onOpen(item.id)} type="button"><span className="block font-semibold text-[var(--pw-heading)]">{item.title}</span><span className="mt-1 block text-xs font-medium text-[var(--pw-subtle)]">{formatPetDisplayName(item.petName)} · {formatConversationDate(item.lastActivityAt)}</span><span className="mt-2 block line-clamp-2 text-sm leading-6 text-[var(--pw-muted)]">{item.preview}</span></button><div className="mt-2 flex gap-3"><button className={quietButton} onClick={() => onOpen(item.id)} type="button">Open</button><button className={quietButton} onClick={() => onRename(item)} type="button">Rename</button><button className={`${quietButton} text-[var(--pw-danger-text)]`} onClick={() => onDelete(item)} type="button">Delete</button></div></li>)}</ul> : !error ? <WorkflowEmptyState title="No conversations yet." text="Questions and things you tell Furvise will show up here." /> : null}{hasMore ? <button className={`${secondaryButton} mt-4`} disabled={loading} onClick={onLoadMore} type="button">{loading ? "Loading..." : "Load older conversations"}</button> : null}</aside></div>;
 }
 
 function ConfirmDialog({ cancelLabel, confirmLabel, danger = false, description, onCancel, onConfirm, title }: { cancelLabel: string; confirmLabel: string; danger?: boolean; description: string; onCancel: () => void; onConfirm: () => void; title: string }) {
@@ -898,7 +952,10 @@ function updateMessageSuggestionIfSaving(thread: ConversationMessage[], messageI
     : item);
 }
 async function conversationJson(url: string, init: RequestInit = {}) { const token = await getAskAuthToken(); if (!token) throw new Error("Please sign in again."); const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) }; const method = (init.method || "GET").toUpperCase(); const response = method === "GET" ? await fetch(url, { ...init, headers }) : await idempotentClientFetch(url, { ...init, headers }, `conversation:${method}:${url}`); if (response.status === 204) return {}; const payload = await response.json().catch(() => null) as { error?: string } | null; if (!response.ok) throw new Error(payload?.error || "Conversation history is temporarily unavailable."); return payload || {}; }
-async function fetchConversationList() { const payload = await conversationJson("/api/ask/conversations") as { conversations?: AskConversationSummary[] }; return payload.conversations || []; }
+async function fetchConversationList(cursor: string | null = null) {
+  const payload = await conversationJson(`/api/ask/conversations${cursor ? `?after=${encodeURIComponent(cursor)}` : ""}`) as { conversations?: AskConversationSummary[]; nextCursor?: string | null };
+  return { conversations: payload.conversations || [], nextCursor: payload.nextCursor || null };
+}
 async function fetchAskUsage() { try { const token = await getAskAuthToken(); if (!token) return null; const response = await fetch("/api/ask", { headers: { Authorization: `Bearer ${token}` }, method: "GET" }); const payload = await response.json().catch(() => null) as { usage?: AskUsageStatus | null } | null; return response.ok && payload?.usage ? payload.usage : null; } catch { return null; } }
 function Status({ action, text, tone = "neutral" }: { action?: { label: string; onClick: () => void }; text: string; tone?: "neutral" | "warn" }) { return <div className={`mx-auto mt-5 flex max-w-[78rem] items-center justify-between gap-3 border-y px-1 py-3 text-sm leading-6 ${tone === "warn" ? "border-[var(--pw-warning-border)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] text-[var(--pw-muted)]"}`} role="status"><span>{text}</span>{action ? <button className={secondaryButton} onClick={action.onClick} type="button">{action.label}</button> : null}</div>; }
 

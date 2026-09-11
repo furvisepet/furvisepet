@@ -17,19 +17,35 @@ import { beginIdempotentRateLimitedOperation } from "../../../lib/security/idemp
 export async function GET(request: Request) {
   const context = await getAskConversationRequestContext(request);
   if ("response" in context) return context.response;
-  const petId = new URL(request.url).searchParams.get("pet") || "";
+  const search = new URL(request.url).searchParams;
+  const petId = search.get("pet") || "";
+  let cursor: { id: string; at: string } | null = null;
+  if (search.has("after")) {
+    try {
+      const encoded = search.get("after") || "";
+      if (encoded.length > 256) throw new Error("cursor");
+      const value = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+      if (!value || !isUuid(value.id) || typeof value.at !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value.at) || !Number.isFinite(Date.parse(value.at))) throw new Error("cursor");
+      cursor = { id: value.id, at: value.at };
+    } catch { return Response.json({ error: "That history page is invalid." }, { status: 400 }); }
+  }
   if (petId && !isUuid(petId)) return Response.json({ error: "That pet identifier is invalid." }, { status: 400 });
   let query = context.supabase
     .from("ask_conversations")
-    .select("id, user_id, pet_profile_id, title, preview, status, last_activity_at, dog_profiles(name), ask_conversation_messages!inner(id, role)")
+    .select("id, user_id, pet_profile_id, title, preview, status, last_activity_at, dog_profiles(name)")
     .eq("user_id", context.userId)
-    .eq("ask_conversation_messages.role", "furvise")
     .order("last_activity_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(40);
+  if (cursor) query = query.or(`last_activity_at.lt.${cursor.at},and(last_activity_at.eq.${cursor.at},id.lt.${cursor.id})`);
   if (petId) query = query.eq("pet_profile_id", petId);
   const { data, error } = await query.returns<AskConversationRow[]>();
   if (error) return Response.json({ error: "Recent conversations are temporarily unavailable." }, { status: 503 });
-  return Response.json({ conversations: (data || []).map(toConversationSummary) });
+  const rows = data || [];
+  const last = rows.at(-1);
+  const nextCursor = rows.length === 40 && last
+    ? Buffer.from(JSON.stringify({ at: last.last_activity_at, id: last.id })).toString("base64url") : null;
+  return Response.json({ conversations: rows.map(toConversationSummary), nextCursor });
 }
 
 export async function POST(request: Request) {
@@ -60,13 +76,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "A complete conversation is required." }, { status: 400 });
   }
 
-  const { data: profile } = await context.supabase
+  const { data: profile, error: profileError } = await context.supabase
     .from("dog_profiles")
     .select("id, name, lifecycle_status")
     .eq("id", petId)
     .eq("user_id", context.userId)
     .neq("lifecycle_status", "archived")
     .maybeSingle<{ id: string; name: string | null; lifecycle_status: string }>();
+  if (profileError) return Response.json({ error: "That pet profile could not be loaded." }, { status: 503 });
   if (!profile) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
 
   const gate = await beginIdempotentRateLimitedOperation({ operationType: "conversation.create", payload: { legacyMessages, petId, question, response }, policy: "CONVERSATION_WRITE", request, route: "/api/ask/conversations", supabase: context.supabase, userId: context.userId });

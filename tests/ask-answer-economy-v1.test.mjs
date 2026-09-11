@@ -106,7 +106,8 @@ test("generation, orchestration, and UI share economy policy without touching re
   const page = read("app/ask/page.tsx");
   assert.match(reasoning, /answerEconomy/);
   assert.match(reasoning, /applyAskAnswerEconomy/);
-  assert.match(orchestrator, /answerDepth\.allowsAutomaticHistory/);
+  assert.doesNotMatch(orchestrator, /answerDepth\.allowsAutomaticHistory/);
+  assert.match(orchestrator, /allowsHistorySuggestions/);
   assert.match(page, /Optional care-history save/);
   assert.match(page, /p-3\.5 sm:max-w-3xl sm:p-4/);
   assert.match(route, /deriveAskAttemptId\(logicalTurnId, idempotency\.operation\.ownerToken\)/);

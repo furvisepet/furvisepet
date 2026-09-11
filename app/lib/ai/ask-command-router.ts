@@ -35,8 +35,13 @@ export function planDeterministicAskCommand(message: string, petName: string): D
     };
   }
 
-  if (!/^(?:please\s+)?(?:open|show|view|go\s+to)\b/iu.test(normalized)) return null;
-  const matches = navigationTargets.filter((target) => target.pattern.test(normalized));
+  // Only consume a complete navigation command. Remaining clauses and other
+  // named subjects belong to interpretation, where all obligations are kept.
+  const navigation = /^(?:please\s+)?(?:open|show|view|go\s+to)\s+(.+?)(?:\s+please)?[.!?]*$/iu.exec(normalized);
+  if (!navigation) return null;
+  const escapedPetName = petName.normalize("NFKC").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const object = navigation[1].replace(new RegExp(`^(?:(?:the|my|his|her|their|its|our)\\s+|${escapedPetName}['’]s\\s+)`, "iu"), "");
+  const matches = navigationTargets.filter((target) => new RegExp(`^(?:${target.pattern.source})$`, "iu").test(object));
   if (matches.length !== 1) return null;
   const target = matches[0];
   return {
