@@ -443,7 +443,8 @@ test("writer-created unprefixed symptom episode remains eligible for grounded da
   assert.equal(result.accepted.length,1,JSON.stringify(result.rejected));
   assert.equal(result.accepted[0].event.references.episodeId,active.id);
   assert.equal(result.accepted[0].event.temporal.occurredAt,"2024-02-03T00:00:00Z");
-  for(const patch of [{activeEpisodes:[{...active,episode_type:"care_tracking"}]},
+  for(const patch of [{activeEpisodes:[active,{...active,id:"another",normalized_key:"health_vomiting"}]},
+    {activeEpisodes:[{...active,episode_type:"care_tracking"}]},
     {activeEpisodes:[{...active,summary:{semanticDomain:"safety"}}]},
     {allowTerminalResolution:false},
     {recoveryAssessment:recoveryAssessment("uncertain",.5,source,"uncertain")}]) {
