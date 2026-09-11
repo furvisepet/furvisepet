@@ -25,7 +25,7 @@ import { governSemanticTurnV2 } from "./v2/governance/govern-turn.ts";
 import { projectGovernedPreferencesToLegacyMemories } from "./v2/projections/legacy-memory.ts";
 import { memoryDisplayContent } from "./memory-integrity.ts";
 import { normalizeKnownPreferenceMemory, preferenceSemanticIdentity } from "./preference-semantics.ts";
-import { buildExplicitCareHistoryAction, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
+import { buildExplicitCareHistoryAction, omitGovernedCareSaveDuplicates, prepareGovernedCareHistoryAction } from "./care-history-policy.ts";
 import { buildConfirmedLossCareAction, resolvePetLossContext } from "../ai/pet-loss.ts";
 import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } from "../ai/concern-engine.ts";
 import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
@@ -299,6 +299,9 @@ export async function runFurviseIntelligence({
       && (!projectedPreferenceIdentities.has(learningPreferenceIdentity(item)) || !isPreferenceLearning(item))),
     ...projectedPreferences,
   ]);
+  if (hasOwnedPetSubject && authoritativePetIds.length === 1) reasoning.applicationActions = omitGovernedCareSaveDuplicates({
+    actions: reasoning.applicationActions, events: acceptedSemanticEvents, message: context.currentMessage, petId: authoritativePetIds[0],
+  });
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
   await reviewHistoricalAnswer({ result: reasoning, onProviderEvent });

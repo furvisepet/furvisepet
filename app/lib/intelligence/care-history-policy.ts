@@ -1,3 +1,4 @@
+import type { ModelApplicationAction } from "../application-actions/types.ts";
 import type { CareEntryRow, DogProfileRow } from "../supabase.ts";
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { isPetObservationEvidence } from "../ai/recovery-subject.ts";
@@ -32,6 +33,23 @@ export type CareHistorySaveDecision = { eligible: boolean; reason: string; expli
 
 export function isExplicitCareHistorySaveRequest(message: string) {
   return explicitSavePattern.test(clean(message));
+}
+
+/** Remove only an exact duplicate proposal already represented by a governed
+ * explicit save. Run before answer review; persistence still owns the receipt. */
+export function omitGovernedCareSaveDuplicates(input: {
+  actions: ModelApplicationAction[];
+  events: readonly GovernedCanonicalEvent[];
+  message: string;
+  petId: string;
+}) {
+  if (!isExplicitCareHistorySaveRequest(input.message)) return input.actions;
+  const details = new Set(input.events.filter(item => item.destinations.includes("care_event")
+    && item.event.subject.type === "pet" && item.event.subject.id === input.petId
+    && item.event.domain === "health").map(item => item.event.sourceExcerpt.trim()).filter(Boolean));
+  return input.actions.filter(action => !(action.kind === "care_history.add"
+    && (action.input.category === null || action.input.category === "health")
+    && action.input.target !== "last" && details.has(action.input.detail?.trim() || "")));
 }
 
 export function evaluateCareHistorySaveWorthiness(input: {

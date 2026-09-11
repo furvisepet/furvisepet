@@ -2,7 +2,7 @@ import type { PipelineStage } from "../execution-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
 
-export type ProviderCallPurpose = "interpretation_repair" | "history_review" | "history_repair" | "history_rereview"
+export type ProviderCallPurpose = "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview"
   | "task_review" | "task_repair" | "task_rereview";
 /** Both answer routes share one review/repair allowance, never two budgets. */
 export function canonicalReviewPurpose(purpose?: ProviderCallPurpose) {
