@@ -11,7 +11,13 @@ test("Today pet context includes known sex and omits unknown fields", () => {
   assert.equal(formatTodayPetContext({ age_unit: "months", age_value: 1, name: "Milo", sex: "male", species: "dog" }), "Milo · Dog · Male · 1 month");
 });
 
-test("Today timeline dates include human-readable local time", () => {
+test("Today timeline dates include human-readable local time", context => {
+  const previousTimezone = process.env.TZ;
+  context.after(() => { if (previousTimezone === undefined) delete process.env.TZ; else process.env.TZ = previousTimezone; });
+  for (const zone of ['America/Los_Angeles', 'Pacific/Kiritimati']) {
+    process.env.TZ=zone;
+    assert.equal(formatTodayTimelineDate('2026-09-01T00:00:00Z',undefined,{source:'ask_furvise',sourceNoteIndex:1,sourceNoteCount:4}),'Sep 1, 2026');
+  }
   const now = new Date("2026-08-31T12:00:00");
   assert.match(formatTodayTimelineDate("2026-08-31T08:00:00", now), /^Today, /);
   assert.match(formatTodayTimelineDate("2026-08-30T08:00:00", now), /^Yesterday, /);
