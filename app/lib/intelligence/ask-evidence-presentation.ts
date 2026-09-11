@@ -20,7 +20,9 @@ export function reviewedTaskPresentationFailure(evidence: AskEvidenceContract | 
   const failure = answerIntegrityFailure(reviewed.answer, answer);
   if (failure) return `task_${failure}`;
   const actual = actions.map(actionIdentity);
-  return reviewed.actions.some(action => !actual.includes(action)) ? "task_action_missing_or_changed" : null;
+  // Compare multiplicity too: adding an unreviewed action or duplicating a
+  // reviewed one changes the task. Receipt status is deliberately not identity.
+  return JSON.stringify([...reviewed.actions].sort()) !== JSON.stringify(actual.sort()) ? "task_action_missing_or_changed" : null;
 }
 
 /** Only the completed validation callback can register a presentation. Model

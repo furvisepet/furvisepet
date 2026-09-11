@@ -366,13 +366,21 @@ test("non-echo answers and real clarification needs are not overwritten", () => 
   assert.equal(isUselessQuestionEcho("Which leg is injured?", "Do you mean the front or back leg?", "Mani"), false);
 });
 
-test("provider completion, credits, and idempotent replay are tied to durable assistant persistence", () => {
+test("provider completion, credits, and idempotent replay are tied to durable assistant persistence", async () => {
   assert.match(route, /operationType: "ask\.submit\.persisted_answer_v2"/);
   assert.match(route, /completed response replayed after canonical identity validation/);
   assert.match(route, /user message reused/);
   assert.match(route, /const persistedResponse = await persistAssistantAnswer/);
   assert.match(route, /finalizeAiAdmissionAfterPersistence/);
-  assert.match(readFileSync(new URL("../app/lib/ai/ask-admission-settlement.ts", import.meta.url), "utf8"), /if \(!response\.ok\)[\s\S]*failAiAdmission\([\s\S]*ASK_ANSWER_NOT_PERSISTED/);
+  const { createAskAdmissionSettlement } = await import('../app/lib/ai/ask-admission-settlement.ts');
+  const calls = [];
+  const admission = { complete: async () => calls.push('complete'), fail: async error => calls.push(error.message) };
+  const settlement = createAskAdmissionSettlement(() => {});
+  for (const [status, outcome] of [[503, 'complete'], [200, 'limited'], [200, 'complete']]) {
+    await settlement.finalizeAiAdmissionAfterPersistence({ admission, alreadyFinalized: false,
+      requestId: 'fixture', response: new Response(null, { status }), assessment: { outcome } });
+  }
+  assert.deepEqual(calls, ['ASK_ANSWER_NOT_PERSISTED', 'ASK_ANSWER_LIMITED', 'complete']);
   assert.match(route, /if \(creditReserved\) \{[\s\S]{0,260}safeReleaseAiCredit/);
   assert.match(route, /completeAskConversationTurn\(\{[\s\S]{0,500}requestId,/);
 });

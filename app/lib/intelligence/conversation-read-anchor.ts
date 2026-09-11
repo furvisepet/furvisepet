@@ -1,6 +1,6 @@
 import { analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { explicitlyNamedOwnedPets } from "./entities/resolve-turn-subject.ts";
-import { explicitHistoryDays } from "./history-dates.ts";
+import { explicitHistoryDays, explicitHistoryDayWindow } from "./history-dates.ts";
 import { explicitHistoryMonths } from "./history-dates.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import type { FurviseLiveContext } from "./types.ts";
@@ -13,6 +13,11 @@ const reference = (text: string) => /\b(?:that|those|these|same|their|then|later
 const reset = (text: string) => /\b(?:fictional|hypothetical|instead|new question|unrelated)\b/i.test(text);
 const plural = (text: string) => /\b(?:those|these|their|both)\b|\bthe\s+(?:two|three)\s+(?:pets?|animals?)\b/i.test(text);
 const unique = (ids: readonly string[]) => [...new Set(ids)];
+function readDays(text: string) {
+  const iso = [...text.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].map(match => explicitHistoryDayWindow(match[0])?.from ?? null);
+  return { invalid: iso.includes(null), days: unique([...explicitHistoryDays(text, new Date().getUTCFullYear(), 8),
+    ...iso.filter((day): day is string => day !== null)]) };
+}
 /** Reconstruct a bounded server-owned scope from USER turns. Assistant statements
  * never supply identity, dates, measurements or write authority. No DB migration
  * is needed; reconstruction uses the same persisted turn sequence as the read. */
@@ -24,7 +29,8 @@ export function reconstructConversationReadScope(context: Context): Conversation
     const text = turn.text.trim();
     if (reset(text) || analyzeOwnerAssertions(text).hasOwnerAssertion) { scope = null; continue; }
     const names = explicitlyNamedOwnedPets(text, owned).map(p => p.id);
-    const days = explicitHistoryDays(text, new Date().getUTCFullYear(), 8);
+    const { days, invalid } = readDays(text);
+    if (invalid) { scope = null; continue; }
     const anchors = unique(days.length ? days : explicitHistoryMonths(text));
     if (anchors.length) {
       scope = anchors.length === 1 && names.length ? { version: "read-scope.v1", activePetIds: names,
@@ -44,8 +50,8 @@ export function reconstructConversationReadScope(context: Context): Conversation
 export function conversationReadAnchor(context: Context) {
   const text = context.currentMessage.trim();
   if (analyzeOwnerAssertions(text).hasOwnerAssertion || !reference(text) || reset(text)) return null;
-  const days = explicitHistoryDays(text, new Date().getUTCFullYear(), 8);
-  if (days.length || explicitHistoryMonths(text).length) return null;
+  const { days, invalid } = readDays(text);
+  if (invalid || days.length || explicitHistoryMonths(text).length) return null;
   const scope = reconstructConversationReadScope(context);
   if (!scope) return null;
   const owned = context.eligiblePets.filter(p => p.user_id === context.owner.userId);

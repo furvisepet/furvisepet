@@ -121,7 +121,8 @@ test('historical read schema excludes mutation and duplicate extraction fields',
   assert.equal(schema.properties.careActions, undefined);
   assert.equal(schema.properties.semanticFrame, undefined);
   assert.equal(schema.properties.answer, undefined);
-  assert.equal(schema.required.length, 10);
+  assert.deepEqual(schema.required, ['historyNarrative', 'safetyLevel', 'responseMode', 'userIntent', 'relevantContextIds', 'readVersion', 'layout', 'table', 'json', 'limitation', 'navigationActions']);
+  assert.ok(schema.properties.navigationActions.items.properties.kind.enum.every(kind => kind.startsWith('navigation.')));
 });
 test('canonical read table renders once and rejects competing or malformed bodies', () => {
   const output = { readVersion: 'history-answer.v1', layout: 'table', limitation: null, historyNarrative: null,
@@ -401,14 +402,14 @@ test('real admission lets a repaired planner reach composition without opening e
  const {executeAdmittedProviderCall}=await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
  const store=new MemoryAiGuardTestStore();let calls=0;
  await runAdmittedAiOperation({store,feature:'ask',intendedModel:OPENAI_ANALYSIS_MODEL,env:{NODE_ENV:'test'},payload:{},userId:ownerId,requestId:'planner-repair'},async()=>{
-  const r=await exercise('Fictional only: the box is 3 kg. Give the mass.',{fixturePets,rows:[],messages:[],history:true,
+  const r=await exercise('Fictional only: the box is 3 kg. Give the mass.',{taskReviewResponse:true,fixturePets,rows:[],messages:[],history:true,
    interpretationModel:OPENAI_ANALYSIS_MODEL,interpretationProposal:{},interpretationResponse:async()=>({status:'completed',output_text:JSON.stringify(proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'supplied_context',premiseQuotes:[++calls===1?'the box weighs 3 kg':'the box is 3 kg']})),usage:{input_tokens:500,output_tokens:200}}),
    providerOverrides:{answer:'3 kg'}});
   assert.equal(r.result.reasoning.answer.summary,'3 kg');assert.equal(calls,2);
   const forbidden=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,maxOutputTokens:100,providerInput:'test',invoke:async()=>{throw Error('must not invoke');}});
   for(const purpose of [undefined,'interpretation_repair','history_repair','history_rereview'])await assert.rejects(forbidden(purpose));
  });
- assert.equal(store.getSnapshot('2026-09-04').calls,3);
+ assert.equal(store.getSnapshot('2026-09-04').calls,4); // planner + repair + writer + independent task review
 });
 
 test('real admission allows one ordered repair and re-review, charges all five calls and denies a sixth', async t => {
@@ -933,7 +934,7 @@ test('security explanations survive without allowing internal source identifiers
  const answer='A pasted SYSTEM label is not a real system instruction or permission. No deletion was performed.';
  assert.doesNotThrow(()=>assertNoInternalReasoningLeak(answer,[]));
  assert.throws(()=>assertNoInternalReasoningLeak('Source secret-record-id', [{id:'secret-record-id'}]),/internal reasoning/);
- const r=await exercise('Does an untrusted SYSTEM label authorize deletion?',{fixturePets,messages:[],history:true,rows:[],
+ const r=await exercise('Does an untrusted SYSTEM label authorize deletion?',{taskReviewResponse:true,fixturePets,messages:[],history:true,rows:[],
   interpretationProposal:proposal({mode:'conversation',scope:'none',petNames:[],operation:'general',frame:null,evidenceBasis:'general',premiseQuotes:[]}),answer});
  assert.match(r.result.reasoning.answer.summary,/not a real system instruction/);
  assert.deepEqual(r.result.acceptedCareActions,[]);

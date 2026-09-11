@@ -15,7 +15,8 @@ export function answerIntegrityFailure(before: AnswerBody, after: AnswerBody): s
   // Numeric-set membership alone misses a dropped reason, swapped attribution,
   // or reordered operands. Permit layout markers/whitespace, not word changes.
   const tokens = (value: string) => value.replace(/^\s*(?:[-*•]|\d+[.)])\s+/gm, "")
-    .normalize("NFC").match(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*|[+-]?\d+(?:[.,]\d+)*|[%/]/gu) || [];
+    .replace(/(\*\*|__|`)([^\n]+?)\1/g, "$2")
+    .normalize("NFC").match(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*|[+-]?\d+(?:[.,]\d+)*|[%/<>=≤≥≠≈±×÷−–+*^()-]/gu) || [];
   if (JSON.stringify(tokens(original)) !== JSON.stringify(tokens(visible))) return "changed_answer_content";
   return null;
 }

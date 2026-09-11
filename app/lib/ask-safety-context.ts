@@ -1,4 +1,5 @@
-import { safetyTemporalScope } from "./ai/safety-temporal-scope.ts";
+import { safetyTemporalScope, currentSafetyClauses } from "./ai/safety-temporal-scope.ts";
+import { analyzeOwnerAssertions } from "./ai/owner-assertion.ts";
 import type { CareEntryRow } from "./supabase";
 import type { ProposedSemanticFrame } from "./intelligence/semantic-frame/types.ts";
 
@@ -175,12 +176,46 @@ export function detectAskConcernTags(value: string): AskConcernTag[] {
 }
 
 export function detectImmediateAskEmergency(value: string): ImmediateAskEmergency | null {
-  const message = safetyTemporalScope(value).currentText.trim().replace(/\s+/g, " ").replace(/\bcant\b/gi, "cannot");
+  const current = currentSafetyClauses(value.replace(/\bcant\b/gi, "cannot"));
+  const message = current.map(clause => clause.text).join(" ").trim().replace(/\s+/g, " ");
   if (!message || generalEmergencyDiscussionPattern.test(message)) return null;
-  if (explicitNonPetSubjectPattern.test(message) && !explicitPetSubjectPattern.test(message)) return null;
-  const tags = immediateEmergencyPatterns
-    .filter(({ pattern, tag }) => pattern.test(message) && !hasImmediateEmergencyResolution(message, tag))
-    .map(({ tag }) => tag);
+  // Safety triage has no selected-pet identity. Track surface subjects only to
+  // prevent one animal's recovery (or a human clause) suppressing another's
+  // emergency. These labels grant neither ownership nor write authority.
+  const active = new Map<string, Set<ImmediateAskEmergency["tags"][number]>>();
+  let subject = "unspecified";
+  let human = false;
+  const clauses = current.flatMap(clause =>
+    clause.text.split(/\s+(?:and|but)\s+/i));
+  for (const [index, clause] of clauses.entries()) {
+    const text = clause.replace(/^(?:(?:now|today|currently|then)\s*,?\s*)+/i, "");
+    const named = /^([\p{L}\p{M}'’ -]{1,80}?)\s+(?:is|are|was|were|has|had|can|cannot|can't|won't|will|stopped|collapsed?|became|started)\b/iu.exec(text)?.[1].toLowerCase();
+    if (named && !/^(?:he|she|they|it)$/.test(named)) {
+      subject = named;
+      human = explicitNonPetSubjectPattern.test(text) && !explicitPetSubjectPattern.test(text);
+    } else if (explicitNonPetSubjectPattern.test(text) && !explicitPetSubjectPattern.test(text)) {
+      subject = "human"; human = true;
+    } else if (!named && !/^(?:he|she|they|it|is|are|was|were|has|had|can|cannot|can't|stopped|no longer|not seizing|not bleeding|breathing|seizure|bleeding|gasping)\b/i.test(text)) {
+      // An unrecognized intervening noun/statement breaks pronoun continuity.
+      // Keep prior emergencies rather than guessing that its recovery is theirs.
+      subject = `unresolved:${index}`; human = false;
+    }
+    if (human) continue;
+    const tags = active.get(subject) || new Set<ImmediateAskEmergency["tags"][number]>();
+    for (const { tag, pattern } of immediateEmergencyPatterns) {
+      const emergency = pattern.exec(text);
+      const recovery = immediateEmergencyResolution(text, tag);
+      const analysis = analyzeOwnerAssertions(recovery ? text.replace(recovery[0], "recovered") : text).clauseSpans;
+      // A negated/uncertain recovery cannot clear a current report. When both
+      // occur, their order matters; a later recurrence must win.
+      const resolved = recovery && analysis.length > 0 && analysis.every(span => span.isCertain && !span.isNegated)
+        && (!emergency || recovery.index > emergency.index || recovery[0].includes(emergency[0]));
+      if (resolved) tags.delete(tag);
+      else if (emergency) tags.add(tag);
+    }
+    active.set(subject, tags);
+  }
+  const tags = [...new Set([...active.values()].flatMap(tags => [...tags]))];
   return tags.length ? { tags: [...new Set(tags)] } : null;
 }
 
@@ -219,11 +254,11 @@ export function buildImmediateEmergencyGuidance(emergency: ImmediateAskEmergency
   };
 }
 
-function hasImmediateEmergencyResolution(message: string, tag: ImmediateAskEmergency["tags"][number]) {
-  if (tag === "breathing_difficulty") return /\b(breathing (?:normally|is normal)|can breathe normally|no longer (?:gasping|struggling to breathe))\b/i.test(message);
-  if (tag === "collapse") return /\b(responsive again|conscious again|woke up|back to normal|fully recovered)\b/i.test(message);
-  if (tag === "seizure") return /\b(no longer seizing|not seizing|seizure (?:has )?stopped|stopped seizing)\b/i.test(message);
-  return /\b(no longer bleeding|not bleeding|bleeding (?:has )?stopped|stopped bleeding)\b/i.test(message);
+function immediateEmergencyResolution(message: string, tag: ImmediateAskEmergency["tags"][number]) {
+  if (tag === "breathing_difficulty") return /\b(breathing (?:normally|is normal)|can breathe normally|no longer (?:gasping|struggling to breathe))\b/i.exec(message);
+  if (tag === "collapse") return /\b(responsive again|conscious again|woke up|back to normal|fully recovered)\b/i.exec(message);
+  if (tag === "seizure") return /\b(no longer seizing|not seizing|seizure (?:has )?stopped|stopped seizing)\b/i.exec(message);
+  return /\b(no longer bleeding|not bleeding|bleeding (?:has )?stopped|stopped bleeding)\b/i.exec(message);
 }
 
 export function formatConcernTag(tag: AskConcernTag) {
