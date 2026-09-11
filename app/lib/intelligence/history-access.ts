@@ -67,3 +67,11 @@ export function enforceAskHistoryAccess(context: FurviseLiveContext): FurviseLiv
     ...(context.askHistory ? { askHistory: { ...context.askHistory, entries: care(context.askHistory.entries), originals: care(context.askHistory.originals) } } : {}),
   };
 }
+
+/** The episode database accepts paired bounds or an unbounded interval. The request date
+ * domain is 1900–2100; subscription scope is intersected before this boundary. */
+export function boundedEpisodePlan<T extends { from: string | null; to: string | null }>(plan: T, access?: AskHistoryAccess): T {
+  const clipped = clipHistoryPlan(plan, access);
+  if (clipped.from === null && clipped.to === null) return clipped;
+  return { ...clipped, from: clipped.from || "1900-01-01T00:00:00.000Z", to: clipped.to || "2100-01-01T00:00:00.000Z" };
+}

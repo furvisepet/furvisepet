@@ -31,7 +31,37 @@ import { buildSourceGroundedResolutionAction, isRecoveryGroundedForConcern } fro
 import { createAskEvidenceContract, type AskEvidenceContract } from "./ask-evidence.ts";
 import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 
+export type GovernedAskExecutionPlan = {
+  version: "ask-execution.v1"; sourceMessageId: string; petId: string;
+  careActions: AskReasoningResult["careActions"];
+  semanticEvents: ReturnType<typeof governCanonicalEvents>["accepted"];
+  learnings: AskReasoningResult["learnings"];
+};
+const issuedExecutionPlans = new WeakMap<GovernedAskExecutionPlan, string>();
+export function assertGovernedAskExecutionPlan(plan: GovernedAskExecutionPlan) {
+  if (issuedExecutionPlans.get(plan) !== JSON.stringify(plan)) throw new Error("ASK_EXECUTION_PLAN_CHANGED");
+}
+
+/** Normalize compatibility channels before review. Persistence consumes this
+ * exact plan, rather than choosing a different winner after approval. */
+export function buildGovernedAskExecutionPlan(input: Omit<GovernedAskExecutionPlan, "version">): GovernedAskExecutionPlan {
+  const events = input.semanticEvents.filter(item => item.destinations.some(d => ["care_event", "episode_current_state", "state_only"].includes(d)));
+  const seenPets = new Set<string>();
+  const executableEvents = events.filter(item => {
+    const id = item.event.subject.id || input.petId;
+    if (seenPets.has(id)) return false;
+    seenPets.add(id); return true;
+  });
+  const resolution = input.careActions.find(action => action.action === "resolve_concern" && action.relatedRecordId);
+  const plan: GovernedAskExecutionPlan = structuredClone({ version: "ask-execution.v1", sourceMessageId: input.sourceMessageId, petId: input.petId,
+    careActions: resolution ? [resolution] : events.length ? [] : input.careActions.slice(0, 1),
+    semanticEvents: resolution ? [] : executableEvents, learnings: input.learnings });
+  issuedExecutionPlans.set(plan, JSON.stringify(plan));
+  return plan;
+}
+
 export type FurviseIntelligenceResult = {
+  executionPlan: GovernedAskExecutionPlan;
   reasoning: AskReasoningResult;
   deterministicUnderstanding: ReturnType<typeof classifyMessageDeterministically>;
   safety: ReturnType<typeof resolveSafetyState>;
@@ -316,9 +346,11 @@ export async function runFurviseIntelligence({
   if (hasOwnedPetSubject && authoritativePetIds.length === 1) reasoning.applicationActions = omitGovernedCareSaveDuplicates({
     actions: reasoning.applicationActions, events: acceptedSemanticEvents, message: context.currentMessage, petId: authoritativePetIds[0],
   });
+  const executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id,
+    careActions: acceptedCareActions, semanticEvents: acceptedSemanticEvents, learnings: acceptedLearnings });
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
-  await reviewHistoricalAnswer({ result: reasoning, onProviderEvent });
+  await reviewHistoricalAnswer({ result: reasoning, onProviderEvent, executionPlan });
   let answerValidation = validateGeneratedAnswer(
     reasoning,
     context,
@@ -330,10 +362,11 @@ export async function runFurviseIntelligence({
     // Enumerated validator codes only; never include answer or source text.
     { code: `ASK_ANSWER_${answerValidation.errors[0] || "VALIDATION_FAILED"}`.toUpperCase() },
   );
-  answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId, onProviderEvent, pendingCareEvents: acceptedSemanticEvents,
+  answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId, onProviderEvent, pendingCareEvents: executionPlan.semanticEvents, pendingCareActions: executionPlan.careActions,
     validate: candidate => validateGeneratedAnswer(candidate, context, reasoning.intelligenceSafety.level,
       hasOwnedPetSubject ? authoritativePetIds : [context.pet.id]),
   });
+  assertGovernedAskExecutionPlan(executionPlan);
   Object.assign(reasoning, answerValidation.response);
   const shadow = buildShadowSemanticAnalysis({
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
@@ -361,6 +394,7 @@ export async function runFurviseIntelligence({
   });
   logSemanticTrace(shadow.trace);
   return {
+    executionPlan,
     reasoning,
     deterministicUnderstanding,
     safety,

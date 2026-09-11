@@ -1,3 +1,5 @@
+import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
+import { readReviewedHistoryAnswer } from "./history-review-state.ts";
 import type { HistoryCoverage } from "./history-retrieval.ts";
 
 export type EpisodeItem = {
@@ -70,11 +72,27 @@ export function episodeAnswer(result: EpisodeResult): { summary: string; section
 
 /** Called at the real persistence boundary after all response transformations.
  * Do not persist reference authority for a list that was replaced or omitted. */
-export function attachEpisodeReferences<T extends {directAnswer:string;sections?:unknown}>(response:T,result?:EpisodeResult): T & {episodeReferences?:EpisodeReferences} {
+export function attachEpisodeReferences<T extends {directAnswer:string;sections?:unknown}>(response:T,result?:EpisodeResult, reviewedResult?: AskReasoningResult): T & {episodeReferences?:EpisodeReferences} {
   const clean={...response};
   delete (clean as {episodeReferences?:unknown}).episodeReferences;
   if (!result?.references) return clean;
   const answer=episodeAnswer(result);
-  if (clean.directAnswer!==answer.summary || JSON.stringify(clean.sections)!==JSON.stringify(answer.sections)) return clean;
+  if (clean.directAnswer!==answer.summary || JSON.stringify(clean.sections)!==JSON.stringify(answer.sections)) {
+    const receipt = reviewedResult && readReviewedHistoryAnswer(reviewedResult);
+    // Only the original reviewed object can carry a projected reference. A
+    // selected target retains its previously validated list identity. A newly
+    // displayed list must contain the entire canonical ordering contiguously.
+    const canonicalList = answer.sections.flatMap(section => section.items).join("\n");
+    if (!receipt || reviewedResult?.evidenceContract?.episodes !== result
+      || clean.directAnswer !== receipt.text
+      || !(result.referenceStatus === "resolved" && result.references.selectedId
+        || result.referenceStatus === "list" && canonicalList && receipt.text.includes(canonicalList))) return clean;
+  }
   return {...clean,episodeReferences:result.references};
+}
+
+/** A server-derived result is factual input, never a mutation permission. */
+export function episodeResultText(result: EpisodeResult): string {
+  const answer = episodeAnswer(result);
+  return [answer.summary, ...answer.sections.flatMap(section => section.items)].join("\n");
 }

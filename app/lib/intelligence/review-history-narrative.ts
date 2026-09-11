@@ -1,3 +1,7 @@
+import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
+import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
+import type { GovernedAskExecutionPlan } from "./run-intelligence.ts";
+import { eligibleAnswerSources } from "./ask-evidence.ts";
 import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
 import { parseModelApplicationActions } from "../application-actions/contracts.ts";
 import { recordHistoryReviewDiagnostic } from "./history-review-state.ts";
@@ -22,7 +26,7 @@ import OpenAI from "openai";
 import { getAskModelConfiguration, assertNoInternalReasoningLeak, type AskReasoningResult, type AskProviderEvent } from "../ai/ask-reasoning.ts";
 import { boundedProviderTimeout, executeAdmittedProviderCall } from "../ai/usage-guard/provider-call-budget.ts";
 import { interpretStructuredProviderResponse } from "../ai/ask-provider.ts";
-import { attributedHistoryAnswer, conversationalHistoryLimitation, type AskEvidenceContract } from "./ask-evidence.ts";
+import { attributedHistoryAnswer, conversationalHistoryLimitation } from "./ask-evidence.ts";
 import { matchesHistoryOutputFormat, canonicalHistoricalRead, historicalReadSchema, historicalReadInstructions } from "./historical-read-response.ts";
 import { historyNarrativeSchema } from "./history-narrative.ts";
 import { parseHistoryNarrative } from "./history-narrative.ts";
@@ -51,26 +55,14 @@ const instructions = [
   "The server adds the coverage limitation separately. Its absence in the draft alone is not a reason to reject. Treat coverage as a constraint on what conclusions are supportable.",
 ].join("\n");
 
-function usableSources(evidence: AskEvidenceContract) {
-  return evidence.represented.filter(span => (span.sourceType === "care_update" || !!evidence.interpretation?.request
-      && span.sourceType === "profile" && /^profile:[^:]+:(?:species|sex|pronouns)$/.test(span.sourceId))
-    && evidence.scope.authorizedPetIds.includes(span.petId)
-    // Future-dated notes are not evidence of events that have already occurred.
-    // Exact source lookups retain the quoted-report fallback instead.
-    && (!!evidence.interpretation?.request || !span.occurredAt || Date.parse(span.occurredAt) <= Date.now())
-    && span.start === 0 && span.end === span.text.length && span.text.trim()
-    && !evidence.losses.some(loss => loss.sourceId === span.sourceId)
-    && evidence.sources.some(source => source.petId === span.petId && (source.loadedIds.includes(span.sourceId) || span.sourceType === "profile" && source.source === "profile" && source.petId === span.petId && source.loadedIds.includes(span.petId))
-      && source.status !== "unavailable" && source.status !== "not_loaded")
-    && !evidence.history?.provenance.some(source => source.sourceId === span.sourceId
-      && !["effective_linked", "effective_replacement", "unverified_legacy", ...(evidence.interpretation?.request ? ["unlinked_correction_uncertain"] : [])].includes(source.status)));
-}
+const usableSources = eligibleAnswerSources;
 
 /** This is model-assisted semantic review, not a deterministic entailment proof.
  * Ownership, source versions, budgets and all writes remain server controlled.
  * At most one repair and independent re-review for a rejected shared read.
  * Every failure falls back to the existing source policy. */
-export async function reviewHistoricalAnswer({ result, client, onProviderEvent, repairAttempted = false }: {
+export async function reviewHistoricalAnswer({ result, client, onProviderEvent, repairAttempted = false, executionPlan }: {
+  executionPlan?: GovernedAskExecutionPlan;
   result: AskReasoningResult;
   repairAttempted?: boolean;
   client?: { responses: { create: (request: Record<string, unknown>, options?: { signal: AbortSignal }) => Promise<Record<string, unknown>> } };
@@ -90,7 +82,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   let proposedDraft = parseHistoryNarrative(result.historyNarrative);
   if (!evidence?.interpretation || !evidence.history) return decline("history_evidence_unavailable");
   if (evidence.scope.status !== "resolved") return decline("subject_scope_unresolved");
-  if (evidence.scope.requestKind === "count" || evidence.episodes) return decline("server_episode_path");
+  if (!sharedRequest && (evidence.scope.requestKind === "count" || evidence.episodes && !evidence.interpretation?.referenceTarget)) return decline("server_episode_path");
   if (evidence.history.corrections === "unavailable") return decline("correction_evidence_unavailable");
   if (!sharedRequest && /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)) return decline("server_quotation_path");
   if (result.safetyLevel === "urgent" || result.responseMode === "grief_support") return decline("safety_response_path");
@@ -104,6 +96,10 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     petId: evidence.scope.authorizedPetIds[0], petName: evidence.petNames?.[evidence.scope.authorizedPetIds[0]] || "your pet",
     requestId: "history-review", sourceMessage: evidence.scope.requestText,
   }) : [];
+  const pending = executionPlan && isExplicitCareHistorySaveRequest(evidence.scope.requestText) && !evidence.scope.readOnlyRecall
+    ? [...executionPlan.semanticEvents.map(item => ({ origin: "server_governed_care_event", kind: "care_history.semantic_event", petId: item.event.subject.id, input: item.event })),
+      ...executionPlan.careActions.map(action => ({ origin: "server_governed_care_event", kind: "care_history.governed_action", petId: executionPlan.petId, input: action }))] : [];
+  const reviewActions = [...actions, ...pending];
   const ids = new Set(sources.map(source => source.sourceId));
   // A missing optional narrative must not prevent review of useful plain prose.
   // These broad citations are candidates for the reviewer, never proof.
@@ -147,13 +143,17 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     && !publicationFailures.some(failure => failure.index === index) ? [] : [index]);
   if (!sharedRequest) draft.sentences = draft.sentences.filter(sentence => !/^This covers the matching saved notes I could verify\b/i.test(sentence.text));
   if (!draft.sentences.length || repairAttempted && invalidIndexes.length) return decline("draft_anchors_invalid");
+  // Preserve per-row source/calculation bindings through review. A citation
+  // on another row cannot make this row's numbers or quoted values supported.
+  const invalidResultItems = (result.historicalResult?.items || []).flatMap((item, index) => supported(item) ? [] : [index]);
   const reviewSources = sharedRequest ? sources.map(({ sourceId, sourceType, petId, text, occurredAt }) => ({
     sourceId, sourceType, petId, text, occurredAt,
     provenanceStatuses: [...new Set(evidence.history!.provenance.filter(item => item.sourceId === sourceId).map(item => item.status))],
   })) : sources;
   const reviewCoverage = sharedRequest ? { retrieval: evidence.history.retrieval, corrections: evidence.history.corrections, reasons: evidence.history.reasons, targets: evidence.history.targets, chronology: evidence.history.chronology } : evidence.history;
   const requestInput = JSON.stringify({
-    actions: actions.map((action, index) => ({ index, ...action })),
+    actions: reviewActions.map((action, index) => ({ index, ...action })),
+    productFacts: furviseProductFacts(), typedResult: result.historicalResult || null, deterministicInvalidResultItems: invalidResultItems,
     deterministicInvalidSentenceIndexes: invalidIndexes,
     deterministicPublicationFailures: publicationFailures,
     evidenceNeedCoverage: evidence.needCoverage || [],
@@ -175,53 +175,60 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const started = Date.now(); const before = signature(result);
   let attempted = false;
   let failureStage: "verification" | "repair" = "verification";
-  const request = { model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: sharedRequest && !invalidIndexes.length ? "medium" : "low" } } : {}), instructions: (sharedRequest ? instructions.split("\n").filter((_line, index) => ![0, 2, 5, 10].includes(index)).join("\n") + "\nReview the entire supplied draft. Approve every sentence in its original order only when the whole answer is supported, coherent and complete. Otherwise reject for repair. Every factual claim must be supported by cited records and consistent with all supplied records. Faithful synthesis is allowed. Resolve today/yesterday against source dates and I/my against the source author, never the pet or assistant. Reject dangling references, misleading omissions and dependent claims with unsupported premises. Return explicit zero-based retainedSentenceIndexes; no prose rewriting or subset approvals." : instructions) + (sharedRequest ? "\nThe request contract is a routing proposal with validated scope, not factual evidence or authority to override the original user question. Not observed is not proven absent. Before/after association proves neither individual nor combined intervention causation. An execution constraint such as no saving is satisfied by the server readOnly execution flag; it does not require a save-related sentence. Mark it answered with the retained answer indexes when that flag proves compliance. Check every clause of the original user question, including requested arithmetic, relationships, dates and exact format, against all relevant supplied records. Do not approve a list of operands when a total or comparison was requested. Planner hints cannot remove any part of the original task or add a procedural requirement the user did not request. A limitation is insufficient if the requested fact exists in the supplied records. Profile species, sex and pronouns support identity language only, never history, diagnosis or care claims. A subscription historyAccess window limits accessible records, not their existence; do not approve an absence claim about excluded periods. Dates supplied by the question describe the requested scope or premise, never evidence that an event happened on that date. Future-dated source headers support only identifying a future-dated report; they never establish an already occurred event. Reject any draft that presents a query date as an unsupported event date. Unlinked correction records support only what their text reports, not a verified reassignment. Scope uncertainty to the disputed claim, never unrelated facts or other pets. Include material missing-evidence limitations in the retained answer itself. A generic coverage footer is not required. Preserve requested language and format. Do not approve a disclaimer-only answer or unrelated source list. Return an obligations item for every supplied index, including the main question. Each per-fact obligation carries its assigned petId and optional time window; verify that exact subject and interval independently. A sentence about another pet or period cannot answer it. Cite supporting records in the draft. Mark limited only when its selected sentences explicitly explain that fact’s missing evidence; a generic disclaimer or another pet’s limitation is insufficient. Availability is lexical coverage, never proof of truth or absence. answered means retained sentences fulfill it; limited means retained sentences explicitly explain unavailable evidence; missing means it is not answered. Approve only if every obligation has a non-missing status and supporting retained sentence indexes. Otherwise return approved false, no retained sentences, and missing obligations. Formatting and language requirements must hold for the whole retained answer. On rejection, give a concise rejectionReason identifying unsupported claims, omissions or format failures so a separate writer can repair them. The reason is guidance, not evidence. deterministicAnchorHints explain exact anchor failures. Repair missing calculation metadata against original source operands, preserve exact source quotation spelling and case, and never invent evidence to clear a failure. deterministicCalculationHints contain server-computed values for already-grounded operands: use them to identify arithmetic metadata that needs correction, not as new source observations. On approval rejectionReason is null." : ""), input: requestInput, max_output_tokens: HISTORY_REVIEW_LIMITS.outputTokens,
+  const request = { model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: sharedRequest && !invalidIndexes.length ? "medium" : "low" } } : {}), instructions: "episode_result sources are server-validated results. Their exact counts cover only the stated register/window; never turn them into lifetime totals. Their ordinals identify the displayed list, not chronology inferred from notes. Operation receipts establish only the specified turn’s currently linked writes, not that an event never happened. Pending actions with origin server_governed_care_event are validated server plans, not executed writes. Use action_ready for the save obligation only when its exact subject, source and date are covered by a pending action; cite that action index and never demand a completed receipt before execution. Check every other requested fact normally. A correct refusal of an unsupported or unauthorized task is refused, not missing; a precise request for missing required input is needs_information. Navigation cards supply links only, never proof the browser moved.\n" + (sharedRequest ? instructions.split("\n").filter((_line, index) => ![0, 2, 5, 10].includes(index)).join("\n") + "\nReview the entire supplied draft. Approve every sentence in its original order only when the whole answer is supported, coherent and complete. Otherwise reject for repair. Every factual claim must be supported by cited records and consistent with all supplied records. Faithful synthesis is allowed. Resolve today/yesterday against source dates and I/my against the source author, never the pet or assistant. Reject dangling references, misleading omissions and dependent claims with unsupported premises. Return explicit zero-based retainedSentenceIndexes; no prose rewriting or subset approvals." : instructions) + (sharedRequest ? "\nThe request contract is a routing proposal with validated scope, not factual evidence or authority to override the original user question. Not observed is not proven absent. Before/after association proves neither individual nor combined intervention causation. An execution constraint such as no saving is satisfied by the server readOnly execution flag; it does not require a save-related sentence. Mark it answered with the retained answer indexes when that flag proves compliance. Check every clause of the original user question, including requested arithmetic, relationships, dates and exact format, against all relevant supplied records. Do not approve a list of operands when a total or comparison was requested. Planner hints cannot remove any part of the original task or add a procedural requirement the user did not request. A limitation is insufficient if the requested fact exists in the supplied records. Profile records support their explicitly stored fields, including age, breed and weight. They are current profile facts, not dated care observations or evidence of a diagnosis. Never call a represented profile field unavailable. A subscription historyAccess window limits accessible records, not their existence; do not approve an absence claim about excluded periods. Dates supplied by the question describe the requested scope or premise, never evidence that an event happened on that date. Future-dated source headers support only identifying a future-dated report; they never establish an already occurred event. Reject any draft that presents a query date as an unsupported event date. Unlinked correction records support only what their text reports, not a verified reassignment. Scope uncertainty to the disputed claim, never unrelated facts or other pets. Include material missing-evidence limitations in the retained answer itself. A generic coverage footer is not required. Preserve requested language and format. Do not approve a disclaimer-only answer or unrelated source list. Return an obligations item for every supplied index, including the main question. Each per-fact obligation carries its assigned petId and optional time window; verify that exact subject and interval independently. A sentence about another pet or period cannot answer it. Cite supporting records in the draft. Mark limited only when its selected sentences explicitly explain that fact’s missing evidence; a generic disclaimer or another pet’s limitation is insufficient. Availability is lexical coverage, never proof of truth or absence. answered means retained sentences fulfill it; limited means retained sentences explicitly explain unavailable evidence; missing means it is not answered. Approve only if every obligation has a non-missing status and supporting retained sentence indexes. Otherwise return approved false, no retained sentences, and missing obligations. Formatting and language requirements must hold for the whole retained answer. On rejection, give a concise rejectionReason identifying unsupported claims, omissions or format failures so a separate writer can repair them. The reason is guidance, not evidence. deterministicAnchorHints explain exact anchor failures. Repair missing calculation metadata against original source operands, preserve exact source quotation spelling and case, and never invent evidence to clear a failure. deterministicCalculationHints contain server-computed values for already-grounded operands: use them to identify arithmetic metadata that needs correction, not as new source observations. On approval rejectionReason is null." : ""), input: requestInput, max_output_tokens: HISTORY_REVIEW_LIMITS.outputTokens,
     text: { format: { type: "json_schema", name: "furvise_history_review", strict: true,
       schema: sharedRequest ? repairableTaskHistoryReviewSchema : historyReviewSelectionSchema } } };
   try {
     const output = await executeAdmittedProviderCall({ purpose: repairAttempted ? "history_rereview" : "history_review", model, providerInput: { input: requestInput, instructions: request.instructions },
-      maxOutputTokens: HISTORY_REVIEW_LIMITS.outputTokens, invoke: async () => {
+      maxOutputTokens: HISTORY_REVIEW_LIMITS.outputTokens, stage: "verification", reserveMs: 4_000, invoke: async () => {
         attempted = true;
         onProviderEvent?.({ stage: "verification", outcome: "started", model, elapsedMs: 0 });
-        return withProviderDeadline(signal => provider.responses.create(request, { signal }), boundedProviderTimeout(HISTORY_REVIEW_LIMITS.timeoutMs, 0, "verification"));
+        return withProviderDeadline(signal => provider.responses.create(request, { signal }), boundedProviderTimeout(HISTORY_REVIEW_LIMITS.timeoutMs, 4_000, "verification"));
       } });
     const parsed = interpretStructuredProviderResponse(output, raw =>
-      sharedRequest ? parseRepairableTaskHistoryReview(JSON.parse(raw), draft.sentences.length, obligations.length, actions.length) : parseHistoryReviewSelection(JSON.parse(raw), draft.sentences.length));
+      sharedRequest ? parseRepairableTaskHistoryReview(JSON.parse(raw), draft.sentences.length, obligations.length, reviewActions.length) : parseHistoryReviewSelection(JSON.parse(raw), draft.sentences.length));
     onProviderEvent?.({ stage: "verification", outcome: parsed.status === "completed" ? "succeeded" : "failed", model,
       elapsedMs: Date.now() - started, inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens,
       providerErrorCode: parsed.status === "completed" ? undefined : "ASK_HISTORY_REVIEW_INVALID" });
-    if (parsed.status !== "completed" || !parsed.parsed) return decline("review_output_invalid");
+    // A malformed review grants no approval. It may consume the existing
+    // single repair, whose independently reviewed result remains mandatory.
+    const selection = parsed.status === "completed" && parsed.parsed ? parsed.parsed : {
+      approved: false, retainedSentenceIndexes: [], obligations: [],
+      rejectionReason: "The prior review contract was invalid. Reconstruct the complete requested answer from the supplied sources and preserve all source/calculation bindings.",
+    };
     if (before !== signature(result)) return decline("review_input_changed");
-    const completionCheck = sharedRequest && parsed.parsed.approved && "obligations" in parsed.parsed
-      ? reviewObligationCompletion(obligations, (parsed.parsed as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations, draft.sentences, sources)
+    const completionCheck = sharedRequest && selection.approved && "obligations" in selection
+      ? reviewObligationCompletion(obligations, (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations, draft.sentences, sources)
       : { failures: [], completion: [] };
-    const selectedText = (parsed.parsed.approved ? parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]) : draft.sentences).map(chunk => chunk.text).join("\n");
-    const completeSelection = !parsed.parsed.approved || !sharedRequest || parsed.parsed.retainedSentenceIndexes.length === draft.sentences.length;
-    const anchorsValid = !parsed.parsed.approved || parsed.parsed.retainedSentenceIndexes.every(index => !invalidIndexes.includes(index));
-    const formatValid = matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid && !completionCheck.failures.length
+    const selectedText = (selection.approved ? selection.retainedSentenceIndexes.map(index => draft.sentences[index]) : draft.sentences).map(chunk => chunk.text).join("\n");
+    const completeSelection = !selection.approved || !sharedRequest || selection.retainedSentenceIndexes.length === draft.sentences.length;
+    const anchorsValid = !selection.approved || selection.retainedSentenceIndexes.every(index => !invalidIndexes.includes(index));
+    const formatValid = !invalidResultItems.length && matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid && !completionCheck.failures.length
       && (!sharedRequest || !readPublicationFailure(selectedText));
-    if (!parsed.parsed.approved || !formatValid) {
+    if (!selection.approved || !formatValid) {
       const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Publication failures: ${JSON.stringify(publicationFailures)}. Per-fact evidence failures: ${JSON.stringify(completionCheck.failures)}. An answered obligation must cite the assigned pet and interval. If evidence is unavailable, explicitly explain the limitation for that fact instead of using another pet or period. Use plain readable wording that survives serialization and reload; describe historical reports with explicit attribution, and never claim the app performed an action. Preserve all supported facts and uncertainty. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Server-computed corrections for grounded calculation operands: ${JSON.stringify([...calculationHints.values()].flat())}. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
-        : "rejectionReason" in parsed.parsed ? parsed.parsed.rejectionReason : null;
-      if (repairAttempted || !sharedRequest || !evidence.scope.readOnlyRecall || typeof reason !== "string" || !reason) return decline("review_rejected_without_eligible_repair");
+        : "rejectionReason" in selection ? selection.rejectionReason : null;
+      if (repairAttempted || !sharedRequest || typeof reason !== "string" || !reason) return decline("review_rejected_without_eligible_repair");
       failureStage = "repair";
       const repaired = await repairRejectedRead(provider, model, requestInput, reason, onProviderEvent);
       if (!repaired || before !== signature(result)) return decline("repair_output_invalid_or_changed");
-      const candidate = { ...result, historyNarrative: repaired.narrative, applicationActions: repaired.applicationActions, historyNarrativeDeclined: false };
-      if (!await reviewHistoricalAnswer({ result: candidate, client: provider, onProviderEvent, repairAttempted: true })
+      const repairedActions = [...result.applicationActions.filter(action => !action.kind.startsWith("navigation.")), ...repaired.applicationActions];
+      const candidate = { ...result, historicalResult: repaired.historicalResult, historyNarrative: repaired.narrative, applicationActions: repairedActions, historyNarrativeDeclined: false };
+      if (!await reviewHistoricalAnswer({ result: candidate, client: provider, onProviderEvent, repairAttempted: true, executionPlan })
         || before !== signature(result)) return decline("repair_independent_review_failed");
       const receipt = readReviewedHistoryAnswer(candidate);
       if (!receipt) return decline("repair_receipt_unavailable");
       // Only reviewed prose and read-only navigation cross this boundary. Repairs
       // cannot change evidence, safety, pet ownership or mutation proposals.
+      result.historicalResult = repaired.historicalResult;
       result.historyNarrative = repaired.narrative;
-      result.applicationActions = repaired.applicationActions;
+      result.applicationActions = repairedActions;
       result.historyNarrativeDeclined = false;
       recordHistoryReview(result, { ...receipt, signature: signature(result) });
       recordHistoryReviewDiagnostic(result, "approved", "repaired_and_reviewed");
       return true;
     }
-    const retained = parsed.parsed.retainedSentenceIndexes.map(index => draft.sentences[index]);
+    const retained = selection.retainedSentenceIndexes.map(index => draft.sentences[index]);
     // A table needs its header and at least one supported data row.
     if (parsePlainTable(proposedDraft.sentences.map(sentence => sentence.text).join("\n"))
       && !parsePlainTable(retained.map(sentence => sentence.text).join("\n"))) return decline("retained_table_invalid");
@@ -295,12 +302,12 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
       return withProviderDeadline(signal => provider.responses.create({ model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "medium" } } : {}),
       instructions: repairInstructions, input, max_output_tokens: 2400,
       text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema } } },
-    { signal }), boundedProviderTimeout(20_000, 8_000, "repair")); } });
+    { signal }), boundedProviderTimeout(20_000, 12_000, "repair")); } });
   const parsed = interpretStructuredProviderResponse(output, raw => {
-    const canonical = canonicalHistoricalRead(JSON.parse(raw)) as { historyNarrative?: unknown; applicationActions?: unknown };
+    const canonical = canonicalHistoricalRead(JSON.parse(raw)) as { historicalResult?: AskReasoningResult["historicalResult"]; historyNarrative?: unknown; applicationActions?: unknown };
     const narrative = parseHistoryNarrative(canonical.historyNarrative);
     if (!narrative) throw new Error("INVALID_HISTORY_REPAIR");
-    return { narrative, applicationActions: parseModelApplicationActions(canonical.applicationActions, payload.question) };
+    return { historicalResult: canonical.historicalResult, narrative, applicationActions: parseModelApplicationActions(canonical.applicationActions, payload.question) };
   });
   onProviderEvent?.({ stage: "repair", outcome: parsed.status === "completed" ? "succeeded" : "failed", model, elapsedMs: 0,
     inputTokens: parsed.usage.inputTokens, outputTokens: parsed.usage.outputTokens,

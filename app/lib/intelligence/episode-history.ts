@@ -1,5 +1,5 @@
 import { withExecutionDeadline } from "../ai/execution-deadline.ts";
-import { clipHistoryPlan } from "./history-access.ts";
+import { boundedEpisodePlan } from "./history-access.ts";
 import "server-only";
 import { parseEpisodeFollowUp as episodeFollowUp } from "./episode-reference-language.ts";
 import { createHash } from "node:crypto";
@@ -61,9 +61,9 @@ function boundary(source: Source, petName: string, topic: string) {
 export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
   const message = context.currentMessage;
   const interpretation = context.askInterpretation;
-  const follow = interpretation ? (interpretation.readOperation ?? interpretation.operation) === "episode" && interpretation.ordinal
+  const follow = interpretation ? (interpretation.referenceTarget?.kind === "episode" || (interpretation.readOperation ?? interpretation.operation) === "episode") && interpretation.ordinal
     ? { ordinal: interpretation.ordinal, ambiguous: Boolean(interpretation.clarification) } : null : episodeFollowUp(message);
-  if (interpretation ? !["count", "episode"].includes((interpretation.readOperation ?? interpretation.operation))
+  if (interpretation ? !follow && !["count", "episode"].includes((interpretation.readOperation ?? interpretation.operation))
     : (!follow && !isEpisodeListRequest(message)) || analyzeOwnerAssertions(message).hasOwnerAssertion || /\b(?:save|log|remember)\b/i.test(message)) return context;
   const { topic, ambiguous: ambiguousTopic } = interpretation ? { topic: interpretation.episodeTopic, ambiguous: false } : topicOf(message);
   const plan = interpretation ? interpretation.history : planHistoricalQuery(message);
@@ -107,7 +107,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
         return done();
       }
       if (refs.petId !== context.pet.id || topic && topic !== refs.topic) return done();
-      const scope = clipHistoryPlan({ from: refs.from, to: refs.to }, context.historyAccess);
+      const scope = boundedEpisodePlan({ from: refs.from, to: refs.to }, context.historyAccess);
       result.topic=refs.topic; result.from=scope.from; result.to=scope.to;
     } else if (!topic || !plan) { result.reasons.push("episode_count_scope_needed"); result.referenceStatus="clarify"; result.coverage="ambiguous"; return done(); }
     // Member-only revalidation cannot discharge uncertainty found by the preceding
@@ -117,7 +117,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     if (inherited && (inherited.corrections === "unavailable" || inherited.corrections === "partial")) {
       throw new Error("historical_episode_correction_unavailable");
     }
-    const bounded = clipHistoryPlan({ from: result.from, to: result.to }, context.historyAccess);
+    const bounded = boundedEpisodePlan({ from: result.from, to: result.to }, context.historyAccess);
     result.from = bounded.from; result.to = bounded.to;
     if (result.from && result.to && result.from >= result.to) { result.reasons.push("requested_period_outside_subscription_window"); return done(); }
     const episodeIds = refs?.items.filter(i => i.id.startsWith("episode:")).map(i => i.id.slice(8));

@@ -200,7 +200,7 @@ export function validateGeneratedAnswer(
     response.suggestedFollowUps = [];
     if (!response.evidenceContract?.interpretation) { response.relevantContextIds = []; response.referencedRecords = []; }
     repairs.push("applied_server_resolution_status");
-  } else if (!currentEmergency && context.episodeResult) {
+  } else if (!currentEmergency && !reviewedHistory && context.episodeResult) {
     // Compose after all prose transforms. A model count/list or a prose normalizer
     // cannot change the server's count, displayed ordering or stable identities.
     const authoritative = episodeAnswer(context.episodeResult);
@@ -280,7 +280,7 @@ export function validateGeneratedAnswer(
       evidenceSupport: finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       subjectDateCorrectness: unauthorizedPetNamed ? "failed" : finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       calculationCorrectness: finalReviewMatches ? "passed" : "not_evaluated",
-      taskCompletion: obligationChecks?.length ? obligationChecks.every(c => c.status === "answered") ? "passed" : "failed"
+      taskCompletion: obligationChecks?.length ? obligationChecks.every(c => c.status === "answered" || c.status === "refused") ? "passed" : "failed"
         : fallbackUsed ? "failed" : "not_evaluated",
     },
   });

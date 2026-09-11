@@ -68,10 +68,10 @@ export async function buildFurviseContext({
     .order("created_at", { ascending: false }).limit(80).returns<DogProductFeedbackRow[]>();
   const ownerQuery = supabase.from("user_profiles").select("*").eq("user_id", userId).maybeSingle<UserProfileRow>();
   const messagesQuery = conversationId ? supabase.from("ask_conversation_messages")
-    .select("id, role, user_text, response_data, created_at")
+    .select("id, request_id, role, user_text, response_data, created_at")
     .eq("conversation_id", conversationId).eq("user_id", userId)
     .order("sequence_number", { ascending: false }).limit(mode.contextPolicy.conversationLimit)
-    .returns<Array<{ id: string; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>>()
+    .returns<Array<{ id: string; request_id: string | null; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>>()
     : Promise.resolve({ data: [], error: null });
   const episodesQuery = supabase.from("pet_care_episodes").select("*").eq("user_id", userId).eq("pet_profile_id", petId)
     .in("status", ["active", "monitoring", "resolved"]).order("last_event_at", { ascending: false }).limit(20).returns<CareEpisode[]>();
@@ -94,7 +94,7 @@ export async function buildFurviseContext({
     loadMemorySources({ supabase, userId, petId, limit: mode.contextPolicy.memoryLimit, now: new Date() }),
     recoverOptionalQuery("product_feedback", feedbackQuery, [] as DogProductFeedbackRow[]),
     recoverOptionalQuery("owner_profile", ownerQuery, null as UserProfileRow | null),
-    recoverOptionalQuery("conversation_messages", messagesQuery, [] as Array<{ id: string; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>),
+    recoverOptionalQuery("conversation_messages", messagesQuery, [] as Array<{ id: string; request_id: string | null; role: "user" | "furvise"; user_text: string | null; response_data: Record<string, unknown> | null; created_at: string }>),
     recoverOptionalValue("active_concerns", loadActiveConcerns(supabase, userId, petId), [] as Awaited<ReturnType<typeof loadActiveConcerns>>),
     recoverOptionalValue("resolved_concerns", loadRecentlyResolvedConcerns(supabase, userId, petId), [] as Awaited<ReturnType<typeof loadRecentlyResolvedConcerns>>),
     recoverOptionalQuery("care_episodes", episodesQuery, [] as CareEpisode[]),
@@ -111,10 +111,10 @@ export async function buildFurviseContext({
     ...sharedMemories.data.flatMap((memory) => memory.source_type === "ask_message" && memory.source_id ? [memory.source_id] : []),
   ])];
   const deletedCareSources = candidateSourceMessageIds.length ? await supabase.from("pet_care_entries")
-    .select("id,intelligence_source_message_id,deleted_at")
+    .select("id,intelligence_source_message_id,deleted_at,note,occurred_at")
     .eq("user_id", userId).eq("pet_profile_id", petId)
     .in("intelligence_source_message_id", candidateSourceMessageIds)
-    .returns<Array<{ deleted_at: string | null; id: string; intelligence_source_message_id: string | null }>>()
+    .returns<Array<{ deleted_at: string | null; id: string; note: string; occurred_at: string; intelligence_source_message_id: string | null }>>()
     : { data: [], error: null };
   if (deletedCareSources.error) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", deletedCareSources.error);
   const deletedCareEntryIds = new Set((deletedCareSources.data || []).filter((row) => row.deleted_at).map((row) => row.id));
@@ -133,6 +133,12 @@ export async function buildFurviseContext({
         role: message.role,
         text: message.role === "user" ? message.user_text || "" : responseText(trustedResponse),
         createdAt: message.created_at,
+        ...(message.role === "user" && message.request_id ? { operationReceipt: {
+          sourceMessageId: message.id, petId, requestText: message.user_text || "",
+          answerPersisted: messages.data.some(other => other.role === "furvise" && other.request_id === message.request_id),
+          records: (deletedCareSources.data || []).filter(row => !row.deleted_at && row.intelligence_source_message_id === message.id)
+            .map(row => ({ id: row.id, note: row.note, occurredAt: row.occurred_at })),
+        } } : {}),
         ...(message.role === "furvise" ? { applicationActions: parseStoredApplicationActions(trustedActions) } : {}),
       };
     }).filter((message) => message.text.trim()), selectedMemories.inactiveMemoryMarkers);

@@ -4,7 +4,7 @@ import type { AskReasoningResult } from "../ai/ask-reasoning.ts";
 
 type Receipt = { actions?: FurviseApplicationAction[]; signature: string; text: string; sourceIds: string[]; proseText?: string; sourceReports?: string[]; sourceContent?: string[]; completion?: ObligationCompletion[] };
 const reviewed = new WeakMap<AskReasoningResult, Receipt>();
-export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
+export const historyReviewSignature = (result: AskReasoningResult) => JSON.stringify({ actions: result.applicationActions, evidence: result.evidenceContract, draft: result.historyNarrative, result: result.historicalResult, plainAnswer: result.historyNarrativeDeclined ? result.answer.summary : undefined, sourceHints: result.historyNarrativeDeclined ? result.relevantContextIds : undefined });
 export function clearHistoryReview(result: AskReasoningResult) { reviewed.delete(result); }
 /** Internal server capability: called only after successful source-scoped review. */
 export function recordHistoryReview(result: AskReasoningResult, receipt: Receipt) { reviewed.set(result, structuredClone(receipt)); }

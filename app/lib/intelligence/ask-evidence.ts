@@ -1,3 +1,4 @@
+import { episodeResultText } from "./episode-contract.ts";
 import { correctionReportAnswer } from "./correction-report.ts";
 import { buildEvidenceNeedCoverage, type NeedCoverage } from "./evidence-need-coverage.ts";
 import { historyEventTerms, historyEventRelevance } from "./history-query-relevance.ts";
@@ -26,6 +27,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  operationReceipts?: import("./types.ts").AskOperationReceipt[];
   needCoverage?: NeedCoverage[];
   historyAccess?: import("./history-access.ts").AskHistoryAccess;
   answerSourceIds?: string[];
@@ -102,6 +104,13 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     completeness: unknown(), losses: [...(context.evidenceLoading?.losses || []), ...context.careEntries
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
+  const currentTurn = context.conversationTurns.at(-1);
+  contract.operationReceipts = context.conversationTurns.filter(turn => turn.id !== (currentTurn?.role === "user" ? currentTurn.id : null))
+    .flatMap(turn => turn.operationReceipt && ids.includes(turn.operationReceipt.petId) ? [structuredClone(turn.operationReceipt)] : []);
+  for (const petId of ids) {
+    const receipts = contract.operationReceipts.filter(receipt => receipt.petId === petId);
+    if (receipts.length) contract.sources.push(evidenceSource(petId, "operation_receipts", receipts.map(receipt => `operation:${receipt.sourceMessageId}`)));
+  }
   if (context.askInterpretation) {
     const plan = context.askInterpretation;
     const { frame, ...readPlan } = plan;
@@ -122,6 +131,13 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     if (ids.length !== 1 || pet?.name?.toLowerCase() !== contract.scope.resolutionSubject?.toLowerCase()) contract.scope.status = "ambiguous";
   }
   if (context.episodeResult) { contract.episodes = structuredClone(context.episodeResult); if (!context.askInterpretation) contract.scope.readOnlyRecall = true; }
+  if (context.episodeResult && context.askInterpretation?.request) {
+    contract.sources.push(evidenceSource(context.episodeResult.petId, "episode_result", [`episode-result:${context.episodeResult.petId}`]));
+  }
+  if (context.episodeResult?.referenceStatus === "resolved" && context.episodeResult.details?.length) {
+    contract.sources.push(evidenceSource(context.episodeResult.petId, "episode_members",
+      context.episodeResult.details.map(detail => detail.sourceId)));
+  }
   if (context.historyFallback) { contract.historyFallback = context.historyFallback; if (!context.askInterpretation) contract.scope.readOnlyRecall = true; }
   if (context.askHistory) {
     if (!context.askInterpretation) contract.scope.readOnlyRecall = true;
@@ -175,6 +191,23 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
     field: "value", start: 0, end: record.value.length, text: record.value,
     ...(contract.interpretation || contract.scope.requestKind === "resolution_status" ? { occurredAt: record.occurredAt } : {}) }));
   return refreshEvidenceCoverage(contract);
+}
+
+/** Shared factual source eligibility. Scope, loading, representation and source
+ * versions are authority; a presentation field name is not an evidence policy. */
+export function eligibleAnswerSources(evidence: AskEvidenceContract) {
+  return evidence.represented.filter(span =>
+    (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "operation_receipt" || span.sourceType === "episode_result")
+    && (span.sourceType !== "episode_result" || !!evidence.episodes && span.text === episodeResultText(evidence.episodes))
+    && evidence.scope.authorizedPetIds.includes(span.petId)
+    && (!!evidence.interpretation?.request || !span.occurredAt || Date.parse(span.occurredAt) <= Date.now())
+    && span.start === 0 && span.end === span.text.length && span.text.trim()
+    && !evidence.losses.some(loss => loss.sourceId === span.sourceId)
+    && evidence.sources.some(source => source.petId === span.petId
+      && (source.loadedIds.includes(span.sourceId) || span.sourceType === "profile" && source.source === "profile" && source.loadedIds.includes(span.petId))
+      && source.status !== "unavailable" && source.status !== "not_loaded")
+    && !evidence.history?.provenance.some(source => source.sourceId === span.sourceId
+      && !["effective_linked", "effective_replacement", "unverified_legacy", ...(evidence.interpretation?.request ? ["unlinked_correction_uncertain"] : [])].includes(source.status)));
 }
 
 export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringify(scope); }

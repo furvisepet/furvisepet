@@ -892,7 +892,8 @@ test('measurement and duration quantities override a stale episode operation',()
 test('genuine episode requests still require a valid episode referent',()=>{
  const missing=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:null}),{...context,currentMessage:'Tell me about that episode.'});
  assert.equal(missing.readOperation,'clarify'); assert.equal(missing.ordinal,null);
- assert.throws(()=>validateAskRequest(proposal({operation:'recall',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'}),/episode_reference/);
+ const projected=validateAskRequest(proposal({operation:'recall',ordinal:'second'}),{...context,currentMessage:'Tell me about the second episode.'});
+ assert.equal(projected.referenceTarget.kind,'episode'); assert.equal(projected.referenceTarget.ordinal,'second');
  const r=validateAskRequest(proposal({operation:'episode',quantity:'episodes',ordinal:'second'}),context);
  assert.equal(r.readOperation,'episode');assert.equal(r.ordinal,'second');
 });

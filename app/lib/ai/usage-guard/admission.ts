@@ -17,6 +17,7 @@ import type { AiCallReservation, AiGuardFeature, AiGuardMetrics, AiGuardStore, P
 import { runWithAiAdmission } from "./context";
 
 export async function admitAiOperation(input: {
+  deadline?: OperationDeadline;
   env?: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel?: string; metrics?: AiGuardMetrics;
   now?: Date; operationTtlSeconds?: number; payload: unknown; requestId: string; store?: AiGuardStore; userId: string;
 }) {
@@ -54,7 +55,7 @@ export async function admitAiOperation(input: {
   if (operationState === "conflict") return deny("AI_OPERATION_CONFLICT", "operation_payload_conflict", 409);
   if (operationState === "completed") return deny("AI_PROVIDER_BUDGET_EXHAUSTED", "completed_operation_replay_required", 409);
 
-  const admission = new AiOperationAdmission({ config, env, feature: input.feature, intendedModel, metrics: input.metrics || noopAiGuardMetrics, now: input.now || new Date(), operationId, operationKey, operationTtlSeconds, policy, requestId: input.requestId, store });
+  const admission = new AiOperationAdmission({ deadline: input.deadline, config, env, feature: input.feature, intendedModel, metrics: input.metrics || noopAiGuardMetrics, now: input.now || new Date(), operationId, operationKey, operationTtlSeconds, policy, requestId: input.requestId, store });
   try { await admission.reserveNextCall(intendedModel); }
   catch (error) { await store.failOperation({ key: operationKey, ttlSeconds: operationTtlSeconds }).catch(() => {}); throw error; }
   logAiGuardEvent("operation admitted", { allowed: true, emergencyDisabled: false, feature: input.feature, model: intendedModel, operationId, requestId: input.requestId });
@@ -85,9 +86,9 @@ export class AiOperationAdmission {
   readonly requestId: string;
   private readonly store: AiGuardStore;
 
-  constructor(input: { config: ReturnType<typeof getAiGuardConfig>; env: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel: string; metrics: AiGuardMetrics; now: Date; operationId: string; operationKey: string; operationTtlSeconds: number; policy: ReturnType<typeof getAiFeaturePolicy>; requestId: string; store: AiGuardStore }) {
+  constructor(input: { deadline?: OperationDeadline; config: ReturnType<typeof getAiGuardConfig>; env: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel: string; metrics: AiGuardMetrics; now: Date; operationId: string; operationKey: string; operationTtlSeconds: number; policy: ReturnType<typeof getAiFeaturePolicy>; requestId: string; store: AiGuardStore }) {
     Object.assign(this, input);
-    this.deadline = input.feature === "ask" ? new OperationDeadline(45_000) : null;
+    this.deadline = input.feature === "ask" ? input.deadline || new OperationDeadline(45_000) : null;
     this.providerDeadlineAt = input.feature === "ask" ? Date.now() + 45_000 : Number.POSITIVE_INFINITY;
     this.config = input.config; this.env = input.env; this.feature = input.feature; this.intendedModel = input.intendedModel;
     this.metrics = input.metrics; this.now = input.now; this.operationId = input.operationId; this.operationKey = input.operationKey; this.operationTtlSeconds = input.operationTtlSeconds;

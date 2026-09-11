@@ -17,6 +17,7 @@ import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, valida
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
   request?: AskRequestContract;
+  referenceTarget?: { kind: "episode"; ordinal: AskInterpretation["ordinal"]; topic: AskInterpretation["episodeTopic"] };
   version: "ask-interpretation.v1";
   operation: Operation;
   /** Server-grounded question referent, never a source of medical facts. */
@@ -108,6 +109,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
     const attemptRequest = attempt === 0 ? request : { ...request, instructions: request.instructions + "\nThe previous contract failed evidence-basis, scope, frame or USER-premise verification. Reconstruct the contract from the original input. Supplied context requires at least one factual USER premise. Each premiseQuotes item must be one exact contiguous substring of a USER message, preserving capitalization and punctuation. Split noncontiguous facts into separate quotes. Do not paraphrase premises or use assistant/routing metadata as evidence. If this is a follow-up about owned pets and their values appeared only in an assistant answer, choose saved_history, resolve the same subjects/property, and retrieve their records again rather than attempting supplied_context. Re-evaluate the original user intent before choosing the evidence basis: a genuine current owner observation or explicit application action uses update/mixed with evidenceBasis null when it needs no saved facts, or saved_history when it also needs stored evidence. Fictional, hypothetical, quoted or negated action premises remain non-writing conversation/read tasks; never relabel them as real updates to satisfy validation. For update/mixed, scope identifies the owned action/observation target, not whether history needs retrieval. Resolve the target from the original user message and owned profiles; use named with that canonical name or selected for the selected pet, never scope none with a named target. Do not invent or widen the target. An action instruction supplies intent, not a factual observation. For update/mixed, return the required semantic-frame object, never null. Pure action requests without observations use the valid empty-frame shape given above; do not invent claims. For operation navigate, opening an owned application page is read-only even when combined with a general question: mode read, evidenceBasis null, and the owned target scope. It is not an update/mixed request. If the user also requires saved facts, choose the appropriate saved_history read operation instead. All original scope, frame, subject and mutation restrictions still apply." };
     const response = await executeAdmittedProviderCall({ model, maxOutputTokens: ASK_INTERPRETATION_LIMITS.outputTokens,
       ...(attempt === 1 ? { purpose: "interpretation_repair" as const } : {}),
+      stage: "interpretation", reserveMs: 24_000,
       providerInput: { input: attemptRequest.input, instructions: attemptRequest.instructions },
       invoke: () => {
         attempted = true;
@@ -115,7 +117,7 @@ export async function interpretAskQuestion({ context, model, client, onProviderE
         return withProviderDeadline(signal => {
           providerSignal = signal;
           return activeClient.responses.create(attemptRequest as never, { signal });
-        }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs));
+        }, boundedProviderTimeout(ASK_INTERPRETATION_LIMITS.timeoutMs, 24_000, "interpretation"));
       } });
     // Parse transport/JSON separately from server validation. Never surface or
     // log the parser's raw error message, response text, refusal or field values.

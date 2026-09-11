@@ -1,3 +1,5 @@
+import { furviseActionCapabilities } from "../application-actions/policy.ts";
+import { FREE_ASK_ALLOWANCE, PLUS_ASK_ALLOWANCE } from "../billing/plan-limits.ts";
 export type FurviseCapabilityIntent = "vet_prep_exports" | "long_history_patterns" | "live_product_research";
 
 type VisibleAskAnswer = {
@@ -73,4 +75,22 @@ function isInternalProductMetadata(value: string) {
 
 function splitVisibleSentences(value: string) {
   return value.normalize("NFKC").split(/(?<=[.!?])\s+/).map((sentence) => sentence.trim()).filter(Boolean);
+}
+
+/** Shipped product facts are independent of a single turn's permissions.
+ * Account-specific remaining usage must still come from the owned ledger. */
+export function furviseProductFacts() {
+  return {
+    actions: furviseActionCapabilities().map(({ kind, confirmationPolicy }) => ({ kind, confirmationPolicy })),
+    savedHistory: { supported: true, requiresOwnedPet: true, planWindowApplies: true, undocumentedEventsUnknown: true },
+    writes: { supported: true, requireGroundedOwnerIntent: true, completionRequiresReceipt: true },
+    navigation: { result: "a usable link", browserMovementConfirmed: false },
+    vetBrief: { savedRecordsReport: true, pdfExport: true, planAccessApplies: true },
+    liveRetailerResearch: false, otherAccountAccess: false, secretAccess: false,
+    allowance: { freeMonthly: FREE_ASK_ALLOWANCE, plusMonthly: PLUS_ASK_ALLOWANCE,
+      consumedWhen: "An AI answer is durably saved to the conversation, including a limited answer.",
+      failedBeforeAnswerPersistence: "Reservation is released; it does not consume the allowance.",
+      actionExecutionFailure: "Separate from answer persistence; never claim the action succeeded.",
+      remaining: "Unknown unless supplied from this account's usage ledger." },
+  };
 }

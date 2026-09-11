@@ -25,6 +25,7 @@ export type StructuredProviderResult<T> = {
   errorCode: string | null;
   errorMessage: string | null;
   parsingAttempted: boolean;
+  validationReason?: string;
   usage: {
     inputTokens: number | null;
     outputTokens: number | null;
@@ -102,7 +103,8 @@ export function interpretStructuredProviderResponse<T>(
       status: "invalid",
       parsed: null,
       errorCode: "ASK_OUTPUT_INVALID",
-      errorMessage: error instanceof Error ? error.message : "Structured output validation failed.",
+      errorMessage: "Structured output validation failed.",
+      validationReason: safeStructuredValidationReason(error),
       parsingAttempted: true,
     };
   }
@@ -124,4 +126,16 @@ function collectRefusal(output: OpenAiStructuredResponseLike["output"]) {
 
 function numberOrNull(value: unknown) {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+/** Diagnostics contain only contract-owned enums; never parser excerpts. */
+export function safeStructuredValidationReason(error: unknown): string {
+  if (error instanceof SyntaxError) return "JSON_SYNTAX";
+  const message = error instanceof Error ? error.message : "";
+  const known = new Set(["INVALID_READ_RESPONSE", "INVALID_READ_NAVIGATION", "DUPLICATE_READ_BODY", "INVALID_READ_TABLE", "INVALID_READ_LIMITATION", "EMPTY_READ_REQUIRES_EXPLANATION", "MISSING_READ_BODY", "INVALID_READ_LAYOUT", "INVALID_HISTORY_CALCULATION", "INVALID_TASK_REVIEW"]);
+  if (known.has(message)) return message;
+  if (message === "Ask provider returned an empty answer.") return "EMPTY_ANSWER";
+  if (message === "Ask provider returned an invalid response.") return "INVALID_ANSWER_BODY";
+  if (message === "Ask response exposed internal reasoning data.") return "INTERNAL_REASONING_EXPOSURE";
+  return "STRUCTURED_CONTRACT_INVALID";
 }

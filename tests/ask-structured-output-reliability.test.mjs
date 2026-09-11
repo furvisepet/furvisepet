@@ -239,7 +239,7 @@ test('conversation composer receives original user premises without planner-inve
   assert.equal(payload.currentMessage,'What can be known?');
   assert.deepEqual(payload.priorUserPremises,[{role:'user',text:'Original scenario'}]);
   assert.doesNotMatch(request.input,/Invented|Invent a duration|Private saved|Selected private|Unsupported inference/);
-  assert.equal(payload.capabilities.mutationExecution,false);
-  assert.equal(payload.capabilities.liveExternalVerification,false);
+  assert.equal(payload.turnPermissions.mutationExecution,false);
+  assert.equal(payload.turnPermissions.liveExternalVerification,false);
   assert.deepEqual(Object.keys(request.text.format.schema.properties).sort(),['answer','responseMode','safetyLevel','userIntent']);
 });

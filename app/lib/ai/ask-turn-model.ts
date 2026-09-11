@@ -75,6 +75,9 @@ export const ASK_SUBSYSTEM_CRITICALITY: Readonly<Record<AskSubsystem, AskFailure
 };
 
 export type AskTurnTrace = {
+  taskOutcome?: "complete" | "limited" | "failed";
+  answerOutcome?: "complete" | "limited" | "failed" | "not_assessed";
+  mutationOutcome?: "applied" | "failed" | "pending" | "not_requested";
   logicalTurnId: string;
   attemptId: string;
   finalStage: AskTurnState;
@@ -119,6 +122,14 @@ export class AskTurnLifecycle {
   }
 
   get state() { return this.stateValue; }
+
+  outcomes(answer: NonNullable<AskTurnTrace["answerOutcome"]>, mutation: NonNullable<AskTurnTrace["mutationOutcome"]>) {
+    this.traceValue.answerOutcome = answer;
+    this.traceValue.mutationOutcome = mutation;
+    this.traceValue.taskOutcome = answer === "failed" || mutation === "failed" ? "failed"
+      : answer === "complete" && mutation !== "pending" ? "complete" : "limited";
+    return this;
+  }
 
   transition(next: AskTurnStage) {
     if (this.isTerminal()) throw new Error("ASK_TURN_TERMINAL_STATE");
