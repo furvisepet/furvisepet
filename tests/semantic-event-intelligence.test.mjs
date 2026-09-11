@@ -451,3 +451,20 @@ test("writer-created unprefixed symptom episode remains eligible for grounded da
     assert.equal(governCanonicalEvents({...input,...patch}).accepted.length,0);
   }
 });
+
+test('generic episode/update words do not weaken an otherwise exact recovery topic', () => {
+  const message = 'Luna stopped vomiting completely on 2024-06-11. Save this resolution to her care history.';
+  const sourceExcerpt = 'Luna stopped vomiting completely on 2024-06-11.';
+  const proposal = base({ domain:'health',topic:'vomiting',transition:'resolved',state:'resolved',
+    sourceExcerpt,temporal:{occurredAt:'2024-06-11T00:00:00Z',explicitTime:'2024-06-11'} });
+  const active = episode('health','vomiting_episode_update',{episode_type:'symptom',started_at:'2024-06-09T00:00:00Z',
+    summary:{semanticDomain:'health',semanticTopic:'vomiting_episode_update'}});
+  const input = {proposals:[proposal],message,pet,activeEpisodes:[active],allowTerminalResolution:true,
+    recoveryAssessment:recoveryAssessment('terminal',0.99,sourceExcerpt,'problem_ended')};
+  const result=governCanonicalEvents(input);
+  assert.equal(result.accepted.length,1,JSON.stringify(result.recoveryAssessments));
+  assert.equal(result.accepted[0].event.references.episodeId,active.id);
+  assert.equal(result.accepted[0].event.normalizedTopic,'vomiting_episode_update');
+  assert.equal(governCanonicalEvents({...input,activeEpisodes:[active,{...active,id:'competing'}]}).accepted.length,0);
+  assert.equal(governCanonicalEvents({...input,activeEpisodes:[episode('health','chronic_vomiting')]}).accepted.length,0);
+});

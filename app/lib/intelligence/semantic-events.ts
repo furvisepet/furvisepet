@@ -319,7 +319,7 @@ function compatibilityScore(domain: string, topic: string, episode: CareEpisode)
 function compactTopic(value: string) { return normalizeSemanticTopic(value).replace(/_/g, ""); }
 
 function meaningfulTopicTokens(value: string) {
-  const ignored = new Set(["pet", "issue", "problem", "incident", "event", "change", "changed", "start", "started", "stop", "stopped", "resolve", "resolved", "temporary", "course"]);
+  const ignored = new Set(["pet", "issue", "problem", "incident", "event", "episode", "update", "change", "changed", "start", "started", "stop", "stopped", "resolve", "resolved", "temporary", "course"]);
   return [...new Set(normalizeSemanticTopic(value).split("_").map((token) => token.replace(/(?:ing|ed|s)$/i, "")).filter((token) => token.length > 2 && !ignored.has(token)))];
 }
 
