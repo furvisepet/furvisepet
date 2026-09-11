@@ -1,3 +1,4 @@
+import { recordHistoryReview, historyReviewSignature } from "../history-review-state.ts";
 import { rememberReviewedTaskPresentation } from "../ask-evidence-presentation.ts";
 import {
   historyFallbackPresentation,
@@ -266,6 +267,7 @@ export function validateGeneratedAnswer(
   const finalReviewMatches = Boolean(reviewedHistory && response.answer.summary === (reviewedHistory.proseText || reviewedHistory.text)
     && response.answer.sections.length === 0 && !response.answer.safetyNote && !reviewedHistory.sourceReports?.length);
   if (finalReviewMatches && reviewedHistory?.actions) rememberReviewedTaskPresentation(response.evidenceContract, response.answer, reviewedHistory.actions);
+  if (finalReviewMatches && reviewedHistory) recordHistoryReview(response, { ...reviewedHistory, signature: historyReviewSignature(response) });
   const obligationChecks = finalReviewMatches ? reviewedHistory?.completion : undefined;
   const historyTask = Boolean(response.evidenceContract?.interpretation?.request && response.evidenceContract.history && !currentEmergency);
   const fallbackUsed = historyTask && repairs.includes("grounded_history_in_source_reports") && !finalReviewMatches;

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { existsSync } from "node:fs";
+import { prepareFurviseApplicationActions } from "../app/lib/application-actions/planner.ts";
 import { planDeterministicAskCommand } from "../app/lib/ai/ask-command-router.ts";
 
 test("explicit language preference routes without a provider call", () => {
@@ -22,6 +24,10 @@ test("navigation commands route to exact machine identifiers", () => {
     const command = planDeterministicAskCommand(message, "Mani");
     assert.equal(command?.proposals[0].kind, kind, message);
     assert.equal(command?.routeType, "application_action", message);
+    const actions = prepareFurviseApplicationActions({ proposals: command.proposals, petId: "test-pet", petName: "Mani", requestId: "navigation-routes", sourceMessage: message });
+    assert.equal(actions.length, 1);
+    const path = new URL(actions[0].href, "https://furvise.test").pathname.replace("test-pet", "[id]");
+    assert.ok(existsSync(new URL(`../app${path}/page.tsx`, import.meta.url)), `Missing route for ${kind}: ${path}`);
   }
 });
 

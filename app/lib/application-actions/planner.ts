@@ -251,7 +251,7 @@ function actionPresentation(kind: FurviseActionKind, petId: string, petName: str
     case "memory.edit_detail": return view("Edit remembered details", `/dogs/${encoded}/memories`);
     case "navigation.open_care_history": return view(`Open ${petName}'s history`, `/history?pet=${encoded}`);
     case "care_history.query": return view(`Review ${petName}'s history`, `/history?pet=${encoded}`);
-    case "navigation.open_vet_brief": return view("Open Vet Briefs", `/vet-briefs?pet=${encoded}`);
+    case "navigation.open_vet_brief": return view("Open Vet Brief", `/vet-brief?pet=${encoded}`);
     case "vet_brief.prepare": return view("Prepare a care summary", `/vet-brief?pet=${encoded}&source=ask`);
     case "pet.update_profile": return mutation(`Update ${formatField(actionInput.field)}`, `Change ${petName}'s ${formatField(actionInput.field)} to ${actionInput.value || "the requested value"}.`);
     case "pet.mark_deceased": return mutation(`Mark ${petName} as passed away`, `Keep ${petName}'s history while removing ${petName} from active care.`);

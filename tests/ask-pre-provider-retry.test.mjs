@@ -14,8 +14,8 @@ test("a retry keeps logical identity and receives a distinct safe attempt identi
   assert.match(first, /^[0-9a-f-]{36}$/);
 });
 
-test("Ask allows five phase-bounded calls including one repair and re-review", () => {
-  assert.match(read("app/lib/ai/usage-guard/features.ts"), /ask: policy\([^\n]+, 5\)/);
+test("Ask allows six phase-bounded calls including structural repair and independent answer re-review", () => {
+  assert.match(read("app/lib/ai/usage-guard/features.ts"), /ask: policy\([^\n]+, 6\)/);
 });
 
 test("logical turn, attempt, persisted message, and financial identities are explicit", () => {

@@ -1835,11 +1835,17 @@ async function persistAssistantAnswer({
   // receipts/cards, never in a second unreviewed prose rewrite.
   turnLifecycle.actions(applicationActions.length);
   const requestedMutations = applicationActions.filter(action => action.mutationClass === "mutation" && action.explicitIntent);
-  const explicitHistoryWrite = isExplicitCareHistorySaveRequest(sourceMessage);
+  const explicitHistoryWrite = isExplicitCareHistorySaveRequest(sourceMessage)
+    && intelligenceResult?.answerValidation.completion?.find(item => item.index === 0)?.status !== "refused";
   const mutationOutcome = requestedMutations.some(action => action.status === "failed") || explicitHistoryWrite && carePersistence.status === "failed" ? "failed"
     : requestedMutations.some(action => action.status !== "succeeded") || explicitHistoryWrite && carePersistence.status !== "persisted" ? "pending"
     : requestedMutations.length || explicitHistoryWrite ? "applied" : "not_requested";
-  turnLifecycle.outcomes(intelligenceResult?.answerValidation.assessment.outcome || "not_assessed", mutationOutcome);
+  const reviewedCompletion = intelligenceResult?.answerValidation.completion || [];
+  const checks = intelligenceResult?.answerValidation.assessment.checks;
+  const readyForExecution = reviewedCompletion.some(item => item.status === "action_ready")
+    && reviewedCompletion.every(item => ["answered", "action_ready", "refused", "not_requested"].includes(item.status))
+    && !!checks && [checks.structuralValidity, checks.evidenceSupport, checks.subjectDateCorrectness, checks.calculationCorrectness].every(status => status === "passed" || status === "not_applicable");
+  turnLifecycle.outcomes(intelligenceResult?.answerValidation.assessment.outcome || "not_assessed", mutationOutcome, readyForExecution);
   turnLifecycle.transition("COMPLETED");
   const canonicalResponse = {
     ...attachEpisodeReferences(applicationActions.length ? { ...response, applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes, intelligenceResult?.reasoning),

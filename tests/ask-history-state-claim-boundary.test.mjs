@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import { enforceVerifiedStateClaims, containsUnverifiedStateClaim } from '../app/lib/application-actions/state-claims.ts';
 
 const caveat = 'This covers the matching saved notes I could verify, not necessarily every event in their life.';
+test('navigation progress requires a browser receipt even when a database write succeeded', () => {
+  for (const text of ["I’m opening her history now.", 'Opening the vet brief for Sable using her saved history only.',
+    'What I am doing\n- Opening the profile with the saved details.', 'I opened her history.',
+    'I’ve taken you to her history.', 'We have redirected you to the profile.']) {
+    assert.equal(containsUnverifiedStateClaim(text), true, text);
+    assert.equal(containsUnverifiedStateClaim(enforceVerifiedStateClaims(text, true)), false, text);
+  }
+  for (const text of ['Opening a profile lets you inspect saved details.', 'Use the link to open her history.',
+    'I can help you open her profile.', 'The fictional character says “I opened her profile.”'])
+    assert.equal(containsUnverifiedStateClaim(text), false, text);
+});
 test('physical care changes survive mutation governance instead of leaving only a disclaimer', () => {
   for (const fact of [
     'Her litter was changed to scented litter on July 5.',

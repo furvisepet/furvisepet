@@ -5,8 +5,9 @@ import type { AiFeaturePolicy, AiGuardFeature } from "./types";
 export const AI_FEATURE_POLICIES: Record<AiGuardFeature, AiFeaturePolicy> = {
   // Interpretation + answer + review; a rejected read may use one repair
   // and one independent re-review. Admission enforces phase order and reserves
-  // every call against the same daily limits. Ordinary calls remain capped at two.
-  ask: policy("ask", "FURVISE_AI_ASK_ENABLED", 20_000, 80_000, ASK_MAX_OUTPUT_TOKENS, 5),
+  // every call against the same daily limits. One structural repair may precede
+  // that review cycle. Ordinary calls remain capped at two.
+  ask: policy("ask", "FURVISE_AI_ASK_ENABLED", 20_000, 80_000, ASK_MAX_OUTPUT_TOKENS, 6),
   care_plan: policy("care_plan", "FURVISE_AI_CARE_PLAN_ENABLED", 12_000, 48_000, OPENAI_OUTPUT_LIMITS.analysis, 1),
   product_explanation: policy("product_explanation", "FURVISE_AI_PRODUCTS_ENABLED", 12_000, 48_000, 360, 1),
   product_query: policy("product_query", "FURVISE_AI_PRODUCTS_ENABLED", 12_000, 48_000, 520, 1),
