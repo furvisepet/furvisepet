@@ -291,9 +291,11 @@ test('scoped episode selectors require user-grounded bounds and keep conversatio
  const input=proposal({operation:'episode',selection:'reference',ordinal:'second',quantity:'records',episodeTopic:'vomiting',from:'2014-01-01',to:'2015-01-01'});
  const scoped=validateAskRequest(input,{...context,currentMessage:question});
  assert.equal(scoped.referenceTarget.basis,'scoped_register');
- for(const q of ['Show Aster’s second documented vomiting episode.', 'Show Aster’s second documented vomiting episode since 2014.', 'Show Aster’s second documented vomiting episode in May 2014.']) {
+ for(const q of ['Show Aster’s second documented vomiting episode.', 'Show Aster’s second documented vomiting episode since 2014.']) {
   assert.equal(validateAskRequest(input,{...context,currentMessage:q}).referenceTarget.basis,'displayed_list');
  }
+ const month=validateAskRequest(input,{...context,currentMessage:'Show Aster’s second documented vomiting episode in May 2014.'});
+ assert.equal(month.referenceTarget.basis,'scoped_register'); assert.equal(month.history.from,'2014-05-01T00:00:00.000Z');
  const referenced=validateAskRequest({...input,referenceTurnIds:['prior']},{...context,currentMessage:question,conversationTurns:[{id:'prior',role:'user',text:'List Aster vomiting episodes in 2014.'}]});
  assert.equal(referenced.referenceTarget.basis,'displayed_list');
  const invented=validateAskRequest(input,{...context,currentMessage:'Show Aster’s documented vomiting history in 2014.'});
@@ -393,4 +395,25 @@ for (const inventedDate of [false,true]) test(`CSV quotes are cell delimiters; r
  reviewResponse:{approved:true},expectedReviewCalls:null});
  if(inventedDate) assert.equal(readReviewedHistoryAnswer(r.result.reasoning),null);
  else {assert.equal(r.publication.failure,null);assert.equal(r.reviewRequests.length,1);assert.match(r.result.reasoning.answer.summary,/2026-06-04,"Aster ate, then rested\."/);}
+});
+
+test('explicit dated note batches preserve each date and exact note without clinical inference', async()=>{
+ const {parseDatedNoteBatch,noteBatchReviewActions}=await import('../../app/lib/intelligence/dated-note-batch.ts');
+ const {isExplicitCareHistorySaveRequest}=await import('../../app/lib/intelligence/care-history-policy.ts');
+ const text='Save these four separate care notes for Aster: September 1, 2026: started vomiting. September 3, 2026: stopped vomiting completely. September 7, 2026: started a new, separate vomiting episode. September 9, 2026: stopped vomiting completely.';
+ assert.equal(isExplicitCareHistorySaveRequest(text),true);
+ const notes=parseDatedNoteBatch(text);
+ assert.equal(notes.length,4);
+ assert.deepEqual(notes.map(n=>n.occurredAt.slice(0,10)),['2026-09-01','2026-09-03','2026-09-07','2026-09-09']);
+ assert.equal(notes[0].note,'September 1, 2026: started vomiting.');
+ assert.equal(noteBatchReviewActions(notes).length,4);
+ assert.deepEqual(parseDatedNoteBatch('Hypothetical only: '+text),[]);
+ assert.deepEqual(parseDatedNoteBatch('Do not '+text),[]);
+});
+test('explicit month-scoped episode target survives stale planner reference hints',()=>{
+ const p=validateAskRequest(proposal({operation:'episode',selection:'reference',episodeTopic:'vomiting',ordinal:'second',from:null,to:null}),
+  {...context,currentMessage:'For Aster’s second recorded vomiting episode in September 2026, give its dates. If not established, say so.'});
+ assert.equal(p.referenceTarget.basis,'scoped_register');
+ assert.equal(p.history.from,'2026-09-01T00:00:00.000Z');
+ assert.equal(p.history.to,'2026-10-01T00:00:00.000Z');
 });

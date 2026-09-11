@@ -307,7 +307,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const explicitEpisodePeriod = evidenceNeedWindow(context.currentMessage) || literalHistoryYearWindow(context.currentMessage);
   const target = episodeTarget ? { ...episodeTarget, basis: !p.referenceTurnIds.length && episodeTarget.topic
     && episodeTarget.ordinal !== "that" && explicitEpisodePeriod
-    && Date.parse(explicitEpisodePeriod.from) === Date.parse(from || "") && Date.parse(explicitEpisodePeriod.to) === Date.parse(to || "")
+    && !/\b(?:that list|the list|displayed|you (?:listed|showed))\b/i.test(context.currentMessage)
       ? "scoped_register" as const : "displayed_list" as const } : undefined;
   return { ...(target ? { referenceTarget: { ...target, ...(target.basis === "scoped_register" ? { period: explicitEpisodePeriod } : {}) } } : {}), version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
     readOperation: p.mode === "update" ? null : operation, selection: p.selection as AskInterpretation["selection"],
@@ -315,5 +315,5 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
     episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
-    history: historical ? { from, to, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
+    history: historical ? { from: target?.basis === "scoped_register" ? explicitEpisodePeriod!.from : from, to: target?.basis === "scoped_register" ? explicitEpisodePeriod!.to : to, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
 }

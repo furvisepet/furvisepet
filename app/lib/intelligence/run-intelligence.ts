@@ -1,3 +1,4 @@
+import { parseDatedNoteBatch, noteBatchReviewActions, type DatedCareNote } from "./dated-note-batch.ts";
 import { readReviewedHistoryAnswer, recordHistoryReview, historyReviewSignature } from "./history-review-state.ts";
 import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
@@ -34,6 +35,7 @@ import { emptyProposedSemanticFrame } from "./semantic-frame/extract-frame.ts";
 
 export type GovernedAskExecutionPlan = {
   version: "ask-execution.v1"; sourceMessageId: string; petId: string;
+  noteBatch?: DatedCareNote[];
   careActions: AskReasoningResult["careActions"];
   semanticEvents: ReturnType<typeof governCanonicalEvents>["accepted"];
   learnings: AskReasoningResult["learnings"];
@@ -55,8 +57,9 @@ export function buildGovernedAskExecutionPlan(input: Omit<GovernedAskExecutionPl
   });
   const resolution = input.careActions.find(action => action.action === "resolve_concern" && action.relatedRecordId);
   const plan: GovernedAskExecutionPlan = structuredClone({ version: "ask-execution.v1", sourceMessageId: input.sourceMessageId, petId: input.petId,
-    careActions: resolution ? [resolution] : events.length ? [] : input.careActions.slice(0, 1),
-    semanticEvents: resolution ? [] : executableEvents, learnings: input.learnings });
+    noteBatch: input.noteBatch || [],
+    careActions: input.noteBatch?.length ? [] : resolution ? [resolution] : events.length ? [] : input.careActions.slice(0, 1),
+    semanticEvents: input.noteBatch?.length || resolution ? [] : executableEvents, learnings: input.noteBatch?.length ? [] : input.learnings });
   issuedExecutionPlans.set(plan, JSON.stringify(plan));
   return plan;
 }
@@ -347,7 +350,9 @@ export async function runFurviseIntelligence({
   if (hasOwnedPetSubject && authoritativePetIds.length === 1) reasoning.applicationActions = omitGovernedCareSaveDuplicates({
     actions: reasoning.applicationActions, events: acceptedSemanticEvents, message: context.currentMessage, petId: authoritativePetIds[0],
   });
-  const executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id,
+  const noteBatch = !readOnlyRecall && hasOwnedPetSubject && authoritativePetIds.length === 1 ? parseDatedNoteBatch(context.currentMessage) : [];
+  if (noteBatch.length) reasoning.applicationActions = reasoning.applicationActions.filter(action => action.kind !== "care_history.add");
+  const executionPlan = buildGovernedAskExecutionPlan({ sourceMessageId, petId: context.pet.id, noteBatch,
     careActions: acceptedCareActions, semanticEvents: acceptedSemanticEvents, learnings: acceptedLearnings });
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
@@ -363,7 +368,7 @@ export async function runFurviseIntelligence({
     // Enumerated validator codes only; never include answer or source text.
     { code: `ASK_ANSWER_${answerValidation.errors[0] || "VALIDATION_FAILED"}`.toUpperCase() },
   );
-  answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId, onProviderEvent, pendingCareEvents: executionPlan.semanticEvents, pendingCareActions: executionPlan.careActions,
+  answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId, onProviderEvent, pendingCareEvents: executionPlan.semanticEvents, pendingCareActions: [...executionPlan.careActions, ...noteBatchReviewActions(executionPlan.noteBatch || [])],
     validate: candidate => validateGeneratedAnswer(candidate, context, reasoning.intelligenceSafety.level,
       hasOwnedPetSubject ? authoritativePetIds : [context.pet.id]),
   });
