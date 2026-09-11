@@ -1,4 +1,5 @@
 import { withExecutionDeadline } from "../ai/execution-deadline.ts";
+import { readRecordInventory } from "./record-inventory.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { withinEvidenceNeedWindow } from "./history-dates.ts";
 import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups, historyEventRelevance } from "./history-query-relevance.ts";
@@ -88,6 +89,7 @@ function isHistoricalRecall(message: string) {
 /** Called only after conversation subject authorization, inside the real
  * generation callback. Recent safety context is retained separately. */
 export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
+  context = { ...context, recordInventory: await readRecordInventory(context, db) };
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
   const proposedPlan = context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
   const plan = proposedPlan ? clipHistoryPlan(proposedPlan, context.historyAccess) : null;

@@ -38,6 +38,8 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
   // A request-linked receipt is a separate evidence channel from a history search.
   // A lexical query returning no notes must not erase an existing write receipt.
   const requestText = evidence.scope.requestText;
+  const inventory = eligibleAnswerSources(evidence).filter(source => source.sourceType === "record_inventory");
+  if (evidence.scope.readOnlyRecall && inventory.length) return parseHistoryNarrative({ sentences: inventory.map(source => ({text: source.text, sourceIds: [source.sourceId], calculations: []})) }) || null;
   if (evidence.scope.readOnlyRecall && /\b(?:save|saved|receipts?)\b/i.test(requestText)
     && /\b(?:did|actually|receipts?|confirm|verify)\b/i.test(requestText)) {
     const receipts = evidence.operationReceipts || [];

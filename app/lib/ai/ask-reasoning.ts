@@ -1,3 +1,4 @@
+import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
 import { episodeResultText } from "../intelligence/episode-contract.ts";
 import { furviseProductFacts } from "./ask-internal-product-policy.ts";
 import { isOwnerAssertedEvidence } from "./owner-assertion.ts";
@@ -63,6 +64,7 @@ import { applyAskAnswerEconomy, planAskAnswerDepth, type AskAnswerEconomyPlan } 
 import { careEvidenceId, evidenceForRecords, representEvidence, eligibleAnswerSources, operationReceiptEvidence, type AskEvidenceContract } from "../intelligence/ask-evidence.ts";
 
 export type AskContextSourceType =
+  | "record_inventory"
   | "operation_receipt"
   | "episode_result"
   | "profile"
@@ -450,7 +452,7 @@ export function buildAskContext(input: BuildContextInput) {
   const product = /\b(product|food|brand|buy|shop|recommend)\b/i.test(input.question)
     ? scored.filter(({ record }) => record.sourceType === "product_context").slice(0, 3)
     : [];
-  const operationReceipts = scored.filter(({record}) => ["operation_receipt", "episode_result"].includes(record.sourceType)).slice(0, 8);
+  const operationReceipts = scored.filter(({record}) => ["record_inventory", "operation_receipt", "episode_result"].includes(record.sourceType)).sort((a,b) => Number(b.record.sourceType === "record_inventory") - Number(a.record.sourceType === "record_inventory")).slice(0, 8);
   const episodeEvidence = scored.filter(({record}) => record.sourceType === "episode_evidence").slice(0, 8);
   const chosen = dedupeScored([...operationReceipts, ...episodeEvidence, ...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
   let detailedUpdateCount = 0;
@@ -1472,6 +1474,11 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
         sequence_number: episode.sequence_number, recurrence_of: episode.recurrence_of, resolved_at: episode.resolved_at,
         sequenceScope: "stored_topic_sequence_not_displayed_ordinal" },
     });
+  }
+  for (const item of recordInventoryEvidence(input.evidenceContract?.recordInventory || [])) {
+    const profile = profiles.get(item.petId);
+    if (profile) records.push({ ...baseRecord(item.sourceId, "record_inventory", profile, "record_count", item.text, null),
+      status: "unknown", priority: "routine", metadata: { authority: "owned_database_count" } });
   }
   for (const receipt of operationReceiptEvidence(input.evidenceContract?.operationReceipts || [])) {
     const profile = profiles.get(receipt.petId);

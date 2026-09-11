@@ -150,6 +150,7 @@ export type FurviseLiveContext = {
   episodeResult?: import("./episode-history.ts").EpisodeResult;
   evidenceLoading?: import("./ask-evidence.ts").EvidenceLoading;
   askHistory?: import("./history-retrieval.ts").RetrievedAskHistory;
+  recordInventory?: import("./record-inventory.ts").RecordInventory[];
   historyFallback?: string;
   feature: IntelligenceFeature;
   locale: string;

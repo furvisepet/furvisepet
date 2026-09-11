@@ -1,4 +1,5 @@
 import { episodeResultText } from "./episode-contract.ts";
+import { recordInventoryEvidence } from "./record-inventory.ts";
 import { correctionReportAnswer } from "./correction-report.ts";
 import { buildEvidenceNeedCoverage, type NeedCoverage } from "./evidence-need-coverage.ts";
 import { historyEventTerms, historyEventRelevance } from "./history-query-relevance.ts";
@@ -27,6 +28,7 @@ export type AskEvidenceScope = {
   status: "resolved" | "ambiguous"; readOnlyRecall: boolean;
 };
 export type AskEvidenceContract = {
+  recordInventory?: import("./record-inventory.ts").RecordInventory[];
   operationReceipts?: import("./types.ts").AskOperationReceipt[];
   needCoverage?: NeedCoverage[];
   historyAccess?: import("./history-access.ts").AskHistoryAccess;
@@ -119,6 +121,10 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
       .filter(row => ids.includes(row.pet_profile_id) && !selected.has(row.id)).map(row => ({ sourceId: `care:${row.id}`, reason: "intermediate_selection" }))],
     represented: [], representation: "complete", verifiedFacts: [] };
   const currentTurn = context.conversationTurns.at(-1);
+  contract.recordInventory = (context.recordInventory || []).filter(item => ids.includes(item.petId));
+  for (const item of recordInventoryEvidence(contract.recordInventory)) {
+    contract.sources.push(evidenceSource(item.petId, "record_inventory", [item.sourceId]));
+  }
   contract.operationReceipts = context.conversationTurns.filter(turn => turn.id !== (currentTurn?.role === "user" ? currentTurn.id : null))
     .flatMap(turn => turn.operationReceipt && ids.includes(turn.operationReceipt.petId) ? [structuredClone(turn.operationReceipt)] : []);
   for (const petId of ids) {
@@ -211,8 +217,10 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
  * versions are authority; a presentation field name is not an evidence policy. */
 export function eligibleAnswerSources(evidence: AskEvidenceContract) {
   const receiptSources = operationReceiptEvidence(evidence.operationReceipts || []);
+  const inventorySources = recordInventoryEvidence(evidence.recordInventory || []);
   return evidence.represented.filter(span =>
-    (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "operation_receipt" || span.sourceType === "episode_result")
+    (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "operation_receipt" || span.sourceType === "episode_result" || span.sourceType === "record_inventory")
+    && (span.sourceType !== "record_inventory" || inventorySources.some(source => source.sourceId === span.sourceId && source.petId === span.petId && source.text === span.text))
     && (span.sourceType !== "episode_result" || !!evidence.episodes && span.text === episodeResultText(evidence.episodes))
     && (span.sourceType !== "operation_receipt" || receiptSources.some(source => source.sourceId === span.sourceId
       && source.petId === span.petId && source.text === span.text && source.occurredAt === (span.occurredAt || null)))

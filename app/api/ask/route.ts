@@ -2586,6 +2586,7 @@ function resolveAskLocale(bodyLocale: unknown, acceptLanguage: string | null) {
 
 function formatContextSourceLabel(record: AskContextRecord) {
   return ({
+    record_inventory: "Saved note count",
     operation_receipt: "Verified operation status",
     episode_result: "Verified episode result",
     active_concern: "Active concerns",

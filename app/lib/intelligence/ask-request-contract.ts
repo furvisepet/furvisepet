@@ -163,6 +163,18 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   }));
   if (petIds.some(id => excluded.has(id))) return fail("conflicting_subjects");
   const explicitPets = explicitlyNamedOwnedPets(context.currentMessage, owned).filter(pet => !excluded.has(pet.id));
+  // An explicit pet and calendar period define a fresh read unless the user
+  // actually refers to an earlier result. Planner-added turn IDs cannot narrow
+  // a whole-month export/count to the last save receipt or displayed list.
+  const explicitReadPeriod = evidenceNeedWindow(context.currentMessage) || literalHistoryYearWindow(context.currentMessage);
+  if (["read", "clarify"].includes(String(p.mode)) && explicitPets.length === 1 && explicitReadPeriod
+    && Date.parse(explicitReadPeriod.to) - Date.parse(explicitReadPeriod.from) > 86400000
+    && !/\b(?:these|those|that|above|previous|earlier|displayed|linked|receipts?|you (?:listed|showed))\b/i.test(context.currentMessage)) {
+    p.referenceTurnIds.splice(0); p.question = context.currentMessage; p.requirements = [];
+    p.mode = "read"; p.scope = "named"; petIds = [explicitPets[0].id];
+    p.from = explicitReadPeriod.from.slice(0,10); p.to = explicitReadPeriod.to.slice(0,10);
+    if (p.operation === "clarify") p.operation = p.ordinal ? "episode" : "recall";
+  }
   // A selected conversation container is not a cohort-search constraint. Resolve
   // explicit scope language before allocating bounded evidence across profiles.
   const cohortRequested = /\b(?:all|each|every|other|both|three|two|across|among)\b[^.!?]{0,35}\b(?:pets?|dogs?|cats?|animals?)\b|\b(?:which|whose)\s+(?:(?:of|the|my|our)\s+)*(?:pets?|dogs?|cats?|animals?)\b|\bname\s+the\s+(?:pet|dog|cat|animal)\b/i.test(context.currentMessage);
