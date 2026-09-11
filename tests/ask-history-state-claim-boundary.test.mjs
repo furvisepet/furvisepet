@@ -5,7 +5,8 @@ import { enforceVerifiedStateClaims, containsUnverifiedStateClaim } from '../app
 const caveat = 'This covers the matching saved notes I could verify, not necessarily every event in their life.';
 test('navigation progress requires a browser receipt even when a database write succeeded', () => {
   for (const text of ["I’m opening her history now.", 'Opening the vet brief for Sable using her saved history only.',
-    'What I am doing\n- Opening the profile with the saved details.', 'I opened her history.']) {
+    'What I am doing\n- Opening the profile with the saved details.', 'I opened her history.',
+    'I’ve taken you to her history.', 'We have redirected you to the profile.']) {
     assert.equal(containsUnverifiedStateClaim(text), true, text);
     assert.equal(containsUnverifiedStateClaim(enforceVerifiedStateClaims(text, true)), false, text);
   }
