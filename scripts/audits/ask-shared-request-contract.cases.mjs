@@ -407,7 +407,7 @@ test('real admission lets a repaired planner reach composition without opening e
    providerOverrides:{answer:'3 kg'}});
   assert.equal(r.result.reasoning.answer.summary,'3 kg');assert.equal(calls,2);
   const forbidden=purpose=>executeAdmittedProviderCall({purpose,model:OPENAI_ANALYSIS_MODEL,maxOutputTokens:100,providerInput:'test',invoke:async()=>{throw Error('must not invoke');}});
-  for(const purpose of [undefined,'interpretation_repair','history_repair','history_rereview'])await assert.rejects(forbidden(purpose));
+  for(const purpose of [undefined,'interpretation_repair','history_rereview'])await assert.rejects(forbidden(purpose));
  });
  assert.equal(store.getSnapshot('2026-09-04').calls,4); // planner + repair + writer + independent task review
 });
@@ -1311,7 +1311,9 @@ test('generation repair has a single admitted phase followed by independent revi
   await call('generation_repair');
   for(const purpose of [undefined,'generation_repair','interpretation_repair','history_repair','history_rereview']) await assert.rejects(call(purpose));
   await call('task_review');
+  for(const purpose of [undefined,'generation_repair','task_review','task_rereview']) await assert.rejects(call(purpose));
+  await call('task_repair'); await call('task_rereview');
   for(const purpose of [undefined,'generation_repair','task_review','task_repair','task_rereview']) await assert.rejects(call(purpose));
  });
- assert.equal(invoked,4);assert.equal(store.getSnapshot('2026-09-04').calls,4);
+ assert.equal(invoked,6);assert.equal(store.getSnapshot('2026-09-04').calls,6);
 });

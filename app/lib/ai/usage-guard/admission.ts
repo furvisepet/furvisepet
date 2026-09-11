@@ -147,14 +147,12 @@ export class AiOperationAdmission {
   async release() { await this.releaseQueued(); }
 
   async reserveNextCall(model: string, purpose?: "interpretation_repair" | "generation_repair" | "history_review" | "history_repair" | "history_rereview") {
-    if (this.feature === "ask" && (purpose === "interpretation_repair" && (this.callNumber !== 1 || this.interpretationRepaired)
-      || this.interpretationRepaired && (purpose === "history_repair" || purpose === "history_rereview"))) {
-      // Do not start a historical repair without room for its independent review.
+    if (this.feature === "ask" && purpose === "interpretation_repair" && (this.callNumber !== 1 || this.interpretationRepaired)) {
       throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_phase_out_of_order");
     }
     if (this.feature === "ask" && (purpose === "generation_repair"
       && (this.callNumber !== 2 || this.interpretationRepaired || this.generationRepaired || this.lastPurpose !== undefined)
-      || this.generationRepaired && purpose !== "history_review")) {
+      || this.generationRepaired && purpose !== "history_review" && purpose !== "history_repair" && purpose !== "history_rereview")) {
       throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_phase_out_of_order");
     }
     // Repair is a separate, one-use phase after the initial review. The final
@@ -164,9 +162,14 @@ export class AiOperationAdmission {
       || purpose === "history_review" && (this.lastPurpose === "history_review" || this.historyRepairStarted))) {
       throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_phase_out_of_order");
     }
+    // Structural repair does not replace semantic review. Each is single-use;
+    // reserve the final independent review before admitting an answer repair.
+    const structuralRepairCalls = Number(this.interpretationRepaired || this.generationRepaired);
     const maximumCalls = this.feature !== "ask" ? this.policy.maximumProviderCalls
-      : this.interpretationRepaired || this.generationRepaired ? purpose === "history_review" ? 4 : 3
-      : purpose === "generation_repair" ? 3 : purpose === "history_rereview" ? 5 : purpose === "history_repair" ? 4 : purpose === "history_review" ? 3 : 2;
+      : purpose === "history_rereview" ? 5 + structuralRepairCalls
+      : purpose === "history_repair" ? 4 + structuralRepairCalls
+      : purpose === "history_review" ? 3 + structuralRepairCalls
+      : purpose === "generation_repair" ? 3 : 2 + Number(this.interpretationRepaired);
     if (this.callNumber >= maximumCalls) throw new AiAdmissionError("AI_PROVIDER_BUDGET_EXHAUSTED", "provider_call_budget_exhausted");
     const reservedCost = estimateProviderCostMicrodollars(model, { inputTokens: this.policy.maxInputTokens, outputTokens: this.policy.maxOutputTokens });
     if (reservedCost === null) throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "unknown_model_pricing");

@@ -63,12 +63,12 @@ function isNegatedReceiptSpeech(before: string) {
 /** A navigation proposal supplies a link, not a browser-execution receipt.
  * Even a successful database mutation cannot certify that a page was opened. */
 function containsNavigationExecutionClaim(value: string) {
-  const destination = "(?:profile|page|care history|memories|vet brief)";
+  const destination = "(?:profile|page|history|memories|vet brief)";
   const patterns = [
     new RegExp(`\\b(?:i['’]m|i am|we['’]re|we are|furvise is)\\s+(?:now\\s+)?(?:opening|navigating to)\\s+[^.!?\\n]{0,80}\\b${destination}\\b`, "gi"),
     // A standalone progress announcement implies execution too. Keep gerund
     // explanations ("Opening a profile lets you...") and instructions intact.
-    new RegExp(`(?:^|[.!?]\\s+)(?:opening|navigating to)\\s+[^.!?\\n]{0,80}\\b${destination}\\s*(?:now\\s*)?(?=[.!?]|$)`, "gi"),
+    new RegExp(`(?:^|[.!?\\n]\\s*)(?:[-*]\\s*)?(?:opening|navigating to)\\s+[^.!?\\n]{0,80}\\b${destination}(?:\\s+(?:for|using|with|from)\\b[^.!?\\n]{0,100})?\\s*(?:now\\s*)?(?=[.!?\\n]|$)`, "gi"),
     new RegExp(`\\b(?:i(?:['’]ve| have)?|we(?:['’]ve| have)?|furvise has)\\s+(?:opened|navigated to)\\s+[^.!?\\n]{0,80}\\b${destination}\\b`, "gi"),
     new RegExp(`\\b${destination}\\s+(?:is|was|has been)\\s+(?:(?:now|already|successfully)\\s+)?open(?:ed)?\\b`, "gi"),
   ];
