@@ -161,7 +161,8 @@ async function persistCanonicalSemanticEvent({ event, petId, sourceMessageId, su
       currentSafetyState: proposal.state === "resolved" ? "recently_resolved" : proposal.importance === "urgent" ? "urgent" : "routine", alreadyPersisted: true };
   }
   const { data, error } = await persistSemanticEventRpc({
-    event: preparedEvent, fallbackPetId: petId, sourceMessageId,
+    // Display preparation must not change the verbatim source bound to writer evidence.
+    event, fallbackPetId: petId, sourceMessageId,
     supabase: createCanonicalCareAuthorityClient(), userId,
   });
   if (error) {
