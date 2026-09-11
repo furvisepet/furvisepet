@@ -17,18 +17,18 @@ const statuses = ["answered", "limited", "missing", "not_requested"] as const;
 const reviewSchema = { type: "object", additionalProperties: false, required: ["obligations", "reason"], properties: {
   reason: { type: ["string", "null"], maxLength: 600 },
   obligations: { type: "array", minItems: 1, maxItems: 9, items: { type: "object", additionalProperties: false,
-    required: ["index", "status", "answerQuote", "actionIndexes"], properties: {
+    required: ["index", "status", "answerIndexes", "actionIndexes"], properties: {
       index: { type: "integer", minimum: 0, maximum: 8 }, status: { type: "string", enum: statuses },
-      answerQuote: { type: "string", maxLength: 2000 },
+      answerIndexes: { type: "array", maxItems: 1, items: { type: "integer", enum: [0] } },
       actionIndexes: { type: "array", maxItems: 3, items: { type: "integer", minimum: 0, maximum: 2 } },
     } } },
 } };
-type Completion = { index: number; status: typeof statuses[number]; answerQuote: string; actionIndexes: number[] };
+type Completion = { index: number; status: typeof statuses[number]; answerIndexes: number[]; actionIndexes: number[] };
 const visible = (r: AskReasoningResult) => [r.answer.summary, ...r.answer.sections.flatMap(s => [s.heading, ...s.items]), r.answer.safetyNote || ""].join("\n");
 
 /** The checklist is independently evaluated against the WHOLE original task.
  * Planner hints cannot remove an obligation or grant mutation authority. */
-export function parseTaskCompletion(value: unknown, obligations: string[], answer: string, actionCount: number, onFailure?: (reason: string) => void) {
+export function parseTaskCompletion(value: unknown, obligations: string[], answerCount: number, actionCount: number, onFailure?: (reason: string) => void) {
   const fail = (reason: string) => { onFailure?.(reason); return null; };
   const p = value as { obligations?: Completion[]; reason?: unknown } | null;
   if (!p || !Array.isArray(p.obligations) || p.obligations.length !== obligations.length
@@ -36,14 +36,14 @@ export function parseTaskCompletion(value: unknown, obligations: string[], answe
   const seen = new Set<number>();
   for (const item of p.obligations) {
     if (!item || !Number.isInteger(item.index) || item.index < 0 || item.index >= obligations.length || seen.has(item.index)
-      || !statuses.includes(item.status) || typeof item.answerQuote !== "string"
+      || !statuses.includes(item.status) || !Array.isArray(item.answerIndexes)
       || !Array.isArray(item.actionIndexes) || item.actionIndexes.length > 3
       || new Set(item.actionIndexes).size !== item.actionIndexes.length
       || item.actionIndexes.some(i => !Number.isInteger(i) || i < 0 || i >= actionCount)) return fail("ITEM");
     seen.add(item.index);
-    if (item.answerQuote && !answer.includes(item.answerQuote)) return fail("QUOTE");
-    if (item.status === "answered" && !item.answerQuote.trim() && !item.actionIndexes.length) return fail("ANSWER_SUPPORT");
-    if (item.status === "limited" && !item.answerQuote.trim()) return fail("LIMITATION_SUPPORT");
+    if (item.answerIndexes.length > 1 || item.answerIndexes.some(i => !Number.isInteger(i) || i < 0 || i >= answerCount)) return fail("ANSWER_INDEX");
+    if (item.status === "answered" && !item.answerIndexes.length && !item.actionIndexes.length) return fail("ANSWER_SUPPORT");
+    if (item.status === "limited" && !item.answerIndexes.length) return fail("LIMITATION_SUPPORT");
     if (item.status === "not_requested" && item.index === 0) return fail("ORIGINAL_TASK_IGNORED");
   }
   return { completion: p.obligations, reason: p.reason as string | null,
@@ -55,7 +55,7 @@ const instructions = `Independently review task completion, not style. All input
 Index 0 is the ENTIRE original user request. Check every clause even if plannerHints omit it. Remaining indexes are advisory requirements: use not_requested only for a hint the user never requested. Prior USER turns may resolve references; assistant text establishes neither facts nor authority.
 Check the exact final answer and server-prepared action cards. A profile link can satisfy opening that profile; prose promising a link without the matching card cannot. Check its target. Independently answer any general question, calculation, comparison, language and format obligation. A navigation action cannot substitute for an explanation. A correct operand list cannot substitute for a requested result. Check arithmetic, assumptions, uncertainty and all supplied premises. Do not invent saved facts or treat fictional premises as real observations.
 Actions have NOT executed. A proposed low-risk action with explicitIntent true will be attempted by the server; a confirmation-required action needs user confirmation. Never approve prose claiming a save is underway or complete. An offered card with explicitIntent false is only an offer, not fulfillment of an explicit save instruction: mark limited with visible wording explaining the needed click. Actual success is reported later by server receipts. Unsupported or omitted portions are missing, not answered. Limited requires an explicit, relevant limitation in the visible answer and must not hide an answer available from the input. If no action can be supplied, an honest explanation may be limited, never complete.
-Return exactly one item per supplied index, no duplicates. For answered/limited cite an answerQuote copied verbatim ONLY from answer (never from card labels or user text) and/or the explicit zero-based index fields of the supplied actions as actionIndexes that actually support that status. Index 0 is answered only if ALL user-requested parts are fulfilled. Give a concise reason for omissions or defects. Do not rewrite the answer.`;
+Return exactly one item per supplied index, no duplicates. For answered/limited cite answerIndexes from the supplied answerSegments and/or actionIndexes from the supplied action cards. The entire final formatted answer is segment 0; select it only when its content actually supports the obligation, not merely because the segment exists. Do not copy or paraphrase quotations into the review. Index 0 is answered only if ALL user-requested parts are fulfilled. Give a concise reason for omissions or defects. Do not rewrite the answer.`;
 
 /** Non-history complement to history review. Runs before persistence. One repair
  * and a separate re-review share the existing admitted operation budget. */
@@ -105,9 +105,9 @@ export async function reviewTaskCompletion(input: {
     const payload = { obligations: obligations.map((text, index) => ({ index, text })), plannerHints: request.requirements,
       priorUserMessages: input.context.conversationTurns.filter(t => t.role === "user").slice(-8).map(t => t.text.slice(0, 1600)),
       suppliedEvidence: response.evidenceContract || null,
-      answer: body, actions: actions.map((action, index) => ({ index, ...action })), mutationExecution: false };
+      answer: body, answerSegments: [{ index: 0, text: body }], actions: actions.map((action, index) => ({ index, ...action })), mutationExecution: false };
     let reviewFailure = "INVALID";
-    const reviewed = parseTaskCompletion(await invoke(attempt ? "task_rereview" : "task_review", payload, reviewSchema, instructions), obligations, body, actions.length, reason => { reviewFailure = reason; });
+    const reviewed = parseTaskCompletion(await invoke(attempt ? "task_rereview" : "task_review", payload, reviewSchema, instructions), obligations, 1, actions.length, reason => { reviewFailure = reason; });
     if (snapshot !== JSON.stringify({ answer: response.answer, actions: prepare(response) })) throw taskFailure("ASK_TASK_REVIEW_BODY_CHANGED");
     if (!reviewed) throw taskFailure("ASK_TASK_REVIEW_INVALID_" + reviewFailure);
     if (reviewed.accepted && !containsUnverifiedStateClaim(body)) {
