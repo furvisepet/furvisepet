@@ -72,7 +72,7 @@ const body='Use the profile link below. In the fictional calculation, 2 + 3 = 5.
 const checks={structuralValidity:'passed',evidenceSupport:'not_evaluated',subjectDateCorrectness:'not_evaluated',calculationCorrectness:'not_evaluated',taskCompletion:'not_evaluated'};
 const response=(text=body,actions=[nav])=>({answer:{title:'Furvise',summary:text,sections:[],safetyNote:null},applicationActions:actions,intelligenceSafety:{level:'routine'},evidenceContract:null});
 const validation=r=>({response:r,valid:true,errors:[],repairs:[],qualityWarnings:[],assessment:createAnswerAssessment({body:r.answer,evidence:r.evidenceContract,checks})});
-const review=(text=body)=>({obligations:[0,1,2].map(index=>({index,status:'answered',answerQuote:index===1?'':text,actionIndexes:index===1?[0]:[]})),reason:null});
+const review=()=>({obligations:[0,1,2].map(index=>({index,status:'answered',answerIndexes:index===1?[]:[0],actionIndexes:index===1?[0]:[]})),reason:null});
 const mock=(values,seen=[])=>({responses:{create:async request=>{seen.push(request);assert.ok(values.length,'unexpected provider call');return {status:'completed',output_text:JSON.stringify(values.shift()),usage:{input_tokens:10,output_tokens:10}};}}});
 const run=(values,r=response(),seen=[])=>reviewTaskCompletion({validation:validation(r),context,requestId:'audit',validate:validation,client:mock(values,seen)});
 test('compound answer requires both explanation and the actual navigation card',async()=>{
@@ -84,12 +84,12 @@ test('compound answer requires both explanation and the actual navigation card',
 for(const [label,change] of [
   ['omitted item',r=>r.obligations.pop()],
   ['duplicate item',r=>r.obligations[2].index=1],
-  ['fabricated quotation',r=>r.obligations[0].answerQuote='fabricated'],
+  ['nonexistent answer segment',r=>r.obligations[0].answerIndexes=[1]],
   ['nonexistent action',r=>r.obligations[1].actionIndexes=[1]],
-  ['empty support',r=>{r.obligations[0].answerQuote='';r.obligations[0].actionIndexes=[];}],
+  ['empty support',r=>{r.obligations[0].answerIndexes=[];r.obligations[0].actionIndexes=[];}],
   ['discarded original task',r=>r.obligations[0].status='not_requested'],
 ]) test('completion receipt rejects '+label,()=>{
-  const proposal=review();change(proposal);assert.equal(parseTaskCompletion(proposal,[question,...hints],body,1),null);
+  const proposal=review();change(proposal);assert.equal(parseTaskCompletion(proposal,[question,...hints],1,1),null);
 });
 test('missing second task gets one repair and independent re-review',async()=>{
   const rejected=review('Use the profile link below.');rejected.obligations[0].status='missing';rejected.obligations[2].status='missing';rejected.reason='The requested calculation is absent.';
@@ -105,7 +105,7 @@ test('review failure is not silently accepted',async()=>{
 });
 test('an explicit limitation is not reported as complete',async()=>{
   const text='I cannot open that page here. The fictional sum is 5.';
-  const r=review(text);for(const item of r.obligations){item.status='limited';item.answerQuote=text;item.actionIndexes=[];}
+  const r=review(text);for(const item of r.obligations){item.status='limited';item.answerIndexes=[0];item.actionIndexes=[];}
   const result=await run([r],response(text,[]));assert.equal(result.assessment.outcome,'limited');assert.equal(result.assessment.checks.taskCompletion,'failed');
 });
 test('repair cannot inject a mutation proposal',async()=>{

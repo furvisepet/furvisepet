@@ -198,7 +198,7 @@ async function exercise(question, { historyAccess, fixturePets = pets, onProvide
     if (taskReviewProviderResponse) return taskReviewProviderResponse(request, options);
     assert.equal(taskReviewResponse, true, 'non-history task review needs an explicit provider verdict fixture');
     const payload = JSON.parse(request.input);
-    return {status:'completed',output_text:JSON.stringify({reason:null, obligations:payload.obligations.map((_,index)=>({index,status:'answered',answerQuote:payload.answer,actionIndexes:[]}))}),usage:{input_tokens:100,output_tokens:50}};
+    return {status:'completed',output_text:JSON.stringify({reason:null, obligations:payload.obligations.map((_,index)=>({index,status:'answered',answerIndexes:[0],actionIndexes:[]}))}),usage:{input_tokens:100,output_tokens:50}};
   }}};
   const reviewRequests = [];
   globalThis.__historyAuditReviewClient = {responses:{async create(request, options) {
