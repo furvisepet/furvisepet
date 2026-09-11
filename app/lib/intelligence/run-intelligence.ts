@@ -167,6 +167,15 @@ export async function runFurviseIntelligence({
       resolvedPetSubject: { id: context.pet.id, name: context.pet.name },
     });
 
+  if (reasoning.semanticEvents.length && semanticGovernance.rejected.length) console.info("[Ask semantic governance] rejected", {
+    requestId, proposalCount: reasoning.semanticEvents.length, acceptedCount: semanticGovernance.accepted.length,
+    rejections: semanticGovernance.rejected.map(item => ({ reason: item.reason, transition: item.proposal.transition,
+      state: item.proposal.state, confidence: item.proposal.confidence })),
+    recoveryReasons: semanticGovernance.recoveryAssessments.flatMap(item => item.reasons),
+    activeEpisodeCount: semanticGovernanceInput.activeEpisodes.length,
+    resolutionSafetyAllowed: semanticGovernanceInput.allowTerminalResolution,
+  });
+
   const proposedResolutionPolicy = evaluateCareActionPolicy({
     actions: hasOwnedPetSubject ? reasoning.careActions : [],
     currentMessage: context.currentMessage,
