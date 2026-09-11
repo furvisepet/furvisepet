@@ -83,6 +83,8 @@ export function furviseProductFacts() {
   return {
     actions: furviseActionCapabilities().map(({ kind, confirmationPolicy }) => ({ kind, confirmationPolicy })),
     savedHistory: { supported: true, requiresOwnedPet: true, planWindowApplies: true, undocumentedEventsUnknown: true },
+    historyTerms: { savedNote: "A saved care record of an owner-reported observation or update, with its date and source. It is not a diagnosis.",
+      episode: "A group of related recorded events for the same pet and topic. Several notes can describe one episode; note counts and episode counts are different. An episode grouping does not establish a diagnosis, cause or complete lifetime history." },
     writes: { supported: true, requireGroundedOwnerIntent: true, completionRequiresReceipt: true },
     navigation: { result: "a usable link", browserMovementConfirmed: false },
     vetBrief: { savedRecordsReport: true, pdfExport: true, planAccessApplies: true },

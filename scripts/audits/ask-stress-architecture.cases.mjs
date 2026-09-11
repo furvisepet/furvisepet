@@ -134,20 +134,22 @@ test('pet-switch month reaches the record through real retrieval despite newer n
 });
 test('repair telemetry accounts for every mocked provider invocation',async t=>{
  clock(t);const events=[];
- const r=await exercise('What does the latest rest note say?',{fixturePets:owned,messages:[],history:true,
+ const r=await exercise("Open Aster's profile and tell me what the latest rest note says.",{fixturePets:owned,messages:[],history:true,
  rows:[care('rest','milo','2026-06-04','general','Aster rested normally.')],interpretationProposal:proposal(),
  onProviderEvent:event=>events.push(event),
- providerOverrides:{historyNarrative:{sentences:[{text:'{"observation":"Aster rested normally."}',sourceIds:['care:rest'],calculations:[]}]}},
+ providerOverrides:{applicationActions:[{kind:'navigation.open_pet_profile',explicitIntent:true,evidence:"Open Aster's profile",input:{field:null,value:null,title:null,detail:null,category:null,target:'selected'}}],historyNarrative:{sentences:[{text:'{"observation":"Aster rested normally."}',sourceIds:['care:rest'],calculations:[]}]}},
  expectedReviewCalls:3,reviewProviderResponse:async request=>{
  const input=JSON.parse(request.input);
- const payload=request.text.format.name==='furvise_history_repair'?{readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
+ const payload=request.text.format.name==='furvise_history_repair'?{navigationActions:null,readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
  safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:rest'],
  historyNarrative:{sentences:[{text:'Aster rested normally.',sourceIds:['care:rest'],calculations:[]}]}}:
- {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null};
+ {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0],actionIndexes:[0]})),rejectionReason:null};
  return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
  }});
  assert.equal(events.filter(e=>e.outcome==='started').length,5);
  assert.equal(events.filter(e=>e.stage==='repair'&&e.outcome==='succeeded').length,1);
+ assert.equal(r.result.reasoning.applicationActions[0]?.kind,'navigation.open_pet_profile');
+ assert.equal(JSON.parse(r.reviewRequests.at(-1).input).actions[0]?.href,`/pets/${owned[0].id}`);
  assert.equal(r.publication.failure,null);
 });
 

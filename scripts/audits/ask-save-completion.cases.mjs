@@ -104,7 +104,7 @@ test('persistent omission fails after exactly one repair',async()=>{
 });
 test('a prose-only repair preserves already prepared navigation for independent re-review',async()=>{
   const rejected=review(); rejected.obligations[0].status='missing'; rejected.reason='Repair explanation';
-  const seen=[]; const result=await run([rejected,{answer:body,navigation:[],navigationUpdate:'preserve'},review()],response(),seen);
+  const seen=[]; const result=await run([rejected,{answer:body,navigation:null},review()],response(),seen);
   assert.equal(result.response.applicationActions.length,1);
   assert.equal(JSON.parse(seen[2].input).actions[0].kind,nav.kind);
   assert.equal(result.assessment.checks.taskCompletion,'passed');
