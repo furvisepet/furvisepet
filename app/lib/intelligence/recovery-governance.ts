@@ -60,7 +60,7 @@ export function deriveEffectiveRecoveryAssessment(input: {
 }): EffectiveRecoveryAssessment {
   const candidate = input.proposal.transition === "improved" && input.proposal.state === "monitoring"
     || input.proposal.transition === "improved" && input.proposal.state === "resolved"
-    || input.proposal.transition === "resolved" && input.proposal.state === "resolved";
+    || input.proposal.transition === "resolved" && ["resolved", "historical"].includes(input.proposal.state);
   const model = input.modelRecovery || { status: "none" as const, confidence: 0 };
   const authoritativeSubject = input.subjectConfidence >= 0.84;
   const modelTerminalSupport = model.status === "terminal" ? model.confidence : 0;

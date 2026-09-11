@@ -468,3 +468,25 @@ test('generic episode/update words do not weaken an otherwise exact recovery top
   assert.equal(governCanonicalEvents({...input,activeEpisodes:[active,{...active,id:'competing'}]}).accepted.length,0);
   assert.equal(governCanonicalEvents({...input,activeEpisodes:[episode('health','chronic_vomiting')]}).accepted.length,0);
 });
+
+
+test('historical resolution labels require the full independent recovery assessment', () => {
+ const sourceExcerpt='Luna stopped vomiting completely on 2024-06-11.';
+ const message=sourceExcerpt+' Save this resolution to her care history.';
+ const proposal=base({domain:'health',topic:'vomiting',transition:'resolved',state:'historical',sourceExcerpt,
+   temporal:{occurredAt:'2024-06-11T00:00:00Z',explicitTime:'2024-06-11'}});
+ const active=episode('health','vomiting_episode_update',{episode_type:'symptom',started_at:'2024-06-09T00:00:00Z'});
+ const input={proposals:[proposal],message,pet,activeEpisodes:[active],allowTerminalResolution:true,
+   recoveryAssessment:recoveryAssessment('terminal',0.99,sourceExcerpt,'problem_ended')};
+ const result=governCanonicalEvents(input);
+ assert.equal(result.accepted.length,1,JSON.stringify(result.recoveryAssessments));
+ assert.equal(result.accepted[0].event.state,'resolved');
+ assert.equal(result.accepted[0].event.references.episodeId,active.id);
+ assert.equal(result.accepted[0].event.temporal.explicitTime,'2024-06-11');
+ for(const patch of [{allowTerminalResolution:false},{activeEpisodes:[]},{recoveryAssessment:undefined},
+   {recoveryAssessment:recoveryAssessment('uncertain',0.99,sourceExcerpt,'uncertain')},
+   {recoveryAssessment:recoveryAssessment('terminal',0.99,'Luna is vomiting','problem_ended')},
+   {activeEpisodes:[active,{...active,id:'another'}]}]) {
+   assert.equal(governCanonicalEvents({...input,...patch}).accepted.length,0,JSON.stringify(patch));
+ }
+});
