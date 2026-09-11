@@ -73,3 +73,29 @@ test("confirmed briefs remain addressable and preserve source provenance on relo
   assert.match(confirm, /parseVetBriefDocument\(document\)/);
   assert.doesNotMatch(confirm, /new Date\(/);
 });
+
+test("generated exports keep their object URL alive until the browser can consume it", async (t) => {
+  const { downloadGeneratedFile } = await import("../app/lib/furvise-output.ts");
+  const priorWindow = globalThis.window;
+  let attached = false;
+  let revoked = false;
+  let cleanup;
+  const link = { click() { assert.equal(attached, true); assert.equal(revoked, false); }, remove() { attached = false; } };
+  globalThis.window = {
+    document: { createElement: () => link, body: { appendChild: () => { attached = true; } } },
+    setTimeout(callback, delay) { assert.ok(delay > 0); cleanup = callback; },
+  };
+  t.mock.method(URL, "createObjectURL", () => "blob:test-export");
+  t.mock.method(URL, "revokeObjectURL", () => { revoked = true; });
+  try {
+    downloadGeneratedFile(new Blob(["test"]), "brief.pdf");
+    assert.equal(link.download, "brief.pdf");
+    assert.equal(attached, false);
+    assert.equal(revoked, false);
+    cleanup();
+    assert.equal(revoked, true);
+  } finally {
+    if (priorWindow === undefined) delete globalThis.window;
+    else globalThis.window = priorWindow;
+  }
+});

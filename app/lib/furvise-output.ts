@@ -426,3 +426,21 @@ export function serializeHistoricalJson(value: unknown): string {
 }
 
 export const FURVISE_SAFETY_LINE = buildFurviseSafetyLine();
+
+/** Hand a generated file to the browser before releasing its backing object URL. */
+export function downloadGeneratedFile(file: Blob, filename: string) {
+  const url = URL.createObjectURL(file);
+  const link = window.document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.hidden = true;
+  window.document.body.appendChild(link);
+  try {
+    link.click();
+  } finally {
+    link.remove();
+    // Navigation/download handling is asynchronous. Immediate revocation can
+    // invalidate the file before the browser has consumed the link.
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+}

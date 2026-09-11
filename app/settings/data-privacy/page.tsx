@@ -6,6 +6,7 @@ import { accountInputClass, AccountStatus } from "../../components/account-acces
 import { PrimaryButton, SecondaryButton } from "../../components/product-primitives";
 import { useRequireConfirmedSupabaseAuth } from "../../lib/auth-session";
 import { idempotentClientFetch } from "../../lib/security/idempotency/client";
+import { downloadGeneratedFile } from "../../lib/furvise-output";
 import { getBrowserSupabase } from "../../lib/supabase";
 
 const forestButtonClass = "![--text-inverse:var(--warm-cream)] !bg-[var(--deep-forest)] hover:!bg-[var(--forest)] disabled:!bg-[var(--disabled-surface)] aria-disabled:!bg-[var(--disabled-surface)]";
@@ -34,11 +35,7 @@ export default function DataPrivacyPage() {
         throw new Error(body?.error || "Your export could not be prepared.");
       }
       const blob = await response.blob();
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `furvise-data-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      downloadGeneratedFile(blob, `furvise-data-${new Date().toISOString().slice(0, 10)}.json`);
       setMessage("Your Furvise data export is ready.");
     } catch (exportError) {
       setError(exportError instanceof Error ? exportError.message : "Your export could not be prepared.");
