@@ -72,7 +72,8 @@ const body='Use the profile link below. In the fictional calculation, 2 + 3 = 5.
 const checks={structuralValidity:'passed',evidenceSupport:'not_evaluated',subjectDateCorrectness:'not_evaluated',calculationCorrectness:'not_evaluated',taskCompletion:'not_evaluated'};
 const response=(text=body,actions=[nav])=>({answer:{title:'Furvise',summary:text,sections:[],safetyNote:null},applicationActions:actions,intelligenceSafety:{level:'routine'},evidenceContract:null});
 const validation=r=>({response:r,valid:true,errors:[],repairs:[],qualityWarnings:[],assessment:createAnswerAssessment({body:r.answer,evidence:r.evidenceContract,checks})});
-const review=()=>({obligations:[0,1,2].map(index=>({index,status:'answered',answerIndexes:index===1?[]:[0],actionIndexes:index===1?[0]:[]})),reason:null});
+const verification=()=>Object.fromEntries(['evidenceSupport','subjectDateCorrectness','calculationCorrectness'].map(key=>[key,{status:'passed',reason:'Fixture independently checked '+key}]));
+const review=()=>({verification:verification(),obligations:[0,1,2].map(index=>({index,status:'answered',answerIndexes:index===1?[]:[0],actionIndexes:index===1?[0]:[]})),reason:null});
 const mock=(values,seen=[])=>({responses:{create:async request=>{seen.push(request);assert.ok(values.length,'unexpected provider call');return {status:'completed',output_text:JSON.stringify(values.shift()),usage:{input_tokens:10,output_tokens:10}};}}});
 const run=(values,r=response(),seen=[])=>reviewTaskCompletion({validation:validation(r),context,requestId:'audit',validate:validation,client:mock(values,seen)});
 test('compound answer requires both explanation and the actual navigation card',async()=>{
@@ -171,7 +172,7 @@ test('invalid limitation references get one repair and an independently valid re
  assert.match(JSON.parse(seen[1].input).rejectionReason,/LIMITATION_SUPPORT/);
 });
 test('action readiness requires a server eligible card and whole-answer support',()=>{
- const verdict={obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}],reason:null};
+ const verdict={verification:verification(),obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}],reason:null};
  assert.equal(parseTaskCompletion(verdict,[source],1,1),null);
  const accepted=parseTaskCompletion(verdict,[source],1,1,undefined,[0]);
  assert.equal(accepted.accepted,true);assert.equal(accepted.complete,false);
@@ -180,7 +181,7 @@ test('action readiness requires a server eligible card and whole-answer support'
 });
 test('an exact observation save is reviewed as ready, never falsely completed',async()=>{
  const saveContext={...context,currentMessage:source,askInterpretation:{...context.askInterpretation,request:{...context.askInterpretation.request,requirements:[]}}};
- const seen=[];const verdict={obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}],reason:null};
+ const seen=[];const verdict={verification:verification(),obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[0]}],reason:null};
  const r=response('The action below shows the status of this update.',[{...action,input:{...action.input,detail:observation.replace('7 minute','7-minute')}}]);
  const result=await reviewTaskCompletion({validation:validation(r),context:saveContext,requestId:'save-ready',validate:validation,client:mock([verdict],seen)});
  assert.equal(JSON.parse(seen[0].input).actions[0].executionDisposition,'automatic_after_persistence');
@@ -198,9 +199,9 @@ test('provider schema rejects unsupported references before generation',async()=
  invalid.obligations[1].status='answered';invalid.obligations[1].actionIndexes=[1];assert.equal(validate(invalid),false);
  const empty=review();empty.obligations[0].answerIndexes=[];assert.equal(validate(empty),false);
  const noActions=new Ajv({strict:false}).compile(taskReviewSchema(1,0,[]));
- assert.equal(noActions({obligations:[{index:0,status:'limited',answerIndexes:[0],actionIndexes:[]}],reason:null}),true);
+ assert.equal(noActions({verification:verification(),obligations:[{index:0,status:'limited',answerIndexes:[0],actionIndexes:[]}],reason:null}),true);
  const ready=new Ajv({strict:false}).compile(taskReviewSchema(1,2,[1]));
- const verdict={obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[1]}],reason:null};
+ const verdict={verification:verification(),obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:[1]}],reason:null};
  assert.equal(ready(verdict),true);verdict.obligations[0].actionIndexes=[0];assert.equal(ready(verdict),false);
 });
 
@@ -223,4 +224,31 @@ for(const text of [
  source.replace('had a','said he had a'),`${pet.name} ${'a'.repeat(501)}. Save this update to care history.`,
 ]) test('literal router does not consume ambiguous or compound save: '+text.slice(0,70),()=>{
  assert.equal(planDeterministicAskCommand(text,pet.name),null);
+});
+
+for (const key of ['evidenceSupport','subjectDateCorrectness','calculationCorrectness']) test('failed '+key+' requires repair despite complete task checklist',async()=>{
+ const rejected=review();rejected.verification[key]={status:'failed',reason:'Independent check found a factual defect'};
+ const seen=[];const result=await run([rejected,{answer:body,navigation:[nav]},review()],response(),seen);
+ assert.equal(seen.length,3);assert.equal(result.assessment.outcome,'complete');
+ assert.equal(JSON.parse(seen[1].input).verificationFindings[key].status,'failed');
+ await assert.rejects(run([rejected,{answer:body,navigation:[nav]},rejected]),/ASK_TASK_INCOMPLETE/);
+});
+test('completion alone cannot stand in for independent verification',()=>{
+ const old=review();delete old.verification;assert.equal(parseTaskCompletion(old,[question,...hints],1,1),null);
+ const malformed=review();malformed.verification.calculationCorrectness.reason='  ';
+ assert.equal(parseTaskCompletion(malformed,[question,...hints],1,1),null);
+ malformed.verification.calculationCorrectness={status:'not_evaluated',reason:'Not checked'};
+ assert.equal(parseTaskCompletion(malformed,[question,...hints],1,1),null);
+});
+test('verified navigation without arithmetic may explicitly mark calculation inapplicable',async()=>{
+ const noMath={...context,currentMessage:`Show ${pet.name}'s profile`,askInterpretation:{...context.askInterpretation,request:{...context.askInterpretation.request,requirements:[]}}};
+ const verdict={...review(),obligations:[{index:0,status:'answered',answerIndexes:[0],actionIndexes:[0]}]};
+ verdict.verification.calculationCorrectness={status:'not_applicable',reason:'Neither request nor answer contains arithmetic'};
+ const result=await reviewTaskCompletion({validation:validation(response('Use the profile link below.')),context:noMath,requestId:'no-math',validate:validation,client:mock([verdict])});
+ assert.equal(result.assessment.outcome,'complete');assert.equal(result.assessment.checks.calculationCorrectness,'not_applicable');
+});
+test('evidence changed during review invalidates the review capability',async()=>{
+ const r=response();r.evidenceContract={represented:[]};
+ const client={responses:{async create(){r.evidenceContract.represented.push({text:'Changed while reviewing'});return {status:'completed',output_text:JSON.stringify(review()),usage:{input_tokens:10,output_tokens:10}};}}};
+ await assert.rejects(reviewTaskCompletion({validation:validation(r),context,requestId:'evidence-race',validate:validation,client}),/ASK_TASK_REVIEW_BODY_CHANGED/);
 });
