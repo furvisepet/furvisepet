@@ -39,6 +39,9 @@ test('dated episode count cannot override a discovered unlinked correction',asyn
  const r=await run('List vomiting episodes in 2014.',{rows:[first,second,update,correction],answer:'One confirmed episode.'});
  assert.ok(r.context.askHistory.coverage.reasons.includes('unlinked_correction_uncertain'));
  assert.equal(r.context.episodeResult.coverage,'unavailable');
+ assert.ok(r.context.episodeResult.reasons.includes('episode_correction_unresolved'));
+ assert.match(r.result.reasoning.answer.summary,/correction/i);
+ assert.doesNotMatch(r.result.reasoning.answer.summary,/retry|try again|just now/i);
  assert.deepEqual(r.context.episodeResult.items,[]);
  assert.equal(r.context.episodeResult.references,undefined);
  const response=attachEpisodeReferences(buildAskConversationResponse(r.result.reasoning.answer),r.context.episodeResult);

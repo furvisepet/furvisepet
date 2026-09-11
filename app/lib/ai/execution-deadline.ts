@@ -32,12 +32,13 @@ export class OperationDeadline {
 
 /** Cancellation is advisory. Settle locally even if a provider ignores it.
  * Late results remain observed but cannot replace the terminal result. */
-export async function withProviderDeadline<T>(invoke: (signal: AbortSignal) => Promise<T>, timeoutMs: number): Promise<T> {
+export async function withExecutionDeadline<T>(invoke: (signal: AbortSignal) => PromiseLike<T>, timeoutMs: number): Promise<T> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647) throw new Error("INVALID_EXECUTION_TIMEOUT");
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expired = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      const error = Object.assign(new Error("Ask provider timed out."), { name: "TimeoutError", code: "ABORT_ERR" });
+      const error = Object.assign(new Error("Ask operation timed out."), { name: "TimeoutError", code: "ABORT_ERR" });
       reject(error);
       controller.abort(error);
     }, timeoutMs);
@@ -48,3 +49,6 @@ export async function withProviderDeadline<T>(invoke: (signal: AbortSignal) => P
     clearTimeout(timer);
   }
 }
+
+/** Provider callers retain their existing API; database reads use the same local settlement contract. */
+export const withProviderDeadline = withExecutionDeadline;

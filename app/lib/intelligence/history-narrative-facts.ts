@@ -14,17 +14,17 @@ function dates(text: string): string[] {
 function quantities(text: string): string[] {
   // Date tokens cannot also be quantities: "April 17 accident-free update"
   // contains a day number, not seventeen accidents. Keep the two anchor axes separate.
-  const prose = text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
+  const prose = text.replaceAll("−", "-").replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
     .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{4}\b/gi, " ")
     .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi, " ");
   const rates: string[] = [];
-  const scalarProse = prose.replace(/\b(\d+(?:\.\d+)?)\s+([a-z]+\s*\/\s*[a-z]+)\b/gi, (literal, value, unit) => {
+  const scalarProse = prose.replace(/(?<![\p{L}\p{N}_.+-])([+-]?\d+(?:\.\d+)?)\s+([a-z]+\s*\/\s*[a-z]+)\b/giu, (literal, value, unit) => {
     const rate = compoundUnit(unit);
     if (!rate) return literal;
     rates.push(Number(value) + ":" + rate.canonical);
     return " ";
   });
-  return [...rates, ...[...scalarProse.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/\b(\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?|cad|usd|eur|gbp|aud|nzd|jpy|chf|cny|km|cm|mm|m)\b/g)]
+  return [...rates, ...[...scalarProse.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/(?<![\p{L}\p{N}_.+-])([+-]?\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|bouts?|courses?|cad|usd|eur|gbp|aud|nzd|jpy|chf|cny|km|cm|mm|m)\b/gu)]
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`)];
 }
 /** A deterministic guard for explicit factual anchors, not semantic entailment.

@@ -1,3 +1,4 @@
+import { withExecutionDeadline } from "../ai/execution-deadline.ts";
 import { clipHistoryPlan } from "./history-access.ts";
 import "server-only";
 import { parseEpisodeFollowUp as episodeFollowUp } from "./episode-reference-language.ts";
@@ -81,14 +82,18 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     result.referenceStatus="clarify";return done();
   }
   const deadline = Date.now()+5000;
-  const signal = () => AbortSignal.timeout(Math.max(1,deadline-Date.now()));
+  const readWithinBudget = <T>(invoke: (signal: AbortSignal) => PromiseLike<T>) => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error("episode_read_deadline");
+    return withExecutionDeadline(invoke, remaining);
+  };
   let refs: EpisodeReferences | null = null;
   try {
     if (petIds.length !== 1 || !petIds.includes(context.pet.id)) { result.coverage="ambiguous"; result.referenceStatus="clarify"; return done(); }
     if (follow) {
       // An unspecified topic may inherit the saved list; competing topics may not.
       if (follow.ambiguous || ambiguousTopic || !context.conversationId) return done();
-      const stored = await db.rpc("read_ask_episode_references", {p_conversation_id:context.conversationId}).abortSignal(signal());
+      const stored = await readWithinBudget(signal => db.rpc("read_ask_episode_references", {p_conversation_id:context.conversationId}).abortSignal(signal));
       if (stored.error) throw new Error("reference_read_unavailable");
       refs = parseReferences(stored.data,context);
       if (!refs) {
@@ -108,8 +113,8 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     // Member-only revalidation cannot discharge uncertainty found by the preceding
     // historical read: a late correction may have no episode membership at all.
     const inherited = context.askHistory?.coverage;
-    if (inherited && (inherited.corrections === "unavailable" || inherited.corrections === "partial"
-      || inherited.reasons.includes("unlinked_correction_uncertain"))) {
+    if (inherited?.reasons.includes("unlinked_correction_uncertain")) throw new Error("episode_correction_unresolved");
+    if (inherited && (inherited.corrections === "unavailable" || inherited.corrections === "partial")) {
       throw new Error("historical_episode_correction_unavailable");
     }
     const bounded = clipHistoryPlan({ from: result.from, to: result.to }, context.historyAccess);
@@ -118,7 +123,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     const episodeIds = refs?.items.filter(i => i.id.startsWith("episode:")).map(i => i.id.slice(8));
     const readArgs={p_pet_id:context.pet.id,p_keys:keys(result.topic),p_episode_ids:episodeIds?.length ? episodeIds : null,
       p_from: refs && !context.historyAccess ? null : result.from, p_to: refs && !context.historyAccess ? null : result.to};
-    const read = await db.rpc("read_ask_episode_sources", readArgs).abortSignal(signal());
+    const read = await readWithinBudget(signal => db.rpc("read_ask_episode_sources", readArgs).abortSignal(signal));
     const inventory = refs ? null : recordedInventory(read.data?.recorded_inventory, context.owner.userId, context.pet.id,
       keys(result.topic), result.from, result.to);
     const census = refs ? null : recordedCensus(read.data?.recorded_census, context.owner.userId, context.pet.id,
@@ -155,7 +160,7 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
       retrieval:"partial",corrections:"unknown",extraction:"unknown",grouping:"unknown",continuation:[],reasons:[],consistency:"read_committed_no_snapshot",perPet:[],provenance:[],claimSources:[],excludedIds:[]};
     const claimValidation: EpisodeClaimValidation = {claims:candidates.flatMap(s=>s.claim ? [s.claim] : []),verified:new Map()};
     const effective=await effectiveCandidates(candidates.filter(s=>!s.claim),new Set(context.eligiblePets.filter(p=>p.user_id===context.owner.userId).map(p=>p.id)),[context.pet.id],context.owner.userId,db,coverage,deadline,claimValidation);
-    const recheck=await db.rpc("read_ask_episode_sources",readArgs).abortSignal(signal());
+    const recheck=await readWithinBudget(signal => db.rpc("read_ask_episode_sources",readArgs).abortSignal(signal));
     if (recheck.error || !recheck.data || initialRevision!==hash(revision(recheck.data))) throw new Error("episode_changed_during_read");
     if (membership.memberships) {
       const priorGraph = claimValidation.revision;
@@ -166,12 +171,13 @@ export async function retrieveEpisodeHistory(context: FurviseLiveContext, db: Su
     if (inventory || census) {
       // The transactionally advanced revision brackets ALL graph reads, including
       // the second closure pass. Stable SQL calls share their statement snapshot.
-      const finalRead = await db.rpc("read_ask_episode_sources",readArgs).abortSignal(signal());
+      const finalRead = await readWithinBudget(signal => db.rpc("read_ask_episode_sources",readArgs).abortSignal(signal));
       if (finalRead.error || !finalRead.data || initialRevision !== hash(revision(finalRead.data)))
         throw new Error("recorded_inventory_changed_during_read");
     }
     result.provenance=coverage.provenance;
-    if (coverage.corrections==="unavailable" || coverage.reasons.includes("unlinked_correction_uncertain")) throw new Error("episode_correction_unavailable");
+    if (coverage.reasons.includes("unlinked_correction_uncertain")) throw new Error("episode_correction_unresolved");
+    if (coverage.corrections==="unavailable") throw new Error("episode_correction_unavailable");
     const effectiveIds=new Set(effective.map(s=>s.id));
     for (const s of candidates) if (s.claim && claimValidation.verified.has(s.claim.id)) effectiveIds.add(s.id);
     if (membership.memberships) {

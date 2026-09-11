@@ -23,7 +23,7 @@ export function recordedCensus(value: unknown, ownerId: string, petId: string, k
     || typeof r.revision !== "string" || !/^[1-9][0-9]{0,18}\.[1-9][0-9]{0,18}$/.test(r.revision)
     || typeof r.snapshot !== "string" || !Number.isFinite(Date.parse(r.snapshot))
     || Math.abs(Date.now()-Date.parse(r.snapshot))>30_000) return null;
-  return r;
+  return structuredClone(r);
 }
 
 /** This is a database census, not a model-supplied completeness flag. Its
@@ -38,7 +38,7 @@ export function recordedInventory(value: unknown, ownerId: string, petId: string
     : typeof a === "string" && Number.isFinite(Date.parse(a)) && Date.parse(a) === Date.parse(b);
   if (r.version !== "ask-recorded-inventory.v1" || r.ownerId !== ownerId || r.petId !== petId
     || !Array.isArray(r.keys) || JSON.stringify([...r.keys].sort()) !== JSON.stringify([...keys].sort())
-    || !sameTime(r.from, from) || !sameTime(r.to, to) || !/^[1-9][0-9]{0,18}(?:\.[1-9][0-9]{0,18})?$/.test(r.revision)
+    || !sameTime(r.from, from) || !sameTime(r.to, to) || typeof r.revision !== "string" || !/^[1-9][0-9]{0,18}(?:\.[1-9][0-9]{0,18})?$/.test(r.revision)
     || typeof r.snapshot !== "string" || !Number.isFinite(Date.parse(r.snapshot))
     || Math.abs(Date.now() - Date.parse(r.snapshot)) > 30_000
     || !Number.isSafeInteger(r.episodeCount) || r.episodeCount < 0 || r.episodeCount > 32
