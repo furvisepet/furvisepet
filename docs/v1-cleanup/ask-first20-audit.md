@@ -1,5 +1,42 @@
 # Ask: first 20 files — code audit
 
+## Three production gaps — repair and acceptance (September 11, 2026)
+
+This work addresses explicit observation saves rejected by completion review, navigation/calculation failures from invalid reviewer references, and pending Add buttons that disagreed with care persistence. The related invisible cancellation receipt was also corrected.
+
+Implementation:
+
+- Literal single-observation save commands now use the existing deterministic command router. The original owner text is preserved, including duration, signs and decimals. The parser requires the selected pet's name and a complete explicit save command. Quoted, fictional, conditional, compound and oversized input stays with full interpretation. Emergency and lifecycle handling retain priority. Capability creation still re-reads the owned persisted source; the database remains the write authority. No model approval is required to repeat the owner's exact note into an authorized action.
+- Non-history AI review distinguishes prepared mutations from execution success. Its strict provider schema encodes available action indexes, required support for limitations, and mutation-only readiness; the parser independently enforces those constraints. Invalid first verdicts receive only the existing one repair and independent re-review. Compound questions continue to require review against the whole original request and all advisory requirements.
+- Harmless duration hyphenation is normalized only for literal matching, preserving quantities, signs, decimals and qualifiers. Explicit new saves do not reuse fuzzy matches from older source turns.
+- A private executor migration (`20260911040257_reconcile_ask_care_save_receipts.sql`, matching the applied production version) reconciles an existing unique owned source-turn care entry into its immutable terminal capability receipt. It preserves ownership/source binding, cancellation, confirmation, expiry and target-freshness checks. Multiple candidate capabilities fail closed. The public wrapper remains the sole service entry point; no new caller gains write authority.
+- Cancelled receipts remain visible in the action card, including after reload; they render no action buttons.
+
+Verification: **167 focused tests passed**, scoped TypeScript and ESLint passed, and the preview build passed. Disposable PostgreSQL executed both the new receipt suite and the existing target freshness/expiry suite. The new rollback-only receipt suite also passed against production PostgreSQL; all fixture users/records rolled back. It covered same-turn reuse, fresh insertion, wrong-pet/older-turn isolation, denied foreign-user access, explicit-intent rejection, cancellation, ambiguity, duplicate replay and executor privileges. Supabase advisors found no affected-function privilege/search-path warning; pre-existing unrelated notices remain outside this change.
+
+Development acceptance failures are retained here:
+
+- On `2a6e287`, the twelve-minute save succeeded (conversation `d1e86301-5b75-472b-a78a-7b051391954a`, request `0dac76da-7004-4de2-96ab-a455c0d24499`) and persisted one exact entry, but navigation + 8 + 5 failed with `ASK_TASK_REVIEW_INVALID_ACTION_NOT_READY` (conversation `5c052140-c357-4827-903c-066adf72014f`). The seven-minute save failed on checklist index 3 (conversation `f1d0b294-40d5-4281-bbe7-66cfefbc9455`). Those failures led to the constrained review schema.
+- On `4d28761`, navigation + 8 + 5 passed and its link survived reload/opened Clover's profile (conversation `0b6d8297-378e-429e-8fa5-a293991c6b2b`, request `c96d520b-e651-4a4f-a122-9280001f3c79`). The seven-minute save passed and retained a succeeded card after reload (conversation `777b69a6-60ec-4914-9705-3a277c85ad39`, request `48928e05-3d78-48c4-a0ed-8a2fcd6d0e86`). Repeating twelve minutes failed on checklist index 4 (conversation `8183193d-fdd3-4a45-b0ce-f0207440da6d`). This demonstrated that prompt/schema work alone was insufficient for literal commands and motivated the deterministic route.
+- A fictional fourteen-minute explanation passed without actions or new records on `2a6e287` (conversation `eb1afd87-33ea-4bbf-ba73-3f69084074de`).
+
+These failed attempts are not counted as successful first attempts or erased by later retries. They produced no care entries. Two authorized test saves were created before the final rollout; active test entries rose from 3,731 to 3,733.
+
+Final deployed source: **`9a32be4f31d8eb6fd5e488c2cf800e4997d0d383`**, deployment **`dpl_6XY8r9VgRCzy8HVacL8L1iiq9PTf`**, READY on `www.furvise.com`, `furvise.com` and `furvise.vercel.app`. PRs #291, #292 and #293 are merged. Preview and production builds passed.
+
+| Final-release scenario | Result and durable evidence |
+|---|---|
+| Exact twelve-minute save | **Pass.** One exact owned entry `2de72421-b177-4333-8ad6-6676b7ac65e9`, source `365a13af-3d0a-4988-80ab-a6929100584e`; capability `succeeded`; reload keeps the saved status and no Add button. Conversation `94c06a91-84c3-4211-93da-e8f084767477`, request `591bd083-b310-4ea6-ae5f-497cc968b98e`. |
+| Exact seven-minute save | **Pass.** One exact owned entry `cb3b48fe-c052-4b9a-88af-3ac2cb7a8ceb`, source `16d2fc7e-e489-4767-878c-7633d9046348`; capability `succeeded`; reload retains terminal status. Runtime explicitly reports deterministic execution, providerCallCount 0, success and HTTP 200. A rollback-only replay of this actual capability returned the same succeeded receipt without changing the entry count. Conversation `c15280ea-1890-466e-91e1-6e49ca00f433`, request `9ef480c9-2492-481c-82f7-2266049634d2`. |
+| Decimal-duration save | **Pass.** Entry `d968d83b-da12-43fe-b1df-396118e456a8` contains exactly “Clover had a 7.5 minute play session today”; succeeded receipt; no conversion to 75 or reuse of the seven-minute entry. Conversation `3ff31c33-340e-413d-99c3-45c69ae0218d`, request `9624dd6f-43f0-4db7-a351-2ee55542b40e`. |
+| Fictional fourteen-minute explanation, explicitly no save | **Pass.** Explanation only, no actions, no added entry. Conversation `514b460b-f135-4f8c-bbf1-1a6d22daf07d`, request `44921345-d8a2-41ff-b3d0-65848bbd8ff1`. |
+| Open Clover’s profile and explain 8 + 5 | **Pass.** Answer 13 plus the correct owned profile link; both persisted after reload, and the link opened Clover’s actual profile. Task-completion check passed. Conversation `b6a18167-5a2d-4bdd-9fb3-1522aaaf4746`, request `4ec0d327-0521-4136-b314-6c09e3ebc9fd`. |
+| Reload the previously cancelled archive | **Pass.** “The action was cancelled” is now visible, with no confirmation button. Reload preserves it. Existing conversation `2363b61d-6982-40bd-ada7-8c5017b6c891`; database capability remains cancelled and Clover remains active. No new archive was attempted. |
+
+The final release had five new first-attempt requests, all delivered successfully, plus the saved cancellation reload. Active synthetic-account care entries ended at **3,736**: two earlier development saves plus three final-release saves, each with its own source turn. No fictional-control entry or archive was created. No HTTP 5xx logs were found for the final deployment during its acceptance window.
+
+**Rating: 9/10 for these repaired and tested flows**, an engineering judgment rather than a statistical reliability estimate. The three reported reproductions now pass, with deterministic literal saves removing their model-dependent failure mode. This is not a 10/10 certification of every Ask path: compound free-form saves still require independent review, and non-history assessment still conservatively reports `limited` when history-specific checks are not evaluated, even when task completion passes. This work does not rewrite historical answer prose or retrospectively re-author old ambiguous capabilities. Concurrency was not load-tested against a native database; the locked/unique receipt path was exercised in PostgreSQL and terminal replay was verified in production.
+
 ## Compound historical navigation repair — production acceptance and rating
 
 September 11, 2026. PR #290 merged as `da9dd805011c45b7b9cf887e8afcf23d72e1841f`. Deployment `dpl_FREGYpEWvxVA4xYiamf2pp9MxxTw` reached READY and owns `www.furvise.com`, `furvise.com` and `furvise.vercel.app`. Preview and production builds passed.
