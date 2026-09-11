@@ -57,7 +57,7 @@ const immediateEmergencyPatterns: Array<{
 ];
 
 const generalEmergencyDiscussionPattern = /^(?:what (?:is|are|causes?) (?:a |an )?(?:seizure|collapse|breathing difficulty|severe bleeding)|what does (?:seizure|collapse|unresponsive|cannot breathe|severe bleeding) mean|(?:can|could) (?:dogs|cats|pets|animals) (?:(?:have|experience) (?:seizures?|collapse|breathing difficulty|severe bleeding)|collapse(?: from .+)?|become unresponsive(?: from .+)?)|tell me about (?:seizures?|collapse|breathing difficulty|severe bleeding)|definition of (?:seizure|collapse|breathing difficulty|severe bleeding))\??$/i;
-const explicitNonPetSubjectPattern = /\b(i am|i'm|i cannot|i can't|myself|a person|someone|human|child|baby)\b/i;
+const explicitNonPetSubjectPattern = /^(?:i|we|myself|a person|someone|human|(?:(?:my|our|the|a)\s+)?(?:child|baby))\b/i;
 const explicitPetSubjectPattern = /\b(dog|cat|pet|puppy|kitten|animal|my (?:boy|girl)|one of (?:my|our|the) (?:pets|dogs|cats))\b/i;
 
 const generalResolutionPattern = /\b(returned to normal|back to normal|normal again|everything seems normal|(?:is|are|was|were) (?:good|fine) now|symptoms? (?:resolved|stopped|are gone|went away)|no longer happening|fully recovered)\b/i;
@@ -192,7 +192,7 @@ export function detectImmediateAskEmergency(value: string): ImmediateAskEmergenc
     const named = /^([\p{L}\p{M}'’ -]{1,80}?)\s+(?:is|are|was|were|has|had|can|cannot|can't|won't|will|stopped|collapsed?|became|started)\b/iu.exec(text)?.[1].toLowerCase();
     if (named && !/^(?:he|she|they|it)$/.test(named)) {
       subject = named;
-      human = explicitNonPetSubjectPattern.test(text) && !explicitPetSubjectPattern.test(text);
+      human = explicitNonPetSubjectPattern.test(named) && !explicitPetSubjectPattern.test(named);
     } else if (explicitNonPetSubjectPattern.test(text) && !explicitPetSubjectPattern.test(text)) {
       subject = "human"; human = true;
     } else if (!named && !/^(?:he|she|they|it|is|are|was|were|has|had|can|cannot|can't|stopped|no longer|not seizing|not bleeding|breathing|seizure|bleeding|gasping)\b/i.test(text)) {

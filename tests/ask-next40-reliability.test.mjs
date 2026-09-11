@@ -17,6 +17,18 @@ import { episodeMembershipSources } from '../app/lib/intelligence/episode-member
 import { parseEpisodeFollowUp } from '../app/lib/intelligence/episode-reference-language.ts';
 import { hasUndatedHistoricalCareState } from '../app/lib/intelligence/historical-care-state.ts';
 import { createAnswerAssessment, assessmentMatches } from '../app/lib/intelligence/answer-assessment.ts';
+import { scrubUntrustedMutationClaim } from '../app/lib/ask-publication.ts';
+import { containsUnverifiedStateClaim, enforceVerifiedStateClaims } from '../app/lib/application-actions/state-claims.ts';
+
+test('a navigation link never certifies browser execution, including after reload', () => {
+  for (const claim of ['Her profile is open.', "I opened Clover's profile.", 'The care history page has been opened.']) {
+    assert.equal(containsUnverifiedStateClaim(claim), true, claim);
+    assert.equal(scrubUntrustedMutationClaim(claim + ' The math comes out to 20.', ''), 'The math comes out to 20.');
+    assert.equal(enforceVerifiedStateClaims(claim + ' The math comes out to 20.', true), 'The math comes out to 20.');
+  }
+  for (const text of ['Use Open to view her profile.', 'Her profile is not open.', 'The clinic is open.', "Clover's mouth is open."])
+    assert.equal(containsUnverifiedStateClaim(text), false, text);
+});
 
 for (const [before, after] of [['Value < 5.', 'Value > 5.'], ['Value ≤ 5.', 'Value ≥ 5.'],
   ['Value −5.', 'Value 5.'], ['2 × 3 = 6', '2 ÷ 3 = 6'], ['Range 2–3.', 'Range 23.'],
@@ -60,12 +72,14 @@ for (const message of ['Luna cannot breathe. Pixel is breathing normally.',
   'Luna is breathing normally but now she cannot breathe.',
   'I cannot breathe and Luna is having a seizure.',
   'Luna is having a seizure. Pixel stopped seizing.',
+  'Clover cannot breathe beside my child.',
   'Luna cannot breathe. Pixel vomited. She is breathing normally now.',
   'Luna cannot breathe. She might be breathing normally now.',
   'Luna is not breathing normally and cannot breathe.']) {
   test(`emergency remains scoped to its current report: ${message}`, () => assert.ok(detectImmediateAskEmergency(message)));
 }
 for (const message of ['I cannot breathe after my run.', 'My pet stopped seizing and is back to normal.',
+  'My child is gasping.', 'We cannot breathe.',
   'Luna cannot breathe. Luna is breathing normally now.', 'Luna was gasping but she is breathing normally now.',
   'Luna was gasping but she is no longer gasping.',
   'If my dog cannot breathe, what should I do?', 'In 2020 Luna was gasping.']) {

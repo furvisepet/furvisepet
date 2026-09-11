@@ -19,6 +19,7 @@ export function containsUnverifiedStateClaim(value: string) {
 
 function containsUnquotedStateClaim(value: string) {
   value = askProseOnly(value);
+  if (containsNavigationExecutionClaim(value)) return true;
   // A relative clause describing a retrieved measurement is not a receipt.
   // Keep affirmative app writes elsewhere in the same text subject to checks.
   const speech = value.replace(/\b((?:(?:earliest|latest|first|last|oldest|newest|saved|recorded)\s+)*(?:weight|measurement|temperature|dose|duration|distance|reading))\s+(?:that\s+)?I\s+(?:have\s+)?(?:saved|recorded)\s+(?:for\s+[^.!?;]{1,60}?\s+)?(?=is\b|was\b)/gi, "$1 ");
@@ -57,6 +58,17 @@ function containsUnquotedStateClaim(value: string) {
 function isNegatedReceiptSpeech(before: string) {
   const clause = before.split(/[,;.!?]|\b(?:but|however|and|yet)\b/i).at(-1) || "";
   return /\b(?:cannot|can['’]t|could not|couldn['’]t|will not|won['’]t)\s+(?:honestly\s+|truthfully\s+)?(?:say|claim|confirm|pretend)\s+(?:that\s+)?(?:[\w'’]+\s+){0,5}$/i.test(clause);
+}
+
+/** A navigation proposal supplies a link, not a browser-execution receipt.
+ * Even a successful database mutation cannot certify that a page was opened. */
+function containsNavigationExecutionClaim(value: string) {
+  const destination = "(?:profile|page|care history|memories|vet brief)";
+  const patterns = [
+    new RegExp(`\\b(?:i(?:['’]ve| have)?|we(?:['’]ve| have)?|furvise has)\\s+(?:opened|navigated to)\\s+[^.!?\\n]{0,80}\\b${destination}\\b`, "gi"),
+    new RegExp(`\\b${destination}\\s+(?:is|was|has been)\\s+(?:(?:now|already|successfully)\\s+)?open(?:ed)?\\b`, "gi"),
+  ];
+  return patterns.some(pattern => [...value.matchAll(pattern)].some(match => !isNegatedReceiptSpeech(value.slice(0, match.index))));
 }
 export function containsUntrustedTerminalMutationClaim(value: string) {
   const pattern = /\b(?:profile|history|record|entry|preference|concern|pet|update|change)\s+(?:is\s+|has\s+been\s+|was\s+)?(saved|deleted|removed|forgotten|changed|updated|archived|recorded|completed|marked)\b/gi;
@@ -136,7 +148,9 @@ export function stripOptionalAssistantOffers(value: string) {
 function enforceUnquotedStateClaims(value: string, verifiedSuccess: boolean) {
   const clean = stripOptionalAssistantOffers(value).trim();
   if (!clean) return "I can help with that.";
-  if (verifiedSuccess || !containsUnverifiedStateClaim(clean)) return clean;
-  const safe = splitSentencesPreservingFacts(clean).filter((sentence) => !containsUnverifiedStateClaim(sentence)).join(" ").trim();
+  const unsupported = (sentence: string) => containsNavigationExecutionClaim(sentence)
+    || !verifiedSuccess && containsUnverifiedStateClaim(sentence);
+  if (!unsupported(clean)) return clean;
+  const safe = splitSentencesPreservingFacts(clean).filter((sentence) => !unsupported(sentence)).join(" ").trim();
   return safe || "I can help with that.";
 }
