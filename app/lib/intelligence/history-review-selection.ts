@@ -24,20 +24,21 @@ export function parseHistoryReviewSelection(value: unknown, sentenceCount: numbe
 
 /** A task-level receipt cannot approve a subset that silently drops a requested
  * obligation. Limited evidence is a valid answer only with retained explanation. */
-export type TaskObligationReview = { index: number; status: "answered" | "limited" | "missing"; sentenceIndexes: number[] };
+export type TaskObligationReview = { index: number; status: "answered" | "limited" | "missing"; sentenceIndexes: number[]; actionIndexes?: number[] };
 export const taskHistoryReviewSchema = {
   ...historyReviewSelectionSchema,
   required: [...historyReviewSelectionSchema.required, "obligations"],
   properties: { ...historyReviewSelectionSchema.properties,
     obligations: { type: "array", maxItems: ASK_HISTORY_MAX_OBLIGATIONS, items: { type: "object", additionalProperties: false,
-      required: ["index", "status", "sentenceIndexes"], properties: {
+      required: ["index", "status", "sentenceIndexes", "actionIndexes"], properties: {
         index: { type: "integer", minimum: 0, maximum: ASK_HISTORY_MAX_OBLIGATIONS - 1 },
         status: { type: "string", enum: ["answered", "limited", "missing"] },
         sentenceIndexes: historyReviewSelectionSchema.properties.retainedSentenceIndexes,
+        actionIndexes: { type: "array", maxItems: 3, items: { type: "integer", minimum: 0, maximum: 2 } },
       } } },
   },
 };
-export function parseTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number): HistoryReviewSelection & { obligations: TaskObligationReview[] } {
+export function parseTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number, actionCount = 0): HistoryReviewSelection & { obligations: TaskObligationReview[] } {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_TASK_REVIEW");
   const p = value as Record<string, unknown>;
   if (Object.keys(p).sort().join() !== "approved,obligations,retainedSentenceIndexes"
@@ -47,15 +48,24 @@ export function parseTaskHistoryReview(value: unknown, sentenceCount: number, ob
   for (const raw of p.obligations) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("INVALID_TASK_REVIEW");
     const item = raw as Record<string, unknown>;
-    if (Object.keys(item).sort().join() !== "index,sentenceIndexes,status"
+    if (Object.keys(item).sort().join() !== ("actionIndexes" in item ? "actionIndexes,index,sentenceIndexes,status" : "index,sentenceIndexes,status")
+      || actionCount > 0 && !("actionIndexes" in item)
+      || "actionIndexes" in item && (!Array.isArray(item.actionIndexes) || item.actionIndexes.length > 3
+        || new Set(item.actionIndexes).size !== item.actionIndexes.length
+        || item.actionIndexes.some(index => !Number.isInteger(index) || index < 0 || index >= actionCount))
       || !Number.isInteger(item.index) || (item.index as number) < 0 || (item.index as number) >= obligationCount
       || seen.has(item.index as number) || !["answered", "limited", "missing"].includes(String(item.status))
       || !Array.isArray(item.sentenceIndexes) || item.sentenceIndexes.length > 8
       || new Set(item.sentenceIndexes).size !== item.sentenceIndexes.length
       || item.sentenceIndexes.some(index => !Number.isInteger(index) || !result.retainedSentenceIndexes.includes(index))
-      || result.approved && (item.status === "missing" || !item.sentenceIndexes.length)
-      || item.status === "missing" && item.sentenceIndexes.length) throw new Error("INVALID_TASK_REVIEW");
+      || result.approved && (item.status === "missing" || !item.sentenceIndexes.length && !(item.actionIndexes as unknown[] | undefined)?.length)
+      || item.status === "limited" && !item.sentenceIndexes.length
+      || item.status === "missing" && (item.sentenceIndexes.length || (item.actionIndexes as unknown[] | undefined)?.length)) throw new Error("INVALID_TASK_REVIEW");
     seen.add(item.index as number);
+  }
+  if (result.approved && actionCount > 0) {
+    const whole = p.obligations.find(item => item.index === 0);
+    if (whole?.actionIndexes?.length !== actionCount) throw new Error("UNREVIEWED_NAVIGATION");
   }
   return { ...result, obligations: structuredClone(p.obligations) as TaskObligationReview[] };
 }
@@ -68,7 +78,7 @@ export const repairableTaskHistoryReviewSchema = {
     rejectionReason: { type: ["string", "null"], maxLength: 800 },
   },
 };
-export function parseRepairableTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number) {
+export function parseRepairableTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number, actionCount = 0) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_TASK_REVIEW");
   const { rejectionReason, ...selection } = value as Record<string, unknown>;
   if (rejectionReason !== undefined && rejectionReason !== null
@@ -76,7 +86,7 @@ export function parseRepairableTaskHistoryReview(value: unknown, sentenceCount: 
   // A malformed denial still grants no approval. Its bounded feedback can guide
   // one repair; the repaired body must obtain a fully valid independent receipt.
   let parsed: HistoryReviewSelection & { obligations: TaskObligationReview[] };
-  try { parsed = parseTaskHistoryReview(selection, sentenceCount, obligationCount); }
+  try { parsed = parseTaskHistoryReview(selection, sentenceCount, obligationCount, actionCount); }
   catch (error) {
     if (selection.approved !== false || typeof rejectionReason !== "string"
       || Object.keys(selection).sort().join() !== "approved,obligations,retainedSentenceIndexes") throw error;

@@ -148,3 +148,59 @@ test('repeated update scope conflict still fails after one repair',async()=>{
  }}}}),e=>e.diagnostics.providerErrorCode==='ASK_REQUEST_CONTRACT_SCOPE');
  assert.equal(calls,2);
 });
+
+
+const {canonicalHistoricalRead,historicalReadSchema}=await import('../../app/lib/intelligence/historical-read-response.ts');
+const {parseTaskHistoryReview}=await import('../../app/lib/intelligence/history-review-selection.ts');
+const {inspectAskPublication}=await import('../../app/lib/intelligence/inspect-ask-publication.ts');
+const readNavigation={kind:'navigation.open_pet_profile',evidence:"Open Milo's profile"};
+const historicalRead=(text,navigationActions=[])=>({readVersion:'history-answer.v1',layout:'prose',table:null,json:null,limitation:null,
+ historyNarrative:{sentences:[{text,sourceIds:['care:rest'],calculations:[]}]},navigationActions,
+ safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:rest']});
+const providerJson=value=>({status:'completed',output_text:JSON.stringify(value),usage:{input_tokens:20,output_tokens:20}});
+const navReview=(payload,status='answered')=>({approved:true,retainedSentenceIndexes:[0],rejectionReason:null,
+ obligations:payload.obligations.map(({index})=>({index,status,sentenceIndexes:[0],actionIndexes:index===0?[0]:[]}))});
+
+test('historical read navigation cannot carry a write, target identifier, or fabricated URL',()=>{
+ const raw=historicalRead('Milo rested.',[readNavigation]);
+ assert.deepEqual(canonicalHistoricalRead(raw).applicationActions.map(a=>a.kind),['navigation.open_pet_profile']);
+ assert.ok(historicalReadSchema({}).required.includes('navigationActions'));
+ for(const action of [{...readNavigation,kind:'care_history.add'},{...readNavigation,petId:'foreign'},{...readNavigation,href:'/evil'}])
+  assert.throws(()=>canonicalHistoricalRead({...raw,navigationActions:[action]}),/INVALID_READ_NAVIGATION/);
+});
+test('history action review rejects nonexistent, duplicate, or unreviewed action indexes',()=>{
+ const valid={approved:true,retainedSentenceIndexes:[0],obligations:[{index:0,status:'answered',sentenceIndexes:[0],actionIndexes:[0]}]};
+ assert.equal(parseTaskHistoryReview(valid,1,1,1).approved,true);
+ for(const indexes of [[],[1],[0,0]]) assert.throws(()=>parseTaskHistoryReview({...valid,obligations:[{...valid.obligations[0],actionIndexes:indexes}]},1,1,1));
+});
+for(const repair of [false,true]) test('history plus navigation is generated, independently reviewed and bound to publication'+(repair?' after one repair':''),async t=>{
+ clock(t);const q="Open Milo's profile and summarize his recorded rest. Do not change any records.";
+ let calls=0;
+ const r=await exercise(q,{history:true,messages:[],rows:[care('rest','milo','2026-07-01','general','Milo rested.')],
+ interpretationProposal:proposal(q),expectedReviewCalls:repair?3:1,
+ providerResponse:async()=>providerJson(historicalRead('Milo rested.',repair?[]:[readNavigation])),
+ reviewProviderResponse:async request=>{
+   calls++;const payload=JSON.parse(request.input);
+   if(request.text.format.name==='furvise_history_repair')return providerJson(historicalRead('Milo rested.',[readNavigation]));
+   assert.equal(payload.question,q);
+   if(repair&&calls===1){assert.deepEqual(payload.actions,[]);return providerJson({approved:false,retainedSentenceIndexes:[],rejectionReason:'Missing requested profile action.',obligations:payload.obligations.map(({index})=>({index,status:'missing',sentenceIndexes:[],actionIndexes:[]}))});}
+   assert.equal(payload.actions[0].kind,'navigation.open_pet_profile');assert.equal(payload.actions[0].petId,'milo');
+   return providerJson(navReview(payload));
+ }});
+ assert.equal(r.result.answerValidation.assessment.outcome,'complete');assert.equal(r.publication.failure,null);
+ assert.equal(r.publication.displayed.applicationActions[0].kind,'navigation.open_pet_profile');
+ const removed={...r.publication.response,applicationActions:[]};
+ assert.equal(inspectAskPublication(r.result.reasoning.answer,removed,true,r.result.reasoning.evidenceContract).failure,'task_action_missing_or_changed');
+ noWrites(r);
+});
+test('a reviewed limited historical answer is deliverable but not assessed complete',async t=>{
+ clock(t);const q="Open Milo's profile and tell me the exact color of his collar at birth. Do not change any records.";
+ const r=await exercise(q,{history:true,messages:[],rows:[care('rest','milo','2026-07-01','general','Milo rested.')],
+ interpretationProposal:proposal(q),expectedReviewCalls:1,
+ providerResponse:async()=>providerJson(historicalRead('These records do not establish the collar color at birth.',[readNavigation])),
+ reviewProviderResponse:async request=>providerJson(navReview(JSON.parse(request.input),'limited'))});
+ assert.equal(r.result.answerValidation.valid,true);assert.equal(r.result.answerValidation.assessment.outcome,'limited');
+ assert.equal(r.result.answerValidation.assessment.checks.taskCompletion,'failed');
+ assert.equal(r.publication.failure,null);assert.equal(r.publication.displayed.applicationActions[0].kind,'navigation.open_pet_profile');
+ noWrites(r);
+});

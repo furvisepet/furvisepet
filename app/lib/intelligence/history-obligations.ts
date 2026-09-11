@@ -5,7 +5,7 @@ import { withinEvidenceNeedWindow, type EvidenceNeedWindow } from "./history-dat
 export type HistoryObligation = { index: number; text: string; needId?: string; petId?: string;
   window?: EvidenceNeedWindow; availability?: string; representedSourceIds?: string[] };
 export type ObligationCompletion = { index: number; needId?: string; petId?: string; window?: EvidenceNeedWindow;
-  status: "answered" | "limited" | "missing"; sentenceIndexes: number[]; sourceIds: string[] };
+  status: "answered" | "limited" | "missing"; sentenceIndexes: number[]; sourceIds: string[]; actionIndexes?: number[] };
 /** One whole-question obligation plus one for each requested fact/owned pet.
  * Decomposition is advisory; retaining the whole question prevents silent loss. */
 export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryObligation[] {
@@ -46,7 +46,7 @@ export function reviewObligationCompletion(obligations: readonly HistoryObligati
       failures.push("obligation_evidence_scope:" + obligation.index);
     completion.push({ index: obligation.index, ...(obligation.needId ? { needId: obligation.needId } : {}),
       ...(obligation.petId ? { petId: obligation.petId } : {}), ...(obligation.window ? { window: obligation.window } : {}),
-      status: review.status, sentenceIndexes: [...review.sentenceIndexes], sourceIds: matching.map(source => source.sourceId) });
+      status: review.status, ...(review.actionIndexes ? { actionIndexes: [...review.actionIndexes] } : {}), sentenceIndexes: [...review.sentenceIndexes], sourceIds: matching.map(source => source.sourceId) });
   }
   return { failures, completion };
 }
