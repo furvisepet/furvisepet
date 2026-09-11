@@ -49,6 +49,20 @@ export type AskEvidenceContract = {
 };
 
 const unknown = (): EvidenceCompleteness => ({ retrieval: "unknown", corrections: "unknown", extraction: "unknown", grouping: "unknown" });
+/** Receipt status and each linked record retain separate provenance and dates.
+ * A prior request is intent, never evidence that its observation was persisted. */
+export function operationReceiptEvidence(receipts: NonNullable<AskEvidenceContract["operationReceipts"]>) {
+  return receipts.flatMap(receipt => [{
+    sourceId: `operation:${receipt.sourceMessageId}`, petId: receipt.petId, occurredAt: null as string | null,
+    text: `Prior request (intent, not a saved observation): ${JSON.stringify(receipt.requestText)}. `
+      + `An assistant answer ${receipt.answerPersisted ? "was" : "was not"} persisted for that turn. `
+      + (receipt.records.length ? "Current care records linked to that exact turn are supplied as separate dated receipt sources."
+        : "No current care record for this pet is linked to that exact turn. This is a write-status lookup, not a claim that the reported event never happened."),
+  }, ...receipt.records.map(record => ({
+    sourceId: `operation:${receipt.sourceMessageId}:record:${record.id}`, petId: receipt.petId, occurredAt: record.occurredAt,
+    text: `A current care-history entry is linked to this exact prior request. Recorded note: ${JSON.stringify(record.note)}`,
+  }))]);
+}
 export function careEvidenceId(id: string, history?: AskEvidenceContract["history"]): string {
   const claimId = id.startsWith("claim-") ? id.slice(6) : null;
   return claimId && history?.provenance.some(source => source.sourceId === `claim:${claimId}` && source.status === "effective_replacement") ? `claim:${claimId}` : `care:${id}`;
@@ -109,7 +123,7 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
     .flatMap(turn => turn.operationReceipt && ids.includes(turn.operationReceipt.petId) ? [structuredClone(turn.operationReceipt)] : []);
   for (const petId of ids) {
     const receipts = contract.operationReceipts.filter(receipt => receipt.petId === petId);
-    if (receipts.length) contract.sources.push(evidenceSource(petId, "operation_receipts", receipts.map(receipt => `operation:${receipt.sourceMessageId}`)));
+    if (receipts.length) contract.sources.push(evidenceSource(petId, "operation_receipts", operationReceiptEvidence(receipts).map(source => source.sourceId)));
   }
   if (context.askInterpretation) {
     const plan = context.askInterpretation;
@@ -189,16 +203,19 @@ export function refreshEvidenceCoverage(contract: AskEvidenceContract): AskEvide
 export function representEvidence(contract: AskEvidenceContract, records: AskContextRecord[]) {
   contract.represented = records.map(record => ({ sourceId: record.id, petId: record.petId, sourceType: record.sourceType,
     field: "value", start: 0, end: record.value.length, text: record.value,
-    ...(contract.interpretation || contract.scope.requestKind === "resolution_status" ? { occurredAt: record.occurredAt } : {}) }));
+    ...(contract.interpretation || contract.scope.requestKind === "resolution_status" || record.sourceType === "operation_receipt" ? { occurredAt: record.occurredAt } : {}) }));
   return refreshEvidenceCoverage(contract);
 }
 
 /** Shared factual source eligibility. Scope, loading, representation and source
  * versions are authority; a presentation field name is not an evidence policy. */
 export function eligibleAnswerSources(evidence: AskEvidenceContract) {
+  const receiptSources = operationReceiptEvidence(evidence.operationReceipts || []);
   return evidence.represented.filter(span =>
     (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "operation_receipt" || span.sourceType === "episode_result")
     && (span.sourceType !== "episode_result" || !!evidence.episodes && span.text === episodeResultText(evidence.episodes))
+    && (span.sourceType !== "operation_receipt" || receiptSources.some(source => source.sourceId === span.sourceId
+      && source.petId === span.petId && source.text === span.text && source.occurredAt === (span.occurredAt || null)))
     && evidence.scope.authorizedPetIds.includes(span.petId)
     && (!!evidence.interpretation?.request || !span.occurredAt || Date.parse(span.occurredAt) <= Date.now())
     && span.start === 0 && span.end === span.text.length && span.text.trim()

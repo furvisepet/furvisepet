@@ -219,6 +219,8 @@ export async function reviewTaskCompletion(input: {
     validation = input.validate(candidate);
     console.info("[Ask task review] repair validated", { requestId: input.requestId,
       navigationUpdate: repaired.navigation === null ? "preserve" : "replace", previousActionCount: actions.length,
+      proposedNavigationCount: Array.isArray(repaired.navigation) ? repaired.navigation.length : 0,
+      parsedNavigationCount: navigation.length, scopedPetCount: petIds.length, ownedTargetAvailable: Boolean(pet),
       resultingActionCount: prepare(validation.response).length, repairs: validation.repairs, valid: validation.valid });
     if (!validation.valid) throw taskFailure("ASK_TASK_REPAIR_VALIDATION_FAILED");
   }

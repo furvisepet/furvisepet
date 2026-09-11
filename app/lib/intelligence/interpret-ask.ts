@@ -17,7 +17,7 @@ import { ASK_REQUEST_INSTRUCTIONS, ASK_REQUEST_VERSION, askRequestSchema, valida
 type Operation = "overview" | "recall" | "count" | "comparison" | "status" | "episode" | "general" | "update" | "clarify";
 export type AskInterpretation = {
   request?: AskRequestContract;
-  referenceTarget?: { kind: "episode"; ordinal: AskInterpretation["ordinal"]; topic: AskInterpretation["episodeTopic"] };
+  referenceTarget?: { kind: "episode"; ordinal: AskInterpretation["ordinal"]; topic: AskInterpretation["episodeTopic"]; basis?: "displayed_list" | "scoped_register"; period?: { from: string; to: string } };
   version: "ask-interpretation.v1";
   operation: Operation;
   /** Server-grounded question referent, never a source of medical facts. */

@@ -24,6 +24,7 @@ export type EpisodeResult = {
   recordedInventory?: { revision: string; snapshot: string; scope: "care_claim_episode_register" };
   reasons: string[]; provenance: HistoryCoverage["provenance"];
   referenceStatus: "list" | "resolved" | "stale" | "clarify";
+  referenceBasis?: "displayed_list" | "scoped_register";
   presentationHint?: import("./episode-presentation.ts").EpisodePresentation & { selectedLabel: string };
   references?: EpisodeReferences;
   details?: Array<{ sourceId: string; occurredAt: string; note: string }>;
@@ -38,7 +39,7 @@ export function episodeAnswer(result: EpisodeResult): { summary: string; section
     if (result.coverage === "unavailable") return { summary: "I couldn't recheck the saved episode notes just now. Please try again before relying on a count or that episode.", sections: [] };
     if (result.referenceStatus === "stale") return { summary: "That episode's saved notes have changed, been corrected, or been removed. Ask for a fresh list so I can check the current records.", sections: [] };
     if (result.referenceStatus === "clarify") return legacy;
-    if (result.referenceStatus === "resolved") return { ...legacy, summary: `For episode ${result.items[0].ordinal} from the list you saw, here are the dated notes:`,
+    if (result.referenceStatus === "resolved") return { ...legacy, summary: `For episode ${result.items[0].ordinal} ${result.referenceBasis === "scoped_register" ? "in the requested period" : "from the list you saw"}, here are the dated notes:`,
       sections: legacy.sections.map(section => ({ ...section, heading: "Recorded notes" })) };
     if (result.coverage === "recorded_complete") return legacy;
     const lead = result.supportedCount ? `I can verify ${result.supportedCount} separate ${result.topic} episode${result.supportedCount === 1 ? "" : "s"}${result.petName ? ` for ${result.petName}` : ""} in the saved notes.`
@@ -50,11 +51,12 @@ export function episodeAnswer(result: EpisodeResult): { summary: string; section
   if (result.coverage==="unavailable") return {summary:"The episode evidence is unavailable or could not be revalidated. I can't establish a count or identify that episode; please retry.",sections:[]};
   if (result.referenceStatus==="stale") return {summary:"The episode you selected has changed, been corrected, or been removed. I haven't substituted another episode. Please request a fresh list to review the current evidence.",sections:[]};
   if (result.referenceStatus==="clarify" && result.reasons.includes("episode_count_scope_needed")) return {summary:"Which symptom should I count, for example, vomiting or soft stool? I need a specific symptom to distinguish separate episodes in the saved history.",sections:[]};
+  if (result.referenceStatus === "clarify" && result.reasons.some(reason => ["scoped_episode_selection_unavailable", "scoped_episode_period_incomplete"].includes(reason))) return { summary: "I couldn't verify that episode's position across the whole requested period. Please narrow the period or identify its approximate date; this does not mean the episode never happened.", sections: [] };
   if (result.referenceStatus==="clarify" && result.presentationHint) return {summary:`The earlier answer labelled that item ${JSON.stringify(result.presentationHint.selectedLabel)}. That is wording from our conversation, not a verified source record. I can't establish what changed from that list alone; use that date to find the original care notes.`,sections:[]};
   if (result.referenceStatus==="clarify") return {summary:"Which displayed episode do you mean? Please identify the pet and the list or approximate date. I can't safely resolve this reference from conversation wording alone.",sections:[]};
   if (result.referenceStatus==="resolved" && result.details?.length) {
     return {
-      summary:`Here are the recorded observations for episode ${result.items[0].ordinal} from your original list, in date order. These are reports, not proof of a cause or a current diagnosis.`,
+      summary:`Here are the recorded observations for episode ${result.items[0].ordinal} ${result.referenceBasis === "scoped_register" ? "in the requested period" : "from your original list"}, in date order. These are reports, not proof of a cause or a current diagnosis.`,
       sections:[{heading:"Recorded episode history",items:result.details.map(d=>`${d.occurredAt.slice(0,10)}: Recorded note: ${JSON.stringify(d.note)}`)}],
     };
   }
