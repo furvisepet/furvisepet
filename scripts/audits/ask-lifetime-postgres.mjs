@@ -131,7 +131,20 @@ try {
  log.push('production callback + persisted reload: exact count, displayed second identity');
  await write('Luna had her first bout of vomiting.','started','opening','2012-03-01T12:00:00Z',luna);
  await write('Luna stopped vomiting completely.','resolved','resolution','2012-03-03T12:00:00Z',luna,active(luna));
- const lunaSecond=await write('Luna had a separate bout of vomiting.','started','opening','2015-03-01T12:00:00Z',luna);
+ const lunaSecond=await write('Luna had a separate bout of vomiting.','started','opening','2015-03-01T12:00:00Z',luna,[],'vomiting_episode_update');
+ assert.equal(sql(`select private.ask_episode_inventory_key(${quote(lunaSecond.episode_id)},'health_vomiting_episode_update');`),'vomiting');
+ sql(`begin;
+   update public.pet_care_entries set note='Changed source without writer proof' where episode_id=${quote(lunaSecond.episode_id)};
+   do $check$ begin
+     if private.ask_episode_inventory_key(${quote(lunaSecond.episode_id)},'health_vomiting_episode_update')<>'vomiting_episode_update' then raise exception 'Changed source retained alias authority'; end if;
+   end $check$;
+   rollback;`);
+ sql(`begin; set local request.jwt.claim.sub='00000000-0000-4000-8000-000000000001';
+   do $check$ begin
+     if private.ask_episode_inventory_key(${quote(lunaSecond.episode_id)},'health_vomiting_episode_update')<>'vomiting_episode_update' then raise exception 'Foreign owner gained alias authority'; end if;
+   end $check$;
+   rollback;`);
+ log.push('writer-proven topic alias is counted; altered source and foreign owner cannot authorize an alias');
  const lunaPet=context.eligiblePets.find(p=>p.id===luna);
  const lunaList=await ask('List all Luna vomiting episodes.',{pet:lunaPet});
  assert.equal(lunaList.context.episodeResult.exactTotal,2,JSON.stringify(lunaList.context.episodeResult));

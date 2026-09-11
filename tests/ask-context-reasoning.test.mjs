@@ -520,7 +520,7 @@ test("event evidence repair preserves an explicit historical date and episode bo
     eventTitle: "Vomiting episode started", transition: "started", state: "historical",
     temporal: { occurredAt: "2024-06-09T00:00:00.000Z", explicitTime: "2024-06-09" },
     importance: "important", confidence: 0.99, sourceExcerpt: assertion,
-    episodeBoundary: { role: "opening", evidence: assertion, confidence: 0.99 },
+    episodeBoundary: { kind: "opening", evidence: assertion, confidence: 0.99 },
   };
   const invalid = unified({ semanticEvents: [{ ...event, sourceExcerpt: question }] });
   const valid = unified({ semanticEvents: [event] });
