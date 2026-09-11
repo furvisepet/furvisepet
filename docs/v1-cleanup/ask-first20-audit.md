@@ -1,5 +1,25 @@
 # Ask: first 20 files — code audit
 
+## Issue 1 follow-up — owner-update interpretation
+
+Deployed through PRs #283–#285; final production commit `20e1fd3fe9fa11ef97a82e1f45ded8f79d97a04e`, deployment `dpl_9T1JtCxZwowMfqTniK2e7631FjBf`. Issues 2–4 were not changed.
+
+The interpreter now explicitly distinguishes new owner updates/action intent from non-writing supplied examples: update/mixed may use the existing null evidence basis when no saved facts are needed; action-only requests require a valid empty semantic frame; their scope identifies the owned target even without history retrieval. Evidence-basis, frame and scope conflicts receive at most one admitted re-interpretation, sharing the existing deadline/call budget. The validator still rejects these conflicts, foreign subjects, bad source references and invalid frames. No rejected contract is promoted into write authority.
+
+Verification: 35 focused contract cases passed on the final changes (17 newly added), and 36 adjacent regression cases passed during this fix. Scoped lint and TypeScript checks passed; Vercel builds passed. No full local project suite was rerun.
+
+| Live check | Result |
+|---|---|
+| Original seven-minute Clover save | Interpretation succeeds and proposes the correct action. Clicking Add to care history creates exactly one Clover entry; the successful receipt survives reload. |
+| Original Archive Clover request | On the final deployment, reaches Review action and Confirm/Cancel. Cancel produces a stored `cancelled` capability; reload does not revive the action; Clover stays active. |
+| Fictional nine-minute play example with no-save instruction | Explanation only; no action or care entry added. |
+
+Intermediate results remain failures: the first evidence-basis fix exposed `ASK_REQUEST_CONTRACT_FRAME` for archive; the frame correction then exposed `ASK_REQUEST_CONTRACT_SCOPE`. These were distinct deployed revisions, not retries counted as first-attempt successes. The final scope correction resolved the tested archive request.
+
+**Remaining save execution/copy gap:** the explicit save did not run automatically. It required the action button although the response said it was sending the update to history. Therefore the interpretation error is resolved in these cases, but automatic explicit-save completion is not certified. This requires follow-up without weakening authorization.
+
+Evidence: save conversation `9fbe0587-fb31-4148-b024-d1649f664d91`; saved entry `f810d1b8-1b1c-4f4b-8fab-6ffc04e8bd9a`; final archive conversation `80554de5-864b-4e44-b38b-a78570847d6c`; fictional control `3155d249-d133-46de-94c7-5db8e738aca6`. Care-entry count increased from 3,729 to 3,730 solely for the deliberate save-action test.
+
 ## Production verification — 11 September 2026
 
 **Live acceptance failed.** Five first-attempt prompts were submitted through the signed-in production app: two passed and three failed. No failed prompt was resubmitted. These results supersede any impression that the local checks established end-to-end readiness.
