@@ -2,8 +2,18 @@ import type { PipelineStage } from "../execution-deadline.ts";
 import { getActiveAiAdmission } from "./context.ts";
 import { AiAdmissionError } from "./errors.ts";
 
+export type ProviderCallPurpose = "interpretation_repair" | "history_review" | "history_repair" | "history_rereview"
+  | "task_review" | "task_repair" | "task_rereview";
+/** Both answer routes share one review/repair allowance, never two budgets. */
+export function canonicalReviewPurpose(purpose?: ProviderCallPurpose) {
+  if (purpose === "task_review") return "history_review";
+  if (purpose === "task_repair") return "history_repair";
+  if (purpose === "task_rereview") return "history_rereview";
+  return purpose;
+}
+
 export async function executeAdmittedProviderCall<T>(input: {
-  purpose?: "interpretation_repair" | "history_review" | "history_repair" | "history_rereview";
+  purpose?: ProviderCallPurpose;
   invoke: () => Promise<T>;
   reserveMs?: number;
   stage?: PipelineStage;
@@ -11,6 +21,7 @@ export async function executeAdmittedProviderCall<T>(input: {
   model: string;
   providerInput: unknown;
 }) {
+  input = { ...input, purpose: canonicalReviewPurpose(input.purpose) };
   const admission = getActiveAiAdmission();
   if (!admission) {
     const testRuntime = Boolean(process.env.NODE_TEST_CONTEXT);
@@ -19,7 +30,7 @@ export async function executeAdmittedProviderCall<T>(input: {
     throw new AiAdmissionError("AI_TEMPORARILY_UNAVAILABLE", "provider_call_without_admission");
   }
   if (admission.deadline) admission.deadline.allocate(input.stage || (input.purpose === "history_repair" ? "repair" : input.purpose === "history_review" || input.purpose === "history_rereview" ? "verification" : "answer_generation"), 1_000, input.reserveMs ?? (input.purpose === "history_repair" ? 8_000 : 0), 250);
-  const call = await admission.beginProviderCall({ purpose: input.purpose, input: input.providerInput, maxOutputTokens: input.maxOutputTokens, model: input.model });
+  const call = await admission.beginProviderCall({ purpose: canonicalReviewPurpose(input.purpose), input: input.providerInput, maxOutputTokens: input.maxOutputTokens, model: input.model });
   try {
     const response = await input.invoke();
     const usage = readProviderUsage((response as { usage?: unknown }).usage);

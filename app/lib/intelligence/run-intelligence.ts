@@ -2,6 +2,7 @@ import { enforceAskHistoryAccess } from "./history-access.ts";
 import { safetyTemporalScope } from "../ai/safety-temporal-scope.ts";
 import { scopeConversationContext } from "./conversation-scope.ts";
 import { reviewHistoricalAnswer } from "./review-history-narrative.ts";
+import { reviewTaskCompletion } from "./review-task-completion.ts";
 import "server-only";
 
 import type { AskProviderEvent, AskReasoningResult } from "../ai/ask-reasoning";
@@ -301,7 +302,7 @@ export async function runFurviseIntelligence({
   // Presentation-only reconciliation happens after persistence governance and routing.
   if (proposedRecoveryPresentation) reasoning.intelligenceSafety.level = "recently_resolved";
   await reviewHistoricalAnswer({ result: reasoning, onProviderEvent });
-  const answerValidation = validateGeneratedAnswer(
+  let answerValidation = validateGeneratedAnswer(
     reasoning,
     context,
     reasoning.intelligenceSafety.level,
@@ -312,6 +313,10 @@ export async function runFurviseIntelligence({
     // Enumerated validator codes only; never include answer or source text.
     { code: `ASK_ANSWER_${answerValidation.errors[0] || "VALIDATION_FAILED"}`.toUpperCase() },
   );
+  answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId,
+    validate: candidate => validateGeneratedAnswer(candidate, context, reasoning.intelligenceSafety.level,
+      hasOwnedPetSubject ? authoritativePetIds : [context.pet.id]),
+  });
   Object.assign(reasoning, answerValidation.response);
   const shadow = buildShadowSemanticAnalysis({
     activeEpisodes: [...context.activeEpisodes, ...context.monitoringEpisodes],
