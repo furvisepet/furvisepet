@@ -45,7 +45,9 @@ export function evaluateCalculationExpression(tokens: readonly CalculationToken[
   if (!parseCalculationExpression(tokens)) return null;
   for (const token of tokens) {
     if (typeof token === "number") {
-      const operand = operands[token]; if (!operand || operand.dimension === "instant") return null;
+      const operand = operands[token]; if (!operand || operand.dimension === "instant" || !Number.isFinite(operand.value)
+        || !Number.isFinite(operand.scale) || operand.scale <= 0
+        || !Number.isFinite(operand.value * operand.scale) || Math.abs(operand.value * operand.scale) > 1e12) return null;
       stack.push({ value: operand.value * operand.scale, dimension: operand.dimension }); continue;
     }
     const b = stack.pop(), a = stack.pop(); if (!a || !b) return null;
@@ -123,23 +125,23 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
         operands.push({ value: Date.parse(operand.literal), dimension: "instant", scale: 1 });
       } else {
         // Require a complete numeric token, not a substring of a larger value.
-        const tokens = [...operand.literal.matchAll(/(?<![\p{L}\p{N}_.-])(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
+        const tokens = [...operand.literal.matchAll(/(?<![\p{L}\p{N}_.+−-])([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
           .filter(token => units[token[2].toLowerCase()]);
-        const exactToken = operand.literal.match(/^(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
+        const exactToken = operand.literal.match(/^([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
         // A longer verbatim source span may identify the measured object. It
         // must contain exactly one supported measurement, never ambiguous data.
         const match = exactToken || (source.text.includes(operand.literal) && tokens.length === 1 ? tokens[0] : null);
         if (!match) return null;
         const unit = units[match[2].toLowerCase()];
-        if (!unit || !finite(Number(match[1]))) return null;
+        if (!unit || !finite(Number(match[1].replace("−", "-")))) return null;
         // Bind a complete source token. Pluralization and an adjectival hyphen
         // do not change a measurement ("18 minutes" / "18-minute"). Never
         // accept a numeric substring or silently substitute a converted value.
-        const grounded = [...source.text.matchAll(/(?<![\p{L}\p{N}_.-])(-?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
-          .some(token => Number(token[1]) === Number(match[1])
+        const grounded = [...source.text.matchAll(/(?<![\p{L}\p{N}_.+−-])([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
+          .some(token => Number(token[1].replace("−", "-")) === Number(match[1].replace("−", "-"))
             && units[token[2].toLowerCase()]?.canonical === unit.canonical);
         if (!grounded) return null;
-        operands.push({ value: Number(match[1]), ...unit });
+        operands.push({ value: Number(match[1].replace("−", "-")), ...unit });
       }
     }
     const dimension = operands[0].dimension;
@@ -183,6 +185,7 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
     // direction stated in prose (loss/decrease versus gain/increase).
     const canonical = p.unit === "%" || p.unit === "" ? p.unit : rate?.canonical || target?.canonical || "day";
     output.push(`${Math.abs(p.value)}:${canonical}`);
+    if (p.value < 0) output.push(`${p.value}:${canonical}`);
   }
   return output;
 }

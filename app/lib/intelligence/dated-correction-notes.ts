@@ -1,3 +1,4 @@
+import { withExecutionDeadline } from "../ai/execution-deadline.ts";
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CareEntryRow } from "../supabase.ts";
@@ -20,8 +21,8 @@ export async function discoverDatedCorrectionNotes(originals: CareEntryRow[], pe
       const remaining = deadline - Date.now();
       if (remaining <= 0) throw new Error("correction_discovery_deadline");
       coverage.queryCount++;
-      const result = await db.rpc("read_ask_history_candidates", { p_pet_id: petId, p_terms: terms,
-        p_from: null, p_to: null, p_after_time: null, p_after_id: null, p_limit: limit }).abortSignal(AbortSignal.timeout(remaining));
+      const result = await withExecutionDeadline(signal => db.rpc("read_ask_history_candidates", { p_pet_id: petId, p_terms: terms,
+        p_from: null, p_to: null, p_after_time: null, p_after_id: null, p_limit: limit }).abortSignal(signal), remaining);
       if (result.error || !Array.isArray(result.data) || result.data.length > limit) throw new Error("correction_discovery_unavailable");
       const rows = result.data as CareEntryRow[];
       // Reject a malformed/foreign page as a whole; do not retain a prefix.

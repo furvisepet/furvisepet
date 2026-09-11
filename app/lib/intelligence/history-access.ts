@@ -19,13 +19,20 @@ export function historyDateAccessible(date: string | null | undefined, access?: 
 }
 export function clipHistoryPlan<T extends { from: string | null; to: string | null }>(plan: T, access?: AskHistoryAccess): T {
   if (!access) return plan;
-  const from = !plan.from || plan.from < access.from ? access.from : plan.from;
-  const to = !plan.to || plan.to > access.to ? access.to : plan.to;
+  const instant = (value: string) => {
+    const time = Date.parse(value);
+    if (!Number.isFinite(time)) throw new Error("INVALID_HISTORY_ACCESS_DATE");
+    return time;
+  };
+  const lower = instant(access.from), upper = instant(access.to);
+  if (lower >= upper) throw new Error("INVALID_HISTORY_ACCESS");
+  const from = plan.from ? Math.max(instant(plan.from), lower) : lower;
+  const to = plan.to ? Math.min(instant(plan.to), upper) : upper;
   if (from >= to) {
-    const boundary = plan.to && plan.to <= access.from ? access.from : access.to;
+    const boundary = plan.to && instant(plan.to) <= lower ? access.from : access.to;
     return { ...plan, from: boundary, to: boundary };
   }
-  return { ...plan, from, to };
+  return { ...plan, from: from === lower ? access.from : plan.from, to: to === upper ? access.to : plan.to };
 }
 
 /** Apply again immediately before generation so retrieval, references, or an

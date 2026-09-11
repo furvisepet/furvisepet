@@ -23,7 +23,7 @@ export function parseReadProjection(value: unknown): ReadProjection | null {
  * This produces a draft: independent review must still verify task semantics. */
 function bodyMeasurement(text: string) {
   const matches = [...text.matchAll(/\b(?:body (?:weight|mass) (?:was|is)|weighed)\s+(-?\d+(?:\.\d+)?)\s+(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/gi)];
-  if (matches.length !== 1 || /\b(?:correction|corrected|carrier|harness|equipment|parcel)\b/i.test(text)
+  if (matches.length !== 1 || /\b(?:not|never|maybe|might|possibly|estimated|approximately)\b/i.test(text) || /\b(?:correction|corrected|carrier|harness|equipment|parcel)\b/i.test(text)
     && !/\b(?:without equipment|no carrier or harness included)\b/i.test(text)) return null;
   const m = matches[0], unit = units[m[2].toLowerCase()], value=Number(m[1]);
   if (!unit || !Number.isFinite(value) || value<=0) return null;
@@ -42,14 +42,14 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
   const rows: Array<{ name:string; value:number; sourceId:string; calculation:HistoryCalculation }>=[];
   for(const petId of evidence.scope.authorizedPetIds) {
     const sources=evidence.represented.filter(s=>s.petId===petId && s.sourceType==="care_update"
-      && s.start===0 && s.end===s.text.length && !!s.occurredAt && s.occurredAt>=window.from! && s.occurredAt<window.to!
+      && s.start===0 && s.end===s.text.length && !!s.occurredAt && Date.parse(s.occurredAt)>=Date.parse(window.from!) && Date.parse(s.occurredAt)<Date.parse(window.to!)
       && !evidence.losses.some(l=>l.sourceId===s.sourceId)
       && evidence.sources.some(group=>group.petId===petId && group.status!=="unavailable" && group.status!=="not_loaded" && group.loadedIds.includes(s.sourceId))
       && !evidence.history!.provenance.some(p=>p.sourceId===s.sourceId && !["effective_linked","effective_replacement","unverified_legacy"].includes(p.status)));
     const measurements=sources.flatMap(s=>{const m=bodyMeasurement(s.text);return m?[{source:s,measurement:m}]:[];});
     if(measurements.length!==1) return null;
     const {source,measurement}=measurements[0],name=evidence.petNames?.[petId],target=units[projection.unit];
-    if(!name || !target || target.dimension!==measurement.unit.dimension) return null;
+    if(!name || request.outputFormat === "table" && /[|\r\n]/.test(name) || !target || target.dimension!==measurement.unit.dimension) return null;
     const value=Number((measurement.value*measurement.unit.scale/target.scale).toFixed(8));
     rows.push({name,value,sourceId:source.sourceId,calculation:{operation:"convert",operands:[{sourceId:source.sourceId,field:"text",literal:measurement.literal}],value,unit:projection.unit}});
   }

@@ -1,3 +1,4 @@
+import { withExecutionDeadline } from "../ai/execution-deadline.ts";
 import { ASK_HISTORY_MAX_PETS } from "./history-limits.ts";
 import { withinEvidenceNeedWindow } from "./history-dates.ts";
 import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups, historyEventRelevance } from "./history-query-relevance.ts";
@@ -175,18 +176,18 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
           // Duplicate hits from another strategy do not consume new-evidence quota.
           // Overfetch remains bounded by pageSize; only unique rows count toward candidateRows.
           const pageLimit = Math.min(HISTORY_BUDGET.pageSize, directionRows - rows.length + priorIds.size);
-          const signal = readSignal(deadline);
+          const timeoutMs = historyReadRemaining(deadline);
           let result: { data: unknown; error: { code?: string } | null };
           if (lexical) {
             // The RPC derives auth.uid(). Never pass an owner or fall back to a
             // different lexical authority when its migration/service is missing.
-            result = await db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
+            result = await withExecutionDeadline(signal => db.rpc(readDescending ? "read_ask_history_candidates_latest" : "read_ask_history_candidates", {
               p_pet_id: petId, p_terms: terms.length ? terms : plan.terms,
               p_from: from || (futureSourceRequested ? null : "1900-01-01T00:00:00.000Z"),
               p_to: futureSourceRequested ? to : new Date(Math.min(to ? Date.parse(to) : Infinity, asOf + 1)).toISOString(),
               p_after_time: cursor?.occurredAt ?? null, p_after_id: cursor?.id ?? null, p_limit: pageLimit,
-            }).abortSignal(signal);
-            if (result.error) coverage.reasons.push(signal.aborted || result.error.code === "57014" ? "candidate_rpc_timeout"
+            }).abortSignal(signal), timeoutMs);
+            if (result.error) coverage.reasons.push(result.error.code === "57014" ? "candidate_rpc_timeout"
               : result.error.code === "55000" ? "candidate_rpc_timeout_configuration" : "candidate_rpc_unavailable");
           } else {
             let query = db.from("pet_care_entries").select("id,user_id,pet_profile_id,category,title,note,severity,occurred_at,created_at,updated_at,deleted_at").eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null);
@@ -194,7 +195,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
             if (from) query = query.gte("occurred_at", from);
             if (to) query = query.lt("occurred_at", to);
             if (cursor) query = query.or(`occurred_at.${readDescending ? "lt" : "gt"}.${cursor.occurredAt},and(occurred_at.eq.${cursor.occurredAt},id.${readDescending ? "lt" : "gt"}.${cursor.id})`);
-            result = await query.order("occurred_at", { ascending: !readDescending }).order("id", { ascending: !readDescending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>();
+            result = await withExecutionDeadline(signal => query.order("occurred_at", { ascending: !readDescending }).order("id", { ascending: !readDescending }).limit(pageLimit).abortSignal(signal).returns<CareEntryRow[]>(), timeoutMs);
           }
           if (result.error) throw new Error("history_page_unavailable");
           if (result.data !== null && !Array.isArray(result.data)) throw new Error("history_page_invalid_shape");
@@ -338,10 +339,10 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   return { ...context, askHistory: { coverage, entries: kept, originals: candidates } };
 }
 
-function readSignal(deadline: number) {
+function historyReadRemaining(deadline: number) {
   const remaining = deadline - Date.now();
-  if (remaining <= 0) throw new Error("history_time_budget");
-  return AbortSignal.timeout(remaining);
+  if (!Number.isFinite(remaining) || remaining <= 0) throw new Error("history_time_budget");
+  return remaining;
 }
 
 /** The emitted candidate must be the same version as the source validated by
@@ -371,13 +372,13 @@ export async function effectiveCandidates(candidates: CareEntryRow[], owned: Set
       const rootIds = batches.shift() || [];
       const claimIds = frontier.splice(0, 64); claimIds.forEach(id => visited.add(id));
       coverage.queryCount++;
-      const result = await db.rpc("read_ask_history_correction_page", {
+      const result = await withExecutionDeadline(signal => db.rpc("read_ask_history_correction_page", {
         p_care_ids: rootIds, p_claim_ids: claimIds,
         // A reassigned event may have no legacy row under its corrected pet.
         // Seed only stored correction authors, never arbitrary shadow claims.
         p_seed_pet_ids: seedBatches.shift() || [],
         p_event_from: coverage.plan.from, p_event_to: coverage.plan.to, p_terms: coverage.plan.terms,
-      }).abortSignal(readSignal(deadline));
+      }).abortSignal(signal), historyReadRemaining(deadline));
       if (result.error || !result.data || result.data.truncated) throw new Error("correction_read_incomplete");
       const page = result.data as GraphPage;
       for (const id of page.withheld_claim_ids || []) removedTargets.add(id);
