@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   if (!petId) return Response.json({ error: "Choose a pet." }, { status: 400 });
   const { data, error } = await context.supabase
     .from("vet_visit_briefs")
-    .select("id, pet_profile_id, previous_version_id, version, generated_at, date_range_start, date_range_end, document_version, confirmed_title, status, confirmed_data")
+    .select("id, pet_profile_id, previous_version_id, version, generated_at, date_range_start, date_range_end, document_version, confirmed_title, status, confirmed_data, source_entry_ids")
     .eq("user_id", context.userId)
     .eq("pet_profile_id", petId)
     .order("created_at", { ascending: false })

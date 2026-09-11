@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useEffect, useState } from "react";
 import { AppPage } from "../components/app-page";
 import { appPageContainer } from "../components/product-primitives";
@@ -40,6 +40,7 @@ function VetBriefPageContent() {
 }
 
 function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, userId }: { conversationId: string; existingBriefId: string; petId: string; source: string; userId: string }) {
+  const router = useRouter();
   const defaults = getDefaultRange();
   const [from, setFrom] = useState(defaults.from);
   const [to, setTo] = useState(defaults.to);
@@ -70,8 +71,9 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
           const savedDraft = readVetBriefClientDraft(window.localStorage, scope);
           setDocument(savedDraft?.document || payload.brief.document);
           setDocumentPetId(payload.brief.petProfileId);
-          setSourceEntryIds(savedDraft?.sourceEntryIds || []);
+          setSourceEntryIds(savedDraft?.sourceEntryIds || payload.brief.sourceEntryIds || []);
           setConfirmed(savedDraft ? null : payload.brief);
+          if (!savedDraft) setMode("preview");
           setPreviousVersionId(payload.brief.id);
           setFrom(savedDraft?.document.dateRange.from || payload.brief.dateRange.from);
           setTo(savedDraft?.document.dateRange.to || payload.brief.dateRange.to);
@@ -123,7 +125,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
 
   async function confirmBrief() {
     if (!document || !documentPetId) return;
-    const checked = parseVetBriefDocument({ ...document, generatedAt: new Date().toISOString() });
+    const checked = parseVetBriefDocument(document);
     if (!checked) { setError("Review the brief fields before confirming it."); return; }
     setSaving(true); setError("");
     try {
@@ -133,6 +135,10 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
       removeVetBriefClientDraft(window.localStorage, { briefId: previousVersionId, petId: documentPetId, userId });
       setStatus(`Version ${payload.brief.version} confirmed.`);
       trackAskEvent("vet_note_created", { action: "confirmed" });
+      const params = new URLSearchParams({ pet: documentPetId, brief: payload.brief.id });
+      if (source) params.set("source", source);
+      if (conversationId) params.set("conversation", conversationId);
+      router.replace(`/vet-brief?${params.toString()}`, { scroll: false });
     } catch (saveError) { setError(saveError instanceof Error ? saveError.message : "The brief could not be saved."); }
     finally { setSaving(false); }
   }
@@ -253,8 +259,32 @@ function ActionBar({ confirmed, documentStatus, onConfirm, onCreateVersion, onDo
 function Status({ text, tone = "neutral" }: { text: string; tone?: "neutral" | "warn" }) { return <div className={`mt-5 border-y px-1 py-3 text-sm leading-6 ${tone === "warn" ? "border-[var(--pw-warning-border)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] text-[var(--pw-muted)]"}`} role="status">{text}</div>; }
 
 function isSectionEmpty(document: VetBriefDocument, id: VetBriefSectionId) { switch (id) { case "visit-reason": return !document.reasonForVisit.trim() || document.reasonForVisit === "Not recorded"; case "changes-noticed": return !document.ownerReportedChanges.length && !document.reportedPatterns.length; case "timeline": return !document.concernTimeline.length; case "food-products": return !document.foodChanges.length && !document.productsUsed.length; case "medications": return !document.medicationsSupplements.length; case "care-history": return !document.relevantCareHistory.length; case "questions": return !document.questionsForVeterinarian.length; case "owner-notes": return !document.ownerNotes.trim(); } }
-async function fetchDraft(petId: string, from: string, to: string, conversationId: string, existingDocument?: VetBriefDocument | null) { const requestId = getOrCreateClientMutationKey(`vet-brief-draft:${petId}:${conversationId || "none"}`); return authenticatedJson("/api/vet-briefs/draft", { method: "POST", body: JSON.stringify({ conversationId: conversationId || undefined, existingDocument: existingDocument || undefined, from, petId, requestId, to }) }) as Promise<{ document: VetBriefDocument; sourceEntryIds: string[] }>; }
-async function authenticatedJson(url: string, init: RequestInit = {}) { const token = await getAuthToken(); if (!token) throw new Error("Please sign in again."); const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) }; const method = (init.method || "GET").toUpperCase(); let explicitKey: string | undefined; try { const body = typeof init.body === "string" ? JSON.parse(init.body) as { requestId?: unknown } : null; explicitKey = typeof body?.requestId === "string" ? body.requestId : undefined; } catch { /* The server validates malformed bodies. */ } const response = method === "GET" ? await fetch(url, { ...init, headers }) : await idempotentClientFetch(url, { ...init, headers }, `vet-brief:${method}:${url}`, explicitKey); const payload = await response.json().catch(() => null) as { error?: string } | null; if (!response.ok) throw new Error(payload?.error || "The Vet Visit Brief is temporarily unavailable."); return payload; }
+async function fetchDraft(petId: string, from: string, to: string, conversationId: string, existingDocument?: VetBriefDocument | null) {
+  const input = { conversationId: conversationId || undefined, existingDocument: existingDocument || undefined, from, petId, to };
+  // Identical retries share a key; changed dates or owner edits are a new operation.
+  const scope = `vet-brief-draft:v2:${JSON.stringify(input)}`;
+  const requestId = getOrCreateClientMutationKey(scope);
+  return authenticatedJson("/api/vet-briefs/draft", {
+    method: "POST", body: JSON.stringify({ ...input, requestId }),
+  }, scope) as Promise<{ document: VetBriefDocument; sourceEntryIds: string[] }>;
+}
+async function authenticatedJson(url: string, init: RequestInit = {}, mutationScope?: string) {
+  const token = await getAuthToken();
+  if (!token) throw new Error("Please sign in again.");
+  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers || {}) };
+  const method = (init.method || "GET").toUpperCase();
+  let explicitKey: string | undefined;
+  try {
+    const body = typeof init.body === "string" ? JSON.parse(init.body) as { requestId?: unknown } : null;
+    explicitKey = typeof body?.requestId === "string" ? body.requestId : undefined;
+  } catch { /* The server validates malformed bodies. */ }
+  const response = method === "GET"
+    ? await fetch(url, { ...init, headers })
+    : await idempotentClientFetch(url, { ...init, headers }, mutationScope || `vet-brief:${method}:${url}`, explicitKey);
+  const payload = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(payload?.error || "The Vet Visit Brief is temporarily unavailable.");
+  return payload;
+}
 async function getAuthToken() { const client = getBrowserSupabase(); const { data } = client ? await client.auth.getSession() : { data: { session: null } }; return data.session?.access_token || ""; }
 async function fetchPdfFile(brief: VetBriefRecord, paperSize: "letter" | "a4") { const token = await getAuthToken(); const response = await fetch(`/api/vet-briefs/${encodeURIComponent(brief.id)}/pdf?size=${paperSize}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) throw new Error("PDF unavailable"); const blob = await response.blob(); return new File([blob], getVetBriefFilename(brief.document.pet.name, brief.generatedAt), { type: "application/pdf" }); }
 function formatBriefForCopy(document: VetBriefDocument) { const included = (id: VetBriefSectionId) => !document.excludedSections.includes(id); return [document.title, `${document.pet.name} | ${document.pet.species} | Breed: ${document.pet.breed} | Age: ${document.pet.age} | Weight: ${document.pet.weight}`, included("visit-reason") ? `Reason for visit: ${document.reasonForVisit}` : "", included("changes-noticed") ? formatCopyItems("Owner-reported changes", document.ownerReportedChanges.map((item) => `${item.date}: ${item.text}`)) : "", included("timeline") ? formatCopyItems("Concern timeline", document.concernTimeline.map((item) => `${item.date}: ${item.text}`)) : "", included("questions") ? formatCopyItems("Questions for the veterinarian", document.questionsForVeterinarian) : "", included("owner-notes") ? `Owner notes: ${document.ownerNotes || "Not recorded"}` : "", document.disclaimer].filter(Boolean).join("\n\n"); }

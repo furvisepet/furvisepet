@@ -70,5 +70,6 @@ export type VetBriefRecord = {
   version: number;
   status: "confirmed" | "archived";
   previousVersionId: string | null;
+  sourceEntryIds: string[];
   document: VetBriefDocument;
 };
