@@ -468,6 +468,8 @@ test("unsupported terminal recovery is re-read from the current message before r
   const result = await generateContextAwareAskResponse({ ...input({ question: "Mani is vomiting" }), client });
   assert.equal(client.requests.length, 2);
   assert.match(JSON.parse(client.requests[1].input).recoveryRepairInstruction, /newest currentMessage/);
+  assert.deepEqual(JSON.parse(client.requests[1].input).rejectedRecoveryEvidence, stale.messageUnderstanding.recoveryEvidence);
+  assert.match(JSON.parse(client.requests[1].input).recoveryRepairInstruction, /problem_ended or symptom_absent/);
   assert.equal(result.answer.summary, current.answer);
   assert.equal(result.messageUnderstanding.recoveryStatus, "none");
 });
