@@ -87,3 +87,19 @@ test("desktop navigation remains ordered while the account utility stays in the 
   assert.match(header, /data-ui="desktop-account-zone"[\s\S]*<AccountUtility/);
   assert.match(accountUtility, /data-ui="account-utility"/);
 });
+
+
+test("explicit calendar dates remain the stated day in negative and positive time zones", context => {
+  const previousTimezone = process.env.TZ;
+  context.after(() => { if (previousTimezone === undefined) delete process.env.TZ; else process.env.TZ = previousTimezone; });
+  for (const zone of ["America/Los_Angeles", "Pacific/Kiritimati"]) {
+    process.env.TZ = zone;
+    const display = formatHistoryTimestamp("2024-02-01T00:00:00Z", "en-US", {explicitTime:"2024-02-01"});
+    assert.equal(display, "Feb 1, 2024");
+    assert.doesNotMatch(display, /AM|PM/);
+  }
+  process.env.TZ = "America/Los_Angeles";
+  const timed = "2024-02-01T16:30:00Z";
+  assert.equal(formatHistoryTimestamp(timed,"en-US",{explicitTime:"2024-02-01"}),formatHistoryTimestamp(timed,"en-US"));
+  assert.equal(formatHistoryTimestamp("2024-02-01T00:00:00Z","en-US",{explicitTime:"2024-02-02"}),formatHistoryTimestamp("2024-02-01T00:00:00Z","en-US"));
+});

@@ -186,6 +186,12 @@ export async function reviewTaskCompletion(input: {
       throw taskFailure(containsUnverifiedStateClaim(body) ? "ASK_TASK_INCOMPLETE_STATE_CLAIM"
         : "ASK_TASK_INCOMPLETE_OBLIGATIONS_" + (missing || "UNKNOWN"));
     }
+    console.info("[Ask task review] repair required", {
+      requestId: input.requestId, parsed: Boolean(reviewed), parseFailure: reviewed ? null : reviewFailure,
+      missingObligations: reviewed?.completion.filter(item => item.status === "missing").map(item => item.index) || [],
+      failedChecks: reviewed ? verificationKeys.filter(key => reviewed.verification[key].status === "failed") : [],
+      unsupportedStateClaim: containsUnverifiedStateClaim(body), actionCount: actions.length, pendingCareCount: pendingEvents.length,
+    });
     // The repair may fix prose and read-only navigation, never create/change a
     // mutation proposal. All original write governance remains in force.
     const navigationSchema = { ...modelApplicationActionJsonSchema, properties: {
