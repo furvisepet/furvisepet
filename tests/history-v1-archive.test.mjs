@@ -97,9 +97,15 @@ test("explicit calendar dates remain the stated day in negative and positive tim
     const display = formatHistoryTimestamp("2024-02-01T00:00:00Z", "en-US", {explicitTime:"2024-02-01"});
     assert.equal(display, "Feb 1, 2024");
     assert.doesNotMatch(display, /AM|PM/);
+    for (const [index, day] of [1,3,7,9].entries()) {
+      assert.equal(formatHistoryTimestamp(`2026-09-0${day}T00:00:00Z`, "en-US", {
+        source:"ask_furvise",sourceNoteIndex:index+1,sourceNoteCount:4,
+      }), `Sep ${day}, 2026`);
+    }
   }
   process.env.TZ = "America/Los_Angeles";
   const timed = "2024-02-01T16:30:00Z";
+  assert.equal(formatHistoryTimestamp(timed,"en-US",{source:"ask_furvise",sourceNoteIndex:1,sourceNoteCount:4}),formatHistoryTimestamp(timed,"en-US"));
   assert.equal(formatHistoryTimestamp(timed,"en-US",{explicitTime:"2024-02-01"}),formatHistoryTimestamp(timed,"en-US"));
   assert.equal(formatHistoryTimestamp("2024-02-01T00:00:00Z","en-US",{explicitTime:"2024-02-02"}),formatHistoryTimestamp("2024-02-01T00:00:00Z","en-US"));
 });
