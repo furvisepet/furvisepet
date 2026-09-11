@@ -7,6 +7,7 @@ import { AppPage } from "../components/app-page";
 import { appPageContainer } from "../components/product-primitives";
 import { VetBriefDocumentView } from "../components/vet-brief-document";
 import { WorkflowDocumentStatus } from "../components/workflow-primitives";
+import { downloadGeneratedFile } from "../lib/furvise-output";
 import { trackAskEvent } from "../lib/ask-analytics";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import { getBrowserSupabase } from "../lib/supabase";
@@ -181,7 +182,11 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
 
   async function downloadPdf() {
     if (!confirmed) return;
-    try { const file = await fetchPdfFile(confirmed, paperSize); const url = URL.createObjectURL(file); const link = window.document.createElement("a"); link.href = url; link.download = file.name; link.click(); URL.revokeObjectURL(url); setStatus("PDF downloaded."); }
+    try {
+      const file = await fetchPdfFile(confirmed, paperSize);
+      downloadGeneratedFile(file, file.name);
+      setStatus("PDF ready. Check your browser downloads.");
+    }
     catch { setError("The PDF could not be downloaded."); }
   }
 
