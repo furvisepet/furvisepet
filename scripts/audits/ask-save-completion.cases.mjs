@@ -282,3 +282,10 @@ test('governed health save reaches completion review before its persistence rece
    assert.equal(JSON.parse(calls[0].input).actions.length,0);
  }
 });
+
+test('an owned action target cannot evade subject verification as inapplicable',async()=>{
+ const verdict=review();verdict.verification.subjectDateCorrectness={status:'not_applicable',reason:'The prose is hypothetical'};
+ assert.equal(parseTaskCompletion(verdict,[question,...hints],1,1),null);
+ const {createRequire}=await import('node:module');const Ajv=createRequire(import.meta.url)('ajv');
+ assert.equal(new Ajv({strict:false}).compile(taskReviewSchema(3,1,[]))(verdict),false);
+});

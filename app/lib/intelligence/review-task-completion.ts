@@ -29,6 +29,10 @@ const statuses = ["answered", "action_ready", "limited", "missing", "not_request
  * be normal model choices that consume the repair budget. */
 export function taskReviewSchema(obligationCount: number, actionCount: number, readyActionIndexes: readonly number[]) {
   const actionIndexes = Array.from({ length: actionCount }, (_, index) => index);
+  const scopedVerificationSchema = structuredClone(verificationSchema);
+  // Every prepared action has an owned target; target correctness is therefore
+  // applicable even when the prose only explains a hypothetical calculation.
+  if (actionCount > 0) scopedVerificationSchema.properties.subjectDateCorrectness.properties.status.enum = ["passed", "failed"];
   const branch = (status: typeof statuses[number], answerRequired: boolean, actionRequired = false, allowedActions = actionIndexes) => ({
     type: "object", additionalProperties: false, required: ["index", "status", "answerIndexes", "actionIndexes"],
     properties: {
@@ -40,7 +44,7 @@ export function taskReviewSchema(obligationCount: number, actionCount: number, r
     },
   });
   return { type: "object", additionalProperties: false, required: ["obligations", "reason", "verification"], properties: {
-    verification: verificationSchema,
+    verification: scopedVerificationSchema,
     reason: { type: ["string", "null"], maxLength: 600 },
     obligations: { type: "array", minItems: obligationCount, maxItems: obligationCount, items: { anyOf: [
       branch("answered", true),
@@ -67,6 +71,7 @@ export function parseTaskCompletion(value: unknown, obligations: string[], answe
       return !verdict || !["passed", "failed", "not_applicable"].includes(verdict.status)
         || typeof verdict.reason !== "string" || !verdict.reason.trim() || verdict.reason.length > 600;
     })) return fail("VERIFICATION");
+  if (actionCount > 0 && p.verification.subjectDateCorrectness.status === "not_applicable") return fail("SUBJECT_CHECK_REQUIRED");
   const seen = new Set<number>();
   for (const item of p.obligations) {
     if (!item || !Number.isInteger(item.index) || item.index < 0 || item.index >= obligations.length || seen.has(item.index)
