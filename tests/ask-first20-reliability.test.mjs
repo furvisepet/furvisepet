@@ -195,3 +195,61 @@ test('optional telemetry failure does not turn optional work into a failed answe
   const {runOptionalAskSubsystem}=await import('../app/lib/ai/ask-turn-model.ts');
   assert.equal(await runOptionalAskSubsystem({component:'suggested_questions',fallback:'safe',operation:async()=>{throw new Error('optional failed');},onFailure:()=>{throw new Error('reporter failed');}}),'safe');
 });
+
+
+function failedSubmitHarness({refreshFails=false,requestFailure='http'}={}) {
+  const state={failed:null,phase:'idle',active:false,thread:[],conversations:[],requests:[],refreshes:0};
+  const activeRef={current:false};
+  let serverConversation=null;
+  const run=extract('app/ask/page.tsx','ask',{
+    composerUnavailable:false,askRequestActiveRef:activeRef,activeConversationId:null,selectedPet:'pet',
+    dismissOnboardingEntry:noop,crypto:{randomUUID:()=> 'logical-turn'},navigator:{language:'en'},
+    buildAskRequestPayload:input=>input,createMessageId:()=> 'user-turn',
+    setAskRequestActive:v=>state.active=v,setRequestPhase:v=>state.phase=v,setFailedRequest:v=>state.failed=v,
+    setError:noop,setPersistenceWarning:noop,setStatus:noop,setQuestion:noop,
+    setThread:updater=>state.thread=updater(state.thread),trackAskEvent:noop,
+    AbortSignal:{timeout:()=>({})},getBrowserSupabase:()=>({auth:{}}),
+    requestAskWithSession:(_auth,send)=>send('token'),
+    idempotentClientFetch:async(_url,options,scope,id)=>{
+      state.requests.push({payload:JSON.parse(options.body),scope,id});
+      serverConversation={id:'server-created-before-failure'};
+      if(requestFailure==='network')throw Error('connection lost');
+      return Response.json({success:false,code:'ANSWER_RETRYABLE'},{status:503});
+    },
+    parseAskConversationResponse:()=>null,
+    AskRequestError:class extends Error {constructor(code){super(code);this.code=code;}},
+    getAskFailure:error=>({code:error.code||'ANSWER_RETRYABLE',retryAfterSeconds:4}),
+    refreshConversations:async()=>{
+      state.refreshes++;
+      // Retry state must be committed before list discovery starts.
+      assert.equal(state.phase,'failed');assert.ok(state.failed);
+      if(refreshFails)throw Error('list unavailable');
+      state.conversations=[serverConversation];
+    },
+  });
+  return {run,state,activeRef};
+}
+
+test('failed first turns refresh server-created conversations without changing retry identity',async()=>{
+  for(const requestFailure of ['http','network']) {
+    const h=failedSubmitHarness({requestFailure});
+    await h.run('Save my question','composer');
+    assert.equal(h.state.conversations[0].id,'server-created-before-failure');
+    assert.equal(h.state.refreshes,1);assert.equal(h.state.phase,'failed');
+    assert.equal(h.state.active,false);assert.equal(h.activeRef.current,false);
+    const retry=h.state.failed;
+    await h.run('Save my question','composer',retry);
+    assert.deepEqual(h.state.requests[1],h.state.requests[0]);
+    assert.equal(h.state.thread.length,1);
+    assert.equal(h.state.failed.userMessageId,retry.userMessageId);
+  }
+});
+
+test('a failed sidebar refresh preserves the original failure and unlocks retry',async()=>{
+  const h=failedSubmitHarness({refreshFails:true});
+  await h.run('Save my question','composer');
+  assert.equal(h.state.refreshes,1);assert.equal(h.state.failed.code,'ANSWER_RETRYABLE');
+  assert.equal(h.state.failed.retryAfterSeconds,4);
+  assert.equal(h.state.phase,'failed');assert.equal(h.state.active,false);assert.equal(h.activeRef.current,false);
+  assert.equal(h.state.failed.payload.message,'Save my question');
+});

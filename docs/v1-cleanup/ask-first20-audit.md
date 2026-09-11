@@ -1,5 +1,17 @@
 # Ask: first 20 files — code audit
 
+## Issues 3 and 4 — admission assessment and failed-turn discovery
+
+September 11, 2026. These changes address the two exact mechanisms in the follow-up audit.
+
+- **Issue 3:** `finalizeAiAdmissionAfterPersistence` now requires the live server-derived answer assessment. Only a durably delivered answer assessed `complete` calls `admission.complete()`. Limited, failed and unassessed answers call the existing failure settlement, which releases queued provider reservations without erasing the stored answer. A failed HTTP response takes precedence over a complete assessment. Already-finalized and absent admissions remain untouched; bookkeeping exceptions remain non-fatal to answer delivery. The generated answer's assessment cannot transfer to the replacement capability-response body, so that branch explicitly passes no assessment.
+- **Issue 4:** the Ask submit catch path records the original failure and retry payload, then refreshes recent conversations. This discovers a conversation created before answer generation or transport failed. A list refresh failure is isolated; retry retains the same logical turn, scope, payload and user-message identity. The existing list generation guard continues to prevent stale list overwrites.
+
+Verification: **47 focused tests passed** across completion execution, first-20 reliability, pre-provider retry, credit settlement integrity and last-mile integrity. New executable failure tests cover HTTP and connection failures after server conversation creation, unchanged retry identity, list refresh failure, limited/failed/missing assessments, misleading successful response JSON/action receipts, and both completion/failure bookkeeping errors. Scoped TypeScript and lint checks passed. No full local project suite was run. Deployment and browser checks are recorded separately when available.
+
+**Scope clarification:** AI admission bookkeeping and the user-credit ledger are separate mechanisms. Earlier entries called issue 3 “credit settlement” too broadly. This patch fixes the cited admission helper; it does not change billing policy or refund credits. A successful later action receipt does not upgrade a pre-execution limited answer assessment or certify that other requested work was completed. That distinction remains explicit.
+
+
 ## Explicit-save gap and issue 2 — implemented and live verified
 
 Final verified production source: `c914539015fb3ef181cca1741c27c1c0fd5ddb55`, deployment `dpl_5XuqUWUJ7BCQib7gdvXaEjxtrwWp`, September 11, 2026. PRs #286–#288 are merged. The intermediate production failures below are retained as failures, not counted as passing retries.

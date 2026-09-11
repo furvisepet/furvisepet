@@ -402,6 +402,7 @@ export async function POST(request: Request) {
   let providerCallCount = 0;
   let generationStage = "generation_preparation";
   let intelligenceResult: FurviseIntelligenceResult | null = null;
+  const getAnswerAssessment = () => intelligenceResult?.answerValidation?.assessment ?? null;
   let aiAdmission: AiOperationAdmission | null = null;
   let aiAdmissionFinalized = false;
   const rateGateRef: { current: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null } = { current: null };
@@ -927,7 +928,8 @@ export async function POST(request: Request) {
         userId,
         turnLifecycle,
       }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
-      await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, requestId, response: persistedResponse });
+      // This capability response replaces the generated body, so its assessment cannot transfer.
+      await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, assessment: null, requestId, response: persistedResponse });
       return persistedResponse;
     } catch (error) {
       await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
@@ -1066,7 +1068,7 @@ export async function POST(request: Request) {
       userId,
       turnLifecycle,
     }).finally(async () => { if (rateGateRef.current) await rateGateRef.current.release(); });
-    await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, requestId, response: persistedResponse });
+    await finalizeAiAdmissionAfterPersistence({ admission: aiAdmission, alreadyFinalized: aiAdmissionFinalized, assessment: getAnswerAssessment(), requestId, response: persistedResponse });
     return persistedResponse;
   } catch (error) {
     await failAiAdmission(aiAdmission, error, aiAdmissionFinalized, requestId);
