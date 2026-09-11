@@ -169,6 +169,11 @@ try {
  sql(`delete from public.pet_care_entries where id=${quote(first.care_entry_id)};`);
  assert.equal(read().recorded_census,null);
  log.push('soft deletion invalidates a previously valid saved first episode; hard deletion retains unknown completeness');
+ const unaffected=await ask('List all Luna vomiting episodes.',{pet:lunaPet});
+ assert.equal(unaffected.context.episodeResult.exactTotal,2,JSON.stringify(unaffected.context.episodeResult));
+ assert.equal(json(`select affected_pet_ids from public.ask_recorded_inventory_removals where user_id=${quote(owner)};`).includes(milo),true);
+ assert.equal(json(`select affected_pet_ids from public.ask_recorded_inventory_removals where user_id=${quote(owner)};`).includes(luna),false);
+ log.push('Milo hard-deletion uncertainty does not block Luna two-episode census');
  console.log(JSON.stringify({passed:log},null,2));
 } finally {
  try {

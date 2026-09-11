@@ -313,7 +313,7 @@ export async function runFurviseIntelligence({
     // Enumerated validator codes only; never include answer or source text.
     { code: `ASK_ANSWER_${answerValidation.errors[0] || "VALIDATION_FAILED"}`.toUpperCase() },
   );
-  answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId, onProviderEvent,
+  answerValidation = await reviewTaskCompletion({ validation: answerValidation, context, requestId, onProviderEvent, pendingCareEvents: acceptedSemanticEvents,
     validate: candidate => validateGeneratedAnswer(candidate, context, reasoning.intelligenceSafety.level,
       hasOwnedPetSubject ? authoritativePetIds : [context.pet.id]),
   });
