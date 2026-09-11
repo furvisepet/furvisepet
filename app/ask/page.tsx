@@ -421,6 +421,12 @@ function AskPageContent() {
       const result = await request;
       setRequestPhase("receiving");
       const payload = await result.json().catch(() => null) as { assistantMessageId?: string; automaticSaveConfirmation?: string | null; carePersistence?: CarePersistence | null; code?: AskFailureCode; contextUsed?: ContextUsed | null; conversationId?: string; creditsUsed?: number; dataChanged?: boolean; handledWithoutAi?: boolean; message?: string; persistence?: { saved?: boolean; warning?: string }; response?: unknown; retryAfterSeconds?: number; saveMetadata?: AskSaveMetadata | null; success?: boolean; suggestion?: StateSuggestion | null; usage?: AskUsageStatus | null; userMessageId?: string } | null;
+      // Adopt durable identity even when generation failed. Retrying retains
+      // the original payload/hash; a new follow-up joins this conversation.
+      if (!conversationIdAtSubmit && payload?.conversationId && /^[0-9a-f-]{36}$/i.test(payload.conversationId)) {
+        setActiveConversationId(payload.conversationId);
+        replaceAskLocation({ conversationId: payload.conversationId });
+      }
       const parsed = parseAskConversationResponse(payload?.response) as StructuredResponse | null;
       if (payload?.usage) setUsage(payload.usage);
       const standaloneEmergency = Boolean(payload?.handledWithoutAi && payload.persistence?.saved === false && parsed?.urgency === "urgent");

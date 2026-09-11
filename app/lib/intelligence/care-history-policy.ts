@@ -135,6 +135,7 @@ export function resolveAutomaticCareHistoryPresentation(input: {
   if (input.confirmedPersistence?.status === "persisted" && input.confirmedPersistence.careEntryIds.length > 0) {
     return input.confirmedPersistence;
   }
+  if (input.confirmedPersistence?.status === "failed") return input.confirmedPersistence;
   if (input.hasSavedSuggestion) {
     return { status: "suggested", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: input.memoryIds || [] };
   }
@@ -236,7 +237,7 @@ export function buildExplicitCareHistoryAction(input: {
   conversationTurns: Array<{ role: "user" | "furvise"; text: string }>;
   pet: Pick<DogProfileRow, "name">;
 }): IntelligenceCareAction | null {
-  if (!isExplicitCareHistorySaveRequest(input.currentMessage)) return null;
+  if (!isExplicitCareHistorySaveRequest(input.currentMessage) || analyzeOwnerAssertions(input.currentMessage).hasOwnerAssertion) return null;
   const source = [...input.conversationTurns].reverse().find((turn) => turn.role === "user" && clean(turn.text) && !isExplicitCareHistorySaveRequest(turn.text))?.text;
   if (!source) return null;
   const petName = clean(input.pet.name || "the pet");

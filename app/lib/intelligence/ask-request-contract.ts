@@ -27,6 +27,7 @@ export type AskRequestContract = {
   question: string;
   requirements: string[];
   projection?: ReadProjection | null;
+  profileFields?: string[];
   evidenceNeeds?: EvidenceNeed[];
   evidenceNeedIssues?: string[];
   evidenceBasis?: "saved_history" | "supplied_context" | "general" | null;
@@ -37,8 +38,9 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object) {
   return { type: "object", additionalProperties: false,
-    required: ["projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
+      profileFields: { type: "array", maxItems: 14, items: { type: "string", enum: ["species", "breed", "age", "weight", "current_food", "main_concern", "care_goal", "avoid", "monthly_budget", "sex", "pronouns", "lifecycle_status"] } },
       projection: readProjectionSchema,
       evidenceNeeds: evidenceNeedsSchema,
       version: { type: "string", enum: [ASK_REQUEST_VERSION] }, mode: { type: "string", enum: modes },
@@ -56,6 +58,8 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "profileFields lists the stored profile fields needed for the original task (including companion profile questions), independently of historical evidenceNeeds. Use field names from the schema; [] means none are requested. This is a retrieval/budget hint, not a claim that a field has a value.",
+  "Questions about whether a previous save or edit happened require an owned read scope, not conversation-only scope. Resolve the referenced user turn and pet; execution receipts are looked up by the server. Assistant wording never proves success.",
   "Use operation navigate with mode read, evidenceBasis null and the owned target scope for opening an application page, including a navigation request combined with a general question or supplied fictional calculation. Navigation needs an owned destination, not historical evidence. Use no history terms, dates, quantity or evidenceNeeds. If any part asks for actual stored facts, use the appropriate saved_history operation instead. Opening a page grants no writes. Keep every requested part in requirements and the original question.",
   "projection is an optional typed execution proposal, never evidence. For a table/CSV consisting ONLY of pet names and recorded body mass, set projection with exact requested nameHeader/valueHeader, quantity body_mass, canonical requested unit kg/g/mg/lb and requested order. Otherwise set null. It supplies no measurements and authorizes no facts; the server can compute conversions, sort and render verified records. Additional narrative, medical conclusions, arithmetic across pets, ambiguous fields or additional columns require null. Independent review still checks the original whole question.",
   "evidenceNeeds decomposes a saved-history question into at most four distinct factual parts that need records. Each quote is an exact contiguous substring of the current USER request (sourceTurnId null), or a referenced prior USER turn whose id is in referenceTurnIds. Never use assistant text. Include the local date or period in each exact quote when it belongs to that requested fact; do not collapse differently dated facts into an undated keyword. petNames narrows each need to its requested pets within the overall authorized scope; use [] when the need applies to the entire scoped group. Never attach another pet’s attribute to this pet. order is earliest or latest when that part requests a temporal boundary, otherwise context; opposite endpoints need separately directed searches. Keep every required comparison endpoint, cause/uncertainty and requested fact in scope. Give each part up to six discriminating lexical terms and ordinary synonyms, not output-format words. Do not invent a need from a paraphrase. These are advisory search facets, not factual premises or access authority. Use [] for non-history tasks. The original entire question remains authoritative even when decomposition is incomplete.",
@@ -80,7 +84,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
+  const p = { profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -96,6 +100,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || !list(p.requirements, 8, 240) || !list(p.referenceTurnIds, 8, 160) || !list(p.petNames, ASK_HISTORY_MAX_PETS, 100)
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
+  if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   const date = (v: unknown): v is string | null => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
     && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v && v >= "1900-01-01" && v <= "2100-01-01";
   if (!date(p.from) || !date(p.to) || p.from !== null && p.to !== null && p.from >= p.to) return fail("dates");
@@ -226,21 +231,14 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (operation === "episode" && ["measurement", "duration", "records"].includes(String(p.quantity))) operation = "recall";
   // A generic incident is a source lookup, not an ordinal illness episode.
   if (operation === "episode" && p.quantity !== "episodes" && p.selection === "reference" && p.episodeTopic === null && p.ordinal === null) operation = "recall";
-  if (operation !== "episode" && ["latest", "earliest", "earliest_occurrence"].includes(String(p.selection))) p.ordinal = null;
-  // An episode ordinal cannot change a measurement comparison. Discard this
-  // irrelevant planner hint only when the quantity and operation are explicit.
-  if (["measurement", "duration"].includes(String(p.quantity)) && ["recall", "comparison", "overview"].includes(operation)) p.ordinal = null;
-  // Episode metadata is advisory read routing, never reference authority.
-  // An ordinary observation has no displayed ordinal. Recover its historical
-  // read rather than rejecting it or asking about an unrelated symptom.
+  // A reference target and the operation on that target are independent.
+  // Preserve a grounded episode selector for member/date/duration projections.
   const episodeReference = isEpisodeSubjectReference(context.currentMessage);
+  const episodeTarget = episodeReference && p.ordinal !== null
+    ? { kind: "episode" as const, ordinal: p.ordinal as AskInterpretation["ordinal"], topic: p.episodeTopic as AskInterpretation["episodeTopic"] } : undefined;
+  if (!episodeTarget && operation !== "episode") p.ordinal = null;
   if (operation === "episode" && p.ordinal === null) operation = episodeReference ? "clarify" : "recall";
-  if (operation !== "episode" && p.ordinal !== null && !episodeReference) p.ordinal = null;
-  // The episode register covers specific symptom groups, not all quantities
-  // or questions about whether a note establishes frequency. Unsupported
-  // topics go through ordinary evidence retrieval and answer review.
   if (operation === "count" && p.episodeTopic === null && !/\bepisodes?\b/i.test(context.currentMessage)) operation = "recall";
-  if (operation === "episode" && p.ordinal === null || operation !== "episode" && p.ordinal !== null) return fail("episode_reference");
   const conversationOnly = p.scope === "none" && (p.mode === "conversation" || p.mode === "clarify" || p.mode === "read" && operation === "general");
   if (p.mode === "conversation" && !conversationOnly) return fail("conversation_scope");
   // A read request cannot silently lose retrieval through a redundant label.
@@ -289,15 +287,16 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     ? validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns, p.referenceTurnIds, owned.filter(pet => petIds.includes(pet.id)))
     : { needs: [], issues: [] };
   const request: AskRequestContract = {
+    profileFields: [...new Set(p.profileFields as string[])],
     projection: historical && readOnly ? parseReadProjection(p.projection) : null,
     ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs } : {}),
     ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}), version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],
     evidenceBasis: p.evidenceBasis as AskRequestContract["evidenceBasis"], outputFormat: p.outputFormat as AskRequestContract["outputFormat"], question: p.question as string, requirements: p.requirements as string[], referenceTurnIds: p.referenceTurnIds, quantity: p.quantity as AskRequestContract["quantity"] };
-  return { version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
+  return { ...(episodeTarget ? { referenceTarget: episodeTarget } : {}), version: "ask-interpretation.v1", request, operation: readOnly ? operation : "update",
     readOperation: p.mode === "update" ? null : operation, selection: p.selection as AskInterpretation["selection"],
     petIds, topic: p.topic, readOnly, clarification, frame,
     referenceQuestion: p.question as string, ...(conversationOnly ? { conversationOnly: true } : {}),
-    episodeTopic: operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
+    episodeTopic: episodeTarget || operation === "count" || operation === "episode" ? p.episodeTopic as AskInterpretation["episodeTopic"] : null,
     ordinal: p.ordinal as AskInterpretation["ordinal"],
     history: historical ? { from, to, terms: p.terms as string[], interpretation: p.terms.length ? "lexical" : from || to ? "period" : "broad_comparison" } : null };
 }

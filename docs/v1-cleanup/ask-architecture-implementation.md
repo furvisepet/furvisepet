@@ -1,0 +1,18 @@
+# Ask architecture implementation — 11 September 2026
+
+This change implements the contracts identified in `ask-architecture-audit.md`. The original 50-question production audit remains the baseline; local regression results do not replace a new live evaluation.
+
+| Finding | Implementation | Verification |
+| --- | --- | --- |
+| A1 | Shared `eligibleAnswerSources` validates scope, load state, representation and correction provenance for factual sources. Requested profile fields are explicit budget hints. Repeated source coverage is grouped across pets without dropping ownership, counts or limitations. | Profile eligibility/denial cases and ten-pet retrieval/review regression. |
+| A2 | Episode target identity survives record, measurement and duration projections; selected members become eligible evidence. Projected reference persistence requires the original review receipt and validated target. | Three independent projection cases; existing stale, owned-reference and membership tests. |
+| A3 | Governance normalizes the actual persistence plan before completion review. Both reviewers see its pending care effects; persistence consumes the issued plan and rejects changed/cloned plans. Shared answer generation no longer asks for redundant legacy mutation fields. | Exact-plan mutation/clone rejection, existing write authorization, idempotency and lifecycle suites. |
+| A4 | Review supports explicit refusal and missing-input dispositions with visible explanations. Historical review receives pending writes and server episode results, and can repair presentation without replacing governed mutations. | Refusal/input contract cases, existing completion/integrity tests. |
+| A5 | Typed table/CSV rows retain per-row source IDs/calculations through review and signatures. JSON retains its typed canonical result. Export row limits are independent of pet count. Record-count arithmetic checks distinct original IDs. | Empty, 11-row and 32-row exports; count duplicate/missing-source/wrong-unit rejection; existing calculation/format suites. |
+| A6 | Product facts derive supported actions and allowance sizes from their owners; turn permissions are separate. Shared tasks receive facts before generation/review, without a later capability answer replacing the reviewed response. | Conversation input contract, product-policy and completion tests. |
+| A7 | Failed HTTP responses retain the durable turn identity. The client adopts the conversation without changing the retry payload. Owned source-turn receipts expose currently linked records. Failed care writes remain failed; final turn telemetry separates answer, mutation and task outcomes. | Persistence, retry and receipt regressions; explicit failed/pending mutation outcome checks. |
+| A8 | Request-entry deadline is shared with admission; interpretation, generation and review reserve downstream work. | Existing monotonic/cancellation/call-budget tests. |
+| A9 | Episode readers normalize one-sided intervals after subscription clipping; paired-null remains supported. | Both open directions and unbounded interval tests. |
+| A10 | Safe contract reason codes replace parser text in diagnostics. Added cross-contract failure/format/ownership cases; the prior audit probe imports the new evidence owner. | Diagnostic privacy checks, all local tests and production build. Live evaluation pending. |
+
+Local checkpoint: `npm test` passed 2,146 top-level tests, zero failures and zero skips (some entries execute additional subprocess cases). `npm run typecheck` passed. `npm run build` completed static generation and route output. No dependency or database schema change is included. Live acceptance, exact deployment identity and any remaining failures will be recorded after deployment.

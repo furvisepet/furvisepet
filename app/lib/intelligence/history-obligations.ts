@@ -5,7 +5,7 @@ import { withinEvidenceNeedWindow, type EvidenceNeedWindow } from "./history-dat
 export type HistoryObligation = { index: number; text: string; needId?: string; petId?: string;
   window?: EvidenceNeedWindow; availability?: string; representedSourceIds?: string[] };
 export type ObligationCompletion = { index: number; needId?: string; petId?: string; window?: EvidenceNeedWindow;
-  status: "answered" | "limited" | "missing"; sentenceIndexes: number[]; sourceIds: string[]; actionIndexes?: number[] };
+  status: TaskObligationReview["status"]; sentenceIndexes: number[]; sourceIds: string[]; actionIndexes?: number[] };
 /** One whole-question obligation plus one for each requested fact/owned pet.
  * Decomposition is advisory; retaining the whole question prevents silent loss. */
 export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryObligation[] {

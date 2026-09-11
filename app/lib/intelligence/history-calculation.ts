@@ -75,7 +75,7 @@ export function evaluateCalculationExpression(tokens: readonly CalculationToken[
  * semantic review checks whether that calculation answers the actual question.
  * This validates arithmetic, not clinical recommendations or causal inference. */
 export type HistoryCalculation = {
-  operation: "sum" | "difference" | "ratio" | "percent_change" | "convert" | "elapsed_days" | "expression";
+  operation: "sum" | "difference" | "ratio" | "percent_change" | "convert" | "elapsed_days" | "count_records" | "expression";
   expression?: CalculationToken[] | null;
   operands: Array<{ sourceId: string; field: "text" | "occurredAt"; literal: string }>;
   value: number;
@@ -84,8 +84,8 @@ export type HistoryCalculation = {
 export const MAX_HISTORY_CALCULATIONS = 40;
 export const historyCalculationSchema = { type: "array", maxItems: MAX_HISTORY_CALCULATIONS, items: {
   type: "object", additionalProperties: false, required: ["operation", "operands", "value", "unit", "expression"], properties: {
-    operation: { type: "string", enum: ["sum", "difference", "ratio", "percent_change", "convert", "elapsed_days", "expression"] },
-    operands: { description: "Ordered operands. difference computes operand 0 minus operand 1; ratio and percent_change compare operand 1 to baseline operand 0.", type: "array", minItems: 1, maxItems: 4, items: { type: "object", additionalProperties: false,
+    operation: { type: "string", enum: ["sum", "difference", "ratio", "percent_change", "convert", "elapsed_days", "count_records", "expression"] },
+    operands: { description: "Ordered operands. difference computes operand 0 minus operand 1; ratio and percent_change compare operand 1 to baseline operand 0.", type: "array", minItems: 1, maxItems: 64, items: { type: "object", additionalProperties: false,
       required: ["sourceId", "field", "literal"], properties: {
         sourceId: { type: "string", maxLength: 160 }, field: { type: "string", enum: ["text", "occurredAt"] },
         literal: { type: "string", minLength: 1, maxLength: 120 },
@@ -104,7 +104,7 @@ export function parseHistoryCalculations(value: unknown): HistoryCalculation[] |
       || !historyCalculationSchema.items.properties.operation.enum.includes(p.operation)
       || (p.operation === "expression" ? !parseCalculationExpression(p.expression) : p.expression != null)
       || !finite(p.value) || typeof p.unit !== "string" || p.unit.length > 20
-      || !Array.isArray(p.operands) || p.operands.length < 1 || p.operands.length > 4
+      || !Array.isArray(p.operands) || p.operands.length < 1 || p.operands.length > (p.operation === "count_records" ? 64 : 4)
       || p.operands.some((o: Record<string, unknown>) => !o || typeof o !== "object" || Object.keys(o).sort().join() !== "field,literal,sourceId"
         || !["text", "occurredAt"].includes(String(o.field)) || typeof o.sourceId !== "string" || !o.sourceId || o.sourceId.length > 160
         || typeof o.literal !== "string" || !o.literal || o.literal.length > 120)) return null;
@@ -115,6 +115,14 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
   const output: string[] = [];
   for (const proposal of proposals) {
     const p = { ...proposal, unit: /^(?:percent|percentage)$/i.test(proposal.unit) ? "%" : proposal.unit.toLowerCase() };
+    if (p.operation === "count_records") {
+      const ids = new Set(p.operands.map(operand => operand.sourceId));
+      if (!p.operands.length || ids.size !== p.operands.length || !["record", "records", "note", "notes", "entry", "entries"].includes(p.unit)
+        || p.operands.some(operand => operand.field !== "text" || operand.literal !== operand.sourceId
+          || !/^(?:care|claim):/.test(operand.sourceId) || sources.filter(source => source.sourceId === operand.sourceId).length !== 1)
+        || p.value !== ids.size) return null;
+      output.push(`${p.value}:record`, `${p.value}:note`, `${p.value}:entry`); continue;
+    }
     const operands: Array<{ value: number; dimension: string; scale: number }> = [];
     for (const operand of p.operands) {
       const matches = sources.filter(source => source.sourceId === operand.sourceId);

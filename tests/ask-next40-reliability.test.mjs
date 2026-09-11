@@ -109,7 +109,7 @@ test('source transport preserves limits without leaking unrepresented IDs or mut
   const compact = compactHistorySourceCoverage(sources, new Set(['visible']));
   assert.deepEqual(compact.sources[0].loadedIds, ['visible']);
   assert.equal(compact.sources[0].loadedCount, 30);
-  assert.deepEqual(compact.unrepresentedSourceGroups[0].members, [{ source: 'memory', loadedCount: 10, cap: 10 }]);
+  assert.deepEqual(compact.unrepresentedSourceGroups[0].members, [{ petId: sources[1].petId, source: 'memory', loadedCount: 10, cap: 10 }]);
   assert.deepEqual(compact.unrepresentedSourceGroups[0].reasons, ['load_cap_reached']);
   assert.deepEqual(sources, saved);
 });

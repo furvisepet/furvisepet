@@ -88,14 +88,14 @@ test("the production orchestrator suppresses a model-proposed B card and retains
   assert.equal(d.suggestion?.type, "history");
 });
 
-test("optional automatic or suggestion persistence failure does not surface a broken history state", () => {
+test("failed automatic persistence remains a failed receipt even when a review suggestion exists", () => {
   const failedAutomatic = { status: "failed", careEntryIds: [], concernIds: [], errorCode: "SEMANTIC_EVENT_INVALID", currentSafetyState: null, alreadyPersisted: false };
   const hidden = resolveAutomaticCareHistoryPresentation({ confirmedPersistence: failedAutomatic, hasSavedSuggestion: false });
-  assert.deepEqual(hidden, { status: "skipped", careEntryIds: [], concernIds: [], errorCode: null, currentSafetyState: null, alreadyPersisted: false, memoryIds: [] });
+  assert.equal(hidden, failedAutomatic);
 
   const reviewAvailable = resolveAutomaticCareHistoryPresentation({ confirmedPersistence: failedAutomatic, hasSavedSuggestion: true });
-  assert.equal(reviewAvailable.status, "suggested");
-  assert.equal(reviewAvailable.errorCode, null);
+  assert.equal(reviewAvailable.status, "failed");
+  assert.equal(reviewAvailable.errorCode, "SEMANTIC_EVENT_INVALID");
 
   const persisted = { status: "persisted", careEntryIds: ["care-entry"], concernIds: [], errorCode: null, currentSafetyState: "routine", alreadyPersisted: false };
   assert.equal(resolveAutomaticCareHistoryPresentation({ confirmedPersistence: persisted, hasSavedSuggestion: false }), persisted);

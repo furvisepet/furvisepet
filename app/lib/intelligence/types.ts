@@ -132,7 +132,10 @@ export type FurviseMemoryRow = {
   stale_at?: string | null;
 };
 
+export type AskOperationReceipt = { sourceMessageId: string; petId: string; requestText: string;
+  answerPersisted: boolean; records: Array<{ id: string; note: string; occurredAt: string }> };
 export type IntelligenceConversationTurn = {
+  operationReceipt?: AskOperationReceipt;
   id: string;
   role: "user" | "furvise";
   text: string;

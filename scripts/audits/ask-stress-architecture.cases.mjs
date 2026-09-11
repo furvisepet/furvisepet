@@ -216,3 +216,70 @@ test('ten-pet read keeps every pet represented and batches correction seeds with
  assert.equal(r.result.answerValidation.completion.length,11);
  assert.equal(r.publication.failure,null);
 });
+
+const { eligibleAnswerSources, evidenceSource } = await import('../../app/lib/intelligence/ask-evidence.ts');
+const { boundedEpisodePlan } = await import('../../app/lib/intelligence/history-access.ts');
+const { verifiedCalculationQuantities } = await import('../../app/lib/intelligence/history-calculation.ts');
+const { buildGovernedAskExecutionPlan, assertGovernedAskExecutionPlan } = await import('../../app/lib/intelligence/run-intelligence.ts');
+const { AskTurnLifecycle } = await import('../../app/lib/ai/ask-turn-model.ts');
+const { safeStructuredValidationReason } = await import('../../app/lib/ai/ask-provider.ts');
+const { parseTaskHistoryReview } = await import('../../app/lib/intelligence/history-review-selection.ts');
+
+test('all represented profile fields share eligibility while scope, load failure and loss still deny evidence',()=>{
+ const fields=['age','breed','weight','species','sex','pronouns'];
+ const represented=fields.map(field=>({sourceId:'profile:pet:'+field,petId:'pet',sourceType:'profile',field:'value',start:0,end:5,text:'value'}));
+ const evidence={scope:{authorizedPetIds:['pet']},sources:[evidenceSource('pet','profile',['pet'])],represented,losses:[]};
+ assert.deepEqual(eligibleAnswerSources(evidence).map(s=>s.sourceId),represented.map(s=>s.sourceId));
+ for(const patch of [{scope:{authorizedPetIds:['other']}},{sources:[{...evidence.sources[0],status:'unavailable'}]},
+ {losses:represented.map(s=>({sourceId:s.sourceId,reason:'prompt_budget'}))}]) assert.equal(eligibleAnswerSources({...evidence,...patch}).length,0);
+});
+for(const quantity of ['records','duration','measurement'])test('episode identity survives '+quantity+' projection',()=>{
+ const question='Show the evidence for Aster’s second vomiting episode.';
+ const result=validateAskRequest(proposal({operation:'episode',selection:'reference',ordinal:'second',quantity,episodeTopic:'vomiting'}),{...context,currentMessage:question});
+ assert.equal(result.referenceTarget.kind,'episode'); assert.equal(result.referenceTarget.ordinal,'second');
+ assert.equal(result.readOperation??result.operation,'recall');
+});
+for(const layout of ['csv','table']) for(const size of [0,11,32])test(layout+' uses record bounds for '+size+' rows and keeps row provenance',()=>{
+ const rows=Array.from({length:size},(_,i)=>({cells:['Aster','Rested.'],sourceIds:['care:'+i],calculations:[]}));
+ const result=canonicalHistoricalRead({readVersion:'history-answer.v1',layout,historyNarrative:null,json:null,
+ limitation:size?null:'No matching records were available.',safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:[],table:{headers:['Pet','Note'],rows}});
+ assert.equal(result.historicalResult.items.length,size);
+ rows.forEach((row,i)=>assert.deepEqual(result.historicalResult.items[i].sourceIds,row.sourceIds));
+ if(!size) assert.match(result.answer,/No matching records/);
+});
+test('record counts reject duplicate operands, missing records, wrong counts and episode units',()=>{
+ const sources=[{sourceId:'care:a',text:'Observed rest.'},{sourceId:'care:b',text:'Observed rest.'}];
+ const count={operation:'count_records',operands:sources.map(s=>({sourceId:s.sourceId,field:'text',literal:s.sourceId})),value:2,unit:'notes',rounding:0,expression:null};
+ assert.ok(verifiedCalculationQuantities([count],sources));
+ for(const patch of [{value:3},{unit:'episodes'},{operands:[count.operands[0],count.operands[0]]}]) assert.equal(verifiedCalculationQuantities([{...count,...patch}],sources),null);
+ assert.equal(verifiedCalculationQuantities([count],sources.slice(0,1)),null);
+});
+test('governed execution authority is tied to the issued plan and exact reviewed content',()=>{
+ const action={action:'create_entry',category:'general',title:'Rest',details:'Aster rested.',severity:'routine',confidence:1,relatedRecordId:null};
+ const input={sourceMessageId:'turn-a',petId:'pet-a',careActions:[action],semanticEvents:[],learnings:[]};
+ const plan=buildGovernedAskExecutionPlan(input);assert.doesNotThrow(()=>assertGovernedAskExecutionPlan(plan));
+ input.careActions[0].details='Changed outside plan';assert.equal(plan.careActions[0].details,'Aster rested.');
+ assert.throws(()=>assertGovernedAskExecutionPlan(structuredClone(plan)),/ASK_EXECUTION_PLAN_CHANGED/);
+ plan.careActions[0].details='Changed after review';assert.throws(()=>assertGovernedAskExecutionPlan(plan),/ASK_EXECUTION_PLAN_CHANGED/);
+});
+test('paired episode intervals preserve unbounded scope and fill only missing supported-domain bounds',()=>{
+ assert.deepEqual(boundedEpisodePlan({from:null,to:null}),{from:null,to:null});
+ const upper=boundedEpisodePlan({from:null,to:'2024-06-01T00:00:00.000Z'});assert.match(upper.from,/^1900-/);assert.match(upper.to,/^2024-06/);
+ const lower=boundedEpisodePlan({from:'2024-06-01T00:00:00.000Z',to:null});assert.match(lower.to,/^2100-/);assert.match(lower.from,/^2024-06/);
+});
+for(const status of ['refused','needs_information'])test(status+' is deliverable only with a visible explanation',()=>{
+ const review={approved:true,retainedSentenceIndexes:[0],obligations:[{index:0,status,sentenceIndexes:[0],actionIndexes:[]}]};
+ assert.equal(parseTaskHistoryReview(review,1,1).obligations[0].status,status);
+ assert.throws(()=>parseTaskHistoryReview({...review,obligations:[{...review.obligations[0],sentenceIndexes:[]}]},1,1));
+});
+test('delivery cannot certify a failed or pending requested mutation',()=>{
+ for(const mutation of ['failed','pending','applied']){
+  const turn=new AskTurnLifecycle('logical','attempt');turn.outcomes('complete',mutation).transition('COMPLETED');
+  assert.equal(turn.snapshot().taskOutcome,mutation==='failed'?'failed':mutation==='pending'?'limited':'complete');
+ }
+});
+test('structured diagnostics retain safe contract codes without leaking parser input',()=>{
+ assert.equal(safeStructuredValidationReason(new Error('INVALID_READ_TABLE')),'INVALID_READ_TABLE');
+ assert.equal(safeStructuredValidationReason(new SyntaxError('Private note and secret token')),'JSON_SYNTAX');
+ assert.equal(safeStructuredValidationReason(new Error('Private note and secret token')),'STRUCTURED_CONTRACT_INVALID');
+});

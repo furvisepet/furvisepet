@@ -51,3 +51,8 @@ function readNavigation(authorizationScope: ActionPolicy["authorizationScope"]):
 function readOnly(authorizationScope: ActionPolicy["authorizationScope"]): ActionPolicy {
   return { safetyClass: "READ_ONLY", mutationClass: "read", confirmationPolicy: "none", authorizationScope };
 }
+
+/** Product capability metadata is derived from the executor policy registry. */
+export function furviseActionCapabilities() {
+  return Object.entries(policies).map(([kind, policy]) => ({ kind, ...policy }));
+}

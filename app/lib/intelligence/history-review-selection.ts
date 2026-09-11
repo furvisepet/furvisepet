@@ -24,7 +24,7 @@ export function parseHistoryReviewSelection(value: unknown, sentenceCount: numbe
 
 /** A task-level receipt cannot approve a subset that silently drops a requested
  * obligation. Limited evidence is a valid answer only with retained explanation. */
-export type TaskObligationReview = { index: number; status: "answered" | "limited" | "missing"; sentenceIndexes: number[]; actionIndexes?: number[] };
+export type TaskObligationReview = { index: number; status: "answered" | "limited" | "missing" | "action_ready" | "refused" | "needs_information"; sentenceIndexes: number[]; actionIndexes?: number[] };
 export const taskHistoryReviewSchema = {
   ...historyReviewSelectionSchema,
   required: [...historyReviewSelectionSchema.required, "obligations"],
@@ -32,9 +32,9 @@ export const taskHistoryReviewSchema = {
     obligations: { type: "array", maxItems: ASK_HISTORY_MAX_OBLIGATIONS, items: { type: "object", additionalProperties: false,
       required: ["index", "status", "sentenceIndexes", "actionIndexes"], properties: {
         index: { type: "integer", minimum: 0, maximum: ASK_HISTORY_MAX_OBLIGATIONS - 1 },
-        status: { type: "string", enum: ["answered", "limited", "missing"] },
+        status: { type: "string", enum: ["answered", "limited", "missing", "action_ready", "refused", "needs_information"] },
         sentenceIndexes: historyReviewSelectionSchema.properties.retainedSentenceIndexes,
-        actionIndexes: { type: "array", maxItems: 3, items: { type: "integer", minimum: 0, maximum: 2 } },
+        actionIndexes: { type: "array", maxItems: 8, items: { type: "integer", minimum: 0, maximum: 7 } },
       } } },
   },
 };
@@ -50,16 +50,17 @@ export function parseTaskHistoryReview(value: unknown, sentenceCount: number, ob
     const item = raw as Record<string, unknown>;
     if (Object.keys(item).sort().join() !== ("actionIndexes" in item ? "actionIndexes,index,sentenceIndexes,status" : "index,sentenceIndexes,status")
       || actionCount > 0 && !("actionIndexes" in item)
-      || "actionIndexes" in item && (!Array.isArray(item.actionIndexes) || item.actionIndexes.length > 3
+      || "actionIndexes" in item && (!Array.isArray(item.actionIndexes) || item.actionIndexes.length > 8
         || new Set(item.actionIndexes).size !== item.actionIndexes.length
         || item.actionIndexes.some(index => !Number.isInteger(index) || index < 0 || index >= actionCount))
       || !Number.isInteger(item.index) || (item.index as number) < 0 || (item.index as number) >= obligationCount
-      || seen.has(item.index as number) || !["answered", "limited", "missing"].includes(String(item.status))
+      || seen.has(item.index as number) || !["answered", "limited", "missing", "action_ready", "refused", "needs_information"].includes(String(item.status))
       || !Array.isArray(item.sentenceIndexes) || item.sentenceIndexes.length > 8
       || new Set(item.sentenceIndexes).size !== item.sentenceIndexes.length
       || item.sentenceIndexes.some(index => !Number.isInteger(index) || !result.retainedSentenceIndexes.includes(index))
       || result.approved && (item.status === "missing" || !item.sentenceIndexes.length && !(item.actionIndexes as unknown[] | undefined)?.length)
-      || item.status === "limited" && !item.sentenceIndexes.length
+      || ["limited", "refused", "needs_information"].includes(String(item.status)) && !item.sentenceIndexes.length
+      || item.status === "action_ready" && !(item.actionIndexes as unknown[] | undefined)?.length
       || item.status === "missing" && (item.sentenceIndexes.length || (item.actionIndexes as unknown[] | undefined)?.length)) throw new Error("INVALID_TASK_REVIEW");
     seen.add(item.index as number);
   }

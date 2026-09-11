@@ -1,3 +1,5 @@
+import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/run-intelligence.ts";
+import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
@@ -173,7 +175,20 @@ export async function GET(request: Request) {
   return Response.json({ usage: context.usage });
 }
 
+type AskRequestExecution = { deadline: OperationDeadline; durable?: { conversationId: string; userMessageId: string; logicalTurnId: string } };
 export async function POST(request: Request) {
+  const execution: AskRequestExecution = { deadline: new OperationDeadline(50_000) };
+  const response = await executeAskRequest(request, execution);
+  if (response.ok || !execution.durable) return response;
+  const body = await response.clone().json().catch(() => null);
+  if (!body || typeof body !== "object") return response;
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  return Response.json({ ...body, ...execution.durable, turnDisposition: "answer_unavailable" },
+    { status: response.status, headers });
+}
+
+async function executeAskRequest(request: Request, execution: AskRequestExecution) {
   let authentication: Awaited<ReturnType<typeof loadAskAuthenticationContext>>;
   try {
     authentication = await loadAskAuthenticationContext(request);
@@ -345,6 +360,7 @@ export async function POST(request: Request) {
     emitAskTurnTrace(turnLifecycle.snapshot(), userId, petId);
     return handleAskApiError(error, requestId);
   }
+  execution.durable = { conversationId: preparedRequest.conversationId, userMessageId: preparedRequest.userMessageId, logicalTurnId };
   turnLifecycle.transition("ROUTED");
 
   const creditRequestId = attemptId;
@@ -627,7 +643,7 @@ export async function POST(request: Request) {
       });
     }
     aiAdmission = await admitAiOperation({
-      feature: "ask", intendedModel: model,
+      feature: "ask", intendedModel: model, deadline: execution.deadline,
       operationTtlSeconds: askGuardOperationTtlSeconds,
       payload: { conversationId: preparedRequest.conversationId, petId, question }, requestId: attemptId, userId,
     });
@@ -772,7 +788,7 @@ export async function POST(request: Request) {
           return intelligenceResult.reasoning;
         },
       });
-    }), askRequestTimeoutMs);
+    }), execution.deadline.allocate("answer_generation", askRequestTimeoutMs, 4_000));
     }
     }
     logAskStage("turn orchestrated", {
@@ -871,7 +887,7 @@ export async function POST(request: Request) {
   if (reasoning) contextUsed.usedSources = [...new Set(reasoning.referencedRecords.map(formatContextSourceLabel))].slice(0, 4);
   const safetyLevel = orchestration.safetyLevel;
   const plannedCapabilityIntent = classifyFurviseCapabilityQuestion(question);
-  const plannedGate = reasoning && plannedCapabilityIntent && safetyLevel === "normal" && !reasoning.shoppingSuppressed
+  const plannedGate = reasoning && !reasoning.evidenceContract?.interpretation?.request && plannedCapabilityIntent && safetyLevel === "normal" && !reasoning.shoppingSuppressed
     ? buildFurviseCapabilityResponse(plannedCapabilityIntent)
     : null;
   if (plannedGate) {
@@ -1558,7 +1574,7 @@ async function persistAssistantAnswer({
     authorizedLearnings: prepareAskMemoryAuthorityLearnings({
       authorizedPetIds,
       currentMessage: sourceMessage,
-      learnings: intelligenceResult.acceptedLearnings,
+      learnings: intelligenceResult.executionPlan.learnings,
     }),
     semanticTrace: semanticTraceForStorage(intelligenceResult.semanticTrace),
   } : null;
@@ -1698,16 +1714,17 @@ async function persistAssistantAnswer({
   let intelligencePersistenceWarning = "";
   let semanticTrace = intelligenceResult?.semanticTrace || null;
   const reviewableSemanticEvent = deferHighImpactLifecyclePersistence ? null
-    : intelligenceResult?.acceptedSemanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
-  if (!deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.acceptedLearnings.length || intelligenceResult.acceptedCareActions.length || intelligenceResult.acceptedSemanticEvents.length)) {
+    : intelligenceResult?.executionPlan.semanticEvents.find((item) => item.destinations.some((destination) => destination === "care_event" || destination === "episode_current_state" || destination === "state_only")) || null;
+  if (!deferHighImpactLifecyclePersistence && intelligenceResult && (intelligenceResult.executionPlan.learnings.length || intelligenceResult.executionPlan.careActions.length || intelligenceResult.executionPlan.semanticEvents.length)) {
     try {
+      assertGovernedAskExecutionPlan(intelligenceResult.executionPlan);
       intelligencePersistence = await persistIntelligenceLearnings({
         assistantMessageId: assistantMessage.id,
         authorizedPetIds,
-        careActions: historyReviewRequired ? [] : intelligenceResult.acceptedCareActions,
+        careActions: historyReviewRequired ? [] : intelligenceResult.executionPlan.careActions,
         currentMessage: sourceMessage,
-        semanticEvents: historyReviewRequired ? [] : intelligenceResult.acceptedSemanticEvents,
-        learnings: intelligenceResult.acceptedLearnings,
+        semanticEvents: historyReviewRequired ? [] : intelligenceResult.executionPlan.semanticEvents,
+        learnings: intelligenceResult.executionPlan.learnings,
         operationOwnerToken,
         payloadHash: operationPayloadHash,
         petId,
@@ -1817,9 +1834,15 @@ async function persistAssistantAnswer({
   // The reviewed answer body is immutable. Persistence outcomes belong in
   // receipts/cards, never in a second unreviewed prose rewrite.
   turnLifecycle.actions(applicationActions.length);
+  const requestedMutations = applicationActions.filter(action => action.mutationClass === "mutation" && action.explicitIntent);
+  const explicitHistoryWrite = isExplicitCareHistorySaveRequest(sourceMessage);
+  const mutationOutcome = requestedMutations.some(action => action.status === "failed") || explicitHistoryWrite && carePersistence.status === "failed" ? "failed"
+    : requestedMutations.some(action => action.status !== "succeeded") || explicitHistoryWrite && carePersistence.status !== "persisted" ? "pending"
+    : requestedMutations.length || explicitHistoryWrite ? "applied" : "not_requested";
+  turnLifecycle.outcomes(intelligenceResult?.answerValidation.assessment.outcome || "not_assessed", mutationOutcome);
   turnLifecycle.transition("COMPLETED");
   const canonicalResponse = {
-    ...attachEpisodeReferences(applicationActions.length ? { ...response, applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes),
+    ...attachEpisodeReferences(applicationActions.length ? { ...response, applicationActions } : response, intelligenceResult?.reasoning.evidenceContract?.episodes, intelligenceResult?.reasoning),
     turn: turnLifecycle.snapshot(),
   };
   const durableFallback = await finalizePersistedAskAnswer({
@@ -1829,7 +1852,7 @@ async function persistAssistantAnswer({
   if (didPersistEffectiveState(intelligencePersistence, carePersistence)) {
     revalidateAskStateViews([
       petId,
-      ...(intelligenceResult?.acceptedLearnings.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []) || []),
+      ...(intelligenceResult?.executionPlan.learnings.flatMap((learning) => learning.subjectType === "pet" && learning.subjectId ? [learning.subjectId] : []) || []),
     ]);
   }
   if (applicationStateChanged) revalidateAskStateViews([petId]);
@@ -2296,7 +2319,7 @@ function emitAskTurnTrace(trace: AskTurnTrace, userId: string, petId: string) {
       creditState: trace.creditState,
       executionMode: trace.executionMode,
       finalErrorClass: trace.finalErrorClass,
-      finalOutcome: trace.finalStage === "COMPLETED" ? "success" : trace.finalStage,
+      finalOutcome: trace.finalStage === "COMPLETED" ? trace.taskOutcome || "delivered" : trace.finalStage,
       finalStage: trace.finalStage,
       optionalFailureCount: trace.optionalFailures.length,
       optionalFailures: trace.optionalFailures.join("|"),
@@ -2556,6 +2579,8 @@ function resolveAskLocale(bodyLocale: unknown, acceptLanguage: string | null) {
 
 function formatContextSourceLabel(record: AskContextRecord) {
   return ({
+    operation_receipt: "Verified operation status",
+    episode_result: "Verified episode result",
     active_concern: "Active concerns",
     active_episode: "Current episodes",
     care_update: "Recent care updates",

@@ -58,7 +58,7 @@ test("Ask uses four truthful care-history states and never turns an auxiliary fa
   assert.equal(getAskCareHistoryState({ suggestion: { status: "pending" } }), "SUGGESTION_AVAILABLE");
   assert.equal(getAskCareHistoryState({ carePersistence: { status: "persisted", careEntryIds: ["entry"] } }), "SAVED");
   assert.equal(getAskCareHistoryState({ carePersistence: { status: "failed", careEntryIds: [] }, suggestion: { status: "pending" } }), "SAVE_FAILED");
-  assert.match(askRoute, /historyReviewRequired \? \[\] : intelligenceResult\.acceptedSemanticEvents/);
+  assert.match(askRoute, /historyReviewRequired \? \[\] : intelligenceResult\.executionPlan\.semanticEvents/);
   assert.match(askRoute, /automaticCareFailure[\s\S]*persistPendingSuggestion/);
   assert.match(pendingPersistence, /HISTORY_SUGGESTION_PERSISTENCE_FAILED/);
   assert.match(askRoute, /return successfulAnswerResponse\(/);
