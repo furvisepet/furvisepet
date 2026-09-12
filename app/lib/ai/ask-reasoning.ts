@@ -1067,7 +1067,7 @@ export async function generateStructuredFeatureResponse<T>({
   let response: T;
   let usedModel = models.primary;
   try {
-    response = await runProviderRequest({ client, model: usedModel, onEvent: onProviderEvent, parseOutput, request: request(input, maxOutputTokens), stage: "primary", timeoutMs });
+    response = await runProviderRequest({ client, model: usedModel, onEvent: onProviderEvent, parseOutput, request: request(input, maxOutputTokens), stage: "primary", timeoutMs: Math.min(timeoutMs, 35_000) });
   } catch (error) {
     if (!(error instanceof AskPipelineError) || !isRetryableProviderLimit(error)) throw error;
     if (isRequestRateLimit(error)) {

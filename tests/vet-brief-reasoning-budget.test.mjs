@@ -26,4 +26,6 @@ test('feature reasoning and time budgets reach provider transport without changi
   assert.equal(calls[1].request.reasoning.effort, 'medium');
   assert.equal(calls[1].request.max_output_tokens, 4096);
   assert.equal(JSON.parse(calls[1].request.input).pet, 'synthetic');
+  await context.generateStructuredFeatureResponse({ ...base, timeoutMs: 90000 });
+  assert.equal(calls[2].timeoutMs, 35000);
 });
