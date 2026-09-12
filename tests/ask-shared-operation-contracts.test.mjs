@@ -78,12 +78,19 @@ test('a percentage share of a combined total has a first-class verified operatio
   assert.deepEqual(verifiedCalculationQuantities([calculation],sources),['9.4:%']);
   assert.equal(verifiedCalculationQuantities([{...calculation,value:90.6}],sources),null);
 });
+test('magnitude-only differences do not weaken signed difference validation',()=>{
+ const sources=[{sourceId:'care:high',text:'Active play lasted 29 minutes.'},{sourceId:'care:low',text:'Active play lasted 15 minutes.'}];
+ const operands=[{sourceId:'care:low',field:'text',literal:'15 minutes'},{sourceId:'care:high',field:'text',literal:'29 minutes'}];
+ assert.deepEqual(verifiedCalculationQuantities([{operation:'absolute_difference',expression:null,operands,value:14,unit:'minutes'}],sources),['14:minute']);
+ assert.equal(verifiedCalculationQuantities([{operation:'difference',expression:null,operands,value:14,unit:'minutes'}],sources),null);
+});
 test('past-to-present weight comparisons require the current profile endpoint',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
  const currentMessage='Compare Fern’s April 9, 2024 weight with her current recorded weight and give the change.';
- const proposal={version:'ask-request.v2',mode:'read',temporalScope:'historical_and_current',profileFields:[],question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'comparison',selection:'comparison',quantity:'measurement',topic:'weight',terms:['weight'],from:'2024-04-09',to:'2024-04-10',episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'};
+ const proposal={version:'ask-request.v2',mode:'read',temporalScope:'historical',profileFields:[],question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'comparison',selection:'comparison',quantity:'measurement',topic:'weight',terms:['weight'],from:'2024-04-09',to:'2024-04-10',episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'};
  const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
  assert.deepEqual(result.request.profileFields,['weight']);
+ assert.equal(result.request.temporalScope,'historical_and_current');
  assert.equal(result.history.from,null); assert.equal(result.history.to,null);
 });
 test('past-to-present weight projection uses profile authority, not a later care observation',()=>{
@@ -127,7 +134,9 @@ test('receipt follow-ups recover owned read scope from the latest user action re
   const pet={id:'pet',user_id:'owner',name:'Fern'};
   const currentMessage='Check the linked receipts for that two-note save. State how many notes were saved and quote both. Do not save them again.';
   const result=validateAskRequest({version:'ask-request.v2',mode:'read',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'none',petNames:[],operation:'recall',selection:'reference',quantity:'records',topic:'receipts',terms:['receipts'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'}, {
-    owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[{id:'save-turn',role:'user',text:'Save two separate notes for Fern: January 2: walked. January 4: played.'}],
+    owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[
+      {id:'save-turn',role:'user',text:'Save two separate notes for Fern: January 2: walked. January 4: played.'},
+      {id:'current-turn',role:'user',text:currentMessage}],
   });
   assert.equal(result.readOnly,true); assert.deepEqual(result.petIds,['pet']);
   assert.deepEqual(result.request.referenceTurnIds,['save-turn']); assert.equal(result.request.question,currentMessage);

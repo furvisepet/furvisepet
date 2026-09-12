@@ -188,7 +188,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   const receiptFollowup = /\b(?:linked\s+)?receipts?\b/i.test(context.currentMessage)
     && /\b(?:check|confirm|verify|saved?|edited?|updated?|completed?|actually|how many|quote|list)\b/i.test(context.currentMessage);
   if (receiptFollowup) {
-    const referencedTurn = [...context.conversationTurns].reverse().find(turn => turn.role === "user"
+    const referencedTurn = [...context.conversationTurns].reverse().find(turn => turn.role === "user" && turn.text !== context.currentMessage
       && /\b(?:save|log|record|add|correct|edit|update)\b/i.test(turn.text));
     const referencedPets = referencedTurn ? explicitlyNamedOwnedPets(referencedTurn.text, owned) : [];
     const targets = explicitPets.length === 1 ? explicitPets : referencedPets.length === 1 ? referencedPets
@@ -345,6 +345,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (historical && p.mode === "read" && (p.temporalScope === "historical_and_current" || requestsPastPresentComparison(context.currentMessage))) {
     p.from = null; p.to = null; p.selection = "comparison";
     operation = "comparison";
+    p.temporalScope = "historical_and_current";
     // Current profile measurements are distinct authoritative endpoints. A
     // later care observation must not substitute for a requested current value.
     if (/\b(?:weight|weigh(?:t|ed|s|ing)?|body mass)\b/i.test(context.currentMessage)) {
