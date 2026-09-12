@@ -105,7 +105,9 @@ export async function POST(request: Request) {
   if ("response" in idempotency) return idempotency.response;
 
   let rateGate: Awaited<ReturnType<typeof requireRateLimitedRequest>> | null = null;
-  return idempotency.operation.execute(async () => { try {
+  // A rejected admission performed no generation. Abandon its claim rather
+  // than caching a temporary concurrency/rate denial as a completed result.
+  try {
     rateGate = await requireRateLimitedRequest({
       idempotencyKey: requestId,
       payload: { conversationId, existingDocument, from, petId, reasonForVisit, to },
@@ -115,6 +117,12 @@ export async function POST(request: Request) {
       route: "/api/vet-briefs/draft",
       userId: auth.userId,
     });
+  } catch (error) {
+    await idempotency.operation.abandon("ADMISSION_NOT_STARTED");
+    if (error instanceof RateLimitRejection) return error.response;
+    throw error;
+  }
+  return idempotency.operation.execute(async () => { try {
     await checkAiCreditRequestReplay({
       feature: "vet_brief", logicalRequestId: requestId,
       payloadHash: hashAiCreditPayload("vet_brief", { conversationId, existingDocument, from, petId, reasonForVisit, to }),

@@ -53,7 +53,7 @@ test("loading saved or confirmed Vet Briefs does not spend another credit", () =
   const restoredBranch = page.slice(page.indexOf("const savedDraft = readVetBriefClientDraft"), page.indexOf("const draft = await fetchDraft"));
   assert.doesNotMatch(restoredBranch, /fetchDraft|runWithAiCredit/);
   assert.doesNotMatch(collection + item, /runWithAiCredit|runFeatureIntelligence/);
-  assert.match(page, /const scope = `vet-brief-draft:v2:/);
+  assert.match(page, /const scope = `vet-brief-draft:v3:/);
   assert.match(page, /getOrCreateClientMutationKey\(scope\)/);
 });
 

@@ -10,7 +10,7 @@ const rows=[care('old-vaccine','milo','2001-02-03','vet_visit','Vaccination reco
 async function run(options={}){
  const db=database(rows,options);
  const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2026-06-01',to:'2026-09-04'},currentMessage:'Prepare for vaccinations and discuss historical blood results and the taper.'});
- const retrieved=await retrieveAskHistory(context,db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:topics.flatMap(t=>t.terms),interpretation:'lexical'},termGroups:topics.map(t=>t.terms)});
+ const retrieved=await retrieveAskHistory({...context,...(options.historyAccess?{historyAccess:options.historyAccess}:{})},db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:topics.flatMap(t=>t.terms),interpretation:'lexical'},termGroups:topics.map(t=>t.terms),periodFrom:'2026-06-01T00:00:00Z'});
  return {context,retrieved,db,bundle:vetBriefEvidence(retrieved,{focus:'Visit',topics})};
 }
 test('independent appointment topics retain decades-old, middle and recent evidence through shared bundle amid 5000 routine records',async t=>{
@@ -32,4 +32,12 @@ test('historical transport failure keeps partial coverage explicit without leaki
  clock(t);const result=await run({failGraph:true});
  assert.deepEqual(result.bundle.evidence.records,[]);
  assert.match(result.bundle.warnings.join(' '),/could not be verified/);
+});
+
+test('background searches preserve subscription bounds while recent context has its own period',async t=>{
+ clock(t);const result=await run({historyAccess:{months:60,from:'2021-09-04T00:00:00Z',to:'2026-09-05T00:00:00Z'}});
+ assert.ok(!result.bundle.allowedIds.includes('old-vaccine'));
+ assert.ok(!result.bundle.allowedIds.includes('middle-lab'));
+ assert.ok(result.bundle.allowedIds.includes('recent-med'));
+ assert.equal(result.retrieved.askHistory.coverage.plan.from,'2021-09-04T00:00:00Z');
 });

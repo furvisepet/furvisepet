@@ -275,7 +275,7 @@ function isSectionEmpty(document: VetBriefDocument, id: VetBriefSectionId) { swi
 async function fetchDraft(petId: string, from: string, to: string, conversationId: string, existingDocument?: VetBriefDocument | null, reasonForVisit?: string) {
   const input = { reasonForVisit: reasonForVisit || existingDocument?.reasonForVisit || undefined, conversationId: conversationId || undefined, existingDocument: existingDocument || undefined, from, petId, to };
   // Identical retries share a key; changed dates or owner edits are a new operation.
-  const scope = `vet-brief-draft:v2:${JSON.stringify(input)}`;
+  const scope = `vet-brief-draft:v3:${JSON.stringify(input)}`;
   for (let attempt = 0; attempt < 2; attempt++) {
     const requestId = getOrCreateClientMutationKey(scope);
     try {
