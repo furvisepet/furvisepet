@@ -75,7 +75,7 @@ export function evaluateCalculationExpression(tokens: readonly CalculationToken[
  * semantic review checks whether that calculation answers the actual question.
  * This validates arithmetic, not clinical recommendations or causal inference. */
 export type HistoryCalculation = {
-  operation: "sum" | "mean" | "difference" | "ratio" | "percent_change" | "percent_of_sum" | "convert" | "elapsed_days" | "count_records" | "expression";
+  operation: "sum" | "mean" | "difference" | "absolute_difference" | "ratio" | "percent_change" | "percent_of_sum" | "convert" | "elapsed_days" | "count_records" | "expression";
   expression?: CalculationToken[] | null;
   operands: Array<{ sourceId: string; field: "text" | "occurredAt"; literal: string }>;
   value: number;
@@ -90,8 +90,8 @@ export function calculationSourceIds(sourceIds: readonly string[], calculations:
 }
 export const historyCalculationSchema = { type: "array", maxItems: MAX_HISTORY_CALCULATIONS, items: {
   type: "object", additionalProperties: false, required: ["operation", "operands", "value", "unit", "expression"], properties: {
-    operation: { type: "string", enum: ["sum", "mean", "difference", "ratio", "percent_change", "percent_of_sum", "convert", "elapsed_days", "count_records", "expression"] },
-    operands: { description: "Ordered operands. difference computes operand 0 minus operand 1; ratio and percent_change compare operand 1 to baseline operand 0; percent_of_sum computes operand 0 as a percentage of the sum of all operands.", type: "array", minItems: 1, maxItems: 64, items: { type: "object", additionalProperties: false,
+    operation: { type: "string", enum: ["sum", "mean", "difference", "absolute_difference", "ratio", "percent_change", "percent_of_sum", "convert", "elapsed_days", "count_records", "expression"] },
+    operands: { description: "Ordered operands. difference computes operand 0 minus operand 1; absolute_difference returns the nonnegative magnitude between two operands; ratio and percent_change compare operand 1 to baseline operand 0; percent_of_sum computes operand 0 as a percentage of the sum of all operands.", type: "array", minItems: 1, maxItems: 64, items: { type: "object", additionalProperties: false,
       required: ["sourceId", "field", "literal"], properties: {
         sourceId: { type: "string", maxLength: 160 }, field: { type: "string", enum: ["text", "occurredAt"] },
         literal: { type: "string", minLength: 1, maxLength: 120 },
@@ -203,9 +203,10 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
       computed = p.operation === "ratio" ? values[1] / values[0] : (values[1] - values[0]) / values[0] * 100;
     } else {
       if (!target || target.dimension !== dimension || dimension === "instant") return null;
-      if (p.operation === "convert" && values.length !== 1 || p.operation === "difference" && values.length !== 2) return null;
+      if (p.operation === "convert" && values.length !== 1 || ["difference", "absolute_difference"].includes(p.operation) && values.length !== 2) return null;
       computed = (p.operation === "sum" || p.operation === "mean" ? values.reduce((a, b) => a + b, 0) / (p.operation === "mean" ? values.length : 1)
-        : p.operation === "difference" ? values[0] - values[1] : values[0]) / target.scale;
+        : p.operation === "difference" ? values[0] - values[1]
+        : p.operation === "absolute_difference" ? Math.abs(values[0] - values[1]) : values[0]) / target.scale;
     }
     // Exact arithmetic or explicit rounding to the proposal's decimal precision.
     const decimals = String(p.value).split(".")[1]?.length || 0;

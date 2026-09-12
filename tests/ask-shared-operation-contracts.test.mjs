@@ -78,6 +78,12 @@ test('a percentage share of a combined total has a first-class verified operatio
   assert.deepEqual(verifiedCalculationQuantities([calculation],sources),['9.4:%']);
   assert.equal(verifiedCalculationQuantities([{...calculation,value:90.6}],sources),null);
 });
+test('magnitude-only differences do not weaken signed difference validation',()=>{
+ const sources=[{sourceId:'care:high',text:'Active play lasted 29 minutes.'},{sourceId:'care:low',text:'Active play lasted 15 minutes.'}];
+ const operands=[{sourceId:'care:low',field:'text',literal:'15 minutes'},{sourceId:'care:high',field:'text',literal:'29 minutes'}];
+ assert.deepEqual(verifiedCalculationQuantities([{operation:'absolute_difference',expression:null,operands,value:14,unit:'minutes'}],sources),['14:minute']);
+ assert.equal(verifiedCalculationQuantities([{operation:'difference',expression:null,operands,value:14,unit:'minutes'}],sources),null);
+});
 test('past-to-present weight comparisons require the current profile endpoint',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
  const currentMessage='Compare Fern’s April 9, 2024 weight with her current recorded weight and give the change.';
