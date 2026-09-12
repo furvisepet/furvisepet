@@ -26,3 +26,10 @@ test("missing or empty core answer remains answer-critical", () => {
   assert.throws(() => parseUnifiedResponse("{}", []), /invalid response/);
   assert.throws(() => parseUnifiedResponse('{"answer":"   "}', []), /empty answer/);
 });
+
+test("a long complete answer retains its final safety qualification through parsing", () => {
+  const answer = "Give both animals their own quiet space. ".repeat(50)
+    + "Keep them separated when unsupervised until they are reliably comfortable together.";
+  const parsed = parseUnifiedResponse(JSON.stringify({ answer }), []);
+  assert.equal(parsed.answer, answer);
+});

@@ -908,7 +908,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     if (parsed.intelligenceSafety.level !== "emergency") parsed.intelligenceSafety.level = "urgent";
     parsed.intelligenceSafety.shoppingSuppressed = true;
     if (!/\b(vet(?:erinarian)?|emergency|clinic|urgent care)\b/i.test(parsed.answer)) {
-      parsed.answer = `Contact an emergency veterinarian now. ${parsed.answer}`.slice(0, 1800);
+      parsed.answer = `Contact an emergency veterinarian now. ${parsed.answer}`;
     }
   }
   if (lossContext === "none" && context.minimumSafetyLevel === "monitor" && parsed.safetyLevel === "normal") {
@@ -1108,7 +1108,9 @@ export function parseUnifiedResponse(
   const careActions = Array.isArray(value.careActions) ? value.careActions.filter(isIntelligenceCareAction) : [];
   const semanticEvents = Array.isArray(value.semanticEvents) ? value.semanticEvents.filter(isCanonicalEventProposal) : [];
   const allowedIds = new Set(records.map((record) => record.id));
-  const answer = cleanAnswer(value.answer).slice(0, 1800);
+  // Provider output is already token-bounded. Preserve the complete answer for
+  // review: clipping here can remove a qualification or end mid-instruction.
+  const answer = cleanAnswer(value.answer);
   if (!answer) throw new Error("Ask provider returned an empty answer.");
   const answerSections = parseAnswerSectionsLenient(value.answerSections);
   const relevantContextIds = [...new Set((Array.isArray(value.relevantContextIds) ? value.relevantContextIds : []).filter((id): id is string => typeof id === "string" && allowedIds.has(id)))].slice(0, 8);

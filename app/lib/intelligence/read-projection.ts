@@ -68,7 +68,9 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
       return measurement ? [{source,measurement}] : [];
     });
     if (name && historical.length === 1 && current.length === 1) {
-      const past = historical[0], present = current[0], target = present.measurement.unit;
+      const past = historical[0], present = current[0];
+      const target = /\b(?:grams?|g)\b/i.test(requestText) ? units.g
+        : /\b(?:pounds?|lbs?)\b/i.test(requestText) ? units.lb : present.measurement.unit;
       const rawChange = (present.measurement.value * present.measurement.unit.scale - past.measurement.value * past.measurement.unit.scale) / target.scale;
       const rawPercent = (present.measurement.value * present.measurement.unit.scale - past.measurement.value * past.measurement.unit.scale)
         / (past.measurement.value * past.measurement.unit.scale) * 100;
