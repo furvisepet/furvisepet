@@ -345,6 +345,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (historical && p.mode === "read" && (p.temporalScope === "historical_and_current" || requestsPastPresentComparison(context.currentMessage))) {
     p.from = null; p.to = null; p.selection = "comparison";
     operation = "comparison";
+    p.temporalScope = "historical_and_current";
     // Current profile measurements are distinct authoritative endpoints. A
     // later care observation must not substitute for a requested current value.
     if (/\b(?:weight|weigh(?:t|ed|s|ing)?|body mass)\b/i.test(context.currentMessage)) {

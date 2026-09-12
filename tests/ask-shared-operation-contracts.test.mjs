@@ -81,9 +81,10 @@ test('a percentage share of a combined total has a first-class verified operatio
 test('past-to-present weight comparisons require the current profile endpoint',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
  const currentMessage='Compare Fern’s April 9, 2024 weight with her current recorded weight and give the change.';
- const proposal={version:'ask-request.v2',mode:'read',temporalScope:'historical_and_current',profileFields:[],question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'comparison',selection:'comparison',quantity:'measurement',topic:'weight',terms:['weight'],from:'2024-04-09',to:'2024-04-10',episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'};
+ const proposal={version:'ask-request.v2',mode:'read',temporalScope:'historical',profileFields:[],question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'comparison',selection:'comparison',quantity:'measurement',topic:'weight',terms:['weight'],from:'2024-04-09',to:'2024-04-10',episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'};
  const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
  assert.deepEqual(result.request.profileFields,['weight']);
+ assert.equal(result.request.temporalScope,'historical_and_current');
  assert.equal(result.history.from,null); assert.equal(result.history.to,null);
 });
 test('past-to-present weight projection uses profile authority, not a later care observation',()=>{
