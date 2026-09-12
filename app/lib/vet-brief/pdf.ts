@@ -47,16 +47,18 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
   });
 
   drawRule(state);
-  drawSection(state, "Pet", [
-    `${document.pet.name} | ${document.pet.species}`,
-    `Breed: ${document.pet.breed} | Age: ${document.pet.age} | Profile weight: ${document.pet.weight}`,
-  ]);
-  drawText(state, "Selected owner records, not a complete medical record. Medication entries describe recorded use; current use needs confirmation.", { font: regular, size: 9, color: PDF_THEME.muted, spacingAfter: 14 });
+  drawText(state, `${document.pet.name} | ${document.pet.species}`, { font: bold, size: 12, color: PDF_THEME.text, spacingAfter: 4 });
+  drawText(state, `Breed: ${document.pet.breed} | Age: ${document.pet.age} | Profile weight: ${document.pet.weight}`, { font: regular, size: 10, color: PDF_THEME.text, spacingAfter: 8 });
+  const scopeNote = document.medicationsSupplements.length && !document.excludedSections.includes("medications")
+    ? "Selected owner records, not a complete medical record. Medication entries describe recorded use; current use needs confirmation."
+    : "Selected owner records, not a complete medical record.";
+  drawText(state, scopeNote, { font: regular, size: 9, color: PDF_THEME.muted, spacingAfter: 14 });
   for (const section of vetBriefReport(document)) {
     drawSection(state, section.title, section.items.map(item => `${item.date ? `${formatItemDate(item.date)} | ` : ""}${item.category ? `${item.category}: ` : ""}${item.text}`));
   }
 
-  ensureSpace(state, 54);
+  const disclaimerHeight = 14 + wrapText(document.disclaimer, regular, 8, state.contentWidth).length * 10.8 + 4;
+  ensureSpace(state, disclaimerHeight);
   drawRule(state);
   drawText(state, document.disclaimer, { font: regular, size: 8, color: PDF_THEME.muted, spacingAfter: 0 });
 
