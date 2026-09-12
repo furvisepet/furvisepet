@@ -327,3 +327,17 @@ test('paraphrased save detail retains the exact value binding; resolved state ha
  assert.deepEqual(omitGovernedCareSaveDuplicates({...input,actions:[resolve],message:message+' Sable is coughing now.'}),[resolve]);
  assert.deepEqual(omitGovernedCareSaveDuplicates({...input,actions:[resolve],events:[{...event,event:{...event.event,references:{}}}]}),[resolve]);
 });
+test('whole-request review can cite every item in an eight-note pending batch',()=>{
+ const ready=Array.from({length:8},(_,i)=>i);
+ const verification=Object.fromEntries(['evidenceSupport','subjectDateCorrectness','calculationCorrectness'].map(k=>[k,{status:'passed',reason:'checked'}]));
+ const value={obligations:[{index:0,status:'action_ready',answerIndexes:[0],actionIndexes:ready}],reason:null,verification};
+ assert.ok(parseTaskCompletion(value,['Save eight notes'],1,8,undefined,ready)?.accepted);
+ assert.ok(taskReviewSchema(1,8,ready).properties.obligations.items.anyOf.some(branch=>branch.properties.actionIndexes.maxItems===8));
+ value.obligations[0].actionIndexes.push(8);
+ assert.equal(parseTaskCompletion(value,['Save eight notes'],1,8,undefined,ready),null);
+});
+test('navigation claim cleanup preserves explanation and does not bless write claims',async()=>{
+ const {removeNavigationExecutionClaims}=await import('../../app/lib/application-actions/state-claims.ts');
+ assert.equal(removeNavigationExecutionClaims('I have opened the history page. A note is an observation; an episode groups related observations.'),'A note is an observation; an episode groups related observations.');
+ assert.equal(containsUnverifiedStateClaim(removeNavigationExecutionClaims('I have saved the note.')),true);
+});

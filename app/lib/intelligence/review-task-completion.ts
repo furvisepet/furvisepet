@@ -11,7 +11,7 @@ import { parseModelApplicationActions } from "../application-actions/contracts.t
 import { prepareFurviseApplicationActions } from "../application-actions/planner.ts";
 import { actionCanAutoExecute } from "../application-actions/policy.ts";
 import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
-import { containsUnverifiedStateClaim } from "../application-actions/state-claims.ts";
+import { containsUnverifiedStateClaim, removeNavigationExecutionClaims } from "../application-actions/state-claims.ts";
 import { createAnswerAssessment, type CheckStatus } from "./answer-assessment.ts";
 import { rememberReviewedTaskPresentation } from "./ask-evidence-presentation.ts";
 import type { AnswerValidationResult } from "./validation/validate-answer.ts";
@@ -42,7 +42,7 @@ export function taskReviewSchema(obligationCount: number, actionCount: number, r
       index: { type: "integer", minimum: status === "not_requested" ? 1 : 0, maximum: obligationCount - 1 },
       status: { type: "string", enum: [status] },
       answerIndexes: { type: "array", minItems: answerRequired ? 1 : 0, maxItems: 1, items: { type: "integer", enum: [0] } },
-      actionIndexes: { type: "array", minItems: actionRequired ? 1 : 0, maxItems: Math.min(3, allowedActions.length),
+      actionIndexes: { type: "array", minItems: actionRequired ? 1 : 0, maxItems: allowedActions.length,
         items: { type: "integer", enum: allowedActions.length ? allowedActions : [0] } },
     },
   });
@@ -79,7 +79,7 @@ export function parseTaskCompletion(value: unknown, obligations: string[], answe
   for (const item of p.obligations) {
     if (!item || !Number.isInteger(item.index) || item.index < 0 || item.index >= obligations.length || seen.has(item.index)
       || !statuses.includes(item.status) || !Array.isArray(item.answerIndexes)
-      || !Array.isArray(item.actionIndexes) || item.actionIndexes.length > 3
+      || !Array.isArray(item.actionIndexes) || item.actionIndexes.length > actionCount
       || new Set(item.actionIndexes).size !== item.actionIndexes.length
       || item.actionIndexes.some(i => !Number.isInteger(i) || i < 0 || i >= actionCount)) return fail("ITEM");
     seen.add(item.index);
@@ -161,6 +161,11 @@ export async function reviewTaskCompletion(input: {
       ...pendingCareActions.map(action => ({ kind: "care_history.governed_action", petId: pet?.id, input: action, destinations: ["care_event"] })) ];
     const readyActionIndexes = actions.flatMap((action, index) => action.mutationClass !== "navigation"
       && (actionCanAutoExecute(action.kind, action.explicitIntent) || action.confirmationPolicy === "always") ? [index] : []).concat(pendingActions.map((_, index) => actions.length + index));
+    if (actions.some(action => action.mutationClass === "navigation")) {
+      response.answer.summary = removeNavigationExecutionClaims(response.answer.summary);
+      response.answer.sections = response.answer.sections.map(section => ({ ...section,
+        items: section.items.map(removeNavigationExecutionClaims).filter(Boolean) })).filter(section => section.items.length);
+    }
     const body = visible(response);
     const automaticSaveWordingFailure = pendingActions.length > 0 && /\b(?:persistence|application action|ready for review)\b/i.test(body);
     const snapshot = JSON.stringify({ answer: response.answer, actions, evidence: response.evidenceContract, pendingEvents, pendingCareActions });

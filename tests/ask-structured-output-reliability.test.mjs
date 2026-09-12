@@ -246,3 +246,9 @@ test('conversation composer receives original user premises without planner-inve
   assert.equal(payload.productFacts.liveRetailerResearch,false);
   assert.deepEqual(Object.keys(request.text.format.schema.properties).sort(),['answer','responseMode','safetyLevel','userIntent']);
 });
+test('requested JSON layout is preserved for profile-only historical reads',()=>{
+  const request=buildAskProviderRequest({evidenceContract:{scope:{readOnlyRecall:true,requestKind:'ordinary'},history:{},
+    interpretation:{request:{outputFormat:'json'}},represented:[{sourceType:'profile'}]}});
+  assert.deepEqual(request.text.format.schema.properties.layout.enum,['json']);
+  assert.equal(request.text.format.schema.properties.historyNarrative.type,'null');
+});

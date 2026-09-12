@@ -110,15 +110,18 @@ export async function buildFurviseContext({
     ...messages.data.map((message) => message.id),
     ...sharedMemories.data.flatMap((memory) => memory.source_type === "ask_message" && memory.source_id ? [memory.source_id] : []),
   ])];
-  const deletedCareSources = candidateSourceMessageIds.length ? await supabase.from("pet_care_entries")
+  const deletedCareSources = await recoverOptionalQuery("conversation_source_lineage", candidateSourceMessageIds.length ? supabase.from("pet_care_entries")
     .select("id,intelligence_source_message_id,deleted_at,note,occurred_at")
     .eq("user_id", userId).eq("pet_profile_id", petId)
     .in("intelligence_source_message_id", candidateSourceMessageIds)
     .returns<Array<{ deleted_at: string | null; id: string; note: string; occurred_at: string; intelligence_source_message_id: string | null }>>()
-    : { data: [], error: null };
-  if (deletedCareSources.error) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", deletedCareSources.error);
+    : Promise.resolve({ data: [], error: null }), [] as Array<{ deleted_at: string | null; id: string; note: string; occurred_at: string; intelligence_source_message_id: string | null }>);
+  // Fail closed on unverified conversation lineage, not on independent owned
+  // profile/history retrieval. No receipt or stale conversation fact is issued.
+  if (deletedCareSources.unavailable) unavailableSources.push("conversation_source_lineage");
   const deletedCareEntryIds = new Set((deletedCareSources.data || []).filter((row) => row.deleted_at).map((row) => row.id));
-  const suppressedSourceMessageIds = new Set((deletedCareSources.data || []).filter((row) => row.deleted_at && row.intelligence_source_message_id).map((row) => row.intelligence_source_message_id!));
+  const suppressedSourceMessageIds = new Set(deletedCareSources.unavailable ? candidateSourceMessageIds
+    : deletedCareSources.data.filter(row => row.deleted_at && row.intelligence_source_message_id).map(row => row.intelligence_source_message_id!));
 
   const selectedMemories = selectMemorySources(memorySources, { currentMessage, suppressedSourceMessageIds, now: new Date(), limit: mode.contextPolicy.memoryLimit });
   const conversationTurns = removeInactiveMemoryClaimsFromConversation([...messages.data]
@@ -184,7 +187,7 @@ export async function buildFurviseContext({
     },
     // Presentation-only sections have not passed memory text redaction. Suppress
     // the hint whenever deleted/forgotten evidence could be reintroduced.
-    episodePresentation: inactiveMemories.unavailable || selectedMemories.inactiveMemoryMarkers.length || deletedCareEntryIds.size ? undefined
+    episodePresentation: deletedCareSources.unavailable || inactiveMemories.unavailable || selectedMemories.inactiveMemoryMarkers.length || deletedCareEntryIds.size ? undefined
       : episodePresentation(messages.data, new Set(conversationTurns.filter(turn => turn.role !== "user"
         || messages.data.find(message => message.id === turn.id)?.user_text === turn.text).map(turn => turn.id)), selectedProfile, eligiblePets.data || [selectedProfile]),
     feature, locale, currentMessage, currentTimestamp: new Date().toISOString(), conversationId,
