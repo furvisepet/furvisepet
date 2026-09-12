@@ -78,3 +78,17 @@ test('edit receipts establish execution separately from inserted note rows',asyn
     assert.doesNotMatch(source.text,/requested action completed/);assert.match(source.text,/not successful writes/);
   }
 });
+test('calculated answers inherit all operand sources without granting unknown operands authority',async()=>{
+  const {parseHistoryNarrative}=await import('../app/lib/intelligence/history-narrative.ts');
+  const {verifiedCalculationQuantities}=await import('../app/lib/intelligence/history-calculation.ts');
+  const calculation={operation:'elapsed_days',operands:[
+    {sourceId:'care:start',field:'occurredAt',literal:'2024-03-02T00:00:00Z'},
+    {sourceId:'care:stop',field:'occurredAt',literal:'2024-03-05T00:00:00Z'}],value:3,unit:'days'};
+  const draft=parseHistoryNarrative({sentences:[{text:'The calendar-day gap is 3 days.',sourceIds:['episode-result:pet'],calculations:[calculation]}]});
+  assert.deepEqual(draft.sentences[0].sourceIds,['episode-result:pet','care:start','care:stop']);
+  const sources=[{sourceId:'episode-result:pet',text:'One recorded episode.'},
+    {sourceId:'care:start',text:'Started.',occurredAt:'2024-03-02T00:00:00Z'},
+    {sourceId:'care:stop',text:'Stopped.',occurredAt:'2024-03-05T00:00:00Z'}];
+  assert.ok(verifiedCalculationQuantities(draft.sentences[0].calculations,sources));
+  assert.equal(verifiedCalculationQuantities([{...calculation,operands:[calculation.operands[0],{...calculation.operands[1],sourceId:'foreign'}]}],sources),null);
+});

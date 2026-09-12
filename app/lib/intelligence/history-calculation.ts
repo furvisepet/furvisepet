@@ -82,6 +82,12 @@ export type HistoryCalculation = {
   unit: string;
 };
 export const MAX_HISTORY_CALCULATIONS = 40;
+/** Provenance is transitive: an arithmetic result depends on every original
+ * operand. This closes references only; eligibility and arithmetic are still
+ * independently checked, including unknown or foreign source IDs. */
+export function calculationSourceIds(sourceIds: readonly string[], calculations: readonly HistoryCalculation[]) {
+  return [...new Set([...sourceIds, ...calculations.flatMap(calculation => calculation.operands.map(operand => operand.sourceId))])];
+}
 export const historyCalculationSchema = { type: "array", maxItems: MAX_HISTORY_CALCULATIONS, items: {
   type: "object", additionalProperties: false, required: ["operation", "operands", "value", "unit", "expression"], properties: {
     operation: { type: "string", enum: ["sum", "mean", "difference", "ratio", "percent_change", "convert", "elapsed_days", "count_records", "expression"] },
