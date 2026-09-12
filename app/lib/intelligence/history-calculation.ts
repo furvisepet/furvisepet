@@ -138,10 +138,20 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
         // It is not an inferred onset; semantic review checks that relationship.
         operands.push({ value: Date.parse(operand.literal), dimension: "instant", scale: 1 });
       } else {
+        // A numeric leaf may cite only the number while its source supplies
+        // the adjacent unit. Accept it only when that exact token has one
+        // unambiguous unit in this source, never from the requested result unit.
+        let literal = operand.literal;
+        if (/^[+−-]?\d+(?:\.\d+)?$/.test(literal)) {
+          const matches = [...source.text.matchAll(/(?<![\p{L}\p{N}_.+−-])([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
+            .filter(token => token[1] === literal && units[token[2].toLowerCase()]);
+          if (!matches.length || new Set(matches.map(token => units[token[2].toLowerCase()].canonical)).size !== 1) return null;
+          literal = matches[0][0];
+        }
         // Require a complete numeric token, not a substring of a larger value.
-        const tokens = [...operand.literal.matchAll(/(?<![\p{L}\p{N}_.+−-])([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
+        const tokens = [...literal.matchAll(/(?<![\p{L}\p{N}_.+−-])([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)(?![\p{L}\p{N}_])/gu)]
           .filter(token => units[token[2].toLowerCase()]);
-        const exactToken = operand.literal.match(/^([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
+        const exactToken = literal.match(/^([+−-]?\d+(?:\.\d+)?)[ -]+([A-Za-z]+)$/);
         // A longer verbatim source span may identify the measured object. It
         // must contain exactly one supported measurement, never ambiguous data.
         const match = exactToken || (source.text.includes(operand.literal) && tokens.length === 1 ? tokens[0] : null);
