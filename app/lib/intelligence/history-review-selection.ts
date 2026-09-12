@@ -80,6 +80,22 @@ export const repairableTaskHistoryReviewSchema = {
     rejectionReason: { type: ["string", "null"], maxLength: 800 },
   },
 };
+/** Indexes reference the actual submitted draft, never hypothetical rows in a
+ * JSON container. Invalid references should be unrepresentable at generation. */
+export function boundedTaskHistoryReviewSchema(sentenceCount: number, obligationCount: number, actionCount: number) {
+  const schema = structuredClone(repairableTaskHistoryReviewSchema);
+  const indexes = { type: "array", maxItems: sentenceCount,
+    items: { type: "integer", minimum: 0, maximum: Math.max(0, sentenceCount - 1) } };
+  schema.properties.retainedSentenceIndexes = indexes;
+  schema.properties.obligations.maxItems = obligationCount;
+  Object.assign(schema.properties.obligations, { minItems: obligationCount });
+  const fields = schema.properties.obligations.items.properties;
+  fields.index.maximum = obligationCount - 1;
+  fields.sentenceIndexes = structuredClone(indexes);
+  fields.actionIndexes.maxItems = actionCount;
+  fields.actionIndexes.items.maximum = Math.max(0, actionCount - 1);
+  return schema;
+}
 export function parseRepairableTaskHistoryReview(value: unknown, sentenceCount: number, obligationCount: number, actionCount = 0) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_TASK_REVIEW");
   const { rejectionReason, ...selection } = value as Record<string, unknown>;
