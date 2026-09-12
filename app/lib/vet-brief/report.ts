@@ -68,3 +68,9 @@ export function vetBriefText(document: VetBriefDocument) {
 export function vetBriefReviewPublication(document: VetBriefDocument) {
   return { title: document.title, pet: document.pet, generatedAt: document.generatedAt, dateRange: document.dateRange, sections: vetBriefReport(document), excludedSections: document.excludedSections, disclaimer: document.disclaimer };
 }
+
+// The model chooses relevance from candidates. Prefilled detail arrays otherwise
+// incorrectly present all heuristic matches as already relevant evidence.
+export function vetBriefGenerationTemplate(document: VetBriefDocument): VetBriefDocument {
+  return { ...document, visitSummary: "", ownerReportedChanges: [], concernTimeline: [], foodChanges: [], productsUsed: [], medicationsSupplements: [], relevantCareHistory: [], reportedPatterns: [], questionsForVeterinarian: [], ownerNotes: "" };
+}
