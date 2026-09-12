@@ -7,7 +7,7 @@ const originalFetch = globalThis.fetch;
 if (!process.argv.includes('--run-live')) throw new Error('Explicit --run-live required');
 const {exercise} = await import('./helpers/lifetime-harness.mjs');
 const {care,pets,ownerId}=await import('./fixtures/ask-lifetime-history.mjs');
-const {getAskModelConfiguration}=await import('../../app/lib/ai/ask-reasoning.ts');
+const {getAskModelConfiguration,ASK_MAX_OUTPUT_TOKENS}=await import('../../app/lib/ai/ask-reasoning.ts');
 const {runWithAiAdmission}=await import('../../app/lib/ai/usage-guard/context.ts');
 const {AiAdmissionError}=await import('../../app/lib/ai/usage-guard/errors.ts');
 const {buildAskConversationResponse}=await import('../../app/lib/ask.mjs');
@@ -29,7 +29,7 @@ let turnCalls=0,turnOrdinary=0,currentQuestion='';
 async function liveCall(request,options={}) {
   assert.equal(request.model,model);
   assert.ok(!request.tools?.length,'No tools or extra paid services allowed');
-  assert.ok(Number.isInteger(request.max_output_tokens)&&request.max_output_tokens>0&&request.max_output_tokens<=4096);
+  assert.ok(Number.isInteger(request.max_output_tokens)&&request.max_output_tokens>0&&request.max_output_tokens<=ASK_MAX_OUTPUT_TOKENS);
   const bytes=Buffer.byteLength(JSON.stringify(request),'utf8')+2048;
   const worst=bytes*0.75/1e6+request.max_output_tokens*4.5/1e6;
   if(ledger.calls.length>=600||ledger.reservedUsd+worst>3) throw new Error('LOCAL_TEST_BUDGET_STOP');
