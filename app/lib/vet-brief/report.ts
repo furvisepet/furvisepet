@@ -62,3 +62,9 @@ export function vetBriefText(document: VetBriefDocument) {
     `Selected records: ${document.dateRange.from} to ${document.dateRange.to}. This is a preparation summary, not a complete medical record.`,
     ...vetBriefReport(document).map(section => `${section.title}\n${section.items.map(item => `${item.date ? `${item.date}: ` : ""}${item.category ? `${item.category} · ` : ""}${item.text}`).join("\n")}`), document.disclaimer].join("\n\n");
 }
+
+// Review exactly the owner-visible publication, including exclusions and exact
+// deduplication, rather than a raw draft containing hidden or repeated fields.
+export function vetBriefReviewPublication(document: VetBriefDocument) {
+  return { title: document.title, pet: document.pet, generatedAt: document.generatedAt, dateRange: document.dateRange, sections: vetBriefReport(document), excludedSections: document.excludedSections, disclaimer: document.disclaimer };
+}

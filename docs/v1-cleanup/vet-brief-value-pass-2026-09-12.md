@@ -34,3 +34,13 @@ Follow-up: require bounded, private repair instructions from the reviewer and pa
 PR346 passed CI and deployed as `f28a0a064df75d506dfc54255b632b5735b88592` (`dpl_JA5tgjFUyDpHMLzVqxT4tByuudE3`). The original request retry remained blocked BEFORE generation: admission returned `operation_call_limit` for the already exhausted operation before the existing released-credit classifier could run. This is a recovery ordering defect, not evidence that the new reviewer passed or failed.
 
 Follow-up adds an owner/request/payload-scoped ledger check before provider admission. Only confirmed released events receive the existing fresh-request handshake; completed events remain distinct, unresolved states remain protected, and read failures/identity conflicts fail closed. Provider limits are unchanged. Seven focused credit/request lifecycle checks passed locally; TypeScript passed.
+
+PR347 passed all CI gates (2,223 tests) and deployed as `e7452b65ce457d3576f2784fc6af8a452811a4eb`, deployment `dpl_4EMrQ5T68G62GeugPcx8ifu7HvvA`. The original request in the same browser session recovered to a new request (`972d9de0-4578-41bc-9339-e03136d7ccb6`) and returned a brief. Recovery PASS; content relevance PARTIAL: exact weights and dates survived, but unrelated grooming and household notes remained. The reviewer had rejected duplication once, then accepted the repaired report.
+
+A separate routine Sable control passed on PR346: concise reason, correct 83 g routine feeding, two questions, no invented change, and the new limited-dated-history message. The saved historical Sable PDF also downloaded as one page with exact dates/amounts and owner addition intact.
+
+PR348 clarifies precedence: a specific concern or comparison stays focused even when the owner says routine/checkup; the latest observation must be relevant; repair preserves relevant supported facts, not every true baseline fact. Final deployed content retry pending.
+
+PR348 passed CI and deployed as `03bd9b6624b1b70999209ffb3fb6c0d843f1656c` (`dpl_45BU81mh3azR2YLkF1SqPfdpvwGY`). First live retry failed: generation was rejected for duplication and relevance; after repair relevance passed, but duplication remained. No draft was published and the credit was released.
+
+Publication review finding: reviewer input was the raw document before the shared publication contract applied exclusions and exact deduplication. Its exception allowed synopsis overlap with timeline but did not clearly cover supporting history/profile comparisons. Follow-up supplies the actual publication sections to review and precisely scopes duplication to repeated dated events across supporting sections. Overview-to-evidence links and profile comparisons remain permitted, while all grounding and omission checks remain.
