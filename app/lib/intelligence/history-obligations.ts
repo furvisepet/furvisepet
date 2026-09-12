@@ -33,7 +33,7 @@ export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryO
  * syntactically valid sentence index pointing at another pet's answer. */
 export function reviewObligationCompletion(obligations: readonly HistoryObligation[], reviews: readonly TaskObligationReview[],
   sentences: readonly { sourceIds: string[] }[],
-  sources: readonly { sourceId: string; petId: string; occurredAt?: string | null }[], completedEmptyNeedKeys: readonly string[] = []) {
+  sources: readonly { sourceId: string; petId: string; occurredAt?: string | null }[], completedEmptyNeedKeys: readonly string[] = [], inventories: readonly import("./record-inventory.ts").RecordInventory[] = []) {
   const failures: string[] = [], completion: ObligationCompletion[] = [];
   for (const obligation of obligations) {
     const review = reviews.find(item => item.index === obligation.index);
@@ -41,7 +41,10 @@ export function reviewObligationCompletion(obligations: readonly HistoryObligati
     const cited = new Set(review.sentenceIndexes.flatMap(index => sentences[index]?.sourceIds || []));
     const matching = sources.filter(source => cited.has(source.sourceId)
       && (!obligation.petId || source.petId === obligation.petId)
-      && withinEvidenceNeedWindow(source.occurredAt, obligation.window));
+      && (withinEvidenceNeedWindow(source.occurredAt, obligation.window)
+        || !!obligation.window && inventories.some(item => source.sourceId === `record-inventory:${item.petId}`
+          && source.petId === item.petId && Date.parse(item.from) <= Date.parse(obligation.window!.from)
+          && Date.parse(item.to) >= Date.parse(obligation.window!.to))));
     const completedEmptyExport = obligation.needId && obligation.petId && obligation.availability === "no_candidate_match"
       && completedEmptyNeedKeys.includes(JSON.stringify([obligation.needId, obligation.petId]));
     if (review.status === "answered" && obligation.petId && !matching.length && !completedEmptyExport)

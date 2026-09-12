@@ -1,3 +1,4 @@
+import { missingExactRecordText } from "./exact-record-text.ts";
 import { noteBatchReviewActions } from "./dated-note-batch.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
 import { isExplicitCareHistorySaveRequest } from "./care-history-policy.ts";
@@ -86,7 +87,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   if (!evidence?.interpretation || !evidence.history) return decline("history_evidence_unavailable");
   if (evidence.scope.status !== "resolved") return decline("subject_scope_unresolved");
   if (!sharedRequest && (evidence.scope.requestKind === "count" || evidence.episodes && !evidence.interpretation?.referenceTarget)) return decline("server_episode_path");
-  if (evidence.history.corrections === "unavailable") return decline("correction_evidence_unavailable");
+  if (!sharedRequest && evidence.history.corrections === "unavailable") return decline("correction_evidence_unavailable");
   if (!sharedRequest && /\b(?:quote|verbatim|exact wording)\b/i.test(evidence.scope.requestText)) return decline("server_quotation_path");
   if (result.safetyLevel === "urgent" || result.responseMode === "grief_support") return decline("safety_response_path");
   const sources = usableSources(evidence);
@@ -138,6 +139,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence,
     text: sharedRequest ? (["csv", "table", "json"].includes(sharedRequest.outputFormat || "") ? sentence.text : normalizeCompanionProse(sentence.text)) : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
     .filter(sentence => sharedRequest || supported(sentence)) };
+  const exactRecordFailures = sharedRequest ? missingExactRecordText(evidence, draft.sentences.map(s => s.text).join("\n"), draft.sentences.flatMap(s => s.sourceIds)) : [];
   const publicationFailures = sharedRequest ? draft.sentences.flatMap((sentence, index) => {
     const reason = readPublicationFailure(sentence.text);
     return reason ? [{ index, reason }] : [];
@@ -160,6 +162,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     productFacts: furviseProductFacts(), typedResult: result.historicalResult || null, deterministicInvalidResultItems: invalidResultItems,
     deterministicInvalidSentenceIndexes: invalidIndexes,
     deterministicPublicationFailures: publicationFailures,
+    exactRecordTextRequired: exactRecordFailures,
     evidenceNeedCoverage: evidence.needCoverage || [],
     deterministicAnchorHints: draft.sentences.flatMap((sentence,index) => anchorHints.get(sentence.text)?.length ? [{index, reasons: anchorHints.get(sentence.text)}] : []),
     deterministicCalculationHints: draft.sentences.flatMap((sentence,index)=>calculationHints.has(sentence.text) ? [{index, corrections: calculationHints.get(sentence.text)}] : []),
@@ -205,7 +208,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const completionCheck = sharedRequest && selection.approved && "obligations" in selection
       ? reviewObligationCompletion(obligations, (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations, draft.sentences, sources,
         result.historicalResult && result.historicalResult.layout === sharedRequest.outputFormat && !result.historicalResult.items.length
-          ? completedEmptyEvidenceNeeds(evidence) : [])
+          ? completedEmptyEvidenceNeeds(evidence) : [], evidence.recordInventory)
       : { failures: [], completion: [] };
     if (selection.approved && "obligations" in selection) {
       for (const item of (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations) {
@@ -216,13 +219,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const selectedText = (selection.approved ? selection.retainedSentenceIndexes.map(index => draft.sentences[index]) : draft.sentences).map(chunk => chunk.text).join("\n");
     const completeSelection = !selection.approved || !sharedRequest || selection.retainedSentenceIndexes.length === draft.sentences.length;
     const anchorsValid = !selection.approved || selection.retainedSentenceIndexes.every(index => !invalidIndexes.includes(index));
-    const formatValid = !invalidResultItems.length && matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid && !completionCheck.failures.length
+    const formatValid = !exactRecordFailures.length && !invalidResultItems.length && matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat) && completeSelection && anchorsValid && !completionCheck.failures.length
       && (!sharedRequest || !readPublicationFailure(selectedText));
     if (!selection.approved || !formatValid) {
       console.info("[Ask history review] rejected", { repairAttempted, reviewerApproved: selection.approved, invalidSentenceIndexes: invalidIndexes, invalidResultItems, completionFailures: completionCheck.failures, formatValid,
         containerValid: matchesHistoryOutputFormat(selectedText, sharedRequest?.outputFormat), completeSelection, anchorsValid,
         publicationFailure: readPublicationFailure(selectedText) });
-      const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Publication failures: ${JSON.stringify(publicationFailures)}. Per-fact evidence failures: ${JSON.stringify(completionCheck.failures)}. An answered obligation must cite the assigned pet and interval. If evidence is unavailable, explicitly explain the limitation for that fact instead of using another pet or period. Use plain readable wording that survives serialization and reload; describe historical reports with explicit attribution, and never claim the app performed an action. Preserve all supported facts and uncertainty. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Server-computed corrections for grounded calculation operands: ${JSON.stringify([...calculationHints.values()].flat())}. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
+      const reason = !formatValid ? `Repair the complete answer, preserving every requested obligation. Publication failures: ${JSON.stringify(publicationFailures)}. Preserve the FULL exact note text, including any date prefix inside the note: ${JSON.stringify(exactRecordFailures)}. Per-fact evidence failures: ${JSON.stringify(completionCheck.failures)}. An answered obligation must cite the assigned pet and interval. If evidence is unavailable, explicitly explain the limitation for that fact instead of using another pet or period. Use plain readable wording that survives serialization and reload; describe historical reports with explicit attribution, and never claim the app performed an action. Preserve all supported facts and uncertainty. Invalid source/date/quantity anchors at sentence indexes: ${invalidIndexes.join(", ") || "none"}. Server-computed corrections for grounded calculation operands: ${JSON.stringify([...calculationHints.values()].flat())}. Every explicit quantity and date must be supported by the chunk’s own cited sources. Cite an additional supplied record if it contains the required fact; otherwise describe the supported observation without inventing that quantity. A correct semantic inference alone does not supply missing literal evidence. Check each calculation operand against its cited original source. A derived intermediate value is not a source literal. Compute difference or sum directly in the requested result unit using original source values. Do not repair by dropping clauses. Required format: ${sharedRequest?.outputFormat || "prose"}.`
         : "rejectionReason" in selection ? selection.rejectionReason : null;
       if (repairAttempted || !sharedRequest || typeof reason !== "string" || !reason) return decline("review_rejected_without_eligible_repair");
       failureStage = "repair";
