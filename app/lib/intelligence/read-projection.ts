@@ -44,7 +44,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
   // A two-date body-mass comparison is a bounded database projection, not a
   // language-model arithmetic exercise. It remains a draft for whole-task
   // semantic review, including any additional explanation the user requested.
-  if (evidence.scope.readOnlyRecall && request?.outputFormat === "prose" && evidence.scope.authorizedPetIds.length === 1
+  if (evidence.scope.readOnlyRecall && request && (!request.outputFormat || request.outputFormat === "prose") && evidence.scope.authorizedPetIds.length === 1
     && /\b(?:weights?|body mass)\b/i.test(requestText) && /\b(?:change|difference|compare)\b/i.test(requestText)) {
     const explicitYears = [...new Set(requestText.match(/\b(?:19|20)\d{2}\b/g) || [])];
     const days = explicitYears.length === 1 ? explicitHistoryDays(requestText, Number(explicitYears[0])) : [];

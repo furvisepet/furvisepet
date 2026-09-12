@@ -460,7 +460,11 @@ export function buildAskContext(input: BuildContextInput) {
   const records = chosen.flatMap(({ record }) => {
     const fullDetail = record.sourceType === "care_update" && detailedUpdateCount < 2;
     if (fullDetail) detailedUpdateCount += 1;
-    const compact = evidence.history && record.sourceType === "care_update" ? record : compactRecord(record, fullDetail);
+    // Server receipts/counts are already bounded, exact evidence contracts.
+    // Dropping them at the generic prose length cap silently loses verified
+    // state and as-of scope. The overall prompt budget still applies below.
+    const compact = evidence.history && record.sourceType === "care_update"
+      || ["record_inventory", "operation_receipt", "episode_result"].includes(record.sourceType) ? record : compactRecord(record, fullDetail);
     if (!compact) evidence.losses.push({ sourceId: record.id, reason: "qualified_span_over_budget" });
     return compact ? [compact] : [];
   });
