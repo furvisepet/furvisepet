@@ -10,6 +10,27 @@ const context = {owner:{userId:ownerId},eligiblePets:owned,pet:owned[0],currentM
 const proposal = patch => ({version:ASK_REQUEST_VERSION,mode:'read',question:'Read the requested facts.',requirements:[],
  referenceTurnIds:[],scope:'named',petNames:['Aster'],operation:'recall',selection:'summary',quantity:null,topic:'observations',terms:[],
  from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history',premiseQuotes:[],...patch});
+test('mixed history review preserves a requested record-edit confirmation without creating an observation',async t=>{
+ clock(t);
+ const question='Correct Aster’s June 4, 2026 walking note to 19 minutes, keeping the same date.';
+ let reviewedAction;
+ const r=await exercise(question,{fixturePets:owned,messages:[],history:true,
+  rows:[care('edit-source','milo','2026-06-04','general','Aster walked for 18 minutes.')],
+  interpretationProposal:proposal({mode:'mixed',mutationIntent:'correct_record',from:'2026-06-04',to:'2026-06-05',frame:null}),
+  providerOverrides:{answer:'Review the proposed correction below.',relevantContextIds:['care:edit-source'],semanticEvents:[],
+    historyNarrative:{sentences:[{text:'Review the proposed correction below.',sourceIds:['care:edit-source'],calculations:[]}]},
+    applicationActions:[{kind:'care_history.edit',explicitIntent:true,evidence:question,input:{field:null,value:null,title:null,detail:'Aster walked for 19 minutes.',category:'general',target:'specified'}}]},
+  expectedReviewCalls:1,reviewProviderResponse:async request=>{
+    const input=JSON.parse(request.input);reviewedAction=input.actions[0];
+    assert.equal(reviewedAction.kind,'care_history.edit');
+    assert.equal(reviewedAction.executionDisposition,'requires_confirmation');
+    return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],rejectionReason:null,
+      obligations:input.obligations.map(o=>({index:o.index,status:'action_ready',sentenceIndexes:[0],actionIndexes:[0]}))}),usage:{input_tokens:500,output_tokens:100}};
+  }});
+ assert.ok(reviewedAction);
+ assert.equal(r.result.acceptedSemanticEvents.length,0);
+ assert.equal(r.result.reasoning.applicationActions[0].kind,'care_history.edit');
+});
 test('receipt records retain per-record dates through generation and shared eligibility',async t=>{
  clock(t);
  const {eligibleAnswerSources}=await import('../../app/lib/intelligence/ask-evidence.ts');
