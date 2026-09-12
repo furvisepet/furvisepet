@@ -1,4 +1,4 @@
-import { generateVetBriefPdf } from "../../../../lib/vet-brief/pdf";
+import { generateVetBriefPdf, UnsupportedBriefPdfTextError } from "../../../../lib/vet-brief/pdf";
 import { getVetBriefFilename, parseVetBriefDocument } from "../../../../lib/vet-brief/schema";
 import { getVetBriefRequestContext, type VetBriefDatabaseRow } from "../../../../lib/vet-brief/server";
 import { isUuid } from "../../../../lib/security/request";
@@ -12,7 +12,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const document = data ? parseVetBriefDocument(data.confirmed_data) : null;
   if (!data || !document) return Response.json({ error: "That Vet Visit Brief is not available." }, { status: 404 });
   const pageSize = new URL(request.url).searchParams.get("size") === "a4" ? "a4" : "letter";
-  const bytes = await generateVetBriefPdf(document, { pageSize });
+  let bytes: Uint8Array;
+  try { bytes = await generateVetBriefPdf(document, { pageSize }); }
+  catch (error) {
+    if (error instanceof UnsupportedBriefPdfTextError) return Response.json({ error: error.message }, { status: 422 });
+    throw error;
+  }
   const filename = getVetBriefFilename(document.pet.name, document.generatedAt);
   return new Response(Buffer.from(bytes), {
     headers: {

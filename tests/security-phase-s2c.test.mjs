@@ -107,7 +107,7 @@ test("feature registry has bounded call, input, context, and output budgets", ()
   for (const feature of ["ask", "care_plan", "product_explanation", "product_query", "product_question", "safety_followup", "vet_brief"]) assert.match(source, new RegExp(`${feature}: policy`));
   assert.match(source, /ask: policy\([^\n]+4096|ASK_MAX_OUTPUT_TOKENS/);
   assert.match(source, /product_query: policy\([^\n]+520, 1\)/);
-  assert.match(source, /vet_brief: policy\([^\n]+1_800, 1\)/);
+  assert.match(source, /vet_brief: policy\([^\n]+8_192, 2\)/);
 });
 
 test("all paid feature routes admit centrally after S2B and before user-credit reservation", () => {

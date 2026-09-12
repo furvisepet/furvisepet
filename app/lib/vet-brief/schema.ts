@@ -62,6 +62,7 @@ export function parseVetBriefDocument(value: unknown): VetBriefDocument | null {
       photoUrl,
     },
     reasonForVisit: cleanText(draft.reasonForVisit, MAX_TEXT) || "Not recorded",
+    ...(typeof draft.visitSummary === "string" ? { visitSummary: cleanText(draft.visitSummary, MAX_TEXT) } : {}),
     ownerReportedChanges,
     concernTimeline,
     foodChanges,

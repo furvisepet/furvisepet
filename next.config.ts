@@ -12,6 +12,7 @@ const IMMUTABLE_NAVIGATION_ASSETS = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: { "/api/vet-briefs/*/pdf": ["./app/lib/vet-brief/fonts/*.ttf"] },
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   // Keep the Next.js development route indicator out of local screenshot QA.

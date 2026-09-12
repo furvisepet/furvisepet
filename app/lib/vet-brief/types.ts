@@ -36,6 +36,7 @@ export type VetBriefDocument = {
     photoUrl: string | null;
   };
   reasonForVisit: string;
+  visitSummary?: string;
   ownerReportedChanges: VetBriefDatedItem[];
   concernTimeline: VetBriefDatedItem[];
   foodChanges: VetBriefDatedItem[];

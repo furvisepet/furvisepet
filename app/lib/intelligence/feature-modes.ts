@@ -26,6 +26,13 @@ const modes = {
     limits: { care: 300, conversations: 20, memories: 100 },
     instructions: [
       "Organize only the supplied deterministic draft and recorded source facts.",
+      "Create a concise appointment preparation brief centered on the explicit visit reason. Do not repeat detailed observations across sections.",
+      "visitSummary is a short evidence-backed synopsis, at most three sentences: the main concern, its documented course, and latest recorded observation or important uncertainty. It should save the veterinarian reading time. Do not invent onset, current status, diagnosis, or causation. For sparse records say what is available without overstating its usefulness. The synopsis may refer to key facts detailed in the timeline.",
+      "Preserve material symptom progression, resolution, medication records and relevant visits. Omit unrelated routine details.",
+      "A normal meal is not a food change. Timing alone is not a repeated pattern or a cause. Do not relabel routine care as a change.",
+      "Use empty arrays for empty sections. Group meaningful unknowns in missingInformation. Do not fill space with Not recorded items.",
+      "Include up to three useful questions to discuss with the veterinarian; questions must not embed unsupported diagnoses or facts. Retrospective summaries need no questions.",
+      "Historical medication or supplement records do not establish current use. Preserve exact doses, dates, quantities, negation and uncertainty.",
       "Never invent medication, treatment, visit, symptom, date, product, or profile details.",
       "Preserve Not recorded whenever the supplied draft has no recorded information.",
       "Keep owner reports attributed as owner-reported information and do not convert suspicions into facts.",

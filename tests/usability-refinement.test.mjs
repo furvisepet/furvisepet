@@ -94,7 +94,7 @@ test("Products is absent while Account settings remains in the shared utility me
 });
 
 test("Vet brief presents Review, Confirm, Share while retaining export controls", () => {
-  assert.match(vetBrief, /Review details/);
+  assert.match(vetBrief, /Read through once/);
   assert.match(vetBrief, /Confirm/);
   assert.match(vetBrief, /Share/);
   assert.match(vetBrief, /Download PDF/);

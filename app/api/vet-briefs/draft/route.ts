@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { featureFailureDetails } from "../../../lib/intelligence/feature-failure.ts";
-import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
+import { generateStructuredFeatureResponse, getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { AiCreditLimitReachedError, runWithAiCredit } from "../../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
 import { AiAdmissionError, aiAdmissionErrorResponse } from "../../../lib/ai/usage-guard/errors";
@@ -20,6 +20,10 @@ import type { VetBriefConversationMessage, VetBriefDocument } from "../../../lib
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, inclusiveDateSpanDays, isUuid as isSecurityUuid, readBoundedJson } from "../../../lib/security/request";
 import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
 import { claimIdempotentOperation } from "../../../lib/security/idempotency";
+
+import { addVetBriefCoverage, parseVetBriefReview, vetBriefReviewInstructions, vetBriefReviewPassed, vetBriefReviewSchema } from "../../../lib/vet-brief/review";
+
+export const maxDuration = 150;
 
 const MAX_VET_BRIEF_RANGE_DAYS = 730;
 const MAX_REASON_FOR_VISIT_LENGTH = 1_200;
@@ -124,8 +128,9 @@ export async function POST(request: Request) {
       payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, requestId, userId: auth.userId,
     }, () => runWithAiCredit<FeatureIntelligenceResult<IntelligenceVetBrief>>({
       feature: "vet_brief", monthlyAiCredits: auth.monthlyAiCredits, payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
-      generate: async () => runFeatureIntelligence({
-        context, feature: "vet_brief", maxOutputTokens: 1800,
+      generate: async () => {
+        const candidate = await runFeatureIntelligence({
+        context, feature: "vet_brief", maxOutputTokens: 8192,
         featureInput: {
           deterministicDraft: baseline.document,
           purpose: retrospective ? "retrospective_care_history_summary" : "vet_visit_preparation",
@@ -137,9 +142,20 @@ export async function POST(request: Request) {
           } : null,
         },
         parseValue: (value) => parseIntelligenceVetBrief(value, baseline.document, allowedSourceRecordIds),
-      }),
+        });
+        const review = await generateStructuredFeatureResponse({
+          input: { draft: candidate.value.document, evidence: { baseline: baseline.document, records: context.careEntries.filter(entry => allowedSourceRecordIds.includes(entry.id)).map(entry => ({ id: entry.id, category: entry.category, date: entry.occurred_at, text: entry.note, title: entry.title })), memories: legacyMemories }, visitReason: reasonForVisit },
+          instructions: vetBriefReviewInstructions, maxOutputTokens: 2048,
+          schema: vetBriefReviewSchema, schemaName: "furvise_vet_brief_review", parse: parseVetBriefReview,
+        });
+        if (!vetBriefReviewPassed(review)) {
+          logIntelligenceEvent("vet brief review rejected", { feature: "vet_brief", requestId, ...review });
+          throw new Error("Vet brief evidence review failed.");
+        }
+        return candidate;
+      },
     }));
-    const generatedDocument = preserveOwnerEdits(generated.value.value.document, existingDocument);
+    const generatedDocument = addVetBriefCoverage(preserveOwnerEdits(generated.value.value.document, existingDocument), context.evidenceLoading?.sources || []);
     logIntelligenceEvent("vet brief generated", {
       feature: "vet_brief", petId, requestId, selectedCareEventCount: context.selectedCareEntries.length,
       selectedMemoryCount: context.memories.length + context.legacyPetMemories.length,
@@ -167,6 +183,7 @@ function preserveOwnerEdits(generated: VetBriefDocument, existing: VetBriefDocum
   if (!existing) return generated;
   return {
     ...generated,
+    title: existing.title,
     reasonForVisit: existing.reasonForVisit,
     ownerNotes: existing.ownerNotes,
     excludedSections: existing.excludedSections,
