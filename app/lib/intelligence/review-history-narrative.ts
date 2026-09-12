@@ -38,7 +38,7 @@ import { parseHistoryNarrative } from "./history-narrative.ts";
 
 import { readReviewedHistoryAnswer, clearHistoryReview, recordHistoryReview, historyReviewSignature as signature } from "./history-review-state.ts";
 export { readReviewedHistoryAnswer } from "./history-review-state.ts";
-export const HISTORY_REVIEW_LIMITS = { inputCharacters: 32_000, outputTokens: 2600, timeoutMs: 18_000 } as const;
+export const HISTORY_REVIEW_LIMITS = { inputCharacters: 32_000, outputTokens: 4096, timeoutMs: 25_000 } as const;
 const instructions = [
   "Review visible source-display obligations separately from factual grounding. sourceIds and calculations are internal metadata that the user cannot see. When the question asks to show source notes or citations, a bare conclusion with internal sourceIds does not fulfill it: require visible dated source wording or attribution in the requested container. Reject for repair if that requested clause is missing, even when the conclusion is supported.",
   "Review a proposed pet-history answer against the supplied server-scoped records. Select the supported sentences that together form a coherent answer. Return approved and retainedSentenceIndexes using the explicit zero-based sentence indexes. Do not rewrite, insert or reorder prose.",
@@ -395,7 +395,7 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
       return withProviderDeadline(signal => provider.responses.create({ model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "medium" } } : {}),
       instructions: repairInstructions, input, max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
       text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema: sourceBoundSchema(schema, payload.sources) } } },
-    { signal }), boundedProviderTimeout(20_000, 12_000, "repair")); } });
+    { signal }), boundedProviderTimeout(30_000, 12_000, "repair")); } });
   const parsed = interpretStructuredProviderResponse(output, raw => {
     const proposal = JSON.parse(raw);
     const preserveNavigation = proposal?.navigationActions === null;

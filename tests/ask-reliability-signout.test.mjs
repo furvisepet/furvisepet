@@ -31,7 +31,7 @@ test("Ask sends selected pet context and one idempotent request", () => {
   assert.equal((askFunction.match(/idempotentClientFetch\("\/api\/ask"/g) || []).length, 1);
   assert.match(askFunction, /petId: selectedPet/);
   assert.match(askFunction, /logicalTurnId/);
-  assert.match(askFunction, /const signal = AbortSignal\.timeout\(55_000\)/);
+  assert.match(askFunction, /const signal = AbortSignal\.timeout\(ASK_CLIENT_TIMEOUT_MS\)/);
   assert.match(askFunction, /requestAskWithSession/);
   assert.match(askFunction, /\}, scope, logicalTurnId\), signal\)/);
   assert.doesNotMatch(askFunction, /\/api\/ask\/conversations\/.*\/messages/);
@@ -92,7 +92,7 @@ test("Ask API verifies pet ownership and persists the user message before genera
   assert.match(route, /userMessageId:/);
   assert.match(route, /assistantMessageId:/);
   assert.match(route, /success: true/);
-  assert.match(route, /askRequestTimeoutMs = 50_000/);
+  assert.match(route, /askRequestTimeoutMs = ASK_OPERATION_TIMEOUT_MS/);
 });
 
 test("assistant persistence failure releases credit and returns a retryable saved-question error", () => {

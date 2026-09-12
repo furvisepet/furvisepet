@@ -1,4 +1,6 @@
-export const ASK_MAX_OUTPUT_TOKENS = 4096;
+// Reasoning tokens share this budget with the structured answer. Live medium-
+// effort history reads exhausted 4096 before completing their response object.
+export const ASK_MAX_OUTPUT_TOKENS = 8192;
 
 export type StructuredProviderStatus = "completed" | "incomplete" | "refused" | "invalid" | "failed";
 
