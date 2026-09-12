@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readPublicationFailure, readPublicationStages, scrubUntrustedMutationClaim } from '../app/lib/ask-publication.ts';
+import { canonicalReadPresentation, readPublicationFailure, readPublicationStages, scrubUntrustedMutationClaim } from '../app/lib/ask-publication.ts';
 import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-read-strategies.ts';
 const window = { from: '2021-09-10T00:00:00.000Z', to: '2026-09-11T00:00:00.000Z' };
 const proposed = [false,true].flatMap(descending => [true,false].map(lexical => ({ ...window, descending, lexical, terms: ['weight'] })));
@@ -33,4 +33,18 @@ test('publication preflight rejects semantic deletion before an answer is approv
  for(const text of ['The owner reported a food transition because of itching. The cause remains unknown.','Weight: 7.21 kg. No diagnosis was recorded.'])
   assert.equal(readPublicationFailure(text),null);
  assert.equal(scrubUntrustedMutationClaim('I updated the profile.','Fallback'),'I can help with that.');
+});
+
+test('canonical review text applies the exact publication scrub before semantic approval', () => {
+ const complete = 'Episode 2 started on 2024-06-09 and stopped on 2024-06-11, a 2 calendar-day difference. If you want, I can also format this for your vet.';
+ const publishable = canonicalReadPresentation(complete);
+ assert.equal(publishable, 'Episode 2 started on 2024-06-09 and stopped on 2024-06-11, a 2 calendar-day difference.');
+ assert.equal(readPublicationFailure(publishable), null);
+ assert.equal(readPublicationFailure(complete), 'publication_changed_text');
+});
+
+test('canonical review text does not preserve unsupported mutation claims', () => {
+ const publishable = canonicalReadPresentation('Episode 2 lasted 2 calendar days. I recorded this in the history.');
+ assert.equal(publishable, 'Episode 2 lasted 2 calendar days.');
+ assert.equal(readPublicationFailure(publishable), null);
 });
