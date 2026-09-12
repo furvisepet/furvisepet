@@ -128,7 +128,9 @@ test('receipt follow-ups recover owned read scope from the latest user action re
   const pet={id:'pet',user_id:'owner',name:'Fern'};
   const currentMessage='Check the linked receipts for that two-note save. State how many notes were saved and quote both. Do not save them again.';
   const result=validateAskRequest({version:'ask-request.v2',mode:'read',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'none',petNames:[],operation:'recall',selection:'reference',quantity:'records',topic:'receipts',terms:['receipts'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'}, {
-    owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[{id:'save-turn',role:'user',text:'Save two separate notes for Fern: January 2: walked. January 4: played.'}],
+    owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[
+      {id:'save-turn',role:'user',text:'Save two separate notes for Fern: January 2: walked. January 4: played.'},
+      {id:'current-turn',role:'user',text:currentMessage}],
   });
   assert.equal(result.readOnly,true); assert.deepEqual(result.petIds,['pet']);
   assert.deepEqual(result.request.referenceTurnIds,['save-turn']); assert.equal(result.request.question,currentMessage);
