@@ -1064,10 +1064,11 @@ export async function generateStructuredFeatureResponse<T>({
       providerErrorType: "requests", providerStatus: 429, retryAfterMs: cooldown.retryAfterMs,
     });
   }
+  const timeoutCeiling = reasoningEffort === "high" ? 60_000 : 35_000;
   let response: T;
   let usedModel = models.primary;
   try {
-    response = await runProviderRequest({ client, model: usedModel, onEvent: onProviderEvent, parseOutput, request: request(input, maxOutputTokens), stage: "primary", timeoutMs: Math.min(timeoutMs, 35_000) });
+    response = await runProviderRequest({ client, model: usedModel, onEvent: onProviderEvent, parseOutput, request: request(input, maxOutputTokens), stage: "primary", timeoutMs: Math.min(timeoutMs, timeoutCeiling) });
   } catch (error) {
     if (!(error instanceof AskPipelineError) || !isRetryableProviderLimit(error)) throw error;
     if (isRequestRateLimit(error)) {
@@ -1078,7 +1079,7 @@ export async function generateStructuredFeatureResponse<T>({
     usedModel = models.fallback;
     response = await runProviderRequest({
       client, fallbackFrom: models.primary, model: usedModel, onEvent: onProviderEvent,
-      parseOutput, request: request(input, maxOutputTokens), stage: "fallback", timeoutMs: Math.min(timeoutMs, reasoningEffort ? 35_000 : 20_000),
+      parseOutput, request: request(input, maxOutputTokens), stage: "fallback", timeoutMs: Math.min(timeoutMs, reasoningEffort ? timeoutCeiling : 20_000),
     });
   }
   return response;
