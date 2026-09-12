@@ -1,9 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readPublicationFailure, scrubUntrustedMutationClaim } from '../app/lib/ask-publication.ts';
+import { readPublicationFailure, readPublicationStages, scrubUntrustedMutationClaim } from '../app/lib/ask-publication.ts';
 import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-read-strategies.ts';
 const window = { from: '2021-09-10T00:00:00.000Z', to: '2026-09-11T00:00:00.000Z' };
 const proposed = [false,true].flatMap(descending => [true,false].map(lexical => ({ ...window, descending, lexical, terms: ['weight'] })));
+
+test('publication diagnostics identify rejection stages without retaining answer content',()=>{
+ const rejected=readPublicationStages('I updated the profile.');
+ assert.equal(rejected.stateClaimDetected,true);
+ assert.equal(rejected.statePolicyChanged,true);
+ assert.ok(Object.values(rejected).every(value=>typeof value==='boolean'));
+ assert.ok(Object.values(readPublicationStages('The source reports a dated observation.')).every(value=>value===false));
+});
 
 test('explicit date targets remain independent of chronological query ordering', () => {
  const {strategies,omittedTargets}=compileHistoryReadStrategies('Compare September 9, 2022 with now.',2026,window,proposed,4);

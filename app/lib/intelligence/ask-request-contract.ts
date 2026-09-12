@@ -30,6 +30,7 @@ export type AskRequestContract = {
   recordSelection?: { scope: "all_active" | "content_filtered"; quote: string } | null;
   projection?: ReadProjection | null;
   profileFields?: string[];
+  temporalScope?: "historical" | "current" | "historical_and_current" | null;
   evidenceNeeds?: EvidenceNeed[];
   evidenceNeedIssues?: string[];
   evidenceBasis?: "saved_history" | "supplied_context" | "general" | null;
@@ -40,8 +41,9 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object) {
   return { type: "object", additionalProperties: false,
-    required: ["mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["temporalScope", "mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
+      temporalScope: { type: ["string", "null"], enum: ["historical", "current", "historical_and_current", null] },
       profileFields: { type: "array", maxItems: 14, items: { type: "string", enum: ["species", "breed", "age", "weight", "current_food", "main_concern", "care_goal", "avoid", "monthly_budget", "sex", "pronouns", "lifecycle_status"] } },
       mutationIntent: { type: ["string", "null"], enum: ["correct_record", null] },
       recordSelection: { type: ["object", "null"], additionalProperties: false, required: ["scope", "quote"], properties: { scope: { type: "string", enum: ["all_active", "content_filtered"] }, quote: { type: "string", minLength: 1, maxLength: 1600 } } },
@@ -62,6 +64,7 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "temporalScope describes the evidence endpoints independently of the operation or comparison wording: historical for past-only facts, current for current-only facts, historical_and_current when the task asks about both past facts and present status or whether old evidence still applies, null when not temporal. A question about what an old report establishes today has both endpoints even without the word compare. Preserve past-specific needs and dates locally; the global read must also allow later relevant evidence. Do not label a current display/list of historical records as a present-health request. This is a bounded retrieval proposal, never evidence that a state continued or changed.",
   "An explicit instruction to correct an existing saved care note uses mutationIntent correct_record, mode mixed, evidenceBasis saved_history, operation recall, and the owned target/date. Retrieve the original record before proposing an edit. A correction instruction is not a new occurrence or an episode transition. Questions about corrections and hypothetical corrections have mutationIntent null and remain read-only. All other requests use mutationIntent null. This identifies a workflow, not permission to edit; the existing owned-record action and confirmation policy still govern execution.",
   "recordSelection identifies physical saved-record counting independently of lexical search. For an exact count of stored notes/entries/records, use quantity records and recordSelection with scope all_active when only the owned pet and recorded-date interval restrict the count; scope content_filtered when symptoms, category, words or other note content restrict it. quote must be the exact current USER clause including every count qualifier. Output format, as-of disclosure and instructions not to save are not content filters. Do not infer episodes from records. Use null for all other tasks. This proposes a read operation, never a count or proof of completeness.",
   "profileFields lists the stored profile fields needed for the original task (including companion profile questions), independently of historical evidenceNeeds. Use field names from the schema; [] means none are requested. This is a retrieval/budget hint, not a claim that a field has a value.",
@@ -90,7 +93,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
+  const p = { temporalScope: null, mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate these optional fields.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -107,6 +110,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
+  if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
   if (p.mutationIntent === "correct_record" && (p.mode !== "mixed" || p.evidenceBasis !== "saved_history")) return fail("correction_workflow");
   if (p.recordSelection !== null) {
@@ -318,7 +322,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   }
   // A past-versus-present question has two temporal obligations. A planner's
   // single period cannot remove either endpoint. Access clipping remains server-owned.
-  if (historical && p.mode === "read" && requestsPastPresentComparison(context.currentMessage)) {
+  if (historical && p.mode === "read" && (p.temporalScope === "historical_and_current" || requestsPastPresentComparison(context.currentMessage))) {
     p.from = null; p.to = null; p.selection = "comparison";
     operation = "comparison";
   }
@@ -337,6 +341,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     mutationIntent: !readOnly ? p.mutationIntent as AskRequestContract["mutationIntent"] : null,
     recordSelection: historical && readOnly ? p.recordSelection as AskRequestContract["recordSelection"] : null,
     profileFields: [...new Set(p.profileFields as string[])],
+    ...(p.temporalScope !== null ? { temporalScope: p.temporalScope as AskRequestContract["temporalScope"] } : {}),
     projection: historical && readOnly ? parseReadProjection(p.projection) : null,
     ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs } : {}),
     ...(needPlan.issues.length ? { evidenceNeedIssues: needPlan.issues } : {}), version: ASK_REQUEST_VERSION, mode: p.mode as AskRequestContract["mode"],

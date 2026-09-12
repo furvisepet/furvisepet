@@ -7,6 +7,21 @@ import { readRecordInventory } from '../app/lib/intelligence/record-inventory.ts
 import { validateAskRequest } from '../app/lib/intelligence/ask-request-contract.ts';
 import { emptyProposedSemanticFrame } from '../app/lib/intelligence/semantic-frame/extract-frame.ts';
 
+test('temporal evidence endpoints are independent of comparison vocabulary',()=>{
+ const pet={id:'pet',user_id:'owner',name:'Fern'};
+ const currentMessage='Does Fern’s April 2024 recovery report tell us whether she is well today?';
+ const proposal={version:'ask-request.v2',mode:'read',temporalScope:'historical_and_current',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'recall',selection:'period',quantity:null,topic:'recovery',terms:['recovery'],from:'2024-04-01',to:'2024-05-01',episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'};
+ const context={owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]};
+ const result=validateAskRequest(proposal,context);
+ assert.equal(result.history.from,null); assert.equal(result.history.to,null);
+ assert.equal(result.selection,'comparison');
+ assert.deepEqual(result.petIds,['pet']); assert.equal(result.readOnly,true);
+ const historical=validateAskRequest({...proposal,temporalScope:'historical'}, {...context,currentMessage:'Show Fern’s April 2024 recovery report.'});
+ assert.equal(historical.history.from,'2024-04-01T00:00:00.000Z');
+ assert.equal(historical.history.to,'2024-05-01T00:00:00.000Z');
+ assert.throws(()=>validateAskRequest({...proposal,temporalScope:'invented'},context),/temporal_scope/);
+});
+
 test('a fallback year never expands an interpreted local-language date interval',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
  for(const [currentMessage,from,to] of [
@@ -103,4 +118,25 @@ test('calculated answers inherit all operand sources without granting unknown op
     {sourceId:'care:stop',text:'Stopped.',occurredAt:'2024-03-05T00:00:00Z'}];
   assert.ok(verifiedCalculationQuantities(draft.sentences[0].calculations,sources));
   assert.equal(verifiedCalculationQuantities([{...calculation,operands:[calculation.operands[0],{...calculation.operands[1],sourceId:'foreign'}]}],sources),null);
+});
+
+
+test('receipt evidence follows validated references and persisted request identity only', async()=>{
+ const {createAskEvidenceContract}=await import('../app/lib/intelligence/ask-evidence.ts');
+ const pet={id:'pet',user_id:'owner',name:'Fern'};
+ const receipt=(sourceMessageId,petId='pet')=>({sourceMessageId,petId,requestText:'Save a note',answerPersisted:true,records:[]});
+ const turns=[{id:'old',role:'user',requestId:'old-request',operationReceipt:receipt('old')},
+  {id:'save',role:'user',requestId:'save-request',operationReceipt:receipt('save')},
+  {id:'answer',role:'furvise',requestId:'save-request'},
+  {id:'adjacent',role:'user',operationReceipt:receipt('adjacent')},
+  {id:'foreign',role:'user',requestId:'foreign-request',operationReceipt:receipt('foreign','other')},
+  {id:'current',role:'user',requestId:'current-request',operationReceipt:receipt('current')}];
+ const build=(referenceTurnIds)=>createAskEvidenceContract({owner:{userId:'owner'},pet,eligiblePets:[pet],currentMessage:'Read saved history',careEntries:[],selectedCareEntries:[],conversationTurns:turns,
+  askInterpretation:{request:{referenceTurnIds},operation:'recall',readOnly:true,history:null}},['pet']);
+ assert.deepEqual(build([]).operationReceipts,[]);
+ assert.equal(build([]).sources.some(source=>source.source==='operation_receipts'),false);
+ for(const refs of [['save'],['answer'],['save','answer']]) assert.deepEqual(build(refs).operationReceipts.map(r=>r.sourceMessageId),['save']);
+ for(const refs of [['missing'],['foreign'],['current']]) assert.deepEqual(build(refs).operationReceipts,[]);
+ assert.deepEqual(build(['adjacent']).operationReceipts.map(r=>r.sourceMessageId),['adjacent']);
+ assert.equal(turns[0].operationReceipt.sourceMessageId,'old');
 });

@@ -136,6 +136,7 @@ export type AskOperationReceipt = { sourceMessageId: string; petId: string; requ
   actionReceipts?: Array<{ id: string; kind: string; status: string; resultMessage: string | null }>;
   answerPersisted: boolean; records: Array<{ id: string; note: string; occurredAt: string }> };
 export type IntelligenceConversationTurn = {
+  requestId?: string | null;
   operationReceipt?: AskOperationReceipt;
   id: string;
   role: "user" | "furvise";

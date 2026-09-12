@@ -132,7 +132,13 @@ export function createAskEvidenceContract(context: FurviseLiveContext, authorize
   for (const item of recordInventoryEvidence(contract.recordInventory)) {
     contract.sources.push(evidenceSource(item.petId, "record_inventory", [item.sourceId]));
   }
-  contract.operationReceipts = context.conversationTurns.filter(turn => turn.id !== (currentTurn?.role === "user" ? currentTurn.id : null))
+  const referenceIds = context.askInterpretation?.request?.referenceTurnIds;
+  const referencedRequests = new Set(context.conversationTurns
+    .filter(turn => referenceIds?.includes(turn.id) && turn.requestId).map(turn => turn.requestId));
+  contract.operationReceipts = context.conversationTurns
+    .filter(turn => turn.id !== (currentTurn?.role === "user" ? currentTurn.id : null))
+    .filter(turn => !referenceIds || referenceIds.includes(turn.id)
+      || Boolean(turn.requestId && referencedRequests.has(turn.requestId)))
     .flatMap(turn => turn.operationReceipt && ids.includes(turn.operationReceipt.petId) ? [structuredClone(turn.operationReceipt)] : []);
   for (const petId of ids) {
     const receipts = contract.operationReceipts.filter(receipt => receipt.petId === petId);

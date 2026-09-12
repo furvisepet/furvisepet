@@ -1,6 +1,6 @@
 import { mapAskProse } from "./furvise-output.ts";
-import { buildAskConversationResponse } from "./ask.mjs";
-import { enforceVerifiedStateClaims, preserveAttributedReportQuotes, preserveFictionalDialogueQuotes, containsUntrustedTerminalMutationClaim } from "./application-actions/state-claims.ts";
+import { buildAskConversationResponse, containsActionDependentCopy } from "./ask.mjs";
+import { enforceVerifiedStateClaims, preserveAttributedReportQuotes, preserveFictionalDialogueQuotes, containsUntrustedTerminalMutationClaim, containsUnverifiedStateClaim } from "./application-actions/state-claims.ts";
 import { filterSentencesPreservingFacts } from "./ai/text-segmentation.ts";
 
 /** One untrusted-text policy for generation preflight and persisted-message reload.
@@ -33,4 +33,16 @@ export function readPublicationFailure(text: string): "serialization" | "publica
     return value.replace(/\r\n?/g, "\n").trim();
   };
   return normalize(visible) === normalize(text) ? null : "publication_changed_text";
+}
+
+/** Content-free diagnostics identify the stage that changed a rejected draft.
+ * No raw patient text, quantities, identifiers or reviewer reasoning is logged. */
+export function readPublicationStages(text: string) {
+  const governed = enforceVerifiedStateClaims(text, false);
+  const rendered = buildAskConversationResponse({ title: "Furvise", summary: governed, sections: [], safetyNote: null });
+  const scrubbed = rendered && scrubUntrustedMutationClaim(rendered.summary, "I can help with that.");
+  return { statePolicyChanged: governed !== text, serializationChanged: !!rendered && rendered.summary !== governed,
+    terminalPolicyChanged: !!rendered && scrubbed !== rendered.summary, serializationFailed: !rendered,
+    stateClaimDetected: containsUnverifiedStateClaim(text), actionDependentCopy: containsActionDependentCopy(text),
+    terminalClaimDetected: !!rendered && containsUntrustedTerminalMutationClaim(rendered.summary) };
 }
