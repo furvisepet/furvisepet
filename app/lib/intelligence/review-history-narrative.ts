@@ -12,6 +12,7 @@ import { readHistoryReviewDiagnostic, recordHistoryReviewDiagnostic } from "./hi
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
 import { normalizeCompanionProse } from "../furvise-voice.ts";
 import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
+import { sourceBoundSchema } from "./source-bound-schema.ts";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import {
   isStructuredHistoryText,
@@ -370,7 +371,7 @@ async function repairRejectedRead(provider: { responses: { create: (request: Rec
     invoke: () => { onProviderEvent?.({ stage: "repair", outcome: "started", model, elapsedMs: 0 });
       return withProviderDeadline(signal => provider.responses.create({ model, ...(/^gpt-5(?:\.|-|$)/i.test(model) ? { reasoning: { effort: "low" } } : {}),
       instructions: repairInstructions, input, max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
-      text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema } } },
+      text: { format: { type: "json_schema", name: "furvise_history_repair", strict: true, schema: sourceBoundSchema(schema, payload.sources) } } },
     { signal }), boundedProviderTimeout(20_000, 12_000, "repair")); } });
   const parsed = interpretStructuredProviderResponse(output, raw => {
     const proposal = JSON.parse(raw);

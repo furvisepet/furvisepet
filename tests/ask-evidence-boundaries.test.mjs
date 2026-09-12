@@ -2,8 +2,37 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { missingExactRecordText } from '../app/lib/intelligence/exact-record-text.ts';
 import { verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
-import { reviewObligationCompletion } from '../app/lib/intelligence/history-obligations.ts';
+import { reviewObligationCompletion, historyTaskCompleted } from '../app/lib/intelligence/history-obligations.ts';
 const note='May 4, 2025: ate 28 g of "usual" food.';
+test('generation and repair schemas constrain citations and mutation targets independently',async()=>{
+ const {sourceBoundSchema}=await import('../app/lib/intelligence/source-bound-schema.ts');
+ const base={type:'object',properties:{sourceIds:{type:'array',items:{type:'string'}},targetSourceId:{type:['string','null']},calculation:{properties:{sourceId:{type:'string'}}}}};
+ const bound=sourceBoundSchema(base,[{sourceId:'care:a',sourceType:'care_update'},{sourceId:'request:current',sourceType:'current_request'},{sourceId:'lookup:need:p',sourceType:'lookup_receipt'}]);
+ assert.deepEqual(bound.properties.sourceIds.items.enum,['care:a','request:current','lookup:need:p']);
+ assert.deepEqual(bound.properties.calculation.properties.sourceId.enum,bound.properties.sourceIds.items.enum);
+ assert.deepEqual(bound.properties.targetSourceId.enum,['care:a',null]);
+ assert.equal(base.properties.sourceIds.items.enum,undefined,'shared schema stays immutable across users');
+});
+test('whole-task fulfillment remains separate from explained clinical evidence limits',()=>{
+ const completion=[{index:0,status:'answered',sentenceIndexes:[0,1],sourceIds:[]},{index:1,status:'limited',sentenceIndexes:[1],sourceIds:[]}];
+ assert.equal(historyTaskCompleted(completion),true);
+ for(const status of ['limited','missing','action_ready','needs_information'])
+  assert.equal(historyTaskCompleted([{...completion[0],status},completion[1]]),false);
+ assert.equal(historyTaskCompleted([completion[0],{...completion[1],status:'missing'}]),false);
+ assert.equal(historyTaskCompleted([]),false);
+});
+test('only an owned exhausted empty query creates citable lookup evidence',async()=>{
+ const {eligibleAnswerSources}=await import('../app/lib/intelligence/ask-evidence.ts');
+ const e={scope:{authorizedPetIds:['p'],readOnlyRecall:true},sources:[],represented:[],losses:[],petNames:{p:'Juniper'},
+  interpretation:{request:{evidenceNeeds:[{id:'need:0',quote:'Which records document limping?',terms:['limping'],petIds:['p'],window:{from:'2023-05-01',to:'2023-06-01'}}]}},
+  history:{needs:[{needId:'need:0',petId:'p',status:'unknown',exhausted:true,candidateIds:[]}]}};
+ const receipt=eligibleAnswerSources(e)[0];
+ assert.equal(receipt.sourceId,'lookup:need:0:p'); assert.equal(receipt.sourceType,'lookup_receipt');
+ assert.match(receipt.text,/2023-05-01 inclusive to 2023-06-01 exclusive/);
+ assert.match(receipt.text,/not that the event never happened/);
+ for(const change of [{exhausted:false},{status:'unavailable'},{reason:'need_query_budget'},{candidateIds:['care:x']},{petId:'foreign'}])
+  assert.deepEqual(eligibleAnswerSources({...e,history:{needs:[{...e.history.needs[0],...change}]}}),[]);
+});
 const evidence={scope:{requestText:'Return the exact text of the saved note.',authorizedPetIds:['p']},losses:[],sources:[{petId:'p',status:'loaded',loadedIds:['care:a']}],
  represented:[{petId:'p',sourceId:'care:a',sourceType:'care_update',field:'value',start:0,end:note.length,text:note}]};
 test('exact record text cannot silently become an exact substring',()=>{

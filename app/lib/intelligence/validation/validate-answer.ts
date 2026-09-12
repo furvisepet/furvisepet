@@ -7,7 +7,7 @@ import {
   askProseOnly,
   preserveReviewedLayout,
 } from "../../furvise-output.ts";
-import { buildHistoryObligations, type ObligationCompletion } from "../history-obligations.ts";
+import { buildHistoryObligations, historyTaskCompleted, type ObligationCompletion } from "../history-obligations.ts";
 import { createAnswerAssessment, type AnswerAssessment } from "../answer-assessment.ts";
 import { readHistoryReviewDiagnostic } from "../history-review-state.ts";
 import { preserveFictionalDialogueQuotes, stripOptionalAssistantOffers } from "../../application-actions/state-claims.ts";
@@ -282,7 +282,7 @@ export function validateGeneratedAnswer(
       evidenceSupport: finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       subjectDateCorrectness: unauthorizedPetNamed ? "failed" : finalReviewMatches ? "passed" : conversationOnly ? "not_applicable" : "not_evaluated",
       calculationCorrectness: finalReviewMatches ? "passed" : "not_evaluated",
-      taskCompletion: obligationChecks?.length ? obligationChecks.every(c => c.status === "answered" || c.status === "refused") ? "passed" : "failed"
+      taskCompletion: obligationChecks?.length ? historyTaskCompleted(obligationChecks) ? "passed" : "failed"
         : fallbackUsed ? "failed" : "not_evaluated",
     },
   });
