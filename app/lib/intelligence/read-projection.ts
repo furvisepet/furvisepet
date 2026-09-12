@@ -34,6 +34,12 @@ function bodyMeasurement(text: string) {
   if (!unit || !Number.isFinite(value) || value<=0) return null;
   return { value, unit, literal: m[1]+" "+m[2] };
 }
+function profileBodyMeasurement(text: string) {
+  const match = /^\s*(-?\d+(?:\.\d+)?)\s+(kg|kilograms?|g|grams?|lb|lbs|pounds?)\s*$/i.exec(text);
+  const unit = match && units[match[2].toLowerCase()], value = match ? Number(match[1]) : Number.NaN;
+  return match && unit && Number.isFinite(value) && value > 0 ? { value, unit, literal: `${match[1]} ${match[2]}` } : null;
+}
+const decimalPlaces = (value: string) => /\.(\d+)/.exec(value)?.[1].length || 0;
 const csv = (cell: string) => /[",\r\n]/.test(cell) ? '"' + cell.replaceAll('"','""') + '"' : cell;
 export function deterministicReadProjection(evidence: AskEvidenceContract): HistoryNarrative | null {
   const request = evidence.interpretation?.request, projection = request?.projection;
@@ -42,6 +48,44 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
   const requestText = evidence.scope.requestText;
   const inventory = eligibleAnswerSources(evidence).filter(source => source.sourceType === "record_inventory");
   if (evidence.scope.readOnlyRecall && inventory.length && (!request?.outputFormat || ["prose", "bullets"].includes(request.outputFormat))) return parseHistoryNarrative({ sentences: inventory.map(source => ({text: source.text, sourceIds: [source.sourceId], calculations: []})) }) || null;
+  // A current profile field is the authoritative present endpoint when the
+  // owner explicitly compares it with one dated body-mass report. Later care
+  // notes are observations, not substitutes for that requested profile value.
+  if (evidence.scope.readOnlyRecall && request?.profileFields?.includes("weight")
+    && request.temporalScope === "historical_and_current" && (!request.outputFormat || request.outputFormat === "prose")
+    && evidence.scope.authorizedPetIds.length === 1 && /\b(?:weights?|weigh(?:ed|s|ing)?|body mass)\b/i.test(requestText)
+    && /\b(?:change|difference|compare)\b/i.test(requestText) && !/\b(?:why|cause|because|diagnos|recommend|trend)\b/i.test(requestText)) {
+    const years = [...new Set(requestText.match(/\b(?:19|20)\d{2}\b/g) || [])];
+    const days = years.length === 1 ? explicitHistoryDays(requestText, Number(years[0])) : [];
+    const petId = evidence.scope.authorizedPetIds[0], name = evidence.petNames?.[petId];
+    const sources = eligibleAnswerSources(evidence).filter(source => source.petId === petId);
+    const historical = days.length === 1 ? sources.flatMap(source => {
+      const measurement = source.sourceType === "care_update" && source.occurredAt?.slice(0,10) === days[0] ? bodyMeasurement(source.text) : null;
+      return measurement ? [{source,measurement}] : [];
+    }) : [];
+    const current = sources.flatMap(source => {
+      const measurement = source.sourceType === "profile" && source.sourceId.endsWith(":weight") ? profileBodyMeasurement(source.text) : null;
+      return measurement ? [{source,measurement}] : [];
+    });
+    if (name && historical.length === 1 && current.length === 1) {
+      const past = historical[0], present = current[0], target = present.measurement.unit;
+      const rawChange = (present.measurement.value * present.measurement.unit.scale - past.measurement.value * past.measurement.unit.scale) / target.scale;
+      const rawPercent = (present.measurement.value * present.measurement.unit.scale - past.measurement.value * past.measurement.unit.scale)
+        / (past.measurement.value * past.measurement.unit.scale) * 100;
+      const change = Number(rawChange.toFixed(Math.min(3, Math.max(2, decimalPlaces(present.measurement.literal), decimalPlaces(past.measurement.literal)))));
+      const percent = Number(rawPercent.toFixed(1));
+      const direction = change > 0 ? "an increase" : change < 0 ? "a decrease" : "no change";
+      const sourceIds = [past.source.sourceId, present.source.sourceId];
+      const changeText = change === 0 ? `no change (0%)` : `${direction} of ${Math.abs(change)} ${target.canonical} (${Math.abs(percent)}%)`;
+      return parseHistoryNarrative({sentences:[{
+        text:`${name}'s recorded body weight changed from ${past.measurement.literal} on ${days[0]} to the current profile value of ${present.measurement.literal}: ${changeText}.`,
+        sourceIds, calculations:[
+          {operation:"difference",expression:null,operands:[present,past].map(row => ({sourceId:row.source.sourceId,field:"text" as const,literal:row.measurement.literal})),value:change,unit:target.canonical},
+          {operation:"percent_change",expression:null,operands:[past,present].map(row => ({sourceId:row.source.sourceId,field:"text" as const,literal:row.measurement.literal})),value:percent,unit:"%"},
+        ],
+      }]}) || null;
+    }
+  }
   // A two-date body-mass comparison is a bounded database projection, not a
   // language-model arithmetic exercise. It remains a draft for whole-task
   // semantic review, including any additional explanation the user requested.

@@ -6,6 +6,10 @@ import { receiptCompletionText } from '../app/lib/intelligence/receipt-completio
 import { readRecordInventory } from '../app/lib/intelligence/record-inventory.ts';
 import { validateAskRequest } from '../app/lib/intelligence/ask-request-contract.ts';
 import { emptyProposedSemanticFrame } from '../app/lib/intelligence/semantic-frame/extract-frame.ts';
+import { historyNarrativeAnchorsSupported } from '../app/lib/intelligence/history-narrative-facts.ts';
+import { isExplicitNoPersistenceRequest } from '../app/lib/intelligence/care-history-policy.ts';
+import { orchestrateAskTurn } from '../app/lib/ai/ask-orchestrator.ts';
+import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
 
 test('temporal evidence endpoints are independent of comparison vocabulary',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
@@ -15,6 +19,7 @@ test('temporal evidence endpoints are independent of comparison vocabulary',()=>
  const result=validateAskRequest(proposal,context);
  assert.equal(result.history.from,null); assert.equal(result.history.to,null);
  assert.equal(result.selection,'comparison');
+ assert.deepEqual(result.request.profileFields,[]);
  assert.deepEqual(result.petIds,['pet']); assert.equal(result.readOnly,true);
  const historical=validateAskRequest({...proposal,temporalScope:'historical'}, {...context,currentMessage:'Show Fern’s April 2024 recovery report.'});
  assert.equal(historical.history.from,'2024-04-01T00:00:00.000Z');
@@ -63,6 +68,69 @@ test('aggregations operate over original measurements, with unit conversion and 
   assert.equal(verifiedCalculationQuantities([{...mean,value:0.036}],sources),null);
   assert.equal(verifiedCalculationQuantities([mean],sources.slice(1)),null);
   assert.equal(verifiedCalculationQuantities([{...mean,unit:'ml'}],sources),null);
+});
+test('a percentage share of a combined total has a first-class verified operation', () => {
+  const sources=[{sourceId:'care:active',text:'Active play lasted 29 minutes.'},{sourceId:'care:rest',text:'Rest lasted 3 minutes.'}];
+  const calculation={operation:'percent_of_sum',expression:null,operands:[
+    {sourceId:'care:rest',field:'text',literal:'3 minutes'},
+    {sourceId:'care:active',field:'text',literal:'29 minutes'}],value:9.4,unit:'%'};
+  assert.ok(parseHistoryCalculations([calculation]));
+  assert.deepEqual(verifiedCalculationQuantities([calculation],sources),['9.4:%']);
+  assert.equal(verifiedCalculationQuantities([{...calculation,value:90.6}],sources),null);
+});
+test('past-to-present weight comparisons require the current profile endpoint',()=>{
+ const pet={id:'pet',user_id:'owner',name:'Fern'};
+ const currentMessage='Compare Fern’s April 9, 2024 weight with her current recorded weight and give the change.';
+ const proposal={version:'ask-request.v2',mode:'read',temporalScope:'historical_and_current',profileFields:[],question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'comparison',selection:'comparison',quantity:'measurement',topic:'weight',terms:['weight'],from:'2024-04-09',to:'2024-04-10',episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'};
+ const result=validateAskRequest(proposal,{owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
+ assert.deepEqual(result.request.profileFields,['weight']);
+ assert.equal(result.history.from,null); assert.equal(result.history.to,null);
+});
+test('past-to-present weight projection uses profile authority, not a later care observation',()=>{
+ const requestText="Compare Fern's April 9, 2024 weight with her current recorded weight and give the absolute and percent change.";
+ const profileText='3.8 kg',oldText='Fern body weight was 3.97 kg on 2024-04-09.',newerText='Fern body weight was 3.92 kg on 2026-08-09.';
+ const evidence={version:'ask-evidence.v1',scope:{authorizedPetIds:['pet'],requestedTopic:'weight',requestText,requestedPeriod:{kind:'unspecified',surface:null},requestKind:'comparison',status:'resolved',readOnlyRecall:true},
+  sources:[{petId:'pet',source:'profile',status:'loaded',loadedIds:['pet'],loadedCount:1,cap:null,reasons:[],completeness:{}},
+   {petId:'pet',source:'care_entries',status:'loaded',loadedIds:['care:old','care:newer'],loadedCount:2,cap:null,reasons:[],completeness:{}}],
+  completeness:{},losses:[],representation:'complete',verifiedFacts:[],petNames:{pet:'Fern'},
+  interpretation:{request:{profileFields:['weight'],temporalScope:'historical_and_current',outputFormat:null,referenceTurnIds:[]}},
+  history:{corrections:'complete',provenance:[{sourceId:'care:old',status:'effective_linked'},{sourceId:'care:newer',status:'effective_linked'}]},
+  represented:[
+   {sourceId:'profile:pet:weight',petId:'pet',sourceType:'profile',field:'value',start:0,end:profileText.length,text:profileText},
+   {sourceId:'care:old',petId:'pet',sourceType:'care_update',field:'value',start:0,end:oldText.length,text:oldText,occurredAt:'2024-04-09T12:00:00Z'},
+   {sourceId:'care:newer',petId:'pet',sourceType:'care_update',field:'value',start:0,end:newerText.length,text:newerText,occurredAt:'2026-08-09T12:00:00Z'}]};
+ const projection=deterministicReadProjection(evidence);
+ assert.match(projection.sentences[0].text,/3\.97 kg.*current profile value of 3\.8 kg.*decrease of 0\.17 kg \(4\.3%\)/);
+ assert.deepEqual(projection.sentences[0].sourceIds,['care:old','profile:pet:weight']);
+ assert.deepEqual(projection.sentences[0].calculations.map(item=>item.value),[-0.17,-4.3]);
+});
+test('equivalent displayed units inherit verified measurement and calculation provenance', () => {
+  const source={text:'Pixel weighed 4.94 kg on 2022-10-09.',occurredAt:'2022-10-09T12:00:00Z',petId:'pet'};
+  const request='Return the saved weight in kilograms, grams, and pounds rounded to one decimal.';
+  assert.equal(historyNarrativeAnchorsSupported('Pixel weighed 4.94 kg, or 4,940 g and 10.9 lb.',[source],request,[],false),true);
+  assert.equal(historyNarrativeAnchorsSupported('Pixel weighed 4.94 kg, or 4,940 g and 11.9 lb.',[source],request,[],false),false);
+  assert.equal(historyNarrativeAnchorsSupported('The difference is 10 g.',[], '', ['0.01:kg'],false),true);
+  assert.equal(historyNarrativeAnchorsSupported('The difference is 11 g.',[], '', ['0.01:kg'],false),false);
+});
+test('explicit no-write wording suppresses suggestions independently of model intent', async () => {
+  for (const message of ['Show the correction. Save nothing.','Resume la nota. No guardes nada.','Résume la note. Ne sauvegarde rien.']) {
+    assert.equal(isExplicitNoPersistenceRequest(message),true);
+    const result=await orchestrateAskTurn({concerns:[],message,petName:'Fern',generate:async()=>({
+      answer:{title:'Furvise',summary:'Read-only answer.',sections:[],safetyNote:null},safetyLevel:'normal',responseMode:'normal',applicationActions:[],
+      proposedHistoryUpdate:{shouldOffer:true,resolvesConcernId:null,title:'Update',details:'Fern weighs 2 kg.',category:'general',severity:'mild'},
+      evidenceContract:{scope:{readOnlyRecall:false},interpretation:{conversationOnly:false}},
+    })});
+    assert.equal(result.suggestion,null);
+  }
+});
+test('receipt follow-ups recover owned read scope from the latest user action request', () => {
+  const pet={id:'pet',user_id:'owner',name:'Fern'};
+  const currentMessage='Check the linked receipts for that two-note save. State how many notes were saved and quote both. Do not save them again.';
+  const result=validateAskRequest({version:'ask-request.v2',mode:'read',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'none',petNames:[],operation:'recall',selection:'reference',quantity:'records',topic:'receipts',terms:['receipts'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'}, {
+    owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[{id:'save-turn',role:'user',text:'Save two separate notes for Fern: January 2: walked. January 4: played.'}],
+  });
+  assert.equal(result.readOnly,true); assert.deepEqual(result.petIds,['pet']);
+  assert.deepEqual(result.request.referenceTurnIds,['save-turn']); assert.equal(result.request.question,currentMessage);
 });
 test('publishable presentation is compiled before review and removes mutation claims before approval', () => {
   const text=canonicalReadPresentation('The recorded total is **140 g**.');

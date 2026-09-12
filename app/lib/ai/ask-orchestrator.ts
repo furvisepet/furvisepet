@@ -4,7 +4,7 @@ import { buildConcernOpeningSuggestion, buildMemorySuggestion, buildObservationS
 import { isPetObservationEvidence, petObservationSpans } from "./recovery-subject.ts";
 import { decideWhetherAiGenerationIsNeeded } from "./response-planner.ts";
 import { classifyUserTurn, type TurnIntent } from "./turn-classifier.ts";
-import { evaluateCareHistorySaveWorthiness } from "../intelligence/care-history-policy.ts";
+import { evaluateCareHistorySaveWorthiness, isExplicitNoPersistenceRequest } from "../intelligence/care-history-policy.ts";
 
 export type AskOrchestratorResult = {
   aiResult: AskReasoningResult | null;
@@ -83,6 +83,7 @@ function finishGeneratedTurn({ aiResult, concern, concerns, message, petName, tu
   // offered for saving. Scope, safety and source grounding own that decision.
   const allowsHistorySuggestions = aiResult.safetyLevel !== "urgent"
     && aiResult.responseMode !== "grief_support"
+    && !isExplicitNoPersistenceRequest(message)
     && aiResult.evidenceContract?.interpretation?.conversationOnly !== true
     && aiResult.evidenceContract?.scope.readOnlyRecall !== true;
   const hasMemoryApplicationAction = (aiResult.applicationActions || []).some((action) => action.kind.startsWith("memory."));

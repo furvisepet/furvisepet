@@ -182,6 +182,26 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   }));
   if (petIds.some(id => excluded.has(id))) return fail("conflicting_subjects");
   const explicitPets = explicitlyNamedOwnedPets(context.currentMessage, owned).filter(pet => !excluded.has(pet.id));
+  // Receipt follow-ups are owned reads even when a planner emits conversation
+  // or empty scope. Recover only from an explicit receipt question and the
+  // latest USER-authored save/edit request; assistant prose grants no scope.
+  const receiptFollowup = /\b(?:linked\s+)?receipts?\b/i.test(context.currentMessage)
+    && /\b(?:check|confirm|verify|saved?|edited?|updated?|completed?|actually|how many|quote|list)\b/i.test(context.currentMessage);
+  if (receiptFollowup) {
+    const referencedTurn = [...context.conversationTurns].reverse().find(turn => turn.role === "user"
+      && /\b(?:save|log|record|add|correct|edit|update)\b/i.test(turn.text));
+    const referencedPets = referencedTurn ? explicitlyNamedOwnedPets(referencedTurn.text, owned) : [];
+    const targets = explicitPets.length === 1 ? explicitPets : referencedPets.length === 1 ? referencedPets
+      : owned.some(pet => pet.id === context.pet.id) ? [context.pet] : [];
+    if (targets.length === 1 && referencedTurn) {
+      p.mode = "read"; p.scope = "named"; p.evidenceBasis = "saved_history"; p.operation = "recall";
+      p.selection = "reference"; p.petNames = [targets[0].name]; petIds = [targets[0].id];
+      p.question = context.currentMessage;
+      if (!p.referenceTurnIds.includes(referencedTurn.id)) p.referenceTurnIds.push(referencedTurn.id);
+      if (p.referenceTurnIds.length > 8) p.referenceTurnIds.splice(0, p.referenceTurnIds.length - 8);
+      p.from = null; p.to = null; p.ordinal = null; p.episodeTopic = null; p.frame = null;
+    }
+  }
   // An explicit pet and calendar period define a fresh read unless the user
   // actually refers to an earlier result. Planner-added turn IDs cannot narrow
   // a whole-month export/count to the last save receipt or displayed list.
@@ -325,6 +345,11 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (historical && p.mode === "read" && (p.temporalScope === "historical_and_current" || requestsPastPresentComparison(context.currentMessage))) {
     p.from = null; p.to = null; p.selection = "comparison";
     operation = "comparison";
+    // Current profile measurements are distinct authoritative endpoints. A
+    // later care observation must not substitute for a requested current value.
+    if (/\b(?:weight|weigh(?:t|ed|s|ing)?|body mass)\b/i.test(context.currentMessage)) {
+      (p.profileFields as string[]).push("weight");
+    }
   }
   // Standalone reads need no model rewrite. Keep the user task authoritative
   // across every writer/reviewer input, not merely in an instruction footer.
