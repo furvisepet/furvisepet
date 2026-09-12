@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { featureFailureDetails } from "../../../lib/intelligence/feature-failure.ts";
 import { generateStructuredFeatureResponse, getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
-import { AiCreditLimitReachedError, runWithAiCredit } from "../../../lib/ai/usage-ledger";
+import { AiCreditLimitReachedError, AiCreditReplayRequiredError, runWithAiCredit } from "../../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
 import { AiAdmissionError, aiAdmissionErrorResponse } from "../../../lib/ai/usage-guard/errors";
 import {
@@ -166,6 +166,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof RateLimitRejection) return error.response;
     if (error instanceof AiAdmissionError) return aiAdmissionErrorResponse(error, requestId);
+    if (error instanceof AiCreditReplayRequiredError && error.status === "released") {
+      return Response.json({ code: "AI_REQUEST_RELEASED", error: "The previous attempt ended without a charge. Prepare the brief with a new request." }, { status: 409 });
+    }
     if (error instanceof AiCreditLimitReachedError) {
       return Response.json({ error: "You've used all of your AI guidance for this month.", limitReached: true }, { status: 402 });
     }

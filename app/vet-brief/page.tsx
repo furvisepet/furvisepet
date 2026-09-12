@@ -251,7 +251,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   </div></AppPage>;
 }
 
-function EditorSection({ children, document, id, onInclude, title }: { children: React.ReactNode; document: VetBriefDocument; id: VetBriefSectionId; onInclude: (id: VetBriefSectionId, include: boolean) => void; title: string }) { const included = !document.excludedSections.includes(id); return <details className="scroll-mt-24 py-6" id={`brief-section-${id}`}><summary className="cursor-pointer text-lg font-semibold text-[var(--pw-heading)]">{title}</summary><label className="mt-4 flex items-center gap-2 text-sm text-[var(--pw-muted)]"><input checked={included} onChange={(event) => onInclude(id, event.target.checked)} type="checkbox" />Include in brief</label><div className="mt-4">{children}</div></details>; }
+function EditorSection({ children, document, id, onInclude, title }: { children: React.ReactNode; document: VetBriefDocument; id: VetBriefSectionId; onInclude: (id: VetBriefSectionId, include: boolean) => void; title: string }) { const included = !document.excludedSections.includes(id); const [open, setOpen] = useState(() => isSectionEmpty(document, id)); return <details className="scroll-mt-24 py-6" id={`brief-section-${id}`} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}><summary className="cursor-pointer text-lg font-semibold text-[var(--pw-heading)]">{title}</summary><label className="mt-4 flex items-center gap-2 text-sm text-[var(--pw-muted)]"><input checked={included} onChange={(event) => onInclude(id, event.target.checked)} type="checkbox" />Include in brief</label><div className="mt-4">{children}</div></details>; }
 
 function MissingInformationGroup({ document, items, onAdd, onInclude }: { document: VetBriefDocument; items: Array<{ id: VetBriefSectionId; label: string }>; onAdd: (id: VetBriefSectionId) => void; onInclude: (id: VetBriefSectionId, include: boolean) => void }) { return <section className="mt-6 border-y border-[var(--pw-border)] py-5" aria-labelledby="missing-information-title"><h2 className={sectionTitle} id="missing-information-title">Information not yet recorded</h2><p className="mt-2 text-sm leading-6 text-[var(--pw-muted)]">Optional additions. Empty sections are left out of the report; missing essentials are listed together.</p><ul className="mt-4 divide-y divide-[var(--pw-border)]">{items.map((item) => { const included = !document.excludedSections.includes(item.id); return <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={item.id}><span className="text-sm font-semibold text-[var(--pw-heading)]">{item.label}</span><div className="flex items-center gap-2"><button className={smallButton} onClick={() => onAdd(item.id)} type="button">Add information</button><button className={quietButton} onClick={() => onInclude(item.id, !included)} type="button">{included ? "Exclude" : "Include as not recorded"}</button></div></li>; })}</ul></section>; }
 
@@ -272,10 +272,18 @@ async function fetchDraft(petId: string, from: string, to: string, conversationI
   const input = { reasonForVisit: reasonForVisit || existingDocument?.reasonForVisit || undefined, conversationId: conversationId || undefined, existingDocument: existingDocument || undefined, from, petId, to };
   // Identical retries share a key; changed dates or owner edits are a new operation.
   const scope = `vet-brief-draft:v2:${JSON.stringify(input)}`;
-  const requestId = getOrCreateClientMutationKey(scope);
-  return authenticatedJson("/api/vet-briefs/draft", {
-    method: "POST", body: JSON.stringify({ ...input, requestId }),
-  }, scope) as Promise<{ document: VetBriefDocument; sourceEntryIds: string[] }>;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const requestId = getOrCreateClientMutationKey(scope);
+    try {
+      return await authenticatedJson("/api/vet-briefs/draft", {
+        method: "POST", body: JSON.stringify({ ...input, requestId }),
+      }, scope) as { document: VetBriefDocument; sourceEntryIds: string[] };
+    } catch (error) {
+      if (attempt === 0 && (error as Error & { code?: string }).code === "AI_REQUEST_RELEASED") continue;
+      throw error;
+    }
+  }
+  throw new Error("The brief could not be prepared. Please try again.");
 }
 async function authenticatedJson(url: string, init: RequestInit = {}, mutationScope?: string) {
   const token = await getAuthToken();
@@ -290,8 +298,8 @@ async function authenticatedJson(url: string, init: RequestInit = {}, mutationSc
   const response = method === "GET"
     ? await fetch(url, { ...init, headers })
     : await idempotentClientFetch(url, { ...init, headers }, mutationScope || `vet-brief:${method}:${url}`, explicitKey);
-  const payload = await response.json().catch(() => null) as { error?: string } | null;
-  if (!response.ok) throw new Error(payload?.error || "The Vet Visit Brief is temporarily unavailable.");
+  const payload = await response.json().catch(() => null) as { error?: string; code?: string } | null;
+  if (!response.ok) throw Object.assign(new Error(payload?.error || "The Vet Visit Brief is temporarily unavailable."), { code: payload?.code });
   return payload;
 }
 async function getAuthToken() { const client = getBrowserSupabase(); const { data } = client ? await client.auth.getSession() : { data: { session: null } }; return data.session?.access_token || ""; }
