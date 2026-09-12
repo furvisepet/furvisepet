@@ -58,15 +58,12 @@ test("missing Ask details have one primary responsive location", () => {
   assert.doesNotMatch(page, /Would make this more specific|Useful details to add:/);
 });
 
-test("Vet Brief uses outline, grouped empty state, external preview controls, and gated exports", () => {
+test("Vet Brief uses purpose-first preparation, optional edits and gated exports", () => {
   const page = read("app/vet-brief/page.tsx");
-  const toolbarIndex = page.indexOf('aria-label="Preview controls"');
-  const documentIndex = page.indexOf("<VetBriefDocumentView");
-  assert.match(page, /Document settings/);
-  assert.match(page, /Document outline/);
+  assert.match(page, /What is the appointment for/);
+  assert.match(page, /Edit details/);
   assert.match(page, /Information not yet recorded/);
-  assert.match(page, /Edit section/);
-  assert.ok(toolbarIndex > -1 && toolbarIndex < documentIndex);
+  assert.doesNotMatch(page, /Document outline|Preview zoom|max-h-\[calc\(100dvh/);
   assert.match(page, /confirmed \? <div/);
   assert.match(page, /Download PDF/);
   assert.match(page, />Share</);

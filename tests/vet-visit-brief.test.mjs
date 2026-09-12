@@ -117,7 +117,8 @@ test("Vet Visit Brief review is mobile-ready, explicit, and analytics receives n
   assert.match(page, /Download PDF/);
   assert.match(page, /Save draft/);
   assert.match(page, /Information not yet recorded/);
-  assert.match(page, /Document outline/);
+  assert.match(page, /What is the appointment for/);
+  assert.doesNotMatch(page, /Document outline|Preview zoom/);
   assert.match(page, /navigator\.share/);
   assert.match(page, /Urgent guidance remains in Ask and is not copied into this document/);
   assert.doesNotMatch(page, /trackAskEvent\([^)]*(document|reasonForVisit|ownerNotes)/);

@@ -29,7 +29,7 @@ export function buildVetBriefDraft(input: BuildVetBriefInput) {
     || /\b(?:died|dead|death|passed away|euthanized|grief)\b/i.test(`${input.reasonForVisit || ""} ${conversationText}`);
   const reasonForVisit = cleanVetBriefText(input.reasonForVisit, 1200)
     || (retrospective ? "Retrospective care-history summary" : getConversationReason(conversation) || "Not recorded");
-  const topicText = `${reasonForVisit} ${conversationText}`.toLowerCase();
+  const topicText = reasonForVisit === "Not recorded" ? "" : `${reasonForVisit} ${conversationText}`.toLowerCase();
   const rangedEntries = input.careEntries
     .filter((entry) => isWithinDateRange(entry.occurred_at, input.from, input.to))
     .filter((entry) => !isDeletedOrGeneratedGuidance(entry))
@@ -49,7 +49,7 @@ export function buildVetBriefDraft(input: BuildVetBriefInput) {
       .map((memory) => datedSavedNote(memory)),
   ];
   const foodChanges = relevantEntries
-    .filter((entry) => entry.category === "food" && /\b(change|changed|switch|switched|new|started|stopped|food|diet|meal|appetite)\b/i.test(entryText(entry)))
+    .filter((entry) => entry.category === "food" && /\b(changed|switched|transitioned|introduced|discontinued)\b/i.test(entryText(entry)))
     .map((entry) => datedOwnerItem(entry));
   const productsUsed = relevantEntries
     .filter((entry) => entry.category !== "medication" && /\b(used|tried|applied|started|gave)\b/i.test(entryText(entry)) && /\b(product|shampoo|cleaner|balm|wipe|chew|supplement|food|spray|drops?)\b/i.test(entryText(entry)))
@@ -59,19 +59,17 @@ export function buildVetBriefDraft(input: BuildVetBriefInput) {
     .map((entry) => datedOwnerItem(entry));
   const ownerReportedChanges = [
     ...relevantEntries
-      .filter((entry) => ["symptom", "behavior", "activity", "food", "grooming"].includes(entry.category))
+      .filter((entry) => ["activity", "grooming"].includes(entry.category))
+      .filter((entry) => /\b(changed|increased|decreased|worsened|improved)\b/i.test(entryText(entry)))
       .map((entry) => datedOwnerItem(entry)),
     ...getConversationOwnerReports(conversation),
   ];
-  const reportedPatterns = uniqueStrings([
-    ...relevantEntries
-      .filter((entry) => /\b(always|often|usually|every|after|before|repeated|again|each time|seems worse|seems better)\b/i.test(entryText(entry)))
-      .map((entry) => `Owner reported: ${entryText(entry)}`),
-    ...relevantMemories
-      .filter((memory) => memory.source === "owner" || memory.source === "manual")
-      .filter((memory) => /\b(always|often|usually|every|after|before|repeated|each time|pattern)\b/i.test(memory.text))
-      .map((memory) => `Owner reported: ${cleanVetBriefText(memory.text)}`),
-  ]);
+  // Timing words alone do not establish a repeated pattern. Keep the actual
+  // dated observations and let the vet assess their relationship.
+  const reportedPatterns: string[] = [];
+  const classified = new Set([
+    ...medications, ...foodChanges, ...productsUsed, ...concernTimeline, ...ownerReportedChanges,
+  ].map(item => `${item.date}|${item.text}`));
 
   const document: VetBriefDocument = {
     documentVersion: VET_BRIEF_DOCUMENT_VERSION,
@@ -92,7 +90,10 @@ export function buildVetBriefDraft(input: BuildVetBriefInput) {
     foodChanges: uniqueDatedItems(foodChanges),
     productsUsed: uniqueDatedItems(productsUsed),
     medicationsSupplements: uniqueDatedItems(medications),
-    relevantCareHistory: relevantEntries.map((entry) => ({
+    relevantCareHistory: relevantEntries.filter(entry => {
+      const item = datedOwnerItem(entry);
+      return !classified.has(`${item.date}|${item.text}`);
+    }).map((entry) => ({
       category: formatCategory(entry.category),
       date: entry.occurred_at.slice(0, 10),
       text: `Saved care history shows: ${entryText(entry)}`,

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useEffect, useState } from "react";
 import { AppPage } from "../components/app-page";
 import { appPageContainer } from "../components/product-primitives";
+import { vetBriefText } from "../lib/vet-brief/report";
 import { VetBriefDocumentView } from "../components/vet-brief-document";
 import { WorkflowDocumentStatus } from "../components/workflow-primitives";
 import { downloadGeneratedFile } from "../lib/furvise-output";
@@ -50,11 +51,11 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   const [documentPetId, setDocumentPetId] = useState(petId);
   const [confirmed, setConfirmed] = useState<VetBriefRecord | null>(null);
   const [previousVersionId, setPreviousVersionId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"review" | "preview">("review");
-  const [activeSection, setActiveSection] = useState<VetBriefSectionId>("visit-reason");
+  const [mode, setMode] = useState<"review" | "preview">("preview");
   const [editingEmpty, setEditingEmpty] = useState<Set<VetBriefSectionId>>(new Set());
   const [paperSize, setPaperSize] = useState<"letter" | "a4">("letter");
-  const [zoom, setZoom] = useState(100);
+  const [needsPurpose, setNeedsPurpose] = useState(false);
+  const [purpose, setPurpose] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -93,11 +94,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
             setStatus("Your saved draft has been restored.");
             return;
           }
-          const draft = await fetchDraft(petId, from, to, source === "ask" ? conversationId : "");
-          if (!active) return;
-          setDocument(draft.document);
-          setDocumentPetId(petId);
-          setSourceEntryIds(draft.sourceEntryIds);
+          setNeedsPurpose(true);
         }
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : "The Vet Visit Brief could not be prepared.");
@@ -105,12 +102,22 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
     }
     void load();
     return () => { active = false; };
-    // Initial source and date range are captured once; the user refreshes them explicitly.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingBriefId, petId, source, conversationId, userId]);
 
   const documentStatus = confirmed ? "Confirmed" : previousVersionId ? "New version in progress" : "Draft";
   const retrospective = document?.title === "Furvise Care History Summary";
+
+  async function prepareBrief(event: FormEvent) {
+    event.preventDefault();
+    if (!purpose.trim() || loading) return;
+    setLoading(true); setError("");
+    try {
+      const draft = await fetchDraft(petId, from, to, source === "ask" ? conversationId : "", null, purpose);
+      setDocument(draft.document); setSourceEntryIds(draft.sourceEntryIds);
+      setNeedsPurpose(false); setMode("preview");
+    } catch (error) { setError(error instanceof Error ? error.message : "The brief could not be prepared."); }
+    finally { setLoading(false); }
+  }
 
   async function refreshRange(event: FormEvent) {
     event.preventDefault();
@@ -165,9 +172,12 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   }
 
   function focusSection(id: VetBriefSectionId) {
-    setActiveSection(id);
     setMode("review");
-    requestAnimationFrame(() => documentGlobal().getElementById(`brief-section-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    requestAnimationFrame(() => {
+      const section = documentGlobal().getElementById(`brief-section-${id}`);
+      if (section instanceof HTMLDetailsElement) section.open = true;
+      section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function addEmptySection(id: VetBriefSectionId) {
@@ -187,7 +197,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
       downloadGeneratedFile(file, file.name);
       setStatus("PDF ready. Check your browser downloads.");
     }
-    catch { setError("The PDF could not be downloaded."); }
+    catch (error) { setError(error instanceof Error ? error.message : "The PDF could not be downloaded."); }
   }
 
   async function shareBrief() {
@@ -199,22 +209,25 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   const emptySections = document ? outline.filter((item) => isSectionEmpty(document, item.id) && !editingEmpty.has(item.id)) : [];
 
   const askReturnHref = documentPetId ? `/ask?pet=${encodeURIComponent(documentPetId)}${conversationId ? `&conversation=${encodeURIComponent(conversationId)}` : ""}` : "/ask";
-  return <AppPage layout="focused" width="wide"><div className="w-full pb-36">
-    <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><Link className="text-sm font-semibold text-[var(--pw-primary)]" href={askReturnHref}>Back to Ask</Link><h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-[var(--pw-heading)] sm:text-5xl">{retrospective ? "Care history summary" : "Vet brief"}</h1><p className="mt-3 max-w-3xl leading-7 text-[var(--pw-muted)]">{retrospective ? "Review the timeline and records, then choose how to keep or share the summary." : "Review the details, confirm the document, then choose how to share it."}</p></div><WorkflowDocumentStatus status={documentStatus} /></header>
-    <VetBriefStages documentStatus={documentStatus} />
-    <div aria-label="Choose review or preview" className="mt-5 flex rounded-full border border-[var(--pw-border)] p-1 xl:hidden">{(["review", "preview"] as const).map((item) => <button className={`min-h-10 flex-1 rounded-full px-4 text-sm font-semibold ${mode === item ? "bg-[var(--pw-primary)] text-[var(--pw-primary-foreground)]" : "text-[var(--pw-muted)]"}`} key={item} onClick={() => setMode(item)} type="button">{item === "review" ? "Edit" : "Preview"}</button>)}</div>
+  return <AppPage layout="focused" width="wide"><div className="mx-auto w-full max-w-3xl pb-36">
+    <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><Link className="text-sm font-semibold text-[var(--pw-primary)]" href={askReturnHref}>Back to Ask</Link><h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-[var(--pw-heading)] sm:text-5xl">{retrospective ? "Care history summary" : "Vet brief"}</h1><p className="mt-3 max-w-3xl leading-7 text-[var(--pw-muted)]">{retrospective ? "Review the timeline and records, then choose how to keep or share the summary." : "Your pet’s history, ready for the appointment."}</p></div><WorkflowDocumentStatus status={documentStatus} /></header>
+    {document && !loading ? <div aria-label="Choose review or preview" className="mt-6 flex items-center justify-between border-b border-[var(--pw-border)] pb-4"><p className="text-sm text-[var(--pw-muted)]">{mode === "preview" ? "Read through once. Edit only what needs changing." : "Open a section to make changes."}</p><button className={secondaryButton} onClick={() => setMode(mode === "preview" ? "review" : "preview")} type="button">{mode === "preview" ? "Edit details" : "Read brief"}</button></div> : null}
     {error ? <Status text={error} tone="warn" /> : null}{status ? <Status text={status} /> : null}
     {source === "ask" ? <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--pw-muted)]">Urgent guidance remains in Ask and is not copied into this document.</p> : null}
 
-    {loading ? <Status text="Preparing the review\u2026" /> : document ? <div className="mt-7 grid min-w-0 gap-7 xl:grid-cols-[minmax(0,0.92fr)_minmax(34rem,1.08fr)] xl:items-start">
-      <section aria-label="Edit Vet Visit Brief" className={`${mode === "review" ? "block" : "hidden"} min-w-0 xl:block`}>
-        <section className="border-y border-[var(--pw-border)] py-5" aria-labelledby="document-settings-title"><h2 className={sectionTitle} id="document-settings-title">Document settings</h2><form className="mt-4 grid gap-4 sm:grid-cols-2" onSubmit={refreshRange}><TextField label="Document title" onChange={(value) => editDocument((current) => ({ ...current, title: value }))} value={document.title} /><div className="grid grid-cols-2 gap-3"><DateField label="From" onChange={setFrom} value={from} /><DateField label="To" onChange={setTo} value={to} /></div><label className="flex items-start gap-3 text-sm text-[var(--pw-muted)]"><input checked={document.includePetPhoto} className="mt-1" disabled={!document.pet.photoUrl} onChange={(event) => editDocument((current) => ({ ...current, includePetPhoto: event.target.checked }))} type="checkbox" /><span>Include pet photo{document.pet.photoUrl ? "" : " (No pet photo saved)"}</span></label><button className={`${secondaryButton} sm:justify-self-end`} type="submit">Update date range</button></form></section>
+    {needsPurpose && !document ? <form className="mt-10 space-y-6" onSubmit={prepareBrief}>
+      <div><h2 className="text-2xl font-semibold text-[var(--pw-heading)]">What is the appointment for?</h2><p className="mt-3 leading-7 text-[var(--pw-muted)]">A concern, a follow-up, or a routine checkup. Furvise will use saved history to prepare your brief.</p><TextArea label="Reason for the appointment" onChange={setPurpose} value={purpose} /></div>
+      <details className="border-y border-[var(--pw-border)] py-4"><summary className="cursor-pointer font-semibold">Choose history dates</summary><div className="mt-4 grid grid-cols-2 gap-4"><DateField label="From" onChange={setFrom} value={from} /><DateField label="To" onChange={setTo} value={to} /></div></details>
+      <button className={primaryButtonCompact} disabled={loading || !purpose.trim() || from > to} type="submit">{loading ? "Preparing your brief…" : "Prepare my brief"}</button>
+    </form> : null}
+    {loading ? <Status text="Reading saved history and preparing your brief…" /> : document ? <div className="mt-7 min-w-0">
+      <section aria-label="Edit Vet Visit Brief" className={`${mode === "review" ? "block" : "hidden"} min-w-0`}>
+        <details className="border-y border-[var(--pw-border)] py-5"><summary className="cursor-pointer font-semibold">Report title and history dates</summary><form className="mt-4 space-y-4" onSubmit={refreshRange}><TextField label="Document title" onChange={(value) => editDocument((current) => ({ ...current, title: value }))} value={document.title} /><div className="grid grid-cols-2 gap-3"><DateField label="From" onChange={setFrom} value={from} /><DateField label="To" onChange={setTo} value={to} /></div><p className="text-sm text-[var(--pw-muted)]">Preparing again replaces generated sections. Save your draft before changing dates if you want to keep your edits.</p><button className={secondaryButton} type="submit">Prepare again with these dates</button></form></details>
 
-        <div className="mt-6 md:grid md:grid-cols-[10rem_minmax(0,1fr)] md:gap-6">
-          <aside className="hidden md:block"><nav aria-label="Document outline" className="sticky top-24"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--pw-subtle)]">Document outline</p><ul className="mt-3 border-l border-[var(--pw-border)]">{outline.map((item) => <li key={item.id}><button aria-current={activeSection === item.id ? "location" : undefined} className={`w-full border-l-2 px-3 py-2 text-left text-sm ${activeSection === item.id ? "-ml-px border-[var(--pw-primary)] font-semibold text-[var(--pw-heading)]" : "border-transparent text-[var(--pw-muted)]"}`} onClick={() => focusSection(item.id)} type="button">{item.label}<span className="mt-0.5 block text-[0.68rem] font-normal text-[var(--pw-subtle)]">{document.excludedSections.includes(item.id) ? "Excluded" : isSectionEmpty(document, item.id) ? "Not recorded" : "Included"}</span></button></li>)}</ul></nav></aside>
-          <div className="min-w-0"><label className="mb-5 block text-sm font-semibold text-[var(--pw-heading)] md:hidden">Edit section<select className={`${inputClass} mt-2`} onChange={(event) => focusSection(event.target.value as VetBriefSectionId)} value={activeSection}>{outline.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+        <div className="mt-6">
+          <div className="min-w-0">
             <div className="divide-y divide-[var(--pw-border)]">
-              {(!isSectionEmpty(document, "visit-reason") || editingEmpty.has("visit-reason")) ? <EditorSection document={document} id="visit-reason" title="Visit reason" onInclude={toggleSection}><TextArea label="Reason for visit" onChange={(value) => editDocument((current) => ({ ...current, reasonForVisit: value }))} value={document.reasonForVisit === "Not recorded" ? "" : document.reasonForVisit} /></EditorSection> : null}
+              {(!isSectionEmpty(document, "visit-reason") || editingEmpty.has("visit-reason")) ? <EditorSection document={document} id="visit-reason" title="Visit reason" onInclude={toggleSection}><TextArea label="Reason for visit" onChange={(value) => editDocument((current) => ({ ...current, reasonForVisit: value }))} value={document.reasonForVisit === "Not recorded" ? "" : document.reasonForVisit} /><TextArea label="Visit overview" onChange={(value) => editDocument((current) => ({ ...current, visitSummary: value }))} value={document.visitSummary || ""} /></EditorSection> : null}
               {(!isSectionEmpty(document, "changes-noticed") || editingEmpty.has("changes-noticed")) ? <EditorSection document={document} id="changes-noticed" title="Changes noticed" onInclude={toggleSection}><DatedItemsEditor items={document.ownerReportedChanges} onChange={(items) => editDocument((current) => ({ ...current, ownerReportedChanges: items }))} title="Owner-reported changes" /><StringItemsEditor items={document.reportedPatterns} onChange={(items) => editDocument((current) => ({ ...current, reportedPatterns: items }))} title="Patterns noticed" /></EditorSection> : null}
               {(!isSectionEmpty(document, "timeline") || editingEmpty.has("timeline")) ? <EditorSection document={document} id="timeline" title="Timeline" onInclude={toggleSection}><DatedItemsEditor items={document.concernTimeline} onChange={(items) => editDocument((current) => ({ ...current, concernTimeline: items }))} title="Symptom or concern timeline" /></EditorSection> : null}
               {(!isSectionEmpty(document, "food-products") || editingEmpty.has("food-products")) ? <EditorSection document={document} id="food-products" title="Food and products" onInclude={toggleSection}><DatedItemsEditor items={document.foodChanges} onChange={(items) => editDocument((current) => ({ ...current, foodChanges: items }))} title="Recent food changes" /><DatedItemsEditor items={document.productsUsed} onChange={(items) => editDocument((current) => ({ ...current, productsUsed: items }))} title="Products used" /></EditorSection> : null}
@@ -228,9 +241,9 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
         </div>
       </section>
 
-      <section aria-label="Vet Visit Brief preview" className={`${mode === "preview" ? "block" : "hidden"} min-w-0 xl:sticky xl:top-5 xl:block xl:max-h-[calc(100dvh-2.5rem)]`}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className={sectionTitle}>Live preview</h2><div className="flex flex-wrap items-center gap-2" aria-label="Preview controls"><label className={controlLabel}><span>Paper</span><select className="bg-transparent font-semibold outline-none" onChange={(event) => setPaperSize(event.target.value === "a4" ? "a4" : "letter")} value={paperSize}><option value="letter">US Letter</option><option value="a4">A4</option></select></label><div className="flex rounded-full border border-[var(--pw-border-strong)] p-1" aria-label="Preview zoom">{[85, 100, 115].map((value) => <button aria-pressed={zoom === value} className={`min-h-8 rounded-full px-2 text-xs font-semibold ${zoom === value ? "bg-[var(--pw-primary)] text-[var(--pw-primary-foreground)]" : "text-[var(--pw-muted)]"}`} key={value} onClick={() => setZoom(value)} type="button">{value}%</button>)}</div></div></div>
-        <div className="max-h-[calc(100dvh-8rem)] overflow-auto rounded-xl border border-[var(--pw-border)] bg-[var(--pw-surface-muted)] p-2 sm:p-5"><div style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center", width: `${10000 / zoom}%` }}><VetBriefDocumentView document={document} version={confirmed?.version} /></div></div>
+      <section aria-label="Vet Visit Brief preview" className={`${mode === "preview" ? "block" : "hidden"} min-w-0`}>
+        <div className="overflow-hidden rounded-xl border border-[var(--pw-border)]"><VetBriefDocumentView document={document} version={confirmed?.version} /></div>
+        <details className="mt-5 text-sm text-[var(--pw-muted)]"><summary className="cursor-pointer">Paper size</summary><label className={`${controlLabel} mt-3 w-fit`}>Paper<select onChange={(event) => setPaperSize(event.target.value === "a4" ? "a4" : "letter")} value={paperSize}><option value="letter">US Letter</option><option value="a4">A4</option></select></label></details>
       </section>
     </div> : null}
 
@@ -238,21 +251,12 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
   </div></AppPage>;
 }
 
-function VetBriefStages({ documentStatus }: { documentStatus: "Draft" | "Confirmed" | "New version in progress" }) {
-  const shareReady = documentStatus === "Confirmed";
-  const stages = [
-    { label: "Review details", state: shareReady ? "complete" : "current" },
-    { label: "Confirm", state: shareReady ? "complete" : "next" },
-    { label: "Share", state: shareReady ? "current" : "next" },
-  ] as const;
-  return <ol aria-label="Vet brief stages" className="mt-7 grid grid-cols-3 border-y border-[var(--line)]">{stages.map((stage, index) => <li aria-current={stage.state === "current" ? "step" : undefined} className={`relative px-2 py-4 text-center text-xs font-semibold sm:text-sm ${stage.state === "current" ? "text-[var(--text-primary)] after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-[var(--action-primary)]" : "text-[var(--text-tertiary)]"}`} key={stage.label}><span className="mr-1.5 hidden text-[var(--text-tertiary)] sm:inline">{index + 1}.</span>{stage.label}</li>)}</ol>;
-}
+function EditorSection({ children, document, id, onInclude, title }: { children: React.ReactNode; document: VetBriefDocument; id: VetBriefSectionId; onInclude: (id: VetBriefSectionId, include: boolean) => void; title: string }) { const included = !document.excludedSections.includes(id); return <details className="scroll-mt-24 py-6" id={`brief-section-${id}`}><summary className="cursor-pointer text-lg font-semibold text-[var(--pw-heading)]">{title}</summary><label className="mt-4 flex items-center gap-2 text-sm text-[var(--pw-muted)]"><input checked={included} onChange={(event) => onInclude(id, event.target.checked)} type="checkbox" />Include in brief</label><div className="mt-4">{children}</div></details>; }
 
-function EditorSection({ children, document, id, onInclude, title }: { children: React.ReactNode; document: VetBriefDocument; id: VetBriefSectionId; onInclude: (id: VetBriefSectionId, include: boolean) => void; title: string }) { const included = !document.excludedSections.includes(id); return <section className="scroll-mt-24 py-6" id={`brief-section-${id}`}><div className="flex items-start justify-between gap-4"><h2 className={sectionTitle}>{title}</h2><label className="flex items-center gap-2 text-xs font-semibold text-[var(--pw-muted)]"><input checked={included} onChange={(event) => onInclude(id, event.target.checked)} type="checkbox" />Include in brief</label></div><div className="mt-4">{children}</div></section>; }
-function MissingInformationGroup({ document, items, onAdd, onInclude }: { document: VetBriefDocument; items: Array<{ id: VetBriefSectionId; label: string }>; onAdd: (id: VetBriefSectionId) => void; onInclude: (id: VetBriefSectionId, include: boolean) => void }) { return <section className="mt-6 border-y border-[var(--pw-border)] py-5" aria-labelledby="missing-information-title"><h2 className={sectionTitle} id="missing-information-title">Information not yet recorded</h2><p className="mt-2 text-sm leading-6 text-[var(--pw-muted)]">Add what you know, leave it marked as not recorded, or exclude the section from the final brief.</p><ul className="mt-4 divide-y divide-[var(--pw-border)]">{items.map((item) => { const included = !document.excludedSections.includes(item.id); return <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={item.id}><span className="text-sm font-semibold text-[var(--pw-heading)]">{item.label}</span><div className="flex items-center gap-2"><button className={smallButton} onClick={() => onAdd(item.id)} type="button">Add information</button><button className={quietButton} onClick={() => onInclude(item.id, !included)} type="button">{included ? "Exclude" : "Include as not recorded"}</button></div></li>; })}</ul></section>; }
+function MissingInformationGroup({ document, items, onAdd, onInclude }: { document: VetBriefDocument; items: Array<{ id: VetBriefSectionId; label: string }>; onAdd: (id: VetBriefSectionId) => void; onInclude: (id: VetBriefSectionId, include: boolean) => void }) { return <section className="mt-6 border-y border-[var(--pw-border)] py-5" aria-labelledby="missing-information-title"><h2 className={sectionTitle} id="missing-information-title">Information not yet recorded</h2><p className="mt-2 text-sm leading-6 text-[var(--pw-muted)]">Optional additions. Empty sections are left out of the report; missing essentials are listed together.</p><ul className="mt-4 divide-y divide-[var(--pw-border)]">{items.map((item) => { const included = !document.excludedSections.includes(item.id); return <li className="flex flex-wrap items-center justify-between gap-3 py-3" key={item.id}><span className="text-sm font-semibold text-[var(--pw-heading)]">{item.label}</span><div className="flex items-center gap-2"><button className={smallButton} onClick={() => onAdd(item.id)} type="button">Add information</button><button className={quietButton} onClick={() => onInclude(item.id, !included)} type="button">{included ? "Exclude" : "Include as not recorded"}</button></div></li>; })}</ul></section>; }
 
-function DatedItemsEditor({ items, onChange, title }: { items: VetBriefDatedItem[]; onChange: (items: VetBriefDatedItem[]) => void; title: string }) { return <FieldGroup title={title}>{items.length ? <div className="space-y-4">{items.map((item, index) => <div className="border-l-2 border-[var(--pw-border)] pl-3" key={`${index}-${item.text}`}><DateField label="Date" onChange={(date) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, date: date || "Date unknown" } : current))} unknownAllowed value={item.date} /><TextArea label="Detail" onChange={(text) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, text } : current))} value={item.text} /><button className={removeButton} onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))} type="button">Remove</button></div>)}</div> : <p className="text-sm text-[var(--pw-muted)]">No entries yet.</p>}<button className={addButton} onClick={() => onChange([...items, { date: "Date unknown", text: "" }])} type="button">+ Add entry</button></FieldGroup>; }
-function HistoryEditor({ items, onChange }: { items: VetBriefHistoryItem[]; onChange: (items: VetBriefHistoryItem[]) => void }) { return <FieldGroup title="Relevant care history">{items.length ? <div className="space-y-4">{items.map((item, index) => <div className="border-l-2 border-[var(--pw-border)] pl-3" key={`${index}-${item.text}`}><div className="grid gap-3 sm:grid-cols-2"><DateField label="Date" onChange={(date) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, date } : current))} value={item.date} /><TextField label="Category" onChange={(category) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, category } : current))} value={item.category} /></div><TextArea label="Entry" onChange={(text) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, text } : current))} value={item.text} /><button className={removeButton} onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))} type="button">Remove</button></div>)}</div> : <p className="text-sm text-[var(--pw-muted)]">No entries yet.</p>}<button className={addButton} onClick={() => onChange([...items, { category: "General", date: new Date().toISOString().slice(0, 10), text: "" }])} type="button">+ Add history item</button></FieldGroup>; }
+function DatedItemsEditor({ items, onChange, title }: { items: VetBriefDatedItem[]; onChange: (items: VetBriefDatedItem[]) => void; title: string }) { return <FieldGroup title={title}>{items.length ? <div className="space-y-4">{items.map((item, index) => <div className="border-l-2 border-[var(--pw-border)] pl-3" key={index}><DateField label="Date" onChange={(date) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, date: date || "Date unknown" } : current))} unknownAllowed value={item.date} /><TextArea label="Detail" onChange={(text) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, text } : current))} value={item.text} /><button className={removeButton} onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))} type="button">Remove</button></div>)}</div> : <p className="text-sm text-[var(--pw-muted)]">No entries yet.</p>}<button className={addButton} onClick={() => onChange([...items, { date: "Date unknown", text: "" }])} type="button">+ Add entry</button></FieldGroup>; }
+function HistoryEditor({ items, onChange }: { items: VetBriefHistoryItem[]; onChange: (items: VetBriefHistoryItem[]) => void }) { return <FieldGroup title="Relevant care history">{items.length ? <div className="space-y-4">{items.map((item, index) => <div className="border-l-2 border-[var(--pw-border)] pl-3" key={index}><div className="grid gap-3 sm:grid-cols-2"><DateField label="Date" onChange={(date) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, date } : current))} value={item.date} /><TextField label="Category" onChange={(category) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, category } : current))} value={item.category} /></div><TextArea label="Entry" onChange={(text) => onChange(items.map((current, itemIndex) => itemIndex === index ? { ...current, text } : current))} value={item.text} /><button className={removeButton} onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))} type="button">Remove</button></div>)}</div> : <p className="text-sm text-[var(--pw-muted)]">No entries yet.</p>}<button className={addButton} onClick={() => onChange([...items, { category: "General", date: new Date().toISOString().slice(0, 10), text: "" }])} type="button">+ Add history item</button></FieldGroup>; }
 function StringItemsEditor({ items, onChange, title }: { items: string[]; onChange: (items: string[]) => void; title: string }) { return <FieldGroup title={title}>{items.map((item, index) => <div className="mt-3 flex items-start gap-2" key={index}><textarea aria-label={`${title} item ${index + 1}`} className={`${inputClass} min-h-20 py-2`} onChange={(event) => onChange(items.map((current, itemIndex) => itemIndex === index ? event.target.value : current))} value={item} /><button aria-label={`Remove ${title.toLowerCase()} item ${index + 1}`} className={removeButton} onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))} type="button">Remove</button></div>)}<button className={addButton} onClick={() => onChange([...items, ""])} type="button">+ Add item</button></FieldGroup>; }
 function QuestionsEditor({ items, onChange }: { items: string[]; onChange: (items: string[]) => void }) { function move(index: number, direction: -1 | 1) { const target = index + direction; if (target < 0 || target >= items.length) return; const next = [...items]; [next[index], next[target]] = [next[target], next[index]]; onChange(next); } return <FieldGroup title="Questions for the veterinarian">{items.map((item, index) => <div className="mt-3 border-l-2 border-[var(--pw-border)] pl-3" key={index}><TextArea label={`Question ${index + 1}`} onChange={(text) => onChange(items.map((current, itemIndex) => itemIndex === index ? text : current))} value={item} /><div className="flex items-center gap-1"><span className="mr-2 text-xs text-[var(--pw-subtle)]">Reorder</span><button aria-label={`Move question ${index + 1} up`} className={iconButton} disabled={index === 0} onClick={() => move(index, -1)} title="Move up" type="button">↑</button><button aria-label={`Move question ${index + 1} down`} className={iconButton} disabled={index === items.length - 1} onClick={() => move(index, 1)} title="Move down" type="button">↓</button><button className={removeButton} onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))} type="button">Remove</button></div></div>)}<button className={addButton} onClick={() => onChange([...items, ""])} type="button">+ Add question</button></FieldGroup>; }
 function FieldGroup({ children, title }: { children: React.ReactNode; title: string }) { return <fieldset className="mt-5 first:mt-0"><legend className="text-sm font-semibold text-[var(--pw-heading)]">{title}</legend><div className="mt-2">{children}</div></fieldset>; }
@@ -264,8 +268,8 @@ function ActionBar({ confirmed, documentStatus, onConfirm, onCreateVersion, onDo
 function Status({ text, tone = "neutral" }: { text: string; tone?: "neutral" | "warn" }) { return <div className={`mt-5 border-y px-1 py-3 text-sm leading-6 ${tone === "warn" ? "border-[var(--pw-warning-border)] text-[var(--pw-warning-text)]" : "border-[var(--pw-border)] text-[var(--pw-muted)]"}`} role="status">{text}</div>; }
 
 function isSectionEmpty(document: VetBriefDocument, id: VetBriefSectionId) { switch (id) { case "visit-reason": return !document.reasonForVisit.trim() || document.reasonForVisit === "Not recorded"; case "changes-noticed": return !document.ownerReportedChanges.length && !document.reportedPatterns.length; case "timeline": return !document.concernTimeline.length; case "food-products": return !document.foodChanges.length && !document.productsUsed.length; case "medications": return !document.medicationsSupplements.length; case "care-history": return !document.relevantCareHistory.length; case "questions": return !document.questionsForVeterinarian.length; case "owner-notes": return !document.ownerNotes.trim(); } }
-async function fetchDraft(petId: string, from: string, to: string, conversationId: string, existingDocument?: VetBriefDocument | null) {
-  const input = { conversationId: conversationId || undefined, existingDocument: existingDocument || undefined, from, petId, to };
+async function fetchDraft(petId: string, from: string, to: string, conversationId: string, existingDocument?: VetBriefDocument | null, reasonForVisit?: string) {
+  const input = { reasonForVisit: reasonForVisit || existingDocument?.reasonForVisit || undefined, conversationId: conversationId || undefined, existingDocument: existingDocument || undefined, from, petId, to };
   // Identical retries share a key; changed dates or owner edits are a new operation.
   const scope = `vet-brief-draft:v2:${JSON.stringify(input)}`;
   const requestId = getOrCreateClientMutationKey(scope);
@@ -291,9 +295,8 @@ async function authenticatedJson(url: string, init: RequestInit = {}, mutationSc
   return payload;
 }
 async function getAuthToken() { const client = getBrowserSupabase(); const { data } = client ? await client.auth.getSession() : { data: { session: null } }; return data.session?.access_token || ""; }
-async function fetchPdfFile(brief: VetBriefRecord, paperSize: "letter" | "a4") { const token = await getAuthToken(); const response = await fetch(`/api/vet-briefs/${encodeURIComponent(brief.id)}/pdf?size=${paperSize}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) throw new Error("PDF unavailable"); const blob = await response.blob(); return new File([blob], getVetBriefFilename(brief.document.pet.name, brief.generatedAt), { type: "application/pdf" }); }
-function formatBriefForCopy(document: VetBriefDocument) { const included = (id: VetBriefSectionId) => !document.excludedSections.includes(id); return [document.title, `${document.pet.name} | ${document.pet.species} | Breed: ${document.pet.breed} | Age: ${document.pet.age} | Weight: ${document.pet.weight}`, included("visit-reason") ? `Reason for visit: ${document.reasonForVisit}` : "", included("changes-noticed") ? formatCopyItems("Owner-reported changes", document.ownerReportedChanges.map((item) => `${item.date}: ${item.text}`)) : "", included("timeline") ? formatCopyItems("Concern timeline", document.concernTimeline.map((item) => `${item.date}: ${item.text}`)) : "", included("questions") ? formatCopyItems("Questions for the veterinarian", document.questionsForVeterinarian) : "", included("owner-notes") ? `Owner notes: ${document.ownerNotes || "Not recorded"}` : "", document.disclaimer].filter(Boolean).join("\n\n"); }
-function formatCopyItems(title: string, items: string[]) { return `${title}:\n${items.length ? items.map((item) => `- ${item}`).join("\n") : "Not recorded"}`; }
+async function fetchPdfFile(brief: VetBriefRecord, paperSize: "letter" | "a4") { const token = await getAuthToken(); const response = await fetch(`/api/vet-briefs/${encodeURIComponent(brief.id)}/pdf?size=${paperSize}`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) { const payload = await response.json().catch(() => null); throw new Error(payload?.error || "The PDF could not be downloaded."); } const blob = await response.blob(); return new File([blob], getVetBriefFilename(brief.document.pet.name, brief.generatedAt), { type: "application/pdf" }); }
+function formatBriefForCopy(document: VetBriefDocument) { return vetBriefText(document); }
 function getDefaultRange() { const to = new Date(); const from = new Date(to); from.setUTCDate(from.getUTCDate() - 90); return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }; }
 async function validateDraftScope(petId: string) { await authenticatedJson(`/api/vet-briefs/draft?pet=${encodeURIComponent(petId)}`); }
 function documentGlobal() { return window.document; }
