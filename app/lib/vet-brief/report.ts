@@ -20,7 +20,7 @@ export function vetBriefReport(document: VetBriefDocument): BriefReportSection[]
     if (unique.length) sections.push({ id, title, items: unique.map(item => ({ ...item, text: item.date ? presentationText(item.text) : item.text })) });
   };
   if (document.urgency) add("urgency", "Care should not wait", [{ text: vetBriefUrgencyText(document.urgency) }]);
-  if (included("visit-reason")) add("reason", "Reason for visit", [{ text: document.reasonForVisit }]);
+  if (included("visit-reason")) add("reason", "Owner-reported reason for visit", [{ text: document.reasonForVisit }]);
   if (included("visit-reason") && document.visitSummary) add("overview", "Visit overview", [{ text: document.visitSummary }]);
   if (included("timeline")) add("timeline", "Concern timeline · owner observations", [...document.concernTimeline].sort(byDate));
   if (included("changes-noticed")) {

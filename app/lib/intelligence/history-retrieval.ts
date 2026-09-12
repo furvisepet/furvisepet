@@ -5,7 +5,7 @@ import { withinEvidenceNeedWindow } from "./history-dates.ts";
 import { historyQueryTerms, historyQueryRelevance, historyEventTerms, historySearchGroups, historyEventRelevance } from "./history-query-relevance.ts";
 import { clipHistoryPlan, historyDateAccessible } from "./history-access.ts";
 import "server-only";
-import { compileHistoryReadStrategies } from "./history-read-strategies.ts";
+import { compileHistoryReadStrategies, type HistoryReadStrategy } from "./history-read-strategies.ts";
 import { explicitHistoryDays } from "./history-dates.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, orderHistoryEvidence } from "./history-synthesis.ts";
 import { createHash } from "node:crypto";
@@ -131,7 +131,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // lookups. Supplemental discovery must not expand the graph/input budgets.
   const correctionReserve = plan.from || namedDays.length ? 12 : 0;
   const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
-  const pagesPerPet = Math.min(HISTORY_BUDGET.pagesPerPet, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
+  const pagesPerPet = Math.min(vetBriefRead ? Math.min(7, vetBriefRead.termGroups.length + 1) : HISTORY_BUDGET.pagesPerPet, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let failed = false; let pages = 0; let exhausted = true;
     const collected: CareEntryRow[] = [];
@@ -152,9 +152,13 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
       : context.askInterpretation?.request && plan.terms.length
         ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
         : directions.map(descending => ({ descending, lexical: !!plan.terms.length, terms: searchTerms }));
-    const compiled = compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan,
-      proposedStrategies.map(strategy => ({ ...strategy, from: vetBriefRead && !strategy.lexical && vetBriefRead.periodFrom
-        ? (!plan.from || vetBriefRead.periodFrom > plan.from ? vetBriefRead.periodFrom : plan.from) : plan.from, to: plan.to })), pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
+    const scopedStrategies: HistoryReadStrategy[] = proposedStrategies.map(strategy => ({ ...strategy, from: vetBriefRead && !strategy.lexical && vetBriefRead.periodFrom
+        ? (!plan.from || vetBriefRead.periodFrom > plan.from ? vetBriefRead.periodFrom : plan.from) : plan.from, to: plan.to }));
+    // Appointment facets already own their search slots. Generic date anchors
+    // must not replace a requested topic; the separate period query covers dates.
+    const compiled = vetBriefRead
+      ? { strategies: scopedStrategies, outsideNeeds: [], omittedNeeds: [], omittedTargets: [] }
+      : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
     const strategies = compiled.strategies;
     coverage.needs ??= [];
     coverage.needs.push(...compiled.outsideNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "unavailable" as const, reason: "need_window_outside_scope" })));

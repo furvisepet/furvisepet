@@ -40,8 +40,10 @@ test('appointment plan accepts long history but rejects impossible dates, future
   const plan={focus:'Review',from:'1926-09-12',to:'2026-09-12',topics:[{label:'Medication',terms:['prednisone','taper']}],questionsToResolve:['Reconcile dates']};
   assert.ok(parseVetBriefAppointmentPlan(plan,'2026-09-12T12:00:00Z'));
   assert.ok(parseVetBriefAppointmentPlan({...plan,from:null},'2026-09-12'));
-  for(const patch of [{to:'2026-09-13'},{from:'2026-02-30'},{topics:Array(4).fill(plan.topics[0])},{topics:[{label:'x',terms:Array(3).fill('term')}]}]) assert.equal(parseVetBriefAppointmentPlan({...plan,...patch},'2026-09-12'),null);
+  for(const patch of [{to:'2026-09-13'},{from:'2026-02-30'},{topics:Array(7).fill(plan.topics[0])},{topics:[{label:'x',terms:Array(3).fill('term')}]}]) assert.equal(parseVetBriefAppointmentPlan({...plan,...patch},'2026-09-12'),null);
   assert.equal(validBriefDay('2026-02-30'),false);
+  assert.ok(parseVetBriefAppointmentPlan({...plan,topics:Array.from({length:6},(_,i)=>({label:'Topic '+i,terms:['stem'+i]}))},'2026-09-12'));
+  assert.equal(parseVetBriefAppointmentPlan({...plan,topics:Array(4).fill(plan.topics[0])},'2026-09-12'),null); // six total stems, not six pairs
 });
 for(const [message,level] of [
   ['Rowan is lethargic, weak in his hind legs, and breathing heavily today. Look back over his full 5-year history.','emergency'],

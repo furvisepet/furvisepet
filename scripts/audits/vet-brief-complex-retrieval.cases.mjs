@@ -41,3 +41,16 @@ test('background searches preserve subscription bounds while recent context has 
  assert.ok(result.bundle.allowedIds.includes('recent-med'));
  assert.equal(result.retrieved.askHistory.coverage.plan.from,'2021-09-04T00:00:00Z');
 });
+
+test('six requested topics each retain a search slot even when the purpose names several dates',async t=>{
+ clock(t);
+ const sixTopics=Array.from({length:6},(_,i)=>({label:'Topic '+i,terms:['facet'+i]}));
+ const many=[...Array.from({length:6},(_,i)=>care('facet-'+i,'milo','2024-01-0'+(i+1),'general','Unique facet'+i+' recorded.')),...rows];
+ const db=database(many);
+ const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2026-06-01',to:'2026-09-04'},currentMessage:'Compare all six topics with records on 2024-01-01, 2024-01-02 and 2024-01-03.'});
+ const result=await retrieveAskHistory(context,db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:sixTopics.flatMap(t=>t.terms),interpretation:'lexical'},termGroups:sixTopics.map(t=>t.terms),periodFrom:'2026-06-01T00:00:00Z'});
+ for(let i=0;i<6;i++) assert.ok(result.askHistory.entries.some(r=>r.id==='facet-'+i),'facet '+i);
+ assert.ok(result.askHistory.coverage.queryCount<=20);
+ assert.ok(result.askHistory.coverage.candidateIds.length<=64);
+ assert.ok(result.askHistory.entries.length<=32);
+});

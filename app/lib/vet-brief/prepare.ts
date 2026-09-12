@@ -21,7 +21,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
   const plan = await generateStructuredFeatureResponse({
     input: { reason: context.currentMessage, selectedDates: baseline.dateRange, asOf: context.currentTimestamp, species: context.pet.species },
     instructions: vetBriefAppointmentPlanInstructions, schema: vetBriefAppointmentPlanSchema, schemaName: 'vet_brief_evidence_plan',
-    maxOutputTokens: 3072, reasoningEffort: 'low', timeoutMs: 25000,
+    maxOutputTokens: 3072, reasoningEffort: 'medium', timeoutMs: 25000,
     parse: value => parseVetBriefAppointmentPlan(value, context.currentTimestamp),
   });
   const retrieved = await retrieveAskHistory(context, supabase, [context.pet.id], {
@@ -75,7 +75,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
     review: document => generateStructuredFeatureResponse({
       input: { draft: vetBriefReviewPublication(document), evidence, visitReason: context.currentMessage },
       instructions: vetBriefReviewInstructions + '\n' + vetBriefDuplicationReviewInstructions + '\nThe currentOwnerReport is admissible as an owner report, not as independently verified historical evidence. Current owner symptoms must be preserved. A request to correlate conditions must be answered with supported chronology and explicit uncertainty, never a fabricated diagnosis. The server-provided urgent guidance is appropriate triage, not a factual history claim. Two to four useful questions are allowed for complex visits. The evidence is bounded: do not demand unavailable history, invent missing records or interpret coverage limits as proof of absence.',
-      schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 4096, reasoningEffort: 'medium', timeoutMs: 35000, parse: value => parseVetBriefPublicationReview(value, document),
+      schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 4096, reasoningEffort: 'high', timeoutMs: 35000, parse: value => parseVetBriefPublicationReview(value, document),
     }),
     onRejected: failedChecks => logIntelligenceEvent('vet brief review rejected', { feature: 'vet_brief', requestId, failedCheckNames: failedChecks.join(',') }),
   });
