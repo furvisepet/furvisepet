@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import { recoverIdempotentRpc } from "./security/idempotent-rpc-recovery.ts";
 
 export type AskConversationAuthorityMessageRow = {
   message_id: string;
@@ -95,7 +96,7 @@ export function beginAskConversationTurn(input: {
   userId: string;
   userText: string;
 }) {
-  return callAskConversationAuthority("begin_ask_conversation_turn", {
+  const parameters = {
     p_conversation_id: input.conversationId,
     p_pet_id: input.petId,
     p_preview: input.preview,
@@ -103,7 +104,10 @@ export function beginAskConversationTurn(input: {
     p_title: input.title,
     p_user_id: input.userId,
     p_user_text: input.userText,
-  });
+  };
+  // The RPC locks user + request ID and replays the same user message after
+  // an ambiguous committed response. A retry cannot create a second turn.
+  return recoverIdempotentRpc(() => callAskConversationAuthority("begin_ask_conversation_turn", parameters));
 }
 
 export function completeAskConversationTurn(input: {
