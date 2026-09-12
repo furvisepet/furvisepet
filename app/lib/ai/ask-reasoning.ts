@@ -699,7 +699,7 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
   let retryUsed = false;
   try {
     parsed = await runProviderRequest({
-      client, model: models.primary, onEvent: input.onProviderEvent, parseOutput, request, stage: "primary", timeoutMs: 25_000,
+      client, model: models.primary, onEvent: input.onProviderEvent, parseOutput, request, stage: "primary", timeoutMs: 40_000,
     });
   } catch (error) {
     if (!(error instanceof AskPipelineError)) throw error;

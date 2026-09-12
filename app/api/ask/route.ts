@@ -2,6 +2,7 @@ import { eligibleAnswerSources } from "../../lib/intelligence/ask-evidence.ts";
 import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
 import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/run-intelligence.ts";
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
+import { ASK_OPERATION_TIMEOUT_MS } from "../../lib/ai/ask-execution-limits.ts";
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
@@ -138,7 +139,8 @@ import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise
 import { readAskProfiles } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
-const askRequestTimeoutMs = 50_000;
+export const maxDuration = 150;
+const askRequestTimeoutMs = ASK_OPERATION_TIMEOUT_MS;
 const askGuardOperationTtlSeconds = 90 * 24 * 60 * 60;
 
 type InternalAskFailureCode = "AI_DAILY_CAP_REACHED" | "AUTH_REQUIRED" | "PET_NOT_FOUND" | "INVALID_MESSAGE" | "IDEMPOTENCY_CONFLICT" | "REQUEST_IN_PROGRESS" | "RATE_LIMITED" | "AI_RATE_LIMITED" | "AI_CREDITS_EXHAUSTED" | "AI_UNAVAILABLE" | "DATABASE_ERROR" | "UNKNOWN_ERROR";
@@ -179,7 +181,7 @@ export async function GET(request: Request) {
 
 type AskRequestExecution = { deadline: OperationDeadline; durable?: { conversationId: string; userMessageId: string; logicalTurnId: string } };
 export async function POST(request: Request) {
-  const execution: AskRequestExecution = { deadline: new OperationDeadline(50_000) };
+  const execution: AskRequestExecution = { deadline: new OperationDeadline(ASK_OPERATION_TIMEOUT_MS) };
   const response = await executeAskRequest(request, execution);
   if (response.ok || !execution.durable) return response;
   const body = await response.clone().json().catch(() => null);

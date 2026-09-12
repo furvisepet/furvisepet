@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { ASK_CLIENT_TIMEOUT_MS } from "../lib/ai/ask-execution-limits";
 import { AskAnswerText } from "../components/ask-answer-text";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -410,7 +411,7 @@ function AskPageContent() {
     if (!retry) setThread((current) => [...current, { id: userMessageId, role: "user", text: prompt }]);
     trackAskEvent(conversationIdAtSubmit ? "follow_up_submitted" : "question_submitted", { source });
     try {
-      const signal = AbortSignal.timeout(55_000);
+      const signal = AbortSignal.timeout(ASK_CLIENT_TIMEOUT_MS);
       const request = requestAskWithSession(getBrowserSupabase()?.auth || null, token => idempotentClientFetch("/api/ask", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

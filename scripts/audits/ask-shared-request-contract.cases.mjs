@@ -565,13 +565,14 @@ test('all provider phases share the Ask deadline and cannot start after it', asy
   const { MemoryAiGuardTestStore } = await import('../../app/lib/ai/usage-guard/memory-test-store.ts');
   const { OPENAI_ANALYSIS_MODEL } = await import('../../app/lib/ai/config.ts');
   const { executeAdmittedProviderCall, boundedProviderTimeout } = await import('../../app/lib/ai/usage-guard/provider-call-budget.ts');
+  const { ASK_OPERATION_TIMEOUT_MS } = await import('../../app/lib/ai/ask-execution-limits.ts');
   let invoked = false;
   const initialTime = Date.now();
   t.mock.method(performance, 'now', () => Date.now() - initialTime);
   await runAdmittedAiOperation({ store: new MemoryAiGuardTestStore(), feature: 'ask', intendedModel: OPENAI_ANALYSIS_MODEL,
     env: { NODE_ENV: 'test' }, payload: {}, userId: ownerId, requestId: 'shared-deadline' }, async () => {
     assert.equal(boundedProviderTimeout(12000), 12000);
-    t.mock.timers.setTime(Date.now() + 44000);
+    t.mock.timers.setTime(Date.now() + ASK_OPERATION_TIMEOUT_MS - 1000);
     assert.equal(boundedProviderTimeout(12000), 1000);
     t.mock.timers.setTime(Date.now() + 1001);
     assert.throws(() => boundedProviderTimeout(12000));

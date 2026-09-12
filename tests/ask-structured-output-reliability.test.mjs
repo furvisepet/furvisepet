@@ -67,9 +67,9 @@ function clientWith(responses) {
   };
 }
 
-test("Ask uses one canonical 4096-token native strict structured-output request", () => {
+test("Ask uses one canonical 8192-token native strict structured-output request", () => {
   const request = buildAskProviderRequest({ currentMessage: "hello" });
-  assert.equal(ASK_MAX_OUTPUT_TOKENS, 4096);
+  assert.equal(ASK_MAX_OUTPUT_TOKENS, 8192);
   assert.equal(request.max_output_tokens, ASK_MAX_OUTPUT_TOKENS);
   assert.deepEqual(request.text.format, { type: "json_schema", name: "furvise_ask_response", strict: true, schema: askUnifiedJsonSchema });
   assert.equal("temperature" in request, false);
@@ -181,7 +181,7 @@ test("urgent output missing explicit escalation is repaired deterministically", 
 
 test("the reduced contract bounds metadata while complete prose uses the provider token budget", () => {
   assert.equal(askUnifiedJsonSchema.properties.answer.maxLength, undefined);
-  assert.equal(ASK_MAX_OUTPUT_TOKENS, 4096);
+  assert.equal(ASK_MAX_OUTPUT_TOKENS, 8192);
   assert.equal(askUnifiedJsonSchema.properties.answerSections.maxItems, 3);
   assert.equal(askUnifiedJsonSchema.properties.answerSections.items.properties.items.maxItems, 4);
   assert.equal(askUnifiedJsonSchema.properties.suggestedFollowUps.maxItems, 4);

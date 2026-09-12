@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import { ASK_CLIENT_TIMEOUT_MS } from '../app/lib/ai/ask-execution-limits.ts';
 import { planDeterministicAskCommand } from '../app/lib/ai/ask-command-router.ts';
 import { classifyFurviseCapabilityQuestion, buildFurviseCapabilityResponse } from '../app/lib/ai/ask-internal-product-policy.ts';
 
@@ -220,7 +221,7 @@ function failedSubmitHarness({refreshFails=false,requestFailure='http'}={}) {
     setAskRequestActive:v=>state.active=v,setRequestPhase:v=>state.phase=v,setFailedRequest:v=>state.failed=v,
     setError:noop,setPersistenceWarning:noop,setStatus:noop,setQuestion:noop,
     setThread:updater=>state.thread=updater(state.thread),trackAskEvent:noop,
-    AbortSignal:{timeout:()=>({})},getBrowserSupabase:()=>({auth:{}}),
+    ASK_CLIENT_TIMEOUT_MS,AbortSignal:{timeout:()=>({})},getBrowserSupabase:()=>({auth:{}}),
     requestAskWithSession:(_auth,send)=>send('token'),
     idempotentClientFetch:async(_url,options,scope,id)=>{
       state.requests.push({payload:JSON.parse(options.body),scope,id});

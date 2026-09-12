@@ -1,13 +1,13 @@
 import type { RateLimitPolicy, RateLimitPolicyName } from "./types";
+import { ASK_CONCURRENCY_TTL_MS } from "../../ai/ask-execution-limits.ts";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-const AI_LEASE_TTL_MS = 65_000;
 const VET_BRIEF_LEASE_TTL_MS = 90_000;
 
 const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
-  ASK_AI: aiPolicy("ASK_AI", 10, 30, AI_LEASE_TTL_MS),
+  ASK_AI: aiPolicy("ASK_AI", 10, 30, ASK_CONCURRENCY_TTL_MS),
   VET_BRIEF_AI: aiPolicy("VET_BRIEF_AI", 4, 12, VET_BRIEF_LEASE_TTL_MS),
   MEMORY_WRITE: writePolicy("MEMORY_WRITE", 30, 60),
   PROFILE_WRITE: writePolicy("PROFILE_WRITE", 30, 60),

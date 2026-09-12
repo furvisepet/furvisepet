@@ -1,4 +1,5 @@
 import "server-only";
+import { ASK_OPERATION_TIMEOUT_MS } from "../ask-execution-limits.ts";
 
 import { randomUUID } from "node:crypto";
 import { getRateLimitBackendConfig } from "../../security/rate-limit/config";
@@ -65,7 +66,7 @@ export async function admitAiOperation(input: {
 
 export class AiOperationAdmission {
   readonly deadline: OperationDeadline | null;
-  // Leave time for persistence/settlement within the 50-second Ask route.
+  // The shared operation deadline includes persistence and settlement.
   readonly providerDeadlineAt: number;
   private callNumber = 0;
   private interpretationRepaired = false;
@@ -88,8 +89,8 @@ export class AiOperationAdmission {
 
   constructor(input: { deadline?: OperationDeadline; config: ReturnType<typeof getAiGuardConfig>; env: Record<string, string | undefined>; feature: AiGuardFeature; intendedModel: string; metrics: AiGuardMetrics; now: Date; operationId: string; operationKey: string; operationTtlSeconds: number; policy: ReturnType<typeof getAiFeaturePolicy>; requestId: string; store: AiGuardStore }) {
     Object.assign(this, input);
-    this.deadline = input.feature === "ask" ? input.deadline || new OperationDeadline(45_000) : null;
-    this.providerDeadlineAt = input.feature === "ask" ? Date.now() + 45_000 : Number.POSITIVE_INFINITY;
+    this.deadline = input.feature === "ask" ? input.deadline || new OperationDeadline(ASK_OPERATION_TIMEOUT_MS) : null;
+    this.providerDeadlineAt = input.feature === "ask" ? Date.now() + ASK_OPERATION_TIMEOUT_MS : Number.POSITIVE_INFINITY;
     this.config = input.config; this.env = input.env; this.feature = input.feature; this.intendedModel = input.intendedModel;
     this.metrics = input.metrics; this.now = input.now; this.operationId = input.operationId; this.operationKey = input.operationKey; this.operationTtlSeconds = input.operationTtlSeconds;
     this.policy = input.policy; this.requestId = input.requestId; this.store = input.store;
