@@ -21,7 +21,7 @@ import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, inclusiveDateSpanDa
 import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
 import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 
-import { addVetBriefCoverage, parseVetBriefReview, vetBriefReviewInstructions, vetBriefReviewPassed, vetBriefReviewSchema } from "../../../lib/vet-brief/review";
+import { addVetBriefCoverage, parseVetBriefReview, vetBriefReviewInstructions, prepareReviewedVetBrief, vetBriefReviewSchema } from "../../../lib/vet-brief/review";
 
 export const maxDuration = 150;
 
@@ -128,10 +128,11 @@ export async function POST(request: Request) {
       payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, requestId, userId: auth.userId,
     }, () => runWithAiCredit<FeatureIntelligenceResult<IntelligenceVetBrief>>({
       feature: "vet_brief", monthlyAiCredits: auth.monthlyAiCredits, payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
-      generate: async () => {
-        const candidate = await runFeatureIntelligence({
+      generate: () => prepareReviewedVetBrief({
+        generate: (reviewRepair) => runFeatureIntelligence({
         context, feature: "vet_brief", maxOutputTokens: 8192,
         featureInput: {
+          reviewRepair,
           deterministicDraft: baseline.document,
           purpose: retrospective ? "retrospective_care_history_summary" : "vet_visit_preparation",
           allowedSourceRecordIds,
@@ -142,18 +143,14 @@ export async function POST(request: Request) {
           } : null,
         },
         parseValue: (value) => parseIntelligenceVetBrief(value, baseline.document, allowedSourceRecordIds),
-        });
-        const review = await generateStructuredFeatureResponse({
-          input: { draft: candidate.value.document, evidence: { baseline: baseline.document, records: context.careEntries.filter(entry => allowedSourceRecordIds.includes(entry.id)).map(entry => ({ id: entry.id, category: entry.category, date: entry.occurred_at, text: entry.note, title: entry.title })), memories: legacyMemories }, visitReason: reasonForVisit },
+        }),
+        review: (document) => generateStructuredFeatureResponse({
+          input: { draft: document, evidence: { baseline: baseline.document, records: context.careEntries.filter(entry => allowedSourceRecordIds.includes(entry.id)).map(entry => ({ id: entry.id, category: entry.category, date: entry.occurred_at, text: entry.note, title: entry.title })), memories: legacyMemories }, visitReason: reasonForVisit },
           instructions: vetBriefReviewInstructions, maxOutputTokens: 2048,
           schema: vetBriefReviewSchema, schemaName: "furvise_vet_brief_review", parse: parseVetBriefReview,
-        });
-        if (!vetBriefReviewPassed(review)) {
-          logIntelligenceEvent("vet brief review rejected", { feature: "vet_brief", requestId, ...review });
-          throw new Error("Vet brief evidence review failed.");
-        }
-        return candidate;
-      },
+        }),
+        onRejected: (failedChecks) => logIntelligenceEvent("vet brief review rejected", { feature: "vet_brief", requestId, failedChecks }),
+      }),
     }));
     const generatedDocument = addVetBriefCoverage(preserveOwnerEdits(generated.value.value.document, existingDocument), context.evidenceLoading?.sources || []);
     logIntelligenceEvent("vet brief generated", {

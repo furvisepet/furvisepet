@@ -26,6 +26,27 @@ export function vetBriefReviewPassed(value: ReturnType<typeof parseVetBriefRevie
   return value !== null && Object.keys(vetBriefReviewSchema.properties).every(key => value[key as keyof typeof value] === true);
 }
 
+export type VetBriefRepairFeedback = { document: VetBriefDocument; failedChecks: string[] };
+
+export async function prepareReviewedVetBrief<T extends { value: { document: VetBriefDocument } }>({ generate, review, onRejected }: {
+  generate: (feedback: VetBriefRepairFeedback | null) => Promise<T>;
+  review: (document: VetBriefDocument) => Promise<ReturnType<typeof parseVetBriefReview>>;
+  onRejected?: (failedChecks: string[]) => void;
+}): Promise<T> {
+  let feedback: VetBriefRepairFeedback | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const candidate = await generate(feedback);
+    const verdict = await review(candidate.value.document);
+    if (vetBriefReviewPassed(verdict)) return candidate;
+    const failedChecks = Object.keys(vetBriefReviewSchema.properties).filter(key => !verdict || verdict[key as keyof typeof verdict] !== true);
+    onRejected?.(failedChecks);
+    feedback = { document: candidate.value.document, failedChecks };
+  }
+  const error = new Error("Vet brief evidence review failed after one repair.");
+  error.name = "FeatureValidationError";
+  throw error;
+}
+
 export function addVetBriefCoverage(document: VetBriefDocument, sources: Array<{ source: string; status: string }>) {
   const warnings = sources.filter(source => ["care_entries", "legacy_memories", "furvise_memories"].includes(source.source))
     .flatMap(source => source.status === "capped" ? ["Only part of the selected history was available. Earlier records may be missing."]
