@@ -21,6 +21,9 @@ export type RecordInventory = { petId: string; count: number; from: string; to: 
 export async function readRecordInventory(context: FurviseLiveContext, db: SupabaseClient): Promise<RecordInventory[]> {
   const interpretation = context.askInterpretation, request = interpretation?.request;
   const literalWindow = literalInventoryWindow(context.currentMessage, context.eligiblePets.map(pet => pet.name || ""));
+  if (literalWindow || request?.quantity === "records") console.info("[Ask inventory] plan", {
+    literalWindow: Boolean(literalWindow), readOnly: interpretation?.readOnly, quantity: request?.quantity, hasHistory: Boolean(interpretation?.history),
+  });
   if (!interpretation?.readOnly || !literalWindow && (request?.quantity !== "records" || !interpretation.history
     || historyQueryTerms(interpretation.history.terms.map(term => term.replace(/\b(?:care|entries|entry|database|stored|total|count)\b/gi, " ")), context.eligiblePets.map(pet => pet.name || "")).length) || !/\b(?:how many|count|number of|total)\b/i.test(context.currentMessage)
     || !/\b(?:care[- ]history entries|database notes|saved (?:care )?(?:notes|entries|records))\b/i.test(context.currentMessage)) return [];
@@ -37,8 +40,10 @@ export async function readRecordInventory(context: FurviseLiveContext, db: Supab
         .eq("user_id", context.owner.userId).eq("pet_profile_id", petId).is("deleted_at", null)
         .gte("occurred_at", plan.from).lt("occurred_at", plan.to).abortSignal(AbortSignal.timeout(4000));
       if (!error && Number.isSafeInteger(count) && count! >= 0) result.push({ petId, count: count!, from: plan.from, to: plan.to, checkedAt: new Date().toISOString() });
-    } catch { /* No aggregate evidence is issued on unavailable database reads. */ }
+      else console.info("[Ask inventory] unavailable", { code: error?.code || "invalid_count" });
+    } catch { console.info("[Ask inventory] unavailable", { code: "transport_or_timeout" }); }
   }
+  console.info("[Ask inventory] complete", { representedPets: result.length });
   return result;
 }
 export function recordInventoryEvidence(items: readonly RecordInventory[]) {
