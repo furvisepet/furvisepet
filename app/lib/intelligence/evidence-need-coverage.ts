@@ -28,7 +28,10 @@ export function buildEvidenceNeedCoverage(evidence: AskEvidenceContract): NeedCo
       const matching = evidence.represented.filter(span => span.petId === petId && span.sourceType === "care_update"
         && withinEvidenceNeedWindow(span.occurredAt, need.window)
         && span.start === 0 && span.end === span.text.length && span.text.trim()
-        && (candidateSourceIds.includes(span.sourceId) || need.terms.some(term => span.text.toLowerCase().includes(term.toLowerCase())))
+        // Period probes intentionally recover records missed by lexical hints.
+        // Their presence is candidate availability, never semantic proof. Do not
+        // issue an empty-lookup receipt while those in-window candidates exist.
+        && (candidateSourceIds.includes(span.sourceId) || !!need.window || need.terms.some(term => span.text.toLowerCase().includes(term.toLowerCase())))
         && !evidence.losses.some(loss => loss.sourceId === span.sourceId)
         && evidence.sources.some(source => source.petId === petId && source.loadedIds.includes(span.sourceId) && !["unavailable", "not_loaded"].includes(source.status))
         && !evidence.history?.provenance.some(source => source.sourceId === span.sourceId

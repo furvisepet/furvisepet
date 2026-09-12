@@ -30,7 +30,7 @@ function quantities(text: string): string[] {
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
  * prevents an approving model from manufacturing a date or dose. */
-export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = [], onUnsupported?: (reason: string) => void, serializedResult = false): boolean {
+export function historyNarrativeAnchorsSupported(text: string, sources: Source[], requestText = "", derivedQuantities: readonly string[] = [], legacyDerivations = true, scopeDates: readonly string[] = [], onUnsupported?: (reason: string) => void, serializedResult = false, proposedTexts: readonly string[] = []): boolean {
   // Relative words in old records must not become an undated current claim.
   const prose = text.replace(/"[^"]*"|“[^”]*”/g, "");
   // Missing documentation cannot support a claim that a clinical act never occurred.
@@ -59,6 +59,10 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
       // grants no factual authority: the independent reviewer must still check
       // whether the answer accepts, rejects or qualifies that claim correctly.
       if (!legacyDerivations && requestText.includes(quote)) continue;
+      // Quoting a prepared replacement is an artifact-fidelity check, not a
+      // claim that it is already saved. Numeric/date grounding below still uses
+      // original sources; independent review must verify intent and pending state.
+      if (!legacyDerivations && proposedTexts.some(proposal => proposal === quote)) continue;
       onUnsupported?.("Quotation is not an exact case-sensitive source substring: " + quote);
       return false;
     }

@@ -4,6 +4,18 @@ import { missingExactRecordText } from '../app/lib/intelligence/exact-record-tex
 import { verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
 import { reviewObligationCompletion, historyTaskCompleted } from '../app/lib/intelligence/history-obligations.ts';
 const note='May 4, 2025: ate 28 g of "usual" food.';
+test('a prepared replacement quotation is an artifact, never independent numeric evidence',async()=>{
+ const {historyNarrativeAnchorsSupported}=await import('../app/lib/intelligence/history-narrative-facts.ts');
+ const original={text:'June 2, 2025: walked for 10 minutes.',occurredAt:'2025-06-02T00:00:00Z'};
+ const request={text:'Correct the June 2 walk from 10 minutes to 12 minutes.'};
+ const proposed='June 2, 2025: walked for 12 minutes.';
+ const text='Proposed replacement: "'+proposed+'". Please confirm.';
+ const check=(sources,proposals)=>historyNarrativeAnchorsSupported(text,sources,request.text,[],false,[],undefined,false,proposals);
+ assert.equal(check([original,request],[]),false);
+ assert.equal(check([original,request],[proposed]),true);
+ assert.equal(check([original],[proposed]),false,'proposal text cannot supply unsupported quantities');
+ assert.equal(check([original,request],[proposed.replace('12','18')]),false);
+});
 test('generation and repair schemas constrain citations and mutation targets independently',async()=>{
  const {sourceBoundSchema}=await import('../app/lib/intelligence/source-bound-schema.ts');
  const base={type:'object',properties:{sourceIds:{type:'array',items:{type:'string'}},targetSourceId:{type:['string','null']},calculation:{properties:{sourceId:{type:'string'}}}}};
