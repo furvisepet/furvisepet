@@ -62,3 +62,15 @@ PR343 passed all CI gates with 2,217 tests. Merge commit `a2dab6a949dab9f4f3c2a9
 - Mochi historical-weight first attempt: PARTIAL. April 9, 2024 body weight 3.97 kg correctly distinguished from current profile 3.8 kg, with no diagnosis or cause invented. However, unrelated grooming/activity/housekeeping cluttered the report. PR344 adds an independent visit-focus criterion and clarifies relevance selection rather than applying a pet-specific filter.
 
 PR344 final deployed retries remain pending at this checkpoint. Earlier failures are retained above; they are not replaced by later passes.
+
+## Final deployed verification
+
+PR344 merged as `4fd5594f27486925b24ace5753e40111de4095a7`. CI run 34689315467 passed all gates: lint, TypeScript, 160 focused security checks, 2,218 full tests, production dependency audit and production build. Vercel deployment `dpl_5EYYpYKTf8g5bgPCBNeDwv9FkjDR` reached READY with furvise.com and www.furvise.com aliases.
+
+- Original routine Sable wording retried in the same browser session: PASS. Report explicitly acknowledges sparse records, preserves September 10 breakfast at 83 g, classifies it as routine, and includes useful discussion questions. No actual change or current illness invented.
+- Mochi exact original request and April 1–30, 2024 range retried: PASS. Current profile 3.8 kg remains visibly separate from April 9 household measurement 3.97 kg. Measurement method and unknown cause preserved. Unrelated activity, grooming and housekeeping removed. Questions focus on rechecking/tracking weight and the unknown medication list.
+- Confirmed historical Sable production PDF downloaded after final deployment: PASS. One page, all original dates, 11/13-minute amounts, overview, questions and QA owner addition retained. Rendered and visually checked. The browser automation download-event wait timed out, but the actual saved PDF and successful UI status independently confirmed completion.
+- Saved brief reopening and print content parity passed on PR343; final PDF regenerated from that same private confirmed version on PR344. No real patient data or external recipient sharing was used.
+- Final sample: `output/pdf/furvise-vet-brief-live-qa-2026-09-12.pdf` (synthetic internal QA; not a clinical example or evidence of practitioner endorsement).
+
+All six targeted checks are resolved within their stated scope. Native sharing is unavailable in this test browser and was not end-to-end tested. These retries are not a fresh broad acceptance suite and do not replace earlier first-attempt results. The bounded-history and clinical-validation limitations above remain.
