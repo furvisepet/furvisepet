@@ -44,7 +44,7 @@ test('only exact represented aggregate evidence can draft a count answer',async(
   assert.equal(eligibleAnswerSources(evidence).length,0);
 });
 test('record-container hints do not disable an exact count, content filters still do',async()=>{
-  const c=context(); c.askInterpretation.history.terms=['saved notes','care history','entries'];
+  const c=context(); c.askInterpretation.history.terms=['saved care-history entries','database notes','stored notes'];
   const {db}=database({count:7,error:null});
   assert.equal((await readRecordInventory(c,db))[0].count,7);
   c.askInterpretation.history.terms.push('medication');
