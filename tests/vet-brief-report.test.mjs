@@ -44,7 +44,7 @@ test('sharing includes medication and food details, while empty sections are omi
 });
 
 test('every independent review criterion must pass; malformed or partial verdicts fail', () => {
-  const keys = ['factsSupported', 'importantHistoryPreserved', 'categoriesAccurate', 'uncertaintyPreserved', 'noDuplication', 'questionsUseful'];
+  const keys = ['factsSupported', 'importantHistoryPreserved', 'categoriesAccurate', 'uncertaintyPreserved', 'noDuplication', 'questionsUseful', 'visitFocused'];
   const valid = Object.fromEntries(keys.map(key => [key, true]));
   assert.equal(vetBriefReviewPassed(parseVetBriefReview(valid)), true);
   for (const key of keys) assert.equal(vetBriefReviewPassed(parseVetBriefReview({ ...valid, [key]: false })), false);

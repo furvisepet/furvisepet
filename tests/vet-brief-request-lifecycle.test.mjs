@@ -99,3 +99,35 @@ test("generated exports keep their object URL alive until the browser can consum
     else globalThis.window = priorWindow;
   }
 });
+
+test("a server-confirmed released attempt rotates its key once without retrying ambiguous failures", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalWindow = globalThis.window;
+  const values = new Map();
+  globalThis.window = { sessionStorage: {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  } };
+  const calls = [];
+  let alwaysReleased = false;
+  globalThis.fetch = async (_url, init) => {
+    calls.push(JSON.parse(init.body));
+    if (alwaysReleased || calls.length === 1) return Response.json({ code: 'AI_REQUEST_RELEASED', error: 'Previous attempt released' }, { status: 409 });
+    return Response.json({ document: {}, sourceEntryIds: [] });
+  };
+  try {
+    const context = vm.createContext({ getOrCreateClientMutationKey, idempotentClientFetch, getAuthToken: async () => 'test-token' });
+    vm.runInContext(compiled, context);
+    await context.fetchDraft('pet-a', '2024-01-01', '2024-12-31', '');
+    assert.equal(calls.length, 2);
+    assert.notEqual(calls[0].requestId, calls[1].requestId);
+    assert.equal(values.size, 0);
+    alwaysReleased = true;
+    await assert.rejects(context.fetchDraft('pet-a', '2024-01-01', '2024-12-31', ''), /Previous attempt released/);
+    assert.equal(calls.length, 4, 'a repeated release error is not an infinite retry loop');
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalWindow === undefined) delete globalThis.window; else globalThis.window = originalWindow;
+  }
+});

@@ -490,9 +490,11 @@ export class AiCreditLimitReachedError extends Error {
 }
 
 export class AiCreditReplayRequiredError extends Error {
+  readonly status: "completed" | "released";
   constructor(status: "completed" | "released") {
     super(status === "completed" ? "AI_CREDIT_COMPLETED_REPLAY_REQUIRED" : "AI_CREDIT_RELEASED_NEW_REQUEST_REQUIRED");
     this.name = "AiCreditReplayRequiredError";
+    this.status = status;
   }
 }
 
