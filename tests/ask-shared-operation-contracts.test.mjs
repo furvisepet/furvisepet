@@ -7,6 +7,18 @@ import { readRecordInventory } from '../app/lib/intelligence/record-inventory.ts
 import { validateAskRequest } from '../app/lib/intelligence/ask-request-contract.ts';
 import { emptyProposedSemanticFrame } from '../app/lib/intelligence/semantic-frame/extract-frame.ts';
 
+test('a fallback year never expands an interpreted local-language date interval',()=>{
+ const pet={id:'pet',user_id:'owner',name:'Fern'};
+ for(const [currentMessage,from,to] of [
+  ['Resume las observaciones de Fern del 10 y del 13 de agosto de 2023.','2023-08-10','2023-08-14'],
+  ['Résume les observations de Fern du 4 au 8 février 2025.','2025-02-04','2025-02-09']]) {
+  const result=validateAskRequest({version:'ask-request.v2',mode:'read',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'recall',selection:'period',quantity:null,topic:'observations',terms:[],from,to,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'},
+   {owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
+  assert.equal(result.history.from,from+'T00:00:00.000Z');
+  assert.equal(result.history.to,to+'T00:00:00.000Z');
+ }
+});
+
 test('an irrelevant read-planning hint cannot terminate an owned episode question', () => {
   const pet={id:'pet',user_id:'owner',name:'Fern'};
   const currentMessage='How many vomiting episodes are recorded for Fern in 2024?';

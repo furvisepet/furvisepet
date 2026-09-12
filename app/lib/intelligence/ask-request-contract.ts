@@ -181,13 +181,21 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   // An explicit pet and calendar period define a fresh read unless the user
   // actually refers to an earlier result. Planner-added turn IDs cannot narrow
   // a whole-month export/count to the last save receipt or displayed list.
-  const explicitReadPeriod = evidenceNeedWindow(context.currentMessage) || literalHistoryYearWindow(context.currentMessage);
+  const preciseReadPeriod = evidenceNeedWindow(context.currentMessage);
+  const explicitReadPeriod = preciseReadPeriod || literalHistoryYearWindow(context.currentMessage);
   if (["read", "clarify"].includes(String(p.mode)) && explicitPets.length === 1 && explicitReadPeriod
     && Date.parse(explicitReadPeriod.to) - Date.parse(explicitReadPeriod.from) > 86400000
     && !/\b(?:these|those|that|above|previous|earlier|displayed|linked|receipts?|you (?:listed|showed))\b/i.test(context.currentMessage)) {
     p.referenceTurnIds.splice(0); p.question = context.currentMessage; p.requirements = [];
     p.mode = "read"; p.scope = "named"; petIds = [explicitPets[0].id];
-    p.from = explicitReadPeriod.from.slice(0,10); p.to = explicitReadPeriod.to.slice(0,10);
+    // A fallback year recognizer cannot widen a more precise validated plan.
+    // In particular, dates in another language may be understood by the
+    // interpreter but not by the optional literal calendar recognizer.
+    const containedPlan = typeof p.from === "string" && typeof p.to === "string"
+      && p.from >= explicitReadPeriod.from.slice(0,10) && p.to <= explicitReadPeriod.to.slice(0,10);
+    if (preciseReadPeriod || !containedPlan) {
+      p.from = explicitReadPeriod.from.slice(0,10); p.to = explicitReadPeriod.to.slice(0,10);
+    }
     if (p.operation === "clarify") p.operation = p.ordinal ? "episode" : "recall";
   }
   // A selected conversation container is not a cohort-search constraint. Resolve

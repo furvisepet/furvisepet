@@ -4,6 +4,29 @@ import { missingExactRecordText } from '../app/lib/intelligence/exact-record-tex
 import { verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
 import { reviewObligationCompletion, historyTaskCompleted } from '../app/lib/intelligence/history-obligations.ts';
 const note='May 4, 2025: ate 28 g of "usual" food.';
+test('calculation generation binds each operand to its original source and field',async()=>{
+ const {sourceBoundSchema}=await import('../app/lib/intelligence/source-bound-schema.ts');
+ const base={properties:{operands:{type:'array',items:{type:'object'}}}};
+ const sources=[{sourceId:'care:a',sourceType:'care_update',text:'Walked 23 minutes; rested 6 minutes.',occurredAt:'2025-04-03T00:00:00Z'},
+  {sourceId:'care:b',sourceType:'care_update',text:'Played 14 minutes.'}];
+ const choices=sourceBoundSchema(base,sources).properties.operands.items.anyOf;
+ assert.deepEqual(choices[0].properties.sourceId.enum,['care:a']);
+ assert.deepEqual(choices[0].properties.literal.enum,['23 minutes','6 minutes','care:a']);
+ assert.deepEqual(choices[1].properties.field.enum,['occurredAt']);
+ assert.deepEqual(choices[2].properties.sourceId.enum,['care:b']);
+ assert.deepEqual(choices[2].properties.literal.enum,['14 minutes','care:b']);
+ assert.equal(base.properties.operands.items.anyOf,undefined);
+});
+test('review schema only permits indexes in the submitted draft and cards',async()=>{
+ const {boundedTaskHistoryReviewSchema,parseRepairableTaskHistoryReview}=await import('../app/lib/intelligence/history-review-selection.ts');
+ const s=boundedTaskHistoryReviewSchema(1,4,0);
+ assert.equal(s.properties.retainedSentenceIndexes.items.maximum,0);
+ assert.equal(s.properties.obligations.minItems,4);
+ assert.equal(s.properties.obligations.items.properties.index.maximum,3);
+ assert.equal(s.properties.obligations.items.properties.actionIndexes.maxItems,0);
+ assert.throws(()=>parseRepairableTaskHistoryReview({approved:true,retainedSentenceIndexes:[0],rejectionReason:null,
+  obligations:[{index:0,status:'answered',sentenceIndexes:[1],actionIndexes:[]}]},1,1,0));
+});
 test('a prepared replacement quotation is an artifact, never independent numeric evidence',async()=>{
  const {historyNarrativeAnchorsSupported}=await import('../app/lib/intelligence/history-narrative-facts.ts');
  const original={text:'June 2, 2025: walked for 10 minutes.',occurredAt:'2025-06-02T00:00:00Z'};
