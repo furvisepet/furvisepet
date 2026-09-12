@@ -2,7 +2,7 @@ import { receiptCompletionText } from "./receipt-completion.ts";
 import { episodeResultText } from "./episode-contract.ts";
 import { recordInventoryEvidence } from "./record-inventory.ts";
 import { correctionReportAnswer } from "./correction-report.ts";
-import { buildEvidenceNeedCoverage, type NeedCoverage } from "./evidence-need-coverage.ts";
+import { buildEvidenceNeedCoverage, completedEmptyEvidenceNeeds, type NeedCoverage } from "./evidence-need-coverage.ts";
 import { historyEventTerms, historyEventRelevance } from "./history-query-relevance.ts";
 import { compareHistoryTime, classifyOccurrenceReport, occurrenceCandidates, supportedHistoryParaphrase, orderHistoryEvidence, type HistorySynthesisProposal } from "./history-synthesis.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
@@ -243,16 +243,28 @@ export function eligibleAnswerSources(evidence: AskEvidenceContract) {
       && source.status !== "unavailable" && source.status !== "not_loaded")
     && !evidence.history?.provenance.some(source => source.sourceId === span.sourceId
       && !["effective_linked", "effective_replacement", "unverified_legacy", ...(evidence.interpretation?.request ? ["unlinked_correction_uncertain"] : [])].includes(source.status)));
+  // A completed lookup is operational evidence, not a clinical observation.
+  // Generate its identity and scope from server receipts for both writer and
+  // reviewer; neither selected profile facts nor invented source IDs can stand
+  // in for this missing-record explanation.
+  const lookupSources = completedEmptyEvidenceNeeds(evidence).flatMap(key => {
+    const [needId, petId] = JSON.parse(key) as [string, string];
+    const need = evidence.interpretation?.request?.evidenceNeeds?.find(item => item.id === needId);
+    if (!need || !evidence.scope.authorizedPetIds.includes(petId)) return [];
+    const text = `The completed scoped lookup for ${evidence.petNames?.[petId] || petId} found no matching saved care records for request clause ${JSON.stringify(need.quote)}${need.window ? `, from ${need.window.from} inclusive to ${need.window.to} exclusive` : ""}. This establishes only the lookup result, not that the event never happened, the pet was healthy, or no records exist outside this lookup.`;
+    return [{ sourceId: `lookup:${needId}:${petId}`, petId, sourceType: "lookup_receipt", field: "value" as const,
+      start: 0, end: text.length, text, occurredAt: null }];
+  });
   // Mixed turns have two provenance classes: existing records and the owner's
   // present request. The replacement value is not expected to exist in history.
   // Expose it explicitly, never disguise it as a saved clinical observation.
   if (!evidence.scope.readOnlyRecall && evidence.interpretation?.request
     && evidence.scope.authorizedPetIds.length === 1) {
     const text = evidence.scope.requestText;
-    return [...saved, { sourceId: "request:current", petId: evidence.scope.authorizedPetIds[0],
+    return [...saved, ...lookupSources, { sourceId: "request:current", petId: evidence.scope.authorizedPetIds[0],
       sourceType: "current_request", field: "value" as const, start: 0, end: text.length, text, occurredAt: null }];
   }
-  return saved;
+  return [...saved, ...lookupSources];
 }
 
 export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringify(scope); }

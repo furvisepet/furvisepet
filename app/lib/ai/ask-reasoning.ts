@@ -1,5 +1,6 @@
 import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
 import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
+import { sourceBoundSchema } from "../intelligence/source-bound-schema.ts";
 import { episodeResultText } from "../intelligence/episode-contract.ts";
 import { furviseProductFacts } from "./ask-internal-product-policy.ts";
 import { isOwnerAssertedEvidence } from "./owner-assertion.ts";
@@ -785,7 +786,10 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     parsed.semanticEvents = [];
     parsed.careActions = [];
   }
-  const unsupportedEventEvidence = parsed.semanticEvents.filter(event =>
+  // Read-only authority already prevents these proposals from being persisted.
+  // A rejected write hint must not spend the answer's repair budget or abort a
+  // history read; final governance still clears every forbidden write channel.
+  const unsupportedEventEvidence = context.promptContext.evidenceContract.scope.readOnlyRecall ? [] : parsed.semanticEvents.filter(event =>
     !isOwnerAssertedEvidence(input.question, event.sourceExcerpt));
   if (unsupportedEventEvidence.length) {
     if (retryUsed) throw new AskPipelineError("fallback_invalid_output", "Ask event evidence remained unsupported.", {
@@ -1289,6 +1293,7 @@ export function buildAskProviderRequest(promptContext: object) {
   const requestInstructions = dedicatedRead || !evidence?.interpretation?.request
     ? taskInstructions : taskInstructions + "\n" + companionVoiceInstructions;
   const currentRequestSources = !conversationOnly && evidence?.scope?.readOnlyRecall === false ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "current_request") : [];
+  const lookupEvidence = !conversationOnly && evidence?.interpretation?.request?.evidenceNeeds?.length ? eligibleAnswerSources(evidence).filter(source => source.sourceType === "lookup_receipt") : [];
   let transported = conversationOnly ? conversationPromptContext(promptContext) : currentRequestSources.length
     ? { ...promptContext, currentRequestEvidence: currentRequestSources } : promptContext;
   if (evidence?.history && (JSON.stringify(promptContext).length > ASK_PROMPT_CONTEXT_CHAR_BUDGET
@@ -1319,13 +1324,15 @@ export function buildAskProviderRequest(promptContext: object) {
     } };
   }
   if (currentRequestSources.length) transported = { ...transported, currentRequestEvidence: currentRequestSources };
+  if (lookupEvidence.length) transported = { ...transported, lookupEvidence,
+    lookupAuthority: "Cite the exact lookup_receipt sourceId for a completed lookup with no matching records. This is evidence of that bounded search result, never proof an event did not happen or a pet was healthy. Do not invent a care source for a missing record." };
   if (dedicatedRead) transported = { ...transported, requestAuthority: { currentUserRequest: evidence.scope.requestText, plannerAuthority: "Routing and reference hints only; original user intent wins any conflict. No factual authority.", sourceAuthority: "Only scoped source records establish saved facts." } };
   return {
     max_output_tokens: ASK_MAX_OUTPUT_TOKENS,
     ...(dedicatedRead || conversationOnly ? { reasoning: { effort: "medium" } } : {}),
     instructions: requestInstructions,
     input: JSON.stringify(transported),
-    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties) : askUnifiedJsonSchema } },
+    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: sourceBoundSchema(conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties) : askUnifiedJsonSchema, !conversationOnly && evidence?.interpretation?.request && evidence?.scope?.authorizedPetIds ? eligibleAnswerSources(evidence) : []) } },
   };
 }
 

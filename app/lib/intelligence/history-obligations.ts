@@ -6,6 +6,14 @@ export type HistoryObligation = { index: number; text: string; needId?: string; 
   window?: EvidenceNeedWindow; availability?: string; representedSourceIds?: string[] };
 export type ObligationCompletion = { index: number; needId?: string; petId?: string; window?: EvidenceNeedWindow;
   status: TaskObligationReview["status"]; sentenceIndexes: number[]; sourceIds: string[]; actionIndexes?: number[] };
+/** Whole-task review determines fulfillment. An explicitly explained unknown
+ * may fulfill a comparison while its clinical evidence remains limited. Never
+ * promote a limited whole task, missing clause or pending mutation to success. */
+export function historyTaskCompleted(completion: readonly ObligationCompletion[]): boolean {
+  const whole = completion.find(item => item.index === 0);
+  return !!whole && ["answered", "refused"].includes(whole.status)
+    && completion.every(item => ["answered", "refused", ...(item.index > 0 ? ["limited"] : [])].includes(item.status));
+}
 /** One whole-question obligation plus one for each requested fact/owned pet.
  * Decomposition is advisory; retaining the whole question prevents silent loss. */
 export function buildHistoryObligations(evidence: AskEvidenceContract): HistoryObligation[] {

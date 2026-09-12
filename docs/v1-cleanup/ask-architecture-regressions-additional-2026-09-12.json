@@ -1,0 +1,74 @@
+{
+  "repair329": [
+    {
+      "n": 14,
+      "prompt": "Correct Sable’s October 5, 2025 puzzle-toy record from 13 minutes to 15 minutes, keeping the same date and everything else unchanged.",
+      "answer": "Furvise\n\nSable: Saved evidence was excluded by selection or size limits, so I couldn't include a usable report for this question. A narrower topic or date range may help.\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.\n\nCopy\n\nThat original target is no longer available.",
+      "result": "fail",
+      "at": "2026-09-12T04:06:09.949Z"
+    },
+    {
+      "n": 16,
+      "prompt": "Hypothetical only: a water bowl contains 310 ml, 90 ml is added, and 70 ml remains. Calculate the amount removed. Explain why unknown spilling prevents concluding that the pet drank that entire amount. Save nothing.",
+      "answer": "Furvise\n\nThe amount removed is 330 ml. That’s 310 ml in the bowl plus 90 ml added, for 400 ml total, and 70 ml left, so 330 ml is unaccounted for.\n\nBut unknown spilling means you cannot conclude the pet drank all 330 ml. Some of that amount could have been spilled, splashed, or lost another way. The notes establish only that 330 ml left the measured bowl amount, not that 330 ml was actually consumed by the pet. No save was made.\n\nCopy",
+      "result": "pass",
+      "at": "2026-09-12T04:08:05.266Z"
+    },
+    {
+      "n": 10,
+      "prompt": "How many active saved care-history entries are there for Rowan in March 2025? State the database lookup scope and as-of time; distinguish zero records from proof that nothing happened. Save nothing.",
+      "answer": "Furvise\n\nDatabase count checked at 2026-09-12T04:08:11.927Z: exactly 0 active saved care-history entries with recorded dates from 2025-03-01T00:00:00.000Z inclusive to 2025-04-01T00:00:00.000Z exclusive. This counts database notes, not episodes or events described within notes. It covers only this accessible date interval, not later dates or excluded history. Zero matching saved entries does not prove that no events occurred during this interval.\n\nCopy",
+      "result": "pass",
+      "at": "2026-09-12T04:09:42.790Z"
+    },
+    {
+      "n": 8,
+      "prompt": "How many separate 2024 vomiting episodes does Sable’s saved history support, and what are the start date, stop date and calendar-day gap for each? Save nothing.",
+      "answer": "Furvise\n\nSable’s saved history supports 2 separate vomiting episodes in 2024. I’m not saving anything.\nEpisode 1 started on 2024-02-01 and stopped on 2024-02-03, for a 2 calendar-day gap.\nEpisode 2 started on 2024-06-09 and stopped on 2024-06-11, for a 2 calendar-day gap.\n\nCopy",
+      "result": "pass",
+      "note": "Both start/stop pairs and both two-day gaps present.",
+      "at": "2026-09-12T04:11:26.113Z"
+    },
+    {
+      "n": "cross_pet_june",
+      "prompt": "Compare Rowan and Sable during June 2024: whose saved history documents vomiting then? Do not interpret missing records as proof that the other pet was healthy. Save nothing.",
+      "answer": "Furvise\n\nSable’s saved history documents vomiting in June 2024, with a new episode starting on 2024-06-09 and stopping on 2024-06-11.\nI don’t have a June 2024 vomiting record for Rowan in the records I could access, but that does not prove he was healthy.\n\nCopy",
+      "result": "pass",
+      "at": "2026-09-12T04:12:24.425Z"
+    }
+  ],
+  "repair331": [
+    {
+      "n": 14,
+      "prompt": "Correct Sable’s October 5, 2025 puzzle-toy record from 13 minutes to 15 minutes, keeping the same date and everything else unchanged.",
+      "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from Sable's history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy\n\nThat action could not be prepared safely.",
+      "result": "fail",
+      "at": "2026-09-12T04:23:04.399Z"
+    }
+  ],
+  "isolation": [
+    {
+      "selected": "Sable",
+      "conversation": "long",
+      "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from your pets' history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy",
+      "result": "fail",
+      "at": "2026-09-12T04:18:09.748Z"
+    },
+    {
+      "selected": "Sable",
+      "conversation": "fresh",
+      "url": "https://www.furvise.com/ask?conversation=3075cd89-266e-4c52-80e6-b55c1fe5a52c",
+      "answer": "Furvise\n\nSable’s saved history does document vomiting in June 2024. It says she started a new, separate vomiting episode on 2024-06-09 and stopped vomiting completely on 2024-06-11.\nRowan’s loaded June records here do not show a vomiting note, but that does not prove he was healthy or that nothing was recorded elsewhere.\n\nCopy",
+      "result": "pass",
+      "at": "2026-09-12T04:19:11.393Z"
+    },
+    {
+      "selected": "Rowan",
+      "conversation": "fresh",
+      "url": "https://www.furvise.com/ask?conversation=f03e06e8-2889-472a-9cb9-72fb1576fbff",
+      "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from your pets' history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy",
+      "result": "fail",
+      "at": "2026-09-12T04:19:57.020Z"
+    }
+  ]
+}
