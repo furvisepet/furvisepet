@@ -115,6 +115,10 @@ test('past-to-present weight projection uses profile authority, not a later care
  assert.match(grams.sentences[0].text,/decrease of 170 g/);
  assert.equal(grams.sentences[0].calculations[0].value,-170);
  assert.equal(grams.sentences[0].calculations[0].unit,'g');
+ const monthEvidence={...evidence,scope:{...evidence.scope,requestText:requestText.replace('April 9,','April')+' Show the change in grams.'}};
+ assert.match(deterministicReadProjection(monthEvidence).sentences[0].text,/2024-04-09.*170 g/);
+ const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
+ assert.equal(deterministicReadProjection(ambiguous),null);
 });
 test('equivalent displayed units inherit verified measurement and calculation provenance', () => {
   const source={text:'Pixel weighed 4.94 kg on 2022-10-09.',occurredAt:'2022-10-09T12:00:00Z',petId:'pet'};
