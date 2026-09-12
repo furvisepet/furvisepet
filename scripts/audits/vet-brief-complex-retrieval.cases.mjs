@@ -54,3 +54,16 @@ test('six requested topics each retain a search slot even when the purpose names
  assert.ok(result.askHistory.coverage.candidateIds.length<=64);
  assert.ok(result.askHistory.entries.length<=32);
 });
+
+test('an explicit middle-history month survives broad endpoint context and earlier matching measurements',async t=>{
+ clock(t);
+ const weights=[...Array.from({length:45},(_,i)=>care('weight-old-'+i,'milo','2022-01-01','general','Body weight 4 kg.')),
+ care('weight-april','milo','2024-04-09','general','Body weight 3.97 kg on a household scale.'),care('weight-latest','milo','2026-09-03','general','Body weight 3.8 kg.'),...rows];
+ const db=database(weights);
+ const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2024-04-01',to:'2024-04-30'},currentMessage:'Compare April 2024 body weight with the current profile weight.'});
+ const result=await retrieveAskHistory(context,db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:['weight'],interpretation:'lexical'},termGroups:[['weight']],periodFrom:'2024-04-01T00:00:00Z',periodTo:'2024-05-01T00:00:00Z'});
+ assert.ok(result.askHistory.entries.some(r=>r.id==='weight-april'));
+ assert.ok(result.askHistory.coverage.queryCount<=20);
+ assert.ok(result.askHistory.coverage.candidateIds.length<=64);
+ assert.ok(result.askHistory.entries.length<=32);
+});

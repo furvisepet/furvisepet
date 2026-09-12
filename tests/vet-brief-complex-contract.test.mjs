@@ -43,7 +43,10 @@ test('appointment plan accepts long history but rejects impossible dates, future
   for(const patch of [{to:'2026-09-13'},{from:'2026-02-30'},{topics:Array(7).fill(plan.topics[0])},{topics:[{label:'x',terms:Array(3).fill('term')}]}]) assert.equal(parseVetBriefAppointmentPlan({...plan,...patch},'2026-09-12'),null);
   assert.equal(validBriefDay('2026-02-30'),false);
   assert.ok(parseVetBriefAppointmentPlan({...plan,topics:Array.from({length:6},(_,i)=>({label:'Topic '+i,terms:['stem'+i]}))},'2026-09-12'));
-  assert.equal(parseVetBriefAppointmentPlan({...plan,topics:Array(4).fill(plan.topics[0])},'2026-09-12'),null); // six total stems, not six pairs
+  const normalized=parseVetBriefAppointmentPlan({...plan,topics:Array(4).fill(plan.topics[0])},'2026-09-12');
+  assert.equal(normalized.topics.length,4);
+  assert.equal(normalized.topics.flatMap(t=>t.terms).length,6);
+  assert.ok(normalized.topics.every(t=>t.terms.length>=1));
 });
 for(const [message,level] of [
   ['Rowan is lethargic, weak in his hind legs, and breathing heavily today. Look back over his full 5-year history.','emergency'],
