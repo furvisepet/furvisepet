@@ -130,3 +130,19 @@ test('dated evidence count respects deduplication and exclusions without treatin
   document.excludedSections = ['timeline', 'care-history'];
   assert.equal(vetBriefDatedEntryCount(document), 0);
 });
+
+test('review sees the same included and deduplicated facts as every publication surface', async () => {
+  const { vetBriefReviewPublication } = await import('../app/lib/vet-brief/report.ts');
+  const document = draft();
+  document.visitSummary = 'Owner observed scratching on September 10.';
+  document.concernTimeline = [{ date: '2026-09-10', text: 'Owner reported: Scratched once.' }];
+  document.relevantCareHistory = [{ date: '2026-09-10', category: 'Symptom', text: 'Saved care history shows: Scratched once.' }];
+  document.ownerNotes = 'Excluded private note';
+  document.excludedSections = ['owner-notes'];
+  const review = vetBriefReviewPublication(document);
+  assert.deepEqual(review.sections, vetBriefReport(document));
+  assert.equal(JSON.stringify(review).match(/Scratched once/g).length, 1);
+  assert.doesNotMatch(JSON.stringify(review), /Excluded private note/);
+  assert.match(JSON.stringify(review), /Owner observed scratching/);
+  assert.equal(document.relevantCareHistory.length, 1);
+});
