@@ -18,16 +18,16 @@ const {vetBriefEvidence}=await import('../app/lib/vet-brief/evidence.ts');
 const {vetBriefUrgency}=await import('../app/lib/vet-brief/urgency.ts');
 const {vetBriefReport}=await import('../app/lib/vet-brief/report.ts');
 const baseline=buildVetBriefDraft({profile:{name:'Synthetic',species:'dog',breed:'Synthetic — Labrador',age_value:5,age_unit:'years'},careEntries:[],memories:[],from:'2026-06-01',to:'2026-09-12',reasonForVisit:'Review'}).document;
-const content=Object.fromEntries(vetBriefContentFields.map(key=>[key,baseline[key]??'']));
+const content=Object.fromEntries(vetBriefContentFields.map(key=>[key,key==='events'?[]:baseline[key]??'']));
 content.visitSummary='Owner reports weakness today; the cause is unknown.';
-content.concernTimeline=[{date:'2026-09-12',text:'Owner reports weakness; no cause established.'}];
+content.events=[{kind:'observation',category:'Symptoms',date:'2026-09-12',text:'Owner reports weakness; no cause established.'}];
 const raw=()=>({content:structuredClone(content),sourceRecordIds:['verified'],confidence:'low'});
 test('server assembles immutable metadata and retains explicit owner report, doses, conflicts and negation',()=>{
-  const input=raw(); input.content.medicationsSupplements=[{date:'2026-09-11',text:'Saved note: 2.5 mg twice daily for 5 days, then 1.25 mg once daily for 5 days, starting tomorrow. Owner now says completed yesterday; dates conflict.'}];
+  const input=raw(); input.content.events.push({kind:'medication',category:'Medication',date:'2026-09-11',text:'Saved note: 2.5 mg twice daily for 5 days, then 1.25 mg once daily for 5 days, starting tomorrow. Owner now says completed yesterday; dates conflict.'});
   const parsed=parseVetBriefContent(input,baseline,['verified']);
   assert.equal(parsed.document.pet,baseline.pet);
   assert.deepEqual(parsed.document.dateRange,baseline.dateRange);
-  assert.equal(parsed.document.medicationsSupplements[0].text,input.content.medicationsSupplements[0].text);
+  assert.equal(parsed.document.medicationsSupplements[0].text,input.content.events[1].text);
   assert.match(parsed.document.concernTimeline[0].text,/no cause established/);
 });
 test('model cannot overwrite identity, settings or insert an unauthorized source',()=>{
@@ -73,4 +73,24 @@ test('corrected claim provenance saves through the authenticated RPC and never t
  assert.deepEqual(await verifyVetBriefClaimSources(db,['claim-'+id,'claim-'+foreign],'owner','pet'),[id]);
  assert.deepEqual(args.p_seed_pet_ids,[]);
  await assert.rejects(()=>verifyVetBriefClaimSources({rpc:()=>({abortSignal:async()=>({error:{code:'42501'}})})},['claim-'+id],'owner','pet'),/verification_unavailable/);
+});
+const {parseVetBriefPublicationReview}=await import('../app/lib/vet-brief/publication-review.ts');
+const verdict={factsSupported:true,importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:false,questionsUseful:true,visitFocused:true,repairInstructions:'Remove the alleged duplicate.',duplicatePairs:[]};
+test('a duplication verdict requires real same-date entries in different supporting sections; factual failures remain failures',()=>{
+ const document={...baseline,visitSummary:'A synopsis may repeat medication facts.',concernTimeline:[{date:'2026-09-11',text:'Medication course recorded.'}],medicationsSupplements:[{date:'2026-09-11',text:'The medication course was recorded.'}]};
+ assert.equal(parseVetBriefPublicationReview(verdict,document).noDuplication,true);
+ for(const pair of [{firstSection:'overview',firstItem:0,secondSection:'medications',secondItem:0},{firstSection:'timeline',firstItem:99,secondSection:'medications',secondItem:0}]) assert.equal(parseVetBriefPublicationReview({...verdict,duplicatePairs:[pair]},document).noDuplication,true);
+ const pair={firstSection:'timeline',firstItem:0,secondSection:'medications',secondItem:0};
+ assert.equal(parseVetBriefPublicationReview({...verdict,duplicatePairs:[pair]},document).noDuplication,false);
+ const differentDate={...document,medicationsSupplements:[{date:'2026-09-12',text:'The medication course was recorded.'}]};
+ assert.equal(parseVetBriefPublicationReview({...verdict,duplicatePairs:[pair]},differentDate).noDuplication,true);
+ assert.equal(parseVetBriefPublicationReview({...verdict,factsSupported:false},document).factsSupported,false);
+ assert.equal(parseVetBriefPublicationReview({...verdict,duplicatePairs:undefined},document),null);
+});
+test('one canonical event gets one placement, preserving owner symptom and conflicting saved medication separately',()=>{
+ const input=raw();input.content.events.push({kind:'medication',category:'Medication',date:'2026-09-11',text:'Saved prescription starts tomorrow, conflicting with the owner report.'});
+ const doc=parseVetBriefContent(input,baseline,['verified']).document;
+ assert.equal(doc.concernTimeline.length,1);assert.equal(doc.medicationsSupplements.length,1);
+ assert.deepEqual(doc.ownerReportedChanges,[]);assert.deepEqual(doc.relevantCareHistory,[]);
+ assert.match(doc.medicationsSupplements[0].text,/conflicting/);
 });

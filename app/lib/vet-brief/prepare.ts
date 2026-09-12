@@ -1,3 +1,4 @@
+import { parseVetBriefPublicationReview, vetBriefPublicationReviewSchema, vetBriefDuplicationReviewInstructions } from "./publication-review.ts";
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateStructuredFeatureResponse } from '../ai/ask-reasoning';
@@ -9,7 +10,7 @@ import type { FurviseLiveContext } from '../intelligence/types';
 import { parseVetBriefAppointmentPlan, vetBriefAppointmentPlanInstructions, vetBriefAppointmentPlanSchema } from './appointment-plan.ts';
 import { parseVetBriefContent, vetBriefContentSchema } from './content.ts';
 import { vetBriefEvidence } from './evidence.ts';
-import { prepareReviewedVetBrief, parseVetBriefReview, vetBriefReviewInstructions, vetBriefReviewSchema } from './review.ts';
+import { prepareReviewedVetBrief, vetBriefReviewInstructions } from './review.ts';
 import { vetBriefGenerationTemplate, vetBriefReviewPublication } from './report.ts';
 import { vetBriefUrgency } from './urgency.ts';
 import type { VetBriefDocument } from './types';
@@ -42,6 +43,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
         instructions: [
           ...getIntelligenceFeatureMode('vet_brief').promptInstructions.filter(rule => !rule.includes('documentTemplate') && !rule.includes('Copy immutable') && !rule.includes('one or two useful questions')),
           'For retrospective_care_history_summary, describe historical care respectfully without implying a future appointment or a current emergency. Discussion questions may be empty.',
+          'Use one canonical events array. Each dated event appears once, with exactly one kind: medication for medication history, observation for symptoms, food only for actual food changes, product for products, history for vaccines/labs/visits or other relevant records. The server places each event in its section. Do not emit parallel section arrays. If one event contains multiple facts, keep its relevant facts together. The overview may summarize these events, but do not repeat one detailed event in multiple events.',
           'Return content only. The server supplies profile, dates, title, publication settings and disclaimer. Do not emit a full document, memories or care actions.',
           'Use currentOwnerReport as an owner statement, not as independently verified history. Retain current symptoms and owner-reported medication completion even if no saved entry confirms them; label the distinction. Resolve today/yesterday against evidence.asOf, never against the end of an old selected range.',
           'Cover the appointment questionsToResolve using evidence from each requested topic. Distinguish documented laboratory values/dates/units from an owner claim of a trend. A missing baseline, reference interval or measurement date is an uncertainty; do not manufacture a trend or calculate across incomparable measurements.',
@@ -65,8 +67,8 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
     },
     review: document => generateStructuredFeatureResponse({
       input: { draft: vetBriefReviewPublication(document), evidence, visitReason: context.currentMessage },
-      instructions: vetBriefReviewInstructions + '\nThe currentOwnerReport is admissible as an owner report, not as independently verified historical evidence. Current owner symptoms must be preserved. A request to correlate conditions must be answered with supported chronology and explicit uncertainty, never a fabricated diagnosis. The server-provided urgent guidance is appropriate triage, not a factual history claim. Two to four useful questions are allowed for complex visits. The evidence is bounded: do not demand unavailable history, invent missing records or interpret coverage limits as proof of absence.',
-      schema: vetBriefReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 4096, reasoningEffort: 'medium', timeoutMs: 35000, parse: parseVetBriefReview,
+      instructions: vetBriefReviewInstructions + '\n' + vetBriefDuplicationReviewInstructions + '\nThe currentOwnerReport is admissible as an owner report, not as independently verified historical evidence. Current owner symptoms must be preserved. A request to correlate conditions must be answered with supported chronology and explicit uncertainty, never a fabricated diagnosis. The server-provided urgent guidance is appropriate triage, not a factual history claim. Two to four useful questions are allowed for complex visits. The evidence is bounded: do not demand unavailable history, invent missing records or interpret coverage limits as proof of absence.',
+      schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 4096, reasoningEffort: 'medium', timeoutMs: 35000, parse: value => parseVetBriefPublicationReview(value, document),
     }),
     onRejected: failedChecks => logIntelligenceEvent('vet brief review rejected', { feature: 'vet_brief', requestId, failedCheckNames: failedChecks.join(',') }),
   });
