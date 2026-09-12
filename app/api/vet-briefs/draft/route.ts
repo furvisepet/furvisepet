@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { featureFailureDetails } from "../../../lib/intelligence/feature-failure.ts";
 import { generateStructuredFeatureResponse, getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
-import { AiCreditLimitReachedError, AiCreditReplayRequiredError, runWithAiCredit } from "../../../lib/ai/usage-ledger";
+import { AiCreditLimitReachedError, AiCreditReplayRequiredError, checkAiCreditRequestReplay, hashAiCreditPayload, runWithAiCredit } from "../../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
 import { AiAdmissionError, aiAdmissionErrorResponse } from "../../../lib/ai/usage-guard/errors";
 import {
@@ -122,6 +122,11 @@ export async function POST(request: Request) {
       requestId,
       route: "/api/vet-briefs/draft",
       userId: auth.userId,
+    });
+    await checkAiCreditRequestReplay({
+      feature: "vet_brief", logicalRequestId: requestId,
+      payloadHash: hashAiCreditPayload("vet_brief", { conversationId, existingDocument, from, petId, reasonForVisit, to }),
+      supabase: auth.supabase, userId: auth.userId,
     });
     const generated = await runAdmittedAiOperation({
       feature: "vet_brief", intendedModel: getAskModelConfiguration().primary,

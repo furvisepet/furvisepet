@@ -502,6 +502,14 @@ export function hashAiCreditPayload(feature: AiFeature, payload: unknown) {
   return createHash("sha256").update(canonicalAiCreditJson({ feature, payload, version: 1 })).digest("hex");
 }
 
+// Resolve a terminal credit before provider admission can reject an exhausted
+// operation. Only confirmed terminal ledger states authorize replay handling.
+export async function checkAiCreditRequestReplay(input: Parameters<typeof getAiCreditEventsForLogicalRequest>[0]) {
+  const events = await getAiCreditEventsForLogicalRequest(input);
+  if (events.some(event => event.status === "completed")) throw new AiCreditReplayRequiredError("completed");
+  if (events.length && events.every(event => event.status === "released")) throw new AiCreditReplayRequiredError("released");
+}
+
 export async function runWithAiCredit<T>({
   beforeComplete,
   feature,
