@@ -13,6 +13,13 @@ export function scrubUntrustedMutationClaim(value: unknown, fallback: string): s
   return safe || fallback;
 }
 
+/** Compile presentation before review, using the same serializer as publication.
+ * This does not scrub claims or grant approval: the unchanged factual content
+ * and the separately enforced mutation policy still require review. */
+export function canonicalReadPresentation(text: string): string {
+  return buildAskConversationResponse({ title: "Furvise", summary: text, sections: [], safetyNote: null })?.summary || text;
+}
+
 /** Exercise the actual serializer and reload text policy BEFORE approving a
  * narrative. An unpublishable draft enters the existing bounded repair path.
  * No mutation flags, receipt restoration or factual rewriting are accepted. */

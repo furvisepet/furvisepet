@@ -10,7 +10,7 @@ import { parseModelApplicationActions } from "../application-actions/contracts.t
 import { readHistoryReviewDiagnostic, recordHistoryReviewDiagnostic } from "./history-review-state.ts";
 import { buildHistoryObligations, reviewObligationCompletion } from "./history-obligations.ts";
 import { normalizeCompanionProse } from "../furvise-voice.ts";
-import { readPublicationFailure } from "../ask-publication.ts";
+import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
 import { withProviderDeadline } from "../ai/execution-deadline.ts";
 import {
   isStructuredHistoryText,
@@ -137,8 +137,13 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   // first hides omissions from the reviewer and can turn a complete task into
   // a confidently approved fragment. Validation failures enter bounded repair.
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence,
-    text: sharedRequest ? (["csv", "table", "json"].includes(sharedRequest.outputFormat || "") ? sentence.text : normalizeCompanionProse(sentence.text)) : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
+    text: sharedRequest ? (["csv", "table", "json"].includes(sharedRequest.outputFormat || "") ? sentence.text : canonicalReadPresentation(normalizeCompanionProse(sentence.text))) : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
     .filter(sentence => sharedRequest || supported(sentence)) };
+  // Layout belongs to the server presentation compiler, not the evidence
+  // generator. Apply it to provider and deterministic drafts alike.
+  if (sharedRequest?.outputFormat === "bullets") draft.sentences = draft.sentences.map(sentence => ({
+    ...sentence, text: /^[-*•]\s/.test(sentence.text) ? sentence.text : "- " + sentence.text,
+  }));
   const exactRecordFailures = sharedRequest ? missingExactRecordText(evidence, draft.sentences.map(s => s.text).join("\n"), draft.sentences.flatMap(s => s.sourceIds)) : [];
   const publicationFailures = sharedRequest ? draft.sentences.flatMap((sentence, index) => {
     const reason = readPublicationFailure(sentence.text);

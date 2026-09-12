@@ -1,4 +1,4 @@
-import { readPublicationFailure } from "../ask-publication.ts";
+import { readPublicationFailure, canonicalReadPresentation } from "../ask-publication.ts";
 import { TASK_COMPLETION_STATUSES } from "./history-review-selection.ts";
 import { furviseProductFacts } from "../ai/ask-internal-product-policy.ts";
 import "server-only";
@@ -166,6 +166,8 @@ export async function reviewTaskCompletion(input: {
       response.answer.sections = response.answer.sections.map(section => ({ ...section,
         items: section.items.map(removeNavigationExecutionClaims).filter(Boolean) })).filter(section => section.items.length);
     }
+    response.answer.summary = canonicalReadPresentation(response.answer.summary);
+    response.answer.sections = response.answer.sections.map(section => ({ ...section, items: section.items.map(canonicalReadPresentation) }));
     const body = visible(response);
     const automaticSaveWordingFailure = pendingActions.length > 0 && /\b(?:persistence|application action|ready for review)\b/i.test(body);
     const snapshot = JSON.stringify({ answer: response.answer, actions, evidence: response.evidenceContract, pendingEvents, pendingCareActions });

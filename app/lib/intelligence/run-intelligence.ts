@@ -168,6 +168,13 @@ export async function runFurviseIntelligence({
       recoveryStatus: "none", recoveryConfidence: 1,
       recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
   }
+  // A record edit is a distinct operation from an observed care transition.
+  // Remove only the duplicated correction proposal when the typed edit channel
+  // is present; the action still needs an owned binding and confirmation.
+  if (!readOnlyRecall && context.askInterpretation?.request?.mutationIntent === "correct_record"
+    && reasoning.applicationActions.some(action => action.kind === "care_history.edit" && action.input.target === "specified")) {
+    reasoning.semanticEvents = reasoning.semanticEvents.filter(event => event.transition !== "corrected");
+  }
   const lossContext = context.askInterpretation?.conversationOnly ? "none" : resolvePetLossContext({
     message: context.currentMessage,
     recentConversation: context.conversationTurns.filter((turn) => turn.id !== sourceMessageId),
