@@ -26,6 +26,8 @@ export type AskRequestContract = {
   mode: typeof modes[number];
   question: string;
   requirements: string[];
+  mutationIntent?: "correct_record" | null;
+  recordSelection?: { scope: "all_active" | "content_filtered"; quote: string } | null;
   projection?: ReadProjection | null;
   profileFields?: string[];
   evidenceNeeds?: EvidenceNeed[];
@@ -38,9 +40,11 @@ export type AskRequestContract = {
 const strings = (maxItems: number, maxLength: number) => ({ type: "array", maxItems, items: { type: "string", minLength: 1, maxLength } });
 export function askRequestSchema(frame: object) {
   return { type: "object", additionalProperties: false,
-    required: ["profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
+    required: ["mutationIntent", "recordSelection", "profileFields", "projection", "version", "mode", "question", "requirements", "evidenceNeeds", "outputFormat", "evidenceBasis", "premiseQuotes", "excludedPetNames", "referenceTurnIds", "scope", "petNames", "operation", "selection", "quantity", "topic", "terms", "from", "to", "episodeTopic", "ordinal", "frame"],
     properties: {
       profileFields: { type: "array", maxItems: 14, items: { type: "string", enum: ["species", "breed", "age", "weight", "current_food", "main_concern", "care_goal", "avoid", "monthly_budget", "sex", "pronouns", "lifecycle_status"] } },
+      mutationIntent: { type: ["string", "null"], enum: ["correct_record", null] },
+      recordSelection: { type: ["object", "null"], additionalProperties: false, required: ["scope", "quote"], properties: { scope: { type: "string", enum: ["all_active", "content_filtered"] }, quote: { type: "string", minLength: 1, maxLength: 1600 } } },
       projection: readProjectionSchema,
       evidenceNeeds: evidenceNeedsSchema,
       version: { type: "string", enum: [ASK_REQUEST_VERSION] }, mode: { type: "string", enum: modes },
@@ -58,6 +62,8 @@ export function askRequestSchema(frame: object) {
 }
 
 export const ASK_REQUEST_INSTRUCTIONS = [
+  "An explicit instruction to correct an existing saved care note uses mutationIntent correct_record, mode mixed, evidenceBasis saved_history, operation recall, and the owned target/date. Retrieve the original record before proposing an edit. A correction instruction is not a new occurrence or an episode transition. Questions about corrections and hypothetical corrections have mutationIntent null and remain read-only. All other requests use mutationIntent null. This identifies a workflow, not permission to edit; the existing owned-record action and confirmation policy still govern execution.",
+  "recordSelection identifies physical saved-record counting independently of lexical search. For an exact count of stored notes/entries/records, use quantity records and recordSelection with scope all_active when only the owned pet and recorded-date interval restrict the count; scope content_filtered when symptoms, category, words or other note content restrict it. quote must be the exact current USER clause including every count qualifier. Output format, as-of disclosure and instructions not to save are not content filters. Do not infer episodes from records. Use null for all other tasks. This proposes a read operation, never a count or proof of completeness.",
   "profileFields lists the stored profile fields needed for the original task (including companion profile questions), independently of historical evidenceNeeds. Use field names from the schema; [] means none are requested. This is a retrieval/budget hint, not a claim that a field has a value.",
   "Questions about whether a previous save or edit happened require an owned read scope, not conversation-only scope. Resolve the referenced user turn and pet; execution receipts are looked up by the server. Assistant wording never proves success.",
   "Use operation navigate with mode read, evidenceBasis null and the owned target scope for opening an application page, including a navigation request combined with a general question or supplied fictional calculation. Navigation needs an owned destination, not historical evidence. Use no history terms, dates, quantity or evidenceNeeds. If any part asks for actual stored facts, use the appropriate saved_history operation instead. Opening a page grants no writes. Keep every requested part in requirements and the original question.",
@@ -84,7 +90,7 @@ export const ASK_REQUEST_INSTRUCTIONS = [
 const fail = (reason: string): never => { throw new Error(`ASK_REQUEST_INVALID:${reason}`); };
 export function validateAskRequest(value: unknown, context: Context): AskInterpretation {
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("shape");
-  const p = { profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
+  const p = { mutationIntent: null, recordSelection: null, profileFields: [], projection: null, evidenceNeeds: [], outputFormat: null, evidenceBasis: null, premiseQuotes: null, excludedPetNames: [], ...value } as Record<string, unknown>; // Older stored v2 contracts predate this optional field.
   if (Object.keys(p).sort().join() !== askRequestSchema({}).required.sort().join()) return fail("fields");
   const member = (values: readonly unknown[], value: unknown) => values.includes(value);
   const list = (value: unknown, count: number, size: number): value is string[] => Array.isArray(value) && value.length <= count
@@ -101,6 +107,15 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     || !Array.isArray(p.terms) || p.terms.length > 6
     || p.terms.some(x => typeof x !== "string" || x.length < 3 || x.length > 32 || !/^[A-Za-z][A-Za-z -]*[A-Za-z]$/.test(x))) return fail("schema");
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
+  if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  if (p.mutationIntent === "correct_record" && (p.mode !== "mixed" || p.evidenceBasis !== "saved_history")) return fail("correction_workflow");
+  if (p.recordSelection !== null) {
+    const selection = p.recordSelection as { scope?: unknown; quote?: unknown };
+    if (!selection || Object.keys(selection).sort().join() !== "quote,scope"
+      || !["all_active", "content_filtered"].includes(String(selection.scope))
+      || typeof selection.quote !== "string" || !selection.quote.trim() || selection.quote.length > 1600
+      || !context.currentMessage.includes(selection.quote) || p.quantity !== "records") return fail("record_selection");
+  }
   const date = (v: unknown): v is string | null => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
     && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v && v >= "1900-01-01" && v <= "2100-01-01";
   if (!date(p.from) || !date(p.to) || p.from !== null && p.to !== null && p.from >= p.to) return fail("dates");
@@ -309,6 +324,8 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     ? validateEvidenceNeeds(p.evidenceNeeds, context.currentMessage, context.conversationTurns, p.referenceTurnIds, owned.filter(pet => petIds.includes(pet.id)))
     : { needs: [], issues: [] };
   const request: AskRequestContract = {
+    mutationIntent: !readOnly ? p.mutationIntent as AskRequestContract["mutationIntent"] : null,
+    recordSelection: historical && readOnly ? p.recordSelection as AskRequestContract["recordSelection"] : null,
     profileFields: [...new Set(p.profileFields as string[])],
     projection: historical && readOnly ? parseReadProjection(p.projection) : null,
     ...(needPlan.needs.length ? { evidenceNeeds: needPlan.needs } : {}),

@@ -1,3 +1,4 @@
+import { receiptCompletionText } from "./receipt-completion.ts";
 import { episodeResultText } from "./episode-contract.ts";
 import { recordInventoryEvidence } from "./record-inventory.ts";
 import { correctionReportAnswer } from "./correction-report.ts";
@@ -56,7 +57,7 @@ const unknown = (): EvidenceCompleteness => ({ retrieval: "unknown", corrections
 export function operationReceiptEvidence(receipts: NonNullable<AskEvidenceContract["operationReceipts"]>) {
   return receipts.flatMap(receipt => [{
     sourceId: `operation:${receipt.sourceMessageId}`, petId: receipt.petId, occurredAt: null as string | null,
-    text: `Prior request (intent, not a saved observation): ${JSON.stringify(receipt.requestText)}. `
+    text: receiptCompletionText(receipt) + ` Prior request (intent, not a saved observation): ${JSON.stringify(receipt.requestText)}. `
       + `An assistant answer ${receipt.answerPersisted ? "was" : "was not"} persisted for that turn. `
       + (receipt.records.length ? "Current care records linked to that exact turn are supplied as separate dated receipt sources."
         : "No current care record for this pet is linked to that exact turn. This is a write-status lookup, not a claim that the reported event never happened."),

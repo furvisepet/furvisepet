@@ -75,7 +75,7 @@ export function evaluateCalculationExpression(tokens: readonly CalculationToken[
  * semantic review checks whether that calculation answers the actual question.
  * This validates arithmetic, not clinical recommendations or causal inference. */
 export type HistoryCalculation = {
-  operation: "sum" | "difference" | "ratio" | "percent_change" | "convert" | "elapsed_days" | "count_records" | "expression";
+  operation: "sum" | "mean" | "difference" | "ratio" | "percent_change" | "convert" | "elapsed_days" | "count_records" | "expression";
   expression?: CalculationToken[] | null;
   operands: Array<{ sourceId: string; field: "text" | "occurredAt"; literal: string }>;
   value: number;
@@ -84,7 +84,7 @@ export type HistoryCalculation = {
 export const MAX_HISTORY_CALCULATIONS = 40;
 export const historyCalculationSchema = { type: "array", maxItems: MAX_HISTORY_CALCULATIONS, items: {
   type: "object", additionalProperties: false, required: ["operation", "operands", "value", "unit", "expression"], properties: {
-    operation: { type: "string", enum: ["sum", "difference", "ratio", "percent_change", "convert", "elapsed_days", "count_records", "expression"] },
+    operation: { type: "string", enum: ["sum", "mean", "difference", "ratio", "percent_change", "convert", "elapsed_days", "count_records", "expression"] },
     operands: { description: "Ordered operands. difference computes operand 0 minus operand 1; ratio and percent_change compare operand 1 to baseline operand 0.", type: "array", minItems: 1, maxItems: 64, items: { type: "object", additionalProperties: false,
       required: ["sourceId", "field", "literal"], properties: {
         sourceId: { type: "string", maxLength: 160 }, field: { type: "string", enum: ["text", "occurredAt"] },
@@ -104,7 +104,7 @@ export function parseHistoryCalculations(value: unknown): HistoryCalculation[] |
       || !historyCalculationSchema.items.properties.operation.enum.includes(p.operation)
       || (p.operation === "expression" ? !parseCalculationExpression(p.expression) : p.expression != null)
       || !finite(p.value) || typeof p.unit !== "string" || p.unit.length > 20
-      || !Array.isArray(p.operands) || p.operands.length < 1 || p.operands.length > (p.operation === "count_records" ? 64 : 4)
+      || !Array.isArray(p.operands) || p.operands.length < 1 || p.operands.length > (["count_records", "sum", "mean"].includes(p.operation) ? 64 : 4)
       || p.operands.some((o: Record<string, unknown>) => !o || typeof o !== "object" || Object.keys(o).sort().join() !== "field,literal,sourceId"
         || !["text", "occurredAt"].includes(String(o.field)) || typeof o.sourceId !== "string" || !o.sourceId || o.sourceId.length > 160
         || typeof o.literal !== "string" || !o.literal || o.literal.length > 120)) return null;
@@ -194,7 +194,7 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
     } else {
       if (!target || target.dimension !== dimension || dimension === "instant") return null;
       if (p.operation === "convert" && values.length !== 1 || p.operation === "difference" && values.length !== 2) return null;
-      computed = (p.operation === "sum" ? values.reduce((a, b) => a + b, 0)
+      computed = (p.operation === "sum" || p.operation === "mean" ? values.reduce((a, b) => a + b, 0) / (p.operation === "mean" ? values.length : 1)
         : p.operation === "difference" ? values[0] - values[1] : values[0]) / target.scale;
     }
     // Exact arithmetic or explicit rounding to the proposal's decimal precision.

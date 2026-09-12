@@ -1,3 +1,4 @@
+import { receiptCompletionText } from "./receipt-completion.ts";
 import { unquotedOwnerText, analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { units } from "./history-calculation.ts";
 import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrative.ts";
@@ -40,7 +41,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
   // A lexical query returning no notes must not erase an existing write receipt.
   const requestText = evidence.scope.requestText;
   const inventory = eligibleAnswerSources(evidence).filter(source => source.sourceType === "record_inventory");
-  if (evidence.scope.readOnlyRecall && inventory.length) return parseHistoryNarrative({ sentences: inventory.map(source => ({text: source.text, sourceIds: [source.sourceId], calculations: []})) }) || null;
+  if (evidence.scope.readOnlyRecall && inventory.length && (!request?.outputFormat || ["prose", "bullets"].includes(request.outputFormat))) return parseHistoryNarrative({ sentences: inventory.map(source => ({text: source.text, sourceIds: [source.sourceId], calculations: []})) }) || null;
   // A two-date body-mass comparison is a bounded database projection, not a
   // language-model arithmetic exercise. It remains a draft for whole-task
   // semantic review, including any additional explanation the user requested.
@@ -66,7 +67,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
       ]}) || null;
     }
   }
-  if (evidence.scope.readOnlyRecall && /\b(?:save|saved|receipts?)\b/i.test(requestText)
+  if (evidence.scope.readOnlyRecall && (!request?.outputFormat || ["prose", "bullets"].includes(request.outputFormat)) && /\b(?:save|saved|receipts?)\b/i.test(requestText)
     && /\b(?:did|actually|receipts?|confirm|verify)\b/i.test(requestText)) {
     const receipts = evidence.operationReceipts || [];
     const referenced = receipts.filter(receipt => request?.referenceTurnIds.includes(receipt.sourceMessageId));
@@ -74,11 +75,11 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
     if (receipt) {
       const sources = eligibleAnswerSources(evidence);
       const records = receipt.records.map(record => ({ record, source: sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}:record:${record.id}`) }));
-      if (records.length && records.every(item => item.source)) return parseHistoryNarrative({ sentences: records.map(({record, source}) => ({
+      const header = sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}`);
+      if (records.length && header && records.every(item => item.source)) return parseHistoryNarrative({ sentences: [{ text: receiptCompletionText(receipt), sourceIds: [header.sourceId], calculations: [] }, ...records.map(({record, source}) => ({
         text: `${record.occurredAt.slice(0,10)} linked saved note: ${JSON.stringify(record.note)}`,
         sourceIds: [source!.sourceId], calculations: [],
-      })) }) || null;
-      const header = sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}`);
+      }))] }) || null;
       if (!records.length && header) return parseHistoryNarrative({sentences:[{text:"No current care-history entry is linked to that prior request.",sourceIds:[header.sourceId],calculations:[]}]}) || null;
     }
   }
