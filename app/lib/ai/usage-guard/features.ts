@@ -13,7 +13,9 @@ export const AI_FEATURE_POLICIES: Record<AiGuardFeature, AiFeaturePolicy> = {
   product_query: policy("product_query", "FURVISE_AI_PRODUCTS_ENABLED", 12_000, 48_000, 520, 1),
   product_question: policy("product_question", "FURVISE_AI_PRODUCTS_ENABLED", 12_000, 48_000, 650, 1),
   safety_followup: policy("safety_followup", "FURVISE_AI_SAFETY_FOLLOWUP_ENABLED", 12_000, 48_000, 650, 1),
-  vet_brief: policy("vet_brief", "FURVISE_AI_VET_BRIEF_ENABLED", 40_000, 160_000, 8_192, 4),
+  // Plan + generation + review + one semantic repair/re-review; one structural
+  // retry may precede review. Every call remains metered against daily limits.
+  vet_brief: policy("vet_brief", "FURVISE_AI_VET_BRIEF_ENABLED", 40_000, 160_000, 12_288, 6),
 };
 
 export function getAiFeaturePolicy(feature: AiGuardFeature) { return AI_FEATURE_POLICIES[feature]; }

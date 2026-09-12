@@ -88,10 +88,11 @@ function isHistoricalRecall(message: string) {
 
 /** Called only after conversation subject authorization, inside the real
  * generation callback. Recent safety context is retained separately. */
-export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[]): Promise<FurviseLiveContext> {
+export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[], vetBriefRead?: { plan: HistoryPlan; termGroups: string[][] }): Promise<FurviseLiveContext> {
+  if (vetBriefRead && context.feature !== "vet_brief") throw new Error("vet_brief_read_scope_required");
   context = { ...context, recordInventory: await readRecordInventory(context, db) };
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
-  const proposedPlan = context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1);
+  const proposedPlan = vetBriefRead?.plan ?? (context.askInterpretation ? context.askInterpretation.history : planHistoricalQuery(context.currentMessage, authorizedComparisonPets.size > 1));
   const plan = proposedPlan ? clipHistoryPlan(proposedPlan, context.historyAccess) : null;
   if (context.askInterpretation && !plan) return context;
   if (!plan) return isHistoricalRecall(context.currentMessage) ? { ...context, historyFallback: "unsupported_query_interpretation_recent_context_only" } : context;
@@ -144,7 +145,9 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     const diversify = context.askInterpretation?.request
       && (eventTerms.length > 0 || !endpointComparison && !["latest", "earliest", "earliest_occurrence"].includes(context.askInterpretation.selection || "") && searchTerms.length > 1);
     const termGroups = historySearchGroups(searchTerms, sharedRead ? context.currentMessage : "");
-    const proposedStrategies = diversify
+    const proposedStrategies = vetBriefRead
+      ? [...vetBriefRead.termGroups.map(terms => ({ descending: false, lexical: true, terms })), { descending: true, lexical: false, terms: searchTerms }]
+      : diversify
       ? [...termGroups.map(terms => ({ descending, lexical: true, terms })), { descending: endpointComparison || descending, lexical: false, terms: searchTerms }]
       : context.askInterpretation?.request && plan.terms.length
         ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
@@ -265,11 +268,11 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   coverage.candidateIds = candidates.map(row => `care:${row.id}`);
   const entries = await effectiveCandidates(candidates, owned, ids, context.owner.userId, db, coverage, deadline);
   if (!candidates.length && !entries.length && coverage.retrieval !== "unavailable" && coverage.corrections !== "unavailable") coverage.reasons.push("no_matching_candidates_not_absence");
-  const selection = context.askInterpretation?.request && endpointComparison ? "comparison" : context.askInterpretation?.selection;
+  const selection = vetBriefRead ? "summary" : context.askInterpretation?.request && endpointComparison ? "comparison" : context.askInterpretation?.selection;
   const occurrence = (entry: CareEntryRow) => classifyOccurrenceReport([entry.title, entry.note].filter(Boolean).join(": "),
     context.eligiblePets.find(pet => pet.id === entry.pet_profile_id)?.name || "", plan.terms);
   const matchingEntries = entries.filter(entry => historyDateAccessible(entry.occurred_at, context.historyAccess) && (futureSourceRequested || Date.parse(entry.occurred_at) <= asOf)
-    && (!!context.askInterpretation?.request || !plan.terms.length || plan.terms.some(term =>
+    && (!!vetBriefRead || !!context.askInterpretation?.request || !plan.terms.length || plan.terms.some(term =>
     `${entry.title || ""} ${entry.note}`.toLocaleLowerCase().includes(term.toLocaleLowerCase()))));
   const relevant = selection === "earliest_occurrence" ? ids.flatMap(petId => occurrenceCandidates(matchingEntries.filter(entry => entry.pet_profile_id === petId), occurrence, entry => entry.occurred_at)) : matchingEntries;
   const relevantIds = new Set(relevant.map(entry => entry.id));
@@ -318,7 +321,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         : need.order === "latest" ? compareHistoryTime(b.occurred_at, a.occurred_at) : 0)));
   // Larger cohorts receive one evidence slot per pet before any pet gets more.
   const petGroups = ids.length > 3 ? ids.map(petId => ordered.filter(entry => entry.pet_profile_id === petId)) : [];
-  const priorityGroups = [...petGroups, ...targetGroups, ...needGroups];
+  const vetGroups = vetBriefRead?.termGroups.map(terms => ordered.filter(entry => terms.some(term => `${entry.title || ""} ${entry.note}`.toLowerCase().includes(term.toLowerCase())))) || [];
+  const priorityGroups = [...petGroups, ...targetGroups, ...needGroups, ...vetGroups];
   const anchoredIds = new Set(priorityGroups.flat().map(entry => entry.id));
   const groups = [...priorityGroups, ordered.filter(entry => !anchoredIds.has(entry.id))];
   const prioritized: CareEntryRow[] = [];

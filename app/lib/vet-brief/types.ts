@@ -37,6 +37,7 @@ export type VetBriefDocument = {
   };
   reasonForVisit: string;
   visitSummary?: string;
+  urgency?: "urgent" | "emergency";
   ownerReportedChanges: VetBriefDatedItem[];
   concernTimeline: VetBriefDatedItem[];
   foodChanges: VetBriefDatedItem[];

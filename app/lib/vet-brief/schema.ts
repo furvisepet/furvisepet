@@ -50,6 +50,7 @@ export function parseVetBriefDocument(value: unknown): VetBriefDocument | null {
   const photoUrl = pet.photoUrl && isSafePrivatePhotoUrl(pet.photoUrl) ? pet.photoUrl : null;
   return {
     documentVersion: VET_BRIEF_DOCUMENT_VERSION,
+    ...(draft.urgency === "urgent" || draft.urgency === "emergency" ? { urgency: draft.urgency } : {}),
     title: cleanText(draft.title, 160) || "Furvise Vet Visit Brief",
     generatedAt: normalizeDateTime(draft.generatedAt),
     dateRange: { from: draft.dateRange.from, to: draft.dateRange.to },

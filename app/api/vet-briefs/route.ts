@@ -1,3 +1,4 @@
+import { verifyVetBriefClaimSources } from "../../lib/vet-brief/source-ids";
 import { parseVetBriefDocument } from "../../lib/vet-brief/schema";
 import { getVetBriefRequestContext, toPublicVetBriefRecord, type VetBriefDatabaseRow } from "../../lib/vet-brief/server";
 import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, isUuid, readBoundedJson } from "../../lib/security/request";
@@ -63,6 +64,9 @@ export async function POST(request: Request) {
     ? body.sourceEntryIds.filter(isUuid).slice(0, 300)
     : [];
   let verifiedSourceIds: string[] = [];
+  let verifiedClaimIds: string[] = [];
+  try { verifiedClaimIds = await verifyVetBriefClaimSources(context.supabase, Array.isArray(body?.sourceEntryIds) ? body.sourceEntryIds.slice(0, 300) : [], context.userId, petId); }
+  catch { return Response.json({ error: "The brief sources could not be verified. Please try saving again." }, { status: 503 }); }
   if (requestedSourceIds.length) {
     const [care, concerns, legacyMemories, memories] = await Promise.all([
       context.supabase.from("pet_care_entries").select("id").eq("pet_profile_id", petId).eq("user_id", context.userId).is("deleted_at", null).in("id", requestedSourceIds).returns<Array<{ id: string }>>(),
@@ -97,7 +101,7 @@ export async function POST(request: Request) {
     idempotency_key: gate.operation.key,
     pet_profile_id: petId,
     previous_version_id: previousVersionId,
-    source_entry_ids: verifiedSourceIds,
+    source_entry_ids: [...new Set([...verifiedSourceIds, ...verifiedClaimIds])],
     status: "confirmed",
     user_id: context.userId,
     version,

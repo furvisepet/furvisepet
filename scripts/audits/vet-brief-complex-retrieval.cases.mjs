@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {database,clock} from './helpers/lifetime-harness.mjs';
+import {care,ownerId} from './fixtures/ask-lifetime-history.mjs';
+const {buildFurviseContext}=await import('../../app/lib/intelligence/retrieve-context.ts');
+const {retrieveAskHistory}=await import('../../app/lib/intelligence/history-retrieval.ts');
+const {vetBriefEvidence}=await import('../../app/lib/vet-brief/evidence.ts');
+const topics=[{label:'Vaccination',terms:['vaccin','reaction']},{label:'Labs',terms:['blood','creatinine']},{label:'Medication',terms:['prednisone','taper']}];
+const rows=[care('old-vaccine','milo','2001-02-03','vet_visit','Vaccination record; owner reported a reaction the following day.'),care('middle-lab','milo','2014-04-09','vet_visit','Blood result: creatinine 1.2 mg/dL; original reference interval missing.'),care('recent-med','milo','2026-09-03','medication','Prednisone taper starts tomorrow; last dose has not yet occurred.'),care('foreign','bruno','2001-02-03','medication','Prednisone 90 mg belongs to Bruno.'),...Array.from({length:5000},(_,i)=>care('routine-'+i,'milo','2026-08-01','general','Routine bedding washed.'))];
+async function run(options={}){
+ const db=database(rows,options);
+ const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2026-06-01',to:'2026-09-04'},currentMessage:'Prepare for vaccinations and discuss historical blood results and the taper.'});
+ const retrieved=await retrieveAskHistory(context,db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:topics.flatMap(t=>t.terms),interpretation:'lexical'},termGroups:topics.map(t=>t.terms)});
+ return {context,retrieved,db,bundle:vetBriefEvidence(retrieved,{focus:'Visit',topics})};
+}
+test('independent appointment topics retain decades-old, middle and recent evidence through shared bundle amid 5000 routine records',async t=>{
+ clock(t);const result=await run();
+ assert.ok(!result.context.careEntries.some(r=>r.id==='old-vaccine'));
+ for(const id of ['old-vaccine','middle-lab','recent-med']) assert.ok(result.bundle.allowedIds.includes(id),id);
+ assert.ok(!result.bundle.allowedIds.includes('foreign'));
+ assert.ok(result.bundle.evidence.records.length<=32);
+ assert.ok(result.retrieved.askHistory.coverage.queryCount<=20);
+ assert.ok(result.bundle.warnings.some(w=>/Only part/.test(w)));
+});
+test('changed source is withheld and coverage loss is visible instead of raw record fallback',async t=>{
+ clock(t);const result=await run({graph:{sources:rows.map(r=>r.id==='recent-med'?{...r,note:'Changed medication record'}:r)}});
+ assert.ok(!result.bundle.allowedIds.includes('recent-med'));
+ assert.ok(!JSON.stringify(result.bundle).includes('last dose has not yet occurred'));
+ assert.match(result.bundle.warnings.join(' '),/Only part|could not/);
+});
+test('historical transport failure keeps partial coverage explicit without leaking unverified recent originals',async t=>{
+ clock(t);const result=await run({failGraph:true});
+ assert.deepEqual(result.bundle.evidence.records,[]);
+ assert.match(result.bundle.warnings.join(' '),/could not be verified/);
+});
