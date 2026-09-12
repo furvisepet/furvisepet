@@ -88,7 +88,7 @@ function isHistoricalRecall(message: string) {
 
 /** Called only after conversation subject authorization, inside the real
  * generation callback. Recent safety context is retained separately. */
-export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[], vetBriefRead?: { plan: HistoryPlan; termGroups: string[][] }): Promise<FurviseLiveContext> {
+export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[], vetBriefRead?: { plan: HistoryPlan; termGroups: string[][]; periodFrom?: string | null }): Promise<FurviseLiveContext> {
   if (vetBriefRead && context.feature !== "vet_brief") throw new Error("vet_brief_read_scope_required");
   context = { ...context, recordInventory: await readRecordInventory(context, db) };
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
@@ -153,7 +153,8 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
         : directions.map(descending => ({ descending, lexical: !!plan.terms.length, terms: searchTerms }));
     const compiled = compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan,
-      proposedStrategies.map(strategy => ({ ...strategy, from: plan.from, to: plan.to })), pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
+      proposedStrategies.map(strategy => ({ ...strategy, from: vetBriefRead && !strategy.lexical && vetBriefRead.periodFrom
+        ? (!plan.from || vetBriefRead.periodFrom > plan.from ? vetBriefRead.periodFrom : plan.from) : plan.from, to: plan.to })), pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
     const strategies = compiled.strategies;
     coverage.needs ??= [];
     coverage.needs.push(...compiled.outsideNeeds.map(needId => ({ petId, needId, candidateIds: [], exhausted: false, status: "unavailable" as const, reason: "need_window_outside_scope" })));

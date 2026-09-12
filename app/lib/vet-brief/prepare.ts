@@ -25,7 +25,11 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
     parse: value => parseVetBriefAppointmentPlan(value, context.currentTimestamp),
   });
   const retrieved = await retrieveAskHistory(context, supabase, [context.pet.id], {
-    plan: { from: plan.from ? `${plan.from}T00:00:00.000Z` : null, to: new Date(Date.parse(`${plan.to}T00:00:00Z`) + 86400000).toISOString(), terms: plan.topics.flatMap(t => t.terms), interpretation: 'lexical' },
+    // The selected period guides recent context; it must not hide an older
+    // vaccination, reaction, baseline or treatment relevant to this appointment.
+    // The shared reader still clips every query to subscription access.
+    plan: { from: null, to: new Date(Date.parse(`${plan.to}T00:00:00Z`) + 86400000).toISOString(), terms: plan.topics.flatMap(t => t.terms), interpretation: 'lexical' },
+    periodFrom: `${plan.from || baseline.dateRange.from}T00:00:00.000Z`,
     termGroups: plan.topics.map(t => t.terms),
   });
   const { evidence, allowedIds, warnings } = vetBriefEvidence(retrieved, plan);
@@ -34,7 +38,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
   // Report dates describe the reviewed evidence, not an unfulfilled claim to have
   // read a lifetime. The requested scope remains in the shared evidence contract.
   const earliest = evidence.records.map(r => r.date.slice(0, 10)).sort()[0];
-  template.dateRange = { from: plan.from || earliest || baseline.dateRange.from, to: plan.to };
+  template.dateRange = { from: [plan.from || baseline.dateRange.from, earliest].filter((day): day is string => !!day).sort()[0], to: plan.to };
   let structureRetried = false;
   const result = await prepareReviewedVetBrief({
     generate: async reviewRepair => {
