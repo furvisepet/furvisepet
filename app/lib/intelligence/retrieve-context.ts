@@ -133,6 +133,7 @@ export async function buildFurviseContext({
         : null;
       return {
         id: message.id,
+        requestId: message.request_id,
         role: message.role,
         text: message.role === "user" ? message.user_text || "" : responseText(trustedResponse),
         createdAt: message.created_at,
