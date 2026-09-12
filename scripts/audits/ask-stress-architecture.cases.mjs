@@ -18,10 +18,11 @@ test('mixed history review preserves a requested record-edit confirmation withou
   rows:[care('edit-source','milo','2026-06-04','general','Aster walked for 18 minutes.')],
   interpretationProposal:proposal({mode:'mixed',mutationIntent:'correct_record',from:'2026-06-04',to:'2026-06-05',frame:null}),
   providerOverrides:{answer:'Review the proposed correction below.',relevantContextIds:['care:edit-source'],semanticEvents:[],
-    historyNarrative:{sentences:[{text:'Review the proposed correction below.',sourceIds:['care:edit-source'],calculations:[]}]},
+    historyNarrative:{sentences:[{text:'The proposed correction is 19 minutes; review it below.',sourceIds:['care:edit-source','request:current'],calculations:[]}]},
     applicationActions:[{kind:'care_history.edit',explicitIntent:true,evidence:question,input:{field:null,value:null,title:null,detail:'Aster walked for 19 minutes.',category:'general',target:'specified'}}]},
   expectedReviewCalls:1,reviewProviderResponse:async request=>{
     const input=JSON.parse(request.input);reviewedAction=input.actions[0];
+    assert.equal(input.sources.find(s=>s.sourceId==='request:current').sourceType,'current_request');
     assert.equal(reviewedAction.kind,'care_history.edit');
     assert.equal(reviewedAction.executionDisposition,'requires_confirmation');
     return {status:'completed',output_text:JSON.stringify({approved:true,retainedSentenceIndexes:[0],rejectionReason:null,
@@ -30,6 +31,7 @@ test('mixed history review preserves a requested record-edit confirmation withou
  assert.ok(reviewedAction);
  assert.equal(r.result.acceptedSemanticEvents.length,0);
  assert.equal(r.result.reasoning.applicationActions[0].kind,'care_history.edit');
+ assert.ok(r.result.reasoning.referencedRecords.some(record=>record.id==='care:edit-source'));
 });
 test('receipt records retain per-record dates through generation and shared eligibility',async t=>{
  clock(t);

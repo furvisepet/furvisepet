@@ -219,7 +219,7 @@ export function representEvidence(contract: AskEvidenceContract, records: AskCon
 export function eligibleAnswerSources(evidence: AskEvidenceContract) {
   const receiptSources = operationReceiptEvidence(evidence.operationReceipts || []);
   const inventorySources = recordInventoryEvidence(evidence.recordInventory || []);
-  return evidence.represented.filter(span =>
+  const saved = evidence.represented.filter(span =>
     // Correction failure invalidates clinical history, not independent profile,
     // physical inventory, or request-linked receipt evidence.
     (span.sourceType !== "care_update" || evidence.history?.corrections !== "unavailable")
@@ -237,6 +237,16 @@ export function eligibleAnswerSources(evidence: AskEvidenceContract) {
       && source.status !== "unavailable" && source.status !== "not_loaded")
     && !evidence.history?.provenance.some(source => source.sourceId === span.sourceId
       && !["effective_linked", "effective_replacement", "unverified_legacy", ...(evidence.interpretation?.request ? ["unlinked_correction_uncertain"] : [])].includes(source.status)));
+  // Mixed turns have two provenance classes: existing records and the owner's
+  // present request. The replacement value is not expected to exist in history.
+  // Expose it explicitly, never disguise it as a saved clinical observation.
+  if (!evidence.scope.readOnlyRecall && evidence.interpretation?.request
+    && evidence.scope.authorizedPetIds.length === 1) {
+    const text = evidence.scope.requestText;
+    return [...saved, { sourceId: "request:current", petId: evidence.scope.authorizedPetIds[0],
+      sourceType: "current_request", field: "value" as const, start: 0, end: text.length, text, occurredAt: null }];
+  }
+  return saved;
 }
 
 export function evidenceScopeKey(scope: AskEvidenceScope) { return JSON.stringify(scope); }

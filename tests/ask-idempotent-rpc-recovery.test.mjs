@@ -15,8 +15,17 @@ test('a lost response after atomic turn creation replays one message using the u
 test('idempotent retry stops after two transient attempts and never retries authorization or schema errors',async()=>{
   let calls=0;const failure={data:null,error:{code:'ECONNRESET'}};
   assert.equal(await recoverIdempotentRpc(async()=>{calls++;return failure;}),failure);assert.equal(calls,2);
-  for(const code of ['42501','22023']){
+  for(const code of ['42501','22023','PGRST202','PGRST301','PGRST102']){
     calls=0;const permanent={data:null,error:{code}};
     assert.equal(await recoverIdempotentRpc(async()=>{calls++;return permanent;}),permanent);assert.equal(calls,1);
+  }
+});
+test('PostgREST pool and connection errors retry with the same idempotent request',async()=>{
+  for(const code of ['PGRST000','PGRST001','PGRST002','PGRST003']){
+    let calls=0;const payload=Object.freeze({request:'same-key'});const seen=[];
+    const result=await recoverIdempotentRpc(async()=>{seen.push(payload);return ++calls===1
+      ?{data:null,error:{code,message:'database unavailable',details:null,hint:null}}
+      :{data:{id:'one-message'},error:null};});
+    assert.equal(calls,2);assert.equal(seen[0],seen[1]);assert.equal(result.data.id,'one-message');
   }
 });
