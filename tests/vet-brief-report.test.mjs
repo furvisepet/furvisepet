@@ -45,9 +45,9 @@ test('sharing includes medication and food details, while empty sections are omi
 
 test('every independent review criterion must pass; malformed or partial verdicts fail', () => {
   const keys = ['factsSupported', 'importantHistoryPreserved', 'categoriesAccurate', 'uncertaintyPreserved', 'noDuplication', 'questionsUseful', 'visitFocused'];
-  const valid = Object.fromEntries(keys.map(key => [key, true]));
+  const valid = { ...Object.fromEntries(keys.map(key => [key, true])), repairInstructions: '' };
   assert.equal(vetBriefReviewPassed(parseVetBriefReview(valid)), true);
-  for (const key of keys) assert.equal(vetBriefReviewPassed(parseVetBriefReview({ ...valid, [key]: false })), false);
+  for (const key of keys) assert.equal(vetBriefReviewPassed(parseVetBriefReview({ ...valid, [key]: false, repairInstructions: 'Correct the failed criterion using supplied evidence.' })), false);
   assert.equal(vetBriefReviewPassed(parseVetBriefReview({ factsSupported: true })), false);
 });
 
@@ -80,14 +80,14 @@ test('PDF embeds readable fonts and preserves accented names and units', async (
 });
 
 test('a rejected draft gets one repair with failed criteria and a separate review', async () => {
-  const { prepareReviewedVetBrief, vetBriefReviewSchema } = await import('../app/lib/vet-brief/review.ts');
-  const pass = Object.fromEntries(Object.keys(vetBriefReviewSchema.properties).map(key => [key, true]));
+  const { prepareReviewedVetBrief, vetBriefReviewChecks } = await import('../app/lib/vet-brief/review.ts');
+  const pass = { ...Object.fromEntries(vetBriefReviewChecks.map(key => [key, true])), repairInstructions: '' };
   const first = { value: { document: draft() } };
   const second = { value: { document: { ...draft(), questionsForVeterinarian: ['What should I record before the next visit?'] } } };
   const events = [];
   const result = await prepareReviewedVetBrief({
-    generate: async feedback => { events.push(feedback ? 'repair' : 'generate'); if (feedback) { assert.deepEqual(feedback.failedChecks, ['questionsUseful']); assert.equal(feedback.document, first.value.document); } return feedback ? second : first; },
-    review: async document => { events.push('review'); return document === first.value.document ? { ...pass, questionsUseful: false } : pass; },
+    generate: async feedback => { events.push(feedback ? 'repair' : 'generate'); if (feedback) { assert.deepEqual(feedback.failedChecks, ['questionsUseful']); assert.equal(feedback.document, first.value.document); assert.match(feedback.repairInstructions, /what observations to record/); } return feedback ? second : first; },
+    review: async document => { events.push('review'); return document === first.value.document ? { ...pass, questionsUseful: false, repairInstructions: 'Add a question about what observations to record before the appointment.' } : pass; },
   });
   assert.equal(result, second);
   assert.deepEqual(events, ['generate', 'review', 'repair', 'review']);
@@ -102,9 +102,9 @@ test('two rejected drafts fail without publishing or an unbounded retry loop', a
 });
 
 test('a valid first draft is returned without a repair call', async () => {
-  const { prepareReviewedVetBrief, vetBriefReviewSchema } = await import('../app/lib/vet-brief/review.ts');
+  const { prepareReviewedVetBrief, vetBriefReviewChecks } = await import('../app/lib/vet-brief/review.ts');
   let generations = 0;
-  await prepareReviewedVetBrief({ generate: async () => { generations++; return { value: { document: draft() } }; }, review: async () => Object.fromEntries(Object.keys(vetBriefReviewSchema.properties).map(key => [key, true])) });
+  await prepareReviewedVetBrief({ generate: async () => { generations++; return { value: { document: draft() } }; }, review: async () => ({ ...Object.fromEntries(vetBriefReviewChecks.map(key => [key, true])), repairInstructions: "" }) });
   assert.equal(generations, 1);
 });
 
