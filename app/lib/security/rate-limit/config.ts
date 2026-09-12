@@ -4,8 +4,8 @@ import { ASK_CONCURRENCY_TTL_MS } from "../../ai/ask-execution-limits.ts";
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-// Outlive the 150-second route, including one repair and independent re-review.
-const VET_BRIEF_LEASE_TTL_MS = 165_000;
+// Outlive the 180-second route, including one repair and independent re-review.
+const VET_BRIEF_LEASE_TTL_MS = 195_000;
 
 const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   ASK_AI: aiPolicy("ASK_AI", 10, 30, ASK_CONCURRENCY_TTL_MS),

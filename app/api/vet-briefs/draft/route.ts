@@ -24,7 +24,7 @@ import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 
 import { addVetBriefCoverage, parseVetBriefReview, vetBriefReviewInstructions, prepareReviewedVetBrief, vetBriefReviewSchema } from "../../../lib/vet-brief/review";
 
-export const maxDuration = 150;
+export const maxDuration = 180;
 
 const MAX_VET_BRIEF_RANGE_DAYS = 730;
 const MAX_REASON_FOR_VISIT_LENGTH = 1_200;
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
 
   const idempotency = await claimIdempotentOperation({
     candidateKey: requestId,
-    leaseSeconds: 180,
+    leaseSeconds: 210,
     operationType: "vet_brief.generate",
     payload: { conversationId, existingDocument, from, petId, reasonForVisit, to },
     request,
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
         }),
         review: (document) => generateStructuredFeatureResponse({
           input: { draft: vetBriefReviewPublication(document), evidence: { profile: baseline.document.pet, ownerStatements: conversation.filter(message => message.role === "user").map(message => message.text || ""), activeConcerns: context.activeConcerns, recentlyResolvedConcerns: context.recentlyResolvedConcerns, records: context.careEntries.filter(entry => allowedSourceRecordIds.includes(entry.id)).map(entry => ({ id: entry.id, category: entry.category, date: entry.occurred_at, text: entry.note, title: entry.title })), memories: legacyMemories }, visitReason: reasonForVisit },
-          instructions: vetBriefReviewInstructions, maxOutputTokens: 2048,
+          instructions: vetBriefReviewInstructions, maxOutputTokens: 4096, reasoningEffort: "medium", timeoutMs: 35_000,
           schema: vetBriefReviewSchema, schemaName: "furvise_vet_brief_review", parse: parseVetBriefReview,
         }),
         onRejected: (failedChecks) => logIntelligenceEvent("vet brief review rejected", { feature: "vet_brief", requestId, failedCheckNames: failedChecks.join(",") }),

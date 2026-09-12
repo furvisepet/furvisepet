@@ -1026,6 +1026,8 @@ export async function generateStructuredFeatureResponse<T>({
   schema,
   schemaName,
   temperature = 0.2,
+  reasoningEffort,
+  timeoutMs = 25_000,
 }: {
   apiKey?: string;
   input: unknown;
@@ -1036,12 +1038,15 @@ export async function generateStructuredFeatureResponse<T>({
   schema: Record<string, unknown>;
   schemaName: string;
   temperature?: number;
+  reasoningEffort?: "low" | "medium" | "high";
+  timeoutMs?: number;
 }): Promise<T> {
   const client = createClient(apiKey || process.env.OPENAI_API_KEY);
   const models = getAskModelConfiguration();
   if (!client) throw new AskPipelineError("configuration_failed", "OPENAI_API_KEY is not configured.", { elapsedMs: 0, model: models.primary });
   const request = (modelInput: unknown, outputTokens: number) => ({
     temperature,
+    ...(reasoningEffort ? { reasoning: { effort: reasoningEffort } } : {}),
     max_output_tokens: outputTokens,
     instructions,
     input: JSON.stringify(modelInput),
@@ -1062,7 +1067,7 @@ export async function generateStructuredFeatureResponse<T>({
   let response: T;
   let usedModel = models.primary;
   try {
-    response = await runProviderRequest({ client, model: usedModel, onEvent: onProviderEvent, parseOutput, request: request(input, maxOutputTokens), stage: "primary", timeoutMs: 25_000 });
+    response = await runProviderRequest({ client, model: usedModel, onEvent: onProviderEvent, parseOutput, request: request(input, maxOutputTokens), stage: "primary", timeoutMs });
   } catch (error) {
     if (!(error instanceof AskPipelineError) || !isRetryableProviderLimit(error)) throw error;
     if (isRequestRateLimit(error)) {
@@ -1073,7 +1078,7 @@ export async function generateStructuredFeatureResponse<T>({
     usedModel = models.fallback;
     response = await runProviderRequest({
       client, fallbackFrom: models.primary, model: usedModel, onEvent: onProviderEvent,
-      parseOutput, request: request(input, maxOutputTokens), stage: "fallback", timeoutMs: 20_000,
+      parseOutput, request: request(input, maxOutputTokens), stage: "fallback", timeoutMs: Math.min(timeoutMs, 35_000),
     });
   }
   return response;
