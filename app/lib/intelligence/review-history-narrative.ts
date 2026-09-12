@@ -170,7 +170,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
   // reviewer sees that omission and rejects it; no deleted clause is silently
   // treated as fulfilled.
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence,
-    text: sharedRequest ? (["csv", "table", "json"].includes(sharedRequest.outputFormat || "") ? sentence.text : canonicalReadPresentation(normalizeCompanionProse(sentence.text))) : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
+    text: sharedRequest ? (["csv", "json"].includes(sharedRequest.outputFormat || "") ? sentence.text : canonicalReadPresentation(sharedRequest.outputFormat === "table" ? sentence.text : normalizeCompanionProse(sentence.text))) : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
     .filter(sentence => sharedRequest || supported(sentence)) };
   // Layout belongs to the server presentation compiler, not the evidence
   // generator. Apply it to provider and deterministic drafts alike.

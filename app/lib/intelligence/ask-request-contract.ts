@@ -189,6 +189,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     && /\b(?:check|confirm|verify|saved?|edited?|updated?|completed?|actually|how many|quote|list)\b/i.test(context.currentMessage);
   if (receiptFollowup) {
     const referencedTurn = [...context.conversationTurns].reverse().find(turn => turn.role === "user" && turn.text !== context.currentMessage
+      && !/\b(?:receipts?|do not save|don't save|never save)\b/i.test(turn.text)
       && /\b(?:save|log|record|add|correct|edit|update)\b/i.test(turn.text));
     const referencedPets = referencedTurn ? explicitlyNamedOwnedPets(referencedTurn.text, owned) : [];
     const targets = explicitPets.length === 1 ? explicitPets : referencedPets.length === 1 ? referencedPets
@@ -197,8 +198,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       p.mode = "read"; p.scope = "named"; p.evidenceBasis = "saved_history"; p.operation = "recall";
       p.selection = "reference"; p.petNames = [targets[0].name]; petIds = [targets[0].id];
       p.question = context.currentMessage;
-      if (!p.referenceTurnIds.includes(referencedTurn.id)) p.referenceTurnIds.push(referencedTurn.id);
-      if (p.referenceTurnIds.length > 8) p.referenceTurnIds.splice(0, p.referenceTurnIds.length - 8);
+      // A prior receipt question is not the write request. Stale planner
+      // references to that question would introduce a newer empty receipt.
+      p.referenceTurnIds.splice(0, p.referenceTurnIds.length, referencedTurn.id);
       p.from = null; p.to = null; p.ordinal = null; p.episodeTopic = null; p.frame = null;
     }
   }

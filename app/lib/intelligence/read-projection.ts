@@ -4,7 +4,7 @@ import { units } from "./history-calculation.ts";
 import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrative.ts";
 import { eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import type { HistoryCalculation } from "./history-calculation.ts";
-import { explicitHistoryDays } from "./history-dates.ts";
+import { explicitHistoryDays, explicitHistoryMonths } from "./history-dates.ts";
 export type ReadProjection = { nameHeader: string; valueHeader: string; quantity: "body_mass"; unit: string; order: "name_ascending" | "name_descending" | "value_ascending" | "value_descending" | "scope" };
 export const readProjectionSchema = { type: ["object", "null"], additionalProperties: false,
   required: ["nameHeader", "valueHeader", "quantity", "unit", "order"], properties: {
@@ -57,10 +57,14 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
     && /\b(?:change|difference|compare)\b/i.test(requestText) && !/\b(?:why|cause|because|diagnos|recommend|trend)\b/i.test(requestText)) {
     const years = [...new Set(requestText.match(/\b(?:19|20)\d{2}\b/g) || [])];
     const days = years.length === 1 ? explicitHistoryDays(requestText, Number(years[0])) : [];
+    const months = days.length === 0 ? explicitHistoryMonths(requestText) : [];
+    const month = months.length === 1 && !/\b(?:before|after|since|until|between)\b/i.test(requestText) ? months[0] : null;
     const petId = evidence.scope.authorizedPetIds[0], name = evidence.petNames?.[petId];
     const sources = eligibleAnswerSources(evidence).filter(source => source.petId === petId);
-    const historical = days.length === 1 ? sources.flatMap(source => {
-      const measurement = source.sourceType === "care_update" && source.occurredAt?.slice(0,10) === days[0] ? bodyMeasurement(source.text) : null;
+    const historical = days.length === 1 || month ? sources.flatMap(source => {
+      const date = source.occurredAt?.slice(0,10);
+      const inPeriod = days.length === 1 ? date === days[0] : Boolean(date && month && date.startsWith(month + '-'));
+      const measurement = source.sourceType === "care_update" && inPeriod ? bodyMeasurement(source.text) : null;
       return measurement ? [{source,measurement}] : [];
     }) : [];
     const current = sources.flatMap(source => {
@@ -68,7 +72,9 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
       return measurement ? [{source,measurement}] : [];
     });
     if (name && historical.length === 1 && current.length === 1) {
-      const past = historical[0], present = current[0], target = present.measurement.unit;
+      const past = historical[0], present = current[0];
+      const target = /\b(?:grams?|g)\b/i.test(requestText) ? units.g
+        : /\b(?:pounds?|lbs?)\b/i.test(requestText) ? units.lb : present.measurement.unit;
       const rawChange = (present.measurement.value * present.measurement.unit.scale - past.measurement.value * past.measurement.unit.scale) / target.scale;
       const rawPercent = (present.measurement.value * present.measurement.unit.scale - past.measurement.value * past.measurement.unit.scale)
         / (past.measurement.value * past.measurement.unit.scale) * 100;
@@ -78,7 +84,7 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
       const sourceIds = [past.source.sourceId, present.source.sourceId];
       const changeText = change === 0 ? `no change (0%)` : `${direction} of ${Math.abs(change)} ${target.canonical} (${Math.abs(percent)}%)`;
       return parseHistoryNarrative({sentences:[{
-        text:`${name}'s recorded body weight changed from ${past.measurement.literal} on ${days[0]} to the current profile value of ${present.measurement.literal}: ${changeText}.`,
+        text:`${name}'s recorded body weight changed from ${past.measurement.literal} on ${past.source.occurredAt!.slice(0,10)} to the current profile value of ${present.measurement.literal}: ${changeText}.`,
         sourceIds, calculations:[
           {operation:"difference",expression:null,operands:[present,past].map(row => ({sourceId:row.source.sourceId,field:"text" as const,literal:row.measurement.literal})),value:change,unit:target.canonical},
           {operation:"percent_change",expression:null,operands:[past,present].map(row => ({sourceId:row.source.sourceId,field:"text" as const,literal:row.measurement.literal})),value:percent,unit:"%"},

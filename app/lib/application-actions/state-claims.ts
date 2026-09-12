@@ -150,15 +150,19 @@ export function preserveAttributedReportQuotes(value: string, transform: (prose:
  * Apply this before approval as well as reload, using exactly one policy. */
 export function stripOptionalAssistantOffers(value: string) {
   return mapAskProse(value, prose => preserveFictionalDialogueQuotes(prose, text =>
-    preserveAttributedReportQuotes(text, unquoted => unquoted.replace(assistantOffer,
+    preserveAttributedReportQuotes(text, unquoted => {
+      const stripped = unquoted.replace(assistantOffer,
       offer => {
         if (/\b(?:but|however|cannot|unable)\b|can[’'\x27]t|won[’'\x27]t/i.test(offer)) return offer;
         // The matcher consumes the preceding sentence delimiter so it can also
         // recognize offers after normal prose. Preserve that delimiter when
         // removing only the optional offer.
         return /^[.!?]\s+/.exec(offer)?.[0].trim() || " ";
-      })
-      .replace(/[^\S\r\n]+/g, " ").trim())));
+      });
+      // An offer policy must not rewrite unrelated whitespace in tables, CSV
+      // fields, quotations or ordinary prose on every publication pass.
+      return stripped === unquoted ? unquoted : stripped.replace(/[^\S\r\n]+/g, " ").trim();
+    })));
 }
 
 function enforceUnquotedStateClaims(value: string, verifiedSuccess: boolean) {

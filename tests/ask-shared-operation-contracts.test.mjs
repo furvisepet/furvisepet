@@ -10,6 +10,7 @@ import { historyNarrativeAnchorsSupported } from '../app/lib/intelligence/histor
 import { isExplicitNoPersistenceRequest } from '../app/lib/intelligence/care-history-policy.ts';
 import { orchestrateAskTurn } from '../app/lib/ai/ask-orchestrator.ts';
 import { deterministicReadProjection } from '../app/lib/intelligence/read-projection.ts';
+import { enforceVerifiedStateClaims } from '../app/lib/application-actions/state-claims.ts';
 
 test('temporal evidence endpoints are independent of comparison vocabulary',()=>{
  const pet={id:'pet',user_id:'owner',name:'Fern'};
@@ -110,6 +111,14 @@ test('past-to-present weight projection uses profile authority, not a later care
  assert.match(projection.sentences[0].text,/3\.97 kg.*current profile value of 3\.8 kg.*decrease of 0\.17 kg \(4\.3%\)/);
  assert.deepEqual(projection.sentences[0].sourceIds,['care:old','profile:pet:weight']);
  assert.deepEqual(projection.sentences[0].calculations.map(item=>item.value),[-0.17,-4.3]);
+ const grams=deterministicReadProjection({...evidence,scope:{...evidence.scope,requestText:requestText+' Show the change in grams.'}});
+ assert.match(grams.sentences[0].text,/decrease of 170 g/);
+ assert.equal(grams.sentences[0].calculations[0].value,-170);
+ assert.equal(grams.sentences[0].calculations[0].unit,'g');
+ const monthEvidence={...evidence,scope:{...evidence.scope,requestText:requestText.replace('April 9,','April')+' Show the change in grams.'}};
+ assert.match(deterministicReadProjection(monthEvidence).sentences[0].text,/2024-04-09.*170 g/);
+ const ambiguous={...monthEvidence,represented:[...evidence.represented,{...evidence.represented[1],sourceId:'care:newer',occurredAt:'2024-04-20T12:00:00Z'}]};
+ assert.equal(deterministicReadProjection(ambiguous),null);
 });
 test('equivalent displayed units inherit verified measurement and calculation provenance', () => {
   const source={text:'Pixel weighed 4.94 kg on 2022-10-09.',occurredAt:'2022-10-09T12:00:00Z',petId:'pet'};
@@ -133,9 +142,10 @@ test('explicit no-write wording suppresses suggestions independently of model in
 test('receipt follow-ups recover owned read scope from the latest user action request', () => {
   const pet={id:'pet',user_id:'owner',name:'Fern'};
   const currentMessage='Check the linked receipts for that two-note save. State how many notes were saved and quote both. Do not save them again.';
-  const result=validateAskRequest({version:'ask-request.v2',mode:'read',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'none',petNames:[],operation:'recall',selection:'reference',quantity:'records',topic:'receipts',terms:['receipts'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'}, {
+  const result=validateAskRequest({version:'ask-request.v2',mode:'read',question:currentMessage,requirements:[],referenceTurnIds:['prior-check'],scope:'none',petNames:[],operation:'recall',selection:'reference',quantity:'records',topic:'receipts',terms:['receipts'],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'}, {
     owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[
       {id:'save-turn',role:'user',text:'Save two separate notes for Fern: January 2: walked. January 4: played.'},
+      {id:'prior-check',role:'user',text:'Verify the receipts for that save. Do not save them again.'},
       {id:'current-turn',role:'user',text:currentMessage}],
   });
   assert.equal(result.readOnly,true); assert.deepEqual(result.petIds,['pet']);
@@ -151,6 +161,14 @@ test('publishable presentation is compiled before review and removes mutation cl
   assert.equal(readPublicationFailure(canonicalReadPresentation('I updated the profile.')),null);
   const json='{"note":"literal **text** and 2.50 g"}';
   assert.equal(canonicalReadPresentation(json),json);
+});
+
+test('publication preserves meaningful spaces in structured cells without optional offers', () => {
+ for (const text of ['name,note\nFern,"two  spaces"','| Pet | Note |\n| --- | --- |\n| Fern | two  spaces |']) {
+   assert.equal(enforceVerifiedStateClaims(text,false),text);
+   const published=canonicalReadPresentation(text);
+   assert.equal(readPublicationFailure(published),null);
+ }
 });
 test('receipt completion requires every exact requested record and never trusts an assistant answer', () => {
   const requestText='Save two separate notes: January 2, 2026: walked 12 minutes. January 4, 2026: walked 18 minutes.';
