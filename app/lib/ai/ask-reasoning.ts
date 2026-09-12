@@ -1078,7 +1078,7 @@ export async function generateStructuredFeatureResponse<T>({
     usedModel = models.fallback;
     response = await runProviderRequest({
       client, fallbackFrom: models.primary, model: usedModel, onEvent: onProviderEvent,
-      parseOutput, request: request(input, maxOutputTokens), stage: "fallback", timeoutMs: Math.min(timeoutMs, 35_000),
+      parseOutput, request: request(input, maxOutputTokens), stage: "fallback", timeoutMs: Math.min(timeoutMs, reasoningEffort ? 35_000 : 20_000),
     });
   }
   return response;

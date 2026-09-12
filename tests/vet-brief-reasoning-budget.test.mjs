@@ -29,3 +29,23 @@ test('feature reasoning and time budgets reach provider transport without changi
   await context.generateStructuredFeatureResponse({ ...base, timeoutMs: 90000 });
   assert.equal(calls[2].timeoutMs, 35000);
 });
+
+test('fallback keeps its existing deadline unless a reasoning budget is explicitly selected', async () => {
+  const calls = [];
+  class PipelineError extends Error {}
+  const context = vm.createContext({
+    createClient: () => ({}),
+    getAskModelConfiguration: () => ({ primary: 'primary', fallback: 'fallback' }),
+    getAskProviderCooldown: () => ({ active: false }),
+    AskPipelineError: PipelineError,
+    isRetryableProviderLimit: () => true,
+    isRequestRateLimit: () => false,
+    runProviderRequest: async call => { calls.push(call); if (call.stage === 'primary') throw new PipelineError(); return call.parseOutput('{"okay":true}'); },
+  });
+  vm.runInContext(compiled, context);
+  const base = { apiKey: 'test-only', input: {}, instructions: 'test', parse: value => value, schema: {}, schemaName: 'test' };
+  await context.generateStructuredFeatureResponse(base);
+  assert.equal(calls[1].timeoutMs, 20000);
+  await context.generateStructuredFeatureResponse({ ...base, reasoningEffort: 'medium', timeoutMs: 35000 });
+  assert.equal(calls[3].timeoutMs, 35000);
+});
