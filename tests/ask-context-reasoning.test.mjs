@@ -547,3 +547,17 @@ test("repeated unsupported event evidence fails before it can become a legacy sa
     error => error instanceof AskPipelineError && error.diagnostics.providerErrorCode === "ASK_EVENT_EVIDENCE_UNSUPPORTED");
   assert.equal(client.requests.length, 2);
 });
+
+test('verified inventory survives ranking and generic span compaction with its as-of scope intact',async()=>{
+  const {recordInventoryEvidence}=await import('../app/lib/intelligence/record-inventory.ts');
+  const {deterministicReadProjection}=await import('../app/lib/intelligence/read-projection.ts');
+  const base=input({careEntries:[],question:'How many saved care-history entries does Mani have in June 2026?'});
+  const evidence=buildAskContext(base).promptContext.evidenceContract;
+  evidence.recordInventory=[{petId:'pet-mani',count:4,from:'2026-06-01',to:'2026-07-01',checkedAt:'2026-07-27T20:00:00.000Z'}];
+  const source=recordInventoryEvidence(evidence.recordInventory)[0];assert.ok(source.text.length>280);
+  evidence.sources.push({...evidence.sources[0],source:'record_inventory',loadedIds:[source.sourceId]});
+  const context=buildAskContext({...base,evidenceContract:evidence});
+  assert.equal(context.records.find(r=>r.id===source.sourceId)?.value,source.text);
+  assert.equal(context.promptContext.evidenceContract.losses.some(l=>l.sourceId===source.sourceId),false);
+  assert.equal(deterministicReadProjection(context.promptContext.evidenceContract)?.sentences[0].text,source.text);
+});
