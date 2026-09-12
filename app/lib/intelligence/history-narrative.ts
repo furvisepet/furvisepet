@@ -1,5 +1,5 @@
 import { parseCsvRecords, parsePlainTable, isStructuredHistoryText } from "../furvise-output.ts";
-import { historyCalculationSchema, parseHistoryCalculations, type HistoryCalculation } from "./history-calculation.ts";
+import { calculationSourceIds, historyCalculationSchema, parseHistoryCalculations, type HistoryCalculation } from "./history-calculation.ts";
 
 /** Draft prose is a model proposal, never persistence or source authority. */
 export type HistoryNarrative = { sentences: Array<{ text: string; sourceIds: string[]; calculations?: HistoryCalculation[] }> };
@@ -27,7 +27,9 @@ export function parseHistoryNarrative(value: unknown): HistoryNarrative | undefi
       || sentence.sourceIds.some(id => typeof id !== "string" || !id || id.length > 160)) return;
     const calculations = parseHistoryCalculations(sentence.calculations);
     if (!calculations) return;
-    sentences.push({ text: sentence.text.trim(), sourceIds: [...new Set(sentence.sourceIds as string[])],
+    const sourceIds = calculationSourceIds(sentence.sourceIds as string[], calculations);
+    if (sourceIds.length > (parsePlainTable(sentence.text) || parseCsvRecords(sentence.text) || isStructuredHistoryText(sentence.text) ? 64 : 12)) return;
+    sentences.push({ text: sentence.text.trim(), sourceIds,
       ...(calculations.length ? { calculations } : {}) });
   }
   if (sentences.map(s => s.text).join(" ").length > 3600) return;

@@ -2,7 +2,7 @@ import { canonicalReadPresentation } from "../ask-publication.ts";
 /** Read composition permits navigation only; it carries no mutation authority. */
 import { companionVoiceInstructions, normalizeCompanionProse } from "../furvise-voice.ts";
 import { historyJsonDefinitions, historyJsonSchema, renderHistoricalJson } from "./structured-history-json.ts";
-import { historyCalculationSchema } from "./history-calculation.ts";
+import { calculationSourceIds, historyCalculationSchema } from "./history-calculation.ts";
 import {
   isStructuredHistoryText,
   unwrapProseEnvelope,
@@ -93,8 +93,10 @@ export function canonicalHistoricalRead(value: unknown): unknown {
     for (const row of table.rows) {
       if (!row || !cells(row.cells) || row.cells.length !== headers.length || !Array.isArray(row.sourceIds)
         || !row.sourceIds.length || row.sourceIds.length > 12 || !Array.isArray(row.calculations)) throw new Error("INVALID_READ_TABLE");
-      lines.push(row.cells); sourceIds.push(...row.sourceIds); calculations.push(...row.calculations);
-      historicalResult.items.push({ text: JSON.stringify(headers.map((header, index) => ({ column: header, value: row.cells[index] }))), sourceIds: [...row.sourceIds], calculations: row.calculations });
+      const rowSources = calculationSourceIds(row.sourceIds, row.calculations);
+      if (rowSources.length > 12) throw new Error("INVALID_READ_TABLE");
+      lines.push(row.cells); sourceIds.push(...rowSources); calculations.push(...row.calculations);
+      historicalResult.items.push({ text: JSON.stringify(headers.map((header, index) => ({ column: header, value: row.cells[index] }))), sourceIds: rowSources, calculations: row.calculations });
     }
     if (p.limitation !== null && (typeof p.limitation !== "string" || !p.limitation.trim() || p.limitation.length > 600)) throw new Error("INVALID_READ_LIMITATION");
     if (!table.rows.length && !p.limitation) throw new Error("EMPTY_READ_REQUIRES_EXPLANATION");
