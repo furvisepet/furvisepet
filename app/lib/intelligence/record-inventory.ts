@@ -50,6 +50,6 @@ export async function readRecordInventory(context: FurviseLiveContext, db: Supab
 }
 export function recordInventoryEvidence(items: readonly RecordInventory[]) {
   return items.map(item => ({ sourceId: `record-inventory:${item.petId}`, petId: item.petId, occurredAt: null,
-    text: `Database count checked at ${item.checkedAt}: exactly ${item.count} active saved care-history entries with recorded dates from ${item.from} inclusive to ${item.to} exclusive. This counts database notes, not episodes or events described within notes. It covers only this accessible date interval, not later dates or excluded history.`,
+    text: `Database count checked at ${item.checkedAt}: exactly ${item.count} active saved care-history entries with recorded dates from ${item.from} inclusive to ${item.to} exclusive. This counts database notes, not episodes or events described within notes. It covers only this accessible date interval, not later dates or excluded history.${item.count === 0 ? " Zero matching saved entries does not prove that no events occurred during this interval." : ""}`,
   }));
 }

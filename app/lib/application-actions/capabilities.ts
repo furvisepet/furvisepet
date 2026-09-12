@@ -149,8 +149,10 @@ function canonicalCapabilityAction(
   const policy = getFurviseActionPolicy(action.kind);
   if (policy.mutationClass !== "mutation") throw new Error("ACTION_CAPABILITY_KIND_NOT_MUTABLE");
   const explicitIntent = hasDeterministicUserMutationIntent({ action, petName, sourceMessage });
+  const { targetSourceId, ...capabilityAction } = action;
+  void targetSourceId; // Routing hint consumed by binding, never capability authority.
   return {
-    ...action,
+    ...capabilityAction,
     ...policy,
     explicitIntent,
     sourceMessageId,

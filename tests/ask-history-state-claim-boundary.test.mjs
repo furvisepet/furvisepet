@@ -3,6 +3,18 @@ import assert from 'node:assert/strict';
 import { enforceVerifiedStateClaims, containsUnverifiedStateClaim } from '../app/lib/application-actions/state-claims.ts';
 
 const caveat = 'This covers the matching saved notes I could verify, not necessarily every event in their life.';
+test('physical passive events do not become application receipts merely because a verb is shared',()=>{
+  for(const text of ['330 ml was removed from the bowl; the amount drunk is unknown.',
+    'The bandage was removed by the veterinarian.', 'The old toy was replaced and the bedding was changed.',
+    'A meal was prepared by the owner.', 'The obstacle was removed from the path.']) {
+    assert.equal(containsUnverifiedStateClaim(text),false,text);
+    assert.equal(enforceVerifiedStateClaims(text,false),text);
+    assert.equal(containsUnverifiedStateClaim(text+' Her profile was updated.'),true);
+  }
+  for(const text of ['It was removed.', 'The booking was completed.', 'The action was completed.',
+    'The appointment was changed.', 'I removed the water.', 'Her history was removed.'])
+    assert.equal(containsUnverifiedStateClaim(text),true,text);
+});
 test('navigation progress requires a browser receipt even when a database write succeeded', () => {
   for (const text of ["I’m opening her history now.", 'Opening the vet brief for Sable using her saved history only.',
     'What I am doing\n- Opening the profile with the saved details.', 'I opened her history.',

@@ -91,12 +91,17 @@ export function hasDeterministicUserMutationIntent(input: {
 export function resolveFurviseActionTargetBindings(input: {
   actions: FurviseApplicationAction[];
   referencedRecords: ActionTargetContextRecord[];
+  /** Owned, effective, server-supplied records; independent of answer citations. */
+  targetRecords?: ActionTargetContextRecord[];
 }) {
   const bindings: Record<string, string> = {};
   for (const action of input.actions) {
     const expected = targetReferenceType(action.kind);
     if (!expected) continue;
-    const candidates = new Set(input.referencedRecords.flatMap((record) => {
+    const records = action.targetSourceId
+      ? (input.targetRecords || input.referencedRecords).filter(record => record.id === action.targetSourceId)
+      : input.referencedRecords;
+    const candidates = new Set(records.flatMap((record) => {
       if (record.petId !== action.petId || record.sourceType !== expected.sourceType) return [];
       const prefix = `${expected.prefix}:`;
       if (!record.id.startsWith(prefix)) return [];

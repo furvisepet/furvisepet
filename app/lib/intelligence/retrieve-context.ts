@@ -139,6 +139,9 @@ export async function buildFurviseContext({
         ...(message.role === "user" && message.request_id ? { operationReceipt: {
           sourceMessageId: message.id, petId, requestText: message.user_text || "",
           answerPersisted: messages.data.some(other => other.role === "furvise" && other.request_id === message.request_id),
+          actionReceipts: messages.data.filter(other => other.role === "furvise" && other.request_id === message.request_id)
+            .flatMap(other => parseStoredApplicationActions(capabilityActions.get(other.id) || [])).filter(action => action.petId === petId && action.mutationClass === "mutation")
+            .map(action => ({ id: action.id, kind: action.kind, status: action.status, resultMessage: action.resultMessage })),
           records: (deletedCareSources.data || []).filter(row => !row.deleted_at && row.intelligence_source_message_id === message.id)
             .map(row => ({ id: row.id, note: row.note, occurredAt: row.occurred_at })),
         } } : {}),
