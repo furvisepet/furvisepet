@@ -59,7 +59,7 @@ export function operationReceiptEvidence(receipts: NonNullable<AskEvidenceContra
     sourceId: `operation:${receipt.sourceMessageId}`, petId: receipt.petId, occurredAt: null as string | null,
     text: receiptCompletionText(receipt) + ` Prior request (intent, not a saved observation): ${JSON.stringify(receipt.requestText)}. `
       + `An assistant answer ${receipt.answerPersisted ? "was" : "was not"} persisted for that turn. `
-      + (receipt.actionReceipts ? `The owned mutation-receipt lookup found ${receipt.actionReceipts.length} action receipts for this turn; their statuses are supplied separately. ` : "")
+      + (receipt.actionReceipts ? `The owned mutation-receipt lookup found ${receipt.actionReceipts.length} action receipts for this turn; their statuses are supplied separately. An edit can succeed without creating a new care record linked to the correction turn; use the action receipt for its outcome. ` : "")
       + (receipt.records.length ? "Current care records linked to that exact turn are supplied as separate dated receipt sources."
         : "No current care record for this pet is linked to that exact turn. This is a write-status lookup, not a claim that the reported event never happened."),
   }, ...receipt.records.map(record => ({
@@ -67,7 +67,7 @@ export function operationReceiptEvidence(receipts: NonNullable<AskEvidenceContra
     text: `A current care-history entry is linked to this exact prior request. Recorded note: ${JSON.stringify(record.note)}`,
   })), ...(receipt.actionReceipts || []).map(action => ({
     sourceId: `operation:${receipt.sourceMessageId}:action:${action.id}`, petId: receipt.petId, occurredAt: null,
-    text: `Owned application action receipt for this exact request: ${action.kind}. Status: ${action.status}. `
+    text: `Owned application action receipt for this exact request: ${action.kind}. Status: ${action.status}. Request context (intent only): ${JSON.stringify(receipt.requestText)}. `
       + (action.status === "succeeded" ? `The requested action completed. ${action.resultMessage || ""} This receipt does not certify that its result remained unchanged after later actions.`
         : "This receipt does not establish a completed change; pending, failed and cancelled states are not successful writes."),
   }))]);
@@ -253,7 +253,7 @@ export function eligibleAnswerSources(evidence: AskEvidenceContract) {
     if (!need || !evidence.scope.authorizedPetIds.includes(petId)) return [];
     const text = `The completed scoped lookup for ${evidence.petNames?.[petId] || petId} found no matching saved care records for request clause ${JSON.stringify(need.quote)}${need.window ? `, from ${need.window.from} inclusive to ${need.window.to} exclusive` : ""}. This establishes only the lookup result, not that the event never happened, the pet was healthy, or no records exist outside this lookup.`;
     return [{ sourceId: `lookup:${needId}:${petId}`, petId, sourceType: "lookup_receipt", field: "value" as const,
-      start: 0, end: text.length, text, occurredAt: null }];
+      start: 0, end: text.length, text, occurredAt: null, lookupScope: { needId, ...(need.window ? { window: need.window } : {}) } }];
   });
   // Mixed turns have two provenance classes: existing records and the owner's
   // present request. The replacement value is not expected to exist in history.

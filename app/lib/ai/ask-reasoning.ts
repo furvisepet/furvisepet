@@ -455,7 +455,12 @@ export function buildAskContext(input: BuildContextInput) {
   const product = /\b(product|food|brand|buy|shop|recommend)\b/i.test(input.question)
     ? scored.filter(({ record }) => record.sourceType === "product_context").slice(0, 3)
     : [];
-  const operationReceipts = scored.filter(({record}) => ["record_inventory", "operation_receipt", "episode_result"].includes(record.sourceType)).sort((a,b) => Number(b.record.sourceType === "record_inventory") - Number(a.record.sourceType === "record_inventory")).slice(0, 8);
+  const receiptPriority = (record: AskContextRecord) => record.sourceType === "record_inventory" ? 3
+    : record.sourceType === "episode_result" ? 2 : record.metadata?.receiptKind === "action" ? 1 : 0;
+  const operationReceipts = scored.filter(({record}) => ["record_inventory", "operation_receipt", "episode_result"].includes(record.sourceType))
+    .sort((a,b) => receiptPriority(b.record) - receiptPriority(a.record)
+      || (a.record.metadata?.receiptKind === "action" && b.record.metadata?.receiptKind === "action"
+        ? Number(b.record.metadata.receiptSequence) - Number(a.record.metadata.receiptSequence) : 0)).slice(0, 8);
   const episodeEvidence = scored.filter(({record}) => record.sourceType === "episode_evidence").slice(0, 8);
   const chosen = dedupeScored([...operationReceipts, ...episodeEvidence, ...activeConcerns, ...activeEpisodes, ...resolvedConcerns, ...resolvedEpisodes, ...profile, ...relevantUpdates, ...memories, ...conversation, ...product]);
   let detailedUpdateCount = 0;
@@ -1514,11 +1519,12 @@ function buildContextRecords(input: BuildContextInput): AskContextRecord[] {
     if (profile) records.push({ ...baseRecord(item.sourceId, "record_inventory", profile, "record_count", item.text, null),
       status: "unknown", priority: "routine", metadata: { authority: "owned_database_count" } });
   }
-  for (const receipt of operationReceiptEvidence(input.evidenceContract?.operationReceipts || [])) {
+  for (const [receiptSequence, receipt] of operationReceiptEvidence(input.evidenceContract?.operationReceipts || []).entries()) {
     const profile = profiles.get(receipt.petId);
     if (!profile) continue;
     records.push({ ...baseRecord(receipt.sourceId, "operation_receipt", profile, "operation_status", receipt.text, receipt.occurredAt),
-      occurredAt: receipt.occurredAt, status: "unknown", priority: "routine", metadata: { authority: "owned_source_turn_lookup" } });
+      occurredAt: receipt.occurredAt, status: "unknown", priority: "routine", metadata: { authority: "owned_source_turn_lookup",
+        receiptSequence, receiptKind: receipt.sourceId.includes(":action:") ? "action" : receipt.sourceId.includes(":record:") ? "record" : "summary" } });
   }
   const episodeEvidence = input.evidenceContract?.episodes;
   const episodeProfile = episodeEvidence && profiles.get(episodeEvidence.petId);

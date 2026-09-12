@@ -4,6 +4,18 @@ import { missingExactRecordText } from '../app/lib/intelligence/exact-record-tex
 import { verifiedCalculationQuantities } from '../app/lib/intelligence/history-calculation.ts';
 import { reviewObligationCompletion, historyTaskCompleted } from '../app/lib/intelligence/history-obligations.ts';
 const note='May 4, 2025: ate 28 g of "usual" food.';
+test('a prepared replacement quotation is an artifact, never independent numeric evidence',async()=>{
+ const {historyNarrativeAnchorsSupported}=await import('../app/lib/intelligence/history-narrative-facts.ts');
+ const original={text:'June 2, 2025: walked for 10 minutes.',occurredAt:'2025-06-02T00:00:00Z'};
+ const request={text:'Correct the June 2 walk from 10 minutes to 12 minutes.'};
+ const proposed='June 2, 2025: walked for 12 minutes.';
+ const text='Proposed replacement: "'+proposed+'". Please confirm.';
+ const check=(sources,proposals)=>historyNarrativeAnchorsSupported(text,sources,request.text,[],false,[],undefined,false,proposals);
+ assert.equal(check([original,request],[]),false);
+ assert.equal(check([original,request],[proposed]),true);
+ assert.equal(check([original],[proposed]),false,'proposal text cannot supply unsupported quantities');
+ assert.equal(check([original,request],[proposed.replace('12','18')]),false);
+});
 test('generation and repair schemas constrain citations and mutation targets independently',async()=>{
  const {sourceBoundSchema}=await import('../app/lib/intelligence/source-bound-schema.ts');
  const base={type:'object',properties:{sourceIds:{type:'array',items:{type:'string'}},targetSourceId:{type:['string','null']},calculation:{properties:{sourceId:{type:'string'}}}}};
@@ -57,6 +69,16 @@ test('an inventory covers only its owned counted interval, independently of obse
  assert.deepEqual(reviewObligationCompletion([obligation],[review],sentences,sources,[],inventory).failures,[]);
  assert.equal(reviewObligationCompletion([{...obligation,petId:'foreign'}],[review],sentences,sources,[],inventory).failures.length,1);
  assert.equal(reviewObligationCompletion([{...obligation,window:{from:'2025-04-01',to:'2025-06-01'}}],[review],sentences,sources,[],inventory).failures.length,1);
+});
+test('a cited empty lookup grounds its exact need and window without pretending to be a dated observation',()=>{
+ const window={from:'2025-02-01',to:'2025-03-01'};
+ const o={index:1,needId:'need:0',petId:'p',availability:'no_candidate_match',window};
+ const source={sourceId:'lookup:need:0:p',petId:'p',sourceType:'lookup_receipt',occurredAt:null,lookupScope:{needId:'need:0',window}};
+ const review=[{index:1,status:'answered',sentenceIndexes:[0]}],sentences=[{sourceIds:[source.sourceId]}];
+ assert.deepEqual(reviewObligationCompletion([o],review,sentences,[source]).failures,[]);
+ for(const change of [{petId:'foreign'},{needId:'need:1'},{window:{from:'2025-01-01',to:'2025-02-01'}},{availability:'query_unavailable'}])
+  assert.equal(reviewObligationCompletion([{...o,...change}],review,sentences,[source]).failures.length,1);
+ assert.equal(reviewObligationCompletion([o],review,[{sourceIds:[]}],[source]).failures.length,1);
 });
 test('a correction outage withholds clinical sources without erasing independent profile facts',async()=>{
  const {eligibleAnswerSources}=await import('../app/lib/intelligence/ask-evidence.ts');

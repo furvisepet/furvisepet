@@ -571,10 +571,12 @@ test('mixed history tasks retain their target note when unrelated receipt metada
   e.operationReceipts=Array.from({length:12},(_,i)=>({sourceMessageId:'old-'+i,petId:'pet-mani',
     requestText:'Earlier unrelated request. '.repeat(20),answerPersisted:true,actionReceipts:[],
     records:[{id:'old-record-'+i,note:'Earlier unrelated observation. '.repeat(40),occurredAt:'2026-06-01T00:00:00Z'}]}));
+  e.operationReceipts[11].actionReceipts=[{id:'confirmed-edit',kind:'care_history.edit',status:'succeeded',resultMessage:'The history update was edited.'}];
   const {operationReceiptEvidence,evidenceSource}=await import('../app/lib/intelligence/ask-evidence.ts');
   e.sources.push(evidenceSource('pet-mani','operation_receipts',operationReceiptEvidence(e.operationReceipts).map(source=>source.sourceId)));
   const context=buildAskContext({...base,evidenceContract:e});
   assert.ok(context.records.some(record=>record.id==='care:care-1'));
+  assert.ok(context.records.some(record=>record.id==='operation:old-11:action:confirmed-edit'),'the completed action receipt survives unrelated intent headers');
   assert.equal(context.promptContext.evidenceContract.losses.some(loss=>loss.sourceId==='care:care-1'),false);
   assert.equal(context.promptContext.evidenceContract.operationReceipts.length,12,'server receipt authority remains intact');
 });

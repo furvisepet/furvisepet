@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateEvidenceNeeds } from '../app/lib/intelligence/evidence-needs.ts';
-import { buildEvidenceNeedCoverage } from '../app/lib/intelligence/evidence-need-coverage.ts';
+import { buildEvidenceNeedCoverage, completedEmptyEvidenceNeeds } from '../app/lib/intelligence/evidence-need-coverage.ts';
 import { compileHistoryReadStrategies } from '../app/lib/intelligence/history-read-strategies.ts';
 import { buildHistoryObligations, reviewObligationCompletion } from '../app/lib/intelligence/history-obligations.ts';
 import { parseTaskHistoryReview } from '../app/lib/intelligence/history-review-selection.ts';
@@ -36,6 +36,15 @@ test('coverage never substitutes a different month, pet, or undated source',()=>
  assert.deepEqual(c.pets[0].representedSourceIds,['old']);assert.equal(c.window.from,'2023-04-01T00:00:00.000Z');
  e.represented=e.represented.filter(s=>s.sourceId!=='old');
  assert.deepEqual(buildEvidenceNeedCoverage(e)[0].pets[0].representedSourceIds,[]);
+});
+test('period candidates prevent false empty receipts when lexical hints miss their wording',()=>{
+ const e=evidence(); e.interpretation.request.evidenceNeeds[0].terms=['resting-duration'];
+ e.history.needs=[{needId:'need:0',petId:'a',status:'unknown',exhausted:true,candidateIds:[]}];
+ const coverage=buildEvidenceNeedCoverage(e)[0];
+ assert.equal(coverage.pets[0].state,'candidates_available');
+ assert.deepEqual(coverage.pets[0].representedSourceIds,['old']);
+ assert.equal(coverage.semanticSupport,'unverified','period coverage does not establish relevance or truth');
+ assert.deepEqual(completedEmptyEvidenceNeeds(e),[]);
 });
 test('every requested pet gets its own fact obligation without dropping the whole question',()=>{
  const e=evidence();delete e.interpretation.request.evidenceNeeds[0].petIds;
