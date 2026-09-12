@@ -37,3 +37,14 @@ test('each quote binds its own date, not the dates of earlier quoted notes',asyn
   assert.equal(historyNarrativeAnchorsSupported(text,sources,'',[],false),true);
   assert.equal(historyNarrativeAnchorsSupported(text.replace('2025-01-07 report','2025-01-04 report'),sources,'',[],false),false);
 });
+
+test('two-date body-mass projection computes a cited draft and refuses ambiguous or foreign measurements',async()=>{
+  const { deterministicReadProjection }=await import('../app/lib/intelligence/read-projection.ts');
+  const { verifiedCalculationQuantities }=await import('../app/lib/intelligence/history-calculation.ts');
+  const records=[{sourceId:'care:a',petId:'p',occurredAt:'2023-03-09T00:00:00Z',text:'Mira weighed 18.4 kg. No carrier or harness included.'},{sourceId:'care:b',petId:'p',occurredAt:'2023-04-09T00:00:00Z',text:'Mira weighed 18.7 kg. No carrier or harness included.'}];
+  const e={scope:{readOnlyRecall:true,authorizedPetIds:['p'],requestText:'Compare Mira’s body weights on March 9 and April 9, 2023. Give the change in kilograms.'},interpretation:{request:{outputFormat:'prose'}},petNames:{p:'Mira'},losses:[],sources:[{petId:'p',status:'loaded',loadedIds:['care:a','care:b']}],represented:records.map(r=>({...r,sourceType:'care_update',field:'value',start:0,end:r.text.length}))};
+  const draft=deterministicReadProjection(e);assert.ok(draft);assert.equal(draft.sentences[2].calculations[0].value,0.3);assert.ok(verifiedCalculationQuantities(draft.sentences[2].calculations,records));
+  assert.match(draft.sentences[2].text,/does not establish a cause/);
+  assert.equal(deterministicReadProjection({...e,represented:[e.represented[0],{...e.represented[1],petId:'foreign'}]}),null);
+  assert.equal(deterministicReadProjection({...e,represented:[e.represented[0],{...e.represented[1],text:'Mira weighed 18.7 kg with carrier included.'}]}),null);
+});
