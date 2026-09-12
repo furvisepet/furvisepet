@@ -252,3 +252,11 @@ test('requested JSON layout is preserved for profile-only historical reads',()=>
   assert.deepEqual(request.text.format.schema.properties.layout.enum,['json']);
   assert.equal(request.text.format.schema.properties.historyNarrative.type,'null');
 });
+test('count composition uses the same typed container as other historical tasks',()=>{
+  for(const outputFormat of ['json','csv','prose']){
+    const request=buildAskProviderRequest({evidenceContract:{scope:{readOnlyRecall:true,requestKind:'count'},history:{},
+      interpretation:{request:{outputFormat}},represented:[]}});
+    assert.deepEqual(request.text.format.schema.properties.layout.enum,[outputFormat]);
+    assert.ok(request.text.format.schema.properties.readVersion);
+  }
+});

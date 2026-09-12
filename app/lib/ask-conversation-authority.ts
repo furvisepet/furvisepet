@@ -34,8 +34,10 @@ function createAskConversationAuthorityClient() {
 
 async function callAskConversationAuthority(name: string, parameters: Record<string, unknown>) {
   try {
-    const { data, error } = await createAskConversationAuthorityClient().rpc(name, parameters);
-    return { data: data as unknown, error: error as unknown };
+    const { data, error, status } = await createAskConversationAuthorityClient().rpc(name, parameters);
+    if (error) console.warn("[Ask conversation authority] RPC failure", { operation: name,
+      code: /^[A-Z0-9_]{1,40}$/.test(error.code || "") ? error.code : "unknown", status });
+    return { data: data as unknown, error: error ? { ...error, status } : null };
   } catch (error) {
     return { data: null, error };
   }

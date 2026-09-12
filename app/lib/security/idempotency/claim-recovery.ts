@@ -2,6 +2,10 @@ type Failure = { code?: unknown; status?: unknown; name?: unknown; message?: unk
 export function transientClaimFailure(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const e = error as Failure;
+  // PostgREST group 0 represents database connection/pool availability. Its
+  // errors often omit HTTP status in the client error object. A bounded replay
+  // is safe only at the read/idempotent admission callers of this classifier.
+  if (["PGRST000", "PGRST001", "PGRST002", "PGRST003"].includes(String(e.code))) return true;
   // Do not retry credentials, schema/SQL errors, conflicts, or invalid payloads.
   if (typeof e.code === "string" && /^(?:22|23|28|42|PGRST)/.test(e.code)) return false;
   return [502,503,504].includes(Number(e.status))
