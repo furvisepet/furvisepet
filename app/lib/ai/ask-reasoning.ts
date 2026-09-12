@@ -786,7 +786,10 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     parsed.semanticEvents = [];
     parsed.careActions = [];
   }
-  const unsupportedEventEvidence = parsed.semanticEvents.filter(event =>
+  // Read-only authority already prevents these proposals from being persisted.
+  // A rejected write hint must not spend the answer's repair budget or abort a
+  // history read; final governance still clears every forbidden write channel.
+  const unsupportedEventEvidence = context.promptContext.evidenceContract.scope.readOnlyRecall ? [] : parsed.semanticEvents.filter(event =>
     !isOwnerAssertedEvidence(input.question, event.sourceExcerpt));
   if (unsupportedEventEvidence.length) {
     if (retryUsed) throw new AskPipelineError("fallback_invalid_output", "Ask event evidence remained unsupported.", {

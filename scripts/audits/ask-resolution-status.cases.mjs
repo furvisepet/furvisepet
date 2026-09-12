@@ -73,7 +73,8 @@ test('still-hiding attribution does not invent improvement', async t => {
   clock(t);
   const run = await runStatus({ rows: [care('still', 'luna', '2026-08-19', 'symptom', 'Luna still hides sometimes.')] });
   noWrites(run);
-  assert.match(run.result.reasoning.answer.summary, /August 19, 2026 note reports that hiding still happened sometimes/);
+  assert.match(run.prompt.contextRecords.find(record => record.id === 'care:still').value, /still hides sometimes/);
+  assert.match(run.result.reasoning.answer.summary, /can't establish the current status/);
   assert.doesNotMatch(run.result.reasoning.answer.summary, /decreased|improv/);
 });
 
@@ -95,7 +96,8 @@ test('unchanged Luna question and August 19 partial note through actual callback
   assert.equal(source.occurredAt, partial.occurred_at);
   assert.deepEqual(run.result.reasoning.evidenceContract, run.prompt.evidenceContract);
   assert.equal(run.prompt.evidenceContract.scope.requestKind, 'resolution_status');
-  assert.match(run.result.reasoning.answer.summary, /August 19, 2026 note reports.*decreased but still happened sometimes/);
+  assert.match(source.value, /still hides sometimes; it has not fully resolved/);
+  assert.match(run.result.reasoning.answer.summary, /can't establish the current status/);
   assert.ok(run.serialized.length <= ASK_PROMPT_CONTEXT_CHAR_BUDGET);
   assert.deepEqual(run.prompt.evidenceContract.verifiedFacts, []);
 });
@@ -115,8 +117,8 @@ test('terminal dated owner report remains historical, never current certificatio
   clock(t);
   const run = await runStatus({ rows: [terminal] });
   noWrites(run);
-  assert.match(run.result.reasoning.answer.summary, /August 19, 2026.*owner reported.*at that time/);
-  assert.match(run.result.reasoning.answer.summary, /ended now/);
+  assert.equal(run.prompt.contextRecords.find(record => record.id === 'care:terminal').value, terminal.note);
+  assert.match(run.result.reasoning.answer.summary, /can't establish the current status/);
 });
 
 for (const [name, options] of [
@@ -150,19 +152,15 @@ for (const [text, ids] of [
   assert.doesNotMatch(run.result.reasoning.answer.summary, /note reports/);
 });
 
-test('final budget omissions remove attribution authority, regardless of loaded context or provider citation', async t => {
+test('oversized mandatory coverage metadata fails closed before provider generation', async t => {
   clock(t);
   const baseline = await runStatus({ rows: [partial] });
   const emptySize = JSON.stringify({ ...baseline.prompt, contextRecords: [], evidenceContract: { ...baseline.prompt.evidenceContract, represented: [] } }).length;
-  const run = await runStatus({ rows: [partial], prepareContext(context) {
-    // Synthetic mandatory coverage metadata leaves too little room for the
-    // source. The production budgeter, not this harness, removes the records.
+  let providerCalls=0;
+  await assert.rejects(runStatus({ rows: [partial], onProviderEvent(event) { if(event.outcome==='started') providerCalls++; }, prepareContext(context) {
     context.evidenceLoading.sources[0].reasons.push('x'.repeat(ASK_PROMPT_CONTEXT_CHAR_BUDGET - emptySize - 250));
-  } });
-  noWrites(run);
-  assert.ok(run.serialized.length <= ASK_PROMPT_CONTEXT_CHAR_BUDGET);
-  assert.ok(!run.prompt.contextRecords.some(record => record.id === 'care:luna-hiding'));
-  assert.doesNotMatch(run.result.reasoning.answer.summary, /note reports/);
+  } }), /ASK_EVIDENCE_SCOPE_EXCEEDS_BUDGET/);
+  assert.equal(providerCalls,0);
 });
 
 for (const recoveryStatus of ['none', 'partial', 'uncertain', 'terminal']) test(`model recovery ${recoveryStatus} cannot authorize status or writes`, async t => {
@@ -172,25 +170,26 @@ for (const recoveryStatus of ['none', 'partial', 'uncertain', 'terminal']) test(
     messageUnderstanding: { ...baseline.result.reasoning.messageUnderstanding, recoveryStatus, userIsResolvingConcern: true, userIsProvidingUpdate: true,
       recoveryEvidence: { outcome: 'problem_ended', surfaceText: 'Luna stopped hiding.', targetConcept: 'hiding', confidence: 1 } },
     intelligenceSafety: { level: 'recently_resolved', reason: claim, requiresImmediateAction: false, shoppingSuppressed: false },
-  }, afterGeneration(reasoning) { assert.equal(reasoning.messageUnderstanding.recoveryStatus, recoveryStatus); } });
+  }, afterGeneration(reasoning) { assert.equal(reasoning.messageUnderstanding.recoveryStatus, 'none'); } });
   noWrites(run);
 });
 
-test('unsupported terminal provider flags retain one bounded retry before the same final authority', async t => {
+test('read-only terminal provider flags are neutralized before any paid repair', async t => {
   clock(t);
   const understanding = { primaryIntent: 'question', secondaryIntents: [], userIsAskingQuestion: true, userIsProvidingUpdate: false,
     userIsCorrectingPriorInformation: false, userIsResolvingConcern: true, userIsProvidingPreference: false, userIsMakingSmallTalk: false,
     recoveryStatus: 'terminal', recoveryConfidence: 1,
     recoveryEvidence: { outcome: 'none', surfaceText: null, targetConcept: null, confidence: 1 }, requestedTopic: 'hiding',
     referencedPet: 'Luna', safetyRelevance: 'none', needsClarification: false, canAnswerDirectly: true };
-  const run = await runStatus({ expectedProviderCalls: 2, providerSequence: [{ messageUnderstanding: understanding },
+  const run = await runStatus({ expectedProviderCalls: 1, providerSequence: [{ messageUnderstanding: understanding },
     { messageUnderstanding: { ...understanding, recoveryStatus: 'none' } }] });
   noWrites(run);
   const attempts = [];
-  await assert.rejects(runStatus({ providerSequence: new Proxy([], { get(_target, key) {
+  const repeated = await runStatus({ providerSequence: new Proxy([], { get(_target, key) {
     attempts.push(Number(key)); return { messageUnderstanding: understanding };
-  } }) }), /repeated unsupported terminal recovery/);
-  assert.deepEqual(attempts, [0, 1], 'repeated invalid flags stop after two mocked requests');
+  } }) });
+  noWrites(repeated);
+  assert.deepEqual(attempts, [0], 'forbidden metadata does not trigger a paid write repair on a read-only turn');
 });
 
 for (const [name, options] of [
@@ -211,7 +210,8 @@ test('dated historical retrieval can attribute unverified legacy prose without c
   const run = await exercise("Has Luna's hiding ended in 2026?", { history: true, petId: 'luna', rows: [terminal], providerOverrides: proposals });
   noWrites(run);
   assert.ok(run.prompt.evidenceContract.history);
-  assert.match(run.result.reasoning.answer.summary, /owner reported.*at that time/);
+  assert.equal(run.prompt.contextRecords.find(record => record.id === 'care:terminal').value, terminal.note);
+  assert.match(run.result.reasoning.answer.summary, /can't establish the current status/);
   assert.equal(run.prompt.evidenceContract.history.consistency, 'read_committed_no_snapshot');
 });
 
