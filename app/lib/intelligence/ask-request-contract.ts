@@ -114,7 +114,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
     if (!selection || Object.keys(selection).sort().join() !== "quote,scope"
       || !["all_active", "content_filtered"].includes(String(selection.scope))
       || typeof selection.quote !== "string" || !selection.quote.trim() || selection.quote.length > 1600
-      || !context.currentMessage.includes(selection.quote) || p.quantity !== "records") return fail("record_selection");
+      || !context.currentMessage.includes(selection.quote) || p.quantity !== "records") p.recordSelection = null;
   }
   const date = (v: unknown): v is string | null => v === null || typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
     && Number.isFinite(Date.parse(v)) && new Date(v).toISOString().slice(0, 10) === v && v >= "1900-01-01" && v <= "2100-01-01";
@@ -234,7 +234,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   }
   if (petIds.some(id => excluded.has(id))) return fail("excluded_subject");
   const readOnly = !["update", "mixed"].includes(String(p.mode));
-  const frame = readOnly ? emptyProposedSemanticFrame() : validateProposedSemanticFrame(p.frame).frame;
+  // Record-edit intent is an application operation, not a new observation.
+  // Its owned target and replacement are validated by the action capability.
+  const frame = readOnly || p.mutationIntent === "correct_record" ? emptyProposedSemanticFrame() : validateProposedSemanticFrame(p.frame).frame;
   if (!frame) return fail("frame");
   // A resolved owner and lexical ordering query can retrieve evidence before
   // asking what an unfamiliar topic means. This grants no new identity or write.

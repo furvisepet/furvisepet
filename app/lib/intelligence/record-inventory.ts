@@ -29,7 +29,7 @@ export async function readRecordInventory(context: FurviseLiveContext, db: Supab
   if (!interpretation?.readOnly || request?.recordSelection?.scope === "content_filtered" || !selectedInventory && (!literalWindow && (request?.quantity !== "records" || !interpretation.history
     || historyQueryTerms(interpretation.history.terms.map(term => term.replace(/\b(?:care|entries|entry|database|stored|total|count)\b/gi, " ")), context.eligiblePets.map(pet => pet.name || "")).length) || !/\b(?:how many|count|number of|total)\b/i.test(context.currentMessage)
     || !/\b(?:care[- ]history entries|database notes|saved (?:care )?(?:notes|entries|records))\b/i.test(context.currentMessage))) return [];
-  const proposed = literalWindow || interpretation.history;
+  const proposed = selectedInventory ? interpretation.history : literalWindow || interpretation.history;
   if (!proposed) return [];
   const plan = clipHistoryPlan(proposed, context.historyAccess);
   if (!plan.from || !plan.to || !Number.isFinite(Date.parse(plan.from)) || !Number.isFinite(Date.parse(plan.to))
