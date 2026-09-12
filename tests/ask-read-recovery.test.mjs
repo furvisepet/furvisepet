@@ -17,7 +17,7 @@ test('literal inventory scope survives noisy planner hints, never content qualif
   assert.equal(literalInventoryWindow(message.replace('entries','vomiting entries'),['Mira']),null);
   assert.equal(literalInventoryWindow(message.replace('in August','before August'),['Mira']),null);
   const calls=[];const db={};for(const k of ['from','select','eq','is','gte','lt'])db[k]=(...args)=>{calls.push([k,...args]);return db;};db.abortSignal=async()=>({error:null,count:4});
-  const items=await readRecordInventory({currentMessage:message,owner:{userId:'owner'},eligiblePets:[{id:'pet',user_id:'owner',name:'Mira'}],askInterpretation:{readOnly:true,petIds:['pet'],request:{quantity:'records'},history:{from:null,to:null,terms:['dated in august garbled planner text']}}},db);
+  const items=await readRecordInventory({currentMessage:message,owner:{userId:'owner'},eligiblePets:[{id:'pet',user_id:'owner',name:'Mira'}],askInterpretation:{readOnly:true,petIds:['pet'],request:{quantity:'episodes'},history:{from:null,to:null,terms:['dated in august garbled planner text']}}},db);
   assert.equal(items[0].count,4);assert.deepEqual(calls.find(c=>c[0]==='gte'),['gte','occurred_at','2026-08-01']);
 });
 
@@ -28,4 +28,12 @@ test('numeric calculation leaves take units only from an unambiguous adjacent so
   assert.ok(verifiedCalculationQuantities([p],sources));
   assert.equal(verifiedCalculationQuantities([p],[{...sources[0],text:'Body mass was 131.32 kg.'},sources[1]]),null);
   assert.equal(verifiedCalculationQuantities([p],[{...sources[0],text:'31.32 kg and 31.32 ml.'},sources[1]]),null);
+});
+
+test('each quote binds its own date, not the dates of earlier quoted notes',async()=>{
+  const { historyNarrativeAnchorsSupported }=await import('../app/lib/intelligence/history-narrative-facts.ts');
+  const sources=[{text:'Started coughing on 2025-01-04.',occurredAt:'2025-01-04T00:00:00Z'},{text:'Stopped coughing on 2025-01-07.',occurredAt:'2025-01-07T00:00:00Z'}];
+  const text='2025-01-04 report: "Started coughing on 2025-01-04."\n2025-01-07 report: "Stopped coughing on 2025-01-07."';
+  assert.equal(historyNarrativeAnchorsSupported(text,sources,'',[],false),true);
+  assert.equal(historyNarrativeAnchorsSupported(text.replace('2025-01-07 report','2025-01-04 report'),sources,'',[],false),false);
 });

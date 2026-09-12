@@ -21,10 +21,12 @@ export type RecordInventory = { petId: string; count: number; from: string; to: 
 export async function readRecordInventory(context: FurviseLiveContext, db: SupabaseClient): Promise<RecordInventory[]> {
   const interpretation = context.askInterpretation, request = interpretation?.request;
   const literalWindow = literalInventoryWindow(context.currentMessage, context.eligiblePets.map(pet => pet.name || ""));
-  if (!interpretation?.readOnly || request?.quantity !== "records" || !interpretation.history
-    || !literalWindow && historyQueryTerms(interpretation.history.terms.map(term => term.replace(/\b(?:care|entries|entry|database|stored|total|count)\b/gi, " ")), context.eligiblePets.map(pet => pet.name || "")).length || !/\b(?:how many|count|number of|total)\b/i.test(context.currentMessage)
+  if (!interpretation?.readOnly || !literalWindow && (request?.quantity !== "records" || !interpretation.history
+    || historyQueryTerms(interpretation.history.terms.map(term => term.replace(/\b(?:care|entries|entry|database|stored|total|count)\b/gi, " ")), context.eligiblePets.map(pet => pet.name || "")).length) || !/\b(?:how many|count|number of|total)\b/i.test(context.currentMessage)
     || !/\b(?:care[- ]history entries|database notes|saved (?:care )?(?:notes|entries|records))\b/i.test(context.currentMessage)) return [];
-  const plan = clipHistoryPlan(literalWindow || interpretation.history, context.historyAccess);
+  const proposed = literalWindow || interpretation.history;
+  if (!proposed) return [];
+  const plan = clipHistoryPlan(proposed, context.historyAccess);
   if (!plan.from || !plan.to || !Number.isFinite(Date.parse(plan.from)) || !Number.isFinite(Date.parse(plan.to))
     || Date.parse(plan.from) >= Date.parse(plan.to)) return [];
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
