@@ -120,7 +120,8 @@ test("Vet Visit Brief review is mobile-ready, explicit, and analytics receives n
   assert.match(page, /What is the appointment for/);
   assert.doesNotMatch(page, /Document outline|Preview zoom/);
   assert.match(page, /navigator\.share/);
-  assert.match(page, /Urgent guidance remains in Ask and is not copied into this document/);
+  assert.match(page, /immediateUrgency.*role="alert"/);
+  assert.match(page, /vetBriefUrgencyText/);
   assert.doesNotMatch(page, /trackAskEvent\([^)]*(document|reasonForVisit|ownerNotes)/);
   assert.doesNotMatch(printPage, /AppPage|SignedInHeader|affiliate|product promotion/i);
   assert.match(ask, /source=ask/);

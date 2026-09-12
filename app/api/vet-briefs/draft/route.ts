@@ -1,16 +1,14 @@
-import { vetBriefGenerationTemplate, vetBriefReviewPublication } from "../../../lib/vet-brief/report";
+import { prepareVetBrief } from "../../../lib/vet-brief/prepare";
+import { validBriefDay } from "../../../lib/vet-brief/appointment-plan";
 import { randomUUID } from "node:crypto";
 import { featureFailureDetails } from "../../../lib/intelligence/feature-failure.ts";
-import { generateStructuredFeatureResponse, getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
+import { getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
 import { AiCreditLimitReachedError, AiCreditReplayRequiredError, checkAiCreditRequestReplay, hashAiCreditPayload, runWithAiCredit } from "../../../lib/ai/usage-ledger";
 import { runAdmittedAiOperation } from "../../../lib/ai/usage-guard/admission";
 import { AiAdmissionError, aiAdmissionErrorResponse } from "../../../lib/ai/usage-guard/errors";
 import {
   buildFurviseContext,
   logIntelligenceEvent,
-  parseIntelligenceVetBrief,
-  runFeatureIntelligence,
-  type FeatureIntelligenceResult,
   type IntelligenceVetBrief,
 } from "../../../lib/intelligence";
 import type { DogMemoryRow } from "../../../lib/supabase";
@@ -22,11 +20,11 @@ import { API_BODY_LIMITS, RequestBoundaryError, hasOnlyKeys, inclusiveDateSpanDa
 import { RateLimitRejection, requireRateLimitedRequest } from "../../../lib/security/rate-limit";
 import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 
-import { addVetBriefCoverage, parseVetBriefReview, vetBriefReviewInstructions, prepareReviewedVetBrief, vetBriefReviewSchema } from "../../../lib/vet-brief/review";
+import { addVetBriefCoverage } from "../../../lib/vet-brief/review";
 
-export const maxDuration = 180;
+export const maxDuration = 240;
 
-const MAX_VET_BRIEF_RANGE_DAYS = 730;
+const MAX_VET_BRIEF_RANGE_DAYS = 36_600;
 const MAX_REASON_FOR_VISIT_LENGTH = 1_200;
 
 export async function GET(request: Request) {
@@ -92,18 +90,11 @@ export async function POST(request: Request) {
     from, to, reasonForVisit,
   });
   const retrospective = (context.pet.lifecycle_status || "active") !== "active";
-  const allowedSourceRecordIds = [...new Set([
-    ...baseline.sourceEntryIds,
-    ...context.activeConcerns.map((item) => item.id),
-    ...context.recentlyResolvedConcerns.map((item) => item.id),
-    ...context.memories.map((item) => item.id),
-    ...context.legacyPetMemories.map((item) => item.id),
-  ])];
   const existingDocument = parseVetBriefDocument(body?.existingDocument);
 
   const idempotency = await claimIdempotentOperation({
     candidateKey: requestId,
-    leaseSeconds: 210,
+    leaseSeconds: 270,
     operationType: "vet_brief.generate",
     payload: { conversationId, existingDocument, from, petId, reasonForVisit, to },
     request,
@@ -132,42 +123,19 @@ export async function POST(request: Request) {
     const generated = await runAdmittedAiOperation({
       feature: "vet_brief", intendedModel: getAskModelConfiguration().primary,
       payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, requestId, userId: auth.userId,
-    }, () => runWithAiCredit<FeatureIntelligenceResult<IntelligenceVetBrief>>({
+    }, () => runWithAiCredit<IntelligenceVetBrief>({
       feature: "vet_brief", monthlyAiCredits: auth.monthlyAiCredits, payload: { conversationId, existingDocument, from, petId, reasonForVisit, to }, planId: auth.planId, requestId, supabase: auth.supabase, userId: auth.userId,
-      generate: () => prepareReviewedVetBrief({
-        generate: (reviewRepair) => runFeatureIntelligence({
-        context, feature: "vet_brief", maxOutputTokens: 8192,
-        featureInput: {
-          reviewRepair,
-          documentTemplate: vetBriefGenerationTemplate(baseline.document),
-          candidateScope: "Records were retrieved for this pet and date range. They have not been selected for visit relevance.",
-          purpose: retrospective ? "retrospective_care_history_summary" : "vet_visit_preparation",
-          allowedSourceRecordIds,
-          dateRange: { from, to },
-          inclusionSettings: existingDocument ? {
-            excludedSections: existingDocument.excludedSections,
-            includePetPhoto: existingDocument.includePetPhoto,
-          } : null,
-        },
-        parseValue: (value) => parseIntelligenceVetBrief(value, baseline.document, allowedSourceRecordIds),
-        }),
-        review: (document) => generateStructuredFeatureResponse({
-          input: { draft: vetBriefReviewPublication(document), evidence: { profile: baseline.document.pet, ownerStatements: conversation.filter(message => message.role === "user").map(message => message.text || ""), activeConcerns: context.activeConcerns, recentlyResolvedConcerns: context.recentlyResolvedConcerns, records: context.careEntries.filter(entry => allowedSourceRecordIds.includes(entry.id)).map(entry => ({ id: entry.id, category: entry.category, date: entry.occurred_at, text: entry.note, title: entry.title })), memories: legacyMemories }, visitReason: reasonForVisit },
-          instructions: vetBriefReviewInstructions, maxOutputTokens: 4096, reasoningEffort: "medium", timeoutMs: 35_000,
-          schema: vetBriefReviewSchema, schemaName: "furvise_vet_brief_review", parse: parseVetBriefReview,
-        }),
-        onRejected: (failedChecks) => logIntelligenceEvent("vet brief review rejected", { feature: "vet_brief", requestId, failedCheckNames: failedChecks.join(",") }),
-      }),
+      generate: () => prepareVetBrief({ context, supabase: auth.supabase, baseline: { ...baseline.document, excludedSections: existingDocument?.excludedSections || [] }, retrospective, requestId }),
     }));
-    const generatedDocument = addVetBriefCoverage(preserveOwnerEdits(generated.value.value.document, existingDocument), context.evidenceLoading?.sources || []);
+    const generatedDocument = addVetBriefCoverage(preserveOwnerEdits(generated.value.document, existingDocument), context.evidenceLoading?.sources || []);
     logIntelligenceEvent("vet brief generated", {
       feature: "vet_brief", petId, requestId, selectedCareEventCount: context.selectedCareEntries.length,
       selectedMemoryCount: context.memories.length + context.legacyPetMemories.length,
-      sourceRecordCount: generated.value.value.sourceRecordIds.length,
+      sourceRecordCount: generated.value.sourceRecordIds.length,
     });
     return Response.json({
       document: generatedDocument,
-      sourceEntryIds: generated.value.value.sourceRecordIds,
+      sourceEntryIds: generated.value.sourceRecordIds,
       usage: generated.usage,
     });
   } catch (error) {
@@ -209,5 +177,5 @@ function memoryText(value: unknown) {
   try { return JSON.stringify(value); } catch { return String(value ?? ""); }
 }
 
-function isIsoDate(value: string) { return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`)); }
+function isIsoDate(value: string) { return validBriefDay(value); }
 function validUuid(value: unknown): value is string { return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value); }

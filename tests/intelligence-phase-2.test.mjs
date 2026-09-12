@@ -27,9 +27,10 @@ test("Vet Brief generation uses live shared context and the unified credit ledge
   assert.match(route, /buildFurviseContext\(\{/);
   assert.match(route, /dateRange: \{ from, to \}/);
   assert.match(route, /feature: "vet_brief"/);
-  assert.match(route, /runFeatureIntelligence\(\{/);
+  assert.match(route, /prepareVetBrief\(\{/);
+  assert.match(read("app/lib/vet-brief/prepare.ts"), /retrieveAskHistory/);
   assert.match(route, /runWithAiCredit/);
-  assert.match(route, /parseIntelligenceVetBrief/);
+  assert.match(read("app/lib/vet-brief/prepare.ts"), /parseVetBriefContent/);
   assert.doesNotMatch(route, /createAiAnalysisProvider|loadPetMemoryContext/);
 });
 

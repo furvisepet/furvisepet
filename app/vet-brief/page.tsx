@@ -1,5 +1,6 @@
 "use client";
 
+import { vetBriefUrgency, vetBriefUrgencyText } from "../lib/vet-brief/urgency";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useEffect, useState } from "react";
@@ -206,18 +207,20 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
     catch (shareError) { if ((shareError as Error)?.name !== "AbortError") setError("The brief could not be shared."); }
   }
 
+  const immediateUrgency = vetBriefUrgency(purpose || document?.reasonForVisit || "");
   const emptySections = document ? outline.filter((item) => isSectionEmpty(document, item.id) && !editingEmpty.has(item.id)) : [];
 
   const askReturnHref = documentPetId ? `/ask?pet=${encodeURIComponent(documentPetId)}${conversationId ? `&conversation=${encodeURIComponent(conversationId)}` : ""}` : "/ask";
   return <AppPage layout="focused" width="wide"><div className="mx-auto w-full max-w-3xl pb-36">
     <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><Link className="text-sm font-semibold text-[var(--pw-primary)]" href={askReturnHref}>Back to Ask</Link><h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-[var(--pw-heading)] sm:text-5xl">{retrospective ? "Care history summary" : "Vet brief"}</h1><p className="mt-3 max-w-3xl leading-7 text-[var(--pw-muted)]">{retrospective ? "Review the timeline and records, then choose how to keep or share the summary." : "Your pet’s history, ready for the appointment."}</p></div><WorkflowDocumentStatus status={documentStatus} /></header>
     {document && !loading ? <div aria-label="Choose review or preview" className="mt-6 flex items-center justify-between border-b border-[var(--pw-border)] pb-4"><p className="text-sm text-[var(--pw-muted)]">{mode === "preview" ? "Read through once. Edit only what needs changing." : "Open a section to make changes."}</p><button className={secondaryButton} onClick={() => setMode(mode === "preview" ? "review" : "preview")} type="button">{mode === "preview" ? "Edit details" : "Read brief"}</button></div> : null}
+    {immediateUrgency ? <div role="alert" className="mt-6 rounded-xl border border-[var(--pw-warning-border)] bg-[var(--pw-surface)] p-5 text-[var(--pw-warning-text)]"><h2 className="font-semibold">Care should not wait</h2><p className="mt-2">{vetBriefUrgencyText(immediateUrgency)}</p></div> : null}
     {error ? <Status text={error} tone="warn" /> : null}{status ? <Status text={status} /> : null}
-    {source === "ask" ? <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--pw-muted)]">Urgent guidance remains in Ask and is not copied into this document.</p> : null}
+
 
     {needsPurpose && !document ? <form className="mt-10 space-y-6" onSubmit={prepareBrief}>
       <div><h2 className="text-2xl font-semibold text-[var(--pw-heading)]">What is the appointment for?</h2><p className="mt-3 leading-7 text-[var(--pw-muted)]">A concern, a follow-up, or a routine checkup. Furvise will use saved history to prepare your brief.</p><TextArea label="Reason for the appointment" onChange={setPurpose} value={purpose} /></div>
-      <details className="border-y border-[var(--pw-border)] py-4"><summary className="cursor-pointer font-semibold">Choose history dates</summary><div className="mt-4 grid grid-cols-2 gap-4"><DateField label="From" onChange={setFrom} value={from} /><DateField label="To" onChange={setTo} value={to} /></div></details>
+      <details className="border-y border-[var(--pw-border)] py-4"><summary className="cursor-pointer font-semibold">Choose history dates</summary><p className="mt-3 text-sm text-[var(--pw-muted)]">These dates guide the review. Furvise also searches earlier background when your appointment needs it.</p><div className="mt-4 grid grid-cols-2 gap-4"><DateField label="From" onChange={setFrom} value={from} /><DateField label="To" onChange={setTo} value={to} /></div></details>
       <button className={primaryButtonCompact} disabled={loading || !purpose.trim() || from > to} type="submit">{loading ? "Preparing your brief…" : "Prepare my brief"}</button>
     </form> : null}
     {loading ? <Status text="Reading saved history and preparing your brief…" /> : document ? <div className="mt-7 min-w-0">
