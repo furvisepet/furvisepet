@@ -164,9 +164,11 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
         .flatMap(action => action.input.detail ? [action.input.detail] : []) : [])
       && (sharedRequest || !hasUndatedHistoricalCareState(sentence.text, cited));
   };
-  // Review the entire shared answer, including invalid clauses. Removing them
-  // first hides omissions from the reviewer and can turn a complete task into
-  // a confidently approved fragment. Validation failures enter bounded repair.
+  // Review the entire publishable shared answer. Publication policy runs before
+  // semantic review, so harmless cleanup cannot invalidate an already-complete
+  // answer afterward. If cleanup removes required meaning, the whole-task
+  // reviewer sees that omission and rejects it; no deleted clause is silently
+  // treated as fulfilled.
   const draft = { sentences: proposedDraft.sentences.map(sentence => ({ ...sentence,
     text: sharedRequest ? (["csv", "table", "json"].includes(sharedRequest.outputFormat || "") ? sentence.text : canonicalReadPresentation(normalizeCompanionProse(sentence.text))) : stripHistoryBullet(sentence.sourceIds.reduce((text, id) => text.replaceAll("[" + id + "]", "").replaceAll("[" + id, ""), sentence.text)) }))
     .filter(sentence => sharedRequest || supported(sentence)) };

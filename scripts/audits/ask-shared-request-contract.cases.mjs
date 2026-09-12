@@ -1147,27 +1147,29 @@ test('middle date survives retrieval and representation among five years of rout
  assert.equal(run.result.reasoning.answer.summary,text);
 });
 
-test('schema-shaped generation repairs an unpublishable draft before API and reload', async t => {
+test('schema-shaped generation repairs required meaning removed by publication policy before API and reload', async t => {
  clock(t);
  const good='The owner reported a transition to the new food because of itching. The underlying cause remains unknown.';
  const bad='I recorded a transition to the new food because of itching. The underlying cause remains unknown.';
  const read=text=>({readVersion:'history-answer.v1',layout:'prose',json:null,table:null,limitation:null,
   safetyLevel:'normal',responseMode:'practical_guidance',userIntent:'history',relevantContextIds:['care:reason'],
   historyNarrative:{sentences:[{text,sourceIds:['care:reason'],calculations:[]}]}});
- let sawPublicationFailure=false;
+ let sawCleanedDraft=false;
  const run=await exercise('What reason was reported for the food transition?',{
   fixturePets,messages:[],history:true,rows:[care('reason','milo','2024-04-17','general',good)],
   interpretationProposal:proposal({terms:['food','transition']}),
   providerResponse:async()=>({status:'completed',output_text:JSON.stringify(read(bad)),usage:{input_tokens:500,output_tokens:100}}),
   expectedReviewCalls:3,reviewProviderResponse:async request=>{
    const input=JSON.parse(request.input);
-   if(input.deterministicPublicationFailures?.length)sawPublicationFailure=true;
+   if(request.text.format.name==='furvise_history_review' && input.draft?.sentences?.[0]?.text==='The underlying cause remains unknown.') sawCleanedDraft=true;
    const payload=request.text.format.name==='furvise_history_repair'?read(good):
-    {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null};
+    input.draft?.sentences?.[0]?.text==='The underlying cause remains unknown.'
+     ? {approved:false,retainedSentenceIndexes:[],obligations:input.obligations.map(({index})=>({index,status:'missing',sentenceIndexes:[]})),rejectionReason:'The answer omits the reported reason for the transition.'}
+     : {approved:true,retainedSentenceIndexes:[0],obligations:input.obligations.map(({index})=>({index,status:'answered',sentenceIndexes:[0]})),rejectionReason:null};
    return {status:'completed',output_text:JSON.stringify(payload),usage:{input_tokens:500,output_tokens:100}};
   },
  });
- assert.equal(sawPublicationFailure,true);
+ assert.equal(sawCleanedDraft,true);
  assert.equal(run.publication.failure,null);
  assert.equal(run.publication.displayed.summary,good);
  assert.deepEqual(run.result.acceptedCareActions,[]);

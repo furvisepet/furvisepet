@@ -151,7 +151,13 @@ export function preserveAttributedReportQuotes(value: string, transform: (prose:
 export function stripOptionalAssistantOffers(value: string) {
   return mapAskProse(value, prose => preserveFictionalDialogueQuotes(prose, text =>
     preserveAttributedReportQuotes(text, unquoted => unquoted.replace(assistantOffer,
-      offer => /\b(?:but|however|cannot|unable)\b|can[’'\x27]t|won[’'\x27]t/i.test(offer) ? offer : " ")
+      offer => {
+        if (/\b(?:but|however|cannot|unable)\b|can[’'\x27]t|won[’'\x27]t/i.test(offer)) return offer;
+        // The matcher consumes the preceding sentence delimiter so it can also
+        // recognize offers after normal prose. Preserve that delimiter when
+        // removing only the optional offer.
+        return /^[.!?]\s+/.exec(offer)?.[0].trim() || " ";
+      })
       .replace(/[^\S\r\n]+/g, " ").trim())));
 }
 

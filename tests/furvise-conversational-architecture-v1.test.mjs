@@ -89,7 +89,7 @@ test("authoritative mutation claims are removed unless an executor verified succ
     assert.equal(containsUnverifiedStateClaim(enforceVerifiedStateClaims(claim, false)), false, claim);
   }
   assert.equal(enforceVerifiedStateClaims("Her profile has been updated.", true), "Her profile has been updated.");
-  assert.equal(enforceVerifiedStateClaims("That's the relevant part. If you want, I can help make a checklist.", false), "That's the relevant part");
+  assert.equal(enforceVerifiedStateClaims("That's the relevant part. If you want, I can help make a checklist.", false), "That's the relevant part.");
   assert.match(askRoute, /enforceAnswerStateClaims\(orchestration\.answer\)/);
   assert.match(askRoute, /executeActionCapability/);
   assert.doesNotMatch(askRoute, /executeFurviseApplicationAction/);

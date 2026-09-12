@@ -13,11 +13,19 @@ export function scrubUntrustedMutationClaim(value: unknown, fallback: string): s
   return safe || fallback;
 }
 
-/** Compile presentation before review, using the same serializer as publication.
- * This does not scrub claims or grant approval: the unchanged factual content
- * and the separately enforced mutation policy still require review. */
+/** Compile the exact reload-safe text before semantic review. The scrub is a
+ * policy transform, not an approval: reviewers still have to establish that
+ * every required fact survived it and remains supported by the evidence.
+ *
+ * Keeping this transform before review prevents harmless presentation cleanup
+ * (for example, removing an optional follow-up offer) from forcing a second
+ * model repair after the factual answer has already been completed. If the
+ * policy removes a required clause or an unverified action claim, the reviewer
+ * sees the resulting omission and rejects that final text normally. */
 export function canonicalReadPresentation(text: string): string {
-  return buildAskConversationResponse({ title: "Furvise", summary: text, sections: [], safetyNote: null })?.summary || text;
+  const rendered = buildAskConversationResponse({ title: "Furvise", summary: enforceVerifiedStateClaims(text, false), sections: [], safetyNote: null });
+  if (!rendered) return text;
+  return scrubUntrustedMutationClaim(rendered.summary, "I can help with that.");
 }
 
 /** Exercise the actual serializer and reload text policy BEFORE approving a
