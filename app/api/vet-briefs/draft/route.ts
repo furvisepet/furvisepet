@@ -1,4 +1,4 @@
-import { vetBriefReviewPublication } from "../../../lib/vet-brief/report";
+import { vetBriefGenerationTemplate, vetBriefReviewPublication } from "../../../lib/vet-brief/report";
 import { randomUUID } from "node:crypto";
 import { featureFailureDetails } from "../../../lib/intelligence/feature-failure.ts";
 import { generateStructuredFeatureResponse, getAskModelConfiguration } from "../../../lib/ai/ask-reasoning";
@@ -139,7 +139,8 @@ export async function POST(request: Request) {
         context, feature: "vet_brief", maxOutputTokens: 8192,
         featureInput: {
           reviewRepair,
-          deterministicDraft: baseline.document,
+          documentTemplate: vetBriefGenerationTemplate(baseline.document),
+          candidateScope: "Records were retrieved for this pet and date range. They have not been selected for visit relevance.",
           purpose: retrospective ? "retrospective_care_history_summary" : "vet_visit_preparation",
           allowedSourceRecordIds,
           dateRange: { from, to },
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
         parseValue: (value) => parseIntelligenceVetBrief(value, baseline.document, allowedSourceRecordIds),
         }),
         review: (document) => generateStructuredFeatureResponse({
-          input: { draft: vetBriefReviewPublication(document), evidence: { baseline: baseline.document, records: context.careEntries.filter(entry => allowedSourceRecordIds.includes(entry.id)).map(entry => ({ id: entry.id, category: entry.category, date: entry.occurred_at, text: entry.note, title: entry.title })), memories: legacyMemories }, visitReason: reasonForVisit },
+          input: { draft: vetBriefReviewPublication(document), evidence: { profile: baseline.document.pet, ownerStatements: conversation.filter(message => message.role === "user").map(message => message.text || ""), activeConcerns: context.activeConcerns, recentlyResolvedConcerns: context.recentlyResolvedConcerns, records: context.careEntries.filter(entry => allowedSourceRecordIds.includes(entry.id)).map(entry => ({ id: entry.id, category: entry.category, date: entry.occurred_at, text: entry.note, title: entry.title })), memories: legacyMemories }, visitReason: reasonForVisit },
           instructions: vetBriefReviewInstructions, maxOutputTokens: 2048,
           schema: vetBriefReviewSchema, schemaName: "furvise_vet_brief_review", parse: parseVetBriefReview,
         }),

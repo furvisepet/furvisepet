@@ -146,3 +146,19 @@ test('review sees the same included and deduplicated facts as every publication 
   assert.match(JSON.stringify(review), /Owner observed scratching/);
   assert.equal(document.relevantCareHistory.length, 1);
 });
+
+test('generation starts with a neutral template while immutable facts and the source baseline survive', async () => {
+  const { vetBriefGenerationTemplate } = await import('../app/lib/vet-brief/report.ts');
+  const document = draft([entry('meal', 'food', '2026-09-10', 'Ate the usual breakfast.')]);
+  document.concernTimeline = [{ date: '2026-09-11', text: 'Owner noticed scratching.' }];
+  const before = JSON.stringify(document);
+  const template = vetBriefGenerationTemplate(document);
+  assert.deepEqual(template.relevantCareHistory, []);
+  assert.deepEqual(template.concernTimeline, []);
+  assert.deepEqual(template.pet, document.pet);
+  assert.deepEqual(template.dateRange, document.dateRange);
+  assert.deepEqual(template.missingInformation, document.missingInformation);
+  assert.equal(template.reasonForVisit, document.reasonForVisit);
+  assert.equal(template.disclaimer, document.disclaimer);
+  assert.equal(JSON.stringify(document), before);
+});
