@@ -82,11 +82,21 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
         return { value: await generate() };
       }
     },
-    review: document => generateStructuredFeatureResponse({
+    review: async document => {
+      const review = () => generateStructuredFeatureResponse({
       input: { draft: vetBriefReviewPublication(document), evidence, visitReason: context.currentMessage },
       instructions: vetBriefReviewInstructions + '\n' + vetBriefDuplicationReviewInstructions + '\nThe currentOwnerReport is admissible as an owner report, not as independently verified historical evidence. Current owner symptoms must be preserved. A request to correlate conditions must be answered with supported chronology and explicit uncertainty, never a fabricated diagnosis. The server-provided urgent guidance is appropriate triage, not a factual history claim. Two to four useful questions are allowed for complex visits. The evidence is bounded: do not demand unavailable history, invent missing records or interpret coverage limits as proof of absence.',
-      schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 4096, reasoningEffort: 'high', timeoutMs: 35000, parse: value => parseVetBriefPublicationReview(value, document),
-    }),
+      schema: vetBriefPublicationReviewSchema, schemaName: 'vet_brief_review', maxOutputTokens: 8192, reasoningEffort: 'high', timeoutMs: 60000, parse: value => parseVetBriefPublicationReview(value, document),
+      });
+      try { return await review(); }
+      catch (error) {
+        const kind = featureFailureDetails(error).failureKind;
+        if (structureRetried || !['incomplete_output', 'invalid_output', 'compatibility_validation'].includes(kind)) throw error;
+        structureRetried = true;
+        logIntelligenceEvent('vet brief structural retry', { feature: 'vet_brief', requestId, failureKind: kind, stage: 'review' });
+        return await review();
+      }
+    },
     onRejected: failedChecks => logIntelligenceEvent('vet brief review rejected', { feature: 'vet_brief', requestId, failedCheckNames: failedChecks.join(',') }),
   });
   logIntelligenceEvent('vet brief evidence prepared', { feature: 'vet_brief', requestId, recordCount: evidence.records.length, topicCount: plan.topics.length, historicalQueryCount: retrieved.askHistory?.coverage.queryCount || 0, structuralRetry: structureRetried });

@@ -5,7 +5,7 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 // Outlive the 240-second route, including one repair and independent re-review.
-const VET_BRIEF_LEASE_TTL_MS = 255_000;
+const VET_BRIEF_LEASE_TTL_MS = 315_000;
 
 const DEFAULT_POLICIES: Record<RateLimitPolicyName, RateLimitPolicy> = {
   ASK_AI: aiPolicy("ASK_AI", 10, 30, ASK_CONCURRENCY_TTL_MS),

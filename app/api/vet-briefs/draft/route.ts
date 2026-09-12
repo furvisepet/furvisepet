@@ -22,7 +22,7 @@ import { claimIdempotentOperation } from "../../../lib/security/idempotency";
 
 import { addVetBriefCoverage } from "../../../lib/vet-brief/review";
 
-export const maxDuration = 240;
+export const maxDuration = 300;
 
 const MAX_VET_BRIEF_RANGE_DAYS = 36_600;
 const MAX_REASON_FOR_VISIT_LENGTH = 1_200;
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
 
   const idempotency = await claimIdempotentOperation({
     candidateKey: requestId,
-    leaseSeconds: 270,
+    leaseSeconds: 330,
     operationType: "vet_brief.generate",
     payload: { conversationId, existingDocument, from, petId, reasonForVisit, to },
     request,

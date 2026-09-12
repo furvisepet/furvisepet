@@ -51,7 +51,8 @@ test("provider calls have canonical output and execution limits", () => {
   const askReasoning = read("app/lib/ai/ask-reasoning.ts");
   assert.match(config, /OPENAI_PROVIDER_TIMEOUT_MS = 25_000/);
   assert.match(askReasoning, /timeoutMs = 25_000/);
-  assert.match(askReasoning, /timeoutMs: Math\.min\(timeoutMs, 35_000\)/);
+  assert.match(askReasoning, /const timeoutCeiling = reasoningEffort === "high" \? 60_000 : 35_000/);
+  assert.match(askReasoning, /timeoutMs: Math\.min\(timeoutMs, timeoutCeiling\)/);
   assert.match(askReasoning, /max_output_tokens:/);
 });
 

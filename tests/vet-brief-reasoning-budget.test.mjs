@@ -28,6 +28,9 @@ test('feature reasoning and time budgets reach provider transport without changi
   assert.equal(JSON.parse(calls[1].request.input).pet, 'synthetic');
   await context.generateStructuredFeatureResponse({ ...base, timeoutMs: 90000 });
   assert.equal(calls[2].timeoutMs, 35000);
+  await context.generateStructuredFeatureResponse({ ...base, reasoningEffort: 'high', timeoutMs: 90000, maxOutputTokens: 8192 });
+  assert.equal(calls[3].timeoutMs, 60000);
+  assert.equal(calls[3].request.max_output_tokens, 8192);
 });
 
 test('fallback keeps its existing deadline unless a reasoning budget is explicitly selected', async () => {
@@ -48,4 +51,6 @@ test('fallback keeps its existing deadline unless a reasoning budget is explicit
   assert.equal(calls[1].timeoutMs, 20000);
   await context.generateStructuredFeatureResponse({ ...base, reasoningEffort: 'medium', timeoutMs: 35000 });
   assert.equal(calls[3].timeoutMs, 35000);
+  await context.generateStructuredFeatureResponse({ ...base, reasoningEffort: 'high', timeoutMs: 60000 });
+  assert.equal(calls[5].timeoutMs, 60000);
 });
