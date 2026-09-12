@@ -1,3 +1,4 @@
+import { parseDatedNoteBatch } from "../intelligence/dated-note-batch.ts";
 import { recordInventoryEvidence } from "../intelligence/record-inventory.ts";
 import { episodeResultText } from "../intelligence/episode-contract.ts";
 import { furviseProductFacts } from "./ask-internal-product-policy.ts";
@@ -771,6 +772,15 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
       recoveryEvidence: { outcome: "none", surfaceText: null, targetConcept: null, confidence: 1 } };
   }
 
+  // Explicit dated records already have a server-owned, verbatim batch plan.
+  // Do not make that write depend on a second model extraction of the same notes.
+  // Subject authorization and atomic persistence still run in run-intelligence.
+  if (!context.promptContext.evidenceContract.scope.readOnlyRecall
+    && context.promptContext.evidenceContract.scope.authorizedPetIds.length === 1
+    && parseDatedNoteBatch(input.question).length) {
+    parsed.semanticEvents = [];
+    parsed.careActions = [];
+  }
   const unsupportedEventEvidence = parsed.semanticEvents.filter(event =>
     !isOwnerAssertedEvidence(input.question, event.sourceExcerpt));
   if (unsupportedEventEvidence.length) {
@@ -1298,7 +1308,7 @@ export function buildAskProviderRequest(promptContext: object) {
     ...(dedicatedRead || conversationOnly ? { reasoning: { effort: "medium" } } : {}),
     instructions: requestInstructions,
     input: JSON.stringify(transported),
-    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence?.represented.some(span => span.sourceType === "care_update") ? evidence.interpretation?.request?.outputFormat : null) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties) : askUnifiedJsonSchema } },
+    text: { format: { type: "json_schema", name: "furvise_ask_response", strict: true, schema: conversationOnly ? conversationAnswerSchema(askUnifiedJsonSchema.properties) : dedicatedRead ? historicalReadSchema(askUnifiedJsonSchema.properties, evidence.interpretation?.request?.outputFormat) : evidence?.interpretation?.request ? governedTurnAnswerSchema(askUnifiedJsonSchema.properties) : askUnifiedJsonSchema } },
   };
 }
 

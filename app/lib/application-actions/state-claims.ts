@@ -62,7 +62,7 @@ function isNegatedReceiptSpeech(before: string) {
 
 /** A navigation proposal supplies a link, not a browser-execution receipt.
  * Even a successful database mutation cannot certify that a page was opened. */
-function containsNavigationExecutionClaim(value: string) {
+export function containsNavigationExecutionClaim(value: string) {
   const destination = "(?:profile|page|history|memories|vet brief)";
   const patterns = [
     new RegExp(`\\b(?:i(?:['’]ve| have)?|we(?:['’]ve| have)?|furvise has)\\s+(?:taken|brought|sent|redirected)\\s+you\\s+to\\s+[^.!?\\n]{0,80}\\b${destination}\\b`, "gi"),
@@ -158,4 +158,11 @@ function enforceUnquotedStateClaims(value: string, verifiedSuccess: boolean) {
   if (!unsupported(clean)) return clean;
   const safe = splitSentencesPreservingFacts(clean).filter((sentence) => !unsupported(sentence)).join(" ").trim();
   return safe || "I can help with that.";
+}
+
+/** Remove only unsupported navigation execution clauses before review. The
+ * prepared card supplies the link; the remaining answer still needs review. */
+export function removeNavigationExecutionClaims(value: string): string {
+  return mapAskProse(value, prose => preserveFictionalDialogueQuotes(prose, text =>
+    splitSentencesPreservingFacts(text).filter(sentence => !containsNavigationExecutionClaim(sentence)).join(" ").trim()));
 }
