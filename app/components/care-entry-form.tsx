@@ -231,6 +231,7 @@ export function CareEntryForm({
         <Field label="Occurred date/time" error={occurredAtError}>
           <input
             className={inputClass}
+            onInput={(event) => updateDraft({ occurredAt: event.currentTarget.value })}
             onChange={(event) => updateDraft({ occurredAt: event.target.value })}
             required
             type="datetime-local"

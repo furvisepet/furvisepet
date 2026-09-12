@@ -34,3 +34,13 @@ Owner-scoped inspection of the internal synthetic Rowan account found 20 active 
 6. Confirm, reload and export a complex brief: identical clinical content and retained source references, readable page breaks.
 
 The browser session reset and is signed out. Production live acceptance is pending reconnection; local tests do not establish model performance or practitioner usefulness. Earlier Ask and Vet Brief first-attempt failures remain unchanged. This work does not import external records, certify complete lifetime retrieval, diagnose causes, or establish willingness to pay.
+
+## PR352 deployed result and follow-up
+
+PR352 passed every CI gate and deployed as ddb261b5ace3dfd0e7c5f3d4c3e0744d56a15043 (dpl_7JvjDg8y1x71ZHCfeV6ho8RCF1XX). Internal browser sign-in was restored through secure Google authentication.
+
+Exact Rowan retry FAILED: both reviews rejected noDuplication, while the other six criteria passed. Request 60a698cb-c515-4140-b210-93ea9b0bf264; credit released. Immediate-care guidance was visible before generation and remained visible after failure. This is not a content acceptance pass.
+
+Follow-up replaces parallel generated detail arrays with one canonical event list, each event assigned one section by the server. Duplication verdicts must cite valid same-date item locations in two actual supporting sections; overview/profile/question repetitions or nonexistent locations cannot veto the report. Grounding, omission, uncertainty, category, relevance and question checks remain independent and unchanged; no clinical text is deleted to satisfy a duplicate verdict.
+
+During richer synthetic fixture setup, the Today native datetime input displayed a historical selection but saved its previous current-time state. This is the same native-input event synchronization class previously fixed on Vet Brief dates. Both Today and the shared care-entry editor now synchronize on input as well as change. One synthetic Sable lab note needs its timestamp corrected through the editor after deployment; its text already states the actual intended June 1, 2023 observation date.

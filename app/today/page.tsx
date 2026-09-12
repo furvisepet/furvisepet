@@ -206,7 +206,7 @@ export default function TodayPage() {
                     </label>
                     <label>
                       <span>When</span>
-                      <input onChange={(event) => setRememberOccurredAt(event.target.value)} type="datetime-local" value={rememberOccurredAt} />
+                      <input onInput={(event) => setRememberOccurredAt(event.currentTarget.value)} onChange={(event) => setRememberOccurredAt(event.target.value)} type="datetime-local" value={rememberOccurredAt} />
                     </label>
                   </div>
                 ) : null}
