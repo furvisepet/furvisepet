@@ -18,18 +18,29 @@ import type { VetBriefDocument } from './types';
 export async function prepareVetBrief({ context, supabase, baseline, retrospective = false, requestId }: {
   context: FurviseLiveContext; supabase: SupabaseClient; baseline: VetBriefDocument; retrospective?: boolean; requestId: string;
 }) {
-  const plan = await generateStructuredFeatureResponse({
+  let structureRetried = false;
+  const generatePlan = () => generateStructuredFeatureResponse({
     input: { reason: context.currentMessage, selectedDates: baseline.dateRange, asOf: context.currentTimestamp, species: context.pet.species },
     instructions: vetBriefAppointmentPlanInstructions, schema: vetBriefAppointmentPlanSchema, schemaName: 'vet_brief_evidence_plan',
-    maxOutputTokens: 3072, reasoningEffort: 'medium', timeoutMs: 25000,
+    maxOutputTokens: 6144, reasoningEffort: 'low', timeoutMs: 25000,
     parse: value => parseVetBriefAppointmentPlan(value, context.currentTimestamp),
   });
+  let plan;
+  try { plan = await generatePlan(); }
+  catch (error) {
+    const kind = featureFailureDetails(error).failureKind;
+    if (!['incomplete_output', 'invalid_output', 'compatibility_validation'].includes(kind)) throw error;
+    structureRetried = true;
+    logIntelligenceEvent('vet brief structural retry', { feature: 'vet_brief', requestId, failureKind: kind, stage: 'planning' });
+    plan = await generatePlan();
+  }
   const retrieved = await retrieveAskHistory(context, supabase, [context.pet.id], {
     // The selected period guides recent context; it must not hide an older
     // vaccination, reaction, baseline or treatment relevant to this appointment.
     // The shared reader still clips every query to subscription access.
     plan: { from: null, to: new Date(Date.parse(`${plan.to}T00:00:00Z`) + 86400000).toISOString(), terms: plan.topics.flatMap(t => t.terms), interpretation: 'lexical' },
-    periodFrom: `${plan.from || baseline.dateRange.from}T00:00:00.000Z`,
+    periodFrom: `${baseline.dateRange.from}T00:00:00.000Z`,
+    periodTo: new Date(Date.parse(`${baseline.dateRange.to}T00:00:00Z`) + 86400000).toISOString(),
     termGroups: plan.topics.map(t => t.terms),
   });
   const { evidence, allowedIds, warnings } = vetBriefEvidence(retrieved, plan);
@@ -39,7 +50,6 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
   // read a lifetime. The requested scope remains in the shared evidence contract.
   const earliest = evidence.records.map(r => r.date.slice(0, 10)).sort()[0];
   template.dateRange = { from: [plan.from || baseline.dateRange.from, earliest].filter((day): day is string => !!day).sort()[0], to: plan.to };
-  let structureRetried = false;
   const result = await prepareReviewedVetBrief({
     generate: async reviewRepair => {
       const generate = () => generateStructuredFeatureResponse({

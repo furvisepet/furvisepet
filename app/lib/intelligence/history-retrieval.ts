@@ -88,7 +88,7 @@ function isHistoricalRecall(message: string) {
 
 /** Called only after conversation subject authorization, inside the real
  * generation callback. Recent safety context is retained separately. */
-export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[], vetBriefRead?: { plan: HistoryPlan; termGroups: string[][]; periodFrom?: string | null }): Promise<FurviseLiveContext> {
+export async function retrieveAskHistory(context: FurviseLiveContext, db: SupabaseClient, petIds: string[], vetBriefRead?: { plan: HistoryPlan; termGroups: string[][]; periodFrom?: string | null; periodTo?: string | null }): Promise<FurviseLiveContext> {
   if (vetBriefRead && context.feature !== "vet_brief") throw new Error("vet_brief_read_scope_required");
   context = { ...context, recordInventory: await readRecordInventory(context, db) };
   const authorizedComparisonPets = new Set(petIds.filter(id => context.eligiblePets.some(pet => pet.id === id && pet.user_id === context.owner.userId)));
@@ -131,7 +131,7 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   // lookups. Supplemental discovery must not expand the graph/input budgets.
   const correctionReserve = plan.from || namedDays.length ? 12 : 0;
   const rowsPerPet = Math.floor((HISTORY_BUDGET.candidateRows - correctionReserve) / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets)));
-  const pagesPerPet = Math.min(vetBriefRead ? Math.min(7, vetBriefRead.termGroups.length + 1) : HISTORY_BUDGET.pagesPerPet, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
+  const pagesPerPet = Math.min(vetBriefRead ? Math.min(12, vetBriefRead.termGroups.length + 6) : HISTORY_BUDGET.pagesPerPet, Math.floor(HISTORY_BUDGET.totalPages / Math.max(1, Math.min(ids.length, HISTORY_BUDGET.pets))));
   for (const petId of ids.slice(0, HISTORY_BUDGET.pets)) {
     let failed = false; let pages = 0; let exhausted = true;
     const collected: CareEntryRow[] = [];
@@ -153,11 +153,14 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
         ? directions.flatMap(descending => [{ descending, lexical: true, terms: searchTerms }, { descending, lexical: false, terms: searchTerms }])
         : directions.map(descending => ({ descending, lexical: !!plan.terms.length, terms: searchTerms }));
     const scopedStrategies: HistoryReadStrategy[] = proposedStrategies.map(strategy => ({ ...strategy, from: vetBriefRead && !strategy.lexical && vetBriefRead.periodFrom
-        ? (!plan.from || vetBriefRead.periodFrom > plan.from ? vetBriefRead.periodFrom : plan.from) : plan.from, to: plan.to }));
-    // Appointment facets already own their search slots. Generic date anchors
-    // must not replace a requested topic; the separate period query covers dates.
-    const compiled = vetBriefRead
-      ? { strategies: scopedStrategies, outsideNeeds: [], omittedNeeds: [], omittedTargets: [] }
+        ? (!plan.from || vetBriefRead.periodFrom > plan.from ? vetBriefRead.periodFrom : plan.from) : plan.from, to: vetBriefRead && !strategy.lexical && vetBriefRead.periodTo
+        ? (!plan.to || vetBriefRead.periodTo < plan.to ? vetBriefRead.periodTo : plan.to) : plan.to }));
+    // Reserve up to five named-date queries in addition to every topic and the
+    // selected period. A broad background search cannot displace a middle-date
+    // comparison, and date anchors cannot displace a requested clinical topic.
+    const appointmentDates = vetBriefRead ? compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, [], 6) : null;
+    const compiled = appointmentDates
+      ? { ...appointmentDates, strategies: [...appointmentDates.strategies, ...scopedStrategies].filter((strategy, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(strategy)) === index) }
       : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));
     const strategies = compiled.strategies;
     coverage.needs ??= [];
