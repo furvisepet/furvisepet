@@ -46,7 +46,12 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
   // outside the quotation must identify that source, not a different citation.
   // Quotation marks in a typed CSV cell are serialization delimiters, not
   // verbatim prose attribution. Row-bound factual anchors still run below.
+  let previousQuoteEnd = 0;
   for (const match of (serializedResult || isStructuredHistoryText(text) ? [] : text.matchAll(/"([^"]+)"|“([^”]+)”/g))) {
+    // Attribution belongs to this quotation's clause. Earlier quoted notes
+    // and preceding sentences may legitimately concern different dates.
+    const prefix = text.slice(previousQuoteEnd, match.index).split(/\n|[.!?]\s+/).at(-1) || "";
+    previousQuoteEnd = (match.index || 0) + match[0].length;
     const quote = match[1] ?? match[2];
     const matching = sources.filter(source => source.text.includes(quote));
     if (!matching.length) {
@@ -57,11 +62,14 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
       onUnsupported?.("Quotation is not an exact case-sensitive source substring: " + quote);
       return false;
     }
-    const attribution = dates(text.slice(0, match.index));
+    const attribution = dates(prefix);
     if (attribution.length && !matching.some(source => {
       const recorded = dates(source.occurredAt?.slice(0, 10) || "");
       return attribution.every(date => recorded.some(value => value === date || value.replace(/^\d{4}:/, "") === date));
-    })) return false;
+    })) {
+      onUnsupported?.("Quotation attribution date does not match its source record");
+      return false;
+    }
   }
   const sourceDates = sources.flatMap(source => {
     const explicit = dates(source.text);

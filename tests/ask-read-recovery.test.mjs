@@ -17,7 +17,7 @@ test('literal inventory scope survives noisy planner hints, never content qualif
   assert.equal(literalInventoryWindow(message.replace('entries','vomiting entries'),['Mira']),null);
   assert.equal(literalInventoryWindow(message.replace('in August','before August'),['Mira']),null);
   const calls=[];const db={};for(const k of ['from','select','eq','is','gte','lt'])db[k]=(...args)=>{calls.push([k,...args]);return db;};db.abortSignal=async()=>({error:null,count:4});
-  const items=await readRecordInventory({currentMessage:message,owner:{userId:'owner'},eligiblePets:[{id:'pet',user_id:'owner',name:'Mira'}],askInterpretation:{readOnly:true,petIds:['pet'],request:{quantity:'records'},history:{from:null,to:null,terms:['dated in august garbled planner text']}}},db);
+  const items=await readRecordInventory({currentMessage:message,owner:{userId:'owner'},eligiblePets:[{id:'pet',user_id:'owner',name:'Mira'}],askInterpretation:{readOnly:true,petIds:['pet'],request:{quantity:'episodes'},history:{from:null,to:null,terms:['dated in august garbled planner text']}}},db);
   assert.equal(items[0].count,4);assert.deepEqual(calls.find(c=>c[0]==='gte'),['gte','occurred_at','2026-08-01']);
 });
 
@@ -28,4 +28,23 @@ test('numeric calculation leaves take units only from an unambiguous adjacent so
   assert.ok(verifiedCalculationQuantities([p],sources));
   assert.equal(verifiedCalculationQuantities([p],[{...sources[0],text:'Body mass was 131.32 kg.'},sources[1]]),null);
   assert.equal(verifiedCalculationQuantities([p],[{...sources[0],text:'31.32 kg and 31.32 ml.'},sources[1]]),null);
+});
+
+test('each quote binds its own date, not the dates of earlier quoted notes',async()=>{
+  const { historyNarrativeAnchorsSupported }=await import('../app/lib/intelligence/history-narrative-facts.ts');
+  const sources=[{text:'Started coughing on 2025-01-04.',occurredAt:'2025-01-04T00:00:00Z'},{text:'Stopped coughing on 2025-01-07.',occurredAt:'2025-01-07T00:00:00Z'}];
+  const text='2025-01-04 report: "Started coughing on 2025-01-04."\n2025-01-07 report: "Stopped coughing on 2025-01-07."';
+  assert.equal(historyNarrativeAnchorsSupported(text,sources,'',[],false),true);
+  assert.equal(historyNarrativeAnchorsSupported(text.replace('2025-01-07 report','2025-01-04 report'),sources,'',[],false),false);
+});
+
+test('two-date body-mass projection computes a cited draft and refuses ambiguous or foreign measurements',async()=>{
+  const { deterministicReadProjection }=await import('../app/lib/intelligence/read-projection.ts');
+  const { verifiedCalculationQuantities }=await import('../app/lib/intelligence/history-calculation.ts');
+  const records=[{sourceId:'care:a',petId:'p',occurredAt:'2023-03-09T00:00:00Z',text:'Mira weighed 18.4 kg. No carrier or harness included.'},{sourceId:'care:b',petId:'p',occurredAt:'2023-04-09T00:00:00Z',text:'Mira weighed 18.7 kg. No carrier or harness included.'}];
+  const e={scope:{readOnlyRecall:true,authorizedPetIds:['p'],requestText:'Compare Mira’s body weights on March 9 and April 9, 2023. Give the change in kilograms.'},interpretation:{request:{outputFormat:'prose'}},petNames:{p:'Mira'},losses:[],sources:[{petId:'p',status:'loaded',loadedIds:['care:a','care:b']}],represented:records.map(r=>({...r,sourceType:'care_update',field:'value',start:0,end:r.text.length}))};
+  const draft=deterministicReadProjection(e);assert.ok(draft);assert.equal(draft.sentences[2].calculations[0].value,0.3);assert.ok(verifiedCalculationQuantities(draft.sentences[2].calculations,records));
+  assert.match(draft.sentences[2].text,/does not establish a cause/);
+  assert.equal(deterministicReadProjection({...e,represented:[e.represented[0],{...e.represented[1],petId:'foreign'}]}),null);
+  assert.equal(deterministicReadProjection({...e,represented:[e.represented[0],{...e.represented[1],text:'Mira weighed 18.7 kg with carrier included.'}]}),null);
 });

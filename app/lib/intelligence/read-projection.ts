@@ -1,8 +1,9 @@
-import { isOwnerCertainEvidence, analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
+import { unquotedOwnerText, analyzeOwnerAssertions } from "../ai/owner-assertion.ts";
 import { units } from "./history-calculation.ts";
 import { parseHistoryNarrative, type HistoryNarrative } from "./history-narrative.ts";
 import { eligibleAnswerSources, type AskEvidenceContract } from "./ask-evidence.ts";
 import type { HistoryCalculation } from "./history-calculation.ts";
+import { explicitHistoryDays } from "./history-dates.ts";
 export type ReadProjection = { nameHeader: string; valueHeader: string; quantity: "body_mass"; unit: string; order: "name_ascending" | "name_descending" | "value_ascending" | "value_descending" | "scope" };
 export const readProjectionSchema = { type: ["object", "null"], additionalProperties: false,
   required: ["nameHeader", "valueHeader", "quantity", "unit", "order"], properties: {
@@ -24,8 +25,8 @@ export function parseReadProjection(value: unknown): ReadProjection | null {
  * This produces a draft: independent review must still verify task semantics. */
 function bodyMeasurement(text: string) {
   const matches = [...text.matchAll(/\b(?:body (?:weight|mass) (?:was|is)|weighed)\s+(-?\d+(?:\.\d+)?)\s+(kg|kilograms?|g|grams?|lb|lbs|pounds?)\b/gi)];
-  if (matches.length !== 1 || !isOwnerCertainEvidence(text, matches[0][0])
-    || analyzeOwnerAssertions(text).clauseSpans.some(clause => clause.text.includes(matches[0][0]) && clause.isNegated)
+  if (matches.length !== 1 || !analyzeOwnerAssertions(text).clauseSpans.some(clause =>
+    unquotedOwnerText(clause.text).includes(matches[0][0]) && clause.isCertain && !clause.isNegated && !clause.isQuestion && !clause.isAttributed && !clause.isConditional)
     || /\b(?:estimated|approximately)\b/i.test(text) || /\b(?:correction|corrected|carrier|harness|equipment|parcel)\b/i.test(text)
     && !/\b(?:without equipment|no carrier or harness included)\b/i.test(text)) return null;
   const m = matches[0], unit = units[m[2].toLowerCase()], value=Number(m[1]);
@@ -40,6 +41,31 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
   const requestText = evidence.scope.requestText;
   const inventory = eligibleAnswerSources(evidence).filter(source => source.sourceType === "record_inventory");
   if (evidence.scope.readOnlyRecall && inventory.length) return parseHistoryNarrative({ sentences: inventory.map(source => ({text: source.text, sourceIds: [source.sourceId], calculations: []})) }) || null;
+  // A two-date body-mass comparison is a bounded database projection, not a
+  // language-model arithmetic exercise. It remains a draft for whole-task
+  // semantic review, including any additional explanation the user requested.
+  if (evidence.scope.readOnlyRecall && request?.outputFormat === "prose" && evidence.scope.authorizedPetIds.length === 1
+    && /\b(?:weights?|body mass)\b/i.test(requestText) && /\b(?:change|difference|compare)\b/i.test(requestText)) {
+    const explicitYears = [...new Set(requestText.match(/\b(?:19|20)\d{2}\b/g) || [])];
+    const days = explicitYears.length === 1 ? explicitHistoryDays(requestText, Number(explicitYears[0])) : [];
+    const petId = evidence.scope.authorizedPetIds[0], name = evidence.petNames?.[petId];
+    const sources = eligibleAnswerSources(evidence).filter(source => source.petId === petId && source.sourceType === "care_update");
+    const rows = days.map(day => sources.flatMap(source => {
+      const measurement = source.occurredAt?.slice(0,10) === day ? bodyMeasurement(source.text) : null;
+      return measurement ? [{source,measurement}] : [];
+    }));
+    const requestedUnit = /\b(?:pounds?|lbs?)\b/i.test(requestText) ? "lb" : /\b(?:grams?|g)\b/i.test(requestText) ? "g" : "kg";
+    if (name && days.length === 2 && days[0] < days[1] && rows.every(row => row.length === 1)) {
+      const [first,last] = rows.map(row => row[0]);
+      const change = Number(((last.measurement.value * last.measurement.unit.scale - first.measurement.value * first.measurement.unit.scale) / units[requestedUnit].scale).toFixed(8));
+      const sourceIds = [first.source.sourceId,last.source.sourceId];
+      return parseHistoryNarrative({sentences:[
+        ...[first,last].map(({source}) => ({text:`${name}'s ${source.occurredAt!.slice(0,10)} report: ${JSON.stringify(source.text)}`,sourceIds:[source.sourceId],calculations:[]})),
+        {text:`The recorded body-mass change is ${change} ${requestedUnit} (later minus earlier). This arithmetic alone does not establish a cause.`,sourceIds,
+          calculations:[{operation:"difference",operands:[last,first].map(row => ({sourceId:row.source.sourceId,field:"text",literal:row.measurement.literal})),value:change,unit:requestedUnit}]},
+      ]}) || null;
+    }
+  }
   if (evidence.scope.readOnlyRecall && /\b(?:save|saved|receipts?)\b/i.test(requestText)
     && /\b(?:did|actually|receipts?|confirm|verify)\b/i.test(requestText)) {
     const receipts = evidence.operationReceipts || [];
