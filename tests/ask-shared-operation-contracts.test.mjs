@@ -64,12 +64,14 @@ test('aggregations operate over original measurements, with unit conversion and 
   assert.equal(verifiedCalculationQuantities([mean],sources.slice(1)),null);
   assert.equal(verifiedCalculationQuantities([{...mean,unit:'ml'}],sources),null);
 });
-test('presentation is compiled before review without disabling mutation-claim rejection', () => {
+test('publishable presentation is compiled before review and removes mutation claims before approval', () => {
   const text=canonicalReadPresentation('The recorded total is **140 g**.');
   assert.equal(text,'The recorded total is 140 g.');
   assert.equal(readPublicationFailure(text),null);
   assert.equal(canonicalReadPresentation(text),text);
-  assert.notEqual(readPublicationFailure(canonicalReadPresentation('I updated the profile.')),null);
+  assert.notEqual(readPublicationFailure('I updated the profile.'),null);
+  assert.equal(canonicalReadPresentation('I updated the profile.'),'I can help with that.');
+  assert.equal(readPublicationFailure(canonicalReadPresentation('I updated the profile.')),null);
   const json='{"note":"literal **text** and 2.50 g"}';
   assert.equal(canonicalReadPresentation(json),json);
 });
