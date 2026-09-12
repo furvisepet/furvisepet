@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseUnifiedResponse } from "../app/lib/ai/ask-reasoning.ts";
+import { askUnifiedJsonSchema, parseUnifiedResponse } from "../app/lib/ai/ask-reasoning.ts";
 
 test("a useful answer survives invalid auxiliary structured fields", () => {
   const parsed = parseUnifiedResponse(JSON.stringify({
@@ -28,6 +28,8 @@ test("missing or empty core answer remains answer-critical", () => {
 });
 
 test("a long complete answer retains its final safety qualification through parsing", () => {
+  assert.equal(askUnifiedJsonSchema.properties.answer.maxLength, undefined,
+    "structured generation must not force a sentence to end at a character boundary");
   const answer = "Give both animals their own quiet space. ".repeat(50)
     + "Keep them separated when unsupervised until they are reliably comfortable together.";
   const parsed = parseUnifiedResponse(JSON.stringify({ answer }), []);

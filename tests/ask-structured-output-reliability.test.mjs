@@ -179,8 +179,9 @@ test("urgent output missing explicit escalation is repaired deterministically", 
   assert.equal(client.requests.length, 1);
 });
 
-test("the reduced contract bounds ordinary output fields and omits deterministic metadata", () => {
-  assert.equal(askUnifiedJsonSchema.properties.answer.maxLength, 1800);
+test("the reduced contract bounds metadata while complete prose uses the provider token budget", () => {
+  assert.equal(askUnifiedJsonSchema.properties.answer.maxLength, undefined);
+  assert.equal(ASK_MAX_OUTPUT_TOKENS, 4096);
   assert.equal(askUnifiedJsonSchema.properties.answerSections.maxItems, 3);
   assert.equal(askUnifiedJsonSchema.properties.answerSections.items.properties.items.maxItems, 4);
   assert.equal(askUnifiedJsonSchema.properties.suggestedFollowUps.maxItems, 4);

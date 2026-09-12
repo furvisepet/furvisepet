@@ -282,10 +282,12 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
           ? Object.entries({ coverage: /absence|absent|empty|missing|coverage|not found|no record/i, attribution: /attribut|subject|wrong pet/i,
               calculation: /calculat|arithmetic|operand|number|count/i, output: /format|layout|container|json|csv|bullet/i,
               completion: /omit|incomplete|clause|obligation|question/i, evidence: /support|evidence|source|ground/i,
-              mutation: /sav|receipt|updat|edit|action/i, correction: /correct|supersed/i })
+              mutation: /sav|receipt|updat|edit|action/i, correction: /correct|supersed/i,
+              language: /language|spanish|french|english|translation|idioma|espa[nñ]ol/i })
             .filter(([,pattern]) => pattern.test(String(selection.rejectionReason))).map(([code]) => code) : [],
         sourceCounts: evidence.scope.authorizedPetIds.map(petId => sources.filter(source => source.petId === petId).length),
         completedEmptyLookupCount: completedEmptyEvidenceNeeds(evidence).length,
+        obligationStatuses: sharedRequest ? (selection as ReturnType<typeof parseRepairableTaskHistoryReview>).obligations.map(item => ({ index: item.index, status: item.status })) : [],
         anchorFailureCategories: invalidIndexes.map(index => (anchorHints.get(draft.sentences[index].text) || []).map(anchorDiagnostic)),
         publicationStages: readPublicationStages(selectedText),
         calculationCounts: draft.sentences.map(sentence => sentence.calculations?.length || 0),

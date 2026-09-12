@@ -41,11 +41,14 @@ function profileBodyMeasurement(text: string) {
 }
 const decimalPlaces = (value: string) => /\.(\d+)/.exec(value)?.[1].length || 0;
 const csv = (cell: string) => /[",\r\n]/.test(cell) ? '"' + cell.replaceAll('"','""') + '"' : cell;
-export function deterministicReadProjection(evidence: AskEvidenceContract): HistoryNarrative | null {
+export function deterministicReadProjection(evidence: AskEvidenceContract, diagnostic?: (detail: Record<string, string | number | boolean | null>) => void): HistoryNarrative | null {
   const request = evidence.interpretation?.request, projection = request?.projection;
   // A request-linked receipt is a separate evidence channel from a history search.
   // A lexical query returning no notes must not erase an existing write receipt.
   const requestText = evidence.scope.requestText;
+  diagnostic?.({ stage: "eligibility", readOnly: evidence.scope.readOnlyRecall,
+    profileWeight: Boolean(request?.profileFields?.includes("weight")), temporalScope: request?.temporalScope || null,
+    outputFormat: request?.outputFormat || null, petCount: evidence.scope.authorizedPetIds.length });
   const inventory = eligibleAnswerSources(evidence).filter(source => source.sourceType === "record_inventory");
   if (evidence.scope.readOnlyRecall && inventory.length && (!request?.outputFormat || ["prose", "bullets"].includes(request.outputFormat))) return parseHistoryNarrative({ sentences: inventory.map(source => ({text: source.text, sourceIds: [source.sourceId], calculations: []})) }) || null;
   // A current profile field is the authoritative present endpoint when the
@@ -71,6 +74,8 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
       const measurement = source.sourceType === "profile" && source.sourceId.endsWith(":weight") ? profileBodyMeasurement(source.text) : null;
       return measurement ? [{source,measurement}] : [];
     });
+    diagnostic?.({ stage: "weight_endpoints", dayCount: days.length, monthCount: months.length,
+      sourceCount: sources.length, historicalCount: historical.length, currentCount: current.length, named: Boolean(name) });
     if (name && historical.length === 1 && current.length === 1) {
       const past = historical[0], present = current[0];
       const target = /\b(?:grams?|g)\b/i.test(requestText) ? units.g

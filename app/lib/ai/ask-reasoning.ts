@@ -279,7 +279,9 @@ export const askUnifiedJsonSchema = {
     "messageUnderstanding", "intelligenceSafety", "learnings", "careActions", "semanticEvents", "semanticFrame",
   ],
   properties: {
-    answer: { type: "string", minLength: 1, maxLength: 1800 },
+    // The provider token budget bounds output. A character boundary can close
+    // the structured string halfway through a sentence or safety qualification.
+    answer: { type: "string", minLength: 1 },
     answerSections: {
       type: "array", maxItems: 3, items: {
         type: "object", additionalProperties: false, required: ["heading", "items"],
@@ -652,7 +654,8 @@ export async function generateContextAwareAskResponse(input: GenerateAskReasonin
     throw new AskPipelineError("configuration_failed", "OPENAI_API_KEY is not configured.", { elapsedMs: 0, model: models.primary });
   }
   const context = buildAskContext(input);
-  const projection = context.minimumSafetyLevel === "normal" ? deterministicReadProjection(context.promptContext.evidenceContract) : null;
+  const projection = context.minimumSafetyLevel === "normal" ? deterministicReadProjection(context.promptContext.evidenceContract,
+    detail => console.info("[Ask read projection] decision", detail)) : null;
   if (projection) {
     const evidence = context.promptContext.evidenceContract;
     const ids = [...new Set(projection.sentences.flatMap(s=>s.sourceIds))];
