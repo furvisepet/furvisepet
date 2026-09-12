@@ -253,7 +253,7 @@ export function eligibleAnswerSources(evidence: AskEvidenceContract) {
     if (!need || !evidence.scope.authorizedPetIds.includes(petId)) return [];
     const text = `The completed scoped lookup for ${evidence.petNames?.[petId] || petId} found no matching saved care records for request clause ${JSON.stringify(need.quote)}${need.window ? `, from ${need.window.from} inclusive to ${need.window.to} exclusive` : ""}. This establishes only the lookup result, not that the event never happened, the pet was healthy, or no records exist outside this lookup.`;
     return [{ sourceId: `lookup:${needId}:${petId}`, petId, sourceType: "lookup_receipt", field: "value" as const,
-      start: 0, end: text.length, text, occurredAt: null }];
+      start: 0, end: text.length, text, occurredAt: null, lookupScope: { needId, ...(need.window ? { window: need.window } : {}) } }];
   });
   // Mixed turns have two provenance classes: existing records and the owner's
   // present request. The replacement value is not expected to exist in history.

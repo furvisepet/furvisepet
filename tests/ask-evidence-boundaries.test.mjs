@@ -70,6 +70,16 @@ test('an inventory covers only its owned counted interval, independently of obse
  assert.equal(reviewObligationCompletion([{...obligation,petId:'foreign'}],[review],sentences,sources,[],inventory).failures.length,1);
  assert.equal(reviewObligationCompletion([{...obligation,window:{from:'2025-04-01',to:'2025-06-01'}}],[review],sentences,sources,[],inventory).failures.length,1);
 });
+test('a cited empty lookup grounds its exact need and window without pretending to be a dated observation',()=>{
+ const window={from:'2025-02-01',to:'2025-03-01'};
+ const o={index:1,needId:'need:0',petId:'p',availability:'no_candidate_match',window};
+ const source={sourceId:'lookup:need:0:p',petId:'p',sourceType:'lookup_receipt',occurredAt:null,lookupScope:{needId:'need:0',window}};
+ const review=[{index:1,status:'answered',sentenceIndexes:[0]}],sentences=[{sourceIds:[source.sourceId]}];
+ assert.deepEqual(reviewObligationCompletion([o],review,sentences,[source]).failures,[]);
+ for(const change of [{petId:'foreign'},{needId:'need:1'},{window:{from:'2025-01-01',to:'2025-02-01'}},{availability:'query_unavailable'}])
+  assert.equal(reviewObligationCompletion([{...o,...change}],review,sentences,[source]).failures.length,1);
+ assert.equal(reviewObligationCompletion([o],review,[{sourceIds:[]}],[source]).failures.length,1);
+});
 test('a correction outage withholds clinical sources without erasing independent profile facts',async()=>{
  const {eligibleAnswerSources}=await import('../app/lib/intelligence/ask-evidence.ts');
  const profile={sourceId:'profile:p:species',petId:'p',sourceType:'profile',field:'value',start:0,end:3,text:'dog'};
