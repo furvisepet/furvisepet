@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useEffect, useState } from "react";
 import { AppPage } from "../components/app-page";
 import { appPageContainer } from "../components/product-primitives";
-import { vetBriefText } from "../lib/vet-brief/report";
+import { vetBriefDatedEntryCount, vetBriefText } from "../lib/vet-brief/report";
 import { VetBriefDocumentView } from "../components/vet-brief-document";
 import { WorkflowDocumentStatus } from "../components/workflow-primitives";
 import { downloadGeneratedFile } from "../lib/furvise-output";
@@ -242,6 +242,7 @@ function VetBriefWorkspace({ conversationId, existingBriefId, petId, source, use
       </section>
 
       <section aria-label="Vet Visit Brief preview" className={`${mode === "preview" ? "block" : "hidden"} min-w-0`}>
+        {!confirmed && vetBriefDatedEntryCount(document) < 2 ? <p className="mb-5 text-sm leading-6 text-[var(--pw-muted)]">There is little dated history in this brief. If important changes are missing, <Link className="font-semibold underline underline-offset-4" href={askReturnHref}>add them in Ask</Link>, then prepare again.</p> : null}
         <div className="overflow-hidden rounded-xl border border-[var(--pw-border)]"><VetBriefDocumentView document={document} version={confirmed?.version} /></div>
         <details className="mt-5 text-sm text-[var(--pw-muted)]"><summary className="cursor-pointer">Paper size</summary><label className={`${controlLabel} mt-3 w-fit`}>Paper<select onChange={(event) => setPaperSize(event.target.value === "a4" ? "a4" : "letter")} value={paperSize}><option value="letter">US Letter</option><option value="a4">A4</option></select></label></details>
       </section>

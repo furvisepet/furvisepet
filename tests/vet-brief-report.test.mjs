@@ -107,3 +107,26 @@ test('a valid first draft is returned without a repair call', async () => {
   await prepareReviewedVetBrief({ generate: async () => { generations++; return { value: { document: draft() } }; }, review: async () => Object.fromEntries(Object.keys(vetBriefReviewSchema.properties).map(key => [key, true])) });
   assert.equal(generations, 1);
 });
+
+test('publication removes only attribution wrappers and preserves clinical wording and the saved document', () => {
+  const document = draft();
+  document.medicationsSupplements = [{ date: '2026-09-10', text: 'Owner reported: Vet said do not restart 2.5 mg; owner suspects nausea, cause unknown.' }];
+  document.relevantCareHistory = [{ date: '2026-09-11', category: 'General', text: 'Saved care history shows: Weight 3.97 kg, no carrier. Previous note said "Owner reported: 4 kg".' }];
+  const before = JSON.stringify(document);
+  const text = vetBriefText(document);
+  assert.match(text, /Vet said do not restart 2\.5 mg; owner suspects nausea, cause unknown\./);
+  assert.match(text, /Weight 3\.97 kg, no carrier\. Previous note said "Owner reported: 4 kg"\./);
+  assert.doesNotMatch(text, /Saved care history shows:/);
+  assert.equal(JSON.stringify(document), before);
+});
+
+test('dated evidence count respects deduplication and exclusions without treating prose as records', async () => {
+  const { vetBriefDatedEntryCount } = await import('../app/lib/vet-brief/report.ts');
+  const document = draft();
+  document.visitSummary = 'Two events mentioned in prose are not two dated entries.';
+  document.concernTimeline = [{ date: '2026-09-10', text: 'Owner reported: Scratched once.' }];
+  document.relevantCareHistory = [{ date: '2026-09-10', category: 'Symptom', text: 'Saved care history shows: Scratched once.' }];
+  assert.equal(vetBriefDatedEntryCount(document), 1);
+  document.excludedSections = ['timeline', 'care-history'];
+  assert.equal(vetBriefDatedEntryCount(document), 0);
+});

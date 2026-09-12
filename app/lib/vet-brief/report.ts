@@ -16,7 +16,7 @@ export function vetBriefReport(document: VetBriefDocument): BriefReportSection[]
       seen.add(key);
       return true;
     });
-    if (unique.length) sections.push({ id, title, items: unique });
+    if (unique.length) sections.push({ id, title, items: unique.map(item => ({ ...item, text: item.date ? presentationText(item.text) : item.text })) });
   };
   if (included("visit-reason")) add("reason", "Reason for visit", [{ text: document.reasonForVisit }]);
   if (included("visit-reason") && document.visitSummary) add("overview", "Visit overview", [{ text: document.visitSummary }]);
@@ -37,6 +37,16 @@ export function vetBriefReport(document: VetBriefDocument): BriefReportSection[]
   if (included("visit-reason") && (!document.reasonForVisit || document.reasonForVisit === "Not recorded")) gaps.unshift("Reason for visit not provided");
   add("gaps", "Not established in the available records", [...new Set(gaps)].map(text => ({ text })));
   return sections;
+}
+
+// Strip only our attribution wrapper; the report header retains attribution.
+// Do not remove owner wording, dates, units, negations or repeated phrases.
+function presentationText(text: string) {
+  return text.replace(/^(?:Owner reported:|Saved care history shows:|Saved note shows:)\s*/i, "").trim();
+}
+
+export function vetBriefDatedEntryCount(document: VetBriefDocument) {
+  return vetBriefReport(document).reduce((count, section) => count + section.items.filter(item => Boolean(item.date)).length, 0);
 }
 
 function factText(text: string) {
