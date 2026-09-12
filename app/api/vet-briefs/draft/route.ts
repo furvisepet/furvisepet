@@ -149,7 +149,7 @@ export async function POST(request: Request) {
           instructions: vetBriefReviewInstructions, maxOutputTokens: 2048,
           schema: vetBriefReviewSchema, schemaName: "furvise_vet_brief_review", parse: parseVetBriefReview,
         }),
-        onRejected: (failedChecks) => logIntelligenceEvent("vet brief review rejected", { feature: "vet_brief", requestId, failedChecks }),
+        onRejected: (failedChecks) => logIntelligenceEvent("vet brief review rejected", { feature: "vet_brief", requestId, failedCheckNames: failedChecks.join(",") }),
       }),
     }));
     const generatedDocument = addVetBriefCoverage(preserveOwnerEdits(generated.value.value.document, existingDocument), context.evidenceLoading?.sources || []);
