@@ -1,4 +1,4 @@
-import {compoundUnit} from "./history-calculation.ts";
+import {compoundUnit, units} from "./history-calculation.ts";
 import { isStructuredHistoryText } from "../furvise-output.ts";
 type Source = { text: string; occurredAt?: string | null; petId?: string };
 const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
@@ -26,6 +26,24 @@ function quantities(text: string): string[] {
   });
   return [...rates, ...[...scalarProse.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/(?<![\p{L}\p{N}_.+-])([+-]?\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|records?|notes?|entries|entry|bouts?|courses?|cad|usd|eur|gbp|aud|nzd|jpy|chf|cny|km|cm|mm|m)\b/gu)]
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^entrie$/, "entry").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`)];
+}
+
+function equivalentQuantity(target: string, candidates: readonly string[]) {
+  const split = (value: string) => {
+    const separator = value.lastIndexOf(":");
+    const amount = Number(value.slice(0, separator));
+    const unit = units[value.slice(separator + 1).toLowerCase()];
+    const literal = value.slice(0, separator);
+    return separator > 0 && Number.isFinite(amount) && unit ? { amount, decimals: literal.split(".")[1]?.length || 0, unit } : null;
+  };
+  const wanted = split(target);
+  if (!wanted) return false;
+  return candidates.some(candidate => {
+    const source = split(candidate);
+    if (!source || source.unit.dimension !== wanted.unit.dimension) return false;
+    const converted = source.amount * source.unit.scale / wanted.unit.scale;
+    return Number(converted.toFixed(Math.min(wanted.decimals, 10))) === wanted.amount;
+  });
 }
 /** A deterministic guard for explicit factual anchors, not semantic entailment.
  * Each sentence must draw its dates/quantities from its cited sources. This
@@ -92,7 +110,8 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     return explicit;
   });
   const supportedDates = new Set([...sourceDates, ...scopeDates.flatMap(date => dates(date.slice(0, 10))), ...(!legacyDerivations ? dates(requestText) : [])].flatMap(date => [date, date.replace(/^\d{4}:/, "")]));
-  const supportedQuantities = new Set([...sources.flatMap(source => quantities(source.text)), ...derivedQuantities]);
+  const sourceQuantities = sources.flatMap(source => quantities(source.text));
+  const supportedQuantities = new Set([...sourceQuantities, ...derivedQuantities]);
   // Two separately dated, explicitly reported urination events can support a
   // count within that note. This never authorizes illness-episode totals.
   if (legacyDerivations && /\b(?:how many accidents|one accident or two|one or two accidents)\b/i.test(requestText) && /\b(?:note|entry|report)\b/i.test(requestText)
@@ -151,7 +170,10 @@ export function historyNarrativeAnchorsSupported(text: string, sources: Source[]
     }
   }
   const unsupportedDates = dates(text).filter(date => !supportedDates.has(date));
-  const unsupportedQuantities = quantities(text).filter(quantity => !supportedQuantities.has(quantity));
+  const requestedUnitConversion = /\b(?:convert|conversion|express(?:ed)?|in\s+(?:kilograms?|grams?|milligrams?|pounds?|lbs?|milliliters?|liters?|litres?))\b/i.test(requestText);
+  const unsupportedQuantities = quantities(text).filter(quantity => !supportedQuantities.has(quantity)
+    && !equivalentQuantity(quantity, derivedQuantities)
+    && !(requestedUnitConversion && equivalentQuantity(quantity, sourceQuantities)));
   for (const date of unsupportedDates) onUnsupported?.("Unsupported date anchor: " + date);
   for (const quantity of unsupportedQuantities) onUnsupported?.("Unsupported quantity anchor: " + quantity + ". A derived value requires valid calculations metadata grounded in original source operands; otherwise qualify or remove it.");
   return !unsupportedDates.length && !unsupportedQuantities.length;

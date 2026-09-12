@@ -6,6 +6,7 @@ import { vomitingSymptomPattern } from "../ai/concern-symptoms.ts";
 import type { CarePersistenceResult, GovernedCanonicalEvent, IntelligenceCareAction, SemanticEventDomain, SemanticEventTransition } from "./types.ts";
 
 const explicitSavePattern = /\b(?:save|log|record|note|add|put)\b[\s\S]{0,80}\b(?:this|that|these|those|it|notes?|entries|history|care history|timeline)\b|\bcan (?:you|u) (?:save|log|record|note|add)\b/i;
+const explicitNoPersistencePattern = /\b(?:(?:do\s+not|don['’]?t|dont|never)\s+(?:save|store|record|log|remember|add|change|update)|(?:save|store|record|log)\s+nothing|without\s+(?:saving|storing|recording|logging|changing|updating))\b|\bno\s+(?:guardes?|registres?|almacenes?|cambies?|actualices?)\b|\bne\s+(?:sauvegarde|enregistre|stocke|modifie)\w*\s+(?:rien|pas)\b/iu;
 const conversationalNoisePattern = /\b(?:chasing?|chased)\s+butterfl(?:y|ies)\b|\bbutterfl(?:y|ies)\b|\b(?:is|was|being)\s+(?:dumb|silly|goofy|cute|funny|insane|a menace|a gremlin)(?:\s+af)?\b|\b(?:lol|lmao|haha|hehe)\b|\bnormal\s+play\b|\b(?:played?|playing)\s+(?:normally|with (?:a )?toy)\b|\b(?:more )?interested in (?:going|get(?:ting)?) outside\b/i;
 const existingClinicalSignalPattern = /\b(?:appetite|not eating|won't eat|has(?:n't| not) eaten|have(?:n't| not) eaten|(?:eat(?:ing)?|eaten) (?:less|little|much)|drank?|drinking|thirst|water intake|vomit\w*|diarrhea|stool|urine|urinating|elimination|weight|body condition|limp|limping|injur(?:y|ed)|wound|bleed(?:ing)?|pain|letharg(?:y|ic)|cough|sneez|itch|scratch|rash|swelling|breath(?:e|ing)|seizure|collapse|toxin|toxic|poison|exposure|ate|ingested|medication|medicine|supplement|dose|treatment|therapy|vaccin\w*|veterinar(?:y|ian)|vet visit|test result|lab result|diagnos|surgery)\b/i;
 // History relevance includes qualified/negative mentions; this is not a claim
@@ -33,6 +34,12 @@ export type CareHistorySaveDecision = { eligible: boolean; reason: string; expli
 
 export function isExplicitCareHistorySaveRequest(message: string) {
   return explicitSavePattern.test(clean(message));
+}
+
+/** A direct no-write instruction is server authority. It suppresses every
+ * optional persistence proposal even if model intent classification drifts. */
+export function isExplicitNoPersistenceRequest(message: string) {
+  return explicitNoPersistencePattern.test(clean(message));
 }
 
 /** Remove only an exact duplicate proposal already represented by a governed
