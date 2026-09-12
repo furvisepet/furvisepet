@@ -1,3 +1,4 @@
+import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
 import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/run-intelligence.ts";
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
@@ -2119,23 +2120,23 @@ function textPayloadValue(value: unknown) {
 }
 
 async function loadPersistedRequest({ petId, requestId, supabase, userId }: { petId: string; requestId: string; supabase: SupabaseClient; userId: string }): Promise<PersistedRequestState | null> {
-  const { data: messages, error } = await supabase
+  const { data: messages, error } = await recoverTransientRead(() => supabase
     .from("ask_conversation_messages")
     .select("id, conversation_id, request_id, role, sequence_number, user_text, response_data, save_metadata, context_used, care_persistence")
     .eq("user_id", userId)
     .eq("request_id", requestId)
     .order("created_at", { ascending: true })
-    .returns<PersistedAskMessageRow[]>();
+    .returns<PersistedAskMessageRow[]>());
   if (error) throw new AskApiError("DATABASE_ERROR", "Furvise could not load this request.", 503, "request_lookup", error);
   if (!messages?.length) return null;
   const conversationId = messages[0].conversation_id;
-  const { data: conversation, error: conversationError } = await supabase
+  const { data: conversation, error: conversationError } = await recoverTransientRead(() => supabase
     .from("ask_conversations")
     .select("id")
     .eq("id", conversationId)
     .eq("pet_profile_id", petId)
     .eq("user_id", userId)
-    .maybeSingle<{ id: string }>();
+    .maybeSingle<{ id: string }>());
   if (conversationError) throw new AskApiError("DATABASE_ERROR", "Furvise could not load this conversation.", 503, "request_lookup", conversationError);
   if (!conversation) throw new AskApiError("PET_NOT_FOUND", "That conversation is not available for this pet.", 404, "request_lookup");
   const userMessage = messages.find((message) => message.role === "user");
@@ -2145,14 +2146,14 @@ async function loadPersistedRequest({ petId, requestId, supabase, userId }: { pe
 }
 
 async function loadPersistedRequestByConversation({ conversationId, requestId, supabase, userId }: { conversationId: string; requestId: string; supabase: SupabaseClient; userId: string }) {
-  const { data: messages, error } = await supabase
+  const { data: messages, error } = await recoverTransientRead(() => supabase
     .from("ask_conversation_messages")
     .select("id, conversation_id, request_id, role, sequence_number, user_text, response_data, save_metadata, context_used, care_persistence")
     .eq("conversation_id", conversationId)
     .eq("user_id", userId)
     .eq("request_id", requestId)
     .order("created_at", { ascending: true })
-    .returns<PersistedAskMessageRow[]>();
+    .returns<PersistedAskMessageRow[]>());
   if (error || !messages?.length) return null;
   const userMessage = messages.find((message) => message.role === "user");
   if (!userMessage) return null;
