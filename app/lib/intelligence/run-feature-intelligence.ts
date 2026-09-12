@@ -67,6 +67,8 @@ export async function runFeatureIntelligence<T>({
         : "Return an empty careActions array.",
     ].join("\n"),
     maxOutputTokens,
+    reasoningEffort: feature === "vet_brief" ? "medium" : undefined,
+    timeoutMs: feature === "vet_brief" ? 35_000 : undefined,
     onProviderEvent,
     parse: (value) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null,
     schema,
