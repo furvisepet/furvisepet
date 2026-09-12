@@ -4,6 +4,29 @@ import { parseHistoryCalculations, verifiedCalculationQuantities } from '../app/
 import { canonicalReadPresentation, readPublicationFailure } from '../app/lib/ask-publication.ts';
 import { receiptCompletionText } from '../app/lib/intelligence/receipt-completion.ts';
 import { readRecordInventory } from '../app/lib/intelligence/record-inventory.ts';
+import { validateAskRequest } from '../app/lib/intelligence/ask-request-contract.ts';
+import { emptyProposedSemanticFrame } from '../app/lib/intelligence/semantic-frame/extract-frame.ts';
+
+test('an irrelevant read-planning hint cannot terminate an owned episode question', () => {
+  const pet={id:'pet',user_id:'owner',name:'Fern'};
+  const currentMessage='How many vomiting episodes are recorded for Fern in 2024?';
+  const context={owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]};
+  const proposal={version:'ask-request.v2',mode:'read',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'count',selection:'period',quantity:'episodes',topic:'vomiting',terms:['vomiting'],from:'2024-01-01',to:'2025-01-01',episodeTopic:'vomiting',ordinal:null,frame:null,evidenceBasis:'saved_history',recordSelection:{scope:'all_active',quote:'invented hint'}};
+  const result=validateAskRequest(proposal,context);
+  assert.equal(result.request.recordSelection,null);
+  assert.equal(result.request.quantity,'episodes');
+  assert.deepEqual(result.petIds,['pet']);
+  assert.throws(()=>validateAskRequest({...proposal,petNames:['Another owner pet']},context),/ownership/);
+});
+
+test('a record correction retrieves its original interval without becoming a read-only task', () => {
+  const pet={id:'pet',user_id:'owner',name:'Fern'};
+  const currentMessage='Correct Fern’s January 4, 2026 walking note from 18 minutes to 19 minutes.';
+  const result=validateAskRequest({version:'ask-request.v2',mode:'mixed',mutationIntent:'correct_record',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'recall',selection:'period',quantity:null,topic:'walking',terms:['walk'],from:'2026-01-04',to:'2026-01-05',episodeTopic:null,ordinal:null,frame:emptyProposedSemanticFrame(),evidenceBasis:'saved_history'}, {owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[]});
+  assert.equal(result.readOnly,false);
+  assert.equal(result.request.mutationIntent,'correct_record');
+  assert.equal(result.history.from,'2026-01-04T00:00:00.000Z');
+});
 
 test('aggregations operate over original measurements, with unit conversion and no invented divisor', () => {
   const sources = [10,20,30,40,50,60].map((v,i)=>({sourceId:`care:${i}`,text:`Measured ${v} g.`}));
