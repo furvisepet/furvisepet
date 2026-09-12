@@ -219,7 +219,10 @@ export function eligibleAnswerSources(evidence: AskEvidenceContract) {
   const receiptSources = operationReceiptEvidence(evidence.operationReceipts || []);
   const inventorySources = recordInventoryEvidence(evidence.recordInventory || []);
   return evidence.represented.filter(span =>
-    (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "operation_receipt" || span.sourceType === "episode_result" || span.sourceType === "record_inventory")
+    // Correction failure invalidates clinical history, not independent profile,
+    // physical inventory, or request-linked receipt evidence.
+    (span.sourceType !== "care_update" || evidence.history?.corrections !== "unavailable")
+    && (span.sourceType === "care_update" || span.sourceType === "profile" || span.sourceType === "operation_receipt" || span.sourceType === "episode_result" || span.sourceType === "record_inventory")
     && (span.sourceType !== "record_inventory" || inventorySources.some(source => source.sourceId === span.sourceId && source.petId === span.petId && source.text === span.text))
     && (span.sourceType !== "episode_result" || !!evidence.episodes && span.text === episodeResultText(evidence.episodes))
     && (span.sourceType !== "operation_receipt" || receiptSources.some(source => source.sourceId === span.sourceId

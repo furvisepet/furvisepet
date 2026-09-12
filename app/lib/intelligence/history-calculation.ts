@@ -114,7 +114,7 @@ export function parseHistoryCalculations(value: unknown): HistoryCalculation[] |
 export function verifiedCalculationQuantities(proposals: HistoryCalculation[], sources: Source[], onMismatch?: (hint: { operation: string; expectedValue: number; unit: string }) => void): string[] | null {
   const output: string[] = [];
   for (const proposal of proposals) {
-    const p = { ...proposal, unit: /^(?:percent|percentage)$/i.test(proposal.unit) ? "%" : proposal.unit.toLowerCase() };
+    const p = { ...proposal, unit: /^(?:percent|percentage)$/i.test(proposal.unit) ? "%" : /^(?:calendar|elapsed)[ _-]+days?$/i.test(proposal.unit) ? "days" : proposal.unit.toLowerCase() };
     if (p.operation === "count_records") {
       const ids = new Set(p.operands.map(operand => operand.sourceId));
       if (!p.operands.length || ids.size !== p.operands.length || !["record", "records", "note", "notes", "entry", "entries"].includes(p.unit)
@@ -129,7 +129,13 @@ export function verifiedCalculationQuantities(proposals: HistoryCalculation[], s
       if (matches.length !== 1) return null;
       const source = matches[0];
       if (operand.field === "occurredAt") {
-        if (p.operation !== "elapsed_days" || operand.literal !== source.occurredAt || !Number.isFinite(Date.parse(operand.literal))) return null;
+        if (p.operation !== "elapsed_days" || Date.parse(operand.literal) !== Date.parse(source.occurredAt || "") || !Number.isFinite(Date.parse(operand.literal))) return null;
+        operands.push({ value: Date.parse(operand.literal), dimension: "instant", scale: 1 });
+      } else if (p.operation === "elapsed_days" && /^\d{4}-\d{2}-\d{2}$/.test(operand.literal)
+        && [...source.text.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].some(match => match[0] === operand.literal) && Number.isFinite(Date.parse(operand.literal))
+        && new Date(operand.literal).toISOString().slice(0, 10) === operand.literal) {
+        // A literal calendar date in the source is also an explicit operand.
+        // It is not an inferred onset; semantic review checks that relationship.
         operands.push({ value: Date.parse(operand.literal), dimension: "instant", scale: 1 });
       } else {
         // Require a complete numeric token, not a substring of a larger value.

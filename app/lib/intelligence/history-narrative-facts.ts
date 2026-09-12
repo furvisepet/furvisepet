@@ -18,7 +18,7 @@ function quantities(text: string): string[] {
     .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{4}\b/gi, " ")
     .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi, " ");
   const rates: string[] = [];
-  const scalarProse = prose.replace(/(?<![\p{L}\p{N}_.+-])([+-]?\d+(?:\.\d+)?)\s+([a-z]+\s*\/\s*[a-z]+)\b/giu, (literal, value, unit) => {
+  const scalarProse = prose.replace(/\b(calendar|elapsed)[ -]+(days?)\b/gi, "$2").replace(/(?<![\p{L}\p{N}_.+-])([+-]?\d+(?:\.\d+)?)\s+([a-z]+\s*\/\s*[a-z]+)\b/giu, (literal, value, unit) => {
     const rate = compoundUnit(unit);
     if (!rate) return literal;
     rates.push(Number(value) + ":" + rate.canonical);
