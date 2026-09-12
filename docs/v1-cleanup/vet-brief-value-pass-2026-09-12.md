@@ -52,3 +52,14 @@ Deeper input finding: generation was given a prefilled `deterministicDraft.relev
 PR350 passed CI (2,225 tests) and deployed as `60fa2f6aa6a8bef775f474d76ecd3bc606916663` (`dpl_3RDjXGY3iuDVxxz3cXSpqgeL5cWF`). Live retry remained unsuccessful: visit focus was rejected first, then duplication after repair. Credit released, no draft published.
 
 The provider transport defaults to low reasoning for GPT-5 models. Follow-up explicitly gives Vet Brief generation/review medium reasoning, a 35-second per-call timeout and 4,096 review output tokens. The same model and four-call limit remain. Route duration is 180 seconds, concurrency lease 195 seconds, idempotency lease 210 seconds. Other feature callers retain existing defaults. TypeScript and 16 focused tests passed, including transport-level option propagation.
+
+## Final deployed checks — PR351
+
+PR351 passed every CI gate (workflow 34693520658: lint, TypeScript, focused security, full tests, dependency audit and production build). Merged as `2910c34cdb6d55d70ed5cabad3bcb97be7e69869`; production deployment `dpl_HVKVnrWhHFDHFKLDTL7CAEPXjun6` is READY and aliased to furvise.com/www.furvise.com.
+
+- Weight comparison content: PASS with wording note. The exact previously failing Mochi request now keeps historical 3.97 kg (April 9, 2024; household scale, no carrier/harness) and current profile 3.8 kg together. It preserves unknown cause and omits unrelated meals, grooming, enrichment and household events. One question abbreviates the profile value as “3.8 kg now”; header and overview correctly identify it as profile weight. This could be clearer and is not evidence of a new measurement.
+- Independent appointment purpose: PASS after session retry. For “Prepare a brief for a routine discussion of Mochi’s recorded April 2024 coat-care observation,” same April date range, the report selected April 18 brushing for 7 minutes/easily removed tangle, preserved absence of a recorded veterinary skin diagnosis, and omitted unrelated diary events.
+- Save/confirm: first attempt failed access verification during session expiry; retry succeeded without losing the draft. Coat-care generation likewise first returned session expired, then succeeded. Recovery does not erase first-attempt failures.
+- Confirmed synthetic weight brief `2969cf3f-81d3-4aa8-b0e7-59dfd2c915ac`, version 1, downloaded through the production UI. Actual PDF text and rendered page inspected: one page, readable text, correct weights/date/conditions, no clipped sections or orphan footer. Example saved at `output/pdf/furvise-vet-brief-weight-live-qa-2026-09-12.pdf`. This is synthetic QA data, not a clinical document.
+
+These targeted results demonstrate improved focus, recovery and export behavior. They do not establish broad clinical usefulness, willingness to pay, comprehensive history, or a perfect product. Earlier failures and partials above remain part of the record. The unrelated earlier Ask audit scores are unchanged.
