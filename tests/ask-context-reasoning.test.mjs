@@ -561,3 +561,20 @@ test('verified inventory survives ranking and generic span compaction with its a
   assert.equal(context.promptContext.evidenceContract.losses.some(l=>l.sourceId===source.sourceId),false);
   assert.equal(deterministicReadProjection(context.promptContext.evidenceContract)?.sentences[0].text,source.text);
 });
+test('mixed history tasks retain their target note when unrelated receipt metadata fills the prompt budget',async()=>{
+  const base=input({careEntries:[care({note:'Played with a puzzle toy for 13 minutes.'})],question:'Correct the July 27 puzzle-toy record to 15 minutes.'});
+  const e=buildAskContext(base).promptContext.evidenceContract;
+  e.scope.readOnlyRecall=false;
+  e.interpretation={operation:'update',readOnly:false,history:{from:'2026-07-27',to:'2026-07-28'},
+    request:{mode:'mixed',mutationIntent:'correct_record',profileFields:[],evidenceNeeds:[],referenceTurnIds:[]}};
+  e.history={candidateIds:['care:care-1'],provenance:[],claimSources:[],excludedIds:[],reasons:[],perPet:[],targets:[],chronology:[]};
+  e.operationReceipts=Array.from({length:12},(_,i)=>({sourceMessageId:'old-'+i,petId:'pet-mani',
+    requestText:'Earlier unrelated request. '.repeat(20),answerPersisted:true,actionReceipts:[],
+    records:[{id:'old-record-'+i,note:'Earlier unrelated observation. '.repeat(40),occurredAt:'2026-06-01T00:00:00Z'}]}));
+  const {operationReceiptEvidence,evidenceSource}=await import('../app/lib/intelligence/ask-evidence.ts');
+  e.sources.push(evidenceSource('pet-mani','operation_receipts',operationReceiptEvidence(e.operationReceipts).map(source=>source.sourceId)));
+  const context=buildAskContext({...base,evidenceContract:e});
+  assert.ok(context.records.some(record=>record.id==='care:care-1'));
+  assert.equal(context.promptContext.evidenceContract.losses.some(loss=>loss.sourceId==='care:care-1'),false);
+  assert.equal(context.promptContext.evidenceContract.operationReceipts.length,12,'server receipt authority remains intact');
+});
