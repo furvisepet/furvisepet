@@ -31,7 +31,7 @@ function containsUnquotedStateClaim(value: string) {
     if (isNegatedReceiptSpeech(before)) continue;
     // Attribution prefixes are not the subject of the embedded statement.
     const subject = before.split(/\b(?:says|said|reports|states|documents)\b/i).at(-1) || before;
-    const dataSubject = /\b(?:profile|history|record|entry|preference|settings|account|app|Furvise)\b/i.test(subject);
+    const dataSubject = /\b(?:profile|history|records?|entries|entry|preferences?|settings|account|app|Furvise|preferred language|communication style|booking|appointment|request|task|action|operation)\b/i.test(subject);
     // Absence in a clinical note does not announce a successful app write.
     const absentClinicalDetail = /\bno\s+(?:[a-z-]+\s+){0,10}$/i.test(subject)
       && !dataSubject
@@ -50,7 +50,12 @@ function containsUnquotedStateClaim(value: string) {
       && !/^\s*(?:it|this|that|the task)\s*$/i.test(subject);
     const physical = datedCompletion || dietTransition || match[1].toLowerCase() === "changed" && physicalChangeSubject.test(before)
       || match[1].toLowerCase() === "completed" && physicalCourseSubject.test(before);
-    if (!physical || dataSubject || applicationDestination.test(clause)) return true;
+    // Classify application receipt speech by actor/target, rather than treating
+    // every unknown physical object as application state. New domains must not
+    // need a growing list of exceptions (water removed, bandage changed, etc.).
+    const ambiguousSubject = !subject.trim() || /^(?:(?:and|but)\s+)?(?:it|this|that|everything|something|anything|these|those)(?:\s+(?:detail|change|update|note))?\s*$/i.test(subject.trim());
+    const immediateExecution = /\b(?:just|now|successfully)\b/i.test(match[0]);
+    if (dataSubject || applicationDestination.test(clause) || !physical && (ambiguousSubject || immediateExecution)) return true;
   }
   return false;
 }

@@ -73,6 +73,10 @@ export function deterministicReadProjection(evidence: AskEvidenceContract): Hist
     const referenced = receipts.filter(receipt => request?.referenceTurnIds.includes(receipt.sourceMessageId));
     const receipt = referenced.at(-1) || receipts.filter(item => /\b(?:save|log|record|add)\b/i.test(item.requestText)).at(-1);
     if (receipt) {
+      // Edits and other capability actions have execution receipts rather than
+      // new note rows. Compose their status alongside the requested current
+      // records; an insert-only projection would incorrectly erase that task.
+      if (receipt.actionReceipts?.length) return null;
       const sources = eligibleAnswerSources(evidence);
       const records = receipt.records.map(record => ({ record, source: sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}:record:${record.id}`) }));
       const header = sources.find(source => source.sourceId === `operation:${receipt.sourceMessageId}`);

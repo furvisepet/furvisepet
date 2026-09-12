@@ -1,0 +1,159 @@
+{
+  "account": "gwaraich604@gmail.com",
+  "rounds": [
+    {
+      "deployment": "dpl_DZvFhfcJRp8CrMnN1mVm6GeH2PQW",
+      "pr": 326,
+      "start": "2026-09-12T02:53:04.042Z",
+      "url": "https://www.furvise.com/ask?conversation=2fd3aa18-01f2-4da8-9e5e-52963d81eaee",
+      "results": [
+        {
+          "n": 1,
+          "prompt": "For Sable in 2024, how many distinct vomiting episodes are supported by the saved history? List each start and stop date separately and calculate each calendar-day gap. Save nothing.",
+          "answer": [
+            "Furvise couldn't finish that answerFurvise couldn't finish that answer just now. Your question is still here, so you can try again safely. No AI credit was used.Try again",
+            ""
+          ],
+          "at": "2026-09-12T02:53:45.347Z",
+          "result": "fail"
+        },
+        {
+          "n": 2,
+          "prompt": "Compare Rowan and Sable during June 2024: whose saved history documents vomiting then? Do not interpret missing records as proof that the other pet was healthy. Save nothing.",
+          "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from your pets' history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy",
+          "at": "2026-09-12T02:54:45.234Z",
+          "result": "fail"
+        },
+        {
+          "n": 3,
+          "prompt": "As of this lookup, count Rowan’s active saved care-history records from April 1, 2026 inclusive to May 1, 2026 exclusive. Give the exact database count, interval, and as-of time. Save nothing.",
+          "answer": "Furvise\n\nDatabase count checked at 2026-09-12T02:54:52.472Z: exactly 4 active saved care-history entries with recorded dates from 2026-04-01T00:00:00.000Z inclusive to 2026-05-01T00:00:00.000Z exclusive. This counts database notes, not episodes or events described within notes. It covers only this accessible date interval, not later dates or excluded history.\n\nCopy",
+          "at": "2026-09-12T02:55:29.891Z",
+          "result": "pass"
+        },
+        {
+          "n": 4,
+          "prompt": "Return JSON only: an array of Rowan’s saved April 2026 breakfast notes with fields recorded_date and exact_note. Include all four and preserve each complete note verbatim. Save nothing.",
+          "answer": "Furvise\n\n[{\"recorded_date\":\"2026-04-03\",\"exact_note\":\"April 3, 2026: ate 31 g of usual food at breakfast.\"},{\"recorded_date\":\"2026-04-06\",\"exact_note\":\"April 6, 2026: ate 34 g of usual food at breakfast.\"},{\"recorded_date\":\"2026-04-09\",\"exact_note\":\"April 9, 2026: ate 36 g of usual food at breakfast.\"},{\"recorded_date\":\"2026-04-12\",\"exact_note\":\"April 12, 2026: ate 39 g of usual food at breakfast.\"}]\n\nCopy",
+          "at": "2026-09-12T02:56:22.893Z",
+          "result": "pass"
+        },
+        {
+          "n": 5,
+          "prompt": "Using those four April breakfast amounts, calculate the total grams and arithmetic mean per recorded breakfast. Do not describe this as daily intake or infer calories. Save nothing.",
+          "answer": "Furvise\n\nThe four recorded breakfast amounts add up to 140 g, and the arithmetic mean is 35 g per recorded breakfast.\n\nCopy",
+          "at": "2026-09-12T02:57:08.338Z",
+          "result": "pass"
+        },
+        {
+          "n": 6,
+          "prompt": "For Sable, save exactly three separate care notes: February 2, 2026: walked for 11 minutes. February 5, 2026: walked for 14 minutes. February 8, 2026: walked for 17 minutes.",
+          "answer": "Furvise\n\nI’ve got the three care notes queued for Sable with the dates and walking times exactly as you wrote them.\n\nCopy\n\nAdded 3 updates to care history",
+          "at": "2026-09-12T02:57:47.583Z",
+          "result": "pass"
+        },
+        {
+          "n": 7,
+          "prompt": "Check the receipts for my preceding three-note save. Give every saved date and full note text, and explicitly say whether all three succeeded. Do not save them again.",
+          "answer": [
+            "Furvise couldn't finish that answerFurvise couldn't finish that answer just now. Your question is still here, so you can try again safely. No AI credit was used.Try again",
+            ""
+          ],
+          "at": "2026-09-12T02:59:20.656Z",
+          "result": "fail"
+        },
+        {
+          "n": 8,
+          "prompt": "Correct Sable’s February 5, 2026 walking note: it was 16 minutes, not 14 minutes. Change only that observation and retain February 5 as its date.",
+          "answer": [
+            "Furvise couldn't finish that answerFurvise couldn't finish that answer just now. Your question is still here, so you can try again safely. No AI credit was used.Try again",
+            ""
+          ],
+          "at": "2026-09-12T03:00:28.963Z",
+          "result": "fail"
+        },
+        {
+          "n": 9,
+          "prompt": "Retrieve Sable’s February 2026 walking records after that correction. List the dates and current durations, and calculate the total minutes. Do not include the superseded 14-minute value in the total. Save nothing.",
+          "answer": [
+            "Furvise couldn't finish this answerYour question is still here. Try again in a moment.Try again",
+            ""
+          ],
+          "at": "2026-09-12T03:01:21.443Z",
+          "result": "fail"
+        },
+        {
+          "n": 10,
+          "prompt": "For a vet-visit preparation note, summarize only Sable’s two documented 2024 vomiting episodes in at most 80 words, include all four dates, and give two questions to ask the vet about possible causes. Do not diagnose, create a Vet Brief, or save anything.",
+          "answer": [
+            "Furvise couldn't finish that answerFurvise couldn't finish that answer just now. Your question is still here, so you can try again safely. No AI credit was used.Try again",
+            ""
+          ],
+          "at": "2026-09-12T03:02:02.061Z",
+          "result": "fail"
+        }
+      ]
+    },
+    {
+      "deployment": "dpl_FLeF5BuubEZkM3TnMNwaznUiqAN1",
+      "pr": 327,
+      "url": "https://www.furvise.com/ask?conversation=7344a2e2-3a4e-433d-b737-72aa483abe2e",
+      "start": "2026-09-12T03:14:07.777Z",
+      "results": [
+        {
+          "n": 1,
+          "prompt": "For Sable in 2024, how many distinct vomiting episodes are supported by the saved history? List each start and stop date separately and calculate each calendar-day gap. Save nothing.",
+          "answer": "Furvise\n\nExactly 2 recorded vomiting episodes in your verified saved care history for 2024, checked on 2026-09-12. Showing 2. This count covers episodes established by saved care records. Chat messages that were not saved to history are outside this count; unrecorded episodes remain unknown.\n\nRecorded episodes\nEpisode 1: 2024-02-01, vomiting.\nEpisode 2: 2024-06-09, vomiting.\nCopy",
+          "at": "2026-09-12T03:15:10.660Z",
+          "result": "partial",
+          "note": "Count and starts correct; stop dates and both gaps omitted."
+        },
+        {
+          "n": 2,
+          "prompt": "Compare Rowan and Sable during June 2024: whose saved history documents vomiting then? Do not interpret missing records as proof that the other pet was healthy. Save nothing.",
+          "answer": [
+            "Furvise couldn't finish this answerYour question is still here. Try again in a moment.Try again",
+            ""
+          ],
+          "at": "2026-09-12T03:16:03.901Z",
+          "result": "fail"
+        },
+        {
+          "n": 3,
+          "prompt": "For Sable, save exactly three separate care notes: January 2, 2026: walked for 11 minutes. January 5, 2026: walked for 14 minutes. January 8, 2026: walked for 17 minutes.",
+          "answer": "Furvise\n\nThe notes below show the requested entries for Sable.\n\nCopy\n\nAdded 3 updates to care history",
+          "at": "2026-09-12T03:20:30.497Z",
+          "result": "pass_pending_db"
+        },
+        {
+          "n": 4,
+          "prompt": "Check the receipts for my preceding three-note save. Give every saved date and full note text, and explicitly say whether all three succeeded. Do not save them again.",
+          "answer": "Furvise\n\nAll 3 requested notes have matching current saved records linked to that request; none is missing.\n2026-01-02 linked saved note: \"January 2, 2026: walked for 11 minutes.\"\n2026-01-05 linked saved note: \"January 5, 2026: walked for 14 minutes.\"\n2026-01-08 linked saved note: \"January 8, 2026: walked for 17 minutes.\"\n\nCopy",
+          "at": "2026-09-12T03:21:02.096Z",
+          "result": "pass"
+        },
+        {
+          "n": 5,
+          "prompt": "Correct Sable’s January 5, 2026 walking note: it was 16 minutes, not 14 minutes. Change only that observation and retain January 5 as its date.",
+          "answer": "Furvise\n\nYou just reported: Correct Sable’s January 5, 2026 walking note: it was 16 minutes, not 14 minutes. For comparison, here are the dated reports.\n\nSable: I couldn't verify a usable saved report for this question from the available evidence. This does not establish an absence in the saved history.\n\nSome history could not be checked or included. This answer covers only the usable reports; a narrower topic or date range may help.\n\nCopy\n\nThat original target is no longer available.",
+          "at": "2026-09-12T03:22:09.379Z",
+          "result": "fail"
+        },
+        {
+          "n": 6,
+          "prompt": "Retrieve Sable’s January 2026 walking records after that correction. List the dates and current durations, and calculate the total minutes. Do not include the superseded 14-minute value in the total. Save nothing.",
+          "answer": "Furvise\n\nI'm sorry, I couldn't finish answering that from Sable's history. You can check a few of the notes I found below, but they aren't a full answer.\n\nView saved notes\nCopy",
+          "at": "2026-09-12T03:23:15.315Z",
+          "result": "fail"
+        },
+        {
+          "n": 7,
+          "prompt": "For a vet-visit preparation note, summarize only Sable’s two documented 2024 vomiting episodes in at most 80 words, include all four dates, and give two questions to ask the vet about possible causes. Do not diagnose, create a Vet Brief, or save anything.",
+          "answer": "Furvise\n\nSable had two documented 2024 vomiting episodes: Feb 1 to Feb 3, and Jun 9 to Jun 11. Ask the vet what possible causes fit this pattern, and whether any tests or diet changes would help sort it out.\n\nPrepare vet brief\nCopy",
+          "at": "2026-09-12T03:24:46.169Z",
+          "result": "pass_with_unrequested_offer"
+        }
+      ]
+    }
+  ]
+}

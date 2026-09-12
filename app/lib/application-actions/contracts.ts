@@ -3,8 +3,9 @@ import { FURVISE_ACTION_KINDS, parseStoredFurviseActionKind, type FurviseActionI
 export const modelApplicationActionJsonSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["kind", "input", "evidence", "explicitIntent"],
+  required: ["kind", "input", "evidence", "explicitIntent", "targetSourceId"],
   properties: {
+    targetSourceId: nullableString(160),
     kind: { type: "string", enum: [...FURVISE_ACTION_KINDS] },
     input: {
       type: "object",
@@ -39,7 +40,9 @@ export function parseModelApplicationActions(value: unknown, sourceMessage: stri
     const key = `${draft.kind}:${JSON.stringify(input)}`;
     if (seen.has(key)) return [];
     seen.add(key);
-    return [{ kind: draft.kind as ModelApplicationAction["kind"], input, evidence, explicitIntent: draft.explicitIntent }];
+    const targetSourceId = nullableValue(draft.targetSourceId, 160);
+    return [{ kind: draft.kind as ModelApplicationAction["kind"], input, evidence, explicitIntent: draft.explicitIntent,
+      ...(targetSourceId ? { targetSourceId } : {}) }];
   });
 }
 

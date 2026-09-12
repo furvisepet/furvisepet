@@ -130,7 +130,24 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
     const anchorFailures: string[] = [];
     anchorHints.set(sentence.text, anchorFailures);
     const derived = verifiedCalculationQuantities(sentence.calculations || [], cited, hint => hints.push(hint));
-    if (derived === null) anchorFailures.push("calculation_operands_or_value_invalid");
+    if (derived === null) {
+      anchorFailures.push("calculation_operands_or_value_invalid");
+      // Include structural diagnostics in bounded repair and logs without
+      // logging source text, identifiers, literal values or medical facts.
+      for (const calculation of sentence.calculations || []) {
+        if (verifiedCalculationQuantities([calculation], cited) !== null) continue;
+        anchorFailures.push(JSON.stringify({ operation: calculation.operation,
+          operandCount: calculation.operands.length,
+          operands: calculation.operands.map(operand => {
+            const matches = cited.filter(source => source.sourceId === operand.sourceId);
+            return { field: operand.field, sourceMatches: matches.length,
+              hasSourceTimestamp: matches.some(source => !!source.occurredAt),
+              timestampMatches: matches.some(source => Number.isFinite(Date.parse(operand.literal))
+                && Date.parse(operand.literal) === Date.parse(source.occurredAt || "")),
+              literalInSource: matches.some(source => source.text.includes(operand.literal)) };
+          }) }));
+      }
+    }
     if (hints.length) calculationHints.set(sentence.text, hints);
     return derived !== null && historyNarrativeAnchorsSupported(sentence.text, cited,
       (sharedRequest ? [evidence.scope.requestText, evidence.interpretation?.referenceQuestion].filter(Boolean).join("\n") : evidence.interpretation?.referenceQuestion || evidence.scope.requestText), derived, !sharedRequest,

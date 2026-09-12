@@ -1,4 +1,5 @@
 import "server-only";
+import { recoverTransientRead } from "./security/read-recovery.ts";
 import { scrubUntrustedMutationClaim } from "./ask-publication.ts";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -182,16 +183,17 @@ function scrubUntrustedSection(value: unknown) {
 
 
 export async function loadActionCapabilitiesForMessages(userId: string, messageIds: string[]) {
-  const result = new Map<string, unknown[]>();
-  if (!messageIds.length) return result;
+  const result = Object.assign(new Map<string, unknown[]>(), { complete: false });
+  if (!messageIds.length) { result.complete = true; return result; }
   const admin = createIdempotencyAdminClient();
-  const { data, error } = await admin.from("ask_action_capabilities")
+  const { data, error } = await recoverTransientRead(() => admin.from("ask_action_capabilities")
     .select("id,assistant_message_id,source_message_id,action_kind,pet_profile_id,action_payload,receipt,status,expires_at")
     .eq("user_id", userId)
     .in("assistant_message_id", messageIds)
     .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
+    .order("id", { ascending: true }));
   if (error) return result;
+  result.complete = true;
   for (const row of data || []) {
     const payload = row.receipt || row.action_payload;
     if (!payload || typeof payload !== "object") continue;

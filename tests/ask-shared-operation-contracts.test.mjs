@@ -66,3 +66,15 @@ test('typed inventory selection survives wording variation but rejects content-f
   context.askInterpretation.request.recordSelection.scope='content_filtered';
   assert.deepEqual(await readRecordInventory(context,{from(){throw Error('unsafe unfiltered count');}}),[]);
 });
+test('edit receipts establish execution separately from inserted note rows',async()=>{
+  const {operationReceiptEvidence}=await import('../app/lib/intelligence/ask-evidence.ts');
+  const receipt={sourceMessageId:'turn',petId:'pet',requestText:'Correct the saved record.',answerPersisted:true,records:[],
+    actionReceipts:[{id:'cap',kind:'care_history.edit',status:'succeeded',resultMessage:'History update changed.'}]};
+  const sources=operationReceiptEvidence([receipt]);
+  assert.equal(sources.length,2);assert.match(sources[1].text,/requested action completed/);
+  assert.match(sources[1].text,/does not certify.*unchanged/);
+  for(const status of ['failed','cancelled','confirmation_required']){
+    const source=operationReceiptEvidence([{...receipt,actionReceipts:[{...receipt.actionReceipts[0],status}]}])[1];
+    assert.doesNotMatch(source.text,/requested action completed/);assert.match(source.text,/not successful writes/);
+  }
+});

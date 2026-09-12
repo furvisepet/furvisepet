@@ -1,3 +1,4 @@
+import { eligibleAnswerSources } from "../../lib/intelligence/ask-evidence.ts";
 import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
 import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/run-intelligence.ts";
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
@@ -1048,6 +1049,12 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   const actionTargetBindings = resolveFurviseActionTargetBindings({
     actions: preparedApplicationActions,
     referencedRecords: reasoning?.referencedRecords || [],
+    targetRecords: [
+      ...(reasoning?.evidenceContract ? eligibleAnswerSources(reasoning.evidenceContract).map(source => ({
+        id: source.sourceId, petId: source.petId, sourceType: source.sourceType,
+      })) : reasoning?.referencedRecords || []),
+      ...(reasoning?.referencedRecords.filter(record => record.sourceType === "active_concern") || []),
+    ],
   });
 
   try {

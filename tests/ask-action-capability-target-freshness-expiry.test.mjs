@@ -62,6 +62,16 @@ test("missing, ambiguous, malformed, and cross-pet references fail closed", () =
   assert.deepEqual(resolve([{ id: `care:${exactEntryId}`, petId: "22000000-0000-4000-8000-000000000022", sourceType: "care_update" }]), {});
   assert.match(capability, /requiresBoundTarget\(authoritativeAction\) && !targetId/);
 });
+test('explicit operation identity survives broad answer citations and never falls back from an invalid target',()=>{
+  const action={...targetAction('care_history.edit'),targetSourceId:`care:${exactEntryId}`};
+  const records=[{id:`care:${exactEntryId}`,petId,sourceType:'care_update'},
+    {id:`care:${newerEntryId}`,petId,sourceType:'care_update'}];
+  const resolve=a=>resolveFurviseActionTargetBindings({actions:[a],referencedRecords:records,targetRecords:records});
+  assert.equal(resolve(action)[action.id],exactEntryId);
+  assert.deepEqual(resolve({...action,targetSourceId:'care:missing'}),{});
+  assert.deepEqual(resolveFurviseActionTargetBindings({actions:[action],referencedRecords:records,
+    targetRecords:[{...records[0],petId:'foreign'}]}),{});
+});
 
 test("positional latest/last target proposals are no longer eligible authority", () => {
   assert.equal(targetAction("care_history.remove", "last"), undefined);

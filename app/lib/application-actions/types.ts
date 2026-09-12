@@ -44,6 +44,9 @@ export type FurviseActionInput = {
 };
 
 export type ModelApplicationAction = {
+  /** Proposed source reference, consumed by server binding and never persisted
+   * as executable authority or copied into the capability payload. */
+  targetSourceId?: string | null;
   kind: FurviseActionKind;
   input: FurviseActionInput;
   evidence: string;

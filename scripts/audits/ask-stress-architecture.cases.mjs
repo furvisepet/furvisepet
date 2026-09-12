@@ -15,10 +15,10 @@ test('mixed history review preserves a requested record-edit confirmation withou
  const question='Correct Aster’s June 4, 2026 walking note to 19 minutes, keeping the same date.';
  let reviewedAction;
  const r=await exercise(question,{fixturePets:owned,messages:[],history:true,
-  rows:[care('edit-source','milo','2026-06-04','general','Aster walked for 18 minutes.')],
+  rows:[care('11000000-0000-4000-8000-000000000101','milo','2026-06-04','general','Aster walked for 18 minutes.')],
   interpretationProposal:proposal({mode:'mixed',mutationIntent:'correct_record',from:'2026-06-04',to:'2026-06-05',frame:null}),
-  providerOverrides:{answer:'Review the proposed correction below.',relevantContextIds:['care:edit-source'],semanticEvents:[],
-    historyNarrative:{sentences:[{text:'The proposed correction is 19 minutes; review it below.',sourceIds:['care:edit-source','request:current'],calculations:[]}]},
+  providerOverrides:{answer:'Review the proposed correction below.',relevantContextIds:['care:11000000-0000-4000-8000-000000000101'],semanticEvents:[],
+    historyNarrative:{sentences:[{text:'The proposed correction is 19 minutes; review it below.',sourceIds:['care:11000000-0000-4000-8000-000000000101','request:current'],calculations:[]}]},
     applicationActions:[{kind:'care_history.edit',explicitIntent:true,evidence:question,input:{field:null,value:null,title:null,detail:'Aster walked for 19 minutes.',category:'general',target:'specified'}}]},
   expectedReviewCalls:1,reviewProviderResponse:async request=>{
     const input=JSON.parse(request.input);reviewedAction=input.actions[0];
@@ -31,7 +31,10 @@ test('mixed history review preserves a requested record-edit confirmation withou
  assert.ok(reviewedAction);
  assert.equal(r.result.acceptedSemanticEvents.length,0);
  assert.equal(r.result.reasoning.applicationActions[0].kind,'care_history.edit');
- assert.ok(r.result.reasoning.referencedRecords.some(record=>record.id==='care:edit-source'));
+ assert.ok(r.result.reasoning.referencedRecords.some(record=>record.id==='care:11000000-0000-4000-8000-000000000101'));
+ const {prepareFurviseApplicationActions,resolveFurviseActionTargetBindings}=await import('../../app/lib/application-actions/planner.ts');
+ const actions=prepareFurviseApplicationActions({proposals:r.result.reasoning.applicationActions,petId:owned[0].id,petName:'Aster',requestId:'test',sourceMessage:question});
+ assert.deepEqual(resolveFurviseActionTargetBindings({actions,referencedRecords:r.result.reasoning.referencedRecords}),{'test:1':'11000000-0000-4000-8000-000000000101'});
 });
 test('receipt records retain per-record dates through generation and shared eligibility',async t=>{
  clock(t);
