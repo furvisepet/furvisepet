@@ -14,17 +14,24 @@ function dates(text: string): string[] {
 function quantities(text: string): string[] {
   // Date tokens cannot also be quantities: "April 17 accident-free update"
   // contains a day number, not seventeen accidents. Keep the two anchor axes separate.
-  const prose = text.replaceAll("−", "-").replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
+  // Normalize whole numeric tokens before unit extraction. Without this, a
+  // localized decimal such as 3,8 kg was incorrectly anchored as 8 kg.
+  // Preserve established English thousands groups; unambiguous decimal commas
+  // carry their sign and fractional precision into both scalars and rates.
+  const numericText = text.replaceAll("−", "-")
+    .replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", ""))
+    .replace(/(?<![\d.,])([+-]?\d+),(\d{1,2}|\d{4,})(?![\d.,])/g, "$1.$2");
+  const prose = numericText.replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
     .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{4}\b/gi, " ")
     .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi, " ");
   const rates: string[] = [];
-  const scalarProse = prose.replace(/\b(calendar|elapsed)[ -]+(days?)\b/gi, "$2").replace(/(?<![\p{L}\p{N}_.+-])([+-]?\d+(?:\.\d+)?)\s+([a-z]+\s*\/\s*[a-z]+)\b/giu, (literal, value, unit) => {
+  const scalarProse = prose.replace(/\b(calendar|elapsed)[ -]+(days?)\b/gi, "$2").replace(/(?<![\p{L}\p{N}_.,+-])([+-]?\d+(?:\.\d+)?)\s+([a-z]+\s*\/\s*[a-z]+)\b/giu, (literal, value, unit) => {
     const rate = compoundUnit(unit);
     if (!rate) return literal;
     rates.push(Number(value) + ":" + rate.canonical);
     return " ";
   });
-  return [...rates, ...[...scalarProse.toLowerCase().replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", "")).matchAll(/(?<![\p{L}\p{N}_.+-])([+-]?\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|records?|notes?|entries|entry|bouts?|courses?|cad|usd|eur|gbp|aud|nzd|jpy|chf|cny|km|cm|mm|m)\b/gu)]
+  return [...rates, ...[...scalarProse.toLowerCase().matchAll(/(?<![\p{L}\p{N}_.,+-])([+-]?\d+(?:\.\d+)?|one|single|two|three|four|five|six|seven|eight|nine|ten)[ -]+(kilograms?|grams?|milligrams?|milliliters?|kg|mg|ml|g|lbs?|pounds?|days?|weeks?|hours?|minutes?|seconds?|soft stools?|stools?|accidents?|episodes?|records?|notes?|entries|entry|bouts?|courses?|cad|usd|eur|gbp|aud|nzd|jpy|chf|cny|km|cm|mm|m)\b/gu)]
     .map(match => `${words[match[1]] ?? Number(match[1])}:${match[2].replace(/s$/, "").replace(/^entrie$/, "entry").replace(/^soft /, "").replace(/^pound$/, "lb").replace(/^kilogram$/, "kg").replace(/^milligram$/, "mg").replace(/^gram$/, "g").replace(/^milliliter$/, "ml")}`)];
 }
 

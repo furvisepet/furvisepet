@@ -1,3 +1,4 @@
+import { recoverTransientRead } from "../security/read-recovery.ts";
 import "server-only";
 import { enforceAskHistoryAccess, type AskHistoryAccess } from "./history-access.ts";
 import { episodePresentation } from "./episode-presentation.ts";
@@ -50,15 +51,17 @@ export async function buildFurviseContext({
   userId: string;
 }): Promise<FurviseLiveContext> {
   const mode = getIntelligenceFeatureMode(feature);
-  const conversationQuery = conversationId ? supabase
+  const readRequired = <T extends { error: unknown }>(read: (signal: AbortSignal) => PromiseLike<T>) =>
+    feature === "ask" ? recoverTransientRead(read, { attemptTimeoutMs: 3_000 }) : read(new AbortController().signal);
+  const conversationQuery = conversationId ? readRequired(signal => supabase
     .from("ask_conversations")
     .select("id")
     .eq("id", conversationId)
     .eq("pet_profile_id", conversationPetId || petId)
     .eq("user_id", userId)
-    .maybeSingle<{ id: string }>() : Promise.resolve({ data: null, error: null });
-  const profileQuery = supabase.from("dog_profiles").select("*").eq("id", petId).eq("user_id", userId).maybeSingle<DogProfileRow>();
-  const eligiblePetsQuery = supabase.from("dog_profiles").select("*").eq("user_id", userId).returns<DogProfileRow[]>();
+    .abortSignal(signal).maybeSingle<{ id: string }>()) : Promise.resolve({ data: null, error: null });
+  const profileQuery = readRequired(signal => supabase.from("dog_profiles").select("*").eq("id", petId).eq("user_id", userId).abortSignal(signal).maybeSingle<DogProfileRow>());
+  const eligiblePetsQuery = readRequired(signal => supabase.from("dog_profiles").select("*").eq("user_id", userId).abortSignal(signal).returns<DogProfileRow[]>());
   let careQuery = supabase.from("pet_care_entries").select("*").eq("pet_profile_id", petId).eq("user_id", userId).is("deleted_at", null);
   if (historyAccess) careQuery = careQuery.gte("occurred_at", historyAccess.from).lt("occurred_at", historyAccess.to);
   if (dateRange) careQuery = careQuery.gte("occurred_at", `${dateRange.from}T00:00:00.000Z`).lte("occurred_at", `${dateRange.to}T23:59:59.999Z`);
@@ -81,12 +84,14 @@ export async function buildFurviseContext({
     conversationQuery, profileQuery, eligiblePetsQuery,
   ]).catch((error) => { throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not load live context.", error); });
 
-  if (profile.error || !profile.data) throw new FurviseContextError("PET_NOT_FOUND", "That pet is not available.", profile.error);
+  if (profile.error) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not verify the selected pet.", profile.error);
+  if (!profile.data) throw new FurviseContextError("PET_NOT_FOUND", "That pet is not available.", profile.error);
   const selectedProfile = profile.data;
   if (featureRequiresActivePet(feature) && getPetLifecycleStatus(selectedProfile) !== "active") {
     throw new FurviseContextError("PET_INACTIVE", "Routine product and care-plan guidance is not available for this retained profile.");
   }
-  if (conversationId && (conversation.error || !conversation.data)) throw new FurviseContextError("CONVERSATION_NOT_FOUND", "That conversation is not available for this pet.", conversation.error);
+  if (conversation.error) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not verify the conversation.", conversation.error);
+  if (conversationId && !conversation.data) throw new FurviseContextError("CONVERSATION_NOT_FOUND", "That conversation is not available for this pet.", conversation.error);
   if (eligiblePets.error) throw new FurviseContextError("CONTEXT_UNAVAILABLE", "Furvise could not verify eligible pets.", eligiblePets.error);
 
   const [care, memorySources, feedback, owner, messages, activeConcerns, resolvedConcerns, episodes, currentState] = await Promise.all([

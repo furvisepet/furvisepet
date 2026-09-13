@@ -112,6 +112,9 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
   if (!Array.isArray(p.profileFields) || p.profileFields.some(field => !askRequestSchema({}).properties.profileFields.items.enum.includes(String(field))) || p.profileFields.length > 14) return fail("profile_fields");
   if (![null, "historical", "current", "historical_and_current"].includes(p.temporalScope as null | string)) return fail("temporal_scope");
   if (![null, "correct_record"].includes(p.mutationIntent as null | string)) return fail("mutation_intent");
+  // A read about an earlier correction is not another edit. Resolve a
+  // contradictory planner hint toward less authority, never promote to mixed.
+  if (["read", "conversation", "clarify"].includes(String(p.mode))) p.mutationIntent = null;
   if (p.mutationIntent === "correct_record" && (p.mode !== "mixed" || p.evidenceBasis !== "saved_history")) return fail("correction_workflow");
   if (p.recordSelection !== null) {
     const selection = p.recordSelection as { scope?: unknown; quote?: unknown };
@@ -196,6 +199,7 @@ export function validateAskRequest(value: unknown, context: Context): AskInterpr
       : owned.some(pet => pet.id === context.pet.id) ? [context.pet] : [];
     if (targets.length === 1 && referencedTurn) {
       p.mode = "read"; p.scope = "named"; p.evidenceBasis = "saved_history"; p.operation = "recall";
+      p.mutationIntent = null;
       p.selection = "reference"; p.petNames = [targets[0].name]; petIds = [targets[0].id];
       p.question = context.currentMessage;
       // A prior receipt question is not the write request. Stale planner
