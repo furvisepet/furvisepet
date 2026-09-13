@@ -4,6 +4,8 @@ import fontkit from "@pdf-lib/fontkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { vetBriefReport, vetBriefProfileWeight } from "./report.ts";
+import { createBriefPdfText } from "./pdf-text.ts";
+export { UnsupportedBriefPdfTextError } from "./pdf-text.ts";
 import type { VetBriefDocument } from "./types.ts";
 
 /* The Vet Brief uses the same approved palette as the application. */
@@ -24,9 +26,7 @@ const fontData = Promise.all([
   readFile(join(process.cwd(), "public/fonts/Inter-Bold.ttf")),
 ]);
 
-export class UnsupportedBriefPdfTextError extends Error {
-  constructor() { super("Some characters in this brief need browser printing. Open Print and choose Save as PDF to preserve the full text."); }
-}
+const textLayouts = new WeakMap<PDFFont, Awaited<ReturnType<typeof createBriefPdfText>>>();
 
 export async function generateVetBriefPdf(document: VetBriefDocument, options: { pageSize?: "letter" | "a4" } = {}) {
   const normal = await renderVetBriefPdf(document, options, false);
@@ -43,8 +43,9 @@ async function renderVetBriefPdf(document: VetBriefDocument, options: { pageSize
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
   const [regularData, boldData] = await fontData;
-  const regular = await pdf.embedFont(regularData, { subset: false });
-  const bold = await pdf.embedFont(boldData, { subset: false });
+  const textLayout = await createBriefPdfText(pdf, JSON.stringify(document), regularData, boldData);
+  const { regular, bold } = textLayout;
+  textLayouts.set(regular, textLayout); textLayouts.set(bold, textLayout);
   const logo = await pdf.embedPng(await readFile(join(process.cwd(), "app/lib/vet-brief/fonts/brand-print.png")));
   const dimensions = options.pageSize === "a4" ? A4 : LETTER;
   const state = { pdf, compact, logo, petName: document.pet.name, page: pdf.addPage([dimensions.width, dimensions.height]), y: dimensions.height - MARGIN, regular, bold, pageWidth: dimensions.width, pageHeight: dimensions.height, contentWidth: dimensions.width - (MARGIN * 2) };
@@ -79,13 +80,7 @@ async function renderVetBriefPdf(document: VetBriefDocument, options: { pageSize
 
   const pages = pdf.getPages();
   pages.forEach((page, index) => {
-    page.drawText(`Furvise | ${document.pet.name} | Page ${index + 1} of ${pages.length}`, {
-      x: MARGIN,
-      y: FOOTER_Y,
-      font: regular,
-      size: 8,
-      color: PDF_THEME.muted,
-    });
+    textLayout.draw(page, `Furvise | ${document.pet.name} | Page ${index + 1} of ${pages.length}`, regular, 8, MARGIN, FOOTER_Y, state.contentWidth, PDF_THEME.muted);
   });
   pdf.setTitle(document.title);
   pdf.setSubject("Owner-prepared pet care summary");
@@ -133,7 +128,7 @@ function drawText(
   const lines = wrapText(text || "Not recorded", options.font, options.size, state.contentWidth);
   for (const line of lines) {
     ensureSpace(state, lineHeight + 4);
-    state.page.drawText(line, { x: MARGIN, y: state.y, font: options.font, size: options.size, color: options.color });
+    textLayouts.get(options.font)!.draw(state.page, line, options.font, options.size, MARGIN, state.y, state.contentWidth, options.color);
     state.y -= lineHeight;
   }
   state.y -= state.compact ? Math.min(options.spacingAfter, 3) : options.spacingAfter;
@@ -152,51 +147,12 @@ function ensureSpace(state: PdfState, required: number) {
   state.page.drawImage(state.logo, { x: MARGIN, y: state.y - 16, width: 80, height: 80 * state.logo.height / state.logo.width });
   const continuation = `${state.petName} | Continued`;
   const heading = wrapText(continuation, state.regular, 8, state.contentWidth - 100)[0];
-  state.page.drawText(heading, { x: MARGIN + 105, y: state.y - 12, font: state.regular, size: 8, color: PDF_THEME.muted });
+  textLayouts.get(state.regular)!.draw(state.page, heading, state.regular, 8, MARGIN + 105, state.y - 12, state.contentWidth - 105, PDF_THEME.muted);
   state.y -= 45;
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
-  const normalized = sanitizePdfText(text);
-  const supported = new Set(font.getCharacterSet());
-  if ([...normalized].some(character => !supported.has(character.codePointAt(0)!))) throw new UnsupportedBriefPdfTextError();
-  const words = normalized.split(/\s+/).filter(Boolean).flatMap((word) => splitLongWord(word, font, size, maxWidth));
-  const lines: string[] = [];
-  let line = "";
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
-      line = candidate;
-      continue;
-    }
-    if (line) lines.push(line);
-    line = word;
-  }
-  if (line) lines.push(line);
-  return lines.length ? lines : ["Not recorded"];
-}
-
-function splitLongWord(word: string, font: PDFFont, size: number, maxWidth: number) {
-  if (font.widthOfTextAtSize(word, size) <= maxWidth) return [word];
-  const parts: string[] = [];
-  let part = "";
-  for (const character of word) {
-    const candidate = `${part}${character}`;
-    if (part && font.widthOfTextAtSize(candidate, size) > maxWidth) {
-      parts.push(part);
-      part = character;
-    } else {
-      part = candidate;
-    }
-  }
-  if (part) parts.push(part);
-  return parts;
-}
-
-function sanitizePdfText(value: string) {
-  return value
-    .replace(/\s+/g, " ")
-    .trim();
+  return textLayouts.get(font)!.wrap(text, font, size, maxWidth);
 }
 
 function formatDate(value: string) {

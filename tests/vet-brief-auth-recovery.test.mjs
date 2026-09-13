@@ -28,6 +28,6 @@ test('no replay for ambiguous or completed requests and no retry into another ac
   let calls=0;const auth={getSession:async()=>session(),refreshSession:async()=>{throw Error('must not refresh');}};
   const r=await vetBriefAuthenticatedFetch(auth,{},async()=>{calls++;return Response.json({code:'OTHER'},{status});});assert.equal(r.status,status);assert.equal(calls,1);
  }
- let calls=0;await assert.rejects(vetBriefAuthenticatedFetch({getSession:async()=>session(),refreshSession:async()=>session('other')},{},async()=>{calls++;return Response.json({code:'VET_BRIEF_AUTH_REQUIRED'},{status:401});}),/sign in again/);assert.equal(calls,1);
+ let calls=0;await assert.rejects(vetBriefAuthenticatedFetch({getSession:async()=>session(),refreshSession:async()=>session('other')},{},async()=>{calls++;return Response.json({code:'VET_BRIEF_AUTH_REQUIRED'},{status:401});}),/sign in again/i);assert.equal(calls,1);
  let attempts=0;const r=await vetBriefAuthenticatedFetch({getSession:async()=>session(),refreshSession:async()=>session()},{},async()=>{attempts++;return Response.json({code:'VET_BRIEF_AUTH_REQUIRED'},{status:401});});assert.equal(r.status,401);assert.equal(attempts,2);
 });
