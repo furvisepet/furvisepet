@@ -5,6 +5,7 @@ import { validateSensitiveRequestOriginResponse } from "../security/headers/orig
 import type { PlanId } from "../billing/plan-limits";
 import { EntitlementResolutionError, resolveEffectiveEntitlements } from "../billing/entitlements";
 import { parseVetBriefDocument } from "./schema";
+import { vetBriefReadUnavailable } from "./read";
 import { verifyVetBriefUser } from "./auth";
 
 export async function getVetBriefRequestContext(request: Request): Promise<
@@ -35,7 +36,7 @@ export async function getVetBriefRequestContext(request: Request): Promise<
     entitlements = await resolveEffectiveEntitlements(supabase);
   } catch (error) {
     if (error instanceof EntitlementResolutionError) {
-      return { response: Response.json({ error: "Furvise could not verify Vet Visit Brief access." }, { headers: { "Cache-Control": "private, no-store" }, status: 503 }) };
+      return { response: vetBriefReadUnavailable("entitlements", error.cause) };
     }
     throw error;
   }

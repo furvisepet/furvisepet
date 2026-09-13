@@ -1,3 +1,4 @@
+import { readVetBrief, vetBriefReadUnavailable } from "../../../lib/vet-brief/read";
 import { prepareVetBrief } from "../../../lib/vet-brief/prepare";
 import { validBriefDay } from "../../../lib/vet-brief/appointment-plan";
 import { randomUUID } from "node:crypto";
@@ -32,7 +33,8 @@ export async function GET(request: Request) {
   if ("response" in auth) return auth.response;
   const petId = new URL(request.url).searchParams.get("pet") || "";
   if (!isSecurityUuid(petId)) return Response.json({ error: "Choose a pet." }, { status: 400 });
-  const { data: pet } = await auth.supabase.from("dog_profiles").select("id").eq("id", petId).eq("user_id", auth.userId).maybeSingle<{ id: string }>();
+  const { data: pet, error } = await readVetBrief(() => auth.supabase.from("dog_profiles").select("id").eq("id", petId).eq("user_id", auth.userId).maybeSingle<{ id: string }>());
+  if (error) return vetBriefReadUnavailable("draft_pet", error);
   if (!pet) return Response.json({ error: "That pet profile is not available." }, { status: 404 });
   return Response.json({ petId: pet.id }, { headers: { "Cache-Control": "private, no-store" } });
 }
