@@ -1,0 +1,48 @@
+{
+  "date": "2026-09-13",
+  "finalCommit": "d97c04851322031757252fbe4e0f1c254b3303eb",
+  "deployment": "dpl_Fv1NJQaqnQAmsXD9fPHrCWZwcvjv",
+  "ciRun": 34786610375,
+  "offline": {
+    "tests": 2348,
+    "passed": 2348,
+    "failed": 0,
+    "ciDurationMs": 62587.102058,
+    "refusalCombinations": 1200,
+    "stalledTransports": 64,
+    "deadlineAllocations": 1000
+  },
+  "live": [
+    {
+      "release": 392,
+      "conversationId": "f8a23a1c-2322-4ecd-af1f-c669d6606ab4",
+      "result": "partial_quality_failure",
+      "persistedLatencySeconds": 15.294558,
+      "modelCostUsd": 0.016616,
+      "reloadExact": true,
+      "reopenExact": true,
+      "creditEvents": 1,
+      "creditsUsed": 1,
+      "linkedCareEntries": 0
+    },
+    {
+      "release": 393,
+      "conversationId": "0f2433b7-10bc-4544-8d53-7ec09dfe7a77",
+      "result": "targeted_regression_pass",
+      "persistedLatencySeconds": 12.420397,
+      "modelCostUsd": 0.008568,
+      "providerCalls": 3,
+      "reloadExact": true,
+      "creditEvents": 1,
+      "creditsUsed": 1,
+      "linkedCareEntries": 0
+    }
+  ],
+  "totalEstimatedModelCostUsd": 0.025184,
+  "limitations": [
+    "No universal reliability or research certification",
+    "Local concurrency tests are not a production capacity benchmark",
+    "Two live requests cannot establish latency percentiles or typical pricing",
+    "Prior launch-audit failures are retained"
+  ]
+}
