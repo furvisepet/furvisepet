@@ -1,0 +1,108 @@
+{
+  "current": null,
+  "deployment": {
+    "id": "dpl_7B32t344ePpJkA3kHz3cohEsBQKY",
+    "sha": "ec7eb1815e91415bd9896e02e339bfc070ff3142"
+  },
+  "exports": {
+    "arabic": {
+      "briefId": "f704f341-8ade-485e-ae2a-e1e662a530ed",
+      "deployment": {
+        "id": "dpl_7B32t344ePpJkA3kHz3cohEsBQKY",
+        "sha": "ec7eb1815e91415bd9896e02e339bfc070ff3142"
+      },
+      "directDownload": "passed",
+      "pages": 2,
+      "visual": "Arabic glyphs, ISO dates, numeric ranges and units readable on both Letter pages"
+    },
+    "japanese": {
+      "briefId": "3cf8f085-88eb-4333-9ba3-21a61e7bb77e",
+      "deployment": {
+        "id": "dpl_7B32t344ePpJkA3kHz3cohEsBQKY",
+        "sha": "ec7eb1815e91415bd9896e02e339bfc070ff3142"
+      },
+      "directDownload": "passed",
+      "pages": 2,
+      "visual": "Japanese glyphs, dates, values, units and uncertainty readable on both Letter pages"
+    }
+  },
+  "inputRestore": {
+    "exact": true,
+    "statuses": [
+      "Your appointment note has been restored. Review it before preparing your brief."
+    ]
+  },
+  "interruptions": [],
+  "results": [
+    {
+      "checks": [
+        "reaction_date_and_resolution",
+        "lab_dates_values_units_intervals",
+        "source_attribution",
+        "no_diagnosis_or_safety_certification"
+      ],
+      "elapsedMs": 67186,
+      "finishedAt": "2026-09-13T11:12:48.624Z",
+      "id": "english-eight-year-1",
+      "outcome": "passed",
+      "prompt": "Mochi is going for vaccination. Review her history since 2018: include any previous vaccine reaction and its outcome, and compare the 2020 and 2025 creatinine values with dates, units and reference intervals. Do not diagnose kidney disease or decide vaccination is safe. Keep the report focused on what the veterinarian needs.",
+      "providerCalls": 5,
+      "publication": "Appointment preparation · Draft\n\nFurvise Vet Visit Brief\n\nMochi · Cat · Calico domestic shorthair · 8 years\n\nProfile weight (date not recorded): 3.8 kg\n\nPrepared Sep 13, 2026. Selected records: Sep 13, 2018–Sep 13, 2026.\nOwner-recorded history; this is not a complete medical record.\n\nOwner-reported reason for visit\n\nVaccination visit with review of the documented 2018 rabies vaccination and owner-reported facial swelling that evening, plus comparison of the 2020 and 2025 creatinine results.\n\nVisit overview\n\nA rabies vaccination is documented on 2018-09-13; the owner reported facial swelling that evening, the clinic was contacted, the swelling resolved the same evening, and no breathing difficulty was reported. Creatinine was 1.0 mg/dL (reference interval 0.8-2.4 mg/dL) on 2020-02-14 and 1.3 mg/dL (reference interval 0.8-2.4 mg/dL) on 2025-11-03. No next due date is listed in the 2018 vaccine note, and no additional vaccination records are available in the reviewed notes.\n\nQuestions to discuss\n\nHow should the documented 2018 rabies vaccination and owner-reported facial swelling that same evening, which resolved the same evening with no breathing difficulty reported, affect today's vaccination plan and post-vaccination monitoring?\n\nAre the 2020-02-14 and 2025-11-03 creatinine results enough context for today's vaccination visit, or would you want any updated or additional lab work based on her current exam and history?\n\nNot established in the available records\n\nBring outside vaccination records since 2018 if available, including dates, vaccine names/products, and any follow-up recommendations after prior vaccines.\n\nBring outside laboratory records if available, especially any chemistry panels or creatinine results between 2020-02-14 and 2025-11-03 or after 2025-11-03.\n\nSupporting care history\n\nSep 13, 2018 · rabies vaccination and owner-reported same-day facial swelling\n\nRabies vaccination recorded. The owner reported facial swelling that evening; the clinic was contacted, the swelling resolved the same evening, and no breathing difficulty was reported. No next due date is available in this record.\n\nFeb 14, 2020 · creatinine laboratory result\n\nClinic laboratory result: creatinine 1.0 mg/dL, reference interval 0.8-2.4 mg/dL. This record does not document a kidney disease diagnosis.\n\nNov 3, 2025 · creatinine laboratory result\n\nClinic laboratory result: creatinine 1.3 mg/dL, reference interval 0.8-2.4 mg/dL. No kidney diagnosis was documented in this note. No intermediate laboratory results are supplied in the reviewed records.\n\nHistory reviewed\n\nOnly part of the requested history could be verified: some records changed or their corrected content or event dates could not be established. Do not infer absence from an omitted record.\n\nPrepared from information recorded by the pet owner in Furvise. It may be incomplete and does not contain a diagnosis or replace veterinary assessment.\nPaper size",
+      "requestId": "53bd8bc2-b5a1-4467-95c5-c0a289b84e98",
+      "startedAt": "2026-09-13T11:11:41.438Z",
+      "startedMs": 1789297901438,
+      "statuses": []
+    },
+    {
+      "elapsedMs": 100521,
+      "failure": "Initial source_scope:questions; repair introduced diagnosis_or_causation:reason/history and medication_status:overview. Credit released.",
+      "finishedAt": "2026-09-13T11:15:00.286Z",
+      "id": "spanish-eight-year-1",
+      "outcome": "blocked",
+      "prompt": "La cita de Mochi es para vacunación. Revisa desde 2018: incluye la reacción anterior y su resolución, y compara los resultados de creatinina de 2020 y 2025 con fechas, unidades y rangos. Escribe el contenido en español; no diagnostiques enfermedad renal ni asegures que vacunar sea seguro.",
+      "providerCalls": 5,
+      "publication": null,
+      "requestId": "d23fac88-e9d4-4f6a-bc3f-d5876eee63b5",
+      "startedAt": "2026-09-13T11:13:19.765Z",
+      "startedMs": 1789297999765,
+      "statuses": [
+        "The Vet Visit Brief could not be prepared right now. Try again in a moment."
+      ]
+    },
+    {
+      "elapsedMs": 66863,
+      "finishedAt": "2026-09-13T11:20:13.570Z",
+      "id": "german-eight-year",
+      "outcome": "passed",
+      "phase": "preflight-382",
+      "prompt": "Schreibe den Inhalt auf Deutsch. Mochi kommt zur Impfberatung. Prüfe ihre eigenen Aufzeichnungen seit 2018: nenne das Datum, die vom Halter berichtete Gesichtsschwellung nach der Impfung und deren Abklingen. Vergleiche die Kreatininwerte von 2020 und 2025 mit Datum, Wert, Einheit und Referenzbereich. Stelle keine Nierendiagnose, behaupte keine bewiesene Impfkausalität und bestätige nicht, dass die Impfung sicher ist.",
+      "publication": "Appointment preparation · Draft\n\nFurvise Vet Visit Brief\n\nMochi · Cat · Calico domestic shorthair · 8 years\n\nProfile weight (date not recorded): 3.8 kg\n\nPrepared Sep 13, 2026. Selected records: Sep 13, 2018–Sep 13, 2026.\nOwner-recorded history; this is not a complete medical record.\n\nOwner-reported reason for visit\n\nImpfberatung mit Besprechung einer am 13.09.2018 dokumentierten, vom Halter berichteten Gesichtsschwellung nach Tollwutimpfung sowie Vergleich der Kreatininwerte von 2020 und 2025.\n\nVisit overview\n\nAm 13.09.2018 ist eine Tollwutimpfung dokumentiert; laut Eintrag berichtete der Halter über eine Gesichtsschwellung am selben Abend, die nach Kontakt mit der Klinik noch am selben Abend abklang, ohne berichtete Atemnot. Für den erbetenen Laborvergleich ist Kreatinin am 14.02.2020 mit 1.0 mg/dL (Referenz 0.8-2.4 mg/dL) und am 03.11.2025 mit 1.3 mg/dL (Referenz 0.8-2.4 mg/dL) dokumentiert. In diesen Labornotizen wurde keine Nierendiagnose dokumentiert.\n\nQuestions to discuss\n\nWie sollte die am 13.09.2018 dokumentierte, vom Halter berichtete Gesichtsschwellung am selben Abend bei der heutigen Impfplanung eingeordnet werden, und welche Vorsichts- oder Beobachtungsmaßnahmen wären sinnvoll?\n\nWie sind die dokumentierten Kreatininwerte vom 14.02.2020 (1.0 mg/dL, Referenz 0.8-2.4 mg/dL) und 03.11.2025 (1.3 mg/dL, Referenz 0.8-2.4 mg/dL) im Rahmen der Impfberatung zu bewerten?\n\nWelche Impfstoffe oder Impfintervalle sollten angesichts der dokumentierten Vorgeschichte heute besprochen werden?\n\nNot established in the available records\n\nExterne Impfunterlagen seit 2018 mit Impfstoffnamen und Daten mitbringen, falls vorhanden; in den ausgewählten Unterlagen ist nur die Tollwutimpfung vom 13.09.2018 dokumentiert.\n\nExterne Laborbefunde zwischen 2020 und 2025 oder nach dem 03.11.2025 mitbringen, falls vorhanden, um den Kreatininverlauf vollständiger einzuordnen.\n\nSupporting care history\n\nSep 13, 2018 · Tollwutimpfung und Folgebeobachtung\n\nTollwutimpfung dokumentiert. Laut Eintrag berichtete der Halter am selben Abend über eine Gesichtsschwellung; nach Kontakt mit der Klinik klang die Schwellung noch am selben Abend ab. Keine Atemnot wurde berichtet. Ein nächster Fälligkeitstermin ist in diesem Eintrag nicht angegeben.\n\nFeb 14, 2020 · Laborwert Kreatinin\n\nKreatinin 1.0 mg/dL; Referenzbereich 0.8-2.4 mg/dL. Diese Labornotiz dokumentiert keine Nierendiagnose.\n\nNov 3, 2025 · Laborwert Kreatinin\n\nKreatinin 1.3 mg/dL; Referenzbereich 0.8-2.4 mg/dL. Diese Labornotiz dokumentiert keine Nierendiagnose. Zwischenbefunde sind in den ausgewählten Unterlagen nicht enthalten.\n\nHistory reviewed\n\nSearched saved records for this appointment and reviewed the selected matches. This is a targeted search, not a review of every lifetime record; no match does not mean an event never happened.\n\nPrepared from information recorded by the pet owner in Furvise. It may be incomplete and does not contain a diagnosis or replace veterinary assessment.\nPaper size",
+      "startedAt": "2026-09-13T11:19:06.707Z",
+      "startedMs": 1789298346707,
+      "statuses": [
+        "Your appointment note has been restored. Review it before preparing your brief."
+      ],
+      "timingNote": "Observed upper bound; a gap after the first polling window may add delay."
+    },
+    {
+      "checks": [
+        "unclear_concern_preserved",
+        "no_invented_symptoms",
+        "no_incidental_play_food_inventory",
+        "weight_comparability_unknown"
+      ],
+      "elapsedMs": 88182,
+      "finishedAt": "2026-09-13T11:23:54.036Z",
+      "id": "vague-concern",
+      "outcome": "passed",
+      "phase": "preflight-382",
+      "prompt": "Mochi seems off. I cannot describe it well. Help me bring something useful to the appointment without making up symptoms.",
+      "publication": "Appointment preparation · Draft\n\nFurvise Vet Visit Brief\n\nMochi · Cat · Calico domestic shorthair · 8 years\n\nProfile weight (date not recorded): 3.8 kg\n\nPrepared Sep 13, 2026. Selected records: Sep 12, 2021–Sep 13, 2026.\nOwner-recorded history; this is not a complete medical record.\n\nOwner-reported reason for visit\n\nOwner reports that Mochi seems off but cannot describe specific symptoms.\n\nVisit overview\n\nOwner reports a vague change in Mochi's condition without specific signs. In the reviewed records from this period, the most relevant documented comparison is weight: 3.92 kg on 2026-08-09 on a household scale with no carrier or harness included, and 3.8 kg on 2026-09-09 described as measured \"without equipment\"; comparability and clinical meaning are not established. No clearer symptom pattern is documented in the reviewed notes.\n\nQuestions to discuss\n\nAre the 3.92 kg weight on 2026-08-09 and the 3.8 kg weight on 2026-09-09 comparable enough to interpret, or should Mochi's weight be rechecked on the clinic scale?\n\nWhat concrete signs should the owner monitor or record at home so \"seems off\" can be described more clearly, such as appetite, water intake, litter box output, mobility/jumping, grooming, hiding, breathing, or video clips?\n\nNot established in the available records\n\nIf available, bring any outside veterinary records, lab results, or medication/supplement lists from this period.\n\nIf possible, bring a short dated home log or videos showing what seems different, including eating/drinking, litter box habits, activity, jumping, grooming, hiding, and any measured home weights.\n\nConfirm how the 2026-09-09 weight was measured, if known, and bring any other home weights with dates.\n\nSupporting care history\n\nAug 9, 2026 · body weight\n\nBody weight 3.92 kg. The note specifies this was measured on a household scale with no carrier or harness included; the reason for any change was not established.\n\nSep 9, 2026 · body weight\n\nBody weight 3.8 kg. The note states this was measured \"without equipment.\" The record does not establish whether this is directly comparable with the 2026-08-09 home-scale reading.\n\nHistory reviewed\n\nOnly part of the requested history could be reviewed because the search or report reached its limit. Earlier or intervening events may be missing; complete trends cannot be established.\n\nPrepared from information recorded by the pet owner in Furvise. It may be incomplete and does not contain a diagnosis or replace veterinary assessment.\nPaper size",
+      "startedAt": "2026-09-13T11:22:25.854Z",
+      "startedMs": 1789298545854,
+      "statuses": []
+    }
+  ],
+  "startedAt": "2026-09-13T11:11:41.438Z",
+  "suspendedForFix": true
+}
