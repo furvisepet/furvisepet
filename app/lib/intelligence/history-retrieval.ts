@@ -161,6 +161,14 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
     // selected period. A broad background search cannot displace a middle-date
     // comparison, and date anchors cannot displace a requested clinical topic.
     const appointmentDates = vetBriefRead ? compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, [], 6) : null;
+    // A month can contain many unrelated early records. Apply the appointment
+    // topics inside that authorized month instead of spending its entire row
+    // allowance on the first household logs. Exact-day context is unchanged;
+    // broad topic and recent-period strategies remain independently reserved.
+    if (appointmentDates && searchTerms.length) {
+      appointmentDates.strategies = appointmentDates.strategies.map(strategy => strategy.target?.length === 7
+        ? { ...strategy, lexical: true, terms: searchTerms } : strategy);
+    }
     const compiled = appointmentDates
       ? { ...appointmentDates, strategies: [...appointmentDates.strategies, ...scopedStrategies].filter((strategy, index, all) => all.findIndex(other => JSON.stringify(other) === JSON.stringify(strategy)) === index) }
       : compileHistoryReadStrategies(retrievalQuestion, new Date(asOf).getUTCFullYear(), plan, scopedStrategies, pagesPerPet, context.askInterpretation?.request?.evidenceNeeds?.filter(need => !need.petIds || need.petIds.includes(petId)));

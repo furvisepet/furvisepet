@@ -122,3 +122,16 @@ test('a late authoritative correction to decades-old evidence replaces the obsol
  const bundle=vetBriefEvidence(result,{focus:'Visit',topics});const text=JSON.stringify(bundle.evidence);
  assert.ok(!text.includes('severe ongoing swelling'));assert.ok(text.includes('resolved the same evening'));assert.ok(text.includes('no breathing difficulty'));
 });
+
+test('five-year month comparisons find late-month measurements beneath unrelated early-month rows',async t=>{
+ clock(t);
+ const targets=[care('month-old','milo','2021-09-09','general','Body weight 3.93 kg, no carrier.'),care('month-carrier','milo','2022-05-28','general','Weighing display 5.15 kg included a carrier; not a body-only weight.'),care('month-middle','milo','2024-04-09','general','Body weight 3.97 kg, no carrier.'),care('month-recent','milo','2026-09-03','general','Body weight 3.8 kg, no carrier.')];
+ const earlyNoise=Array.from({length:50},(_,i)=>care('month-noise-'+i,'milo','2022-05-01','general','Routine bedding washed.'));
+ const oldWeights=Array.from({length:50},(_,i)=>care('older-weight-'+i,'milo','2019-01-01','general','Body weight 4 kg.'));
+ const newerNoise=Array.from({length:5000},(_,i)=>care('newer-month-noise-'+i,'milo','2026-08-01','general','Routine bedding washed.'));
+ const db=database([...targets,...earlyNoise,...oldWeights,...newerNoise]);
+ const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2026-06-01',to:'2026-09-04'},currentMessage:'Compare September 2021 body weight, the 5.15 kg reading from May 2022, April 2024 body weight and September 2026. Preserve carrier uncertainty.'});
+ const result=await retrieveAskHistory(context,db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:['weight','weighing','carrier'],interpretation:'lexical'},termGroups:[['weight','weighing','carrier']],periodFrom:'2026-06-01T00:00:00Z'});
+ for(const row of targets)assert.ok(result.askHistory.entries.some(r=>r.id===row.id),row.id);
+ assert.ok(result.askHistory.coverage.queryCount<=20);assert.ok(result.askHistory.coverage.candidateIds.length<=64);assert.ok(result.askHistory.entries.length<=32);
+});
