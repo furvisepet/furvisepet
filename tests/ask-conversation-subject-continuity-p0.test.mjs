@@ -137,9 +137,16 @@ test("optional context failures recover while critical ownership queries remain 
   assert.equal(thrownFailure.data, null);
 
   const retrieval = read("app/lib/intelligence/retrieve-context.ts");
-  assert.match(retrieval, /if \(profile\.error \|\| !profile\.data\).*PET_NOT_FOUND/);
-  assert.match(retrieval, /if \(conversationId && \(conversation\.error \|\| !conversation\.data\)\).*CONVERSATION_NOT_FOUND/);
-  assert.match(retrieval, /if \(eligiblePets\.error\).*CONTEXT_UNAVAILABLE/);
+  const guards = retrieval.slice(retrieval.indexOf('  if (profile.error)'), retrieval.indexOf('  const [care, memorySources'));
+  const check = new Function('profile','conversation','eligiblePets','conversationId','feature','FurviseContextError','featureRequiresActivePet','getPetLifecycleStatus',guards);
+  class ContextError extends Error { constructor(code,message,cause){super(message);this.code=code;this.cause=cause;} }
+  const run=(profile,conversation)=>check(profile,conversation,{error:null},'owned-conversation','ask',ContextError,()=>false,()=> 'active');
+  const transient={message:'fetch failed'};
+  assert.throws(()=>run({data:null,error:transient},{data:{id:'owned'}}),e=>e.code==='CONTEXT_UNAVAILABLE'&&e.cause===transient);
+  assert.throws(()=>run({data:{id:'owned'}},{data:null,error:transient}),e=>e.code==='CONTEXT_UNAVAILABLE'&&e.cause===transient);
+  assert.throws(()=>run({data:null,error:null},{data:{id:'owned'}}),e=>e.code==='PET_NOT_FOUND');
+  assert.throws(()=>run({data:{id:'owned'}},{data:null,error:null}),e=>e.code==='CONVERSATION_NOT_FOUND');
+  assert.doesNotThrow(()=>run({data:{id:'owned'}},{data:{id:'owned'}}));
   assert.match(retrieval, /recoverOptionalQuery\("conversation_messages"/);
 });
 

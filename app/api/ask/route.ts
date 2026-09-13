@@ -136,7 +136,7 @@ import {
 } from "../../lib/ask-conversation-authority.ts";
 import { isExplicitCareHistorySaveRequest, resolveAutomaticCareHistoryPresentation } from "../../lib/intelligence/care-history-policy.ts";
 import { publicAskFailureCode, type AskInternalFailure } from "../../lib/furvise-output.ts";
-import { readAskProfiles } from "../../lib/ask-profile-read.ts";
+import { readAskProfiles, classifyAskDatabaseFailure } from "../../lib/ask-profile-read.ts";
 
 const friendlyAnswerFailure = FURVISE_ANSWER_UNAVAILABLE_MESSAGE;
 export const maxDuration = 150;
@@ -2133,23 +2133,25 @@ function textPayloadValue(value: unknown) {
 }
 
 async function loadPersistedRequest({ petId, requestId, supabase, userId }: { petId: string; requestId: string; supabase: SupabaseClient; userId: string }): Promise<PersistedRequestState | null> {
-  const { data: messages, error } = await recoverTransientRead(() => supabase
+  const { data: messages, error } = await recoverTransientRead(signal => supabase
     .from("ask_conversation_messages")
     .select("id, conversation_id, request_id, role, sequence_number, user_text, response_data, save_metadata, context_used, care_persistence")
     .eq("user_id", userId)
     .eq("request_id", requestId)
     .order("created_at", { ascending: true })
-    .returns<PersistedAskMessageRow[]>());
+    .abortSignal(signal).returns<PersistedAskMessageRow[]>(), { attemptTimeoutMs: 3_000 })
+    .catch(error => ({ data: null, error }));
   if (error) throw new AskApiError("DATABASE_ERROR", "Furvise could not load this request.", 503, "request_lookup", error);
   if (!messages?.length) return null;
   const conversationId = messages[0].conversation_id;
-  const { data: conversation, error: conversationError } = await recoverTransientRead(() => supabase
+  const { data: conversation, error: conversationError } = await recoverTransientRead(signal => supabase
     .from("ask_conversations")
     .select("id")
     .eq("id", conversationId)
     .eq("pet_profile_id", petId)
     .eq("user_id", userId)
-    .maybeSingle<{ id: string }>());
+    .abortSignal(signal).maybeSingle<{ id: string }>(), { attemptTimeoutMs: 3_000 })
+    .catch(error => ({ data: null, error }));
   if (conversationError) throw new AskApiError("DATABASE_ERROR", "Furvise could not load this conversation.", 503, "request_lookup", conversationError);
   if (!conversation) throw new AskApiError("PET_NOT_FOUND", "That conversation is not available for this pet.", 404, "request_lookup");
   const userMessage = messages.find((message) => message.role === "user");
@@ -2159,14 +2161,15 @@ async function loadPersistedRequest({ petId, requestId, supabase, userId }: { pe
 }
 
 async function loadPersistedRequestByConversation({ conversationId, requestId, supabase, userId }: { conversationId: string; requestId: string; supabase: SupabaseClient; userId: string }) {
-  const { data: messages, error } = await recoverTransientRead(() => supabase
+  const { data: messages, error } = await recoverTransientRead(signal => supabase
     .from("ask_conversation_messages")
     .select("id, conversation_id, request_id, role, sequence_number, user_text, response_data, save_metadata, context_used, care_persistence")
     .eq("conversation_id", conversationId)
     .eq("user_id", userId)
     .eq("request_id", requestId)
     .order("created_at", { ascending: true })
-    .returns<PersistedAskMessageRow[]>());
+    .abortSignal(signal).returns<PersistedAskMessageRow[]>(), { attemptTimeoutMs: 3_000 })
+    .catch(error => ({ data: null, error }));
   if (error || !messages?.length) return null;
   const userMessage = messages.find((message) => message.role === "user");
   if (!userMessage) return null;
@@ -2390,6 +2393,7 @@ function logAskServerError(stage: string, error: unknown, context: Record<string
       errorCode: safeAskOperationalCode(databaseDiagnostic.code || databaseError?.code || stage),
       eventType: "application_error", feature: "ask", operationId: requestId,
       requestId, route: "/api/ask", severity: "high",
+      metadata: { component: stage, finalErrorClass: classifyAskDatabaseFailure(error, 0) },
     });
   }
   if (process.env.NODE_ENV === "production") return;

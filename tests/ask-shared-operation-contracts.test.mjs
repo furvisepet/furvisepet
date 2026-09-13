@@ -151,6 +151,16 @@ test('receipt follow-ups recover owned read scope from the latest user action re
   assert.equal(result.readOnly,true); assert.deepEqual(result.petIds,['pet']);
   assert.deepEqual(result.request.referenceTurnIds,['save-turn']); assert.equal(result.request.question,currentMessage);
 });
+test('a read about a correction drops a contradictory edit hint without granting write authority',()=>{
+ const pet={id:'pet',user_id:'owner',name:'Fern'};
+ const currentMessage='Check the correction receipt and quote the saved note. Do not save anything again.';
+ const proposal={version:'ask-request.v2',mode:'read',mutationIntent:'correct_record',question:currentMessage,requirements:[],referenceTurnIds:[],scope:'named',petNames:['Fern'],operation:'recall',selection:'reference',quantity:null,topic:'receipt',terms:[],from:null,to:null,episodeTopic:null,ordinal:null,frame:null,evidenceBasis:'saved_history'};
+ const context={owner:{userId:'owner'},eligiblePets:[pet],pet,currentMessage,conversationTurns:[{id:'edit',role:'user',text:'Correct Fern’s January 4 note to 14 minutes.'}]};
+ const result=validateAskRequest(proposal,context);
+ assert.equal(result.readOnly,true);assert.equal(result.request.mutationIntent,null);
+ assert.deepEqual(result.request.referenceTurnIds,['edit']);
+ assert.throws(()=>validateAskRequest({...proposal,mode:'mixed',evidenceBasis:'general'},context),/correction_workflow/);
+});
 test('publishable presentation is compiled before review and removes mutation claims before approval', () => {
   const text=canonicalReadPresentation('The recorded total is **140 g**.');
   assert.equal(text,'The recorded total is 140 g.');

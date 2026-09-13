@@ -59,3 +59,19 @@ test('two-date body-mass projection computes a cited draft and refuses ambiguous
   assert.equal(deterministicReadProjection({...e,represented:[e.represented[0],{...e.represented[1],petId:'foreign'}]}),null);
   assert.equal(deterministicReadProjection({...e,represented:[e.represented[0],{...e.represented[1],text:'Mira weighed 18.7 kg with carrier included.'}]}),null);
 });
+
+test('bounded read recovery settles even when transport ignores abort, without accepting late data',async()=>{
+ let calls=0;const signals=[];const late=[];
+ await assert.rejects(recoverTransientRead(signal=>{calls++;signals.push(signal);return new Promise(resolve=>late.push(resolve));},{attemptTimeoutMs:5}),{name:'TimeoutError'});
+ assert.equal(calls,2);assert.ok(signals.every(signal=>signal.aborted));
+ for(const resolve of late)resolve({error:null,data:['late']});
+});
+test('HTTP gateway metadata is recoverable but authorization and SQL errors remain terminal',async()=>{
+ let calls=0;
+ assert.deepEqual(await recoverTransientRead(async()=>++calls===1?{error:{message:'upstream unavailable'},status:503}:{error:null,data:['owned']},{attemptTimeoutMs:100}),{error:null,data:['owned']});
+ assert.equal(calls,2);
+ for(const code of ['42501','57014','42P01','PGRST301']) {
+  calls=0;const result=await recoverTransientRead(async()=>{calls++;return {error:{code},status:503};},{attemptTimeoutMs:100});
+  assert.equal(result.error.code,code);assert.equal(calls,1,code);
+ }
+});

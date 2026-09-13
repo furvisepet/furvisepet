@@ -22,6 +22,7 @@ import {
   stripHistoryBullet,
 } from "../furvise-output.ts";
 import { verifiedCalculationQuantities } from "./history-calculation.ts";
+import { retainRepairCalculationBindings } from "./repair-calculation-bindings.ts";
 import { hasUndatedHistoricalCareState } from "./historical-care-state.ts";
 import { splitSentencesPreservingFacts } from "../ai/text-segmentation.ts";
 import { historyReviewSelectionSchema, parseHistoryReviewSelection, boundedTaskHistoryReviewSchema, parseRepairableTaskHistoryReview } from "./history-review-selection.ts";
@@ -301,6 +302,7 @@ export async function reviewHistoricalAnswer({ result, client, onProviderEvent, 
       failureStage = "repair";
       const repaired = await repairRejectedRead(provider, model, requestInput, reason, onProviderEvent);
       if (!repaired || before !== signature(result)) return decline("repair_output_invalid_or_changed");
+      repaired.narrative = retainRepairCalculationBindings(draft, repaired.narrative, sources, evidence.scope.requestText);
       const repairedActions = repaired.preserveNavigation ? result.applicationActions
         : [...result.applicationActions.filter(action => !action.kind.startsWith("navigation.")), ...repaired.applicationActions];
       const candidate = { ...result, historicalResult: repaired.historicalResult, historyNarrative: repaired.narrative, applicationActions: repairedActions, historyNarrativeDeclined: false };
