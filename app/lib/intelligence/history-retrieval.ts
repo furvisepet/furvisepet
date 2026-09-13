@@ -106,8 +106,10 @@ export async function retrieveAskHistory(context: FurviseLiveContext, db: Supaba
   const asOf = Date.now();
   const namedDays = [...explicitHistoryDays(context.currentMessage, new Date(asOf).getUTCFullYear()),
     ...(context.currentMessage.match(/\b\d{4}-\d{2}-\d{2}\b/g) || [])];
-  const futureSourceRequested = /\b(?:future[- ]dated|tomorrow)\b/i.test(context.currentMessage)
-    || namedDays.some(day => Date.parse(day) > asOf);
+  // A future appointment is not permission to retrieve future-dated records.
+  // Vet Brief always reviews history through its already bounded as-of date.
+  const futureSourceRequested = !vetBriefRead && (/\b(?:future[- ]dated|tomorrow)\b/i.test(context.currentMessage)
+    || namedDays.some(day => Date.parse(day) > asOf));
   const deadline = asOf + HISTORY_BUDGET.timeMs;
   const owned = new Set(context.eligiblePets.filter(pet => pet.user_id === context.owner.userId).map(pet => pet.id));
   const ids = [...new Set(petIds)].filter(id => owned.has(id)).sort();

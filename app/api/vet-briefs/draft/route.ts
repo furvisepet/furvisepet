@@ -157,7 +157,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "You've used all of your AI guidance for this month.", limitReached: true }, { status: 402 });
     }
     logIntelligenceEvent("vet brief generation failed", { feature: "vet_brief", petId, requestId, ...featureFailureDetails(error) });
-    return Response.json({ error: "The Vet Visit Brief could not be prepared right now. Try again in a moment." }, { status: 503 });
+    return Response.json({ code: "VET_BRIEF_PREPARATION_FAILED", error: "The Vet Visit Brief could not be prepared right now. Try again in a moment." }, { status: 503 });
   } finally {
     if (rateGate) await rateGate.release();
   } });
