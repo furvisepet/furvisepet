@@ -129,7 +129,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
     },
     onRejected: (failedChecks, verdict) => logIntelligenceEvent('vet brief review rejected', { feature: 'vet_brief', requestId, failedCheckNames: failedChecks.join(','), factualIssues: verdict?.factualIssueCodes?.join(',') || 'none_located' }),
     onWarning: warnings => logIntelligenceEvent('vet brief presentation warning', { feature: 'vet_brief', requestId, warningCodes: warnings.join(',') }),
-    reserveOverviewReview: () => {
+    reserveRecoveryReview: () => {
       if (structureRetried) return false;
       // Use the existing sixth-call allowance, never an additional retry budget.
       structureRetried = true;
