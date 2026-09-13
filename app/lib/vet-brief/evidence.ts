@@ -22,7 +22,8 @@ export function vetBriefEvidence(context: FurviseLiveContext, plan: VetBriefAppo
   }
   const evidence = {
     asOf: context.currentTimestamp,
-    appointment: { focus: plan.focus, requestedFrom: plan.from, requestedTo: plan.to },
+    // A retrieval planner may broaden its search, but cannot add owner goals.
+    appointment: { focus: context.currentMessage, requestedFrom: plan.from, requestedTo: plan.to },
     // Search stems and private retrieval questions are not clinical assertions
     // or a ready-made list of questions to hand back to the veterinarian.
     evidenceChecks: plan.questionsToResolve,
