@@ -5,15 +5,15 @@ import test from 'node:test';
 import ts from 'typescript';
 import {prepareReviewedVetBrief} from '../app/lib/vet-brief/review.ts';
 
-function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFailures=0,historyUnavailable=false,failureKind='incomplete_output'}={}) {
+function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,semanticFailures=0,overviewFailures=0,historyUnavailable=false,failureKind='incomplete_output'}={}) {
  const calls=[], inputs=[];
- const document={pet:{name:'Synthetic'},dateRange:{from:'2026-06-01',to:'2026-09-12'},missingInformation:[]};
+ const document={visitSummary:'Overview',pet:{name:'Synthetic'},dateRange:{from:'2026-06-01',to:'2026-09-12'},missingInformation:[]};
  const plan={from:null,to:'2026-09-12',topics:[{label:'History',terms:['history']}],questionsToResolve:[]};
  const mocks={
   './uncertainty-language.ts':{vetBriefUncertaintyLanguageInstructions:'Apply equal evidence standards in every language.'},
   'server-only':{},
   './publication-review.ts':{vetBriefPublicationReviewSchema:{},vetBriefDuplicationReviewInstructions:''},
-  '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);inputs.push(input);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0)throw Error('incomplete');return {document};}if(reviewFailures-->0)throw Error('incomplete');return {factsSupported:semanticFailures--<=0,repairSections:['overview'],importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairInstructions:'Correct unsupported wording while keeping supported history.'};}},
+  '../ai/ask-reasoning':{generateStructuredFeatureResponse:async input=>{calls.push(input.schemaName);inputs.push(input);if(input.schemaName==='vet_brief_evidence_plan'){if(planFailures-->0)throw Error('incomplete');return plan;}if(input.schemaName==='vet_brief_content'){if(contentFailures-->0)throw Error('incomplete');return {document};}if(reviewFailures-->0)throw Error('incomplete');const overviewFailed=overviewFailures-->0;return {factsSupported:!overviewFailed&&semanticFailures--<=0,factualIssueCodes:overviewFailed?['source_scope:overview']:[],repairSections:['overview'],importantHistoryPreserved:true,categoriesAccurate:true,uncertaintyPreserved:true,noDuplication:true,questionsUseful:true,visitFocused:true,repairInstructions:'Correct unsupported wording while keeping supported history.'};}},
   '../intelligence/feature-failure.ts':{featureFailureDetails:()=>({failureKind})},
   '../intelligence/feature-modes.ts':{getIntelligenceFeatureMode:()=>({promptInstructions:[]})},
   '../intelligence/history-retrieval.ts':{retrieveAskHistory:async c=>({...c,askHistory:{entries:[],coverage:{retrieval:'unknown',corrections:historyUnavailable?'unavailable':'unknown',reasons:[]}}})},
@@ -76,5 +76,16 @@ test('production repair receives the rejected wording separately from unchanged 
  for (const review of p.inputs.filter(input=>input.schemaName==='vet_brief_review')) {
    assert.equal('selectionProposals' in review.input,false);
    assert.ok(review.input.draft);
+ }
+});
+
+test('optional overview recovery uses the unused sixth provider call and cannot add a seventh after a structural retry',async()=>{
+ const recovered=pipeline({overviewFailures:2});const result=await recovered.run();
+ assert.deepEqual(recovered.calls,['vet_brief_evidence_plan','vet_brief_content','vet_brief_review','vet_brief_content','vet_brief_review','vet_brief_review']);
+ assert.equal(result.document.visitSummary,'');
+ assert.deepEqual(result.document.reviewWarnings,['overview_omitted']);
+ for(const failures of [{planFailures:1},{reviewFailures:1}]){
+  const bounded=pipeline({...failures,overviewFailures:2});await assert.rejects(bounded.run(),{name:'FeatureValidationError'});
+  assert.equal(bounded.calls.length,6);
  }
 });
