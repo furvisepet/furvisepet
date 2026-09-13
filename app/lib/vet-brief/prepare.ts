@@ -127,6 +127,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
       }
     },
     onRejected: (failedChecks, verdict) => logIntelligenceEvent('vet brief review rejected', { feature: 'vet_brief', requestId, failedCheckNames: failedChecks.join(','), factualIssues: verdict?.factualIssueCodes?.join(',') || 'none_located' }),
+    onWarning: warnings => logIntelligenceEvent('vet brief presentation warning', { feature: 'vet_brief', requestId, warningCodes: warnings.join(',') }),
   });
   logIntelligenceEvent('vet brief evidence prepared', { feature: 'vet_brief', requestId, recordCount: evidence.records.length, topicCount: plan.topics.length, historicalQueryCount: retrieved.askHistory?.coverage.queryCount || 0, structuralRetry: structureRetried });
   return { ...result.value, document: { ...result.value.document, historyCoverage: warnings } };

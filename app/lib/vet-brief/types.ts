@@ -2,6 +2,7 @@ export const VET_BRIEF_DISCLAIMER =
   "Prepared from information recorded by the pet owner in Furvise. It may be incomplete and does not contain a diagnosis or replace veterinary assessment.";
 
 export const VET_BRIEF_DOCUMENT_VERSION = 1;
+export const VET_BRIEF_REVIEW_WARNINGS = ["duplicate_details", "question_usefulness", "visit_focus"] as const;
 
 export type VetBriefDatedItem = {
   date: string;
@@ -48,7 +49,7 @@ export type VetBriefDocument = {
   questionsForVeterinarian: string[];
   missingInformation: string[];
   historyCoverage?: string[];
-  reviewWarnings?: Array<"duplicate_details">;
+  reviewWarnings?: Array<typeof VET_BRIEF_REVIEW_WARNINGS[number]>;
   ownerNotes: string;
   excludedSections: VetBriefSectionId[];
   includePetPhoto: boolean;

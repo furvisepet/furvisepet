@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { prepareReviewedVetBrief, vetBriefReviewChecks } from '../app/lib/vet-brief/review.ts';
+import { prepareReviewedVetBrief, vetBriefReviewChecks, vetBriefBlockingReviewChecks } from '../app/lib/vet-brief/review.ts';
 import { parseVetBriefPublicationReview } from '../app/lib/vet-brief/publication-review.ts';
 import { parseVetBriefDocument } from '../app/lib/vet-brief/schema.ts';
 import { vetBriefText } from '../app/lib/vet-brief/report.ts';
@@ -21,15 +21,39 @@ test('only duplication remaining after bounded repair becomes a persistent editi
   assert.deepEqual(parseVetBriefDocument(JSON.parse(JSON.stringify(result.value.document))).reviewWarnings, ['duplicate_details']);
 });
 
-test('every non-duplication failure remains blocking even alongside a cosmetic failure', async () => {
-  for (const key of vetBriefReviewChecks.filter(key => key !== 'noDuplication')) {
+test('every substantive failure remains blocking even alongside presentation failures', async () => {
+  for (const key of vetBriefBlockingReviewChecks) {
     await assert.rejects(prepareReviewedVetBrief({
       generate: async () => ({ value: { document: structuredClone(original) } }),
       review: async () => ({ ...duplicate, [key]: false }),
     }), { name: 'FeatureValidationError' }, key);
   }
-  for (const verdict of [null, { ...duplicate, factualIssueCodes: undefined }, { ...duplicate, factualIssueCodes: ['source_scope:history'] }]) {
+  for (const verdict of [null, { ...duplicate, questionsUseful: undefined }, { ...duplicate, factualIssueCodes: undefined }, { ...duplicate, factualIssueCodes: ['source_scope:history'] }]) {
     await assert.rejects(prepareReviewedVetBrief({ generate: async () => ({ value: { document: structuredClone(original) } }), review: async () => verdict }), { name: 'FeatureValidationError' });
+  }
+});
+
+test('question usefulness and focus become editing advice only after repair, with separate telemetry', async () => {
+  const advisory = ['noDuplication', 'questionsUseful', 'visitFocused'];
+  const codes = ['duplicate_details', 'question_usefulness', 'visit_focus'];
+  for (let mask = 1; mask < 8; mask++) {
+    let generations = 0;
+    const rejected = [], warned = [];
+    const verdict = { ...pass, repairSections: ['overview', 'questions', 'history'], repairInstructions: 'Tailor questions, trim incidental routine prose and remove repetition without removing material facts.' };
+    advisory.forEach((key, index) => { if (mask & (1 << index)) verdict[key] = false; });
+    const result = await prepareReviewedVetBrief({
+      generate: async () => { generations++; return { value: { document: structuredClone(original) } }; },
+      review: async () => verdict,
+      onRejected: checks => rejected.push(checks),
+      onWarning: warnings => warned.push(warnings),
+    });
+    const expected = codes.filter((_, index) => mask & (1 << index));
+    assert.equal(generations, 2);
+    assert.equal(rejected.length, 1);
+    assert.deepEqual(warned, [expected]);
+    assert.deepEqual(result.value.document.reviewWarnings, expected);
+    assert.deepEqual(parseVetBriefDocument(JSON.parse(JSON.stringify(result.value.document))).reviewWarnings, expected);
+    assert.equal(vetBriefText(result.value.document), vetBriefText(original));
   }
 });
 

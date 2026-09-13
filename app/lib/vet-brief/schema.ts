@@ -1,6 +1,7 @@
 import {
   VET_BRIEF_DISCLAIMER,
   VET_BRIEF_DOCUMENT_VERSION,
+  VET_BRIEF_REVIEW_WARNINGS,
   type VetBriefDatedItem,
   type VetBriefDocument,
   type VetBriefHistoryItem,
@@ -49,7 +50,7 @@ export function parseVetBriefDocument(value: unknown): VetBriefDocument | null {
 
   const historyCoverage = draft.historyCoverage === undefined ? undefined : parseStrings(draft.historyCoverage);
   if (historyCoverage === null) return null;
-  if (draft.reviewWarnings !== undefined && (!Array.isArray(draft.reviewWarnings) || draft.reviewWarnings.some(code => code !== "duplicate_details"))) return null;
+  if (draft.reviewWarnings !== undefined && (!Array.isArray(draft.reviewWarnings) || draft.reviewWarnings.some(code => !VET_BRIEF_REVIEW_WARNINGS.includes(code)))) return null;
   const photoUrl = pet.photoUrl && isSafePrivatePhotoUrl(pet.photoUrl) ? pet.photoUrl : null;
   return {
     documentVersion: VET_BRIEF_DOCUMENT_VERSION,
