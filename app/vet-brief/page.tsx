@@ -15,7 +15,8 @@ import { trackAskEvent } from "../lib/ask-analytics";
 import { useRequireConfirmedSupabaseAuth } from "../lib/auth-session";
 import { getBrowserSupabase } from "../lib/supabase";
 import { vetBriefSessionToken } from "../lib/vet-brief/session";
-import { getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
+import { isTerminalVetBriefFailure } from "../lib/vet-brief/request";
+import { clearClientMutationKey, getOrCreateClientMutationKey, idempotentClientFetch } from "../lib/security/idempotency/client";
 import { getVetBriefFilename, parseVetBriefDocument } from "../lib/vet-brief/schema";
 import type { VetBriefDatedItem, VetBriefDocument, VetBriefHistoryItem, VetBriefRecord, VetBriefSectionId } from "../lib/vet-brief/types";
 import { readVetBriefClientDraft, removeVetBriefClientDraft, saveVetBriefClientDraft } from "../lib/vet-brief/client-drafts";
@@ -306,6 +307,7 @@ async function authenticatedJson(url: string, init: RequestInit = {}, mutationSc
     ? await fetch(url, { ...init, headers })
     : await idempotentClientFetch(url, { ...init, headers }, mutationScope || `vet-brief:${method}:${url}`, explicitKey);
   const payload = await response.json().catch(() => null) as { error?: string; code?: string } | null;
+  if (url === "/api/vet-briefs/draft" && explicitKey && mutationScope && isTerminalVetBriefFailure(response.status, payload)) clearClientMutationKey(mutationScope, explicitKey);
   if (!response.ok) throw Object.assign(new Error(payload?.error || "The Vet Visit Brief is temporarily unavailable."), { code: payload?.code });
   return payload;
 }

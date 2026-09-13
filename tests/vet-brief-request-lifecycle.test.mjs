@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
-import { getOrCreateClientMutationKey, idempotentClientFetch } from "../app/lib/security/idempotency/client.ts";
+import { clearClientMutationKey, getOrCreateClientMutationKey, idempotentClientFetch } from "../app/lib/security/idempotency/client.ts";
+
+import { isTerminalVetBriefFailure } from "../app/lib/vet-brief/request.ts";
 
 // Execute the page's request functions with the real idempotency implementation.
 // Only authentication, storage and HTTP transport are replaced.
@@ -22,14 +24,15 @@ test("Vet Brief refreshes retire completed keys and preserve only identical pend
   } };
   const calls = [];
   let status = 200;
+  let terminal = false;
   globalThis.fetch = async (_url, init) => {
     const body = JSON.parse(init.body);
     assert.equal(new Headers(init.headers).get("Idempotency-Key"), body.requestId);
     calls.push(body);
-    return Response.json(status === 200 ? { document: {}, sourceEntryIds: [] } : { error: "Retry later" }, { status });
+    return Response.json(status === 200 ? { document: {}, sourceEntryIds: [] } : terminal ? { code: "VET_BRIEF_PREPARATION_FAILED", error: "Preparation ended" } : { error: "Retry later" }, { status });
   };
   try {
-    const context = vm.createContext({ getOrCreateClientMutationKey, idempotentClientFetch, getAuthToken: async () => "test-token" });
+    const context = vm.createContext({ clearClientMutationKey, isTerminalVetBriefFailure, getOrCreateClientMutationKey, idempotentClientFetch, getAuthToken: async () => "test-token" });
     vm.runInContext(compiled, context);
     const generate = (from = "2024-01-01", document) => context.fetchDraft("pet-a", from, "2024-12-31", "", document);
     await generate();
@@ -51,6 +54,13 @@ test("Vet Brief refreshes retire completed keys and preserve only identical pend
     assert.equal(calls.at(-1).requestId, pending, "original request remains recoverable");
     await generate();
     assert.notEqual(calls.at(-1).requestId, pending, "completed retry is retired");
+    status = 503; terminal = true;
+    const beforeFailure = calls.length;
+    await assert.rejects(generate(), /Preparation ended/);
+    assert.equal(calls.length, beforeFailure + 1, "terminal failure does not automatically charge for another attempt");
+    const failedKey = calls.at(-1).requestId;
+    await assert.rejects(generate(), /Preparation ended/);
+    assert.notEqual(calls.at(-1).requestId, failedKey, "next explicit attempt escapes the completed failure");
   } finally {
     globalThis.fetch = originalFetch;
     if (originalWindow === undefined) delete globalThis.window;
@@ -117,7 +127,7 @@ test("a server-confirmed released attempt rotates its key once without retrying 
     return Response.json({ document: {}, sourceEntryIds: [] });
   };
   try {
-    const context = vm.createContext({ getOrCreateClientMutationKey, idempotentClientFetch, getAuthToken: async () => 'test-token' });
+    const context = vm.createContext({ clearClientMutationKey, isTerminalVetBriefFailure, getOrCreateClientMutationKey, idempotentClientFetch, getAuthToken: async () => 'test-token' });
     vm.runInContext(compiled, context);
     await context.fetchDraft('pet-a', '2024-01-01', '2024-12-31', '');
     assert.equal(calls.length, 2);

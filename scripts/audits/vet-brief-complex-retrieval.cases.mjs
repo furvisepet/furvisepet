@@ -9,7 +9,7 @@ const topics=[{label:'Vaccination',terms:['vaccin','reaction']},{label:'Labs',te
 const rows=[care('old-vaccine','milo','2001-02-03','vet_visit','Vaccination record; owner reported a reaction the following day.'),care('middle-lab','milo','2014-04-09','vet_visit','Blood result: creatinine 1.2 mg/dL; original reference interval missing.'),care('recent-med','milo','2026-09-03','medication','Prednisone taper starts tomorrow; last dose has not yet occurred.'),care('foreign','bruno','2001-02-03','medication','Prednisone 90 mg belongs to Bruno.'),...Array.from({length:5000},(_,i)=>care('routine-'+i,'milo','2026-08-01','general','Routine bedding washed.'))];
 async function run(options={}){
  const db=database(rows,options);
- const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2026-06-01',to:'2026-09-04'},currentMessage:'Prepare for vaccinations and discuss historical blood results and the taper.'});
+ const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2026-06-01',to:'2026-09-04'},currentMessage:options.message || 'Prepare for vaccinations and discuss historical blood results and the taper.'});
  const retrieved=await retrieveAskHistory({...context,...(options.historyAccess?{historyAccess:options.historyAccess}:{})},db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:topics.flatMap(t=>t.terms),interpretation:'lexical'},termGroups:topics.map(t=>t.terms),periodFrom:'2026-06-01T00:00:00Z'});
  return {context,retrieved,db,bundle:vetBriefEvidence(retrieved,{focus:'Visit',topics})};
 }
@@ -66,4 +66,17 @@ test('an explicit middle-history month survives broad endpoint context and earli
  assert.ok(result.askHistory.coverage.queryCount<=20);
  assert.ok(result.askHistory.coverage.candidateIds.length<=64);
  assert.ok(result.askHistory.entries.length<=32);
+});
+
+
+test('tomorrow appointment retains historical RPC bounds and does not request future records',async t=>{
+ clock(t); const result=await run({message:'For tomorrow’s appointment, compare the historical vaccination reaction and prednisone course.'});
+ const queries=result.db.queries.filter(q=>q.table==='read_ask_history_candidates');
+ assert.ok(queries.length);
+ for(const query of queries){
+  assert.ok(query.args.p_from);
+  assert.ok(query.args.p_to);
+  assert.ok(Date.parse(query.args.p_to)<=Date.now()+1);
+ }
+ for(const id of ['old-vaccine','recent-med']) assert.ok(result.bundle.allowedIds.includes(id));
 });
