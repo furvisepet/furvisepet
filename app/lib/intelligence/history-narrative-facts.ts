@@ -1,15 +1,35 @@
 import {compoundUnit, units} from "./history-calculation.ts";
 import { isStructuredHistoryText } from "../furvise-output.ts";
 type Source = { text: string; occurredAt?: string | null; petId?: string };
+const monthPattern = "Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?";
 const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 const words: Record<string, number> = {one:1,single:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
-function dates(text: string): string[] {
-  const found: string[] = [];
-  for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) found.push(`${match[1]}:${Number(match[2])}-${Number(match[3])}`);
-  for (const match of text.matchAll(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/gi)) {
-    found.push(`${match[3] ? match[3] + ":" : ""}${months.indexOf(match[1].slice(0,3).toLowerCase())+1}-${Number(match[2])}`);
+type CalendarToken = {start: number; end: number; anchor: string};
+function calendarTokens(text: string): CalendarToken[] {
+  const found: CalendarToken[] = [];
+  for (const match of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) found.push({start:match.index!,end:match.index!+match[0].length,anchor:`${match[1]}:${Number(match[2])}-${Number(match[3])}`});
+  // Recognize the date before looking for month-first dates. Otherwise
+  // "3. August 31 g" invents August 31 and erases the actual 31 g measurement.
+  const dayFirst = new RegExp("(?<![\\p{L}\\p{N}])(\\d{1,2})(st|nd|rd|th|\\.)?\\s+("+monthPattern+")\\.?(?:\\s+(\\d{4}))?(?![\\p{L}\\p{N}])", "giu");
+  for (const match of text.matchAll(dayFirst)) {
+    if (found.some(token => match.index! >= token.start && match.index! < token.end)) continue;
+    if (match[3] === "may" && !match[2] && !match[4] && !/\b(?:on|dated)\s+$/i.test(text.slice(0,match.index))) continue;
+    found.push({start:match.index!,end:match.index!+match[0].length,anchor:`${match[4] ? match[4]+":" : ""}${months.indexOf(match[3].slice(0,3).toLowerCase())+1}-${Number(match[1])}`});
   }
-  return found;
+  const monthFirst = new RegExp("\\b("+monthPattern+")\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b(?![.,]\\d)", "gi");
+  for (const match of text.matchAll(monthFirst)) {
+    if (found.some(token => match.index! >= token.start && match.index! < token.end)) continue;
+    // A month followed directly by a measured quantity is not a day label.
+    const nextWord = /^\s+([a-z]+)\b/i.exec(text.slice(match.index!+match[0].length))?.[1]?.toLowerCase();
+    if (!match[3] && nextWord && units[nextWord]) continue;
+    found.push({start:match.index!,end:match.index!+match[0].length,anchor:`${match[3] ? match[3]+":" : ""}${months.indexOf(match[1].slice(0,3).toLowerCase())+1}-${Number(match[2])}`});
+  }
+  return found.sort((a,b)=>a.start-b.start);
+}
+function dates(text: string): string[] { return calendarTokens(text).map(token=>token.anchor); }
+function withoutCalendarDates(text: string) {
+  for (const token of calendarTokens(text).sort((a,b)=>b.start-a.start)) text=text.slice(0,token.start)+" "+text.slice(token.end);
+  return text;
 }
 function quantities(text: string): string[] {
   // Date tokens cannot also be quantities: "April 17 accident-free update"
@@ -21,9 +41,8 @@ function quantities(text: string): string[] {
   const numericText = text.replaceAll("−", "-")
     .replace(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d.,])/g, value => value.replaceAll(",", ""))
     .replace(/(?<![\d.,])([+-]?\d+),(\d{1,2}|\d{4,})(?![\d.,])/g, "$1.$2");
-  const prose = numericText.replace(/\b\d{4}-\d{2}-\d{2}\b/g, " ")
-    .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{4}\b/gi, " ")
-    .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?\b/gi, " ");
+  const prose = withoutCalendarDates(numericText)
+    .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{4}\b/gi, " ");
   const rates: string[] = [];
   const scalarProse = prose.replace(/\b(calendar|elapsed)[ -]+(days?)\b/gi, "$2").replace(/(?<![\p{L}\p{N}_.,+-])([+-]?\d+(?:\.\d+)?)\s+([a-z]+\s*\/\s*[a-z]+)\b/giu, (literal, value, unit) => {
     const rate = compoundUnit(unit);
