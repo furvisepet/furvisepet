@@ -93,3 +93,32 @@ test('six topics plus six date anchors cannot round every query allocation down 
  assert.ok(result.askHistory.coverage.queryCount<=20);
  assert.ok(result.askHistory.coverage.candidateIds.length<=64);
 });
+
+for(const years of [5,10,20,100]) test(`${years}-year evidence survives 100000 newer records with fixed retrieval bounds`,async t=>{
+ clock(t);
+ const year=2026-years;
+ const old=care('decisive-old','milo',`${year}-02-03`,'vet_visit','Vaccination reaction: swelling resolved; no breathing difficulty.');
+ const mid=care('decisive-middle','milo',`${Math.floor((year+2026)/2)}-04-09`,'vet_visit','Creatinine 1.2 mg/dL; reference range 0.5 to 1.6 mg/dL.');
+ const recent=care('decisive-recent','milo','2026-09-03','medication','Prednisone prescription; administration not confirmed.');
+ const noise=Array.from({length:100000},(_,i)=>care('bulk-'+i,'milo','2026-08-01','general','Routine household cleaning.'));
+ const db=database([old,mid,recent,care('foreign-risk','bruno',`${year}-02-03`,'vet_visit','Vaccination reaction belonging only to Bruno.'),...noise]);
+ const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:`${year}-01-01`,to:'2026-09-04'},currentMessage:`Review ${years} years of vaccination reactions, creatinine and prednisone.`});
+ const result=await retrieveAskHistory(context,db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:['vaccination','creatinine','prednisone'],interpretation:'lexical'},termGroups:[['vaccination'],['creatinine'],['prednisone']],periodFrom:'2026-06-01T00:00:00Z'});
+ const bundle=vetBriefEvidence(result,{focus:'Visit',topics});
+ for(const id of [old.id,mid.id,recent.id])assert.ok(bundle.allowedIds.includes(id),id);
+ assert.ok(!bundle.allowedIds.includes('foreign-risk'));
+ assert.ok(result.askHistory.coverage.queryCount<=20);assert.ok(result.askHistory.coverage.candidateIds.length<=64);assert.ok(bundle.evidence.records.length<=32);
+ assert.ok(JSON.stringify(bundle.evidence.records).length<25000);
+ t.diagnostic(`years=${years}, source rows=100004, history queries=${result.askHistory.coverage.queryCount}, retained=${bundle.evidence.records.length}`);
+});
+test('a late authoritative correction to decades-old evidence replaces the obsolete statement',async t=>{
+ clock(t);
+ const original=care('old-correctable','milo','2001-02-03','vet_visit','Vaccination caused severe ongoing swelling.');
+ const claim={id:'old-claim',user_id:ownerId,subject_type:'pet',subject_id:'milo',claim_kind:'event',operation_type:'assert',concept_key:'vaccination',canonical_concept_key:'vaccination',concept_resolution_status:'canonical',persistence_destination:'history',knowledge_status:'effective',occurred_at:original.occurred_at,recorded_at:original.created_at,provenance_classification:'imported_legacy',structured_value:{title:null,note:original.note,severity:null}};
+ const corrected={...claim,id:'new-claim',operation_type:'correct',recorded_at:'2026-08-20T12:00:00Z',structured_value:{title:null,note:'Vaccination swelling resolved the same evening; no breathing difficulty.',severity:null}};
+ const db=database([original],{graph:{claims:[claim,corrected],relations:[{id:'correction-edge',user_id:ownerId,from_claim_id:corrected.id,to_claim_id:claim.id,relation_type:'corrects'}],lineage:[{user_id:ownerId,claim_id:claim.id,legacy_row_id:original.id,legacy_table:'pet_care_entries',claim_role:'primary'}],sources:[original]}});
+ const context=await buildFurviseContext({supabase:db,userId:ownerId,petId:'milo',feature:'vet_brief',dateRange:{from:'2001-01-01',to:'2026-09-04'},currentMessage:'Review vaccination reaction history.'});
+ const result=await retrieveAskHistory(context,db,['milo'],{plan:{from:null,to:'2026-09-05T00:00:00Z',terms:['vaccination'],interpretation:'lexical'},termGroups:[['vaccination']]});
+ const bundle=vetBriefEvidence(result,{focus:'Visit',topics});const text=JSON.stringify(bundle.evidence);
+ assert.ok(!text.includes('severe ongoing swelling'));assert.ok(text.includes('resolved the same evening'));assert.ok(text.includes('no breathing difficulty'));
+});

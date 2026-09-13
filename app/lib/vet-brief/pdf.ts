@@ -29,6 +29,17 @@ export class UnsupportedBriefPdfTextError extends Error {
 }
 
 export async function generateVetBriefPdf(document: VetBriefDocument, options: { pageSize?: "letter" | "a4" } = {}) {
+  const normal = await renderVetBriefPdf(document, options, false);
+  // Try smaller whitespace, never smaller body type or omitted facts, only when
+  // a short trailing page would otherwise be published.
+  if (normal.pdf.getPageCount() > 1 && normal.lastContentY > normal.pageHeight * 0.65) {
+    const compact = await renderVetBriefPdf(document, options, true);
+    if (compact.pdf.getPageCount() < normal.pdf.getPageCount()) return compact.pdf.save();
+  }
+  return normal.pdf.save();
+}
+
+async function renderVetBriefPdf(document: VetBriefDocument, options: { pageSize?: "letter" | "a4" }, compact: boolean) {
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
   const [regularData, boldData] = await fontData;
@@ -36,7 +47,7 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
   const bold = await pdf.embedFont(boldData, { subset: false });
   const logo = await pdf.embedPng(await readFile(join(process.cwd(), "app/lib/vet-brief/fonts/brand-print.png")));
   const dimensions = options.pageSize === "a4" ? A4 : LETTER;
-  const state = { pdf, logo, petName: document.pet.name, page: pdf.addPage([dimensions.width, dimensions.height]), y: dimensions.height - MARGIN, regular, bold, pageWidth: dimensions.width, pageHeight: dimensions.height, contentWidth: dimensions.width - (MARGIN * 2) };
+  const state = { pdf, compact, logo, petName: document.pet.name, page: pdf.addPage([dimensions.width, dimensions.height]), y: dimensions.height - MARGIN, regular, bold, pageWidth: dimensions.width, pageHeight: dimensions.height, contentWidth: dimensions.width - (MARGIN * 2) };
 
   const logoHeight = 128 * logo.height / logo.width;
   state.page.drawImage(logo, { x: MARGIN, y: state.y - logoHeight, width: 128, height: logoHeight });
@@ -47,7 +58,7 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
     font: regular,
     size: 9,
     color: PDF_THEME.muted,
-    spacingAfter: 16,
+    spacingAfter: compact ? 8 : 16,
   });
 
   drawRule(state);
@@ -79,10 +90,11 @@ export async function generateVetBriefPdf(document: VetBriefDocument, options: {
   pdf.setTitle(document.title);
   pdf.setSubject("Owner-prepared pet care summary");
   pdf.setCreator("Furvise");
-  return pdf.save();
+  return { pdf, lastContentY: state.y, pageHeight: state.pageHeight };
 }
 
 type PdfState = {
+  compact: boolean;
   pdf: PDFDocument;
   logo: PDFImage;
   petName: string;
@@ -124,13 +136,13 @@ function drawText(
     state.page.drawText(line, { x: MARGIN, y: state.y, font: options.font, size: options.size, color: options.color });
     state.y -= lineHeight;
   }
-  state.y -= options.spacingAfter;
+  state.y -= state.compact ? Math.min(options.spacingAfter, 3) : options.spacingAfter;
 }
 
 function drawRule(state: PdfState) {
   ensureSpace(state, 12);
   state.page.drawLine({ start: { x: MARGIN, y: state.y }, end: { x: state.pageWidth - MARGIN, y: state.y }, thickness: 0.7, color: PDF_THEME.border });
-  state.y -= 14;
+  state.y -= state.compact ? 9 : 14;
 }
 
 function ensureSpace(state: PdfState, required: number) {

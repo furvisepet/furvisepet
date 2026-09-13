@@ -1,3 +1,4 @@
+import {vetBriefAuthenticatedFetch} from '../app/lib/vet-brief/session.ts';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -10,7 +11,7 @@ import { isTerminalVetBriefFailure } from "../app/lib/vet-brief/request.ts";
 // Execute the page's request functions with the real idempotency implementation.
 // Only authentication, storage and HTTP transport are replaced.
 const page = readFileSync(new URL("../app/vet-brief/page.tsx", import.meta.url), "utf8");
-const requestFunctions = page.slice(page.indexOf("async function fetchDraft("), page.indexOf("async function getAuthToken("));
+const requestFunctions = page.slice(page.indexOf("async function fetchDraft("), page.indexOf("async function fetchPdfFile("));
 const compiled = ts.transpileModule(requestFunctions, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 
 test("Vet Brief refreshes retire completed keys and preserve only identical pending retries", async () => {
@@ -32,7 +33,7 @@ test("Vet Brief refreshes retire completed keys and preserve only identical pend
     return Response.json(status === 200 ? { document: {}, sourceEntryIds: [] } : terminal ? { code: "VET_BRIEF_PREPARATION_FAILED", error: "Preparation ended" } : { error: "Retry later" }, { status });
   };
   try {
-    const context = vm.createContext({ clearClientMutationKey, isTerminalVetBriefFailure, getOrCreateClientMutationKey, idempotentClientFetch, getAuthToken: async () => "test-token" });
+    const context = vm.createContext({ clearClientMutationKey, isTerminalVetBriefFailure, getOrCreateClientMutationKey, idempotentClientFetch, vetBriefAuthenticatedFetch, Headers, getBrowserSupabase: () => ({ auth: { getSession: async () => ({ data: { session: {access_token:"test-token",expires_at:Date.now()/1000+3600,user:{id:"owner"}}},error:null}) } }) });
     vm.runInContext(compiled, context);
     const generate = (from = "2024-01-01", document) => context.fetchDraft("pet-a", from, "2024-12-31", "", document);
     await generate();
@@ -127,7 +128,7 @@ test("a server-confirmed released attempt rotates its key once without retrying 
     return Response.json({ document: {}, sourceEntryIds: [] });
   };
   try {
-    const context = vm.createContext({ clearClientMutationKey, isTerminalVetBriefFailure, getOrCreateClientMutationKey, idempotentClientFetch, getAuthToken: async () => 'test-token' });
+    const context = vm.createContext({ clearClientMutationKey, isTerminalVetBriefFailure, getOrCreateClientMutationKey, idempotentClientFetch, vetBriefAuthenticatedFetch, Headers, getBrowserSupabase: () => ({ auth: { getSession: async () => ({ data: { session: {access_token:"test-token",expires_at:Date.now()/1000+3600,user:{id:"owner"}}},error:null}) } }) });
     vm.runInContext(compiled, context);
     await context.fetchDraft('pet-a', '2024-01-01', '2024-12-31', '');
     assert.equal(calls.length, 2);

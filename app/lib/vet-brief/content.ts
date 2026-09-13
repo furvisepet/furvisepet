@@ -10,8 +10,9 @@ export const vetBriefContentSchema = {
   type: 'object', additionalProperties: false, required: ['content', 'sourceRecordIds', 'confidence'],
   properties: {
     content: { type: 'object', additionalProperties: false, required: [...vetBriefContentFields], properties: {
-      reasonForVisit: text, visitSummary: text,
-      events: { type: 'array', maxItems: 40, items: { type: 'object', additionalProperties: false, required: ['kind', 'date', 'category', 'text'], properties: {
+      reasonForVisit: { type: 'string', maxLength: 300 }, visitSummary: { type: 'string', maxLength: 600 },
+      events: { type: 'array', maxItems: 40, items: { type: 'object', additionalProperties: false, required: ['kind', 'date', 'category', 'text', 'relevance', 'rationale'], properties: {
+        relevance: { type: 'string', enum: ['appointment_concern', 'treatment_or_risk', 'requested_comparison', 'baseline'] }, rationale: { type: 'string', minLength: 1, maxLength: 240 },
         kind: { type: 'string', enum: ['medication', 'history'] }, date: { type: 'string', pattern: '^(\\d{4}-\\d{2}-\\d{2}|Date unknown)$' }, category: { type: 'string', maxLength: 80 }, text,
       } } },
       questionsForVeterinarian: strings(6), missingInformation: strings(16),
@@ -23,7 +24,7 @@ export const vetBriefContentSchema = {
 
 /** One event list, one server-selected placement per event. The model never
  * copies events into a second parallel document representation. */
-export function parseVetBriefContent(value: unknown, baseline: VetBriefDocument, allowedIds: string[]): IntelligenceVetBrief | null {
+export function parseVetBriefContent(value: unknown, baseline: VetBriefDocument, allowedIds: string[], requireRelevance = false): IntelligenceVetBrief | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as { content?: Record<string, unknown>; sourceRecordIds?: unknown; confidence?: unknown };
   const content = raw.content;
@@ -31,14 +32,19 @@ export function parseVetBriefContent(value: unknown, baseline: VetBriefDocument,
   if (Object.keys(content).some(key => !(vetBriefContentFields as readonly string[]).includes(key)) || vetBriefContentFields.some(key => !(key in content))) return null;
   const ids = raw.sourceRecordIds;
   if (!Array.isArray(ids) || ids.length > 300 || ids.some(id => typeof id !== 'string' || !allowedIds.includes(id)) || !['low', 'medium', 'high'].includes(String(raw.confidence))) return null;
-  if (typeof content.reasonForVisit !== 'string' || content.reasonForVisit.length > 1200 || typeof content.visitSummary !== 'string' || content.visitSummary.length > 1200 || !Array.isArray(content.events) || content.events.length > 40) return null;
+  if (typeof content.reasonForVisit !== 'string' || content.reasonForVisit.length > 300 || typeof content.visitSummary !== 'string' || content.visitSummary.length > 600 || !Array.isArray(content.events) || content.events.length > 40) return null;
   for (const [key, limit] of [['questionsForVeterinarian', 6], ['missingInformation', 16]] as const) if (!Array.isArray(content[key]) || content[key].length > limit || content[key].some(item => typeof item !== 'string' || item.length > 1200)) return null;
   const assembled: VetBriefDocument = { ...baseline, reasonForVisit: content.reasonForVisit, visitSummary: content.visitSummary,
     ownerReportedChanges: [], concernTimeline: [], foodChanges: [], productsUsed: [], medicationsSupplements: [], relevantCareHistory: [], reportedPatterns: [],
     questionsForVeterinarian: content.questionsForVeterinarian as string[], missingInformation: content.missingInformation as string[],
   };
+  let baselineCount = 0;
   for (const event of content.events) {
     if (!event || typeof event !== 'object' || !['medication', 'history'].includes(event.kind) || (event.date !== 'Date unknown' && !validBriefDay(event.date)) || typeof event.text !== 'string' || event.text.length > 1200 || typeof event.category !== 'string' || event.category.length > 80) return null;
+    if (requireRelevance) {
+      if (!['appointment_concern', 'treatment_or_risk', 'requested_comparison', 'baseline'].includes(event.relevance) || typeof event.rationale !== 'string' || !event.rationale.trim() || event.rationale.length > 240) return null;
+      if (event.relevance === 'baseline' && ++baselineCount > 1) return null;
+    }
     const item = { date: event.date, text: event.text };
     if (event.kind === 'medication') assembled.medicationsSupplements.push(item);
     else assembled.relevantCareHistory.push({ ...item, category: event.category });
