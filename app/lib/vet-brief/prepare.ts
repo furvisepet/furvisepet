@@ -7,7 +7,7 @@ import { getIntelligenceFeatureMode } from '../intelligence/feature-modes.ts';
 import { retrieveAskHistory } from '../intelligence/history-retrieval.ts';
 import { logIntelligenceEvent } from '../intelligence/logging';
 import type { FurviseLiveContext } from '../intelligence/types';
-import { parseVetBriefAppointmentPlan, vetBriefAppointmentPlanInstructions, vetBriefAppointmentPlanSchema } from './appointment-plan.ts';
+import { parseVetBriefAppointmentPlan, vetBriefSearchVocabulary, vetBriefAppointmentPlanInstructions, vetBriefAppointmentPlanSchema } from './appointment-plan.ts';
 import { parseVetBriefContent, vetBriefContentSchema } from './content.ts';
 import { vetBriefEvidence } from './evidence.ts';
 import { prepareReviewedVetBrief, vetBriefReviewInstructions } from './review.ts';
@@ -20,7 +20,7 @@ export async function prepareVetBrief({ context, supabase, baseline, retrospecti
 }) {
   let structureRetried = false;
   const generatePlan = () => generateStructuredFeatureResponse({
-    input: { reason: context.currentMessage, selectedDates: baseline.dateRange, asOf: context.currentTimestamp, species: context.pet.species },
+    input: { reason: context.currentMessage, selectedDates: baseline.dateRange, asOf: context.currentTimestamp, species: context.pet.species, searchVocabulary: vetBriefSearchVocabulary(context.careEntries, context.pet.id) },
     instructions: vetBriefAppointmentPlanInstructions, schema: vetBriefAppointmentPlanSchema, schemaName: 'vet_brief_evidence_plan',
     maxOutputTokens: 6144, reasoningEffort: 'low', timeoutMs: 25000,
     parse: value => parseVetBriefAppointmentPlan(value, context.currentTimestamp),

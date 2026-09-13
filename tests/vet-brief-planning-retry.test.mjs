@@ -17,7 +17,7 @@ function pipeline({planFailures=0,contentFailures=0,reviewFailures=0,historyUnav
   '../intelligence/feature-modes.ts':{getIntelligenceFeatureMode:()=>({promptInstructions:[]})},
   '../intelligence/history-retrieval.ts':{retrieveAskHistory:async c=>({...c,askHistory:{entries:[],coverage:{retrieval:'unknown',corrections:historyUnavailable?'unavailable':'unknown',reasons:[]}}})},
   '../intelligence/logging':{logIntelligenceEvent:()=>{}},
-  './appointment-plan.ts':{vetBriefAppointmentPlanInstructions:'',vetBriefAppointmentPlanSchema:{}},
+  './appointment-plan.ts':{vetBriefSearchVocabulary:()=>[],vetBriefAppointmentPlanInstructions:'',vetBriefAppointmentPlanSchema:{}},
   './content.ts':{vetBriefContentSchema:{}},
   './evidence.ts':{vetBriefEvidence:()=>({evidence:{records:[]},allowedIds:[],warnings:[]})},
   './review.ts':{prepareReviewedVetBrief,vetBriefReviewInstructions:''},
