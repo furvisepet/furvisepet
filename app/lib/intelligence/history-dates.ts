@@ -1,23 +1,50 @@
 
 
 /** Explicit calendar labels constrain retrieval; they never establish an event. */
+const literalMonthNumbers = new Map<string, number>();
+for (const locale of ["en", "es", "fr", "de", "ar"]) {
+  for (let month = 0; month < 12; month++) {
+    for (const style of ["long", "short"] as const) {
+      const label = new Intl.DateTimeFormat(locale, { month: style, timeZone: "UTC" })
+        .format(new Date(Date.UTC(2024, month, 1))).toLowerCase().replace(/\.$/, "");
+      literalMonthNumbers.set(label, month + 1);
+    }
+  }
+}
+// Retain the short English labels accepted by the original parser.
+for (const [month, name] of ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].entries()) literalMonthNumbers.set(name, month + 1);
+const literalMonthPattern = [...literalMonthNumbers.keys()].sort((a, b) => b.length - a.length)
+  .map(label => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+
 export function explicitHistoryDays(question: string, year: number, maximumDays = 2): string[] {
- const months=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
- const matches=[...question.matchAll(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:,?\s+(\d{4}))?\b/gi)];
- // A shared month in "September 13 and 14 entries" is still two explicit days.
- const coordinated=matches.flatMap(m=>{
-  const tail=question.slice(m.index!+m[0].length);
-  const next=/^\s+and\s+(\d{1,2})(?:,?\s+(\d{4}))?(?=\s+(?:notes?|entries|reports?)\b|\s*[?.!,]|\s*$)/i.exec(tail);
-  if(next?.[2] && !m[3])m[3]=next[2];
-  return next ? [[next[0],m[1],next[1],next[2]||m[3]]] : [];
- });
- const labels=[...matches,...coordinated];
- if(!Number.isInteger(year)||year<1900||year>2099||labels.length<1||!Number.isInteger(maximumDays)||maximumDays<1||maximumDays>8||labels.length>maximumDays) return [];
- // A single explicit year scopes coordinated named dates; conflicting years stay explicit.
- const years=[...new Set(labels.map(m=>m[3]).filter(Boolean))];
- const sharedYear=years.length===1?years[0]:year;
- const days=labels.map(m=>`${m[3]||sharedYear}-${String(months.indexOf(m[1].slice(0,3).toLowerCase())+1).padStart(2,'0')}-${m[2].padStart(2,'0')}`);
- return days.every(d=>Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d&&d>='1900-01-01'&&d<'2100-01-01') ? days : [];
+  if (!Number.isInteger(year) || year < 1900 || year > 2099 || !Number.isInteger(maximumDays) || maximumDays < 1 || maximumDays > 8) return [];
+  // Literal anchors only: ambiguous slash dates and translated interpretations
+  // remain the semantic planner's responsibility. These hints grant no scope.
+  const text = question.replace(/[٠-٩۰-۹]/g, digit => String(digit.charCodeAt(0) - (digit <= "٩" ? 0x660 : 0x6f0)));
+  const labels: Array<{ index: number; month: number; day: number; year?: number }> = [];
+  const monthFirst = new RegExp("(?<![\\p{L}\\p{N}])(?:و(?=[\\p{Script=Arabic}]))?(" + literalMonthPattern + ")\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?(?![\\p{L}\\p{N}])", "giu");
+  for (const match of text.matchAll(monthFirst)) {
+    const label = { index: match.index!, month: literalMonthNumbers.get(match[1].toLowerCase())!, day: Number(match[2]), year: match[3] ? Number(match[3]) : undefined };
+    const next = /^\s+and\s+(\d{1,2})(?:,?\s+(\d{4}))?(?=\s+(?:notes?|entries|reports?)\b|\s*[?.!,]|\s*$)/i.exec(text.slice(match.index! + match[0].length));
+    if (next?.[2] && !label.year) label.year = Number(next[2]);
+    labels.push(label);
+    if (next) labels.push({ ...label, index: match.index! + match[0].length, day: Number(next[1]), year: next[2] ? Number(next[2]) : label.year });
+  }
+  // Day-first international forms require a year to avoid interpreting a
+  // duration or an unrelated month mention as a dated record.
+  const dayFirst = new RegExp("(?<![\\p{N}])(\\d{1,2})(?:st|nd|rd|th|\\.)?\\s+(?:de\\s+)?(" + literalMonthPattern + ")\\.?\\s+(?:de\\s+)?(\\d{4})(?!\\d)", "giu");
+  for (const match of text.matchAll(dayFirst)) {
+    const label = { index: match.index!, day: Number(match[1]), month: literalMonthNumbers.get(match[2].toLowerCase())!, year: Number(match[3]) };
+    const prior = /(?<!\d)(\d{1,2})\s+(?:and|y|et|und|و)\s+(?:(?:el|del|le|den)\s+)?$/iu.exec(text.slice(0, match.index));
+    if (prior) labels.push({ ...label, index: match.index! - prior[0].length, day: Number(prior[1]) });
+    labels.push(label);
+  }
+  for (const match of text.matchAll(/(?<!\d)(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日/gu)) labels.push({ index: match.index!, year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) });
+  const years = [...new Set(labels.map(label => label.year).filter((value): value is number => value !== undefined))];
+  const sharedYear = years.length === 1 ? years[0] : year;
+  const days = [...new Set(labels.sort((a,b) => a.index - b.index).map(label => `${label.year ?? sharedYear}-${String(label.month).padStart(2,"0")}-${String(label.day).padStart(2,"0")}`))];
+  if (!days.length || days.length > maximumDays) return [];
+  return days.every(day => Number.isFinite(Date.parse(day)) && new Date(day).toISOString().slice(0,10) === day && day >= "1900-01-01" && day < "2100-01-01") ? days : [];
 }
 export function normalizeExplicitHistoryDates(p: Record<string,unknown>, question: string) {
  if(!['recall','comparison','status','overview'].includes(String(p.operation))||p.ordinal!==null) return;
@@ -72,11 +99,16 @@ export function explicitHistoryDayWindow(text: string): {from: string; to: strin
 /** Literal anchors are separate reads, not global bounds. A comparison or
  * open-ended request still needs the named month plus its other context. */
 export function explicitHistoryMonths(text: string): string[] {
-  const names = ["january","february","march","april","may","june","july","august","september","october","november","december"];
   const found: string[] = [];
-  const pattern = new RegExp("\\b(" + names.map(name => name.slice(0,3) + "(?:" + name.slice(3) + ")?").join("|") + ")\\.?\\s+(19\\d{2}|20\\d{2}|2100)\\b", "gi");
-  for (const match of text.matchAll(pattern)) found.push(match[2] + "-" + String(names.findIndex(name => name.startsWith(match[1].slice(0,3).toLowerCase())) + 1).padStart(2,"0"));
+  const pattern = new RegExp("(?<![\\p{L}\\p{N}])(?:و(?=[\\p{Script=Arabic}]))?(" + literalMonthPattern + ")\\.?\\s+(?:de\\s+)?(19\\d{2}|20\\d{2}|2100)(?!\\d)", "giu");
+  for (const match of text.matchAll(pattern)) {
+    // A day-first date already has its own exact-day query. Do not consume a
+    // second query on its incidental month/year substring.
+    if (/(?<!\d)\d{1,2}(?:st|nd|rd|th|\.)?\s+(?:de\s+)?$/iu.test(text.slice(0, match.index))) continue;
+    found.push(match[2] + "-" + String(literalMonthNumbers.get(match[1].toLowerCase())).padStart(2,"0"));
+  }
   for (const match of text.matchAll(/\b(19\d{2}|20\d{2}|2100)-(0[1-9]|1[0-2])(?!-\d{2})\b/g)) found.push(match[0]);
+  for (const match of text.matchAll(/(?<!\d)(19\d{2}|20\d{2}|2100)年\s*(1[0-2]|0?[1-9])月(?!\s*\d{1,2}日)/gu)) found.push(match[1]+"-"+match[2].padStart(2,"0"));
   return [...new Set(found)].sort();
 }
 

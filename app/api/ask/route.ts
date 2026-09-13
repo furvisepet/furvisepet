@@ -2,7 +2,7 @@ import { eligibleAnswerSources } from "../../lib/intelligence/ask-evidence.ts";
 import { recoverTransientRead } from "../../lib/security/read-recovery.ts";
 import { assertGovernedAskExecutionPlan } from "../../lib/intelligence/run-intelligence.ts";
 import { OperationDeadline } from "../../lib/ai/execution-deadline.ts";
-import { ASK_OPERATION_TIMEOUT_MS } from "../../lib/ai/ask-execution-limits.ts";
+import { ASK_OPERATION_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../../lib/ai/ask-execution-limits.ts";
 import { createAskAdmissionSettlement } from "../../lib/ai/ask-admission-settlement.ts";
 import { resolveAskHistoryAccess } from "../../lib/intelligence/history-access.ts";
 import { persistPendingSuggestion } from "../../lib/intelligence/persist-pending-suggestion.ts";
@@ -230,8 +230,12 @@ async function executeAskRequest(request: Request, execution: AskRequestExecutio
   const aiCreditPayloadHash = hashAiCreditPayload("ask", aiCreditPayload);
   logAskStage("authentication succeeded", { requestId });
 
-  if (!question || question.length > 1200 || !requestId) {
+  if (!question || !requestId) {
     return askFailure("INVALID_MESSAGE", "Choose a pet and enter a message before asking Furvise.", 400, {}, "request_validation");
+  }
+
+  if (question.length > ASK_MAX_QUESTION_CHARACTERS) {
+    return askFailure("INVALID_MESSAGE", `Shorten your message to ${ASK_MAX_QUESTION_CHARACTERS.toLocaleString("en-US")} characters or fewer. Your text has not been submitted.`, 400, {}, "request_validation");
   }
 
   const currentLoss = classifyCurrentPetLoss(question);

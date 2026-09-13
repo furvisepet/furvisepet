@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { ASK_CLIENT_TIMEOUT_MS } from "../lib/ai/ask-execution-limits";
+import { ASK_CLIENT_TIMEOUT_MS, ASK_MAX_QUESTION_CHARACTERS } from "../lib/ai/ask-execution-limits";
 import { AskAnswerText } from "../components/ask-answer-text";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -389,6 +389,7 @@ function AskPageContent() {
   async function ask(promptValue: string, source: "composer" | "empty_state" | "response_suggestion", retry?: FailedAskRequest) {
     const prompt = promptValue.trim();
     if (!prompt || composerUnavailable || askRequestActiveRef.current) return;
+    if (prompt.length > ASK_MAX_QUESTION_CHARACTERS) return;
     dismissOnboardingEntry();
     const conversationIdAtSubmit = retry?.payload.conversationId || activeConversationId;
     const scope = retry?.scope || `ask:${selectedPet}:${conversationIdAtSubmit || "new"}`;
@@ -831,10 +832,13 @@ function Composer({ disabled, hasThread, inputRef, loading, onBlur, onChange, on
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
   }
   const placeholder = hasThread ? `Ask or tell Furvise more about ${petName}\u2026` : `Ask or tell Furvise anything about ${petName}\u2026`;
-  const canSend = Boolean(value.trim()) && !disabled;
+  const inputLength = value.trim().length;
+  const overLimit = inputLength > ASK_MAX_QUESTION_CHARACTERS;
+  const canSend = inputLength > 0 && !overLimit && !disabled;
   return <form className="rounded-2xl border border-[var(--line-strong)] bg-[var(--surface-primary)] p-3 shadow-[var(--shadow-surface-2)]" id="ask-composer" onSubmit={onSubmit}>
     <div className="mb-2 flex items-center justify-between gap-3 px-1"><span className="text-xs font-semibold text-[var(--pw-primary)]">{petName}</span><span className="hidden text-xs text-[var(--pw-subtle)] sm:inline">Enter to send · Shift + Enter for a new line</span></div>
-    <div className="flex items-end gap-2"><textarea aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onFocus={onFocus} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label="Send" className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">Send</PrimaryButton></div>
+    <div className="flex items-end gap-2"><textarea aria-describedby="ask-input-limit" aria-invalid={overLimit || undefined} aria-label={placeholder.replace("\u2026", "")} className="max-h-40 min-h-14 flex-1 resize-none rounded-lg bg-transparent px-2 py-3 text-base leading-6 text-[var(--pw-text)] outline-none placeholder:text-[var(--pw-placeholder)] focus-visible:ring-2 focus-visible:ring-[var(--pw-focus-ring)]" disabled={disabled} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onFocus={onFocus} onKeyDown={handleKeyDown} placeholder={placeholder} ref={inputRef} value={value} /><PrimaryButton aria-label="Send" className="mb-1 min-h-11 min-w-16 px-4" disabled={!canSend} loading={loading} type="submit">Send</PrimaryButton></div>
+    <p className="mt-2 px-1 text-xs text-[var(--pw-muted)]" id="ask-input-limit" role={overLimit ? "alert" : undefined}>{inputLength.toLocaleString("en-US")} / {ASK_MAX_QUESTION_CHARACTERS.toLocaleString("en-US")} characters{overLimit ? ". Shorten this message to send it. Your full draft is kept here." : ""}</p>
   </form>;
 }
 
