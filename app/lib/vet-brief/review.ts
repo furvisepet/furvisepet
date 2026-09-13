@@ -1,7 +1,23 @@
 import type { VetBriefDocument } from "./types.ts";
 
 export const vetBriefReviewChecks = ["factsSupported", "importantHistoryPreserved", "categoriesAccurate", "uncertaintyPreserved", "noDuplication", "questionsUseful", "visitFocused"] as const;
-type VetBriefReview = Record<typeof vetBriefReviewChecks[number], boolean> & { repairInstructions: string; factualIssueCodes?: string[] };
+export const vetBriefRepairSections = ['reason', 'overview', 'timeline', 'changes', 'patterns', 'food', 'products', 'medications', 'history', 'questions', 'gaps'] as const;
+type RepairSection = typeof vetBriefRepairSections[number];
+const repairFields: Record<RepairSection, keyof VetBriefDocument> = {
+  reason: 'reasonForVisit', overview: 'visitSummary', timeline: 'concernTimeline', changes: 'ownerReportedChanges',
+  patterns: 'reportedPatterns', food: 'foodChanges', products: 'productsUsed', medications: 'medicationsSupplements',
+  history: 'relevantCareHistory', questions: 'questionsForVeterinarian', gaps: 'missingInformation',
+};
+/** Unaffected sections remain byte-for-byte unchanged; the assembled result is independently reviewed again. */
+export function applyVetBriefSectionRepair(previous: VetBriefDocument, replacement: VetBriefDocument, sections: RepairSection[]) {
+  const result = { ...previous };
+  for (const section of sections) {
+    const field = repairFields[section];
+    Object.assign(result, { [field]: replacement[field] });
+  }
+  return result;
+}
+type VetBriefReview = Record<typeof vetBriefReviewChecks[number], boolean> & { repairInstructions: string; factualIssueCodes?: string[]; repairSections?: RepairSection[] };
 
 export const vetBriefReviewSchema = {
   type: "object", additionalProperties: false,
@@ -34,21 +50,27 @@ export function vetBriefReviewPassed(value: ReturnType<typeof parseVetBriefRevie
   return value !== null && vetBriefReviewChecks.every(key => value[key] === true);
 }
 
-export type VetBriefRepairFeedback = { document: VetBriefDocument; failedChecks: string[]; repairInstructions: string };
+export type VetBriefRepairFeedback = { document: VetBriefDocument; failedChecks: string[]; repairInstructions: string; repairSections?: RepairSection[] };
 
-export async function prepareReviewedVetBrief<T extends { value: { document: VetBriefDocument } }>({ generate, review, onRejected }: {
+export async function prepareReviewedVetBrief<T extends { value: { document: VetBriefDocument; sourceRecordIds?: string[] } }>({ generate, review, onRejected }: {
   generate: (feedback: VetBriefRepairFeedback | null) => Promise<T>;
   review: (document: VetBriefDocument) => Promise<ReturnType<typeof parseVetBriefReview>>;
   onRejected?: (failedChecks: string[], verdict: ReturnType<typeof parseVetBriefReview>) => void;
 }): Promise<T> {
   let feedback: VetBriefRepairFeedback | null = null;
+  let previousSourceIds: string[] = [];
   for (let attempt = 0; attempt < 2; attempt++) {
     const candidate = await generate(feedback);
+    if (feedback?.repairSections) {
+      candidate.value.document = applyVetBriefSectionRepair(feedback.document, candidate.value.document, feedback.repairSections);
+      if (candidate.value.sourceRecordIds) candidate.value.sourceRecordIds = [...new Set([...previousSourceIds, ...candidate.value.sourceRecordIds])];
+    }
     const verdict = await review(candidate.value.document);
     if (vetBriefReviewPassed(verdict)) return candidate;
     const failedChecks = vetBriefReviewChecks.filter(key => !verdict || verdict[key] !== true);
     onRejected?.(failedChecks, verdict);
-    feedback = { document: candidate.value.document, failedChecks, repairInstructions: verdict?.repairInstructions || "The review response was malformed. Check every criterion against the supplied evidence." };
+    previousSourceIds = candidate.value.sourceRecordIds || [];
+    feedback = { repairSections: verdict?.repairSections, document: candidate.value.document, failedChecks, repairInstructions: verdict?.repairInstructions || "The review response was malformed. Check every criterion against the supplied evidence." };
   }
   const error = new Error("Vet brief evidence review failed after one repair.");
   error.name = "FeatureValidationError";

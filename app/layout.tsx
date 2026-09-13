@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import { Barlow_Condensed } from "next/font/google";
 import { ActionVisualAudit } from "./components/action-visual-audit";
 import { AuthenticatedAppChrome } from "./components/authenticated-app-chrome";
@@ -13,6 +14,11 @@ import {
   canonicalUrl,
 } from "./lib/seo";
 import "./globals.css";
+
+const appSans = localFont({
+  src: [{ path: '../public/fonts/Inter-Regular.woff2', weight: '400', style: 'normal' }, { path: '../public/fonts/Inter-Bold.woff2', weight: '700', style: 'normal' }],
+  display: 'swap', variable: '--font-app-sans',
+});
 
 const marketingDisplay = Barlow_Condensed({
   display: "swap",
@@ -94,7 +100,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`h-full antialiased ${marketingDisplay.variable}`}
+      className={`h-full antialiased ${marketingDisplay.variable} ${appSans.variable}`}
       data-color-scheme="light"
       data-scroll-behavior="smooth"
     >
